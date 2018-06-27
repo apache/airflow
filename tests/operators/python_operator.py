@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,6 +19,7 @@
 
 from __future__ import print_function, unicode_literals
 
+import copy
 import datetime
 import unittest
 
@@ -89,6 +90,22 @@ class PythonOperatorTest(unittest.TestCase):
                 python_callable=not_callable,
                 task_id='python_operator',
                 dag=self.dag)
+
+    def test_python_operator_shallow_copy_attr(self):
+        not_callable = lambda x: x
+        original_task = PythonOperator(
+            python_callable=not_callable,
+            task_id='python_operator',
+            op_kwargs={'certain_attrs': ''},
+            dag=self.dag
+        )
+        new_task = copy.deepcopy(original_task)
+        # shallow copy op_kwargs
+        self.assertEquals(id(original_task.op_kwargs['certain_attrs']),
+                          id(new_task.op_kwargs['certain_attrs']))
+        # shallow copy python_callable
+        self.assertEquals(id(original_task.python_callable),
+                          id(new_task.python_callable))
 
 
 class BranchOperatorTest(unittest.TestCase):

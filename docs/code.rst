@@ -145,6 +145,8 @@ Operators
 .. autoclass:: airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
 .. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
@@ -161,6 +163,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineModelOperator
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator
+.. autoclass:: airflow.contrib.operators.mongo_to_s3.MongoToS3Operator
 .. autoclass:: airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
@@ -189,6 +192,8 @@ Sensors
 .. autoclass:: airflow.contrib.operators.aws_glue_job_operator.AWSGlueJobOperator
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
+.. autoclass:: airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor
+.. autoclass:: airflow.contrib.sensors.cassandra_table_sensor.CassandraTableSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
 .. autoclass:: airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor
 .. autoclass:: airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor
@@ -241,7 +246,9 @@ Variable                            Description
 ``{{ end_date }}``                  same as ``{{ ds }}``
 ``{{ latest_date }}``               same as ``{{ ds }}``
 ``{{ ti }}``                        same as ``{{ task_instance }}``
-``{{ params }}``                    a reference to the user-defined params dictionary
+``{{ params }}``                    a reference to the user-defined params dictionary which can be overridden by
+                                    the dictionary passed through ``trigger_dag -c`` if you enabled
+                                    ``dag_run_conf_overrides_params` in ``airflow.cfg``
 ``{{ var.value.my_var }}``          global defined variables represented as a dictionary
 ``{{ var.json.my_var.path }}``      global defined variables represented as a dictionary
                                     with deserialized JSON object, append the path to the
@@ -348,6 +355,8 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
+.. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
+.. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
 .. autoclass:: airflow.contrib.hooks.cloudant_hook.CloudantHook
 .. autoclass:: airflow.contrib.hooks.databricks_hook.DatabricksHook
@@ -359,6 +368,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.ftp_hook.FTPHook
 .. autoclass:: airflow.contrib.hooks.ftp_hook.FTPSHook
 .. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
+.. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
 .. autoclass:: airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook
 .. autoclass:: airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook
 .. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
@@ -366,6 +376,8 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
+.. autoclass:: airflow.contrib.hooks.mongo_hook.MongoHook
+.. autoclass:: airflow.contrib.hooks.pinot_hook.PinotDbApiHook
 .. autoclass:: airflow.contrib.hooks.qubole_hook.QuboleHook
 .. autoclass:: airflow.contrib.hooks.redis_hook.RedisHook
 .. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook

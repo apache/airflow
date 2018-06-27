@@ -17,24 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
 from airflow.utils.db import provide_session
-
-
-class PoolBadRequest(AirflowException):
-    status = 400
-
-
-class PoolNotFound(AirflowException):
-    status = 404
 
 
 @provide_session
 def get_pool(name, session=None):
     """Get pool by a given name."""
     if not (name and name.strip()):
-        raise PoolBadRequest("Pool name shouldn't be empty")
+        raise AirflowBadRequest("Pool name shouldn't be empty")
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:
@@ -53,12 +45,12 @@ def get_pools(session=None):
 def create_pool(name, slots, description, session=None):
     """Create a pool with a given parameters."""
     if not (name and name.strip()):
-        raise PoolBadRequest("Pool name shouldn't be empty")
+        raise AirflowBadRequest("Pool name shouldn't be empty")
 
     try:
         slots = int(slots)
     except ValueError:
-        raise PoolBadRequest("Bad value for `slots`: %s" % slots)
+        raise AirflowBadRequest("Bad value for `slots`: %s" % slots)
 
     session.expire_on_commit = False
     pool = session.query(Pool).filter_by(pool=name).first()
@@ -78,7 +70,7 @@ def create_pool(name, slots, description, session=None):
 def delete_pool(name, session=None):
     """Delete pool by a given name."""
     if not (name and name.strip()):
-        raise PoolBadRequest("Pool name shouldn't be empty")
+        raise AirflowBadRequest("Pool name shouldn't be empty")
 
     pool = session.query(Pool).filter_by(pool=name).first()
     if pool is None:

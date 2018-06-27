@@ -38,11 +38,13 @@ from airflow import configuration, models, settings, AirflowException
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DagRun
 from airflow.models import State as ST
-from airflow.models import DagModel, DagStat
+from airflow.models import DagModel, DagRun, DagStat
 from airflow.models import clear_task_instances
 from airflow.models import XCom
 from airflow.models import Connection
+from airflow.jobs import LocalTaskJob
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -52,7 +54,7 @@ from airflow.utils import timezone
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
-from mock import patch
+from mock import patch, ANY
 from parameterized import parameterized
 from tempfile import NamedTemporaryFile
 
@@ -595,12 +597,21 @@ class DagStatTest(unittest.TestCase):
 
 class DagRunTest(unittest.TestCase):
 
-    def create_dag_run(self, dag, state=State.RUNNING, task_states=None, execution_date=None):
+    def create_dag_run(self, dag,
+                       state=State.RUNNING,
+                       task_states=None,
+                       execution_date=None,
+                       is_backfill=False,
+                       ):
         now = timezone.utcnow()
         if execution_date is None:
             execution_date = now
+        if is_backfill:
+            run_id = BackfillJob.ID_PREFIX + now.isoformat()
+        else:
+            run_id = 'manual__' + now.isoformat()
         dag_run = dag.create_dagrun(
-            run_id='manual__' + now.isoformat(),
+            run_id=run_id,
             execution_date=execution_date,
             start_date=now,
             state=state,
@@ -615,6 +626,28 @@ class DagRunTest(unittest.TestCase):
             session.close()
 
         return dag_run
+
+    def test_clear_task_instances_for_backfill_dagrun(self):
+        now = timezone.utcnow()
+        session = settings.Session()
+        dag_id = 'test_clear_task_instances_for_backfill_dagrun'
+        dag = DAG(dag_id=dag_id, start_date=now)
+        self.create_dag_run(dag, execution_date=now, is_backfill=True)
+
+        task0 = DummyOperator(task_id='backfill_task_0', owner='test', dag=dag)
+        ti0 = TI(task=task0, execution_date=now)
+        ti0.run()
+
+        qry = session.query(TI).filter(
+            TI.dag_id == dag.dag_id).all()
+        clear_task_instances(qry, session)
+        session.commit()
+        ti0.refresh_from_db()
+        dr0 = session.query(DagRun).filter(
+            DagRun.dag_id == dag_id,
+            DagRun.execution_date == now
+        ).first()
+        self.assertEquals(dr0.state, State.RUNNING)
 
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
@@ -981,6 +1014,21 @@ class DagBagTest(unittest.TestCase):
 
         dagbag = models.DagBag(include_examples=True)
         self.assertEqual([], dagbag.process_file(f.name))
+
+    def test_zip_skip_log(self):
+        """
+        test the loading of a DAG from within a zip file that skips another file because
+        it doesn't have "airflow" and "DAG"
+        """
+        from mock import Mock
+        with patch('airflow.models.DagBag.log') as log_mock:
+            log_mock.info = Mock()
+            test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
+            dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
+
+            self.assertTrue(dagbag.has_logged)
+            log_mock.info.assert_any_call("File %s assumed to contain no DAGs. Skipping.",
+                                          test_zip_path)
 
     def test_zip(self):
         """
@@ -1360,6 +1408,32 @@ class DagBagTest(unittest.TestCase):
 
         self.assertEqual([], dagbag.process_file(None))
 
+    @patch.object(TI, 'handle_failure')
+    def test_kill_zombies(self, mock_ti):
+        """
+        Test that kill zombies call TIs failure handler with proper context
+        """
+        dagbag = models.DagBag()
+        session = settings.Session
+        dag = dagbag.get_dag('example_branch_operator')
+        task = dag.get_task(task_id='run_this_first')
+
+        ti = TI(task, datetime.datetime.now() - datetime.timedelta(1), 'running')
+        lj = LocalTaskJob(ti)
+        lj.state = State.SHUTDOWN
+
+        session.add(lj)
+        session.commit()
+
+        ti.job_id = lj.id
+
+        session.add(ti)
+        session.commit()
+
+        dagbag.kill_zombies()
+        mock_ti.assert_called_with(ANY,
+                                   configuration.getboolean('core', 'unit_test_mode'),
+                                   ANY)
 
 class TaskInstanceTest(unittest.TestCase):
 
@@ -2030,8 +2104,39 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(d['task_id'][0], 'op')
         self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
 
+    def test_overwrite_params_with_dag_run_conf(self):
+        task = DummyOperator(task_id='op')
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        dag_run = DagRun()
+        dag_run.conf = {"override": True}
+        params = {"override": False}
+
+        ti.overwrite_params_with_dag_run_conf(params, dag_run)
+
+        self.assertEqual(True, params["override"])
+
+    def test_overwrite_params_with_dag_run_none(self):
+        task = DummyOperator(task_id='op')
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        params = {"override": False}
+
+        ti.overwrite_params_with_dag_run_conf(params, None)
+
+        self.assertEqual(False, params["override"])
+
+    def test_overwrite_params_with_dag_run_conf_none(self):
+        task = DummyOperator(task_id='op')
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        params = {"override": False}
+        dag_run = DagRun()
+
+        ti.overwrite_params_with_dag_run_conf(params, dag_run)
+
+        self.assertEqual(False, params["override"])
+
 
 class ClearTasksTest(unittest.TestCase):
+
     def test_clear_task_instances(self):
         dag = DAG('test_clear_task_instances', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))

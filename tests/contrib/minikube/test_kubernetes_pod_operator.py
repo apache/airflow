@@ -16,10 +16,13 @@
 # under the License.
 
 import unittest
+import os
+import shutil
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow import AirflowException
 from subprocess import check_call
 import mock
+import json
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.volume_mount import VolumeMount
 from airflow.contrib.kubernetes.volume import Volume
@@ -34,6 +37,48 @@ except Exception as e:
 
 
 class KubernetesPodOperatorTest(unittest.TestCase):
+
+    def test_config_path_move(self):
+        new_config_path = '/tmp/kube_config'
+        old_config_path = os.path.expanduser('~/.kube/config')
+        shutil.copy(old_config_path, new_config_path)
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            config_file=new_config_path
+        )
+        k.execute(None)
+
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_config_path(self, client_mock, launcher_mock):
+        from airflow.utils.state import State
+
+        file_path = "/tmp/fake_file"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            config_file=file_path,
+            in_cluster=False,
+            cluster_context='default'
+        )
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        client_mock.assert_called_with(in_cluster=False,
+                                       cluster_context='default',
+                                       config_file=file_path)
+
     def test_working_pod(self):
         k = KubernetesPodOperator(
             namespace='default',
@@ -43,6 +88,54 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task"
+        )
+        k.execute(None)
+
+    def test_pod_node_selectors(self):
+        node_selectors = {
+            'beta.kubernetes.io/os': 'linux'
+        }
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            node_selectors=node_selectors,
+            executor_config={'KubernetesExecutor': {'node_selectors': node_selectors}}
+        )
+        k.execute(None)
+
+    def test_pod_affinity(self):
+        affinity = {
+            'nodeAffinity': {
+                'requiredDuringSchedulingIgnoredDuringExecution': {
+                    'nodeSelectorTerms': [
+                        {
+                            'matchExpressions': [
+                                {
+                                    'key': 'beta.kubernetes.io/os',
+                                    'operator': 'In',
+                                    'values': ['linux']
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            affinity=affinity,
+            executor_config={'KubernetesExecutor': {'affinity': affinity}}
         )
         k.execute(None)
 
@@ -122,6 +215,20 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         )
         with self.assertRaises(AirflowException):
             k.execute(None)
+
+    def test_xcom_push(self):
+        return_value = '{"foo": "bar"\n, "buzz": 2}'
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=['echo \'{}\' > /airflow/xcom/return.json'.format(return_value)],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            xcom_push=True
+        )
+        self.assertEqual(k.execute(None), json.loads(return_value))
 
 
 if __name__ == '__main__':

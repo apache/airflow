@@ -180,6 +180,10 @@ def backfill(args, dag=None):
             task_regex=args.task_regex,
             include_upstream=not args.ignore_dependencies)
 
+    run_conf = None
+    if args.conf:
+        run_conf = json.loads(args.conf)
+
     if args.dry_run:
         print("Dry run of DAG {0} on {1}".format(args.dag_id,
                                                  args.start_date))
@@ -188,6 +192,15 @@ def backfill(args, dag=None):
             ti = TaskInstance(task, args.start_date)
             ti.dry_run()
     else:
+        if args.reset_dagruns:
+            DAG.clear_dags(
+                [dag],
+                start_date=args.start_date,
+                end_date=args.end_date,
+                confirm_prompt=True,
+                include_subdags=False,
+            )
+
         dag.run(
             start_date=args.start_date,
             end_date=args.end_date,
@@ -200,6 +213,8 @@ def backfill(args, dag=None):
             pool=args.pool,
             delay_on_limit_secs=args.delay_on_limit,
             verbose=args.verbose,
+            conf=run_conf,
+            rerun_failed_tasks=args.rerun_failed_tasks,
         )
 
 
@@ -829,8 +844,10 @@ def webserver(args):
                 master_timeout = conf.getint('webserver', 'web_server_master_timeout')
                 restart_workers(gunicorn_master_proc, num_workers, master_timeout)
             else:
-                while True:
+                while gunicorn_master_proc.poll() is None:
                     time.sleep(1)
+
+                sys.exit(gunicorn_master_proc.returncode)
 
         if args.daemon:
             base, ext = os.path.splitext(pid)
@@ -1273,6 +1290,58 @@ def create_user(args):
         raise SystemExit('Failed to create user.')
 
 
+@cli_utils.action_logging
+def list_dag_runs(args, dag=None):
+    if dag:
+        args.dag_id = dag.dag_id
+
+    dagbag = DagBag()
+
+    if args.dag_id not in dagbag.dags:
+        error_message = "Dag id {} not found".format(args.dag_id)
+        raise AirflowException(error_message)
+
+    dag_runs = list()
+    state = args.state.lower() if args.state else None
+    for run in DagRun.find(dag_id=args.dag_id,
+                           state=state,
+                           no_backfills=args.no_backfill):
+        dag_runs.append({
+            'id': run.id,
+            'run_id': run.run_id,
+            'state': run.state,
+            'dag_id': run.dag_id,
+            'execution_date': run.execution_date.isoformat(),
+            'start_date': ((run.start_date or '') and
+                           run.start_date.isoformat()),
+        })
+    if not dag_runs:
+        print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))
+
+    s = textwrap.dedent("""\n
+    {line}
+    DAG RUNS
+    {line}
+    {dag_run_header}
+    """)
+
+    dag_runs.sort(key=lambda x: x['execution_date'], reverse=True)
+    dag_run_header = '%-3s | %-20s | %-10s | %-20s | %-20s |' % ('id',
+                                                                 'run_id',
+                                                                 'state',
+                                                                 'execution_date',
+                                                                 'state_date')
+    print(s.format(dag_run_header=dag_run_header,
+                   line='-' * 120))
+    for dag_run in dag_runs:
+        record = '%-3s | %-20s | %-10s | %-20s | %-20s |' % (dag_run['id'],
+                                                             dag_run['run_id'],
+                                                             dag_run['state'],
+                                                             dag_run['execution_date'],
+                                                             dag_run['start_date'])
+        print(record)
+
+
 Arg = namedtuple(
     'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
 Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
@@ -1320,6 +1389,15 @@ class CLIFactory(object):
             "store_true",
             default=False),
 
+        # list_dag_runs
+        'no_backfill': Arg(
+            ("--no_backfill",),
+            "filter all the backfill dagruns given the dag id", "store_true"),
+        'state': Arg(
+            ("--state",),
+            "Only list the dag runs corresponding to the state"
+        ),
+
         # backfill
         'mark_success': Arg(
             ("-m", "--mark_success"),
@@ -1359,6 +1437,21 @@ class CLIFactory(object):
                   "again."),
             type=float,
             default=1.0),
+        'reset_dag_run': Arg(
+            ("--reset_dagruns",),
+            (
+                "if set, the backfill will delete existing "
+                "backfill-related DAG runs and start "
+                "anew with fresh, running DAG runs"),
+            "store_true"),
+        'rerun_failed_tasks': Arg(
+            ("--rerun_failed_tasks",),
+            (
+                "if set, the backfill will auto-rerun "
+                "all the failed tasks for the backfill date range "
+                "instead of throwing exceptions"),
+            "store_true"),
+
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1673,12 +1766,29 @@ class CLIFactory(object):
     subparsers = (
         {
             'func': backfill,
-            'help': "Run subsections of a DAG for a specified date range",
+            'help': "Run subsections of a DAG for a specified date range. "
+                    "If reset_dag_run option is used,"
+                    " backfill will first prompt users whether airflow "
+                    "should clear all the previous dag_run and task_instances "
+                    "within the backfill date range."
+                    "If rerun_failed_tasks is used, backfill "
+                    "will auto re-run the previous failed task instances"
+                    " within the backfill date range.",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date',
                 'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose',
+                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
+                'reset_dag_run', 'rerun_failed_tasks',
+            )
+        }, {
+            'func': list_dag_runs,
+            'help': "List dag runs given a DAG id. If state option is given, it will only"
+                    "search for all the dagruns with the given state. "
+                    "If no_backfill option is given, it will filter out"
+                    "all backfill dagruns for given dag id.",
+            'args': (
+                'dag_id', 'no_backfill', 'state'
             )
         }, {
             'func': list_tasks,
@@ -1817,7 +1927,7 @@ class CLIFactory(object):
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
-        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause')
+        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
 
     @classmethod
     def get_parser(cls, dag_parser=False):

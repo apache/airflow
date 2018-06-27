@@ -72,7 +72,8 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         Returns a BigQuery service object.
         """
         http_authorized = self._authorize()
-        return build('bigquery', 'v2', http=http_authorized)
+        return build(
+            'bigquery', 'v2', http=http_authorized, cache_discovery=False)
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
         """
@@ -82,7 +83,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         """
         raise NotImplementedError()
 
-    def get_pandas_df(self, bql, parameters=None, dialect=None):
+    def get_pandas_df(self, sql, parameters=None, dialect=None):
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
         query. The DbApiHook method must be overridden because Pandas
@@ -91,8 +92,8 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         https://github.com/pydata/pandas/blob/master/pandas/io/sql.py#L447
         https://github.com/pydata/pandas/issues/6900
 
-        :param bql: The BigQuery SQL to execute.
-        :type bql: string
+        :param sql: The BigQuery SQL to execute.
+        :type sql: string
         :param parameters: The parameters to render the SQL query with (not
             used, leave to override superclass method)
         :type parameters: mapping or iterable
@@ -103,7 +104,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
-        return read_gbq(bql,
+        return read_gbq(sql,
                         project_id=self._get_field('project'),
                         dialect=dialect,
                         verbose=False)
@@ -454,7 +455,8 @@ class BigQueryBaseCursor(LoggingMixin):
             )
 
     def run_query(self,
-                  bql,
+                  bql=None,
+                  sql=None,
                   destination_dataset_table=False,
                   write_disposition='WRITE_EMPTY',
                   allow_large_results=False,
@@ -476,8 +478,11 @@ class BigQueryBaseCursor(LoggingMixin):
 
         For more details about these parameters.
 
-        :param bql: The BigQuery SQL to execute.
+        :param bql: (Deprecated. Use `sql` parameter instead) The BigQuery SQL
+            to execute.
         :type bql: string
+        :param sql: The BigQuery SQL to execute.
+        :type sql: string
         :param destination_dataset_table: The dotted <dataset>.<table>
             BigQuery table to save the query results.
         :type destination_dataset_table: string
@@ -526,6 +531,23 @@ class BigQueryBaseCursor(LoggingMixin):
 
         """
 
+        # TODO remove `bql` in Airflow 2.0 - Jira: [AIRFLOW-2513]
+        sql = bql if sql is None else sql
+
+        if bql:
+            import warnings
+            warnings.warn('Deprecated parameter `bql` used in '
+                          '`BigQueryBaseCursor.run_query` '
+                          'Use `sql` parameter instead to pass the sql to be '
+                          'executed. `bql` parameter is deprecated and '
+                          'will be removed in a future version of '
+                          'Airflow.',
+                          category=DeprecationWarning)
+
+        if sql is None:
+            raise TypeError('`BigQueryBaseCursor.run_query` missing 1 required '
+                            'positional argument: `sql`')
+
         # BigQuery also allows you to define how you want a table's schema to change
         # as a side effect of a query job
         # for more details:
@@ -545,7 +567,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         configuration = {
             'query': {
-                'query': bql,
+                'query': sql,
                 'useLegacySql': use_legacy_sql,
                 'maximumBillingTier': maximum_billing_tier,
                 'maximumBytesBilled': maximum_bytes_billed,
@@ -1277,9 +1299,9 @@ class BigQueryCursor(BigQueryBaseCursor):
         :param parameters: Parameters to substitute into the query.
         :type parameters: dict
         """
-        bql = _bind_parameters(operation,
+        sql = _bind_parameters(operation,
                                parameters) if parameters else operation
-        self.job_id = self.run_query(bql)
+        self.job_id = self.run_query(sql)
 
     def executemany(self, operation, seq_of_parameters):
         """
@@ -1429,9 +1451,9 @@ def _bq_cast(string_field, bq_type):
     """
     if string_field is None:
         return None
-    elif bq_type == 'INTEGER' or bq_type == 'TIMESTAMP':
+    elif bq_type == 'INTEGER':
         return int(string_field)
-    elif bq_type == 'FLOAT':
+    elif bq_type == 'FLOAT' or bq_type == 'TIMESTAMP':
         return float(string_field)
     elif bq_type == 'BOOLEAN':
         assert string_field in set(['true', 'false'])

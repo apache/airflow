@@ -101,6 +101,12 @@ def setup_event_handlers(
     def connect(dbapi_connection, connection_record):
         connection_record.info['pid'] = os.getpid()
 
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        if 'sqlite3.Connection' in str(type(dbapi_connection)):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
 
     @event.listens_for(engine, "checkout")
     def checkout(dbapi_connection, connection_record, connection_proxy):

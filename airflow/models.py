@@ -58,7 +58,7 @@ from urllib.parse import urlparse, quote, parse_qsl
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
-    Index, Float, LargeBinary)
+    Index, Float, LargeBinary, UniqueConstraint)
 from sqlalchemy import func, or_, and_, true as sqltrue
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
@@ -128,10 +128,19 @@ def get_fernet():
 _CONTEXT_MANAGER_DAG = None
 
 
-def clear_task_instances(tis, session, activate_dag_runs=True, dag=None):
+def clear_task_instances(tis,
+                         session,
+                         activate_dag_runs=True,
+                         dag=None,
+                         ):
     """
     Clears a set of task instances, but makes sure the running ones
     get killed.
+
+    :param tis: a list of task instances
+    :param session: current session
+    :param activate_dag_runs: flag to check for active dag run
+    :param dag: DAG object
     """
     job_ids = []
     for ti in tis:
@@ -186,6 +195,10 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :type include_examples: bool
+    :param has_logged: an instance boolean that gets flipped from False to True after a
+        file has been skipped. This is to prevent overloading the user with logging
+        messages about skipped files. Therefore only once per DagBag is a file logged
+        being skipped.
     """
 
     # static class variables to detetct dag cycle
@@ -210,6 +223,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
+        self.has_logged = False
 
         if include_examples:
             example_dag_folder = os.path.join(
@@ -288,6 +302,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                     content = f.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
                         self.file_last_changed[filepath] = file_last_changed_on_disk
+                        # Don't want to spam user with skip messages
+                        if not self.has_logged:
+                            self.has_logged = True
+                            self.log.info(
+                                "File %s assumed to contain no DAGs. Skipping.",
+                                filepath)
                         return found_dags
 
             self.log.debug("Importing %s", filepath)
@@ -324,7 +344,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                                 self.file_last_changed[filepath] = (
                                     file_last_changed_on_disk)
                                 # todo: create ignore list
-                                return found_dags
+                                # Don't want to spam user with skip messages
+                                if not self.has_logged:
+                                    self.has_logged = True
+                                    self.log.info(
+                                        "File %s assumed to contain no DAGs. Skipping.",
+                                        filepath)
 
                     if mod_name in sys.modules:
                         del sys.modules[mod_name]
@@ -388,9 +413,15 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag = self.dags[ti.dag_id]
                 if ti.task_id in dag.task_ids:
                     task = dag.get_task(ti.task_id)
+
+                    # now set non db backed vars on ti
                     ti.task = task
-                    ti.handle_failure("{} killed as zombie".format(str(ti)))
-                    self.log.info('Marked zombie job %s as failed', ti)
+                    ti.test_mode = configuration.getboolean('core', 'unit_test_mode')
+
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      ti.test_mode, ti.get_template_context())
+                    self.log.info(
+                        'Marked zombie job %s as %s', ti, ti.state)
                     Stats.incr('zombies_killed')
         session.commit()
 
@@ -830,7 +861,7 @@ class TaskInstance(Base, LoggingMixin):
     max_tries = Column(Integer)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer, index=True)
+    job_id = Column(Integer)
     pool = Column(String(50))
     queue = Column(String(50))
     priority_weight = Column(Integer)
@@ -844,6 +875,7 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_state', state),
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
+        Index('ti_job_id', job_id),
     )
 
     def __init__(self, task, execution_date, state=None):
@@ -1711,7 +1743,7 @@ class TaskInstance(Base, LoggingMixin):
             # try_number contains the current try_number (not the next). We
             # only mark task instance as FAILED if the next task instance
             # try_number exceeds the max_tries.
-            if task.retries and self.try_number <= self.max_tries:
+            if self.is_eligible_to_retry():
                 self.state = State.UP_FOR_RETRY
                 self.log.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
@@ -1741,7 +1773,10 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.merge(self)
         session.commit()
-        self.log.error(str(error))
+
+    def is_eligible_to_retry(self):
+        """Is task instance is eligible for retry"""
+        return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session
     def get_template_context(self, session=None):
@@ -1794,6 +1829,9 @@ class TaskInstance(Base, LoggingMixin):
 
         if task.params:
             params.update(task.params)
+
+        if configuration.getboolean('core', 'dag_run_conf_overrides_params'):
+            self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
 
         class VariableAccessor:
             """
@@ -1861,6 +1899,10 @@ class TaskInstance(Base, LoggingMixin):
             'inlets': task.inlets,
             'outlets': task.outlets,
         }
+
+    def overwrite_params_with_dag_run_conf(self, params, dag_run):
+        if dag_run and dag_run.conf:
+            params.update(dag_run.conf)
 
     def render_templates(self):
         task = self.task
@@ -2007,12 +2049,18 @@ class TaskFail(Base):
 
     __tablename__ = "task_fail"
 
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    task_id = Column(String(ID_LEN), nullable=False)
+    dag_id = Column(String(ID_LEN), nullable=False)
+    execution_date = Column(UtcDateTime, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
-    duration = Column(Float)
+    duration = Column(Integer)
+
+    __table_args__ = (
+        Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date,
+              unique=False),
+    )
 
     def __init__(self, task, execution_date, start_date, end_date):
         self.dag_id = task.dag_id
@@ -2273,6 +2321,15 @@ class BaseOperator(LoggingMixin):
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
+
+    # base list which includes all the attrs that don't need deep copy.
+    _base_operator_shallow_copy_attrs = ('user_defined_macros',
+                                         'user_defined_filters',
+                                         'params',
+                                         '_log',)
+
+    # each operator should override this class attr for shallow copy attrs.
+    shallow_copy_attrs = ()
 
     @apply_defaults
     def __init__(
@@ -2640,17 +2697,13 @@ class BaseOperator(LoggingMixin):
         result = cls.__new__(cls)
         memo[id(self)] = result
 
+        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
+
         for k, v in list(self.__dict__.items()):
-            if k not in ('user_defined_macros', 'user_defined_filters',
-                         'params', '_log'):
+            if k not in shallow_copy:
                 setattr(result, k, copy.deepcopy(v, memo))
-        result.params = self.params
-        if hasattr(self, 'user_defined_macros'):
-            result.user_defined_macros = self.user_defined_macros
-        if hasattr(self, 'user_defined_filters'):
-            result.user_defined_filters = self.user_defined_filters
-        if hasattr(self, '_log'):
-            result._log = self._log
+            else:
+                setattr(result, k, copy.copy(v))
         return result
 
     def __getstate__(self):
@@ -3601,7 +3654,8 @@ class DAG(BaseDag, LoggingMixin):
         TI = TaskInstance
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
-            start_date = datetime.combine(start_date, datetime.min.time())
+            start_date = timezone.make_aware(
+                datetime.combine(start_date, datetime.min.time()))
         end_date = end_date or timezone.utcnow()
         tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
@@ -3671,8 +3725,19 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def set_dag_runs_state(
-            self, state=State.RUNNING, session=None):
-        drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
+            self,
+            state=State.RUNNING,
+            session=None,
+            start_date=None,
+            end_date=None,
+    ):
+        query = session.query(DagRun).filter_by(dag_id=self.dag_id)
+        if start_date:
+            query = query.filter(DagRun.execution_date >= start_date)
+        if end_date:
+            query = query.filter(DagRun.execution_date <= end_date)
+        drs = query.all()
+
         dirty_ids = []
         for dr in drs:
             dr.state = state
@@ -3688,7 +3753,8 @@ class DAG(BaseDag, LoggingMixin):
             include_subdags=True,
             reset_dag_runs=True,
             dry_run=False,
-            session=None):
+            session=None,
+    ):
         """
         Clears a set of task instances associated with the current dag for
         a specified date range.
@@ -3735,9 +3801,15 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis.all(), session, dag=self)
+            clear_task_instances(tis.all(),
+                                 session,
+                                 dag=self,
+                                 )
             if reset_dag_runs:
-                self.set_dag_runs_state(session=session)
+                self.set_dag_runs_state(session=session,
+                                        start_date=start_date,
+                                        end_date=end_date,
+                                        )
         else:
             count = 0
             print("Bail. Nothing was cleared.")
@@ -3755,7 +3827,8 @@ class DAG(BaseDag, LoggingMixin):
             confirm_prompt=False,
             include_subdags=True,
             reset_dag_runs=True,
-            dry_run=False):
+            dry_run=False,
+    ):
         all_tis = []
         for dag in dags:
             tis = dag.clear(
@@ -3794,7 +3867,8 @@ class DAG(BaseDag, LoggingMixin):
                           confirm_prompt=False,
                           include_subdags=include_subdags,
                           reset_dag_runs=reset_dag_runs,
-                          dry_run=False)
+                          dry_run=False,
+                          )
         else:
             count = 0
             print("Bail. Nothing was cleared.")
@@ -3973,6 +4047,8 @@ class DAG(BaseDag, LoggingMixin):
             pool=None,
             delay_on_limit_secs=1.0,
             verbose=False,
+            conf=None,
+            rerun_failed_tasks=False,
     ):
         """
         Runs the DAG.
@@ -4001,6 +4077,8 @@ class DAG(BaseDag, LoggingMixin):
         :type delay_on_limit_secs: float
         :param verbose: Make logging output more verbose
         :type verbose: boolean
+        :param conf: user defined dictionary passed from CLI
+        :type conf: dict
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
@@ -4019,6 +4097,8 @@ class DAG(BaseDag, LoggingMixin):
             pool=pool,
             delay_on_limit_secs=delay_on_limit_secs,
             verbose=verbose,
+            conf=conf,
+            rerun_failed_tasks=rerun_failed_tasks,
         )
         job.run()
 
@@ -4582,8 +4662,8 @@ class DagStat(Base):
 
     dag_id = Column(String(ID_LEN), primary_key=True)
     state = Column(String(50), primary_key=True)
-    count = Column(Integer, default=0)
-    dirty = Column(Boolean, default=False)
+    count = Column(Integer, default=0, nullable=False)
+    dirty = Column(Boolean, default=False, nullable=False)
 
     def __init__(self, dag_id, state, count=0, dirty=False):
         self.dag_id = dag_id
@@ -4716,7 +4796,9 @@ class DagRun(Base, LoggingMixin):
     dag = None
 
     __table_args__ = (
-        Index('dr_run_id', dag_id, run_id, unique=True),
+        Index('dag_id_state', dag_id, _state),
+        UniqueConstraint('dag_id', 'execution_date'),
+        UniqueConstraint('dag_id', 'run_id'),
     )
 
     def __repr__(self):
@@ -4910,7 +4992,7 @@ class DagRun(Base, LoggingMixin):
 
         tis = self.get_task_instances(session=session)
 
-        self.log.info("Updating state for %s considering %s task(s)", self, len(tis))
+        self.log.debug("Updating state for %s considering %s task(s)", self, len(tis))
 
         for ti in list(tis):
             # skip in db?

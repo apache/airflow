@@ -63,16 +63,29 @@ class KubernetesPodOperator(BaseOperator):
     :type secrets: list of Secret
     :param in_cluster: run kubernetes client with in_cluster configuration
     :type in_cluster: bool
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used.
+    :type cluster_context: string
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
+    :param node_selectors: A dict containing a group of scheduling rules
+    :type node_selectors: dict
+    :param config_file: The path to the Kubernetes config file
+    :type config_file: str
+    :param xcom_push: If xcom_push is True, the content of the file
+        /airflow/xcom/return.json in the container will also be pushed to an
+        XCom when the container completes.
+    :type xcom_push: bool
     """
-    template_fields = ('cmds', 'arguments', 'env_vars')
+    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
     def execute(self, context):
         try:
-            client = kube_client.get_kube_client(in_cluster=self.in_cluster)
+            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                 cluster_context=self.cluster_context,
+                                                 config_file=self.config_file)
             gen = pod_generator.PodGenerator()
 
             for mount in self.volume_mounts:
@@ -95,9 +108,11 @@ class KubernetesPodOperator(BaseOperator):
             pod.annotations = self.annotations
             pod.resources = self.resources
             pod.affinity = self.affinity
+            pod.node_selectors = self.node_selectors
 
-            launcher = pod_launcher.PodLauncher(client)
-            final_state = launcher.run_pod(
+            launcher = pod_launcher.PodLauncher(kube_client=client,
+                                                extract_xcom=self.xcom_push)
+            (final_state, result) = launcher.run_pod(
                 pod,
                 startup_timeout=self.startup_timeout_seconds,
                 get_logs=self.get_logs)
@@ -105,6 +120,8 @@ class KubernetesPodOperator(BaseOperator):
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state)
                 )
+            if self.xcom_push:
+                return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
@@ -120,6 +137,7 @@ class KubernetesPodOperator(BaseOperator):
                  env_vars=None,
                  secrets=None,
                  in_cluster=False,
+                 cluster_context=None,
                  labels=None,
                  startup_timeout_seconds=120,
                  get_logs=True,
@@ -127,6 +145,9 @@ class KubernetesPodOperator(BaseOperator):
                  annotations=None,
                  resources=None,
                  affinity=None,
+                 config_file=None,
+                 xcom_push=False,
+                 node_selectors=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -142,8 +163,12 @@ class KubernetesPodOperator(BaseOperator):
         self.volumes = volumes or []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
+        self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
+        self.xcom_push = xcom_push
         self.resources = resources or Resources()
+        self.config_file = config_file

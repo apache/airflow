@@ -50,7 +50,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.batch = AWSBatchOperator(
             task_id='task',
             job_name='51455483-c62c-48ac-9b88-53a6a725baa3',
-            queue='queue',
+            job_queue='queue',
             job_definition='hello-world',
             max_retries=5,
             overrides={},
@@ -60,7 +60,7 @@ class TestAWSBatchOperator(unittest.TestCase):
     def test_init(self):
 
         self.assertEqual(self.batch.job_name, '51455483-c62c-48ac-9b88-53a6a725baa3')
-        self.assertEqual(self.batch.queue, 'queue')
+        self.assertEqual(self.batch.job_queue, 'queue')
         self.assertEqual(self.batch.job_definition, 'hello-world')
         self.assertEqual(self.batch.max_retries, 5)
         self.assertEqual(self.batch.overrides, {})

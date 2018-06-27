@@ -5,9 +5,9 @@
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
-  
+
     http://www.apache.org/licenses/LICENSE-2.0
-  
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -64,7 +64,11 @@
           <a class="navbar-brand" rel="home" href="{{ url_for('admin.index') }}" style="cursor: pointer;">
               <img style="float: left; width:35px; margin-top: -7px;"
                    src="{{ url_for("static", filename="pin_100.png") }}"
-                   title="{{ current_user.username }}">
+                   {% if current_user.user is defined %}
+                      title="{{ current_user.user.username }}"
+                   {% else %}
+                      title="{{ current_user.username }}"
+                   {% endif %}>
               <span>Airflow</span>
           </a>
       </div>

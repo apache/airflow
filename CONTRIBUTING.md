@@ -79,7 +79,44 @@ extras to build the full API reference.
 
 ## Development and Testing
 
-### Setting up a development environment
+### Set up a development env using Docker
+
+Go to your Airflow directory and start a new docker container. You can choose between Python 2 or 3, whatever you prefer.
+
+```
+# Start docker in your Airflow directory
+docker run -t -i -v `pwd`:/airflow/ python:2 bash
+
+# Go to the Airflow directory
+cd /airflow/
+
+# Install Airflow with all the required dependencies,
+# including the devel which will provide the development tools
+pip install -e ".[hdfs,hive,druid,devel]"
+
+# Init the database
+airflow initdb
+
+nosetests -v tests/hooks/test_druid_hook.py
+
+  test_get_first_record (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+  test_get_records (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+  test_get_uri (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+  test_get_conn_url (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_gone_wrong (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_ok (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_timeout (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+  test_submit_unknown_response (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+
+  ----------------------------------------------------------------------
+  Ran 8 tests in 3.036s
+
+  OK
+```
+
+The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test is in the container.
+
+### Set up a development env using Virtualenv
 
 Please install python(2.7.x or 3.4.x), mysql, and libxml by using system-level package
 managers like yum, apt-get for Linux, or homebrew for Mac OS at first.

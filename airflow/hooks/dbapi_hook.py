@@ -169,7 +169,9 @@ class DbApiHook(BaseHook):
                     else:
                         cur.execute(s)
 
-            if not getattr(conn, 'autocommit', False):
+            # If autocommit was set to False for db that supports autocommit,
+            # or if db does not supports autocommit, we do a manual commit.
+            if not self.get_autocommit(conn):
                 conn.commit()
 
     def set_autocommit(self, conn, autocommit):
@@ -183,13 +185,28 @@ class DbApiHook(BaseHook):
                 getattr(self, self.conn_name_attr))
         conn.autocommit = autocommit
 
+    def get_autocommit(self, conn):
+        """
+        Get autocommit setting for the provided connection.
+        Return True if conn.autocommit is set to True.
+        Return False if conn.autocommit is not set or set to False or conn
+        does not support autocommit.
+        :param conn: Connection to get autocommit setting from.
+        :type conn: connection object.
+        :return: connection autocommit setting.
+        :rtype bool.
+        """
+
+        return getattr(conn, 'autocommit', False) and self.supports_autocommit
+
     def get_cursor(self):
         """
         Returns a cursor
         """
         return self.get_conn().cursor()
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000,
+                    replace=False):
         """
         A generic way to insert a set of tuples into a table,
         a new transaction is created every commit_every rows
@@ -203,6 +220,8 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :type commit_every: int
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
         """
         if target_fields:
             target_fields = ", ".join(target_fields)
@@ -218,12 +237,16 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for i, row in enumerate(rows, 1):
-                    l = []
+                    lst = []
                     for cell in row:
-                        l.append(self._serialize_cell(cell, conn))
-                    values = tuple(l)
+                        lst.append(self._serialize_cell(cell, conn))
+                    values = tuple(lst)
                     placeholders = ["%s", ] * len(values)
-                    sql = "INSERT INTO {0} {1} VALUES ({2})".format(
+                    if not replace:
+                        sql = "INSERT INTO "
+                    else:
+                        sql = "REPLACE INTO "
+                    sql += "{0} {1} VALUES ({2})".format(
                         table,
                         target_fields,
                         ",".join(placeholders))

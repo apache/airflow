@@ -17,17 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import models, settings
-from airflow.exceptions import AirflowException
 from sqlalchemy import or_
 
-
-class DagFileExists(AirflowException):
-    status = 400
-
-
-class DagNotFound(AirflowException):
-    status = 404
+from airflow import models, settings
+from airflow.exceptions import DagNotFound, DagFileExists
 
 
 def delete_dag(dag_id):
@@ -45,6 +38,7 @@ def delete_dag(dag_id):
 
     count = 0
 
+    # noinspection PyUnresolvedReferences,PyProtectedMember
     for m in models.Base._decl_class_registry.values():
         if hasattr(m, "dag_id"):
             cond = or_(m.dag_id == dag_id, m.dag_id.like(dag_id + ".%"))

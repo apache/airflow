@@ -178,6 +178,7 @@ data:
     airflow_configmap = airflow-configmap
     worker_container_repository = airflow
     worker_container_tag = latest
+    worker_container_image_pull_policy = IfNotPresent
     delete_worker_pods = True
     git_repo = https://github.com/apache/incubator-airflow.git
     git_branch = master
@@ -185,7 +186,9 @@ data:
     git_user =
     git_password =
     dags_volume_claim = airflow-dags
+    dags_volume_subpath =
     logs_volume_claim = airflow-logs
+    logs_volume_subpath =
     in_cluster = True
     namespace = default
     gcp_service_account_keys =
@@ -194,6 +197,11 @@ data:
     git_sync_container_repository = gcr.io/google-containers/git-sync-amd64
     git_sync_container_tag = v2.0.5
     git_sync_init_container_name = git-sync-clone
+
+    [kubernetes_node_selectors]
+    # The Key-value pairs to be given to worker pods.
+    # The worker pods will be scheduled to the nodes of the specified key-value pairs.
+    # Should be supplied in the format: key = value
 
     [kubernetes_secrets]
     SQL_ALCHEMY_CONN = airflow-secrets=sql_alchemy_conn

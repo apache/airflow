@@ -35,6 +35,7 @@ import bleach
 import pendulum
 import codecs
 from collections import defaultdict
+import itertools
 
 import inspect
 from textwrap import dedent
@@ -89,7 +90,8 @@ from airflow.utils.dates import infer_time_unit, scale_time_units, parse_executi
 from airflow.utils.timezone import datetime
 from airflow.utils.net import get_hostname
 from airflow.www import utils as wwwutils
-from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
+from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
+                               DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www.validators import GreaterEqualThan
 
 QUERY_LIMIT = 100000
@@ -317,6 +319,57 @@ def get_chart_height(dag):
     """
     return 600 + len(dag.tasks) * 10
 
+
+def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
+    dttm = request.args.get('execution_date')
+    if dttm:
+        dttm = pendulum.parse(dttm)
+    else:
+        dttm = dag.latest_execution_date or timezone.utcnow()
+
+    base_date = request.args.get('base_date')
+    if base_date:
+        base_date = timezone.parse(base_date)
+    else:
+        # The DateTimeField widget truncates milliseconds and would loose
+        # the first dag run. Round to next second.
+        base_date = (dttm + timedelta(seconds=1)).replace(microsecond=0)
+
+    default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
+    num_runs = request.args.get('num_runs')
+    num_runs = int(num_runs) if num_runs else default_dag_run
+
+    DR = models.DagRun
+    drs = (
+        session.query(DR)
+        .filter(
+            DR.dag_id == dag.dag_id,
+            DR.execution_date <= base_date)
+        .order_by(desc(DR.execution_date))
+        .limit(num_runs)
+        .all()
+    )
+    dr_choices = []
+    dr_state = None
+    for dr in drs:
+        dr_choices.append((dr.execution_date.isoformat(), dr.run_id))
+        if dttm == dr.execution_date:
+            dr_state = dr.state
+
+    # Happens if base_date was changed and the selected dag run is not in result
+    if not dr_state and drs:
+        dr = drs[0]
+        dttm = dr.execution_date
+        dr_state = dr.state
+
+    return {
+        'dttm': dttm,
+        'base_date': base_date,
+        'num_runs': num_runs,
+        'execution_date': dttm.isoformat(),
+        'dr_choices': dr_choices,
+        'dr_state': dr_state,
+    }
 
 class Airflow(BaseView):
     def is_visible(self):
@@ -733,10 +786,12 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         try_number = int(request.args.get('try_number'))
-        # metadata may be None
         metadata = request.args.get('metadata')
-        if metadata:
-            metadata = json.loads(metadata)
+        metadata = json.loads(metadata)
+
+        # metadata may be null
+        if not metadata:
+            metadata = {}
 
         # Convert string datetime into actual datetime
         try:
@@ -779,9 +834,6 @@ class Airflow(BaseView):
                              .format(task_log_reader, str(e))]
             metadata['end_of_log'] = True
             return jsonify(message=error_message, error=True, metadata=metadata)
-        except AirflowException as e:
-            metadata['end_of_log'] = True
-            return jsonify(message=str(e), error=True, metadata=metadata)
 
     @expose('/log')
     @login_required
@@ -990,6 +1042,32 @@ class Airflow(BaseView):
         flash(
             "Sent {} to the message queue, "
             "it should start any moment now.".format(ti))
+        return redirect(origin)
+
+    @expose('/delete')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def delete(self):
+        from airflow.api.common.experimental import delete_dag
+        from airflow.exceptions import DagNotFound, DagFileExists
+
+        dag_id = request.args.get('dag_id')
+        origin = request.args.get('origin') or "/admin/"
+
+        try:
+            delete_dag.delete_dag(dag_id)
+        except DagNotFound:
+            flash("DAG with id {} not found. Cannot delete".format(dag_id))
+            return redirect(request.referrer)
+        except DagFileExists:
+            flash("Dag id {} is still in DagBag. "
+                  "Remove the DAG file first.".format(dag_id))
+            return redirect(request.referrer)
+
+        flash("Deleting DAG with id {}. May take a couple minutes to fully"
+              " disappear.".format(dag_id))
+        # Upon successful delete return to origin
         return redirect(origin)
 
     @expose('/trigger')
@@ -1231,6 +1309,10 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
+        if dag_id not in dagbag.dags:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/admin/')
+
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
@@ -1247,27 +1329,22 @@ class Airflow(BaseView):
         else:
             base_date = dag.latest_execution_date or timezone.utcnow()
 
-        dates = dag.date_range(base_date, num=-abs(num_runs))
-        min_date = dates[0] if dates else datetime(2000, 1, 1)
-
         DR = models.DagRun
         dag_runs = (
             session.query(DR)
-                .filter(
+            .filter(
                 DR.dag_id == dag.dag_id,
-                DR.execution_date <= base_date,
-                DR.execution_date >= min_date)
-                .all()
+                DR.execution_date <= base_date)
+            .order_by(DR.execution_date.desc())
+            .limit(num_runs)
+            .all()
         )
         dag_runs = {
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         dates = sorted(list(dag_runs.keys()))
-        # Only show the desired number of runs regardless of the trigger method
-        if len(dates) > num_runs:
-            dates = dates[-num_runs:]
-
         max_date = max(dates) if dates else None
+        min_date = min(dates) if dates else None
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
@@ -1398,27 +1475,11 @@ class Airflow(BaseView):
         for t in dag.roots:
             get_upstream(t)
 
-        dttm = request.args.get('execution_date')
-        if dttm:
-            dttm = pendulum.parse(dttm)
-        else:
-            dttm = dag.latest_execution_date or timezone.utcnow()
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dt_nr_dr_data['arrange'] = arrange
+        dttm = dt_nr_dr_data['dttm']
 
-        DR = models.DagRun
-        drs = (
-            session.query(DR)
-                .filter_by(dag_id=dag_id)
-                .order_by(desc(DR.execution_date)).all()
-        )
-        dr_choices = []
-        dr_state = None
-        for dr in drs:
-            dr_choices.append((dr.execution_date.isoformat(), dr.run_id))
-            if dttm == dr.execution_date:
-                dr_state = dr.state
-
-        class GraphForm(Form):
-            execution_date = SelectField("DAG run", choices=dr_choices)
+        class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
                 ('LR', "Left->Right"),
                 ('RL', "Right->Left"),
@@ -1426,8 +1487,8 @@ class Airflow(BaseView):
                 ('BT', "Bottom->Top"),
             ))
 
-        form = GraphForm(
-            data={'execution_date': dttm.isoformat(), 'arrange': arrange})
+        form = GraphForm(data=dt_nr_dr_data)
+        form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
@@ -1450,7 +1511,7 @@ class Airflow(BaseView):
             width=request.args.get('width', "100%"),
             height=request.args.get('height', "800"),
             execution_date=dttm.isoformat(),
-            state_token=state_token(dr_state),
+            state_token=state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
             operators=sorted(
@@ -1673,10 +1734,12 @@ class Airflow(BaseView):
             x[task.task_id] = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
-                ts = ti.execution_date
-                if dag.schedule_interval and dag.following_schedule(ts):
-                    ts = dag.following_schedule(ts)
                 if ti.end_date:
+                    ts = ti.execution_date
+                    following_schedule = dag.following_schedule(ts)
+                    if dag.schedule_interval and following_schedule:
+                        ts = following_schedule
+
                     dttm = wwwutils.epoch(ti.execution_date)
                     secs = (ti.end_date - ts).total_seconds()
                     x[ti.task_id].append(dttm)
@@ -1763,7 +1826,6 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def gantt(self, session=None):
-
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         demo_mode = conf.getboolean('webserver', 'demo_mode')
@@ -1775,22 +1837,31 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        dttm = request.args.get('execution_date')
-        if dttm:
-            dttm = pendulum.parse(dttm)
-        else:
-            dttm = dag.latest_execution_date or timezone.utcnow()
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dttm = dt_nr_dr_data['dttm']
 
-        form = DateTimeForm(data={'execution_date': dttm})
+        form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
+        form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
         tis = [
             ti for ti in dag.get_task_instances(session, dttm, dttm)
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
+        TF = models.TaskFail
+        ti_fails = list(itertools.chain(*[(
+            session
+            .query(TF)
+            .filter(TF.dag_id == ti.dag_id,
+                    TF.task_id == ti.task_id,
+                    TF.execution_date == ti.execution_date)
+            .all()
+        ) for ti in tis]))
+        tis_with_fails = sorted(tis + ti_fails, key=lambda ti: ti.start_date)
 
         tasks = []
-        for ti in tis:
+        for ti in tis_with_fails:
             end_date = ti.end_date if ti.end_date else timezone.utcnow()
+            state = ti.state if type(ti) == models.TaskInstance else State.FAILED
             tasks.append({
                 'startDate': wwwutils.epoch(ti.start_date),
                 'endDate': wwwutils.epoch(end_date),
@@ -1798,10 +1869,10 @@ class Airflow(BaseView):
                 'isoEnd': end_date.isoformat()[:-4],
                 'taskName': ti.task_id,
                 'duration': "{}".format(end_date - ti.start_date)[:-4],
-                'status': ti.state,
+                'status': state,
                 'executionDate': ti.execution_date.isoformat(),
             })
-        states = {ti.state: ti.state for ti in tis}
+        states = {task['status']: task['status'] for task in tasks}
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
@@ -2565,7 +2636,7 @@ class LogModelView(ModelViewOnly):
     verbose_name = "log"
     column_display_actions = False
     column_default_sort = ('dttm', True)
-    column_filters = ('dag_id', 'task_id', 'execution_date')
+    column_filters = ('dag_id', 'task_id', 'execution_date', 'extra')
     filter_converter = wwwutils.UtcFilterConverter()
     column_formatters = dict(
         dttm=datetime_f, execution_date=datetime_f, dag_id=dag_link)

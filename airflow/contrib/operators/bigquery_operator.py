@@ -29,10 +29,15 @@ class BigQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database
 
-    :param bql: the sql code to be executed
+    :param bql: (Deprecated. Use `sql` parameter instead) the sql code to be
+        executed (templated)
     :type bql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'. (templated)
+        Template reference are recognized by str ending in '.sql'.
+    :param sql: the sql code to be executed (templated)
+    :type sql: Can receive a str representing a sql statement,
+        a list of str (sql statements), or reference to a template file.
+        Template reference are recognized by str ending in '.sql'.
     :param destination_dataset_table: A dotted
         (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
         of the query. (templated)
@@ -87,13 +92,14 @@ class BigQueryOperator(BaseOperator):
     :type time_partitioning: dict
     """
 
-    template_fields = ('bql', 'destination_dataset_table')
+    template_fields = ('bql', 'sql', 'destination_dataset_table')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
     @apply_defaults
     def __init__(self,
-                 bql,
+                 bql=None,
+                 sql=None,
                  destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
@@ -113,6 +119,7 @@ class BigQueryOperator(BaseOperator):
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
+        self.sql = sql if sql else bql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
@@ -130,9 +137,23 @@ class BigQueryOperator(BaseOperator):
         self.priority = priority
         self.time_partitioning = time_partitioning
 
+        # TODO remove `bql` in Airflow 2.0
+        if self.bql:
+            import warnings
+            warnings.warn('Deprecated parameter `bql` used in Task id: {}. '
+                          'Use `sql` parameter instead to pass the sql to be '
+                          'executed. `bql` parameter is deprecated and '
+                          'will be removed in a future version of '
+                          'Airflow.'.format(self.task_id),
+                          category=DeprecationWarning)
+
+        if self.sql is None:
+            raise TypeError('{} missing 1 required positional '
+                            'argument: `sql`'.format(self.task_id))
+
     def execute(self, context):
         if self.bq_cursor is None:
-            self.log.info('Executing: %s', self.bql)
+            self.log.info('Executing: %s', self.sql)
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
@@ -140,7 +161,7 @@ class BigQueryOperator(BaseOperator):
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.bql,
+            self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,
