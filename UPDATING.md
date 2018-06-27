@@ -56,6 +56,9 @@ To make the config of Airflow compatible with Celery, some properties have been 
 ```
 celeryd_concurrency -> worker_concurrency
 celery_result_backend -> result_backend
+celery_ssl_active -> ssl_active
+celery_ssl_cert -> ssl_cert
+celery_ssl_key -> ssl_key
 ```
 Resulting in the same config parameters as Celery 4, with more transparency.
 

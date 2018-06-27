@@ -230,7 +230,7 @@ if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
 else:
-    devel_ci = devel_all
+    devel_ci = devel_all + ['unittest2']
 
 
 def do_setup():
