@@ -24,11 +24,9 @@ from __future__ import unicode_literals
 
 from future.standard_library import install_aliases
 
-from builtins import str
-from builtins import object, bytes
+from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
 from collections import namedtuple, defaultdict
-import cryptography
 from datetime import timedelta
 
 import dill
@@ -104,6 +102,33 @@ XCOM_RETURN_KEY = 'return_value'
 Stats = settings.Stats
 
 
+class InvalidFernetToken(Exception):
+    # If Fernet isn't loaded we need a valid exception class to catch. If it is
+    # loaded this will get reset to the actual class once get_fernet() is called
+    pass
+
+
+class NullFernet(object):
+    """
+    A "Null" encryptor class that doesn't encrypt or decrypt but that presents
+    a similar interface to Fernet.
+
+    The purpose of this is to make the rest of the code not have to know the
+    difference, and to only display the message once, not 20 times when
+    `airflow initdb` is ran.
+    """
+    is_encrypted = False
+
+    def decrpyt(self, b):
+        return b
+
+    def encrypt(self, b):
+        return b
+
+
+_fernet = None
+
+
 def get_fernet():
     """
     Deferred load of Fernet key.
@@ -114,12 +139,25 @@ def get_fernet():
     :return: Fernet object
     :raises: AirflowException if there's a problem trying to load Fernet
     """
+    global _fernet
+    if _fernet:
+        return _fernet
     try:
-        from cryptography.fernet import Fernet
-    except ImportError:
-        raise AirflowException('Failed to import Fernet, it may not be installed')
+        from cryptography.fernet import Fernet, InvalidToken
+        global InvalidFernetToken
+        InvalidFernetToken = InvalidToken
+
+    except BuiltinImportError:
+        LoggingMixin().log.warn("cryptography not found - values will not be stored "
+                                "encrypted.",
+                                exc_info=1)
+        _fernet = NullFernet()
+        return _fernet
+
     try:
-        return Fernet(configuration.conf.get('core', 'FERNET_KEY').encode('utf-8'))
+        _fernet = Fernet(configuration.conf.get('core', 'FERNET_KEY').encode('utf-8'))
+        _fernet.is_encrypted = True
+        return _fernet
     except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
 
@@ -673,9 +711,8 @@ class Connection(Base, LoggingMixin):
 
     def get_password(self):
         if self._password and self.is_encrypted:
-            try:
-                fernet = get_fernet()
-            except AirflowException:
+            fernet = get_fernet()
+            if not fernet.is_encrypted:
                 raise AirflowException(
                     "Can't decrypt encrypted password for login={}, \
                     FERNET_KEY configuration is missing".format(self.login))
@@ -685,15 +722,9 @@ class Connection(Base, LoggingMixin):
 
     def set_password(self, value):
         if value:
-            try:
-                fernet = get_fernet()
-                self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
-                self.is_encrypted = True
-            except AirflowException:
-                self.log.exception("Failed to load fernet while encrypting value, "
-                                   "using non-encrypted value.")
-                self._password = value
-                self.is_encrypted = False
+            fernet = get_fernet()
+            self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
     def password(cls):
@@ -702,9 +733,8 @@ class Connection(Base, LoggingMixin):
 
     def get_extra(self):
         if self._extra and self.is_extra_encrypted:
-            try:
-                fernet = get_fernet()
-            except AirflowException:
+            fernet = get_fernet()
+            if not fernet.is_encrypted:
                 raise AirflowException(
                     "Can't decrypt `extra` params for login={},\
                     FERNET_KEY configuration is missing".format(self.login))
@@ -714,15 +744,9 @@ class Connection(Base, LoggingMixin):
 
     def set_extra(self, value):
         if value:
-            try:
-                fernet = get_fernet()
-                self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
-                self.is_extra_encrypted = True
-            except AirflowException:
-                self.log.exception("Failed to load fernet while encrypting value, "
-                                   "using non-encrypted value.")
-                self._extra = value
-                self.is_extra_encrypted = False
+            fernet = get_fernet()
+            self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self.is_extra_encrypted = fernet.is_encrypted
         else:
             self._extra = value
             self.is_extra_encrypted = False
@@ -4366,32 +4390,23 @@ class Variable(Base, LoggingMixin):
         if self._val and self.is_encrypted:
             try:
                 fernet = get_fernet()
+                return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
+            except InvalidFernetToken:
+                log.error("Can't decrypt _val for key={}, invalid token "
+                          "or value".format(self.key))
+                return None
             except Exception:
                 log.error("Can't decrypt _val for key={}, FERNET_KEY "
                           "configuration missing".format(self.key))
-                return None
-            try:
-                return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
-            except cryptography.fernet.InvalidToken:
-                log.error("Can't decrypt _val for key={}, invalid token "
-                          "or value".format(self.key))
                 return None
         else:
             return self._val
 
     def set_val(self, value):
         if value:
-            try:
-                fernet = get_fernet()
-                self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
-                self.is_encrypted = True
-            except AirflowException:
-                self.log.exception(
-                    "Failed to load fernet while encrypting value, "
-                    "using non-encrypted value."
-                )
-                self._val = value
-                self.is_encrypted = False
+            fernet = get_fernet()
+            self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
     def val(cls):
