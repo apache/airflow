@@ -39,7 +39,7 @@ import sqlalchemy
 from airflow import AirflowException, settings, models
 from airflow.bin import cli
 from airflow.executors import BaseExecutor, SequentialExecutor
-from airflow.jobs import BackfillJob, SchedulerJob, LocalTaskJob
+from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
@@ -84,6 +84,46 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 TEMP_DAG_FILENAME = "temp_dag.py"
 TEST_DAGS_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
+
+
+class BaseJobTest(unittest.TestCase):
+    class TestJob(BaseJob):
+        __mapper_args__ = {
+            'polymorphic_identity': 'TestJob'
+        }
+
+        def __init__(self, cb):
+            self.cb = cb
+            super(BaseJobTest.TestJob, self).__init__()
+
+        def _execute(self):
+            return self.cb()
+
+    def test_state_success(self):
+        job = self.TestJob(lambda: True)
+        job.run()
+
+        self.assertEquals(job.state, State.SUCCESS)
+        self.assertIsNotNone(job.end_date)
+
+    def test_state_sysexit(self):
+        import sys
+        job = self.TestJob(lambda: sys.exit(0))
+        job.run()
+
+        self.assertEquals(job.state, State.SUCCESS)
+        self.assertIsNotNone(job.end_date)
+
+    def test_state_failed(self):
+        def abort():
+            raise RuntimeError("fail")
+
+        job = self.TestJob(abort)
+        with self.assertRaises(RuntimeError):
+            job.run()
+
+        self.assertEquals(job.state, State.FAILED)
+        self.assertIsNotNone(job.end_date)
 
 
 class BackfillJobTest(unittest.TestCase):
