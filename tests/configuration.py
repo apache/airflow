@@ -20,13 +20,19 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import unittest
+import os
 from collections import OrderedDict
 
 import six
 
 from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
+
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 
 class ConfTest(unittest.TestCase):
@@ -154,3 +160,35 @@ key3 = value3
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
 
         self.assertTrue(isinstance(section_dict['_test_only_string'], six.string_types))
+
+    def test_deprecated_options(self):
+        # Guarantee we have a deprecated setting, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        conf.deprecated_options['celery'] = {
+            'worker_concurrency': 'celeryd_concurrency',
+        }
+
+        # Remove it so we are sure we use the right setting
+        conf.remove_option('celery', 'worker_concurrency')
+
+        with self.assertWarns(DeprecationWarning):
+            os.environ['AIRFLOW__CELERY__CELERYD_CONCURRENCY'] = '99'
+            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            os.environ.pop('AIRFLOW__CELERY__CELERYD_CONCURRENCY')
+
+        with self.assertWarns(DeprecationWarning):
+            conf.set('celery', 'celeryd_concurrency', '99')
+            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            conf.remove_option('celery', 'celeryd_concurrency')
+
+    def test_deprecated_options_cmd(self):
+        # Guarantee we have a deprecated setting, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        conf.deprecated_options['celery'] = {'result_backend': 'celery_result_backend'}
+        conf.as_command_stdout.add(('celery', 'celery_result_backend'))
+
+        conf.remove_option('celery', 'result_backend')
+        conf.set('celery', 'celery_result_backend_cmd', '/bin/echo 99')
+
+        with self.assertWarns(DeprecationWarning):
+            self.assertEquals(conf.getint('celery', 'result_backend'), 99)
