@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,11 +29,12 @@ class GoogleCloudStorageListOperator(BaseOperator):
     This operator returns a python list with the name of objects which can be used by
      `xcom` in the downstream task.
 
-    :param bucket: The Google cloud storage bucket to find the objects.
+    :param bucket: The Google cloud storage bucket to find the objects. (templated)
     :type bucket: string
-    :param prefix: Prefix string which filters objects whose name begin with this prefix
+    :param prefix: Prefix string which filters objects whose name begin with
+           this prefix. (templated)
     :type prefix: string
-    :param delimiter: The delimiter by which you want to filter the objects.
+    :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :type delimiter: string

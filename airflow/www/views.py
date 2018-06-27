@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -858,8 +858,16 @@ class Airflow(BaseView):
         no_failed_deps_result = [(
             "Unknown",
             dedent("""\
-            All dependencies are met but the task instance is not running. In most cases this just means that the task will probably be scheduled soon unless:<br/>
+            All dependencies are met but the task instance is not running.
+            In most cases this just means that the task will probably
+            be scheduled soon unless:<br/>
             - The scheduler is down or under heavy load<br/>
+            - The following configuration values may be limiting the number
+            of queueable processes:
+              <code>parallelism</code>,
+              <code>dag_concurrency</code>,
+              <code>max_active_dag_runs_per_dag</code>,
+              <code>non_pooled_task_slot_count</code><br/>
             {}
             <br/>
             If this task instance does not start soon please contact your Airflow """
@@ -1219,6 +1227,7 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def tree(self, session=None):
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
@@ -1231,7 +1240,7 @@ class Airflow(BaseView):
 
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else default_dag_run
 
         if base_date:
             base_date = timezone.parse(base_date)
@@ -1254,6 +1263,10 @@ class Airflow(BaseView):
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         dates = sorted(list(dag_runs.keys()))
+        # Only show the desired number of runs regardless of the trigger method
+        if len(dates) > num_runs:
+            dates = dates[-num_runs:]
+
         max_date = max(dates) if dates else None
 
         tis = dag.get_task_instances(
@@ -1336,7 +1349,7 @@ class Airflow(BaseView):
             ),
             root=root,
             form=form,
-            dag=dag, data=data, blur=blur)
+            dag=dag, data=data, blur=blur, num_runs=num_runs)
 
     @expose('/graph')
     @login_required
@@ -1456,11 +1469,12 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def duration(self, session=None):
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else default_dag_run
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1563,11 +1577,12 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def tries(self, session=None):
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else default_dag_run
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1626,11 +1641,12 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def landing_times(self, session=None):
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else default_dag_run
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1747,6 +1763,7 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def gantt(self, session=None):
+
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         demo_mode = conf.getboolean('webserver', 'demo_mode')

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,8 +18,17 @@
 # under the License.
 
 import airflow
-from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+import logging
 from airflow.models import DAG
+
+try:
+    # Kubernetes is optional, so not available in vanilla Airflow
+    # pip install airflow[gcp]
+    from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+except ImportError:
+    # Just import the BaseOperator as the KubernetesPodOperator
+    logging.warn("Could not import KubernetesPodOperator")
+    from airflow.models import BaseOperator as KubernetesPodOperator
 
 args = {
     'owner': 'airflow',
@@ -29,14 +40,14 @@ dag = DAG(
     default_args=args,
     schedule_interval=None)
 
-k = KubernetesPodOperator(namespace='default',
-                          image="ubuntu:16.04",
-                          cmds=["bash", "-cx"],
-                          arguments=["echo", "10"],
-                          labels={"foo": "bar"},
-                          name="airflow-test-pod",
-                          in_cluster=False,
-                          task_id="task",
-                          get_logs=True,
-                          dag=dag
-                          )
+k = KubernetesPodOperator(
+    namespace='default',
+    image="ubuntu:16.04",
+    cmds=["bash", "-cx"],
+    arguments=["echo", "10"],
+    labels={"foo": "bar"},
+    name="airflow-test-pod",
+    in_cluster=False,
+    task_id="task",
+    get_logs=True,
+    dag=dag)

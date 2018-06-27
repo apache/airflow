@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -45,7 +45,7 @@ run_this.set_downstream(run_this_last)
 for i in range(3):
     i = str(i)
     task = BashOperator(
-        task_id='runme_'+i,
+        task_id='runme_' + i,
         bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
         dag=dag)
     task.set_downstream(run_this)

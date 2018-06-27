@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.configuration import conf
 
 
 def _load_kube_config(in_cluster):
@@ -26,6 +27,6 @@ def _load_kube_config(in_cluster):
         return client.CoreV1Api()
 
 
-def get_kube_client(in_cluster=True):
+def get_kube_client(in_cluster=conf.getboolean('kubernetes', 'in_cluster')):
     # TODO: This should also allow people to point to a cluster.
     return _load_kube_config(in_cluster)

@@ -21,9 +21,10 @@
 import unittest
 import mock
 
-from airflow import AirflowException
 from airflow.contrib.hooks import bigquery_hook as hook
 from oauth2client.contrib.gce import HttpAccessTokenRefreshError
+
+from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning
 
 bq_available = True
 
@@ -228,7 +229,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
     @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
     @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
-    def test_cancel_queries(self, mocked_logging, mocked_time):
+    def test_cancel_queries(self, mocked_time, mocked_logging):
         project_id = 12345
         running_job_id = 3
 
@@ -263,71 +264,104 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
 
-    class BigQueryBaseCursorTest(hook.BigQueryBaseCursor):
-        """Use this class to verify the load configuration"""
-        def run_with_configuration(self, configuration):
-            return configuration
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_default(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
 
-    class Serv(object):
-        """mocks the behaviour of a succezsfull Job"""
+        def run_with_config(config):
+            self.assertIsNone(config['load'].get('timePartitioning'))
+        mocked_rwc.side_effect = run_with_config
 
-        class Job(object):
-            """mocks the behaviour of a succezsfull Job"""
-            def __getitem__(self, item=None):
-                return self
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+        )
 
-            def get(self, projectId, jobId=None):
-                return self.__getitem__(projectId)
+        mocked_rwc.assert_called_once()
 
-            def insert(self, projectId, body=None):
-                return self.get(projectId, body)
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
 
-            def execute(self):
-                return {
-                    'status': {'state': 'DONE'},
-                    'jobReference': {'jobId': 0}
+        def run_with_config(config):
+            self.assertEqual(
+                config['load']['timePartitioning'],
+                {
+                    'field': 'test_field',
+                    'type': 'DAY',
+                    'expirationMs': 1000
                 }
+            )
+        mocked_rwc.side_effect = run_with_config
 
-        def __int__(self, job='mock_load'):
-            self.job = job
-
-        def jobs(self):
-            return self.Job()
-
-    def test_the_job_execution_wont_break(self):
-        s = self.Serv()
-        bqc = hook.BigQueryBaseCursor(s, 'str')
-        job = bqc.run_load(
-            destination_project_dataset_table='test.teast',
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
             time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
-        self.assertEquals(job, 0)
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_default(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['query'].get('timePartitioning'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(bql='select 1')
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['query']['timePartitioning'],
+                {
+                    'field': 'test_field',
+                    'type': 'DAY',
+                    'expirationMs': 1000
+                }
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(
+            bql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+        )
+
+        mocked_rwc.assert_called_once()
 
     def test_dollar_makes_partition(self):
-        s = self.Serv()
-        bqc = self.BigQueryBaseCursorTest(s, 'str')
-        cnfg = bqc.run_load(
-            destination_project_dataset_table='test.teast$20170101',
-            schema_fields=[],
-            source_uris=[],
-            src_fmt_configs={}
-        )
+        tp_out = _cleanse_time_partitioning('test.teast$20170101', {})
         expect = {
             'type': 'DAY'
         }
-        self.assertEqual(cnfg['load'].get('timePartitioning'), expect)
+        self.assertEqual(tp_out, expect)
 
     def test_extra_time_partitioning_options(self):
-        s = self.Serv()
-        bqc = self.BigQueryBaseCursorTest(s, 'str')
-        cnfg = bqc.run_load(
-            destination_project_dataset_table='test.teast',
-            schema_fields=[],
-            source_uris=[],
-            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+        tp_out = _cleanse_time_partitioning(
+            'test.teast',
+            {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
         expect = {
@@ -335,20 +369,13 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
             'field': 'test_field',
             'expirationMs': 1000
         }
-
-        self.assertEqual(cnfg['load'].get('timePartitioning'), expect)
+        self.assertEqual(tp_out, expect)
 
     def test_cant_add_dollar_and_field_name(self):
-        s = self.Serv()
-        bqc = self.BigQueryBaseCursorTest(s, 'str')
-
-        with self.assertRaises(AirflowException):
-            tp_dict = {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
-            bqc.run_load(
-                destination_project_dataset_table='test.teast$20170101',
-                schema_fields=[],
-                source_uris=[],
-                time_partitioning=tp_dict
+        with self.assertRaises(AssertionError):
+            _cleanse_time_partitioning(
+                'test.teast$20170101',
+                {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
             )
 
 

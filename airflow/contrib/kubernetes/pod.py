@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -45,7 +44,7 @@ class Pod:
     :param image: The docker image
     :type image: str
     :param envs: A dict containing the environment variables
-    :type envs:s dict
+    :type envs: dict
     :param cmds: The command to be run on the pod
     :type cmds: list str
     :param secrets: Secrets to be launched to the pod
@@ -53,6 +52,10 @@ class Pod:
     :param result: The result that will be returned to the operator after
                    successful execution of the pod
     :type result: any
+    :param image_pull_policy: Specify a policy to cache or always pull an image
+    :type image_pull_policy: str
+    :param affinity: A dict containing a group of affinity scheduling rules
+    :type affinity: dict
     """
     def __init__(
             self,
@@ -73,7 +76,8 @@ class Pod:
             init_containers=None,
             service_account_name=None,
             resources=None,
-            annotations=None
+            annotations=None,
+            affinity=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -93,3 +97,4 @@ class Pod:
         self.service_account_name = service_account_name
         self.resources = resources or Resources()
         self.annotations = annotations or {}
+        self.affinity = affinity or {}

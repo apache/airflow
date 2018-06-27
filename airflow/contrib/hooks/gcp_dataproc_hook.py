@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -197,7 +197,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
-                 api_version='v1'):
+                 api_version='v1beta2'):
         super(DataProcHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
 

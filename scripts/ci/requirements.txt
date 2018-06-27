@@ -12,6 +12,7 @@
 # limitations under the License.
 
 alembic
+atlasclient
 azure-storage>=0.34.0
 bcrypt
 bleach
@@ -89,8 +90,10 @@ Sphinx-PyPI-upload
 sphinx_rtd_theme
 sqlalchemy>=1.1.15, <1.2.0
 statsd
+tenacity==4.8.0
 thrift
 thrift_sasl
 unicodecsv
+vertica_python
 zdesk
 kubernetes

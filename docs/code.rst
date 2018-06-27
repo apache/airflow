@@ -187,7 +187,7 @@ Sensors
 ^^^^^^^
 
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
-.. autoclass:: airflow.contrib.operators.aws_glue_job_operator.AWSGlueJobOperator
+.. autoclass:: airflow.contrib.sensors.aws_glue_job_sensor.AwsGlueJobSensor
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
@@ -345,8 +345,9 @@ interface when possible and acting as building blocks for operators.
 
 Community contributed hooks
 '''''''''''''''''''''''''''
-.. autoclass:: airflow.contrib.hooks.aws_glue_job_hook.AwsGlueJobHook
+
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
+.. autoclass:: airflow.contrib.hooks.aws_glue_job_hook.AwsGlueJobHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook

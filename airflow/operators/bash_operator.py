@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -45,7 +45,7 @@ class BashOperator(BaseOperator):
     Execute a Bash script, command or set of commands.
 
     :param bash_command: The command, set of commands or reference to a
-        bash script (must be '.sh') to be executed.
+        bash script (must be '.sh') to be executed. (templated)
     :type bash_command: string
     :param xcom_push: If xcom_push is True, the last line written to stdout
         will also be pushed to an XCom when the bash command completes.
@@ -89,6 +89,7 @@ class BashOperator(BaseOperator):
         bash_command = ('export {}={}; '.format(AIRFLOW_HOME_VAR, airflow_home_value) +
                         'export {}={}; '.format(PYTHONPATH_VAR, pythonpath_value) +
                         self.bash_command)
+        self.lineage_data = bash_command
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:

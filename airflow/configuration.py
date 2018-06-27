@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,30 +22,26 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from builtins import str
+from collections import OrderedDict
 import copy
 import errno
-import os
-import subprocess
-import warnings
-import shlex
-import sys
-
 from future import standard_library
-
+import os
+import shlex
 import six
 from six import iteritems
+import subprocess
+import sys
+import warnings
+
 from backports.configparser import ConfigParser
 from zope.deprecation import deprecated as _deprecated
 
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
-
-from builtins import str
-from collections import OrderedDict
-
-from airflow.exceptions import AirflowConfigException
-
 
 log = LoggingMixin().log
 
@@ -323,8 +319,8 @@ class AirflowConfigParser(ConfigParser):
                 opt = None
             if opt:
                 if (
-                        not display_sensitive
-                        and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
+                    not display_sensitive and
+                        ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
                     opt = '< hidden >'
                 if display_source:
                     opt = (opt, 'env var')
@@ -442,7 +438,10 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     )
     with open(AIRFLOW_CONFIG, 'w') as f:
         cfg = parameterized_config(DEFAULT_CONFIG)
-        f.write(cfg.split(TEMPLATE_START)[-1].strip())
+        cfg = cfg.split(TEMPLATE_START)[-1].strip()
+        if six.PY2:
+            cfg = cfg.encode('utf8')
+        f.write(cfg)
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 

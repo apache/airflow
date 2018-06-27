@@ -15,9 +15,9 @@ You can also install Airflow with support for extra features like ``s3`` or ``po
 .. code-block:: bash
 
     pip install "apache-airflow[s3, postgres]"
-    
+
 .. note:: GPL dependency
-   
+
     One of the dependencies of Apache Airflow by default pulls in a GPL library ('unidecode').
     In case this is a concern you can force a non GPL library by issuing
     ``export SLUGIFY_USES_TEXT_UNIDECODE=yes`` and then proceed with the normal installation.
@@ -75,7 +75,7 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  mysql        | ``pip install apache-airflow[mysql]``        | MySQL operators and hook, support as            |
 |               |                                              | an Airflow backend. The version of MySQL server |
-|               |                                              | has to be 5.6.4+. The exact version upper bound | 
+|               |                                              | has to be 5.6.4+. The exact version upper bound |
 |               |                                              | depends on version of ``mysqlclient`` package.  |
 |               |                                              | For example, ``mysqlclient`` 1.3.12 can only be |
 |               |                                              | used with MySQL server 5.6.4 through 5.7.       |
@@ -106,12 +106,13 @@ Here's the list of the subpackages and what they enable:
 Initiating Airflow Database
 '''''''''''''''''''''''''''
 
-Airflow requires a database to be initiated before you can run tasks. If you're just
-experimenting and learning Airflow, you can stick with the default SQLite option. If
-you don't want to use SQLite, then take a look at :doc:`configuration` to setup a
-different database.
+Airflow requires a database to be initiated before you can run tasks. If
+you're just experimenting and learning Airflow, you can stick with the
+default SQLite option. If you don't want to use SQLite, then take a look at
+:doc:`howto/initialize-database` to setup a different database.
 
-After configuration, you'll need to initialize the database before you can run tasks:
+After configuration, you'll need to initialize the database before you can
+run tasks:
 
 .. code-block:: bash
 
