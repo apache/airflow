@@ -3093,6 +3093,20 @@ class DagModel(Base):
     def get_current(cls, dag_id, session=None):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
+    def to_json(self):
+        return {
+            'id': self.dag_id,
+            'is_paused': self.is_paused,
+            'is_subdag': self.is_subdag,
+            'is_active': self.is_active,
+            'last_scheduler_run': self.last_scheduler_run,
+            'last_pickled': self.last_pickled,
+            'last_expired': self.last_expired,
+            'pickle_id': self.pickle_id,
+            'fileloc': self.fileloc,
+            'owners': self.owners,
+        }
+
 
 @functools.total_ordering
 class DAG(BaseDag, LoggingMixin):

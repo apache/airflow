@@ -18,7 +18,7 @@
 # under the License.
 from flask import url_for
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import DagNotFound
 from airflow.models import DagBag, DagRun
 
 
@@ -35,7 +35,7 @@ def get_dag_runs(dag_id, state=None):
     # Check DAG exists.
     if dag_id not in dagbag.dags:
         error_message = "Dag id {} not found".format(dag_id)
-        raise AirflowException(error_message)
+        raise DagNotFound(error_message)
 
     dag_runs = list()
     state = state.lower() if state else None
