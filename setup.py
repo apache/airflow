@@ -218,6 +218,10 @@ devel = [
     'rednose',
     'requests_mock'
 ]
+
+if not PY3:
+    devel += ['unittest2']
+
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
@@ -231,7 +235,7 @@ if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
 else:
-    devel_ci = devel_all + ['unittest2']
+    devel_ci = devel_all
 
 
 def do_setup():
