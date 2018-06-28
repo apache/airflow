@@ -400,8 +400,14 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.post(url, follow_redirects=True)
         self.check_content_in_response('OK', resp)
 
-    def test_success(self):
+    def test_failed(self):
+        url = ('failed?task_id=run_this_last&dag_id=example_bash_operator&'
+               'execution_date={}&upstream=false&downstream=false&future=false&past=false'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url)
+        self.check_content_in_response('Wait a minute', resp)
 
+    def test_success(self):
         url = ('success?task_id=run_this_last&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))

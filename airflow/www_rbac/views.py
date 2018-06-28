@@ -18,55 +18,49 @@
 # under the License.
 #
 
-from past.builtins import unicode
-
+import copy
+import itertools
+import json
 import logging
+import math
 import os
 import socket
-from datetime import timedelta
-import itertools
-import copy
-import math
-import json
-from collections import defaultdict
 import traceback
+from collections import defaultdict
+from datetime import timedelta
+
 import markdown
 import nvd3
 import pendulum
-
 import sqlalchemy as sqla
-from sqlalchemy import or_, desc, and_, union_all
-
 from flask import (
     g, redirect, request, Markup, Response, render_template,
     make_response, flash, jsonify)
 from flask._compat import PY2
-
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
+from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
-
-from wtforms import Form, SelectField, validators
-
+from past.builtins import unicode
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from sqlalchemy import or_, desc, and_, union_all
+from wtforms import SelectField, validators
 
 import airflow
 from airflow import configuration as conf
 from airflow import models, jobs
 from airflow import settings
-from airflow.api.common.experimental.mark_tasks import set_dag_run_state
+from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
+                                                        set_dag_run_state_to_failed)
 from airflow.models import XCom, DagRun
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
-
 from airflow.utils import timezone
-from airflow.utils.json import json_ser
-from airflow.utils.state import State
+from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils.dates import infer_time_unit, scale_time_units
-
-
+from airflow.utils.json import json_ser
+from airflow.utils.state import State
 from airflow.www_rbac import utils as wwwutils
 from airflow.www_rbac.app import app
 from airflow.www_rbac.decorators import action_logging, gzipped
@@ -892,15 +886,7 @@ class Airflow(AirflowBaseView):
             })
         return wwwutils.json_response(payload)
 
-    @expose('/dagrun_success')
-    @has_access
-    @action_logging
-    def dagrun_success(self):
-        dag_id = request.args.get('dag_id')
-        execution_date = request.args.get('execution_date')
-        confirmed = request.args.get('confirmed') == 'true'
-        origin = request.args.get('origin')
-
+    def _mark_dagrun_state_as_failed(self, dag_id, execution_date, confirmed, origin):
         if not execution_date:
             flash('Invalid execution date', 'error')
             return redirect(origin)
@@ -912,8 +898,36 @@ class Airflow(AirflowBaseView):
             flash('Cannot find DAG: {}'.format(dag_id), 'error')
             return redirect(origin)
 
-        new_dag_state = set_dag_run_state(dag, execution_date, state=State.SUCCESS,
-                                          commit=confirmed)
+        new_dag_state = set_dag_run_state_to_failed(dag, execution_date, commit=confirmed)
+
+        if confirmed:
+            flash('Marked failed on {} task instances'.format(len(new_dag_state)))
+            return redirect(origin)
+
+        else:
+            details = '\n'.join([str(t) for t in new_dag_state])
+
+            response = self.render('airflow/confirm.html',
+                                   message=("Here's the list of task instances you are "
+                                            "about to mark as failed"),
+                                   details=details)
+
+            return response
+
+    def _mark_dagrun_state_as_success(self, dag_id, execution_date, confirmed, origin):
+        if not execution_date:
+            flash('Invalid execution date', 'error')
+            return redirect(origin)
+
+        execution_date = pendulum.parse(execution_date)
+        dag = dagbag.get_dag(dag_id)
+
+        if not dag:
+            flash('Cannot find DAG: {}'.format(dag_id), 'error')
+            return redirect(origin)
+
+        new_dag_state = set_dag_run_state_to_success(dag, execution_date,
+                                                     commit=confirmed)
 
         if confirmed:
             flash('Marked success on {} task instances'.format(len(new_dag_state)))
@@ -924,29 +938,41 @@ class Airflow(AirflowBaseView):
 
             response = self.render('airflow/confirm.html',
                                    message=("Here's the list of task instances you are "
-                                            "about to mark as successful:"),
+                                            "about to mark as success"),
                                    details=details)
 
             return response
 
-    @expose('/success')
+    @expose('/dagrun_failed')
     @has_access
     @action_logging
-    def success(self):
+    def dagrun_failed(self):
         dag_id = request.args.get('dag_id')
-        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        confirmed = request.args.get('confirmed') == 'true'
         origin = request.args.get('origin')
+        return self._mark_dagrun_state_as_failed(dag_id, execution_date,
+                                                 confirmed, origin)
+
+    @expose('/dagrun_success')
+    @has_access
+    @action_logging
+    def dagrun_success(self):
+        dag_id = request.args.get('dag_id')
+        execution_date = request.args.get('execution_date')
+        confirmed = request.args.get('confirmed') == 'true'
+        origin = request.args.get('origin')
+        return self._mark_dagrun_state_as_success(dag_id, execution_date,
+                                                  confirmed, origin)
+
+    def _mark_task_instance_state(self, dag_id, task_id, origin, execution_date,
+                                  confirmed, upstream, downstream,
+                                  future, past, state):
         dag = dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
         task.dag = dag
 
-        execution_date = request.args.get('execution_date')
         execution_date = pendulum.parse(execution_date)
-        confirmed = request.args.get('confirmed') == "true"
-        upstream = request.args.get('upstream') == "true"
-        downstream = request.args.get('downstream') == "true"
-        future = request.args.get('future') == "true"
-        past = request.args.get('past') == "true"
 
         if not dag:
             flash("Cannot find DAG: {}".format(dag_id))
@@ -961,25 +987,63 @@ class Airflow(AirflowBaseView):
         if confirmed:
             altered = set_state(task=task, execution_date=execution_date,
                                 upstream=upstream, downstream=downstream,
-                                future=future, past=past, state=State.SUCCESS,
+                                future=future, past=past, state=state,
                                 commit=True)
 
-            flash("Marked success on {} task instances".format(len(altered)))
+            flash("Marked {} on {} task instances".format(state, len(altered)))
             return redirect(origin)
 
         to_be_altered = set_state(task=task, execution_date=execution_date,
                                   upstream=upstream, downstream=downstream,
-                                  future=future, past=past, state=State.SUCCESS,
+                                  future=future, past=past, state=state,
                                   commit=False)
 
         details = "\n".join([str(t) for t in to_be_altered])
 
         response = self.render("airflow/confirm.html",
                                message=("Here's the list of task instances you are "
-                                        "about to mark as successful:"),
+                                        "about to mark as {}:".format(state)),
                                details=details)
 
         return response
+
+    @expose('/failed')
+    @has_access
+    @action_logging
+    def failed(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        origin = request.args.get('origin')
+        execution_date = request.args.get('execution_date')
+
+        confirmed = request.args.get('confirmed') == "true"
+        upstream = request.args.get('upstream') == "true"
+        downstream = request.args.get('downstream') == "true"
+        future = request.args.get('future') == "true"
+        past = request.args.get('past') == "true"
+
+        return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
+                                              confirmed, upstream, downstream,
+                                              future, past, State.FAILED)
+
+    @expose('/success')
+    @has_access
+    @action_logging
+    def success(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        origin = request.args.get('origin')
+        execution_date = request.args.get('execution_date')
+
+        confirmed = request.args.get('confirmed') == "true"
+        upstream = request.args.get('upstream') == "true"
+        downstream = request.args.get('downstream') == "true"
+        future = request.args.get('future') == "true"
+        past = request.args.get('past') == "true"
+
+        return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
+                                              confirmed, upstream, downstream,
+                                              future, past, State.SUCCESS)
 
     @expose('/tree')
     @has_access
@@ -2005,26 +2069,15 @@ class DagRunModelView(AirflowModelView):
     def action_muldelete(self, items, session=None):
         self.datamodel.delete_all(items)
         self.update_redirect()
-        return redirect(self.get_redirect())
         dirty_ids = []
         for item in items:
             dirty_ids.append(item.dag_id)
         models.DagStat.update(dirty_ids, dirty_only=False, session=session)
+        return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
-    def action_set_running(self, drs):
-        return self.set_dagrun_state(drs, State.RUNNING)
-
-    @action('set_failed', "Set state to 'failed'", '', single=False)
-    def action_set_failed(self, drs):
-        return self.set_dagrun_state(drs, State.FAILED)
-
-    @action('set_success', "Set state to 'success'", '', single=False)
-    def action_set_success(self, drs):
-        return self.set_dagrun_state(drs, State.SUCCESS)
-
     @provide_session
-    def set_dagrun_state(self, drs, target_state, session=None):
+    def action_set_running(self, drs, session=None):
         try:
             DR = models.DagRun
             count = 0
@@ -2033,15 +2086,69 @@ class DagRunModelView(AirflowModelView):
                     DR.id.in_([dagrun.id for dagrun in drs])).all():
                 dirty_ids.append(dr.dag_id)
                 count += 1
-                dr.state = target_state
-                if target_state == State.RUNNING:
-                    dr.start_date = timezone.utcnow()
-                else:
-                    dr.end_date = timezone.utcnow()
-            session.commit()
+                dr.start_date = timezone.utcnow()
+                dr.state = State.RUNNING
             models.DagStat.update(dirty_ids, session=session)
+            session.commit()
             flash(
-                "{count} dag runs were set to '{target_state}'".format(**locals()))
+                "{count} dag runs were set to running".format(**locals()))
+        except Exception as ex:
+            flash(str(ex))
+            flash('Failed to set state', 'error')
+        return redirect(self.route_base + '/list')
+
+    @action('set_failed', "Set state to 'failed'",
+            "All running task instances would also be marked as failed, are you sure?",
+            single=False)
+    @provide_session
+    def action_set_failed(self, drs, session=None):
+        try:
+            DR = models.DagRun
+            count = 0
+            dirty_ids = []
+            altered_tis = []
+            for dr in session.query(DR).filter(
+                    DR.id.in_([dagrun.id for dagrun in drs])).all():
+                dirty_ids.append(dr.dag_id)
+                count += 1
+                altered_tis += \
+                    set_dag_run_state_to_failed(dagbag.get_dag(dr.dag_id),
+                                                dr.execution_date,
+                                                commit=True,
+                                                session=session)
+            models.DagStat.update(dirty_ids, session=session)
+            altered_ti_count = len(altered_tis)
+            flash(
+                "{count} dag runs and {altered_ti_count} task instances "
+                "were set to failed".format(**locals()))
+        except Exception as ex:
+            flash('Failed to set state', 'error')
+        return redirect(self.route_base + '/list')
+
+    @action('set_success', "Set state to 'success'",
+            "All task instances would also be marked as success, are you sure?",
+            single=False)
+    @provide_session
+    def action_set_success(self, drs, session=None):
+        try:
+            DR = models.DagRun
+            count = 0
+            dirty_ids = []
+            altered_tis = []
+            for dr in session.query(DR).filter(
+                    DR.id.in_([dagrun.id for dagrun in drs])).all():
+                dirty_ids.append(dr.dag_id)
+                count += 1
+                altered_tis += \
+                    set_dag_run_state_to_success(dagbag.get_dag(dr.dag_id),
+                                                 dr.execution_date,
+                                                 commit=True,
+                                                 session=session)
+            models.DagStat.update(dirty_ids, session=session)
+            altered_ti_count = len(altered_tis)
+            flash(
+                "{count} dag runs and {altered_ti_count} task instances "
+                "were set to success".format(**locals()))
         except Exception as ex:
             flash('Failed to set state', 'error')
         return redirect(self.route_base + '/list')

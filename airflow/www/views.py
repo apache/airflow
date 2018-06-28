@@ -18,77 +18,68 @@
 # under the License.
 #
 
-from past.builtins import basestring, unicode
-
 import ast
-import datetime as dt
-import itertools
-import logging
-import os
-import pkg_resources
-import socket
-from functools import wraps
-from datetime import timedelta
-import copy
-import math
-import json
-import bleach
-import pendulum
 import codecs
-from collections import defaultdict
-
+import copy
+import datetime as dt
 import inspect
-from textwrap import dedent
+import itertools
+import json
+import logging
+import math
+import os
 import traceback
+from collections import defaultdict
+from datetime import timedelta
+from functools import wraps
+from textwrap import dedent
 
+import bleach
+import markdown
+import nvd3
+import pendulum
 import sqlalchemy as sqla
-from sqlalchemy import or_, desc, and_, union_all
-
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
     current_app, render_template, make_response)
-from flask_admin import BaseView, expose, AdminIndexView
-from flask_admin.contrib.sqla import ModelView
-from flask_admin.actions import action
-from flask_admin.babel import lazy_gettext
-from flask_admin.tools import iterdecode
 from flask import flash
 from flask._compat import PY2
-
-from jinja2.sandbox import ImmutableSandboxedEnvironment
+from flask_admin import BaseView, expose, AdminIndexView
+from flask_admin.actions import action
+from flask_admin.babel import lazy_gettext
+from flask_admin.contrib.sqla import ModelView
+from flask_admin.form.fields import DateTimeField
+from flask_admin.tools import iterdecode
 from jinja2 import escape
-
-import markdown
-import nvd3
-
+from jinja2.sandbox import ImmutableSandboxedEnvironment
+from past.builtins import basestring, unicode
+from pygments import highlight, lexers
+from pygments.formatters import HtmlFormatter
+from sqlalchemy import or_, desc, and_, union_all
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField,
     StringField, validators)
-from flask_admin.form.fields import DateTimeField
-
-from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter
 
 import airflow
 from airflow import configuration as conf
 from airflow import models
 from airflow import settings
-from airflow.api.common.experimental.mark_tasks import set_dag_run_state
+from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_running,
+                                                        set_dag_run_state_to_success,
+                                                        set_dag_run_state_to_failed)
 from airflow.exceptions import AirflowException
-from airflow.models import XCom, DagRun
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
-
 from airflow.models import BaseOperator
+from airflow.models import XCom, DagRun
 from airflow.operators.subdag_operator import SubDagOperator
-
+from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
-from airflow.utils.json import json_ser
-from airflow.utils.state import State
+from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
-from airflow.utils.timezone import datetime
+from airflow.utils.json import json_ser
 from airflow.utils.net import get_hostname
+from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
@@ -1213,16 +1204,7 @@ class Airflow(BaseView):
             })
         return wwwutils.json_response(payload)
 
-    @expose('/dagrun_success')
-    @login_required
-    @wwwutils.action_logging
-    @wwwutils.notify_owner
-    def dagrun_success(self):
-        dag_id = request.args.get('dag_id')
-        execution_date = request.args.get('execution_date')
-        confirmed = request.args.get('confirmed') == 'true'
-        origin = request.args.get('origin')
-
+    def _mark_dagrun_state_as_failed(self, dag_id, execution_date, confirmed, origin):
         if not execution_date:
             flash('Invalid execution date', 'error')
             return redirect(origin)
@@ -1234,8 +1216,36 @@ class Airflow(BaseView):
             flash('Cannot find DAG: {}'.format(dag_id), 'error')
             return redirect(origin)
 
-        new_dag_state = set_dag_run_state(dag, execution_date, state=State.SUCCESS,
-                                          commit=confirmed)
+        new_dag_state = set_dag_run_state_to_failed(dag, execution_date, commit=confirmed)
+
+        if confirmed:
+            flash('Marked failed on {} task instances'.format(len(new_dag_state)))
+            return redirect(origin)
+
+        else:
+            details = '\n'.join([str(t) for t in new_dag_state])
+
+            response = self.render('airflow/confirm.html',
+                                   message=("Here's the list of task instances you are "
+                                            "about to mark as failed"),
+                                   details=details)
+
+            return response
+
+    def _mark_dagrun_state_as_success(self, dag_id, execution_date, confirmed, origin):
+        if not execution_date:
+            flash('Invalid execution date', 'error')
+            return redirect(origin)
+
+        execution_date = pendulum.parse(execution_date)
+        dag = dagbag.get_dag(dag_id)
+
+        if not dag:
+            flash('Cannot find DAG: {}'.format(dag_id), 'error')
+            return redirect(origin)
+
+        new_dag_state = set_dag_run_state_to_success(dag, execution_date,
+                                                     commit=confirmed)
 
         if confirmed:
             flash('Marked success on {} task instances'.format(len(new_dag_state)))
@@ -1246,30 +1256,43 @@ class Airflow(BaseView):
 
             response = self.render('airflow/confirm.html',
                                    message=("Here's the list of task instances you are "
-                                            "about to mark as successful:"),
+                                            "about to mark as success"),
                                    details=details)
 
             return response
 
-    @expose('/success')
+    @expose('/dagrun_failed')
     @login_required
     @wwwutils.action_logging
     @wwwutils.notify_owner
-    def success(self):
+    def dagrun_failed(self):
         dag_id = request.args.get('dag_id')
-        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        confirmed = request.args.get('confirmed') == 'true'
         origin = request.args.get('origin')
+        return self._mark_dagrun_state_as_failed(dag_id, execution_date,
+                                                 confirmed, origin)
+
+    @expose('/dagrun_success')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def dagrun_success(self):
+        dag_id = request.args.get('dag_id')
+        execution_date = request.args.get('execution_date')
+        confirmed = request.args.get('confirmed') == 'true'
+        origin = request.args.get('origin')
+        return self._mark_dagrun_state_as_success(dag_id, execution_date,
+                                                  confirmed, origin)
+
+    def _mark_task_instance_state(self, dag_id, task_id, origin, execution_date,
+                                  confirmed, upstream, downstream,
+                                  future, past, state):
         dag = dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
         task.dag = dag
 
-        execution_date = request.args.get('execution_date')
         execution_date = pendulum.parse(execution_date)
-        confirmed = request.args.get('confirmed') == "true"
-        upstream = request.args.get('upstream') == "true"
-        downstream = request.args.get('downstream') == "true"
-        future = request.args.get('future') == "true"
-        past = request.args.get('past') == "true"
 
         if not dag:
             flash("Cannot find DAG: {}".format(dag_id))
@@ -1284,25 +1307,65 @@ class Airflow(BaseView):
         if confirmed:
             altered = set_state(task=task, execution_date=execution_date,
                                 upstream=upstream, downstream=downstream,
-                                future=future, past=past, state=State.SUCCESS,
+                                future=future, past=past, state=state,
                                 commit=True)
 
-            flash("Marked success on {} task instances".format(len(altered)))
+            flash("Marked {} on {} task instances".format(state, len(altered)))
             return redirect(origin)
 
         to_be_altered = set_state(task=task, execution_date=execution_date,
                                   upstream=upstream, downstream=downstream,
-                                  future=future, past=past, state=State.SUCCESS,
+                                  future=future, past=past, state=state,
                                   commit=False)
 
         details = "\n".join([str(t) for t in to_be_altered])
 
         response = self.render("airflow/confirm.html",
                                message=("Here's the list of task instances you are "
-                                        "about to mark as successful:"),
+                                        "about to mark as {}:".format(state)),
                                details=details)
 
         return response
+
+    @expose('/failed')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def failed(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        origin = request.args.get('origin')
+        execution_date = request.args.get('execution_date')
+
+        confirmed = request.args.get('confirmed') == "true"
+        upstream = request.args.get('upstream') == "true"
+        downstream = request.args.get('downstream') == "true"
+        future = request.args.get('future') == "true"
+        past = request.args.get('past') == "true"
+
+        return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
+                                              confirmed, upstream, downstream,
+                                              future, past, State.FAILED)
+
+    @expose('/success')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def success(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        origin = request.args.get('origin')
+        execution_date = request.args.get('execution_date')
+
+        confirmed = request.args.get('confirmed') == "true"
+        upstream = request.args.get('upstream') == "true"
+        downstream = request.args.get('downstream') == "true"
+        future = request.args.get('future') == "true"
+        past = request.args.get('past') == "true"
+
+        return self._mark_task_instance_state(dag_id, task_id, origin, execution_date,
+                                              confirmed, upstream, downstream,
+                                              future, past, State.SUCCESS)
 
     @expose('/tree')
     @login_required
@@ -2639,19 +2702,8 @@ class DagRunModelView(ModelViewOnly):
         models.DagStat.update(dirty_ids, dirty_only=False, session=session)
 
     @action('set_running', "Set state to 'running'", None)
-    def action_set_running(self, ids):
-        self.set_dagrun_state(ids, State.RUNNING)
-
-    @action('set_failed', "Set state to 'failed'", None)
-    def action_set_failed(self, ids):
-        self.set_dagrun_state(ids, State.FAILED)
-
-    @action('set_success', "Set state to 'success'", None)
-    def action_set_success(self, ids):
-        self.set_dagrun_state(ids, State.SUCCESS)
-
     @provide_session
-    def set_dagrun_state(self, ids, target_state, session=None):
+    def action_set_running(self, ids, session=None):
         try:
             DR = models.DagRun
             count = 0
@@ -2659,19 +2711,97 @@ class DagRunModelView(ModelViewOnly):
             for dr in session.query(DR).filter(DR.id.in_(ids)).all():
                 dirty_ids.append(dr.dag_id)
                 count += 1
-                dr.state = target_state
-                if target_state == State.RUNNING:
-                    dr.start_date = timezone.utcnow()
-                else:
-                    dr.end_date = timezone.utcnow()
-            session.commit()
+                dr.state = State.RUNNING
+                dr.start_date = timezone.utcnow()
             models.DagStat.update(dirty_ids, session=session)
             flash(
-                "{count} dag runs were set to '{target_state}'".format(**locals()))
+                "{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
             flash('Failed to set state', 'error')
+
+    @action('set_failed', "Set state to 'failed'",
+            "All running task instances would also be marked as failed, are you sure?")
+    @provide_session
+    def action_set_failed(self, ids, session=None):
+        try:
+            DR = models.DagRun
+            count = 0
+            dirty_ids = []
+            altered_tis = []
+            for dr in session.query(DR).filter(DR.id.in_(ids)).all():
+                dirty_ids.append(dr.dag_id)
+                count += 1
+                altered_tis += \
+                    set_dag_run_state_to_failed(dagbag.get_dag(dr.dag_id),
+                                                dr.execution_date,
+                                                commit=True,
+                                                session=session)
+            models.DagStat.update(dirty_ids, session=session)
+            altered_ti_count = len(altered_tis)
+            flash(
+                "{count} dag runs and {altered_ti_count} task instances "
+                "were set to failed".format(**locals()))
+        except Exception as ex:
+            if not self.handle_view_exception(ex):
+                raise Exception("Ooops")
+            flash('Failed to set state', 'error')
+
+    @action('set_success', "Set state to 'success'",
+            "All task instances would also be marked as success, are you sure?")
+    @provide_session
+    def action_set_success(self, ids, session=None):
+        try:
+            DR = models.DagRun
+            count = 0
+            dirty_ids = []
+            altered_tis = []
+            for dr in session.query(DR).filter(DR.id.in_(ids)).all():
+                dirty_ids.append(dr.dag_id)
+                count += 1
+                altered_tis += \
+                    set_dag_run_state_to_success(dagbag.get_dag(dr.dag_id),
+                                                 dr.execution_date,
+                                                 commit=True,
+                                                 session=session)
+            models.DagStat.update(dirty_ids, session=session)
+            altered_ti_count = len(altered_tis)
+            flash(
+                "{count} dag runs and {altered_ti_count} task instances "
+                "were set to success".format(**locals()))
+        except Exception as ex:
+            if not self.handle_view_exception(ex):
+                raise Exception("Ooops")
+            flash('Failed to set state', 'error')
+
+    # Called after editing DagRun model in the UI.
+    @provide_session
+    def after_model_change(self, form, dagrun, is_created, session=None):
+        altered_tis = []
+        if dagrun.state == State.SUCCESS:
+            altered_tis = set_dag_run_state_to_success(
+                dagbag.get_dag(dagrun.dag_id),
+                dagrun.execution_date,
+                commit=True)
+        elif dagrun.state == State.FAILED:
+            altered_tis = set_dag_run_state_to_failed(
+                dagbag.get_dag(dagrun.dag_id),
+                dagrun.execution_date,
+                commit=True,
+                session=session)
+        elif dagrun.state == State.RUNNING:
+            altered_tis = set_dag_run_state_to_running(
+                dagbag.get_dag(dagrun.dag_id),
+                dagrun.execution_date,
+                commit=True,
+                session=session)
+
+        altered_ti_count = len(altered_tis)
+        models.DagStat.update([dagrun.dag_id], session=session)
+        flash(
+            "1 dag run and {altered_ti_count} task instances "
+            "were set to '{dagrun.state}'".format(**locals()))
 
 
 class LogModelView(ModelViewOnly):
