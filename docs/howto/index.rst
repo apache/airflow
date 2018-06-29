@@ -12,6 +12,7 @@ configuring an Airflow environment.
 
     set-config
     initialize-database
+    operator
     manage-connections
     secure-connections
     write-logs

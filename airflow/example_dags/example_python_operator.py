@@ -26,6 +26,7 @@ from airflow.models import DAG
 import time
 from pprint import pprint
 
+
 args = {
     'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2)
@@ -36,11 +37,7 @@ dag = DAG(
     schedule_interval=None)
 
 
-def my_sleeping_function(random_base):
-    """This is a function that will run within the DAG execution"""
-    time.sleep(random_base)
-
-
+# [START howto_operator_python]
 def print_context(ds, **kwargs):
     pprint(kwargs)
     print(ds)
@@ -52,6 +49,14 @@ run_this = PythonOperator(
     provide_context=True,
     python_callable=print_context,
     dag=dag)
+# [END howto_operator_python]
+
+
+# [START howto_operator_python_kwargs]
+def my_sleeping_function(random_base):
+    """This is a function that will run within the DAG execution"""
+    time.sleep(random_base)
+
 
 # Generate 10 sleeping tasks, sleeping from 0 to 4 seconds respectively
 for i in range(5):
@@ -62,3 +67,4 @@ for i in range(5):
         dag=dag)
 
     task.set_upstream(run_this)
+# [END howto_operator_python_kwargs]
