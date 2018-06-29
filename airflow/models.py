@@ -5608,7 +5608,7 @@ class SlaMiss(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    type = Column(String(50))
+    sla_type = Column(String(50), primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     email_sent = Column(Boolean, default=False)
     timestamp = Column(UtcDateTime)
