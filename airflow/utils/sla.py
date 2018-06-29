@@ -49,6 +49,7 @@ def get_task_instances_between(ti, ts, session=None):
             ti_on_exc_date = airflow.models.TaskInstance(task, exc_date)
         yield ti_on_exc_date
 
+
 def create_sla_misses(ti, ts, session):
     """
     Determine whether a TaskInstance has missed any SLAs as of a provided
