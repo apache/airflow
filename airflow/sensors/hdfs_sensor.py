@@ -73,7 +73,8 @@ class HdfsSensor(BaseSensorOperator):
     template_fields = ('file_path',)
     ui_color = settings.WEB_COLORS['LIGHTBLUE']
 
-    @deprecated_args(renamed={'filepath': 'file_path'},
+    @deprecated_args(renamed={'filepath': 'file_path',
+                              'file_size': 'min_size'},
                      dropped={'ignore_copying'})
     @apply_defaults
     def __init__(self,
@@ -81,7 +82,7 @@ class HdfsSensor(BaseSensorOperator):
                  hdfs_conn_id='hdfs_default',
                  filters=None,
                  hook=HdfsHook,
-                 file_size=None,
+                 min_size=None,
                  ignored_ext=('_COPYING_', ),
                  *args,
                  **kwargs):
@@ -89,14 +90,14 @@ class HdfsSensor(BaseSensorOperator):
         if filters is None:
             filters = []
 
-        filters = filters + self._default_filters(
-            min_size=file_size, ignored_exts=ignored_ext)
+        filters = self._setup_filters(
+            filters, min_size=min_size, ignored_exts=ignored_ext)
 
         super(HdfsSensor, self).__init__(*args, **kwargs)
         self.hdfs_conn_id = hdfs_conn_id
         self.file_path = file_path
 
-        self.file_size = file_size
+        self.min_size = min_size
         self.ignored_ext = set(ignored_ext)
 
         self.hook = hook
@@ -152,10 +153,10 @@ class HdfsSensor(BaseSensorOperator):
             return False
 
     @classmethod
-    def _default_filters(cls, min_size, ignored_exts):
+    def _setup_filters(cls, filters, min_size, ignored_exts):
         """Returns default filters."""
 
-        filters = []
+        filters = list(filters)
 
         if min_size is not None:
             filters.append(

@@ -147,7 +147,7 @@ class HdfsSensorTests(unittest.TestCase):
 
         task = HdfsSensor(task_id='existing_file_too_small',
                           file_path='/data/not_empty/small.txt',
-                          file_size=1,
+                          min_size=1,
                           **self._default_task_kws)
         self.assertFalse(task.poke(context={}))
 
@@ -156,7 +156,7 @@ class HdfsSensorTests(unittest.TestCase):
 
         task = HdfsSensor(task_id='existing_file_large',
                           file_path='/data/not_empty/large.txt',
-                          file_size=1,
+                          min_size=1,
                           **self._default_task_kws)
         self.assertTrue(task.poke(context={}))
 
