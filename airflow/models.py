@@ -4612,16 +4612,16 @@ class DAG(BaseDag, LoggingMixin):
         # `end_date` where applicable - determine whether it would be missing
         # SLAs if it existed.
         for ti in max_tis:
-            # Ignore tasks that don't have SLAs.
+            # Ignore tasks that don't have SLAs, saving most calculation of
+            # future task instances.
             if not ti.task.has_slas():
                 continue
 
-            # We can use skipped tasks to determine the "last success" to start
-            # looking from, but we shouldn't ever consider SLAs for them.
-            if ti.state != State.SKIPPED:
-                create_sla_misses(ti, ts, session)
+            # Create an SLA miss for this task (where applicable).
+            create_sla_misses(ti, ts, session)
 
-            # Look into the future for potential TIs that may or may not exist
+            # Create SLA misses for any TIs that "should" exist by now, even if
+            # the scheduler hasn't gotten around to them yet.
             for maybe_ti in get_task_instances_between(ti, ts):
                 create_sla_misses(maybe_ti, ts, session)
 
