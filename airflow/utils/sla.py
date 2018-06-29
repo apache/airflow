@@ -1,6 +1,9 @@
 import airflow.models
 from airflow.utils.state import State
 
+from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = LoggingMixin().log
 
 def get_task_instances_between(ti, ts):
     """
@@ -53,7 +56,7 @@ def create_sla_misses(ti, ts, session):
                     type=airflow.models.SlaMiss.TASK_DURATION_EXCEEDED,
                     timestamp=ts))
         except Exception:
-            self.log.warning(
+            log.warning(
                 "Failed to calculate expected duration SLA miss for "
                 "task %s",
                 ti
