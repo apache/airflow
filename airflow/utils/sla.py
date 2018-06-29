@@ -74,9 +74,57 @@ def create_sla_misses(ti, ts, session):
                 ti
             )
 
-    # TODO: SLA Miss for Expected Start
+    # SLA Miss for Expected Start
+    if ti.task.expected_start:
+        try:
+            # If a TI's exc date is 01-01-2018, we expect it to start by the next
+            # execution date (01-02-2018) plus a delta of expected_start.
+            expected_start = ti.task.dag.following_schedule(ti.execution_date)
+            expected_start += ti.task.expected_start
 
-    # TODO: SLA Miss for Expected Finish
+            # "now" is the start date for comparison, if the TI hasn't started
+            actual_start = ti.start_date or ts
+
+            if actual_start > expected_start:
+                session.merge(airflow.models.SlaMiss(
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    execution_date=ti.execution_date,
+                    type=airflow.models.SlaMiss.TASK_LATE_START,
+                    timestamp=ts))
+        except Exception:
+            log.warning(
+                "Failed to calculate expected start SLA miss for "
+                "task %s",
+                ti
+            )
+
+    # SLA Miss for Expected Finish
+    if ti.task.expected_finish:
+        try:
+            # If a TI's exc date is 01-01-2018, we expect it to finish by the next
+            # execution date (01-02-2018) plus a delta of expected_finish.
+            expected_finish = ti.task.dag.following_schedule(ti.execution_date)
+            expected_finish += ti.task.expected_finish
+
+            # "now" is the end date for comparison, if the TI hasn't finished
+            actual_finish = ti.end_date or ts
+
+            if actual_finish > expected_finish:
+                session.merge(airflow.models.SlaMiss(
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    execution_date=ti.execution_date,
+                    type=airflow.models.SlaMiss.TASK_LATE_FINISH,
+                    timestamp=ts))
+        except Exception:
+            log.warning(
+                "Failed to calculate expected finish SLA miss for "
+                "task %s",
+                ti
+            )
+
+
 def send_sla_miss_email(context):
     """
     Send an SLA miss email. This is the default SLA miss callback.
