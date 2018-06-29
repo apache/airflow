@@ -17,85 +17,69 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from six import PY2
+import hdfs3
+from hdfs3.utils import MyNone
 
-from airflow import configuration
-from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
-snakebite_imported = False
-if PY2:
-    from snakebite.client import Client, HAClient, Namenode, AutoConfigClient
-    snakebite_imported = True
-
-
-class HDFSHookException(AirflowException):
-    pass
-
-
 class HDFSHook(BaseHook):
-    """
-    Interact with HDFS. This class is a wrapper around the snakebite library.
+    """Hook for interacting with HDFS using the hdfs3 library.
 
-    :param hdfs_conn_id: Connection id to fetch connection info
-    :type hdfs_conn_id: str
-    :param proxy_user: effective user for HDFS operations
-    :type proxy_user: str
-    :param autoconfig: use snakebite's automatically configured client
-    :type autoconfig: bool
+    By default hdfs3 loads its configuration from `core-site.xml` and
+    `hdfs-site.xml` if these files can be found in any of the typical
+    locations. The hook loads `host` and `port` parameters from the
+    hdfs connection (if given) and extra configuration parameters can be
+    supplied using the `pars` key in extra JSON. See the hdfs3 documentation
+    for more details.
+
+    :param str hdfs_conn_id: Connection ID to fetch parameters from.
+    :param bool autoconf: Whether to use autoconfig to discover
+        configuration options from the hdfs XML configuration files.
     """
-    def __init__(self, hdfs_conn_id='hdfs_default', proxy_user=None,
-                 autoconfig=False):
-        if not snakebite_imported:
-            raise ImportError(
-                'This HDFSHook implementation requires snakebite, but '
-                'snakebite is not compatible with Python 3 '
-                '(as of August 2015). Please use Python 2 if you require '
-                'this hook  -- or help by submitting a PR!')
+
+    def __init__(self, hdfs_conn_id=None, autoconf=True):
+        super().__init__(None)
+
         self.hdfs_conn_id = hdfs_conn_id
-        self.proxy_user = proxy_user
-        self.autoconfig = autoconfig
+        self._autoconf = autoconf
+
+        self._conn = None
 
     def get_conn(self):
-        """
-        Returns a snakebite HDFSClient object.
-        """
-        # When using HAClient, proxy_user must be the same, so is ok to always
-        # take the first.
-        effective_user = self.proxy_user
-        autoconfig = self.autoconfig
-        use_sasl = configuration.conf.get('core', 'security') == 'kerberos'
+        if self._conn is None:
+            if self.hdfs_conn_id is None:
+                self._conn = hdfs3.HDFileSystem(autoconf=self._autoconf)
+            else:
+                params = self.get_connection(self.hdfs_conn_id)
 
-        try:
-            connections = self.get_connections(self.hdfs_conn_id)
+                # Extract hadoop parameters from extra.
+                hdfs_pars = params.extra_dejson.get('pars', {})
 
-            if not effective_user:
-                effective_user = connections[0].login
-            if not autoconfig:
-                autoconfig = connections[0].extra_dejson.get('autoconfig',
-                                                             False)
-            hdfs_namenode_principal = connections[0].extra_dejson.get(
-                'hdfs_namenode_principal')
-        except AirflowException:
-            if not autoconfig:
-                raise
+                # Collect extra parameters to pass to kwargs.
+                extra_kws = {}
+                if params.login:
+                    extra_kws['user'] = params.login
 
-        if autoconfig:
-            # will read config info from $HADOOP_HOME conf files
-            client = AutoConfigClient(effective_user=effective_user,
-                                      use_sasl=use_sasl)
-        elif len(connections) == 1:
-            client = Client(connections[0].host, connections[0].port,
-                            effective_user=effective_user, use_sasl=use_sasl,
-                            hdfs_namenode_principal=hdfs_namenode_principal)
-        elif len(connections) > 1:
-            nn = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(nn, effective_user=effective_user,
-                              use_sasl=use_sasl,
-                              hdfs_namenode_principal=hdfs_namenode_principal)
-        else:
-            raise HDFSHookException("conn_id doesn't exist in the repository "
-                                    "and autoconfig is not specified")
+                # Build connection.
+                self._conn = hdfs3.HDFileSystem(
+                    host=params.host or MyNone,
+                    port=params.port or MyNone,
+                    pars=hdfs_pars,
+                    autoconf=self._autoconf,
+                    **extra_kws)
 
-        return client
+        return self._conn
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        """Closes the HDFSHook and any underlying connections."""
+
+        if self._conn is not None:
+            self._conn.disconnect()
+        self._conn = None
