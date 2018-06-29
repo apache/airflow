@@ -90,6 +90,8 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
+.. _concepts-operators:
+
 Operators
 =========
 
@@ -127,6 +129,8 @@ the main distribution, but allow users to more easily add new functionality to
 the platform.
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
+
+See :doc:`howto/operator` for how to use Airflow operators.
 
 DAG Assignment
 --------------
