@@ -23,7 +23,7 @@ import unittest
 import mock
 from hdfs3.utils import MyNone
 
-from airflow.hooks.hdfs_hook import HDFSHook, hdfs3
+from airflow.hooks.hdfs_hook import HdfsHook, hdfs3
 
 
 class TestHDFSHook(unittest.TestCase):
@@ -37,33 +37,33 @@ class TestHDFSHook(unittest.TestCase):
     def setUp(self):
         self._mock_fs = mock.Mock()
 
-        self._mocked_hook = HDFSHook()
+        self._mocked_hook = HdfsHook()
         self._mocked_hook._conn = self._mock_fs
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
-    @mock.patch.object(HDFSHook, 'get_connection')
+    @mock.patch.object(HdfsHook, 'get_connection')
     def test_get_conn(self, conn_mock, hdfs3_mock):
         """Tests get_conn call without ID."""
 
-        with HDFSHook() as hook:
+        with HdfsHook() as hook:
             hook.get_conn()
 
         conn_mock.assert_not_called()
         hdfs3_mock.assert_called_once_with(autoconf=True)
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
-    @mock.patch.object(HDFSHook, 'get_connection')
+    @mock.patch.object(HdfsHook, 'get_connection')
     def test_get_conn_no_autoconf(self, conn_mock, hdfs3_mock):
         """Tests get_conn call without ID and autoconf = False."""
 
-        with HDFSHook(autoconf=False) as hook:
+        with HdfsHook(autoconf=False) as hook:
             hook.get_conn()
 
         conn_mock.assert_not_called()
         hdfs3_mock.assert_called_once_with(autoconf=False)
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
-    @mock.patch.object(HDFSHook, 'get_connection')
+    @mock.patch.object(HdfsHook, 'get_connection')
     def test_get_conn_with_conn(self, conn_mock, hdfs3_mock):
         """Tests get_conn call with ID."""
 
@@ -73,7 +73,7 @@ class TestHDFSHook(unittest.TestCase):
             port=8020,
             extra_dejson={'pars': {'dfs.namenode.logging.level': 'info'}})
 
-        with HDFSHook(hdfs_conn_id='hdfs_default') as hook:
+        with HdfsHook(hdfs_conn_id='hdfs_default') as hook:
             hook.get_conn()
 
         conn_mock.assert_called_once_with('hdfs_default')
@@ -86,7 +86,7 @@ class TestHDFSHook(unittest.TestCase):
             autoconf=True)
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
-    @mock.patch.object(HDFSHook, 'get_connection')
+    @mock.patch.object(HdfsHook, 'get_connection')
     def test_get_conn_with_empty_conn(self, conn_mock, hdfs3_mock):
         """Tests get_conn call with empty connection."""
 
@@ -96,7 +96,7 @@ class TestHDFSHook(unittest.TestCase):
             port='',
             extra_dejson={})
 
-        with HDFSHook(hdfs_conn_id='hdfs_default') as hook:
+        with HdfsHook(hdfs_conn_id='hdfs_default') as hook:
             hook.get_conn()
 
         conn_mock.assert_called_once_with('hdfs_default')

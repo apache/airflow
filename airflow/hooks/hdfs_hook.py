@@ -17,13 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import warnings
+
 import hdfs3
 from hdfs3.utils import MyNone
 
 from airflow.hooks.base_hook import BaseHook
 
 
-class HDFSHook(BaseHook):
+class HdfsHook(BaseHook):
     """Hook for interacting with HDFS using the hdfs3 library.
 
     By default hdfs3 loads its configuration from `core-site.xml` and
@@ -83,3 +85,27 @@ class HDFSHook(BaseHook):
         if self._conn is not None:
             self._conn.disconnect()
         self._conn = None
+
+
+class _DeprecationHelper(object):
+    def __init__(self, new_target, message, category=PendingDeprecationWarning):
+        self._message = message
+        self._new_target = new_target
+        self._category = category
+
+    def _warn(self):
+        warnings.warn(self._message, category=self._category)
+
+    def __call__(self, *args, **kwargs):
+        self._warn()
+        return self._new_target(*args, **kwargs)
+
+    def __getattr__(self, attr):
+        self._warn()
+        return getattr(self._new_target, attr)
+
+
+HDFSHook = _DeprecationHelper(
+    HdfsHook,
+    message='The `HDFSHook` has been renamed to `HdfsHook`. Support for '
+            'the old naming will be dropped in a future version of Airflow.')

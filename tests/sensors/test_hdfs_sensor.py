@@ -16,76 +16,159 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
 
 from datetime import timedelta
+import fnmatch
+import unittest
 
-from airflow import configuration
-from airflow.exceptions import AirflowSensorTimeout
-from airflow.sensors.hdfs_sensor import HdfsSensor
-from airflow.utils.timezone import datetime
-from tests.core import FakeHDFSHook
+import mock
 
-configuration.load_test_config()
+from airflow import models
+from airflow.sensors.hdfs_sensor import HdfsSensor, HdfsHook
 
-DEFAULT_DATE = datetime(2015, 1, 1)
-TEST_DAG_ID = 'unit_test_dag'
+
+class MockHdfs3Client(object):
+    """Mock hdfs3 client for testing purposes."""
+
+    def __init__(self, file_details):
+        self._file_details = {
+            entry['name']: entry for entry in file_details
+        }
+
+    def glob(self, pattern):
+        """Returns glob of files matching pattern."""
+        return fnmatch.filter(self._file_details.keys(), pattern)
+
+    def info(self, file_path):
+        """Returns info for given file path."""
+
+        try:
+            return self._file_details[file_path]
+        except KeyError:
+            raise IOError()
 
 
 class HdfsSensorTests(unittest.TestCase):
+    """Tests for the HdfsSensor class."""
 
     def setUp(self):
-        self.hook = FakeHDFSHook
+        file_details = [
+            {
+                'kind': 'directory',
+                'name': '/data/empty',
+                'size': 0
+            },
+            {
+                'kind': 'directory',
+                'name': '/data/not_empty',
+                'size': 0
+            },
+            {
+                'kind': 'file',
+                'name': '/data/not_empty/small.txt',
+                'size': 10
+            },
+            {
+                'kind': 'file',
+                'name': '/data/not_empty/large.txt',
+                'size': 10000000
+            },
+            {
+                'kind': 'file',
+                'name': '/data/not_empty/file.txt._COPYING_'
+            }
+        ]
 
-    def test_legacy_file_exist(self):
-        """
-        Test the legacy behaviour
-        :return:
-        """
-        # When
-        task = HdfsSensor(task_id='Should_be_file_legacy',
-                          filepath='/datadirectory/datafile',
-                          timeout=1,
-                          retry_delay=timedelta(seconds=1),
-                          poke_interval=1,
-                          hook=self.hook)
-        task.execute(None)
+        self._mock_client = MockHdfs3Client(file_details)
+        self._mock_params = models.Connection(conn_id='hdfs_default')
 
-        # Then
-        # Nothing happens, nothing is raised exec is ok
+        # Setup mock for get_connection.
+        patcher = mock.patch.object(
+            HdfsHook, 'get_connection', return_value=self._mock_params)
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
-    def test_legacy_file_exist_but_filesize(self):
-        """
-        Test the legacy behaviour with the filesize
-        :return:
-        """
-        # When
-        task = HdfsSensor(task_id='Should_be_file_legacy',
-                          filepath='/datadirectory/datafile',
-                          timeout=1,
-                          file_size=20,
-                          retry_delay=timedelta(seconds=1),
-                          poke_interval=1,
-                          hook=self.hook)
+        # Setup mock for get_conn.
+        patcher = mock.patch.object(
+            HdfsHook, 'get_conn', return_value=self._mock_client)
+        self.addCleanup(patcher.stop)
+        patcher.start()
 
-        # When
-        # Then
-        with self.assertRaises(AirflowSensorTimeout):
-            task.execute(None)
+        self._default_task_kws = {
+            'timeout': 1,
+            'retry_delay': timedelta(seconds=1),
+            'poke_interval': 1
+        }
 
-    def test_legacy_file_does_not_exists(self):
-        """
-        Test the legacy behaviour
-        :return:
-        """
-        task = HdfsSensor(task_id='Should_not_be_file_legacy',
-                          filepath='/datadirectory/not_existing_file_or_directory',
-                          timeout=1,
-                          retry_delay=timedelta(seconds=1),
-                          poke_interval=1,
-                          hook=self.hook)
+    def test_existing_file(self):
+        """Tests poking for existing file."""
 
-        # When
-        # Then
-        with self.assertRaises(AirflowSensorTimeout):
-            task.execute(None)
+        task = HdfsSensor(task_id='existing_file',
+                          file_path='/data/not_empty/small.txt',
+                          **self._default_task_kws)
+        self.assertTrue(task.poke(context={}))
+
+    def test_existing_file_glob(self):
+        """Tests poking for existing file with glob."""
+
+        task = HdfsSensor(task_id='existing_file',
+                          file_path='/data/not_empty/*.txt',
+                          **self._default_task_kws)
+        self.assertTrue(task.poke(context={}))
+
+    def test_nonexisting_file(self):
+        """Tests poking for non-existing file."""
+
+        task = HdfsSensor(task_id='nonexisting_file',
+                          file_path='/data/not_empty/random.txt',
+                          **self._default_task_kws)
+        self.assertFalse(task.poke(context={}))
+
+    def test_nonexisting_file_glob(self):
+        """Tests poking for non-existing file with glob."""
+
+        task = HdfsSensor(task_id='existing_file',
+                          file_path='/data/not_empty/*.xml',
+                          **self._default_task_kws)
+        self.assertFalse(task.poke(context={}))
+
+    def test_nonexisting_path(self):
+        """Tests poking for non-existing path."""
+
+        task = HdfsSensor(task_id='nonexisting_path',
+                          file_path='/data/not_empty/small.txt',
+                          **self._default_task_kws)
+
+        with mock.patch.object(self._mock_client, 'glob', side_effect=IOError):
+            self.assertFalse(task.poke(context={}))
+
+    def test_file_filter_size_small(self):
+        """Tests poking for file while filtering for file size (too small)."""
+
+        task = HdfsSensor(task_id='existing_file_too_small',
+                          file_path='/data/not_empty/small.txt',
+                          file_size=1,
+                          **self._default_task_kws)
+        self.assertFalse(task.poke(context={}))
+
+    def test_file_filter_size_large(self):
+        """Tests poking for file while filtering for file size (large)."""
+
+        task = HdfsSensor(task_id='existing_file_large',
+                          file_path='/data/not_empty/large.txt',
+                          file_size=1,
+                          **self._default_task_kws)
+        self.assertTrue(task.poke(context={}))
+
+    def test_file_filter_ext(self):
+        """Tests poking for file while filtering for extension."""
+
+        task = HdfsSensor(task_id='existing_file_large',
+                          file_path='/data/not_empty/f*',
+                          ignored_ext=('_COPYING_', ),
+                          **self._default_task_kws)
+        self.assertFalse(task.poke(context={}))
+
+
+if __name__ == '__main__':
+    unittest.main()

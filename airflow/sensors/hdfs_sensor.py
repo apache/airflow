@@ -17,107 +17,109 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
-import sys
-from builtins import str
+import posixpath
+import warnings
 
 from airflow import settings
-from airflow.hooks.hdfs_hook import HDFSHook
+from airflow.hooks.hdfs_hook import HdfsHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class HdfsSensor(BaseSensorOperator):
     """
     Waits for a file or folder to land in HDFS
     """
-    template_fields = ('filepath',)
+
+    template_fields = ('file_path',)
     ui_color = settings.WEB_COLORS['LIGHTBLUE']
 
     @apply_defaults
     def __init__(self,
-                 filepath,
+                 file_path,
                  hdfs_conn_id='hdfs_default',
-                 ignored_ext=None,
-                 ignore_copying=True,
                  file_size=None,
-                 hook=HDFSHook,
+                 ignored_ext=('_COPYING_', ),
+                 ignore_copying=None,
+                 hook=HdfsHook,
                  *args,
                  **kwargs):
+
+        if ignore_copying is not None:
+            warnings.warn(
+                'The ignore_copying argument is no longer used and will '
+                'be removed in the next version of Airflow.',
+                category=PendingDeprecationWarning)
+
         super(HdfsSensor, self).__init__(*args, **kwargs)
-        if ignored_ext is None:
-            ignored_ext = ['_COPYING_']
-        self.filepath = filepath
         self.hdfs_conn_id = hdfs_conn_id
+        self.file_path = file_path
+
         self.file_size = file_size
-        self.ignored_ext = ignored_ext
-        self.ignore_copying = ignore_copying
+        self.ignored_ext = set(ignored_ext)
+
         self.hook = hook
 
-    @staticmethod
-    def filter_for_filesize(result, size=None):
-        """
-        Will test the filepath result and test if its size is at least self.filesize
-
-        :param result: a list of dicts returned by Snakebite ls
-        :param size: the file size in MB a file should be at least to trigger True
-        :return: (bool) depending on the matching criteria
-        """
-        if size:
-            log = LoggingMixin().log
-            log.debug(
-                'Filtering for file size >= %s in files: %s',
-                size, map(lambda x: x['path'], result)
-            )
-            size *= settings.MEGABYTE
-            result = [x for x in result if x['length'] >= size]
-            log.debug('HdfsSensor.poke: after size filter result is %s', result)
-        return result
-
-    @staticmethod
-    def filter_for_ignored_ext(result, ignored_ext, ignore_copying):
-        """
-        Will filter if instructed to do so the result to remove matching criteria
-
-        :param result: list of dicts returned by Snakebite ls
-        :type result: list[dict]
-        :param ignored_ext: list of ignored extensions
-        :type ignored_ext: list
-        :param ignore_copying: shall we ignore ?
-        :type ignore_copying: bool
-        :return: list of dicts which were not removed
-        :rtype: list[dict]
-        """
-        if ignore_copying:
-            log = LoggingMixin().log
-            regex_builder = r"^.*\.(%s$)$" % '$|'.join(ignored_ext)
-            ignored_extensions_regex = re.compile(regex_builder)
-            log.debug(
-                'Filtering result for ignored extensions: %s in files %s',
-                ignored_extensions_regex.pattern, map(lambda x: x['path'], result)
-            )
-            result = [x for x in result if not ignored_extensions_regex.match(x['path'])]
-            log.debug('HdfsSensor.poke: after ext filter result is %s', result)
-        return result
+    @property
+    def filepath(self):
+        warnings.warn(
+            'The `filepath` property has been renamed to `file_path`. '
+            'Support for the old accessor will be dropped in the next '
+            'version of Airflow.',
+            category=PendingDeprecationWarning)
+        return self.file_path
 
     def poke(self, context):
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        self.log.info('Poking for file {self.filepath}'.format(**locals()))
+        self.log.info('Poking for file %s', self.file_path)
+        hdfs_conn = self.hook(self.hdfs_conn_id).get_conn()
+
         try:
-            # IMOO it's not right here, as there no raise of any kind.
-            # if the filepath is let's say '/data/mydirectory',
-            # it's correct but if it is '/data/mydirectory/*',
-            # it's not correct as the directory exists and sb does not raise any error
-            # here is a quick fix
-            result = [f for f in sb.ls([self.filepath], include_toplevel=False)]
-            self.log.debug('HdfsSensor.poke: result is %s', result)
-            result = self.filter_for_ignored_ext(
-                result, self.ignored_ext, self.ignore_copying
-            )
-            result = self.filter_for_filesize(result, self.file_size)
-            return bool(result)
-        except Exception:
-            e = sys.exc_info()
-            self.log.debug("Caught an exception !: %s", str(e))
+            file_paths = hdfs_conn.glob(self.file_path)
+        except IOError:
+            # File path doesn't exist yet.
             return False
+
+        self.log.info('Files matching pattern: %s', file_paths)
+
+        if self.file_size:
+            file_paths = self._filter_for_size(
+                hdfs_conn, file_paths, min_size=self.file_size)
+            self.log.info('Files after filtering for size: %s', file_paths)
+
+        if self.ignored_ext:
+            file_paths = self._filter_with_ext(
+                file_paths, exts=self.ignored_ext)
+            self.log.info('Files after filtering for extensions: %s',
+                          file_paths)
+
+        return self._not_empty(file_paths)
+
+    @staticmethod
+    def _not_empty(iterable):
+        try:
+            next(iterable)
+            return True
+        except StopIteration:
+            return False
+
+    @staticmethod
+    def _filter_for_size(hdfs_conn, file_paths, min_size):
+        """Filters file paths for a minimum file size."""
+
+        min_size_mb = min_size * settings.MEGABYTE
+
+        for file_path in file_paths:
+            info = hdfs_conn.info(file_path)
+            if info['kind'] == 'file' and info['size'] > min_size_mb:
+                yield file_path
+
+    @staticmethod
+    def _filter_with_ext(file_paths, exts):
+        """Filters any files with the given extensions."""
+
+        for file_path in file_paths:
+            # Get file extension without preceding '.'.
+            file_ext = posixpath.splitext(file_path)[1][1:]
+
+            if file_ext not in exts:
+                yield file_path
