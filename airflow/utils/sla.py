@@ -82,7 +82,7 @@ def create_sla_misses(ti, ts, session):
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    type=airflow.models.SlaMiss.TASK_DURATION_EXCEEDED,
+                    sla_type=airflow.models.SlaMiss.TASK_DURATION_EXCEEDED,
                     timestamp=ts))
         except Exception:
             log.warning(
@@ -107,7 +107,7 @@ def create_sla_misses(ti, ts, session):
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    type=airflow.models.SlaMiss.TASK_LATE_START,
+                    sla_type=airflow.models.SlaMiss.TASK_LATE_START,
                     timestamp=ts))
         except Exception:
             log.warning(
@@ -132,7 +132,7 @@ def create_sla_misses(ti, ts, session):
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    type=airflow.models.SlaMiss.TASK_LATE_FINISH,
+                    sla_type=airflow.models.SlaMiss.TASK_LATE_FINISH,
                     timestamp=ts))
         except Exception:
             log.warning(
