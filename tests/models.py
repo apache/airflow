@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
 from airflow.models import DagModel, DagStat
+from airflow.operators import BaseOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -287,6 +288,29 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', "{{ 'world' | hello}}", dict())
         self.assertEqual(result, 'Hello world')
+
+    def test_extra_links_no_affect(self):
+        """
+        test for no affect on existing operators with no extra_links
+        """
+        task = DummyOperator(task_id="some_dummy_task")
+        self.assertEqual(task.extra_links, [])
+        self.assertEqual(task.get_extra_links(DEFAULT_DATE, 'foo-bar'), None)
+
+    def test_extra_links(self):
+        """
+        test if a operator can support extra_links or not
+        """
+        class DummyTestOperator(BaseOperator):
+            extra_links = ['foo-bar']
+
+            def get_extra_links(self, ddtm, link_name):
+                return('www.foo-bar.com')
+
+        task = DummyTestOperator(task_id="some_dummy_task")
+        self.assertEqual(task.extra_links, ['foo-bar'])
+        self.assertEqual(task.get_extra_links(DEFAULT_DATE, 'foo-bar'),
+                         'www.foo-bar.com')
 
 
 class DagStatTest(unittest.TestCase):
