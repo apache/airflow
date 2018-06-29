@@ -20,35 +20,17 @@ from airflow.sensors.hdfs_sensor import HdfsSensor
 
 
 class HdfsSensorRegex(HdfsSensor):
-    def __init__(self,
-                 regex,
-                 *args,
-                 **kwargs):
+    """HdfsSensor subclass that filters using a specific regex."""
+
+    def __init__(self, regex, *args, **kwargs):
+
+        kwargs['filters'] = [lambda conn, fp: regex.match(fp) is not None]
         super(HdfsSensorRegex, self).__init__(*args, **kwargs)
-        self.regex = regex
-
-    def poke(self, context):
-        """
-        poke matching files in a directory with self.regex
-
-        :return: Bool depending on the search criteria
-        """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        self.log.info(
-            'Poking for {self.filepath} to be a directory '
-            'with files matching {self.regex.pattern}'.
-            format(**locals())
-        )
-        result = [f for f in sb.ls([self.filepath], include_toplevel=False) if
-                  f['file_type'] == 'f' and
-                  self.regex.match(f['path'].replace('%s/' % self.filepath, ''))]
-        result = self.filter_for_ignored_ext(result, self.ignored_ext,
-                                             self.ignore_copying)
-        result = self.filter_for_filesize(result, self.file_size)
-        return bool(result)
 
 
 class HdfsSensorFolder(HdfsSensor):
+    """HdfsSensor subclass that filters specifically for directories."""
+
     def __init__(self,
                  be_empty=False,
                  *args,
