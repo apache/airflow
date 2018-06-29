@@ -36,7 +36,7 @@ class AWSBatchOperator(BaseOperator):
     .. warning: the queue parameter was renamed to job_queue to segregate the
                 internal CeleryExecutor queue from the AWS Batch internal queue.
 
-    :param job_name: the name for the job that will run on AWS Batch
+    :param job_name: the name for the job that will run on AWS Batch (templated)
     :type job_name: str
     :param job_definition: the job definition name on AWS Batch
     :type job_definition: str
@@ -61,7 +61,7 @@ class AWSBatchOperator(BaseOperator):
     ui_color = '#c3dae0'
     client = None
     arn = None
-    template_fields = ('overrides',)
+    template_fields = ('job_name', 'overrides',)
 
     @apply_defaults
     def __init__(self, job_name, job_definition, job_queue, overrides, max_retries=4200,

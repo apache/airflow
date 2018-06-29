@@ -62,7 +62,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
 
     def test_template_fields_overrides(self):
-        self.assertEqual(self.batch.template_fields, ('overrides',))
+        self.assertEqual(self.batch.template_fields, ('job_name', 'overrides',))
 
     @mock.patch.object(AWSBatchOperator, '_wait_for_task_ended')
     @mock.patch.object(AWSBatchOperator, '_check_success_task')
@@ -167,7 +167,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         # Ordering of str(dict) is not guaranteed.
         self.assertIn('This task is still pending ', str(e.exception))
 
-    def test_check_success_tasks_raises_mutliple(self):
+    def test_check_success_tasks_raises_multiple(self):
         client_mock = mock.Mock()
         self.batch.jobId = '8ba9d676-4108-4474-9dca-8bbac1da9b19'
         self.batch.client = client_mock
