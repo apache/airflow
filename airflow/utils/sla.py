@@ -146,6 +146,30 @@ def send_sla_miss_email(context):
     """
     Send an SLA miss email. This is the default SLA miss callback.
     """
+    sla_miss = context["sla_miss"]
+
+    if sla_miss.sla_type == sla_miss.TASK_DURATION_EXCEEDED:
+        send_task_duration_exceeded_email(context)
+    elif sla_miss.sla_type == sla_miss.TASK_LATE_START:
+        send_task_late_start_email(context)
+    elif sla_miss.sla_type == sla_miss.TASK_LATE_FINISH:
+        send_task_late_finish_email(context)
+    else:
+        log.warning("Received unexpected SLA Miss type: %s", sla_miss.sla_type)
+
+
+def send_task_duration_exceeded_email(context):
+    ti = context["ti"]
+
+
+def send_task_late_start_email(context):
+    ti = context["ti"]
+
+
+def send_task_late_finish_email(context):
+    ti = context["ti"]
+
+
 
     # TODO: Fix this up.
     TI = airflow.models.TaskInstance
