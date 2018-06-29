@@ -4661,6 +4661,7 @@ class DAG(BaseDag, LoggingMixin):
             else:
                 self.log.info("Triggering callback for SLA miss %s:", sla_miss)
                 try:
+                    # Patch context with the current SLA miss.
                     context = ti.get_template_context()
                     context["sla_miss"] = sla_miss
                     ti.task.sla_miss_callback(context)
