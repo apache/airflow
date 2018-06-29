@@ -6,7 +6,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 log = LoggingMixin().log
 
 
-def get_task_instances_between(ti, ts):
+def get_task_instances_between(ti, ts, session=None):
     """
     Given a `TaskInstance`, yield any `TaskInstance`s that should exist between
     then and a specific time, respecting the end date of the DAG and task. Note
@@ -17,21 +17,38 @@ def get_task_instances_between(ti, ts):
     task = ti.task
     dag = task.dag
 
-    # We want to start from the next one.
-    next_exc_date = dag.following_schedule(ti.execution_date)
+    # Respect DAG and Task end dates.
+    end_dates = [ts]
+    if task.end_date:
+        end_dates.append(task.end_date)
+    if dag.end_date:
+        end_dates.append(dag.end_date)
 
-    while next_exc_date < ts:
-        # Stop before exceeding end dates.
-        if task.end_date and task.end_date <= next_exc_date:
-            break
-        if dag.end_date and dag.end_date <= next_exc_date:
-            break
+    # Get the soonest valid end date.
+    end_date = min(end_dates)
 
-        yield airflow.models.TaskInstance(task, next_exc_date)
+    # Return all in-database TIs (including the provided one).
+    db_tis = task.get_task_instances(session, start_date=ti.start_date,
+                                     end_date=end_date)
 
-        # Increment by one execution
-        next_exc_date = dag.following_schedule(next_exc_date)
+    # Helper to iterate through TIs and find one matching an exc date
+    def _scan(l, d):
+        for t in l:
+            if t.execution_date == d:
+                return t
+            elif t.execution_date > d:
+                return False
 
+    for exc_date in dag.date_range(start_date=ts, end_date=end_date):
+        ti_on_exc_date = _scan(db_tis, exc_date)
+
+        # Remove a match if found
+        if ti_on_exc_date:
+            db_tis.remove(ti_on_exc_date)
+        # Create a fake TI if not found
+        else:
+            ti_on_exc_date = airflow.models.TaskInstance(task, exc_date)
+        yield ti_on_exc_date
 
 def create_sla_misses(ti, ts, session):
     """

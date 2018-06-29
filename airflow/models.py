@@ -4617,12 +4617,9 @@ class DAG(BaseDag, LoggingMixin):
             if not ti.task.has_slas():
                 continue
 
-            # Create an SLA miss for this task (where applicable).
-            create_sla_misses(ti, ts, session)
-
-            # Create SLA misses for any TIs that "should" exist by now, even if
-            # the scheduler hasn't gotten around to them yet.
-            for maybe_ti in get_task_instances_between(ti, ts):
+            # Create SLA misses for this TI and any subsequent TIs that "should"
+            # exist by now, even if the scheduler hasn't gotten around to them yet.
+            for maybe_ti in get_task_instances_between(ti, ts, session):
                 create_sla_misses(maybe_ti, ts, session)
 
         # Save any SlaMisses that were created in `create_sla_misses()`
