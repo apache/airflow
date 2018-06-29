@@ -9,9 +9,9 @@ log = LoggingMixin().log
 def get_task_instances_between(ti, ts):
     """
     Given a `TaskInstance`, yield any `TaskInstance`s that should exist between
-    then and a specific time, respecting the end date of the task. Note that
-    since those `TaskInstance`s may not have been created in the database yet
-    (pending scheduler availability), this function returns new objects that
+    then and a specific time, respecting the end date of the DAG and task. Note
+    that since those `TaskInstance`s may not have been created in the database
+    yet (pending scheduler availability), this function returns new objects that
     are not persisted in the db.
     """
     task = ti.task
@@ -21,8 +21,10 @@ def get_task_instances_between(ti, ts):
     next_exc_date = dag.following_schedule(ti.execution_date)
 
     while next_exc_date < ts:
-        # Stop before exceeding end date.
+        # Stop before exceeding end dates.
         if task.end_date and task.end_date <= next_exc_date:
+            break
+        if dag.end_date and dag.end_date <= next_exc_date:
             break
 
         yield airflow.models.TaskInstance(task, next_exc_date)
