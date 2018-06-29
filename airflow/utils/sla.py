@@ -37,9 +37,13 @@ def create_sla_misses(ti, ts, session):
     """
     Determine whether a TaskInstance has missed any SLAs as of a provided
     timestamp. If it has, create `SlaMiss` objects in the provided session.
+    Note that one TaskInstance can have multiple SLA miss objects: for example,
+    it can both start late and run longer than expected.
     """
     # Skipped task instances will never trigger SLAs because they
-    # were intentionally not scheduled.
+    # were intentionally not scheduled. Though, it's still a valid and
+    # interesting SLA miss if a task that's *going* to be skipped today is
+    # late! That could mean that an upstream task is hanging.
     if ti.state == State.SKIPPED:
         return
 
