@@ -2008,6 +2008,7 @@ class BackfillJob(BaseJob):
         self.verbose = verbose
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
+        self.dag_runs = []
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
@@ -2469,6 +2470,7 @@ class BackfillJob(BaseJob):
                                                        session=session)
             if dag_run is None:
                 continue
+            self.dag_runs.append(dag_run)
 
             ti_status.active_runs.append(dag_run)
             ti_status.to_run.update(tis_map or {})
@@ -2540,9 +2542,32 @@ class BackfillJob(BaseJob):
                         self.dag_id
                     )
                     time.sleep(self.delay_on_limit_secs)
+
+        except (KeyboardInterrupt, SystemExit):
+            for dag_run in self.dag_runs:
+                dag_run.refresh_from_db(session)
+                make_transient(dag_run)
+
+                # Check all the tasks which are not in success state.
+                check_state = State.unfinished() + State.finished()
+                check_state.remove(State.SUCCESS)
+
+                unfinished_tasks = dag_run.get_task_instances(
+                    state=check_state,
+                    session=session
+                )
+                if unfinished_tasks:
+                    # if there are unfinished tasks and ctrl^c
+                    # set dag run state to failed
+                    for task in unfinished_tasks:
+                        task.set_state(State.FAILED, session)
+                    dag_run.state = State.FAILED
+                else:
+                    dag_run.state = State.SUCCESS
+                session.merge(dag_run)
         finally:
-            executor.end()
             session.commit()
+            executor.end()
 
         self.log.info("Backfill done. Exiting.")
 
