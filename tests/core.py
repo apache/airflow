@@ -2429,7 +2429,7 @@ class EmailTest(unittest.TestCase):
         utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_with(
             'to', 'subject', 'content', files=None, dryrun=False,
-            cc=None, bcc=None, mime_charset='us-ascii', mime_subtype='mixed')
+            cc=None, bcc=None, mime_charset='utf-8', mime_subtype='mixed')
         self.assertFalse(mock_send_email.called)
 
 
