@@ -41,7 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 def send_email(to, subject, html_content,
                files=None, dryrun=False, cc=None, bcc=None,
-               mime_subtype='mixed', mime_charset='us-ascii', **kwargs):
+               mime_subtype='mixed', mime_charset='utf-8', **kwargs):
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
@@ -55,7 +55,7 @@ def send_email(to, subject, html_content,
 
 def send_email_smtp(to, subject, html_content, files=None,
                     dryrun=False, cc=None, bcc=None,
-                    mime_subtype='mixed', mime_charset='us-ascii',
+                    mime_subtype='mixed', mime_charset='utf-8',
                     **kwargs):
     """
     Send an email with html content
