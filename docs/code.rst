@@ -1,6 +1,8 @@
 API Reference
 =============
 
+.. _api-reference-operators:
+
 Operators
 ---------
 Operators allow for generation of certain types of tasks that become nodes in

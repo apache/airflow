@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -30,7 +30,7 @@ from werkzeug.wsgi import DispatcherMiddleware
 from airflow import settings
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
-
+from airflow.www_rbac.static_config import configure_manifest_files
 
 app = None
 appbuilder = None
@@ -62,6 +62,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     app.register_blueprint(routes)
 
     configure_logging()
+    configure_manifest_files(app)
 
     with app.app_context():
         appbuilder = AppBuilder(
