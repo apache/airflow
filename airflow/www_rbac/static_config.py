@@ -16,10 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import print_function
+
 import json
 import os
 
-from airflow import AirflowException
+manifest = dict()
 
 
 def configure_manifest_files(app):
@@ -28,14 +30,18 @@ def configure_manifest_files(app):
     :param app:
     :return:
     """
+
     def parse_manifest_json():
-        global manifest
+        # noinspection PyBroadException
         try:
+            global manifest
             manifest_file = os.path.join(os.path.dirname(__file__),
                                          'static/dist/manifest.json')
             with open(manifest_file, 'r') as f:
-                manifest = json.load(f)
-        except AirflowException:
+                manifest.update(json.load(f))
+        except Exception:
+            print("Please make sure to build the frontend in "
+                  "static/ directory and restart the server")
             pass
 
     def get_asset_url(filename):

@@ -296,14 +296,6 @@ npm run prod
 npm run dev
 ```
 
-For every development session you will have to start a flask dev server
-as well as an npm watcher
-
-```
-airflow runserver -d -p 8081
-npm run dev
-```
-
 #### Upgrading npm packages
 
 Should you add or upgrade a npm package, which involves changing `package.json`, you'll need to re-run `yarn install` and push the newly generated `yarn.lock` file so we get the reproducible build. More information at (https://yarnpkg.com/blog/2016/11/24/lockfiles-for-all/)
