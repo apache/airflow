@@ -24,6 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
+from time import sleep
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -47,7 +48,8 @@ class DatabricksHook(BaseHook, LoggingMixin):
             self,
             databricks_conn_id='databricks_default',
             timeout_seconds=180,
-            retry_limit=3):
+            retry_limit=3,
+            retry_delay=1):
         """
         :param databricks_conn_id: The name of the databricks connection to use.
         :type databricks_conn_id: string
@@ -57,12 +59,16 @@ class DatabricksHook(BaseHook, LoggingMixin):
         :param retry_limit: The number of times to retry the connection in case of
             service outages.
         :type retry_limit: int
+        :param retry_delay: The number of seconds to wait between retries (it
+            might be a floating point number).
+        :type retry_delay: float
         """
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
         assert retry_limit >= 1, 'Retry limit must be greater than equal to 1'
         self.retry_limit = retry_limit
+        self.retry_delay = retry_delay
 
     def _parse_host(self, host):
         """
@@ -117,7 +123,8 @@ class DatabricksHook(BaseHook, LoggingMixin):
         else:
             raise AirflowException('Unexpected HTTP Method: ' + method)
 
-        for attempt_num in range(1, self.retry_limit + 1):
+        attempt_num = 1
+        while True:
             try:
                 response = request_func(
                     url,
@@ -125,21 +132,42 @@ class DatabricksHook(BaseHook, LoggingMixin):
                     auth=auth,
                     headers=USER_AGENT_HEADER,
                     timeout=self.timeout_seconds)
-                if response.status_code == requests.codes.ok:
-                    return response.json()
-                else:
+                response.raise_for_status()
+                return response.json()
+            except (requests_exceptions.ConnectionError,
+                    requests_exceptions.Timeout) as e:
+                self._log_request_error(attempt_num, e)
+            except requests_exceptions.HTTPError as e:
+                response = e.response
+                if not self._retriable_error(response):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise AirflowException('Response: {0}, Status Code: {1}'.format(
                         response.content, response.status_code))
-            except (requests_exceptions.ConnectionError,
-                    requests_exceptions.Timeout) as e:
-                self.log.error(
-                    'Attempt %s API Request to Databricks failed with reason: %s',
-                    attempt_num, e
-                )
-        raise AirflowException(('API requests to Databricks failed {} times. ' +
-                               'Giving up.').format(self.retry_limit))
+
+                self._log_request_error(attempt_num, e)
+
+            if attempt_num == self.retry_limit:
+                raise AirflowException(('API requests to Databricks failed {} times. ' +
+                                        'Giving up.').format(self.retry_limit))
+
+            attempt_num += 1
+            sleep(self.retry_delay)
+
+    def _log_request_error(self, attempt_num, error):
+        self.log.error(
+            'Attempt %s API Request to Databricks failed with reason: %s',
+            attempt_num, error
+        )
+
+    @staticmethod
+    def _retriable_error(response):
+        try:
+            error_code = response.json().get('error_code')
+            return error_code == 'TEMPORARILY_UNAVAILABLE'
+        except ValueError:
+            # not a valid JSON
+            return False
 
     def submit_run(self, json):
         """
