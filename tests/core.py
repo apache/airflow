@@ -1473,9 +1473,20 @@ class CliTests(unittest.TestCase):
             cli.get_dags(self.parser.parse_args(['clear', 'foobar', '-dx', '-c']))
 
     def test_clear_no_reset(self):
+        # create an already-successful run of example_python_operator
+        run = self.dagbag.dags['example_python_operator'].create_dagrun(
+            run_id="reset_run",
+            execution_date=DEFAULT_DATE,
+            state=State.SUCCESS
+        )
+
+        # clear this DAG, with no_dag_reset
         args = self.parser.parse_args([
             'clear', 'example_python_operator', '--no_dag_reset', '--no_confirm'])
         cli.clear(args)
+
+        # the run should still have state=SUCCESS (ie, not set to RUNNING again)
+        self.assertEqual(run.state, State.SUCCESS)
 
     def test_backfill(self):
         cli.backfill(self.parser.parse_args([
