@@ -220,7 +220,7 @@ def get_blocked_task_instances(task_instance):
     # where dependencies are encoded properly, this shouldn't happen.
     blocked_states = (
         State.UPSTREAM_FAILED,
-        State.SCHEDULED
+        State.SCHEDULED,
         State.QUEUED,
         State.NONE,
     )
