@@ -259,12 +259,12 @@ def send_task_late_finish_email(context):
     View Task Details: {ti_url}
 
     This may be blocking the following downstream tasks:
-    <pre><code>{blocked_tasks}\n{bug}</pre></code>
+    <pre><code>{blocked_tasks}\n{art}</pre></code>
     """.format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
         blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
         ti_url=ti.details_url,
-        bug=asciiart.bug)
+        art=asciiart.bug)
 
     return email_to, email_subject, email_body
