@@ -74,7 +74,11 @@ class ZendeskHook(BaseHook):
                 self.__handle_rate_limit_exception(rle)
 
         # Find the key with the results
-        keys = [path.split("/")[-1].split(".json")[0]]
+        key = path.split("/")[-1].split(".json")[0]
+        if key == 'search':
+            keys = ['results']
+        else:
+            keys = [key]
         next_page = results['next_page']
         if side_loading:
             keys += query['include'].split(',')
