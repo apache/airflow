@@ -202,7 +202,7 @@ def get_subscribers(tasks):
 
 
 @provide_session
-def get_blocked_task_instances(task_instance):
+def get_blocked_task_instances(task_instance, session=None):
     """
     Given a task instance, return task instances that may currently
     be blocked by it.
