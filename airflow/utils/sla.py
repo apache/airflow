@@ -163,65 +163,107 @@ def send_sla_miss_email(context):
     send_email(email_to, email_subject, email_body)
 
 
+def describe_task_instance(ti):
+    """
+    Return a string representation of the task instance.
+    """
+    return "{dag_id}.{task_id}[{exc_date}]".format(
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        exc_date=ti.execution_date
+    )
+
+
+def get_sla_miss_subject(miss_type, ti):
+    """
+    Return a consistent subject line for SLA miss emails.
+    """
+    return "[airflow] [SLA] {miss_type} on {task_instance}".format(
+        miss_type=miss_type,
+        task_instance=describe_task_instance(ti)
+    )
+
+
+def get_subscribers(tasks):
+    """
+    Return a list of unique emails from a list of tasks.
+    """
+    def _yield_subscribers(tasks):
+        for t in tasks:
+            if t.email:
+                if isinstance(t.email, basestring):
+                    yield t.email
+                else:
+                    yield from t.email
+    return list(set(_yield_emails(tasks)))
+
+
+@provide_session
+def get_blocked_task_instances(task_instance):
+    """
+    Given a task instance, return task instances that may currently
+    be blocked by it.
+    """
+    dag = task_instance.task.dag
+
+    TI = airflow.models.TaskInstance
+    downstream_tasks = task_instance.get_flat_relatives(upstream=False)
+
+    # The intent is to capture states that indicate that work was never started
+    # on a task, presumably because this task not achieving its SLA prevented
+    # the downstream task from ever successfully starting.
+
+    # It is possible for an upstream task to cause a downstream task to *fail*,
+    # like if it never produces a required artifact. But in a well-behaved DAG
+    # where dependencies are encoded properly, this shouldn't happen.
+    blocked_states = (
+        State.UPSTREAM_FAILED,
+        State.SCHEDULED
+        State.QUEUED,
+        State.NONE,
+    )
+
+    qry = (
+        session
+        .query(TI)
+        .filter(TI.dag_id == dag.dag_id)
+        .filter(TI.task_id.in_(list(t.task_id for t in downstream_tasks)))
+        .filter(TI.execution_date == task_instance.execution_date)
+        .filter(TI.state.in_(blocked_states))
+        .all()
+    )
+    return qry
+
+
+def send_task_duration_exceeded_email(context):
+    # TODO: Implement
+    return subject, body
+
+
 def send_task_late_start_email(context):
-    ti = context["ti"]
+    # TODO: Implement
+    return subject, body
 
 
 def send_task_late_finish_email(context):
     ti = context["ti"]
+    target_time = ti.start_date + ti.task.expected_duration
+    blocked = get_blocked_task_instances(ti)
 
+    email_to = get_subscribers(blocked)
+    email_subject = get_sla_miss_subject("Late finish", ti)
+    email_body = """\
+    <pre><code>{task_string}</pre></code> missed an SLA: did not finish by <pre><code>{target_time}</pre></code>.
 
+    View Task Details: {ti_url}
 
-    # TODO: Fix this up.
-    TI = airflow.models.TaskInstance
+    This may be blocking the following downstream tasks:
+    <pre><code>{blocked_tasks}\n{bug}</pre></code>
+    """.format(
+        task_string=describe_task_instance(ti),
+        target_time=target_time,
+        blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
+        ti_url=ti.details_url,
+        bug=asciiart.bug)
 
-    sla_miss_dates = [sla_miss.execution_date for sla_miss in sla_misses]
-    qry = (
-        session
-        .query(TI)
-        .filter(TI.state != State.SUCCESS)
-        .filter(TI.execution_date.in_(sla_miss_dates))
-        .filter(TI.dag_id == self.dag_id)
-        .all()
-    )
-    blocking_tis = []
-
-    for ti in qry:
-        if ti.task_id in self.task_ids:
-            ti.task = self.get_task(ti.task_id)
-            blocking_tis.append(ti)
-        else:
-            session.delete(ti)
-            session.commit()
-
-    task_list = "\n".join([
-        sla.task_id + ' on ' + sla.execution_date.isoformat()
-        for sla in sla_misses])
-    blocking_task_list = "\n".join([
-        ti.task_id + ' on ' + ti.execution_date.isoformat()
-        for ti in blocking_tis])
-
-    email_content = """\
-    Here's a list of tasks that missed their SLAs:
-    <pre><code>{task_list}\n<code></pre>
-    Blocking tasks:
-    <pre><code>{blocking_task_list}\n{bug}<code></pre>
-    """.format(bug=asciiart.bug, **locals())
-    emails = []
-    for t in self.tasks:
-        if t.email:
-            if isinstance(t.email, basestring):
-                l = [t.email]
-            elif isinstance(t.email, (list, tuple)):
-                l = t.email
-            for email in l:
-                if email not in emails:
-                    emails.append(email)
-    if emails and len(slas):
-
-            send_email(
-                emails,
-                "[airflow] SLA miss on DAG=" + self.dag_id,
-                email_content)
-            email_sent = True
-            notification_sent = True
+    return email_to, email_subject, email_body
