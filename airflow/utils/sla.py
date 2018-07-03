@@ -1,4 +1,5 @@
 import airflow.models
+from airflow.utils import asciiart
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
