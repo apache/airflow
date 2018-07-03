@@ -286,7 +286,7 @@ def send_task_late_start_email(context):
 
 def send_task_late_finish_email(context):
     ti = context["ti"]
-    target_time = ti.start_date + ti.task.expected_duration
+    target_time = ti.execution_date + ti.task.expected_finish
     blocked = get_blocked_task_instances(ti)
 
     email_to = get_subscribers(blocked)
