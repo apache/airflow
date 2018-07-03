@@ -195,8 +195,9 @@ def get_subscribers(tasks):
                 if isinstance(t.email, basestring):
                     yield t.email
                 else:
-                    yield from t.email
-    return list(set(_yield_emails(tasks)))
+                    for e in t.email:
+                        yield e
+    return list(set(_yield_subscribers(tasks)))
 
 
 @provide_session
