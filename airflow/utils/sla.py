@@ -237,13 +237,51 @@ def get_blocked_task_instances(task_instance):
 
 
 def send_task_duration_exceeded_email(context):
-    # TODO: Implement
-    return subject, body
+    ti = context["ti"]
+    target_time = ti.task.expected_duration
+    blocked = get_blocked_task_instances(ti)
+
+    email_to = get_subscribers(blocked)
+    email_subject = get_sla_miss_subject("Exceeded duration", ti)
+    email_body = """\
+    <pre><code>{task_string}</pre></code> missed an SLA: duration exceeded <pre><code>{target_time}</pre></code>.
+
+    View Task Details: {ti_url}
+
+    This may be blocking the following downstream tasks:
+    <pre><code>{blocked_tasks}\n{art}</pre></code>
+    """.format(
+        task_string=describe_task_instance(ti),
+        target_time=target_time,
+        blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
+        ti_url=ti.details_url,
+        art=asciiart.snail)
+
+    return email_to, email_subject, email_body
 
 
 def send_task_late_start_email(context):
-    # TODO: Implement
-    return subject, body
+    ti = context["ti"]
+    target_time = ti.execution_date + ti.task.expected_start
+    blocked = get_blocked_task_instances(ti)
+
+    email_to = get_subscribers(blocked)
+    email_subject = get_sla_miss_subject("Late start", ti)
+    email_body = """\
+    <pre><code>{task_string}</pre></code> missed an SLA: did not start by <pre><code>{target_time}</pre></code>.
+
+    View Task Details: {ti_url}
+
+    This may be blocking the following downstream tasks:
+    <pre><code>{blocked_tasks}\n{art}</pre></code>
+    """.format(
+        task_string=describe_task_instance(ti),
+        target_time=target_time,
+        blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
+        ti_url=ti.details_url,
+        art=asciiart.snail)
+
+    return email_to, email_subject, email_body
 
 
 def send_task_late_finish_email(context):
