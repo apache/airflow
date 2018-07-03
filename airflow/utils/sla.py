@@ -1,4 +1,5 @@
 import airflow.models
+from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
