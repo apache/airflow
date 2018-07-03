@@ -1,4 +1,5 @@
 import airflow.models
+from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
@@ -149,17 +150,17 @@ def send_sla_miss_email(context):
     sla_miss = context["sla_miss"]
 
     if sla_miss.sla_type == sla_miss.TASK_DURATION_EXCEEDED:
-        send_task_duration_exceeded_email(context)
+        email_function = send_task_duration_exceeded_email
     elif sla_miss.sla_type == sla_miss.TASK_LATE_START:
-        send_task_late_start_email(context)
+        email_function = send_task_late_start_email
     elif sla_miss.sla_type == sla_miss.TASK_LATE_FINISH:
-        send_task_late_finish_email(context)
+        email_function = send_task_late_finish_email
     else:
         log.warning("Received unexpected SLA Miss type: %s", sla_miss.sla_type)
+        return
 
-
-def send_task_duration_exceeded_email(context):
-    ti = context["ti"]
+    email_to, email_subject, email_body = email_function(context)
+    send_email(email_to, email_subject, email_body)
 
 
 def send_task_late_start_email(context):
