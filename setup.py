@@ -102,7 +102,8 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
-async = [
+
+async_packages = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
     'gevent>=0.13'
@@ -294,7 +295,7 @@ def do_setup():
             'devel_ci': devel_ci,
             'all_dbs': all_dbs,
             'atlas': atlas,
-            'async': async,
+            'async': async_packages,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
             'cassandra': cassandra,
