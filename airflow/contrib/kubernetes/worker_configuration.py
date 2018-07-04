@@ -19,6 +19,7 @@ import copy
 import os
 import six
 
+from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -84,7 +85,8 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary environment variables for the pod executor"""
         env = {
             'AIRFLOW__CORE__DAGS_FOLDER': '/tmp/dags',
-            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor'
+            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor',
+            'AIRFLOW__CORE__SQL_ALCHEMY_CONN': conf.get('core', 'SQL_ALCHEMY_CONN')
         }
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
