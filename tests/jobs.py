@@ -2839,47 +2839,6 @@ class SchedulerJobTest(unittest.TestCase):
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
 
-    @mock.patch("airflow.utils.email.send_email")
-    def test_scheduler_sla_miss_email_exception(self, mock_send_email):
-        """
-        Test that the scheduler gracefully logs an exception if there is a problem
-          sending an email
-        """
-        session = settings.Session()
-
-        # Mock the callback function so we can verify that it was not called
-        mock_send_email.side_effect = RuntimeError('Could not send an email')
-
-        test_start_date = days_ago(2)
-        dag = DAG(dag_id='test_sla_miss',
-                  default_args={'start_date': test_start_date,
-                                'sla': datetime.timedelta(days=1)})
-
-        task = DummyOperator(task_id='dummy',
-                             dag=dag,
-                             owner='airflow',
-                             email='test@test.com',
-                             sla=datetime.timedelta(hours=1))
-
-        session.merge(models.TaskInstance(task=task,
-                                          execution_date=test_start_date,
-                                          state='Success'))
-
-        # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date))
-
-        scheduler = SchedulerJob(dag_id='test_sla_miss',
-                                 num_runs=1)
-
-        with mock.patch('airflow.jobs.SchedulerJob.log',
-                        new_callable=PropertyMock) as mock_log:
-            scheduler.manage_slas(dag=dag, session=session)
-            mock_log().exception.assert_called_with(
-                'Could not send SLA Miss email notification for DAG %s',
-                'test_sla_miss')
-
     def test_retry_still_in_executor(self):
         """
         Checks if the scheduler does not put a task in limbo, when a task is retried
