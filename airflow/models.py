@@ -4564,20 +4564,21 @@ class DAG(BaseDag, LoggingMixin):
 
         visit_map[task_id] = DagBag.CYCLE_DONE
 
-    def manage_slas(self):
+    @provide_session
+    def manage_slas(self, session=None):
         """
         Helper function to encapsulate the sequence of SLA operations.
         """
         # Create SlaMiss objects for the various types of SLA misses.
-        self.record_sla_misses()
+        self.record_sla_misses(session=session)
 
         # Collect pending SLA miss callbacks, either created immediately above
         # or previously failed.
-        unsent_sla_misses = self.get_sla_notifications()
+        unsent_sla_misses = self.get_sla_notifications(session=session)
 
         # Trigger the SLA miss callbacks.
         if unsent_sla_misses:
-            self.send_sla_notifications(unsent_sla_misses)
+            self.send_sla_notifications(unsent_sla_misses, session=session)
 
     @provide_session
     def record_sla_misses(self, session=None):
@@ -4638,8 +4639,8 @@ class DAG(BaseDag, LoggingMixin):
 
             # Create SLA misses for this TI and any subsequent TIs that "should"
             # exist by now, even if the scheduler hasn't gotten around to them yet.
-            for maybe_ti in get_task_instances_between(ti, ts, session):
-                create_sla_misses(maybe_ti, ts, session)
+            for maybe_ti in get_task_instances_between(ti, ts, session=session):
+                create_sla_misses(maybe_ti, ts, session=session)
 
         # Save any SlaMisses that were created in `create_sla_misses()`
         session.commit()
