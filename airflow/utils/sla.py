@@ -81,6 +81,8 @@ def create_sla_misses(ti, ts, session):
                 duration = ts - ti.start_date
 
             if duration > ti.task.expected_duration:
+                log.debug("Created duration exceeded SLA miss for %s.%s [%s]",
+                          ti.dag_id, ti.task_id, ti.execution_date)
                 session.merge(airflow.models.SlaMiss(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
@@ -106,6 +108,8 @@ def create_sla_misses(ti, ts, session):
             actual_start = ti.start_date or ts
 
             if actual_start > expected_start:
+                log.debug("Created expected start SLA miss for %s.%s [%s]",
+                          ti.dag_id, ti.task_id, ti.execution_date)
                 session.merge(airflow.models.SlaMiss(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
@@ -131,6 +135,8 @@ def create_sla_misses(ti, ts, session):
             actual_finish = ti.end_date or ts
 
             if actual_finish > expected_finish:
+                log.debug("Created expected finish SLA miss for %s.%s [%s]",
+                          ti.dag_id, ti.task_id, ti.execution_date)
                 session.merge(airflow.models.SlaMiss(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,

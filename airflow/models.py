@@ -4575,6 +4575,8 @@ class DAG(BaseDag, LoggingMixin):
         # Collect pending SLA miss callbacks, either created immediately above
         # or previously failed.
         unsent_sla_misses = self.get_sla_notifications(session=session)
+        self.log.debug("Found %s unsent SLA miss notifications",
+                       len(unsent_sla_misses))\
 
         # Trigger the SLA miss callbacks.
         if unsent_sla_misses:
@@ -4589,6 +4591,8 @@ class DAG(BaseDag, LoggingMixin):
         there are concurrency restrictions on the scheduler. We still want to
         receive SLA notifications in that scenario!
         """
+        self.log.debug("Checking for SLA misses for DAG %s", self.dag_id)
+
         TI = TaskInstance
         DR = DagRun
         from airflow.jobs import BackfillJob
@@ -4664,7 +4668,7 @@ class DAG(BaseDag, LoggingMixin):
         Given a list of SLA misses, send emails and/or do SLA miss callback.
         """
         if not sla_misses:
-            self.log.info("send_sla_notifications wasa called without any SLA "
+            self.log.info("send_sla_notifications was called without any SLA "
                           "notifications to send!")
             return
 
