@@ -4672,15 +4672,16 @@ class DAG(BaseDag, LoggingMixin):
                           "notifications to send!")
             return
 
-        # TODO: Get/create TIs matching the SLA misses.
-        tis = None
-
         # Retrieve the context for this TI, but patch in the SLA miss object.
-        for ti, sla_miss in tis:
+        for sla_miss in sla_misses:
+            task = self.get_task(sla_miss.task_id, session=session)
+            ti = self.get_task_instance(sla_miss.task_id, session=session)
+            # TODO: Handle case of a ti that doesn't exist yet.
+
             notification_sent = False
             # If no callback exists, we want to update the SlaMiss, but don't
             # want to notify.
-            if not ti.task.sla_miss_callback:
+            if not task.sla_miss_callback:
                 notification_sent = True
             else:
                 self.log.info("Triggering callback for SLA miss %s:", sla_miss)
@@ -4688,7 +4689,7 @@ class DAG(BaseDag, LoggingMixin):
                     # Patch context with the current SLA miss.
                     context = ti.get_template_context()
                     context["sla_miss"] = sla_miss
-                    ti.task.sla_miss_callback(context)
+                    task.sla_miss_callback(context)
                     notification_sent = True
                 except Exception:
                     self.log.exception(
