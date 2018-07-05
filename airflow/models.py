@@ -264,6 +264,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                 try:
                     m = imp.load_source(mod_name, filepath)
                     mods.append(m)
+                    if filepath in self.import_errors:
+                        self.import_errors.pop(filepath)
                 except Exception as e:
                     self.logger.exception("Failed to import: " + filepath)
                     self.import_errors[filepath] = str(e)
@@ -297,6 +299,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                         sys.path.insert(0, filepath)
                         m = importlib.import_module(mod_name)
                         mods.append(m)
+                        if filepath in self.import_errors:
+                            self.import_errors.pop(filepath)
                     except Exception as e:
                         self.logger.exception("Failed to import: " + filepath)
                         self.import_errors[filepath] = str(e)

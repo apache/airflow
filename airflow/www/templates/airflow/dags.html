@@ -213,6 +213,7 @@
     {% else %}
     <a href="/admin/?showPaused=True">Show Paused DAGs</a>
     {% endif %}
+    <a href="{{ url_for("airflow.refresh_all") }}">Refresh All DAGs</a>
   </div>
 {% endblock %}
 

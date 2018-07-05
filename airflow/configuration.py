@@ -272,6 +272,9 @@ dag_orientation = LR
 # privacy.
 demo_mode = False
 
+# Only shows the DAG import errors on the webserver side.
+show_web_server_dag_import_errors_only = False
+
 # The amount of time (in secs) webserver will wait for initial handshake
 # while fetching logs from other worker machine
 log_fetch_timeout_sec = 5

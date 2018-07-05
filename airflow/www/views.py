@@ -1916,11 +1916,24 @@ class HomeView(AdminIndexView):
                     in sql_query
                     .all()}
 
-        import_errors = session.query(models.ImportError).all()
-        for ie in import_errors:
-            flash(
-                "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
-                "error")
+        broken_dags_message = 'Broken DAG: [{filename}] {stacktrace} error'
+        if conf.getboolean('webserver', 'show_web_server_dag_import_errors_only'):
+            for filename, stacktrace in dagbag.import_errors.items():
+                flash(
+                    broken_dags_message.format(
+                        filename=filename,
+                        stacktrace=stacktrace,
+                    )
+                )
+        else:
+            import_errors = session.query(models.ImportError).all()
+            for ie in import_errors:
+                flash(
+                    broken_dags_message.format(
+                        filename=ie.filename,
+                        stacktrace=ie.stacktrace,
+                    )
+                )
         session.expunge_all()
         session.commit()
         session.close()
