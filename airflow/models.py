@@ -4614,7 +4614,7 @@ class DAG(BaseDag, LoggingMixin):
             .filter(or_(DR.run_id == None,
                         not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
             .filter(TI.dag_id == self.dag_id)
-            .filter(TI.state.in_(State.SUCCESS, State.SKIPPED))
+            .filter(TI.state.in_(((State.SUCCESS, State.SKIPPED))))
             .filter(TI.task_id.in_(self.task_ids))
             .group_by(TI.task_id).subquery('sq')
         )
