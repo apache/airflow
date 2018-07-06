@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,6 +26,7 @@ from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from six.moves.urllib.parse import urlparse
 from werkzeug.wsgi import DispatcherMiddleware
+from werkzeug.contrib.fixers import ProxyFix
 
 from airflow import settings
 from airflow import configuration as conf
@@ -40,6 +41,7 @@ csrf = CSRFProtect()
 def create_app(config=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     airflow_home_path = conf.get('core', 'AIRFLOW_HOME')
