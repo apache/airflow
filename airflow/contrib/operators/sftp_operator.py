@@ -43,8 +43,10 @@ class SFTPOperator(BaseOperator):
     :type local_filepath: str
     :param remote_filepath: remote file path to get or put. (templated)
     :type remote_filepath: str
-    :param operation: specify operation 'get' or 'put', defaults to get
+    :param operation: specify operation 'get' or 'put', defaults to put
     :type get: bool
+    :param confirm: specify if the SFTP operation should be confirmed, defaults to True
+    :type confirm: bool
     """
     template_fields = ('local_filepath', 'remote_filepath')
 
@@ -56,6 +58,7 @@ class SFTPOperator(BaseOperator):
                  local_filepath=None,
                  remote_filepath=None,
                  operation=SFTPOperation.PUT,
+                 confirm=True,
                  *args,
                  **kwargs):
         super(SFTPOperator, self).__init__(*args, **kwargs)
@@ -65,6 +68,7 @@ class SFTPOperator(BaseOperator):
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
         self.operation = operation
+        self.confirm = confirm
         if not (self.operation.lower() == SFTPOperation.GET or
                 self.operation.lower() == SFTPOperation.PUT):
             raise TypeError("unsupported operation value {0}, expected {1} or {2}"
