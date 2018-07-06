@@ -96,7 +96,8 @@ from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.operator_resources import Resources
 from airflow.utils.sla import (
-    get_task_instances_between, create_sla_misses, send_sla_miss_email)
+    yield_unscheduled_runs, yield_unscheduled_tis,
+    create_sla_misses, send_sla_miss_email)
 from airflow.utils.state import State
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.timeout import timeout
@@ -4626,25 +4627,25 @@ class DAG(BaseDag, LoggingMixin):
             TI.execution_date == sq.c.max_ti,
         ).all()
 
+        # We need to examine unscheduled DAGRuns, too. If there are concurrency
+        # limitations, it's possible that a task instance will miss its SLA
+        # before its corresponding DAGRun even gets created.
+        last_dagrun = scheduled_dagruns[-1] if scheduled_dagruns else None
+
+        def unscheduled_tis(last_dagrun):
+            for dag_run in yield_unscheduled_runs(self, last_dagrun, ts):
+                for ti in yield_unscheduled_tis(dag_run, ts):
+                    yield ti
+
         # Snapshot the time to check SLAs against.
         ts = timezone.utcnow()
 
-        # For each max-execution-date task instance, determine whether it
-        # missed any SLAs. Then, begin to walk forward in time, into expected
-        # DAG executions that "should have" happened by now but may not have
-        # been scheduled yet. For each hypothetical task - up until that task's
-        # `end_date` where applicable - determine whether it would be missing
-        # SLAs if it existed.
-        for ti in max_tis:
+        for ti in itertools.chain(scheduled_tis, unscheduled_tis(last_dagrun)):
+            ti.task = self.task_dict[ti.task_id]
             # Ignore tasks that don't have SLAs, saving most calculation of
             # future task instances.
-            if not ti.task.has_slas():
-                continue
-
-            # Create SLA misses for this TI and any subsequent TIs that "should"
-            # exist by now, even if the scheduler hasn't gotten around to them yet.
-            for maybe_ti in get_task_instances_between(ti, ts, session=session):
-                create_sla_misses(maybe_ti, ts, session=session)
+            if ti.task.has_slas():
+                create_sla_misses(ti, ts, session=session)
 
         # Save any SlaMisses that were created in `create_sla_misses()`
         session.commit()
