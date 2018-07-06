@@ -8,49 +8,85 @@ from airflow.utils.state import State
 log = LoggingMixin().log
 
 
-def get_task_instances_between(ti, ts, session=None):
+def yield_unscheduled_runs(dag, last_scheduled_run, ts):
     """
-    Given a `TaskInstance`, yield any `TaskInstance`s that should exist between
-    then and a specific time, respecting the end date of the DAG and task. Note
-    that since those `TaskInstance`s may not have been created in the database
-    yet (pending scheduler availability), this function returns new objects that
-    are not persisted in the db.
+    Yield new DagRuns that haven't been created yet.
     """
-    task = ti.task
-    dag = task.dag
 
-    # Respect DAG and Task end dates.
-    end_dates = [ts]
-    if task.end_date:
-        end_dates.append(task.end_date)
-    if dag.end_date:
-        end_dates.append(dag.end_date)
+    # TODO: A lot of this logic is duplicated from the scheduler. It would
+    # be better to have one function that yields upcoming DAG runs in a
+    # consistent way that is usable for both use cases.
 
-    # Get the soonest valid end date.
-    end_date = min(end_dates)
+    # Start by assuming that there is no next run.
+    next_run_date = None
 
-    # Return all in-database TIs (including the provided one).
-    db_tis = task.get_task_instances(session, start_date=ti.start_date,
-                                     end_date=end_date)
+    # The first DAGRun has not been created yet.
+    if not last_scheduled_run:
+        task_start_dates = [t.start_date for t in dag.tasks]
+        if task_start_dates:
+            next_run_date = dag.normalize_schedule(min(task_start_dates))
+    # The DagRun is @once and has already happened.
+    elif dag.schedule_interval == '@once':
+        return
+    # Start from the next "normal" run.
+    else:
+        next_run_date = dag.following_schedule(last_scheduled_run.execution_date)
 
-    # Helper to iterate through TIs and find one matching an exc date
-    def _scan(l, d):
-        for t in l:
-            if t.execution_date == d:
-                return t
-            elif t.execution_date > d:
-                return False
+    while True:
+        # There should be a next execution.
+        if not next_run_date:
+            return
 
-    for exc_date in dag.date_range(start_date=ts, end_date=end_date):
-        ti_on_exc_date = _scan(db_tis, exc_date)
+        # The next execution shouldn't be in the future.
+        if next_run_date > ts:
+            return
 
-        # Remove a match if found
-        if ti_on_exc_date:
-            db_tis.remove(ti_on_exc_date)
-        # Create a fake TI if not found
+        # The next execution shouldn't be beyond the DAG's end date.
+        # n.b. - tasks have their own end dates checked later
+        if next_run_date and dag.end_date and next_run_date > dag.end_date:
+            return
+
+        # Calculate the end of this execution period.
+        if dag.schedule_interval == '@once':
+            period_end = next_run_date
         else:
-            ti_on_exc_date = airflow.models.TaskInstance(task, exc_date)
-        yield ti_on_exc_date
+            period_end = dag.following_schedule(next_run_date)
+
+        # The next execution shouldn't still be mid-period.
+        if period_end > ts:
+            return
+
+        # We've passed every filter; this is a valid future DagRun that
+        # presumably hasn't been scheduled due to concurrency limits.
+        # Create a DAGRun, though it won't exist in the db yet.
+        next_run = dag.create_dagrun(
+            run_id=airflow.models.DagRun.ID_PREFIX + next_run_date.isoformat(),
+            execution_date=next_run_date,
+            start_date=ts,
+            state=State.RUNNING,
+            external_trigger=False
+        )
+        yield next_run
+
+        # Examine the next date.
+        next_run_date = dag.following_schedule(next_run_date)
+
+
+def yield_unscheduled_tis(dag_run, ts, session=None):
+    """
+    Given an unscheduled `DagRun`, yield any unscheduled TIs that will exist
+    for it in the future, respecting the end date of the DAG and task.
+    """
+    for task in dag_run.dag.tasks:
+        end_dates = []
+        if dag_run.dag.end_date:
+            end_dates.append(dag_run.dag.end_date)
+        if task.end_date:
+            end_dates.append(task.end_date)
+
+        # Create TIs if there is no end date, or it hasn't happened yet.
+        if not end_dates or ts < min(end_dates):
+            yield airflow.models.TaskInstance(task, dag_run.execution_date)
 
 
 def create_sla_misses(ti, ts, session):
