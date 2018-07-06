@@ -4684,9 +4684,21 @@ class DAG(BaseDag, LoggingMixin):
 
         # Retrieve the context for this TI, but patch in the SLA miss object.
         for sla_miss in sla_misses:
-            task = self.get_task(sla_miss.task_id, session=session)
-            ti = self.get_task_instance(sla_miss.task_id, session=session)
-            # TODO: Handle case of a ti that doesn't exist yet.
+            TI = TaskInstance
+            ti = session.query(TI).filter(
+                TI.dag_id != sla_miss.dag_id,
+                TI.task_id == sla_miss.task_id,
+                TI.execution_date == sla_miss.execution_date,
+            ).all()
+
+            # Use the TI if found
+            task = self.get_task(sla_miss.task_id)
+            if ti:
+                ti = ti.pop()
+                ti.task = task
+            # Else make a temporary one.
+            else:
+                ti = TaskInstance(task, sla_miss.execution_date)
 
             notification_sent = False
             # If no callback exists, we want to update the SlaMiss, but don't
