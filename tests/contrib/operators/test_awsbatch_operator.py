@@ -144,6 +144,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.describe_jobs.return_value = {
             'jobs': [{
                 'status': 'FAILED',
+                'statusReason': 'This is an error reason',
                 'attempts': [{
                     'exitCode': 1
                 }]
@@ -154,7 +155,7 @@ class TestAWSBatchOperator(unittest.TestCase):
             self.batch._check_success_task()
 
         # Ordering of str(dict) is not guaranteed.
-        self.assertIn('This containers encounter an error during execution ', str(e.exception))
+        self.assertIn('Job failed with status ', str(e.exception))
 
     def test_check_success_tasks_raises_pending(self):
         client_mock = mock.Mock()
@@ -181,6 +182,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.describe_jobs.return_value = {
             'jobs': [{
                 'status': 'FAILED',
+                'statusReason': 'This is an error reason',
                 'attempts': [{
                     'exitCode': 1
                 }, {
@@ -193,7 +195,7 @@ class TestAWSBatchOperator(unittest.TestCase):
             self.batch._check_success_task()
 
         # Ordering of str(dict) is not guaranteed.
-        self.assertIn('This containers encounter an error during execution ', str(e.exception))
+        self.assertIn('Job failed with status ', str(e.exception))
 
     def test_check_success_task_not_raises(self):
         client_mock = mock.Mock()
