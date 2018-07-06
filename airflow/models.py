@@ -4594,38 +4594,47 @@ class DAG(BaseDag, LoggingMixin):
         """
         self.log.debug("Checking for SLA misses for DAG %s", self.dag_id)
 
-        TI = TaskInstance
-        DR = DagRun
-        from airflow.jobs import BackfillJob
-
-        # For each task in this DAG, find the task ID and max execution date
-        # among that task's instances which were either "success" or "skipped".
-        # That is, if a TI was skipped, it's treated as intentional for SLA
-        # purposes. Likewise, we exclude TIs inside of backfill DagRuns, since
-        # they should never contribute to SLA calculations.
-        sq = (
-            session
-            .query(
-                TI.task_id,
-                func.max(TI.execution_date).label('max_ti'))
-            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
-            .outerjoin(DR,
-                       and_(DR.dag_id == TI.dag_id,
-                            DR.execution_date == TI.execution_date))
-            .filter(or_(DR.run_id == None,
-                        not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
-            .filter(TI.dag_id == self.dag_id)
-            .filter(TI.state.in_(((State.SUCCESS, State.SKIPPED))))
-            .filter(TI.task_id.in_(self.task_ids))
-            .group_by(TI.task_id).subquery('sq')
+        # Get all current DagRuns.
+        scheduled_dagruns = DagRun.find(
+            dag_id=self.dag_id,
+            # TODO: Implement SLA misses for backfills and externally triggered
+            # DAG runs. At minimum they could have duration SLA misses.
+            external_trigger=False,
+            no_backfills=True,
+            session=session
         )
 
-        # Return entire rows for these max-execution-date task instances
-        max_tis = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == sq.c.task_id,
-            TI.execution_date == sq.c.max_ti,
-        ).all()
+        # TODO: Is there a better limit here than "look at most recent 100"?
+        scheduled_dagruns = scheduled_dagruns[-100:]
+        scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
+
+        TI = TaskInstance
+        DR = DagRun
+
+        if scheduled_dagrun_ids:
+            # Find full, existing TIs for these DagRuns.
+            scheduled_tis = session.query(TI).outerjoin(DR, and_(
+                DR.dag_id == TI.dag_id,
+                DR.execution_date == TI.execution_date)).filter(
+                    # Only look at TIs for this DAG.
+                    TI.dag_id == self.dag_id,
+                    # Only look at TIs that *still* exist in this DAG.
+                    TI.task_id.in_(self.task_ids),
+                    # Don't look for success/skip TIs. We check SLAs often, so
+                    # there's little chance that a TI switches to successful
+                    # after an SLA miss but before we notice; and this should
+                    # be a major perf boost (since most TIs are successful or
+                    # skipped).
+                    not_(TI.state.in_((State.SUCCESS, State.SKIPPED))),
+                    # Only look at specified DagRuns
+                    DR.id.in_(scheduled_dagrun_ids),
+                    # If the DAGRun is SUCCEEDED, then everything has gone
+                    # according to plan. But if it's FAILED, someone may be
+                    # coming to fix it, and SLAs for tasks in it will still
+                    # matter.
+                    DR.state != State.SUCCESS).all()
+        else:
+            scheduled_tis = []
 
         # We need to examine unscheduled DAGRuns, too. If there are concurrency
         # limitations, it's possible that a task instance will miss its SLA
