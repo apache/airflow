@@ -95,7 +95,7 @@ class BigQueryOperator(BaseOperator):
     :type time_partitioning: dict
     """
 
-    template_fields = ('bql', 'sql', 'destination_dataset_table')
+    template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
@@ -278,7 +278,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         )
 
     """
-    template_fields = ('dataset_id', 'table_id', 'project_id', 'gcs_schema_object')
+    template_fields = ('dataset_id', 'table_id', 'project_id',
+                       'gcs_schema_object', 'labels')
     ui_color = '#f0eee4'
 
     @apply_defaults
@@ -411,7 +412,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type labels: dict
     """
     template_fields = ('bucket', 'source_objects',
-                       'schema_object', 'destination_project_dataset_table')
+                       'schema_object', 'destination_project_dataset_table', 'labels')
     ui_color = '#f0eee4'
 
     @apply_defaults

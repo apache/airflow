@@ -54,7 +54,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :type labels: dict
     """
     template_fields = ('source_project_dataset_tables',
-                       'destination_project_dataset_table')
+                       'destination_project_dataset_table', 'labels')
     template_ext = ('.sql',)
     ui_color = '#e6f0e4'
 

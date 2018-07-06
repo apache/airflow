@@ -58,7 +58,8 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         passed to BigQuery
     :type labels: dict
     """
-    template_fields = ('source_project_dataset_table', 'destination_cloud_storage_uris')
+    template_fields = ('source_project_dataset_table',
+                       'destination_cloud_storage_uris', 'labels')
     template_ext = ('.sql',)
     ui_color = '#e4e6f0'
 
