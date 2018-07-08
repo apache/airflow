@@ -46,7 +46,9 @@ locally, into just one `LocalExecutor` with multiple modes.
 
 import multiprocessing
 import subprocess
+import shlex
 import time
+
 
 from builtins import range
 
@@ -82,8 +84,11 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         if key is None:
             return
         self.log.info("%s running %s", self.__class__.__name__, command)
+        if isinstance(command, list):
+            command = " ".join(command)
+        args = shlex.split(command)
         try:
-            subprocess.check_call(command, close_fds=True)
+            subprocess.check_call(args, close_fds=True)
             state = State.SUCCESS
         except subprocess.CalledProcessError as e:
             state = State.FAILED
