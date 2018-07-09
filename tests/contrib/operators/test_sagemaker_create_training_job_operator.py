@@ -18,13 +18,6 @@
 # under the License.
 
 import unittest
-
-from airflow import configuration
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.operators.sagemaker_create_training_job_operator \
-    import SageMakerCreateTrainingJobOperator
-from airflow.exceptions import AirflowException
-
 try:
     from unittest import mock
 except ImportError:
@@ -33,19 +26,24 @@ except ImportError:
     except ImportError:
         mock = None
 
-role = 'arn:aws:iam::123456789:role/service-role' \
-       '/AmazonSageMaker-ExecutionRole-20180608T150937'
+from airflow import configuration
+from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.operators.sagemaker_create_training_job_operator \
+    import SageMakerCreateTrainingJobOperator
+from airflow.exceptions import AirflowException
 
-bucket = 'test-bucket'
+role = "test-role"
 
-data_key = 'kmeans_lowlevel_example/data'
-data_location = 's3://{}/{}'.format(bucket, data_key)
+bucket = "test-bucket"
 
-job_name = 'test_job_name'
+key = "test/data"
+data_url = "s3://{}/{}".format(bucket, key)
 
-image = '174872318107.dkr.ecr.us-west-2.amazonaws.com/kmeans:latest'
+job_name = "test_job_name"
 
-output_location = 's3://{}/kmeans_example/output'.format(bucket)
+image = "test-image"
+
+output_url = "s3://{}/test/output".format(bucket)
 create_training_params = \
     {
         "AlgorithmSpecification": {
@@ -54,7 +52,7 @@ create_training_params = \
         },
         "RoleArn": role,
         "OutputDataConfig": {
-            "S3OutputPath": output_location
+            "S3OutputPath": output_url
         },
         "ResourceConfig": {
             "InstanceCount": 2,
@@ -77,7 +75,7 @@ create_training_params = \
                 "DataSource": {
                     "S3DataSource": {
                         "S3DataType": "S3Prefix",
-                        "S3Uri": data_location,
+                        "S3Uri": data_url,
                         "S3DataDistributionType": "FullyReplicated"
                     }
                 },
@@ -102,9 +100,9 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'create_training_job')
     @mock.patch.object(SageMakerHook, '__init__')
     def test_hook_init(self, hook_init, mock_training):
-        mock_training.return_value = {'TrainingJobArn': 'testarn',
-                                      'ResponseMetadata':
-                                          {'HTTPStatusCode': 200}}
+        mock_training.return_value = {"TrainingJobArn": "testarn",
+                                      "ResponseMetadata":
+                                          {"HTTPStatusCode": 200}}
         hook_init.return_value = None
         self.sagemaker.execute(None)
         hook_init.assert_called_once_with(
@@ -112,18 +110,18 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'create_training_job')
     def test_execute_without_failure(self, mock_training):
-        mock_training.return_value = {'TrainingJobArn': 'testarn',
-                                      'ResponseMetadata':
-                                          {'HTTPStatusCode': 200}}
+        mock_training.return_value = {"TrainingJobArn": "testarn",
+                                      "ResponseMetadata":
+                                          {"HTTPStatusCode": 200}}
         self.sagemaker.execute(None)
         mock_training.assert_called_once_with(create_training_params)
         self.assertEqual(self.sagemaker.job_name, 'my_test_job')
 
     @mock.patch.object(SageMakerHook, 'create_training_job')
     def test_execute_with_failure(self, mock_training):
-        mock_training.return_value = {'TrainingJobArn': 'testarn',
-                                      'ResponseMetadata':
-                                          {'HTTPStatusCode': 404}}
+        mock_training.return_value = {"TrainingJobArn": "testarn",
+                                      "ResponseMetadata":
+                                          {"HTTPStatusCode": 404}}
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
 
 
