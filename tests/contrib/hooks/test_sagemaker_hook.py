@@ -21,14 +21,7 @@
 
 import json
 import unittest
-
-from airflow import configuration
-from airflow import models
-from airflow.utils import db
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.exceptions import AirflowException
 import copy
-
 try:
     from unittest import mock
 except ImportError:
@@ -37,19 +30,26 @@ except ImportError:
     except ImportError:
         mock = None
 
-role = 'arn:aws:iam::123456789:role/service-role' \
-       '/AmazonSageMaker-ExecutionRole-20180608T150937'
+from airflow import configuration
+from airflow import models
+from airflow.utils import db
+from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.hooks.S3_hook import S3Hook
+from airflow.exceptions import AirflowException
 
-bucket = 'test-bucket'
 
-data_key = 'kmeans_lowlevel_example/data'
-data_location = 's3://{}/{}'.format(bucket, data_key)
+role = "test-role"
 
-job_name = 'test_job_name'
+bucket = "test-bucket"
 
-image = '174872318107.dkr.ecr.us-west-2.amazonaws.com/kmeans:latest'
+key = "test/data"
+data_url = "s3://{}/{}".format(bucket, key)
 
-output_location = 's3://{}/kmeans_example/output'.format(bucket)
+job_name = "test_job_name"
+
+image = "test-image"
+
+output_url = "s3://{}/test/output".format(bucket)
 create_training_params = \
     {
         "AlgorithmSpecification": {
@@ -58,7 +58,7 @@ create_training_params = \
         },
         "RoleArn": role,
         "OutputDataConfig": {
-            "S3OutputPath": output_location
+            "S3OutputPath": output_url
         },
         "ResourceConfig": {
             "InstanceCount": 2,
@@ -81,7 +81,7 @@ create_training_params = \
                 "DataSource": {
                     "S3DataSource": {
                         "S3DataType": "S3Prefix",
-                        "S3Uri": data_location,
+                        "S3Uri": data_url,
                         "S3DataDistributionType": "FullyReplicated"
                     }
                 },
@@ -91,46 +91,46 @@ create_training_params = \
         ]
     }
 
-create_tuning_params = {'HyperParameterTuningJobName': job_name,
-                        'HyperParameterTuningJobConfig': {
-                            'Strategy': 'Bayesian',
-                            'HyperParameterTuningJobObjective': {
-                                'Type': 'Maximize',
-                                'MetricName': 'test_metric'
+create_tuning_params = {"HyperParameterTuningJobName": job_name,
+                        "HyperParameterTuningJobConfig": {
+                            "Strategy": "Bayesian",
+                            "HyperParameterTuningJobObjective": {
+                                "Type": "Maximize",
+                                "MetricName": "test_metric"
                             },
-                            'ResourceLimits': {
-                                'MaxNumberOfTrainingJobs': 123,
-                                'MaxParallelTrainingJobs': 123
+                            "ResourceLimits": {
+                                "MaxNumberOfTrainingJobs": 123,
+                                "MaxParallelTrainingJobs": 123
                             },
-                            'ParameterRanges': {
-                                'IntegerParameterRanges': [
+                            "ParameterRanges": {
+                                "IntegerParameterRanges": [
                                     {
-                                        'Name': 'k',
-                                        'MinValue': '2',
-                                        'MaxValue': '10'
+                                        "Name": "k",
+                                        "MinValue": "2",
+                                        "MaxValue": "10"
                                     },
                                 ]
                             }
                         },
-                        'TrainingJobDefinition': {
-                            'StaticHyperParameters':
+                        "TrainingJobDefinition": {
+                            "StaticHyperParameters":
                                 create_training_params['HyperParameters'],
-                            'AlgorithmSpecification':
+                            "AlgorithmSpecification":
                                 create_training_params['AlgorithmSpecification'],
-                            'RoleArn': 'string',
-                            'InputDataConfig':
+                            "RoleArn": "string",
+                            "InputDataConfig":
                                 create_training_params['InputDataConfig'],
-                            'OutputDataConfig':
+                            "OutputDataConfig":
                                 create_training_params['OutputDataConfig'],
-                            'ResourceConfig':
+                            "ResourceConfig":
                                 create_training_params['ResourceConfig'],
-                            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
+                            "StoppingCondition": dict(MaxRuntimeInSeconds=60 * 60)
                         }
                         }
 
 db_config = {"Re4sourceConfig": {
     "InstanceCount": 3,
-    "InstanceType": "ml.c4.4xlarge",
+    "InstanceType": "ml.c4.4config_test",
     "VolumeSizeInGB": 25
 }
 }
@@ -142,7 +142,7 @@ class TestSageMakerHook(unittest.TestCase):
         configuration.load_test_config()
         db.merge_conn(
             models.Connection(
-                conn_id='sagemaker_test_id',
+                conn_id='sagemaker_test_conn',
                 conn_type='sagemaker',
                 login='access_id',
                 password='access_key',
@@ -150,92 +150,88 @@ class TestSageMakerHook(unittest.TestCase):
             )
         )
 
-    def test_check_valid_training_input(self):
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(S3Hook, 'check_for_key')
+    @mock.patch.object(S3Hook, 'check_for_bucket')
+    def test_check_for_url(self,
+                           mock_check_bucket, mock_check_key, mock_client):
+        mock_client.return_value = None
         hook = SageMakerHook()
-        for key in create_training_params:
-            if isinstance(create_training_params[key], dict):
-                for sub_key in create_training_params[key]:
-                    temp_params = copy.deepcopy(create_training_params)
-                    del temp_params[key][sub_key]
-                    self.assertRaises(AirflowException,
-                                      hook.check_valid_training_input, temp_params)
-            temp_params = copy.deepcopy(create_training_params)
-            del temp_params[key]
+        mock_check_bucket.side_effect = [False, True, True]
+        mock_check_key.side_effect = [False, True]
+        self.assertRaises(AirflowException,
+                          hook.check_for_url, data_url)
+        self.assertRaises(AirflowException,
+                          hook.check_for_url, data_url)
+        self.assertEqual(hook.check_for_url(data_url), True)
 
-            self.assertRaises(AirflowException,
-                              hook.check_valid_training_input, temp_params)
-
-    @mock.patch('airflow.contrib.hooks.'
-                'sagemaker_hook.SageMakerHook.get_client_type', autospec=True)
+    @mock.patch.object(SageMakerHook, 'get_client_type')
     def test_conn(self, mock_get_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_id')
-        self.assertEqual(hook.sagemaker_conn_id, 'sagemaker_test_id')
-        hook.get_conn()
-        mock_get_client.assert_called_once_with(hook,
-                                                client_type='sagemaker')
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        self.assertEqual(hook.sagemaker_conn_id, 'sagemaker_test_conn')
+        mock_get_client.assert_called_once_with('sagemaker')
 
-    @mock.patch('airflow.contrib.hooks.sagemaker_hook.'
-                'SageMakerHook.get_conn', autospec=True)
-    def test_create_training_job(self, mock_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_id')
+    @mock.patch.object(SageMakerHook, 'check_valid_training_input')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_create_training_job(self, mock_client, mock_training):
+        mock_training.return_value = True
         mock_session = mock.Mock()
         attrs = {'create_training_job.return_value':
                  {'TrainingJobArn': 'testarn'}}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
         hook.create_training_job(create_training_params)
         mock_session.create_training_job.assert_called_once_with(**create_training_params)
 
-    @mock.patch('airflow.contrib.hooks.sagemaker_hook.'
-                'SageMakerHook.get_conn', autospec=True)
-    def test_create_training_job_db_config(self, mock_client):
+    @mock.patch.object(SageMakerHook, 'check_valid_training_input')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_create_training_job_db_config(self, mock_client, mock_training):
+        mock_training.return_value = True
         mock_session = mock.Mock()
         attrs = {'create_training_job.return_value':
                  {'TrainingJobArn': 'testarn'}}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_id',
+        hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn',
                                            use_db_config=True)
         hook_use_db_config.create_training_job(create_training_params)
-        updated_config = create_training_params
+        updated_config = copy.deepcopy(create_training_params)
         updated_config.update(db_config)
         mock_session.create_training_job.assert_called_once_with(**updated_config)
 
-    @mock.patch('airflow.contrib.hooks.sagemaker_hook.'
-                'SageMakerHook.get_conn', autospec=True)
+    @mock.patch.object(SageMakerHook, 'get_conn')
     def test_create_tuning_job(self, mock_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_id')
         mock_session = mock.Mock()
         attrs = {'create_hyper_parameter_tuning_job.return_value':
                  {'TrainingJobArn': 'testarn'}}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
         hook.create_tuning_job(create_tuning_params)
         mock_session.create_hyper_parameter_tuning_job.\
             assert_called_once_with(**create_tuning_params)
 
-    @mock.patch('airflow.contrib.hooks.sagemaker_hook.'
-                'SageMakerHook.get_conn', autospec=True)
+    @mock.patch.object(SageMakerHook, 'get_conn')
     def test_describe_training_job(self, mock_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_id', job_name=job_name)
         mock_session = mock.Mock()
         attrs = {'describe_training_job.return_value': 'InProgress'}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn', job_name=job_name)
         response = hook.describe_training_job()
         mock_session.describe_training_job.\
             assert_called_once_with(TrainingJobName=job_name)
         assert response == 'InProgress'
 
-    @mock.patch('airflow.contrib.hooks.sagemaker_hook.'
-                'SageMakerHook.get_conn', autospec=True)
+    @mock.patch.object(SageMakerHook, 'get_conn')
     def test_describe_tuning_job(self, mock_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_id', job_name=job_name)
         mock_session = mock.Mock()
         attrs = {'describe_hyper_parameter_tuning_job.return_value':
                  'InProgress'}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn', job_name=job_name)
         response = hook.describe_tuning_job()
         mock_session.describe_hyper_parameter_tuning_job.\
             assert_called_once_with(TrainingJobName=job_name)
