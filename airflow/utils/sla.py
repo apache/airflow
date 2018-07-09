@@ -89,6 +89,18 @@ def yield_unscheduled_tis(dag_run, ts, session=None):
             yield airflow.models.TaskInstance(task, dag_run.execution_date)
 
 
+def get_sla_misses(ti, session):
+    """
+    Get all SLA misses that match a particular TaskInstance.
+    """
+    SM = airflow.models.SlaMiss
+    return session.query(SM).filter(
+        SM.dag_id == ti.dag_id,
+        SM.task_id == ti.task_id,
+        SM.execution_date == ti.execution_date
+    ).all()
+
+
 def create_sla_misses(ti, ts, session):
     """
     Determine whether a TaskInstance has missed any SLAs as of a provided
@@ -103,12 +115,18 @@ def create_sla_misses(ti, ts, session):
     if ti.state == State.SKIPPED:
         return
 
+    SM = airflow.models.SlaMiss
+
+    # Get existing misses.
+    ti_misses = {sm.sla_type: sm for sm in get_sla_misses(ti, session)}
+
     # Calculate each type of SLA miss. Wrapping exceptions here is
     # important so that an exception in one type of SLA doesn't
     # prevent other task SLAs from getting triggered.
 
     # SLA Miss for Expected Duration
-    if ti.task.expected_duration and ti.start_date:
+    if SM.TASK_DURATION_EXCEEDED not in ti_misses \
+            and ti.task.expected_duration and ti.start_date:
         try:
             if ti.state in State.finished():
                 duration = ti.end_date - ti.start_date
@@ -119,11 +137,11 @@ def create_sla_misses(ti, ts, session):
             if duration > ti.task.expected_duration:
                 log.debug("Created duration exceeded SLA miss for %s.%s [%s]",
                           ti.dag_id, ti.task_id, ti.execution_date)
-                session.merge(airflow.models.SlaMiss(
+                session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    sla_type=airflow.models.SlaMiss.TASK_DURATION_EXCEEDED,
+                    sla_type=SM.TASK_DURATION_EXCEEDED,
                     timestamp=ts))
         except Exception:
             log.warning(
@@ -133,7 +151,7 @@ def create_sla_misses(ti, ts, session):
             )
 
     # SLA Miss for Expected Start
-    if ti.task.expected_start:
+    if SM.TASK_LATE_START not in ti_misses and ti.task.expected_start:
         try:
             # If a TI's exc date is 01-01-2018, we expect it to start by the next
             # execution date (01-02-2018) plus a delta of expected_start.
@@ -146,11 +164,11 @@ def create_sla_misses(ti, ts, session):
             if actual_start > expected_start:
                 log.debug("Created expected start SLA miss for %s.%s [%s]",
                           ti.dag_id, ti.task_id, ti.execution_date)
-                session.merge(airflow.models.SlaMiss(
+                session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    sla_type=airflow.models.SlaMiss.TASK_LATE_START,
+                    sla_type=SM.ti_misses,
                     timestamp=ts))
         except Exception:
             log.warning(
@@ -160,7 +178,7 @@ def create_sla_misses(ti, ts, session):
             )
 
     # SLA Miss for Expected Finish
-    if ti.task.expected_finish:
+    if SM.TASK_LATE_FINISH not in ti_misses and ti.task.expected_finish:
         try:
             # If a TI's exc date is 01-01-2018, we expect it to finish by the next
             # execution date (01-02-2018) plus a delta of expected_finish.
@@ -173,11 +191,11 @@ def create_sla_misses(ti, ts, session):
             if actual_finish > expected_finish:
                 log.debug("Created expected finish SLA miss for %s.%s [%s]",
                           ti.dag_id, ti.task_id, ti.execution_date)
-                session.merge(airflow.models.SlaMiss(
+                session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    sla_type=airflow.models.SlaMiss.TASK_LATE_FINISH,
+                    sla_type=SM.TASK_LATE_FINISH,
                     timestamp=ts))
         except Exception:
             log.warning(
