@@ -198,7 +198,7 @@ def backfill(args, dag=None):
                 start_date=args.start_date,
                 end_date=args.end_date,
                 confirm_prompt=True,
-                include_subdags=False,
+                include_subdags=True,
             )
 
         dag.run(
