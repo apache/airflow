@@ -4667,7 +4667,7 @@ class DAG(BaseDag, LoggingMixin):
         return (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)
+            .filter(SlaMiss.notification_sent == False)  # noqa
             .filter(SlaMiss.dag_id == self.dag_id)
             .all()
         )

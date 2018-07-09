@@ -305,14 +305,15 @@ def send_task_duration_exceeded_email(context):
 
     email_to = get_subscribers(blocked)
     email_subject = get_sla_miss_subject("Exceeded duration", ti)
-    email_body = """\
-    <pre><code>{task_string}</pre></code> missed an SLA: duration exceeded <pre><code>{target_time}</pre></code>.
+    email_body = ""
+    "<pre><code>{task_string}</pre></code> missed an SLA: duration "
+    "exceeded <pre><code>{target_time}</pre></code>.\n\n"
 
-    View Task Details: {ti_url}
+    "View Task Details: {ti_url}\n\n"
 
-    This may be blocking the following downstream tasks:
-    <pre><code>{blocked_tasks}\n{art}</pre></code>
-    """.format(
+    "This may be blocking the following downstream tasks:\n"
+
+    "<pre><code>{blocked_tasks}\n{art}</pre></code>".format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
         blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
@@ -329,14 +330,14 @@ def send_task_late_start_email(context):
 
     email_to = get_subscribers(blocked)
     email_subject = get_sla_miss_subject("Late start", ti)
-    email_body = """\
-    <pre><code>{task_string}</pre></code> missed an SLA: did not start by <pre><code>{target_time}</pre></code>.
+    email_body = ""
+    "<pre><code>{task_string}</pre></code> missed an SLA: did not start by "
+    "<pre><code>{target_time}</pre></code>.\n\n"
 
-    View Task Details: {ti_url}
+    "View Task Details: {ti_url}\n\n"
 
-    This may be blocking the following downstream tasks:
-    <pre><code>{blocked_tasks}\n{art}</pre></code>
-    """.format(
+    "This may be blocking the following downstream tasks:\n"
+    "<pre><code>{blocked_tasks}\n{art}</pre></code>".format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
         blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
@@ -353,14 +354,14 @@ def send_task_late_finish_email(context):
 
     email_to = get_subscribers(blocked)
     email_subject = get_sla_miss_subject("Late finish", ti)
-    email_body = """\
-    <pre><code>{task_string}</pre></code> missed an SLA: did not finish by <pre><code>{target_time}</pre></code>.
+    email_body = ""
+    "<pre><code>{task_string}</pre></code> missed an SLA: did not finish by "
+    "<pre><code>{target_time}</pre></code>.\n\n"
 
-    View Task Details: {ti_url}
+    "View Task Details: {ti_url}\n\n"
 
-    This may be blocking the following downstream tasks:
-    <pre><code>{blocked_tasks}\n{art}</pre></code>
-    """.format(
+    "This may be blocking the following downstream tasks:\n"
+    "<pre><code>{blocked_tasks}\n{art}</pre></code>".format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
         blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
