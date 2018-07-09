@@ -922,9 +922,7 @@ def webserver(args):
                 master_timeout = conf.getint('webserver', 'web_server_master_timeout')
                 restart_workers(gunicorn_master_proc, num_workers, master_timeout)
             else:
-                while gunicorn_master_proc.poll() is None:
-                    time.sleep(1)
-
+                gunicorn_master_proc.wait()
                 sys.exit(gunicorn_master_proc.returncode)
 
         if args.daemon:
@@ -959,7 +957,7 @@ def webserver(args):
             stdout.close()
             stderr.close()
         else:
-            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
+            gunicorn_master_proc = psutil.Popen(run_args, close_fds=True)
 
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
