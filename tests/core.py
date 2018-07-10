@@ -40,7 +40,7 @@ from tests.test_utils.fake_datetime import FakeDatetime
 
 configuration.load_test_config()
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, Pool
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -1052,6 +1052,66 @@ class CliTests(unittest.TestCase):
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         # Persist DAGs
+
+    def test_pools_add_pool_if_not_exist(self):
+        session = self._expect_session_returns([])
+
+        pools_config = {
+            'pool1': {
+                'slot_counts': 1,
+                'description': 'haha',
+            }
+        }
+
+        cli._pools(session, pools_config)
+
+        self.assertEqual('pool1', session.add.call_args_list[0][0][0].pool)
+
+    def test_pools_delete_pool_if_not_defined(self):
+        session = self._expect_session_returns(
+            [
+                Pool(
+                    pool='pool1',
+                    slots=1,
+                    description='desc',
+                ),
+            ]
+        )
+
+        cli._pools(session, {})
+
+        self.assertEqual('pool1', session.delete.call_args_list[0][0][0].pool)
+
+    def test_pools_update_pool_if_value_changes(self):
+        session = self._expect_session_returns(
+            [
+                Pool(
+                    pool='pool1',
+                    slots=1,
+                    description='desc',
+                )
+            ]
+        )
+
+        pools_config = {
+            'pool1': {
+                'slot_counts': 1,
+                'description': 'haha',
+            }
+        }
+
+        cli._pools(session, pools_config)
+
+        self.assertEqual('pool1', session.add.call_args_list[0][0][0].pool)
+        self.assertEqual('haha', session.add.call_args_list[0][0][0].description)
+
+    def _expect_session_returns(self, existing_pools):
+        session = mock.MagicMock()
+        session.add = mock.MagicMock()
+        session.delete = mock.MagicMock()
+        query = session.query.return_value
+        query.all.return_value = existing_pools
+        return session
 
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags', '--report'])
