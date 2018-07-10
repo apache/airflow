@@ -155,7 +155,7 @@ class AWSBatchOperator(BaseOperator):
 
         for job in response['jobs']:
             job_status = job['status']
-            if job_status is 'FAILED':
+            if job_status == 'FAILED':
                 reason = job['statusReason']
                 raise AirflowException('Job failed with status {}'.format(reason))
             elif job_status in [
