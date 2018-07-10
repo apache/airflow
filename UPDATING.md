@@ -42,6 +42,7 @@ There are five roles created for Airflow by default: Admin, User, Op, Viewer, an
 - Airflow dag home page is now `/home` (instead of `/admin`).
 - All ModelViews in Flask-AppBuilder follow a different pattern from Flask-Admin. The `/admin` part of the url path will no longer exist. For example: `/admin/connection` becomes `/connection/list`, `/admin/connection/new` becomes `/connection/add`, `/admin/connection/edit` becomes `/connection/edit`, etc.
 - Due to security concerns, the new webserver will no longer support the features in the `Data Profiling` menu of old UI, including `Ad Hoc Query`, `Charts`, and `Known Events`.
+- HiveServer2Hook.get_results() always returns a list of tuples, even when a single column is queried, as per Python API 2.
 
 ### airflow.contrib.sensors.hdfs_sensors renamed to airflow.contrib.sensors.hdfs_sensor
 
@@ -77,7 +78,7 @@ supported and will be removed entirely in Airflow 2.0
 With Airflow 1.9 or lower, Unload operation always included header row. In order to include header row,
 we need to turn off parallel unload. It is preferred to perform unload operation using all nodes so that it is
 faster for larger tables. So, parameter called `include_header` is added and default is set to False.
-Header row will be added only if this parameter is set True and also in that case parallel will be automatically turned off (`PARALLEL OFF`)  
+Header row will be added only if this parameter is set True and also in that case parallel will be automatically turned off (`PARALLEL OFF`)
 
 ### Google cloud connection string
 
