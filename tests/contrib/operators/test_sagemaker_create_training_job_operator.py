@@ -97,9 +97,10 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
             training_job_config=create_training_params
         )
 
+    @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
     @mock.patch.object(SageMakerHook, '__init__')
-    def test_hook_init(self, hook_init, mock_training):
+    def test_hook_init(self, hook_init, mock_training, mock_client):
         mock_training.return_value = {"TrainingJobArn": "testarn",
                                       "ResponseMetadata":
                                           {"HTTPStatusCode": 200}}
@@ -108,8 +109,9 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         hook_init.assert_called_once_with(
             sagemaker_conn_id='sagemaker_test_id', job_name='my_test_job')
 
+    @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
-    def test_execute_without_failure(self, mock_training):
+    def test_execute_without_failure(self, mock_training, mock_client):
         mock_training.return_value = {"TrainingJobArn": "testarn",
                                       "ResponseMetadata":
                                           {"HTTPStatusCode": 200}}
@@ -117,8 +119,9 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         mock_training.assert_called_once_with(create_training_params)
         self.assertEqual(self.sagemaker.job_name, 'my_test_job')
 
+    @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
-    def test_execute_with_failure(self, mock_training):
+    def test_execute_with_failure(self, mock_training, mock_client):
         mock_training.return_value = {"TrainingJobArn": "testarn",
                                       "ResponseMetadata":
                                           {"HTTPStatusCode": 404}}
