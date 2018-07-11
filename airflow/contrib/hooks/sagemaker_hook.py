@@ -34,10 +34,12 @@ class SageMakerHook(AwsHook):
                  sagemaker_conn_id=None,
                  job_name=None,
                  use_db_config=False,
+                 region_name=None,
                  *args, **kwargs):
         self.sagemaker_conn_id = sagemaker_conn_id
         self.use_db_config = use_db_config
         self.job_name = job_name
+        self.region_name = region_name
         super(SageMakerHook, self).__init__(*args, **kwargs)
         self.conn = self.get_conn()
 
@@ -70,7 +72,7 @@ class SageMakerHook(AwsHook):
                                ['S3DataSource']['S3Uri'])
 
     def get_conn(self):
-        return self.get_client_type('sagemaker')
+        return self.get_client_type('sagemaker', region_name=self.region_name)
 
     def list_training_job(self, name_contains=None, status_equals=None):
         """
@@ -152,4 +154,5 @@ class SageMakerHook(AwsHook):
         :return: A dict contains all the tuning job info
         """
         return self.conn\
-                   .describe_hyper_parameter_tuning_job(TrainingJobName=self.job_name)
+            .describe_hyper_parameter_tuning_job(
+             HyperParameterTuningJobName=self.job_name)

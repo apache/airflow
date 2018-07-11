@@ -38,100 +38,100 @@ from airflow.hooks.S3_hook import S3Hook
 from airflow.exceptions import AirflowException
 
 
-role = 'test-role'
+role = "test-role"
 
-bucket = 'test-bucket'
+bucket = "test-bucket"
 
-key = 'test/data'
-data_url = 's3://{}/{}'.format(bucket, key)
+key = "test/data"
+data_url = "s3://{}/{}".format(bucket, key)
 
-job_name = 'test-job-name'
+job_name = "test_job_name"
 
-image = 'test-image'
+image = "test-image"
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = "s3://{}/test/output".format(bucket)
 create_training_params = \
     {
-        'AlgorithmSpecification': {
-            'TrainingImage': image,
-            'TrainingInputMode': 'File'
+        "AlgorithmSpecification": {
+            "TrainingImage": image,
+            "TrainingInputMode": "File"
         },
-        'RoleArn': role,
-        'OutputDataConfig': {
-            'S3OutputPath': output_url
+        "RoleArn": role,
+        "OutputDataConfig": {
+            "S3OutputPath": output_url
         },
-        'ResourceConfig': {
-            'InstanceCount': 2,
-            'InstanceType': 'ml.c4.8xlarge',
-            'VolumeSizeInGB': 50
+        "ResourceConfig": {
+            "InstanceCount": 2,
+            "InstanceType": "ml.c4.8xlarge",
+            "VolumeSizeInGB": 50
         },
-        'TrainingJobName': job_name,
-        'HyperParameters': {
-            'k': '10',
-            'feature_dim': '784',
-            'mini_batch_size': '500',
-            'force_dense': 'True'
+        "TrainingJobName": job_name,
+        "HyperParameters": {
+            "k": "10",
+            "feature_dim": "784",
+            "mini_batch_size": "500",
+            "force_dense": "True"
         },
-        'StoppingCondition': {
-            'MaxRuntimeInSeconds': 60 * 60
+        "StoppingCondition": {
+            "MaxRuntimeInSeconds": 60 * 60
         },
-        'InputDataConfig': [
+        "InputDataConfig": [
             {
-                'ChannelName': 'train',
-                'DataSource': {
-                    'S3DataSource': {
-                        'S3DataType': 'S3Prefix',
-                        'S3Uri': data_url,
-                        'S3DataDistributionType': 'FullyReplicated'
+                "ChannelName": "train",
+                "DataSource": {
+                    "S3DataSource": {
+                        "S3DataType": "S3Prefix",
+                        "S3Uri": data_url,
+                        "S3DataDistributionType": "FullyReplicated"
                     }
                 },
-                'CompressionType': 'None',
-                'RecordWrapperType': 'None'
+                "CompressionType": "None",
+                "RecordWrapperType": "None"
             }
         ]
     }
 
-create_tuning_params = {'HyperParameterTuningJobName': job_name,
-                        'HyperParameterTuningJobConfig': {
-                            'Strategy': 'Bayesian',
-                            'HyperParameterTuningJobObjective': {
-                                'Type': 'Maximize',
-                                'MetricName': 'test_metric'
+create_tuning_params = {"HyperParameterTuningJobName": job_name,
+                        "HyperParameterTuningJobConfig": {
+                            "Strategy": "Bayesian",
+                            "HyperParameterTuningJobObjective": {
+                                "Type": "Maximize",
+                                "MetricName": "test_metric"
                             },
-                            'ResourceLimits': {
-                                'MaxNumberOfTrainingJobs': 123,
-                                'MaxParallelTrainingJobs': 123
+                            "ResourceLimits": {
+                                "MaxNumberOfTrainingJobs": 123,
+                                "MaxParallelTrainingJobs": 123
                             },
-                            'ParameterRanges': {
-                                'IntegerParameterRanges': [
+                            "ParameterRanges": {
+                                "IntegerParameterRanges": [
                                     {
-                                        'Name': 'k',
-                                        'MinValue': '2',
-                                        'MaxValue': '10'
+                                        "Name": "k",
+                                        "MinValue": "2",
+                                        "MaxValue": "10"
                                     },
                                 ]
                             }
                         },
-                        'TrainingJobDefinition': {
-                            'StaticHyperParameters':
+                        "TrainingJobDefinition": {
+                            "StaticHyperParameters":
                                 create_training_params['HyperParameters'],
-                            'AlgorithmSpecification':
+                            "AlgorithmSpecification":
                                 create_training_params['AlgorithmSpecification'],
-                            'RoleArn': 'string',
-                            'InputDataConfig':
+                            "RoleArn": "string",
+                            "InputDataConfig":
                                 create_training_params['InputDataConfig'],
-                            'OutputDataConfig':
+                            "OutputDataConfig":
                                 create_training_params['OutputDataConfig'],
-                            'ResourceConfig':
+                            "ResourceConfig":
                                 create_training_params['ResourceConfig'],
-                            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
+                            "StoppingCondition": dict(MaxRuntimeInSeconds=60 * 60)
                         }
                         }
 
-db_config = {'Re4sourceConfig': {
-    'InstanceCount': 3,
-    'InstanceType': 'ml.c4.4config_test',
-    'VolumeSizeInGB': 25
+db_config = {"Re4sourceConfig": {
+    "InstanceCount": 3,
+    "InstanceType": "ml.c4.4config_test",
+    "VolumeSizeInGB": 25
 }
 }
 
@@ -167,9 +167,13 @@ class TestSageMakerHook(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_client_type')
     def test_conn(self, mock_get_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn',
+                             region_name='us-east-1'
+                             )
         self.assertEqual(hook.sagemaker_conn_id, 'sagemaker_test_conn')
-        mock_get_client.assert_called_once_with('sagemaker')
+        mock_get_client.assert_called_once_with('sagemaker',
+                                                region_name='us-east-1'
+                                                )
 
     @mock.patch.object(SageMakerHook, 'check_valid_training_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -234,7 +238,7 @@ class TestSageMakerHook(unittest.TestCase):
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn', job_name=job_name)
         response = hook.describe_tuning_job()
         mock_session.describe_hyper_parameter_tuning_job.\
-            assert_called_once_with(TrainingJobName=job_name)
+            assert_called_once_with(HyperParameterTuningJobName=job_name)
         assert response == 'InProgress'
 
 
