@@ -17,21 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import str
-import dill
 import inspect
 import os
 import pickle
 import subprocess
 import sys
 import types
+from textwrap import dedent
+
+import dill
+from builtins import str
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-
-from textwrap import dedent
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class PythonOperator(BaseOperator):
@@ -87,6 +88,13 @@ class PythonOperator(BaseOperator):
             self.template_ext = templates_exts
 
     def execute(self, context):
+        # Export context to make it available for callables to use.
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        self.log.info("Exporting the following env vars:\n" +
+                      '\n'.join(["{}={}".format(k, v)
+                                 for k, v in airflow_context_vars.items()]))
+        os.environ.update(airflow_context_vars)
+
         if self.provide_context:
             context.update(self.op_kwargs)
             context['templates_dict'] = self.templates_dict

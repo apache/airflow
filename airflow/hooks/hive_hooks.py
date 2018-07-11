@@ -21,27 +21,38 @@ from __future__ import print_function, unicode_literals
 
 import contextlib
 import os
-
-from six.moves import zip
-from past.builtins import basestring, unicode
-
-import unicodecsv as csv
 import re
-import six
 import subprocess
 import time
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
-from airflow import configuration as conf
+import hmsclient
+import six
+import unicodecsv as csv
+from past.builtins import basestring
+from past.builtins import unicode
+from six.moves import zip
+
+import airflow.security.utils as utils
+from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.helpers import as_flattened_list
 from airflow.utils.file import TemporaryDirectory
-from airflow import configuration
-import airflow.security.utils as utils
+from airflow.utils.helpers import as_flattened_list
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
 HIVE_QUEUE_PRIORITIES = ['VERY_HIGH', 'HIGH', 'NORMAL', 'LOW', 'VERY_LOW']
+
+
+def get_context_from_env_var():
+    """
+    Extract context from env variable, e.g. dag_id, task_id and execution_date,
+    so that they can be used inside BashOperator and PythonOperator.
+    :return: The context of interest.
+    """
+    return {format_map['default']: os.environ.get(format_map['env_var_format'], '')
+            for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}
 
 
 class HiveCliHook(BaseHook):
@@ -91,8 +102,8 @@ class HiveCliHook(BaseHook):
                     "Invalid Mapred Queue Priority.  Valid values are: "
                     "{}".format(', '.join(HIVE_QUEUE_PRIORITIES)))
 
-        self.mapred_queue = mapred_queue or conf.get('hive',
-                                                     'default_hive_mapred_queue')
+        self.mapred_queue = mapred_queue or configuration.get('hive',
+                                                              'default_hive_mapred_queue')
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
@@ -125,6 +136,7 @@ class HiveCliHook(BaseHook):
                 jdbc_url += ";auth=" + self.auth
 
             jdbc_url = jdbc_url.format(**locals())
+            jdbc_url = '"{}"'.format(jdbc_url)
 
             cmd_extra += ['-u', jdbc_url]
             if conn.login:
@@ -184,10 +196,15 @@ class HiveCliHook(BaseHook):
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
+                hql = hql + '\n'
                 f.write(hql.encode('UTF-8'))
                 f.flush()
                 hive_cmd = self._prepare_cli_cmd()
-                hive_conf_params = self._prepare_hiveconf(hive_conf)
+                env_context = get_context_from_env_var()
+                # Only extend the hive_conf if it is defined.
+                if hive_conf:
+                    env_context.update(hive_conf)
+                hive_conf_params = self._prepare_hiveconf(env_context)
                 if self.mapred_queue:
                     hive_conf_params.extend(
                         ['-hiveconf',
@@ -773,7 +790,7 @@ class HiveServer2Hook(BaseHook):
             username=db.login or username,
             database=schema or db.schema or 'default')
 
-    def _get_results(self, hql, schema='default', fetch_size=None):
+    def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
         from pyhive.exc import ProgrammingError
         if isinstance(hql, basestring):
             hql = [hql]
@@ -781,12 +798,21 @@ class HiveServer2Hook(BaseHook):
         with contextlib.closing(self.get_conn(schema)) as conn, \
                 contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
+
+            env_context = get_context_from_env_var()
+            if hive_conf:
+                env_context.update(hive_conf)
+            for k, v in env_context.items():
+                cur.execute("set {}={}".format(k, v))
+
             for statement in hql:
                 cur.execute(statement)
                 # we only get results of statements that returns
                 lowered_statement = statement.lower().strip()
                 if (lowered_statement.startswith('select') or
-                   lowered_statement.startswith('with')):
+                    lowered_statement.startswith('with') or
+                    (lowered_statement.startswith('set') and
+                     '=' not in lowered_statement)):
                     description = [c for c in cur.description]
                     if previous_description and previous_description != description:
                         message = '''The statements are producing different descriptions:
@@ -806,8 +832,17 @@ class HiveServer2Hook(BaseHook):
                     except ProgrammingError:
                         self.log.debug("get_results returned no records")
 
-    def get_results(self, hql, schema='default', fetch_size=None):
-        results_iter = self._get_results(hql, schema, fetch_size=fetch_size)
+    def get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
+        """
+        Get results of the provided hql in target schema.
+        :param hql: hql to be executed.
+        :param schema: target schema, default to 'default'.
+        :param fetch_size max size of result to fetch.
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :return: results of hql execution.
+        """
+        results_iter = self._get_results(hql, schema,
+                                         fetch_size=fetch_size, hive_conf=hive_conf)
         header = next(results_iter)
         results = {
             'data': list(results_iter),
@@ -823,9 +858,23 @@ class HiveServer2Hook(BaseHook):
             delimiter=',',
             lineterminator='\r\n',
             output_header=True,
-            fetch_size=1000):
+            fetch_size=1000,
+            hive_conf=None):
+        """
+        Execute hql in target schema and write results to a csv file.
+        :param hql: hql to be executed.
+        :param csv_filepath: filepath of csv to write results into.
+        :param schema: target schema, , default to 'default'.
+        :param delimiter: delimiter of the csv file.
+        :param lineterminator: lineterminator of the csv file.
+        :param output_header: header of the csv file.
+        :param fetch_size: number of result rows to write into the csv file.
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :return:
+        """
 
-        results_iter = self._get_results(hql, schema, fetch_size=fetch_size)
+        results_iter = self._get_results(hql, schema,
+                                         fetch_size=fetch_size, hive_conf=hive_conf)
         header = next(results_iter)
         message = None
 
