@@ -39,7 +39,7 @@ bucket = "test-bucket"
 key = "test/data"
 data_url = "s3://{}/{}".format(bucket, key)
 
-job_name = "test_job_name"
+job_name = "test-job-name"
 
 image = "test-image"
 
