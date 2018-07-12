@@ -23,7 +23,7 @@ import warnings
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, \
     BigQueryOperator, \
-    BigQueryCreateEmptyTableOperator
+    BigQueryCreateEmptyTableOperator, BigQueryDeleteDatasetOperator
 
 try:
     from unittest import mock
@@ -113,4 +113,24 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 allow_quoted_newlines=False,
                 allow_jagged_rows=False,
                 src_fmt_configs={}
+            )
+
+
+class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_execute(self, mock_hook):
+        operator = BigQueryDeleteDatasetOperator(
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            project_id=TEST_PROJECT_ID
+        )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn() \
+            .cursor() \
+            .delete_dataset \
+            .assert_called_once_with(
+                dataset_id=TEST_DATASET,
+                project_id=TEST_PROJECT_ID
             )
