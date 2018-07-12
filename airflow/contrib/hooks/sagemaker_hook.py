@@ -155,4 +155,4 @@ class SageMakerHook(AwsHook):
         """
         return self.conn\
             .describe_hyper_parameter_tuning_job(
-             HyperParameterTuningJobName=self.job_name)
+                HyperParameterTuningJobName=self.job_name)
