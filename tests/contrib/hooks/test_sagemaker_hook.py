@@ -45,9 +45,35 @@ bucket = "test-bucket"
 key = "test/data"
 data_url = "s3://{}/{}".format(bucket, key)
 
-job_name = "test_job_name"
+job_name = "test-job-name"
 
 image = "test-image"
+
+test_arn_return = {'TrainingJobArn': 'testarn'}
+
+test_list_training_job_return = {
+    'TrainingJobSummaries': [
+        {
+            'TrainingJobName': job_name,
+            'TrainingJobStatus': 'InProgress'
+        },
+    ],
+    'NextToken': 'test-token'
+}
+
+test_list_tuning_job_return = {
+    'TrainingJobSummaries': [
+        {
+            'TrainingJobName': job_name,
+            'TrainingJobArn': 'testarn',
+            'TunedHyperParameters': {
+                'k': '3'
+            },
+            'TrainingJobStatus': 'InProgress'
+        },
+    ],
+    'NextToken': 'test-token'
+}
 
 output_url = "s3://{}/test/output".format(bucket)
 create_training_params = \
@@ -175,46 +201,79 @@ class TestSageMakerHook(unittest.TestCase):
                                                 region_name='us-east-1'
                                                 )
 
-    @mock.patch.object(SageMakerHook, 'check_valid_training_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_training_job(self, mock_client, mock_training):
-        mock_training.return_value = True
+    def test_list_training_job(self, mock_client):
         mock_session = mock.Mock()
-        attrs = {'create_training_job.return_value':
-                 {'TrainingJobArn': 'testarn'}}
+        attrs = {'list_training_jobs.return_value':
+                 test_list_training_job_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
-        hook.create_training_job(create_training_params)
-        mock_session.create_training_job.assert_called_once_with(**create_training_params)
+        response = hook.list_training_job(name_contains=job_name,
+                                          status_equals='InProgress')
+        mock_session.list_training_jobs. \
+            assert_called_once_with(NameContains=job_name,
+                                    StatusEquals='InProgress')
+        self.assertEqual(response, test_arn_return)
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_list_tuning_job(self, mock_client):
+        mock_session = mock.Mock()
+        attrs = {'list_hyper_parameter_tuning_job.return_value':
+                 test_list_tuning_job_return}
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        response = hook.list_tuning_job(name_contains=job_name,
+                                        status_equals='InProgress')
+        mock_session.list_hyper_parameter_tuning_job. \
+            assert_called_once_with(NameContains=job_name,
+                                    StatusEquals='InProgress')
+        self.assertEqual(response, test_arn_return)
 
     @mock.patch.object(SageMakerHook, 'check_valid_training_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_training_job_db_config(self, mock_client, mock_training):
-        mock_training.return_value = True
+    def test_create_training_job(self, mock_client, mock_check_training):
+        mock_check_training.return_value = True
         mock_session = mock.Mock()
         attrs = {'create_training_job.return_value':
-                 {'TrainingJobArn': 'testarn'}}
+                 test_arn_return}
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        response = hook.create_training_job(create_training_params)
+        mock_session.create_training_job.assert_called_once_with(**create_training_params)
+        self.assertEqual(response, test_arn_return)
+
+    @mock.patch.object(SageMakerHook, 'check_valid_training_input')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_create_training_job_db_config(self, mock_client, mock_check_training):
+        mock_check_training.return_value = True
+        mock_session = mock.Mock()
+        attrs = {'create_training_job.return_value':
+                 test_arn_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn',
                                            use_db_config=True)
-        hook_use_db_config.create_training_job(create_training_params)
+        response = hook_use_db_config.create_training_job(create_training_params)
         updated_config = copy.deepcopy(create_training_params)
         updated_config.update(db_config)
         mock_session.create_training_job.assert_called_once_with(**updated_config)
+        self.assertEqual(response, test_arn_return)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_create_tuning_job(self, mock_client):
         mock_session = mock.Mock()
         attrs = {'create_hyper_parameter_tuning_job.return_value':
-                 {'TrainingJobArn': 'testarn'}}
+                 test_arn_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
-        hook.create_tuning_job(create_tuning_params)
+        response = hook.create_tuning_job(create_tuning_params)
         mock_session.create_hyper_parameter_tuning_job.\
             assert_called_once_with(**create_tuning_params)
+        self.assertEqual(response, test_arn_return)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_describe_training_job(self, mock_client):
@@ -226,7 +285,7 @@ class TestSageMakerHook(unittest.TestCase):
         response = hook.describe_training_job()
         mock_session.describe_training_job.\
             assert_called_once_with(TrainingJobName=job_name)
-        assert response == 'InProgress'
+        self.assertEqual(response, 'InProgress')
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_describe_tuning_job(self, mock_client):
@@ -239,7 +298,7 @@ class TestSageMakerHook(unittest.TestCase):
         response = hook.describe_tuning_job()
         mock_session.describe_hyper_parameter_tuning_job.\
             assert_called_once_with(HyperParameterTuningJobName=job_name)
-        assert response == 'InProgress'
+        self.assertEqual(response, 'InProgress')
 
 
 if __name__ == '__main__':
