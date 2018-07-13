@@ -214,7 +214,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session.list_training_jobs. \
             assert_called_once_with(NameContains=job_name,
                                     StatusEquals='InProgress')
-        self.assertEqual(response, test_arn_return)
+        self.assertEqual(response, test_list_training_job_return)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_list_tuning_job(self, mock_client):
@@ -229,7 +229,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session.list_hyper_parameter_tuning_job. \
             assert_called_once_with(NameContains=job_name,
                                     StatusEquals='InProgress')
-        self.assertEqual(response, test_arn_return)
+        self.assertEqual(response, test_list_tuning_job_return )
 
     @mock.patch.object(SageMakerHook, 'check_valid_training_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
