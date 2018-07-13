@@ -52,7 +52,7 @@ import hashlib
 
 import uuid
 from datetime import datetime
-from urllib.parse import urlparse, quote, parse_qsl
+from urllib.parse import urlparse, quote, parse_qsl, unquote
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
@@ -687,8 +687,8 @@ class Connection(Base, LoggingMixin):
         self.conn_type = conn_type
         self.host = hostname
         self.schema = temp_uri.path[1:]
-        self.login = temp_uri.username
-        self.password = temp_uri.password
+        self.login = unquote(temp_uri.username)
+        self.password = unquote(temp_uri.password)
         self.port = temp_uri.port
         if temp_uri.query:
             self.extra = json.dumps(dict(parse_qsl(temp_uri.query)))
