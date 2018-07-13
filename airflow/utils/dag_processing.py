@@ -177,13 +177,30 @@ def list_py_file_paths(directory, safe_mode=True):
     elif os.path.isfile(directory):
         return [directory]
     elif os.path.isdir(directory):
-        patterns = []
+        patterns_by_dir = {}
         for root, dirs, files in os.walk(directory, followlinks=True):
-            ignore_file = [f for f in files if f == '.airflowignore']
-            if ignore_file:
-                f = open(os.path.join(root, ignore_file[0]), 'r')
-                patterns += [p for p in f.read().split('\n') if p]
-                f.close()
+            patterns = patterns_by_dir.get(root, [])
+            ignore_file = os.path.join(root, '.airflowignore')
+            if os.path.isfile(ignore_file):
+                with open(ignore_file, 'r') as f:
+                    # If we have new patterns create a copy so we don't change
+                    # the previous list (which would affect other subdirs)
+                    patterns = patterns + [p for p in f.read().split('\n') if p]
+
+            # If we can ignore any subdirs entirely we should - fewer paths
+            # to walk is better. We have to modify the ``dirs`` array in
+            # place for this to affect os.walk
+            dirs[:] = [
+                d
+                for d in dirs
+                if not any(re.search(p, os.path.join(root, d)) for p in patterns)
+            ]
+
+            # We want patterns defined in a parent folder's .airflowignore to
+            # apply to subdirs too
+            for d in dirs:
+                patterns_by_dir[os.path.join(root, d)] = patterns
+
             for f in files:
                 try:
                     file_path = os.path.join(root, f)
