@@ -510,7 +510,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         Note that if a .airflowignore file is found while processing,
         the directory, it will behaves much like a .gitignore does,
         ignoring files that match any of the regex patterns specified
-        in the file.
+        in the file. **Note**: The patterns in .airflowignore are treated as
+        un-anchored regexes, not shell-like glob patterns.
         """
         start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
@@ -519,42 +520,25 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        if os.path.isfile(dag_folder):
-            self.process_file(dag_folder, only_if_updated=only_if_updated)
-        elif os.path.isdir(dag_folder):
-            for root, dirs, files in os.walk(dag_folder, followlinks=True):
-                patterns = []
-                ignore_file = os.path.join(root, '.airflowignore')
-                if os.path.isfile(ignore_file):
-                    with open(ignore_file, 'r') as f:
-                        patterns += [p for p in f.read().split('\n') if p]
-                for f in files:
-                    try:
-                        filepath = os.path.join(root, f)
-                        if not os.path.isfile(filepath):
-                            continue
-                        mod_name, file_ext = os.path.splitext(
-                            os.path.split(filepath)[-1])
-                        if file_ext != '.py' and not zipfile.is_zipfile(filepath):
-                            continue
-                        if not any(
-                                [re.findall(p, filepath) for p in patterns]):
-                            ts = timezone.utcnow()
-                            found_dags = self.process_file(
-                                filepath, only_if_updated=only_if_updated)
+        for filepath in utils.dag_processing.list_py_file_paths(dag_folder):
+            self.log.info(filepath)
+            try:
+                ts = timezone.utcnow()
+                found_dags = self.process_file(
+                    filepath, only_if_updated=only_if_updated)
 
-                            td = timezone.utcnow() - ts
-                            td = td.total_seconds() + (
-                                float(td.microseconds) / 1000000)
-                            stats.append(FileLoadStat(
-                                filepath.replace(dag_folder, ''),
-                                td,
-                                len(found_dags),
-                                sum([len(dag.tasks) for dag in found_dags]),
-                                str([dag.dag_id for dag in found_dags]),
-                            ))
-                    except Exception as e:
-                        self.log.exception(e)
+                td = timezone.utcnow() - ts
+                td = td.total_seconds() + (
+                    float(td.microseconds) / 1000000)
+                stats.append(FileLoadStat(
+                    filepath.replace(dag_folder, ''),
+                    td,
+                    len(found_dags),
+                    sum([len(dag.tasks) for dag in found_dags]),
+                    str([dag.dag_id for dag in found_dags]),
+                ))
+            except Exception as e:
+                self.log.exception(e)
         Stats.gauge(
             'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
         Stats.gauge(
