@@ -45,7 +45,8 @@ import textwrap
 import traceback
 import warnings
 import hashlib
-from urllib.parse import urlparse
+
+from urllib.parse import urlparse, unquote
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
@@ -588,8 +589,8 @@ class Connection(Base, LoggingMixin):
         self.conn_type = conn_type
         self.host = hostname
         self.schema = temp_uri.path[1:]
-        self.login = temp_uri.username
-        self.password = temp_uri.password
+        self.login = unquote(temp_uri.username)
+        self.password = unquote(temp_uri.password)
         self.port = temp_uri.port
 
     def get_password(self):
