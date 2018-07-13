@@ -101,15 +101,20 @@ def run_command(command):
     return output
 
 
-_templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
-with open(os.path.join(_templates_dir, 'default_airflow.cfg')) as f:
-    DEFAULT_CONFIG = f.read()
+def _read_default_config_file(file_name):
+    templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
+    file_path = os.path.join(templates_dir, file_name)
     if six.PY2:
-        DEFAULT_CONFIG = DEFAULT_CONFIG.decode('utf-8')
-with open(os.path.join(_templates_dir, 'default_test.cfg')) as f:
-    TEST_CONFIG = f.read()
-    if six.PY2:
-        TEST_CONFIG = TEST_CONFIG.decode('utf-8')
+        with open(file_path) as f:
+            config = f.read()
+            return config.decode('utf-8')
+    else:
+        with open(file_path, encoding='utf-8') as f:
+            return f.read()
+
+
+DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
+TEST_CONFIG = _read_default_config_file('default_test.cfg')
 
 
 class AirflowConfigParser(ConfigParser):
@@ -502,8 +507,7 @@ conf.read(AIRFLOW_CONFIG)
 
 
 if conf.getboolean('webserver', 'rbac'):
-    with open(os.path.join(_templates_dir, 'default_webserver_config.py')) as f:
-        DEFAULT_WEBSERVER_CONFIG = f.read()
+    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
 
     WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
