@@ -150,7 +150,7 @@ class BaseExecutor(LoggingMixin):
         self.sync()
 
     def change_state(self, key, state):
-        print("popping: {}".format(key))
+        self.log.debug("Changing state: {}".format(key))
         self.running.pop(key)
         self.event_buffer[key] = state
 
