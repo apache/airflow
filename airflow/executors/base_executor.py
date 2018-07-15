@@ -1,23 +1,30 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from builtins import range
 
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-PARALLELISM = configuration.getint('core', 'PARALLELISM')
+
+PARALLELISM = configuration.conf.getint('core', 'PARALLELISM')
 
 
 class BaseExecutor(LoggingMixin):
@@ -48,6 +55,8 @@ class BaseExecutor(LoggingMixin):
         if key not in self.queued_tasks and key not in self.running:
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[key] = (command, priority, queue, task_instance)
+        else:
+            self.log.info("could not queue task {}".format(key))
 
     def queue_task_instance(
             self,
@@ -100,7 +109,6 @@ class BaseExecutor(LoggingMixin):
         pass
 
     def heartbeat(self):
-
         # Triggering new jobs
         if not self.parallelism:
             open_slots = len(self.queued_tasks)
@@ -128,18 +136,21 @@ class BaseExecutor(LoggingMixin):
             ti.refresh_from_db()
             if ti.state != State.RUNNING:
                 self.running[key] = command
-                self.execute_async(key, command=command, queue=queue)
+                self.execute_async(key=key,
+                                   command=command,
+                                   queue=queue,
+                                   executor_config=ti.executor_config)
             else:
-                self.log.debug(
-                    'Task is already running, not sending to executor: %s',
-                    key
-                )
+                self.logger.info(
+                    'Task is already running, not sending to '
+                    'executor: {}'.format(key))
 
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
     def change_state(self, key, state):
+        print("popping: {}".format(key))
         self.running.pop(key)
         self.event_buffer[key] = state
 
@@ -170,7 +181,11 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
-    def execute_async(self, key, command, queue=None):  # pragma: no cover
+    def execute_async(self,
+                      key,
+                      command,
+                      queue=None,
+                      executor_config=None):  # pragma: no cover
         """
         This method will execute the command asynchronously.
         """

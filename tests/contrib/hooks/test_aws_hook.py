@@ -1,30 +1,44 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import unittest
 import boto3
 
 from airflow import configuration
+from airflow.models import Connection
 from airflow.contrib.hooks.aws_hook import AwsHook
 
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
 
 try:
-    from moto import mock_emr, mock_dynamodb2
+    from moto import mock_emr, mock_dynamodb2, mock_sts
 except ImportError:
     mock_emr = None
     mock_dynamodb2 = None
+    mock_sts = None
 
 
 class TestAwsHook(unittest.TestCase):
@@ -76,6 +90,79 @@ class TestAwsHook(unittest.TestCase):
             'table_exists').wait(TableName='test_airflow')
 
         self.assertEqual(table.item_count, 0)
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    def test_get_session_returns_a_boto3_session(self):
+        hook = AwsHook(aws_conn_id='aws_default')
+        session_from_hook = hook.get_session()
+        resource_from_session = session_from_hook.resource('dynamodb')
+        table = resource_from_session.create_table(
+            TableName='test_airflow',
+            KeySchema=[
+                {
+                    'AttributeName': 'id',
+                    'KeyType': 'HASH'
+                },
+            ],
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'name',
+                    'AttributeType': 'S'
+                }
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 10,
+                'WriteCapacityUnits': 10
+            }
+        )
+
+        table.meta.client.get_waiter(
+            'table_exists').wait(TableName='test_airflow')
+
+        self.assertEqual(table.item_count, 0)
+
+    @mock.patch.object(AwsHook, 'get_connection')
+    def test_get_credentials_from_login(self, mock_get_connection):
+        mock_connection = Connection(login='aws_access_key_id',
+                                     password='aws_secret_access_key')
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
+        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
+        self.assertIsNone(credentials_from_hook.token)
+
+    @mock.patch.object(AwsHook, 'get_connection')
+    def test_get_credentials_from_extra(self, mock_get_connection):
+        mock_connection = Connection(
+            extra='{"aws_access_key_id": "aws_access_key_id",'
+            '"aws_secret_access_key": "aws_secret_access_key"}'
+        )
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
+        self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
+        self.assertIsNone(credentials_from_hook.token)
+
+    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
+    @mock.patch.object(AwsHook, 'get_connection')
+    @mock_sts
+    def test_get_credentials_from_role_arn(self, mock_get_connection):
+        mock_connection = Connection(
+            extra='{"role_arn":"arn:aws:iam::123456:role/role_arn"}')
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'AKIAIOSFODNN7EXAMPLE')
+        self.assertEqual(credentials_from_hook.secret_key,
+                         'aJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY')
+        self.assertEqual(credentials_from_hook.token,
+                         'BQoEXAMPLEH4aoAH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh'
+                         '3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4I'
+                         'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
+                         'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
 
 
 if __name__ == '__main__':

@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import logging
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -47,12 +50,12 @@ class BigQueryGetDataOperator(BaseOperator):
             bigquery_conn_id='airflow-service-account'
         )
 
-    :param dataset_id: The dataset ID of the requested table.
+    :param dataset_id: The dataset ID of the requested table. (templated)
     :type destination_dataset_table: string
-    :param table_id: The table ID of the requested table.
+    :param table_id: The table ID of the requested table. (templated)
     :type table_id: string
     :param max_results: The maximum number of records (rows) to be fetched
-        from the table.
+        from the table. (templated)
     :type max_results: string
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
@@ -86,9 +89,9 @@ class BigQueryGetDataOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        logging.info('Fetching Data from:')
-        logging.info('Dataset: %s ; Table: %s ; Max Results: %s',
-                     self.dataset_id, self.table_id, self.max_results)
+        self.log.info('Fetching Data from:')
+        self.log.info('Dataset: %s ; Table: %s ; Max Results: %s',
+                      self.dataset_id, self.table_id, self.max_results)
 
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)
@@ -100,7 +103,7 @@ class BigQueryGetDataOperator(BaseOperator):
                                         max_results=self.max_results,
                                         selected_fields=self.selected_fields)
 
-        logging.info('Total Extracted rows: %s', response['totalRows'])
+        self.log.info('Total Extracted rows: %s', response['totalRows'])
         rows = response['rows']
 
         table_data = []

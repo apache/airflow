@@ -1,8 +1,9 @@
 Make sure you have checked _all_ steps below.
 
 ### JIRA
-- [ ] My PR addresses the following [Airflow JIRA](https://issues.apache.org/jira/browse/AIRFLOW/) issues and references them in the PR title. For example, "[AIRFLOW-XXX] My Airflow PR"
+- [ ] My PR addresses the following [Airflow JIRA](https://issues.apache.org/jira/browse/AIRFLOW/) issues and references them in the PR title. For example, "\[AIRFLOW-XXX\] My Airflow PR"
     - https://issues.apache.org/jira/browse/AIRFLOW-XXX
+    - In case you are fixing a typo in the documentation you can prepend your commit with \[AIRFLOW-XXX\], code changes always need a JIRA issue.
 
 
 ### Description
@@ -22,4 +23,11 @@ Make sure you have checked _all_ steps below.
     5. Body wraps at 72 characters
     6. Body explains "what" and "why", not "how"
 
+
+### Documentation
+- [ ] In case of new functionality, my PR adds documentation that describes how to use it.
+    - When adding new operators/hooks/sensors, the autoclass documentation generation needs to be added.
+
+
+### Code Quality
 - [ ] Passes `git diff upstream/master -u -- "*.py" | flake8 --diff`

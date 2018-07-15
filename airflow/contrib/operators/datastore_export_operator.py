@@ -1,19 +1,25 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from airflow.contrib.hooks.datastore_hook import DatastoreHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -29,15 +35,16 @@ class DatastoreExportOperator(BaseOperator):
     :type namespace: str
     :param datastore_conn_id: the name of the Datastore connection id to use
     :type datastore_conn_id: string
-    :param cloud_storage_conn_id: the name of the cloud storage connection id to force-write
-        backup
+    :param cloud_storage_conn_id: the name of the cloud storage connection id to
+        force-write backup
     :type cloud_storage_conn_id: string
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: string
-    :param entity_filter: description of what data from the project is included in the export,
-        refer to https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
+    :param entity_filter: description of what data from the project is included in the
+        export, refer to
+        https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
     :type entity_filter: dict
     :param labels: client-assigned labels for cloud storage
     :type labels: dict
@@ -86,7 +93,7 @@ class DatastoreExportOperator(BaseOperator):
             for o in objects:
                 gcs_hook.delete(self.bucket, o)
 
-        ds_hook = DatastoreHook(self.datastore_conn_id,self.delegate_to)
+        ds_hook = DatastoreHook(self.datastore_conn_id, self.delegate_to)
         result = ds_hook.export_to_storage_bucket(bucket=self.bucket,
                                                   namespace=self.namespace,
                                                   entity_filter=self.entity_filter,

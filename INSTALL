@@ -5,5 +5,9 @@
 # RAT docs here: https://creadur.apache.org/rat/
 java -jar apache-rat.jar -E ./.rat-excludes -d .
 
+# [optional] by default one of Apache Airflow's dependencies pulls in a GPL
+# library. If this is a concern issue (also every upgrade):
+# export SLUGIFY_USES_TEXT_UNIDECODE=yes
+
 # install the release
 python setup.py install

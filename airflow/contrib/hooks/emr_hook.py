@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -18,7 +23,8 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 class EmrHook(AwsHook):
     """
-    Interact with AWS EMR. emr_conn_id is only neccessary for using the create_job_flow method.
+    Interact with AWS EMR. emr_conn_id is only neccessary for using the
+    create_job_flow method.
     """
 
     def __init__(self, emr_conn_id=None, *args, **kwargs):
@@ -32,7 +38,8 @@ class EmrHook(AwsHook):
     def create_job_flow(self, job_flow_overrides):
         """
         Creates a job flow using the config from the EMR connection.
-        Keys of the json extra hash may have the arguments of the boto3 run_job_flow method.
+        Keys of the json extra hash may have the arguments of the boto3
+        run_job_flow method.
         Overrides for this config may be passed as the job_flow_overrides.
         """
 

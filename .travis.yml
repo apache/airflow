@@ -1,15 +1,20 @@
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 sudo: true
 dist: trusty
@@ -17,6 +22,7 @@ language: python
 jdk:
   - oraclejdk8
 services:
+  - cassandra
   - mysql
   - postgresql
   - rabbitmq
@@ -54,8 +60,8 @@ env:
     - TOX_ENV=py35-backend_sqlite
     - TOX_ENV=py35-backend_postgres
     - TOX_ENV=flake8
-    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
-    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
+    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
+    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0
 matrix:
   exclude:
     - python: "3.5"
@@ -73,12 +79,9 @@ matrix:
     - python: "2.7"
       env: TOX_ENV=flake8
     - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
-  allow_failures:
-    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
-    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
+      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
+    - python: "2.7"
+      env: TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -99,6 +102,9 @@ before_script:
   - sudo service mysql restart
   - psql -c 'create database airflow;' -U postgres
   - export PATH=${PATH}:/tmp/hive/bin
+  # Required for K8s v1.10.x. See
+  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
+  - sudo mount --make-shared / && sudo service docker restart
 script:
   - ./scripts/ci/travis_script.sh
 after_success:

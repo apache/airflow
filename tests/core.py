@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import print_function
 
@@ -25,12 +30,14 @@ import os
 import re
 import signal
 import sqlalchemy
+import subprocess
 import tempfile
 import warnings
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
@@ -40,7 +47,7 @@ from airflow import configuration
 from airflow.executors import SequentialExecutor
 from airflow.models import Variable
 
-configuration.load_test_config()
+configuration.conf.load_test_config()
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.operators.bash_operator import BashOperator
@@ -66,7 +73,7 @@ from jinja2 import UndefinedError
 
 import six
 
-NUM_EXAMPLE_DAGS = 19
+NUM_EXAMPLE_DAGS = 20
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -108,13 +115,10 @@ class OperatorSubclass(BaseOperator):
 
 
 class CoreTest(unittest.TestCase):
-    # These defaults make the test faster to run
-    default_scheduler_args = {"file_process_interval": 0,
-                              "processor_poll_interval": 0.5,
-                              "num_runs": 1}
+    default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
-        configuration.load_test_config()
+        configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -297,7 +301,7 @@ class CoreTest(unittest.TestCase):
         self.assertIsNone(additional_dag_run)
 
     def test_confirm_unittest_mod(self):
-        self.assertTrue(configuration.get('core', 'unit_test_mode'))
+        self.assertTrue(configuration.conf.get('core', 'unit_test_mode'))
 
     def test_pickling(self):
         dp = self.dag.pickle()
@@ -488,7 +492,8 @@ class CoreTest(unittest.TestCase):
 
     def test_complex_template(self):
         def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
+            self.assertEqual(context['ti'].task.some_templated_field['bar'][1],
+                             context['ds'])
 
         t = OperatorSubclass(
             task_id='test_complex_template',
@@ -496,8 +501,8 @@ class CoreTest(unittest.TestCase):
                 'foo': '123',
                 'bar': ['baz', '{{ ds }}']
             },
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_template_with_variable(self):
@@ -505,7 +510,6 @@ class CoreTest(unittest.TestCase):
         Test the availability of variables in templates
         """
         val = {
-            'success': False,
             'test_value': 'a test value'
         }
         Variable.set("a_variable", val['test_value'])
@@ -513,22 +517,19 @@ class CoreTest(unittest.TestCase):
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
                              val['test_value'])
-            val['success'] = True
 
         t = OperatorSubclass(
             task_id='test_complex_template',
             some_templated_field='{{ var.value.a_variable }}',
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        self.assertTrue(val['success'])
 
     def test_template_with_json_variable(self):
         """
         Test the availability of variables (serialized as JSON) in templates
         """
         val = {
-            'success': False,
             'test_value': {'foo': 'bar', 'obj': {'v1': 'yes', 'v2': 'no'}}
         }
         Variable.set("a_variable", val['test_value'], serialize_json=True)
@@ -536,15 +537,13 @@ class CoreTest(unittest.TestCase):
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
                              val['test_value']['obj']['v2'])
-            val['success'] = True
 
         t = OperatorSubclass(
             task_id='test_complex_template',
             some_templated_field='{{ var.json.a_variable.obj.v2 }}',
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        self.assertTrue(val['success'])
 
     def test_template_with_json_variable_as_value(self):
         """
@@ -552,7 +551,6 @@ class CoreTest(unittest.TestCase):
         accessed as a value
         """
         val = {
-            'success': False,
             'test_value': {'foo': 'bar'}
         }
         Variable.set("a_variable", val['test_value'], serialize_json=True)
@@ -560,15 +558,13 @@ class CoreTest(unittest.TestCase):
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
                              u'{"foo": "bar"}')
-            val['success'] = True
 
         t = OperatorSubclass(
             task_id='test_complex_template',
             some_templated_field='{{ var.value.a_variable }}',
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        self.assertTrue(val['success'])
 
     def test_template_non_bool(self):
         """
@@ -668,14 +664,14 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn("{FERNET_KEY}", cfg)
 
     def test_config_use_original_when_original_and_fallback_are_present(self):
-        self.assertTrue(configuration.has_option("core", "FERNET_KEY"))
-        self.assertFalse(configuration.has_option("core", "FERNET_KEY_CMD"))
+        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
 
-        FERNET_KEY = configuration.get('core', 'FERNET_KEY')
+        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
 
-        configuration.set("core", "FERNET_KEY_CMD", "printf HELLO")
+        configuration.conf.set("core", "FERNET_KEY_CMD", "printf HELLO")
 
-        FALLBACK_FERNET_KEY = configuration.get(
+        FALLBACK_FERNET_KEY = configuration.conf.get(
             "core",
             "FERNET_KEY"
         )
@@ -683,25 +679,25 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(FERNET_KEY, FALLBACK_FERNET_KEY)
 
         # restore the conf back to the original state
-        configuration.remove_option("core", "FERNET_KEY_CMD")
+        configuration.conf.remove_option("core", "FERNET_KEY_CMD")
 
     def test_config_throw_error_when_original_and_fallback_is_absent(self):
-        self.assertTrue(configuration.has_option("core", "FERNET_KEY"))
-        self.assertFalse(configuration.has_option("core", "FERNET_KEY_CMD"))
+        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
+        self.assertFalse(configuration.conf.has_option("core", "FERNET_KEY_CMD"))
 
-        FERNET_KEY = configuration.get("core", "FERNET_KEY")
-        configuration.remove_option("core", "FERNET_KEY")
+        FERNET_KEY = configuration.conf.get("core", "FERNET_KEY")
+        configuration.conf.remove_option("core", "FERNET_KEY")
 
         with self.assertRaises(AirflowConfigException) as cm:
-            configuration.get("core", "FERNET_KEY")
+            configuration.conf.get("core", "FERNET_KEY")
 
         exception = str(cm.exception)
         message = "section/key [core/fernet_key] not found in config"
         self.assertEqual(message, exception)
 
         # restore the conf back to the original state
-        configuration.set("core", "FERNET_KEY", FERNET_KEY)
-        self.assertTrue(configuration.has_option("core", "FERNET_KEY"))
+        configuration.conf.set("core", "FERNET_KEY", FERNET_KEY)
+        self.assertTrue(configuration.conf.has_option("core", "FERNET_KEY"))
 
     def test_config_override_original_when_non_empty_envvar_is_provided(self):
         key = "AIRFLOW__CORE__FERNET_KEY"
@@ -709,7 +705,7 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn(key, os.environ)
 
         os.environ[key] = value
-        FERNET_KEY = configuration.get('core', 'FERNET_KEY')
+        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
         self.assertEqual(value, FERNET_KEY)
 
         # restore the envvar back to the original state
@@ -721,7 +717,7 @@ class CoreTest(unittest.TestCase):
         self.assertNotIn(key, os.environ)
 
         os.environ[key] = value
-        FERNET_KEY = configuration.get('core', 'FERNET_KEY')
+        FERNET_KEY = configuration.conf.get('core', 'FERNET_KEY')
         self.assertEqual(value, FERNET_KEY)
 
         # restore the envvar back to the original state
@@ -788,22 +784,6 @@ class CoreTest(unittest.TestCase):
 
         with self.assertRaisesRegexp(AirflowException, regexp):
             self.run_after_loop.set_upstream(self.runme_0)
-
-    def test_cyclic_dependencies_1(self):
-
-        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.runme_0.set_upstream(self.run_after_loop)
-
-    def test_cyclic_dependencies_2(self):
-        regexp = "Cycle detected in DAG. (.*)run_after_loop(.*)"
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.run_after_loop.set_downstream(self.runme_0)
-
-    def test_cyclic_dependencies_3(self):
-        regexp = "Cycle detected in DAG. (.*)run_this_last(.*)"
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.run_this_last.set_downstream(self.runme_0)
 
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
@@ -969,6 +949,26 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(run_command('echo "foo bar"'), u'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
+    def test_trigger_dagrun_with_execution_date(self):
+        utc_now = timezone.utcnow()
+        run_id = 'trig__' + utc_now.isoformat()
+
+        def payload_generator(context, object):
+            object.run_id = run_id
+            return object
+
+        task = TriggerDagRunOperator(task_id='test_trigger_dagrun_with_execution_date',
+                                     trigger_dag_id='example_bash_operator',
+                                     python_callable=payload_generator,
+                                     execution_date=utc_now,
+                                     dag=self.dag)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dag_runs = models.DagRun.find(dag_id='example_bash_operator',
+                                      run_id=run_id)
+        self.assertEquals(len(dag_runs), 1)
+        dag_run = dag_runs[0]
+        self.assertEquals(dag_run.execution_date, utc_now)
+
 
 class CliTests(unittest.TestCase):
 
@@ -1004,6 +1004,28 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
 
+    def test_cli_list_dag_runs(self):
+        cli.trigger_dag(self.parser.parse_args([
+            'trigger_dag', 'example_bash_operator', ]))
+        args = self.parser.parse_args(['list_dag_runs',
+                                       'example_bash_operator',
+                                       '--no_backfill'])
+        cli.list_dag_runs(args)
+
+    def test_cli_create_user_random_password(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test1', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@foo.com', '-r', 'Viewer', '--use_random_password'
+        ])
+        cli.create_user(args)
+
+    def test_cli_create_user_supplied_password(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test2', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@apache.org', '-r', 'Viewer', '-p', 'test'
+        ])
+        cli.create_user(args)
+
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
             args = self.parser.parse_args(['list_tasks', dag_id])
@@ -1017,13 +1039,13 @@ class CliTests(unittest.TestCase):
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
-        initdb_mock.assert_called_once_with()
+        initdb_mock.assert_called_once_with(False)
 
     @mock.patch("airflow.bin.cli.db_utils.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
 
-        resetdb_mock.assert_called_once_with()
+        resetdb_mock.assert_called_once_with(False)
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
@@ -1039,12 +1061,12 @@ class CliTests(unittest.TestCase):
         # expected:
         self.assertIn(['aws_default', 'aws'], conns)
         self.assertIn(['beeline_default', 'beeline'], conns)
-        self.assertIn(['bigquery_default', 'bigquery'], conns)
         self.assertIn(['emr_default', 'emr'], conns)
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)
         self.assertIn(['postgres_default', 'postgres'], conns)
         self.assertIn(['wasb_default', 'wasb'], conns)
+        self.assertIn(['segment_default', 'segment'], conns)
 
         # Attempt to list connections with invalid cli args
         with mock.patch('sys.stdout',
@@ -1060,8 +1082,17 @@ class CliTests(unittest.TestCase):
         lines = [l for l in stdout.split('\n') if len(l) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are not compatible with the " +
-             "--list flag: ['conn_id', 'conn_uri', 'conn_extra', 'conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']"),
+             "--list flag: ['conn_id', 'conn_uri', 'conn_extra', " +
+             "'conn_type', 'conn_host', 'conn_login', " +
+             "'conn_password', 'conn_schema', 'conn_port']"),
         ])
+
+    def test_cli_connections_list_redirect(self):
+        cmd = ['airflow', 'connections', '--list']
+        with tempfile.TemporaryFile() as fp:
+            p = subprocess.Popen(cmd, stdout=fp)
+            p.wait()
+            self.assertEqual(0, p.returncode)
 
     def test_cli_connections_add_delete(self):
         # Add connections:
@@ -1438,8 +1469,6 @@ class CliTests(unittest.TestCase):
                 sleep(1)
 
     def test_cli_webserver_foreground(self):
-        import subprocess
-
         # Confirm that webserver hasn't been launched.
         # pgrep returns exit status 1 if no process matched.
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
@@ -1457,8 +1486,6 @@ class CliTests(unittest.TestCase):
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_foreground_with_pid(self):
-        import subprocess
-
         # Run webserver in foreground with --pid option
         pidfile = tempfile.mkstemp()[1]
         p = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
@@ -1473,7 +1500,6 @@ class CliTests(unittest.TestCase):
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
-        import subprocess
         import psutil
 
         # Confirm that webserver hasn't been launched.
@@ -1499,6 +1525,16 @@ class CliTests(unittest.TestCase):
         # Assert that no process remains.
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    # Patch for causing webserver timeout
+    @mock.patch("airflow.bin.cli.get_num_workers_running", return_value=0)
+    def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
+        # Shorten timeout so that this test doesn't take too long time
+        configuration.conf.set("webserver", "web_server_master_timeout", "10")
+        args = self.parser.parse_args(['webserver'])
+        with self.assertRaises(SystemExit) as e:
+            cli.webserver(args)
+        self.assertEqual(e.exception.code, 1)
 
 
 class SecurityTests(unittest.TestCase):
@@ -1604,12 +1640,12 @@ class WebUiTests(unittest.TestCase):
 
         self.dagbag = models.DagBag(include_examples=True)
         self.dag_bash = self.dagbag.dags['example_bash_operator']
-        self.dag_bash2 = self.dagbag.dags['test_example_bash_operator']
+        self.dag_python = self.dagbag.dags['example_python_operator']
         self.sub_dag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.example_xcom = self.dagbag.dags['example_xcom']
 
-        self.dagrun_bash2 = self.dag_bash2.create_dagrun(
+        self.dagrun_python = self.dag_python.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
             execution_date=DEFAULT_DATE,
             start_date=timezone.utcnow(),
@@ -1636,14 +1672,16 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("DAGs", resp_html)
         self.assertIn("example_bash_operator", resp_html)
 
-        # The HTML should contain data for the last-run. A link to the specific run, and the text of
-        # the date.
+        # The HTML should contain data for the last-run. A link to the specific run,
+        #  and the text of the date.
         url = "/admin/airflow/graph?" + urlencode({
-            "dag_id": self.dag_bash2.dag_id,
-            "execution_date": self.dagrun_bash2.execution_date,
+            "dag_id": self.dag_python.dag_id,
+            "execution_date": self.dagrun_python.execution_date,
         }).replace("&", "&amp;")
         self.assertIn(url, resp_html)
-        self.assertIn(self.dagrun_bash2.execution_date.strftime("%Y-%m-%d %H:%M"), resp_html)
+        self.assertIn(
+            self.dagrun_python.execution_date.strftime("%Y-%m-%d %H:%M"),
+            resp_html)
 
     def test_query(self):
         response = self.app.get('/admin/queryview/')
@@ -1670,6 +1708,10 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
+        # confirm that the graph page loads when execution_date is blank
+        response = self.app.get(
+            '/admin/airflow/graph?dag_id=example_bash_operator&execution_date=')
+        self.assertIn("runme_0", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/tree?num_runs=25&dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
@@ -1681,8 +1723,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
-            'days=30&dag_id=test_example_bash_operator')
-        self.assertIn("test_example_bash_operator", response.data.decode('utf-8'))
+            'days=30&dag_id=example_python_operator')
+        self.assertIn("example_python_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
             'days=30&dag_id=example_xcom')
@@ -1721,16 +1763,16 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/task_stats')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         url = (
-            "/admin/airflow/success?task_id=run_this_last&"
-            "dag_id=test_example_bash_operator&upstream=false&downstream=false&"
+            "/admin/airflow/success?task_id=print_the_context&"
+            "dag_id=example_python_operator&upstream=false&downstream=false&"
             "future=false&past=false&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         response = self.app.get(
-            '/admin/airflow/clear?task_id=run_this_last&'
-            'dag_id=test_example_bash_operator&future=true&past=false&'
+            '/admin/airflow/clear?task_id=print_the_context&'
+            'dag_id=example_python_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date={}&'
             'origin=/admin'.format(DEFAULT_DATE_DS))
@@ -1749,8 +1791,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("section-1-task-5", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         url = (
-            "/admin/airflow/clear?task_id=runme_1&"
-            "dag_id=test_example_bash_operator&future=false&past=false&"
+            "/admin/airflow/clear?task_id=print_the_context&"
+            "dag_id=example_python_operator&future=false&past=false&"
             "upstream=false&downstream=true&"
             "execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
@@ -1795,10 +1837,10 @@ class WebUiTests(unittest.TestCase):
     def test_fetch_task_instance(self):
         url = (
             "/admin/airflow/object/task_instances?"
-            "dag_id=test_example_bash_operator&"
+            "dag_id=example_python_operator&"
             "execution_date={}".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
-        self.assertIn("run_this_last", response.data.decode('utf-8'))
+        self.assertIn("print_the_context", response.data.decode('utf-8'))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
@@ -1828,7 +1870,45 @@ class SecureModeWebUiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
     def tearDown(self):
-        configuration.remove_option("core", "SECURE_MODE")
+        configuration.conf.remove_option("core", "SECURE_MODE")
+
+
+class PasswordUserTest(unittest.TestCase):
+    def setUp(self):
+        user = models.User()
+        from airflow.contrib.auth.backends.password_auth import PasswordUser
+        self.password_user = PasswordUser(user)
+        self.password_user.username = "password_test"
+
+    @mock.patch('airflow.contrib.auth.backends.password_auth.generate_password_hash')
+    def test_password_setter(self, mock_gen_pass_hash):
+        mock_gen_pass_hash.return_value = b"hashed_pass" if six.PY3 else "hashed_pass"
+
+        self.password_user.password = "secure_password"
+        mock_gen_pass_hash.assert_called_with("secure_password", 12)
+
+    def test_password_unicode(self):
+        # In python2.7 no conversion is required back to str
+        # In python >= 3 the method must convert from bytes to str
+        self.password_user.password = "secure_password"
+        self.assertIsInstance(self.password_user.password, str)
+
+    def test_password_user_authenticate(self):
+        self.password_user.password = "secure_password"
+        self.assertTrue(self.password_user.authenticate("secure_password"))
+
+    def test_password_authenticate_session(self):
+        from airflow.contrib.auth.backends.password_auth import PasswordUser
+        self.password_user.password = 'test_password'
+        session = Session()
+        session.add(self.password_user)
+        session.commit()
+        query_user = session.query(PasswordUser).filter_by(
+            username=self.password_user.username).first()
+        self.assertTrue(query_user.authenticate('test_password'))
+        session.query(models.User).delete()
+        session.commit()
+        session.close()
 
 
 class WebPasswordAuthTest(unittest.TestCase):
@@ -1871,7 +1951,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         return self.app.get('/admin/airflow/logout', follow_redirects=True)
 
     def test_login_logout_password_auth(self):
-        self.assertTrue(configuration.getboolean('webserver', 'authenticate'))
+        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
 
         response = self.login('user1', 'whatever')
         self.assertIn('Incorrect login details', response.data.decode('utf-8'))
@@ -1938,7 +2018,7 @@ class WebLdapAuthTest(unittest.TestCase):
         return self.app.get('/admin/airflow/logout', follow_redirects=True)
 
     def test_login_logout_ldap(self):
-        self.assertTrue(configuration.getboolean('webserver', 'authenticate'))
+        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
 
         response = self.login('user1', 'userx')
         self.assertIn('Incorrect login details', response.data.decode('utf-8'))
@@ -1969,6 +2049,9 @@ class WebLdapAuthTest(unittest.TestCase):
 
         response = self.login('dataprofiler', 'dataprofiler')
         self.assertIn('Data Profiling', response.data.decode('utf-8'))
+
+        response = self.logout()
+        self.assertIn('form-signin', response.data.decode('utf-8'))
 
         response = self.login('superuser', 'superuser')
         self.assertIn('Connections', response.data.decode('utf-8'))
@@ -2279,11 +2362,10 @@ class WebHDFSHookTest(unittest.TestCase):
         self.assertEqual('someone', c.proxy_user)
 
 
-try:
+HDFSHook = None
+if six.PY2:
     from airflow.hooks.hdfs_hook import HDFSHook
     import snakebite
-except ImportError:
-    HDFSHook = None
 
 
 @unittest.skipIf(HDFSHook is None,
@@ -2328,62 +2410,12 @@ class HDFSHookTest(unittest.TestCase):
         client = HDFSHook().get_conn()
         self.assertIsInstance(client, snakebite.client.HAClient)
 
-
-try:
-    from airflow.hooks.http_hook import HttpHook
-except ImportError:
-    HttpHook = None
-
-
-@unittest.skipIf(HttpHook is None,
-                 "Skipping test because HttpHook is not installed")
-class HttpHookTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_http_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='localhost', schema='http')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'http://localhost')
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_https_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='localhost', schema='https')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'https://localhost')
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_host_encoded_http_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='http://localhost')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'http://localhost')
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_host_encoded_https_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='https://localhost')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'https://localhost')
-
-
 send_email_test = mock.Mock()
 
 
 class EmailTest(unittest.TestCase):
     def setUp(self):
-        configuration.remove_option('email', 'EMAIL_BACKEND')
+        configuration.conf.remove_option('email', 'EMAIL_BACKEND')
 
     @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
@@ -2393,18 +2425,17 @@ class EmailTest(unittest.TestCase):
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
-        configuration.set('email', 'EMAIL_BACKEND', 'tests.core.send_email_test')
+        configuration.conf.set('email', 'EMAIL_BACKEND', 'tests.core.send_email_test')
         utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_with(
             'to', 'subject', 'content', files=None, dryrun=False,
-            cc=None, bcc=None, mime_subtype='mixed'
-        )
+            cc=None, bcc=None, mime_charset='utf-8', mime_subtype='mixed')
         self.assertFalse(mock_send_email.called)
 
 
 class EmailSmtpTest(unittest.TestCase):
     def setUp(self):
-        configuration.set('smtp', 'SMTP_SSL', 'False')
+        configuration.conf.set('smtp', 'SMTP_SSL', 'False')
 
     @mock.patch('airflow.utils.email.send_MIME_email')
     def test_send_smtp(self, mock_send_mime):
@@ -2414,16 +2445,25 @@ class EmailSmtpTest(unittest.TestCase):
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
         self.assertTrue(mock_send_mime.called)
         call_args = mock_send_mime.call_args[0]
-        self.assertEqual(configuration.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
+        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
         self.assertEqual(['to'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
-        self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
-                         msg.get_payload()[-1].get(u'Content-Disposition'))
+        filename = u'attachment; filename="' + os.path.basename(attachment.name) + '"'
+        self.assertEqual(filename, msg.get_payload()[-1].get(u'Content-Disposition'))
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
+
+    @mock.patch('airflow.utils.email.send_MIME_email')
+    def test_send_smtp_with_multibyte_content(self, mock_send_mime):
+        utils.email.send_email_smtp('to', 'subject', '🔥', mime_charset='utf-8')
+        self.assertTrue(mock_send_mime.called)
+        call_args = mock_send_mime.call_args[0]
+        msg = call_args[2]
+        mimetext = MIMEText('🔥', 'mixed', 'utf-8')
+        self.assertEqual(mimetext.get_payload(), msg.get_payload()[0].get_payload())
 
     @mock.patch('airflow.utils.email.send_MIME_email')
     def test_send_bcc_smtp(self, mock_send_mime):
@@ -2433,11 +2473,11 @@ class EmailSmtpTest(unittest.TestCase):
         utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc')
         self.assertTrue(mock_send_mime.called)
         call_args = mock_send_mime.call_args[0]
-        self.assertEqual(configuration.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
+        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), call_args[0])
         self.assertEqual(['to', 'cc', 'bcc'], call_args[1])
         msg = call_args[2]
         self.assertEqual('subject', msg['Subject'])
-        self.assertEqual(configuration.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
+        self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
                          msg.get_payload()[-1].get(u'Content-Disposition'))
@@ -2452,13 +2492,13 @@ class EmailSmtpTest(unittest.TestCase):
         msg = MIMEMultipart()
         utils.email.send_MIME_email('from', 'to', msg, dryrun=False)
         mock_smtp.assert_called_with(
-            configuration.get('smtp', 'SMTP_HOST'),
-            configuration.getint('smtp', 'SMTP_PORT'),
+            configuration.conf.get('smtp', 'SMTP_HOST'),
+            configuration.conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertTrue(mock_smtp.return_value.starttls.called)
         mock_smtp.return_value.login.assert_called_with(
-            configuration.get('smtp', 'SMTP_USER'),
-            configuration.get('smtp', 'SMTP_PASSWORD'),
+            configuration.conf.get('smtp', 'SMTP_USER'),
+            configuration.conf.get('smtp', 'SMTP_PASSWORD'),
         )
         mock_smtp.return_value.sendmail.assert_called_with('from', 'to', msg.as_string())
         self.assertTrue(mock_smtp.return_value.quit.called)
@@ -2466,14 +2506,14 @@ class EmailSmtpTest(unittest.TestCase):
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
-        configuration.set('smtp', 'SMTP_SSL', 'True')
+        configuration.conf.set('smtp', 'SMTP_SSL', 'True')
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
         utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp.called)
         mock_smtp_ssl.assert_called_with(
-            configuration.get('smtp', 'SMTP_HOST'),
-            configuration.getint('smtp', 'SMTP_PORT'),
+            configuration.conf.get('smtp', 'SMTP_HOST'),
+            configuration.conf.getint('smtp', 'SMTP_PORT'),
         )
 
     @mock.patch('smtplib.SMTP_SSL')
@@ -2486,8 +2526,8 @@ class EmailSmtpTest(unittest.TestCase):
         utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         self.assertFalse(mock_smtp_ssl.called)
         mock_smtp.assert_called_with(
-            configuration.get('smtp', 'SMTP_HOST'),
-            configuration.getint('smtp', 'SMTP_PORT'),
+            configuration.conf.get('smtp', 'SMTP_HOST'),
+            configuration.conf.getint('smtp', 'SMTP_PORT'),
         )
         self.assertFalse(mock_smtp.login.called)
 

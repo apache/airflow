@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from base64 import b64encode
 from select import select
@@ -32,15 +37,16 @@ class SSHOperator(BaseOperator):
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
     :type remote_host: str
-    :param command: command to execute on remote host
+    :param command: command to execute on remote host. (templated)
     :type command: str
-    :param timeout: timeout for executing the command.
+    :param timeout: timeout (in seconds) for executing the command.
     :type timeout: int
     :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
     :type do_xcom_push: bool
     """
 
     template_fields = ('command',)
+    template_ext = ('.sh',)
 
     @apply_defaults
     def __init__(self,
@@ -103,7 +109,9 @@ class SSHOperator(BaseOperator):
                 agg_stdout += stdout.channel.recv(stdout_buffer_length)
 
             # read from both stdout and stderr
-            while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+            while not channel.closed or \
+                    channel.recv_ready() or \
+                    channel.recv_stderr_ready():
                 readq, _, _ = select([channel], [], [], self.timeout)
                 for c in readq:
                     if c.recv_ready():
@@ -130,8 +138,9 @@ class SSHOperator(BaseOperator):
             if exit_status is 0:
                 # returning output if do_xcom_push is set
                 if self.do_xcom_push:
-                    enable_pickling = configuration.getboolean('core',
-                                                               'enable_xcom_pickling')
+                    enable_pickling = configuration.conf.getboolean(
+                        'core', 'enable_xcom_pickling'
+                    )
                     if enable_pickling:
                         return agg_stdout
                     else:

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import os
@@ -35,7 +40,7 @@ COMMAND_CLASSES = {
     "prestocmd": PrestoCommand,
     "hadoopcmd": HadoopCommand,
     "shellcmd": ShellCommand,
-    "pigcmd":  PigCommand,
+    "pigcmd": PigCommand,
     "sparkcmd": SparkCommand,
     "dbtapquerycmd": DbTapQueryCommand,
     "dbexportcmd": DbExportCommand,
@@ -89,7 +94,7 @@ class QuboleHook(BaseHook, LoggingMixin):
                 log = LoggingMixin().log
                 if cmd.status == 'done':
                     log.info('Command ID: %s has been succeeded, hence marking this '
-                                'TI as Success.', cmd_id)
+                             'TI as Success.', cmd_id)
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
@@ -141,7 +146,9 @@ class QuboleHook(BaseHook, LoggingMixin):
         """
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
-            logpath = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
+            logpath = os.path.expanduser(
+                configuration.conf.get('core', 'BASE_LOG_FOLDER')
+            )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
             configuration.mkdir_p(resultpath)
             fp = open(resultpath + '/' + iso, 'wb')
@@ -181,10 +188,10 @@ class QuboleHook(BaseHook, LoggingMixin):
         inplace_args = None
         tags = set([self.dag_id, self.task_id, context['run_id']])
 
-        for k,v in self.kwargs.items():
+        for k, v in self.kwargs.items():
             if k in COMMAND_ARGS[cmd_type]:
                 if k in HYPHEN_ARGS:
-                    args.append("--{0}={1}".format(k.replace('_', '-'),v))
+                    args.append("--{0}={1}".format(k.replace('_', '-'), v))
                 elif k in POSITIONAL_ARGS:
                     inplace_args = v
                 elif k == 'tags':
@@ -194,12 +201,12 @@ class QuboleHook(BaseHook, LoggingMixin):
                         for val in v:
                             tags.add(val)
                 else:
-                    args.append("--{0}={1}".format(k,v))
+                    args.append("--{0}={1}".format(k, v))
 
             if k == 'notify' and v is True:
                 args.append("--notify")
 
-        args.append("--tags={0}".format(','.join(filter(None,tags))))
+        args.append("--tags={0}".format(','.join(filter(None, tags))))
 
         if inplace_args is not None:
             args += inplace_args.split(' ')

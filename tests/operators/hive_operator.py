@@ -1,27 +1,36 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import print_function
 
 import datetime
 import os
 import unittest
+
 import mock
 import nose
-import six
 
 from airflow import DAG, configuration, operators
+from airflow.models import TaskInstance
+from airflow.operators.hive_operator import HiveOperator
+from airflow.utils import timezone
+
 configuration.load_test_config()
 
 
@@ -56,7 +65,7 @@ class HiveEnvironmentTest(unittest.TestCase):
 class HiveOperatorConfigTest(HiveEnvironmentTest):
 
     def test_hive_airflow_default_config_queue(self):
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue_priority='HIGH',
@@ -64,13 +73,15 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
             dag=self.dag)
 
         # just check that the correct default value in test_default.cfg is used
-        test_config_hive_mapred_queue = configuration.get('hive',
-                                                          'default_hive_mapred_queue')
+        test_config_hive_mapred_queue = configuration.conf.get(
+            'hive',
+            'default_hive_mapred_queue'
+        )
         self.assertEqual(t.get_hook().mapred_queue, test_config_hive_mapred_queue)
 
     def test_hive_airflow_default_config_queue_override(self):
         specific_mapred_queue = 'default'
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue=specific_mapred_queue,
@@ -85,11 +96,42 @@ class HiveOperatorTest(HiveEnvironmentTest):
 
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             hiveconf_jinja_translate=True,
             task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
         t.prepare_template()
         self.assertEqual(t.hql, "SELECT {{ num_col }} FROM {{ table }};")
+
+    def test_hiveconf(self):
+        hql = "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
+        t = HiveOperator(
+            hiveconfs={'table': 'static_babynames', 'day': '{{ ds }}'},
+            task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
+        t.prepare_template()
+        self.assertEqual(
+            t.hql,
+            "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});")
+
+    @mock.patch('airflow.operators.hive_operator.HiveOperator.get_hook')
+    def test_mapred_job_name(self, mock_get_hook):
+        mock_hook = mock.MagicMock()
+        mock_get_hook.return_value = mock_hook
+        t = HiveOperator(
+            task_id='test_mapred_job_name',
+            hql=self.hql,
+            dag=self.dag)
+
+        fake_execution_date = timezone.datetime(2018, 6, 19)
+        fake_ti = TaskInstance(task=t, execution_date=fake_execution_date)
+        fake_ti.hostname = 'fake_hostname'
+        fake_context = {'ti': fake_ti}
+
+        t.execute(fake_context)
+        self.assertEqual(
+            "Airflow HiveOperator task for {}.{}.{}.{}"
+            .format(fake_ti.hostname,
+                    self.dag.dag_id, t.task_id,
+                    fake_execution_date.isoformat()), mock_hook.mapred_job_name)
 
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
@@ -97,129 +139,16 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     import airflow.hooks.hive_hooks
     import airflow.operators.presto_to_mysql
 
-    class HiveServer2Test(unittest.TestCase):
-        def setUp(self):
-            configuration.load_test_config()
-            self.nondefault_schema = "nondefault"
-
-        def test_select_conn(self):
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-            sql = "select 1"
-            hook = HiveServer2Hook()
-            hook.get_records(sql)
-
-        def test_multi_statements(self):
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-            sqls = [
-                "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
-                "DROP TABLE test_multi_statements",
-            ]
-            hook = HiveServer2Hook()
-            hook.get_records(sqls)
-
-        def test_get_metastore_databases(self):
-            if six.PY2:
-                from airflow.hooks.hive_hooks import HiveMetastoreHook
-                hook = HiveMetastoreHook()
-                hook.get_databases()
-
-        def test_to_csv(self):
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-            sql = "select 1"
-            hook = HiveServer2Hook()
-            hook.to_csv(hql=sql, csv_filepath="/tmp/test_to_csv")
-
-        def connect_mock(self, host, port,
-                         auth_mechanism, kerberos_service_name,
-                         user, database):
-            self.assertEqual(database, self.nondefault_schema)
-
-        @mock.patch('HiveServer2Hook.connect', return_value="foo")
-        def test_select_conn_with_schema(self, connect_mock):
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-
-            # Configure
-            hook = HiveServer2Hook()
-
-            # Run
-            hook.get_conn(self.nondefault_schema)
-
-            # Verify
-            self.assertTrue(connect_mock.called)
-            (args, kwargs) = connect_mock.call_args_list[0]
-            self.assertEqual(self.nondefault_schema, kwargs['database'])
-
-        def test_get_results_with_schema(self):
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-            from unittest.mock import MagicMock
-
-            # Configure
-            sql = "select 1"
-            schema = "notdefault"
-            hook = HiveServer2Hook()
-            cursor_mock = MagicMock(
-                __enter__=cursor_mock,
-                __exit__=None,
-                execute=None,
-                fetchall=[],
-            )
-            get_conn_mock = MagicMock(
-                __enter__=get_conn_mock,
-                __exit__=None,
-                cursor=cursor_mock,
-            )
-            hook.get_conn = get_conn_mock
-
-            # Run
-            hook.get_results(sql, schema)
-
-            # Verify
-            get_conn_mock.assert_called_with(self.nondefault_schema)
-
-        @mock.patch('HiveServer2Hook.get_results', return_value={'data': []})
-        def test_get_records_with_schema(self, get_results_mock):
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-
-            # Configure
-            sql = "select 1"
-            hook = HiveServer2Hook()
-
-            # Run
-            hook.get_records(sql, self.nondefault_schema)
-
-            # Verify
-            self.assertTrue(self.connect_mock.called)
-            (args, kwargs) = self.connect_mock.call_args_list[0]
-            self.assertEqual(sql, args[0])
-            self.assertEqual(self.nondefault_schema, kwargs['schema'])
-
-        @mock.patch('HiveServer2Hook.get_results', return_value={'data': []})
-        def test_get_pandas_df_with_schema(self, get_results_mock):
-            from airflow.hooks.hive_hooks import HiveServer2Hook
-
-            # Configure
-            sql = "select 1"
-            hook = HiveServer2Hook()
-
-            # Run
-            hook.get_pandas_df(sql, self.nondefault_schema)
-
-            # Verify
-            self.assertTrue(self.connect_mock.called)
-            (args, kwargs) = self.connect_mock.call_args_list[0]
-            self.assertEqual(sql, args[0])
-            self.assertEqual(self.nondefault_schema, kwargs['schema'])
-
     class HivePrestoTest(HiveEnvironmentTest):
 
         def test_hive(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='basic_hql', hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)
 
         def test_hive_queues(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='test_hive_queues', hql=self.hql,
                 mapred_queue='default', mapred_queue_priority='HIGH',
                 mapred_job_name='airflow.test_hive_queues',
@@ -228,12 +157,12 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                   ignore_ti_state=True)
 
         def test_hive_dryrun(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='dry_run_basic_hql', hql=self.hql, dag=self.dag)
             t.dry_run()
 
         def test_beeline(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='beeline_hql', hive_cli_conn_id='beeline_default',
                 hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,

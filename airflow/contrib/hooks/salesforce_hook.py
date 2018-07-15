@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 """
 This module contains a Salesforce Hook
@@ -79,7 +84,8 @@ class SalesforceHook(BaseHook, LoggingMixin):
             username=self.connection.login,
             password=self.connection.password,
             security_token=self.extras['security_token'],
-            instance_url=self.connection.host
+            instance_url=self.connection.host,
+            sandbox=self.extras.get('sandbox', False)
         )
         self.sf = sf
         return sf
@@ -208,14 +214,14 @@ class SalesforceHook(BaseHook, LoggingMixin):
             - json:
                 JSON array.  Each element in the array is a different row.
             - ndjson:
-                JSON array but each element is new-line deliminated
-                instead of comman deliminated like in `json`
+                JSON array but each element is new-line delimited
+                instead of comma delimited like in `json`
 
         This requires a significant amount of cleanup.
         Pandas doesn't handle output to CSV and json in a uniform way.
         This is especially painful for datetime types.
         Pandas wants to write them as strings in CSV,
-        but as milisecond Unix timestamps.
+        but as millisecond Unix timestamps.
 
         By default, this function will try and leave all values as
         they are represented in Salesforce.

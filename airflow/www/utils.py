@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from future import standard_library
 standard_library.install_aliases()
@@ -36,7 +41,7 @@ from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 
-AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
+AUTHENTICATE = configuration.conf.getboolean('webserver', 'AUTHENTICATE')
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -51,7 +56,7 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 
 def should_hide_value_for_key(key_name):
     return any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS) \
-           and configuration.getboolean('admin', 'hide_sensitive_variable_fields')
+        and configuration.conf.getboolean('admin', 'hide_sensitive_variable_fields')
 
 
 class LoginMixin(object):
@@ -236,13 +241,14 @@ def epoch(dttm):
 
 
 def action_logging(f):
-    '''
+    """
     Decorator to log user actions
-    '''
+    """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        if current_user and hasattr(current_user, 'username'):
-            user = current_user.username
+        # AnonymousUserMixin() has user attribute but its value is None.
+        if current_user and hasattr(current_user, 'user') and current_user.user:
+            user = current_user.user.username
         else:
             user = 'anonymous'
 
@@ -254,7 +260,7 @@ def action_logging(f):
             task_id=request.args.get('task_id'),
             dag_id=request.args.get('dag_id'))
 
-        if 'execution_date' in request.args:
+        if request.args.get('execution_date'):
             log.execution_date = timezone.parse(request.args.get('execution_date'))
 
         with create_session() as session:
@@ -267,9 +273,9 @@ def action_logging(f):
 
 
 def notify_owner(f):
-    '''
+    """
     Decorator to notify owner of actions taken on their DAGs by others
-    '''
+    """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         """
@@ -280,7 +286,7 @@ def notify_owner(f):
             dag = dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
 
-            if current_user and hasattr(current_user, 'username'):
+            if current_user and hasattr(current_user, 'user') and current_user.user:
                 user = current_user.username
             else:
                 user = 'anonymous'
@@ -324,9 +330,9 @@ def json_response(obj):
 
 
 def gzipped(f):
-    '''
+    """
     Decorator to make a view compressed
-    '''
+    """
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
@@ -361,9 +367,9 @@ def gzipped(f):
 
 
 def make_cache_key(*args, **kwargs):
-    '''
+    """
     Used by cache to get a unique key per URL
-    '''
+    """
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
@@ -27,11 +32,12 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
     :param source_project_dataset_tables: One or more
         dotted (project:|project.)<dataset>.<table> BigQuery tables to use as the
-        source data. If <project> is not included, project will be the project defined
-        in the connection json. Use a list if there are multiple source tables.
+        source data. If <project> is not included, project will be the
+        project defined in the connection json. Use a list if there are multiple
+        source tables. (templated)
     :type source_project_dataset_tables: list|string
     :param destination_project_dataset_table: The destination BigQuery
-        table. Format is: (project:|project.)<dataset>.<table>
+        table. Format is: (project:|project.)<dataset>.<table> (templated)
     :type destination_project_dataset_table: string
     :param write_disposition: The write disposition if the table already exists.
     :type write_disposition: string

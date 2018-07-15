@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import distributed
 import subprocess
@@ -26,21 +31,36 @@ class DaskExecutor(BaseExecutor):
     """
     def __init__(self, cluster_address=None):
         if cluster_address is None:
-            cluster_address = configuration.get('dask', 'cluster_address')
+            cluster_address = configuration.conf.get('dask', 'cluster_address')
         if not cluster_address:
             raise ValueError(
                 'Please provide a Dask cluster address in airflow.cfg')
         self.cluster_address = cluster_address
+        # ssl / tls parameters
+        self.tls_ca = configuration.get('dask', 'tls_ca')
+        self.tls_key = configuration.get('dask', 'tls_key')
+        self.tls_cert = configuration.get('dask', 'tls_cert')
         super(DaskExecutor, self).__init__(parallelism=0)
 
     def start(self):
-        self.client = distributed.Client(self.cluster_address)
+        if (self.tls_ca) or (self.tls_key) or (self.tls_cert):
+            from distributed.security import Security
+            security = Security(
+                tls_client_key=self.tls_key,
+                tls_client_cert=self.tls_cert,
+                tls_ca_file=self.tls_ca,
+            )
+        else:
+            security = None
+
+        self.client = distributed.Client(self.cluster_address, security=security)
         self.futures = {}
 
-    def execute_async(self, key, command, queue=None):
+    def execute_async(self, key, command, queue=None, executor_config=None):
         if queue is not None:
             warnings.warn(
-                'DaskExecutor does not support queues. All tasks will be run in the same cluster'
+                'DaskExecutor does not support queues. '
+                'All tasks will be run in the same cluster'
             )
 
         def airflow_run():
