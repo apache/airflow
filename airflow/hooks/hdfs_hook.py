@@ -22,6 +22,7 @@ import warnings
 import hdfs3
 from hdfs3.utils import MyNone
 
+from airflow import configuration
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -32,8 +33,34 @@ class HdfsHook(BaseHook):
     `hdfs-site.xml` if these files can be found in any of the typical
     locations. The hook loads `host` and `port` parameters from the
     hdfs connection (if given) and extra configuration parameters can be
-    supplied using the `pars` key in extra JSON. See the hdfs3 documentation
-    for more details.
+    supplied in the connections extra JSON as follows:
+
+    {
+        "pars": {
+            "dfs.domain.socket.path": "/var/lib/hadoop-hdfs/dn_socket"
+        },
+        "ha": {
+            "host": "nameservice1",
+            "conf": {
+                "dfs.nameservices": "nameservice1",
+                "dfs.ha.namenodes.nameservice1": "namenode113,namenode188",
+                "dfs.namenode.rpc-address.nameservice1.namenode113": "host1:8020",
+                "dfs.namenode.rpc-address.nameservice1.namenode188": "host2:8020",
+                "dfs.namenode.http-address.nameservice1.namenode113": "host1:50070",
+                "dfs.namenode.http-address.nameservice1.namenode188": "host2:50070"
+            }
+        }
+    }
+
+    Here `pars` can be used to supply configuration options with the same key
+    names as typically contained in the XML config files, which will take
+    precedence over any parameters loaded from files. The `ha` configuration
+    section can be used to supply options for using hdfs3 in high-availability
+    mode. See the hdfs3 documentation for more details.
+
+    Security modes can also be configured by defining appropriate value for
+    the `hadoop.security.authentication` key in `pars`. Kerberos is used
+    automatically if Airflow has been configured to use kerberos.
 
     :param str hdfs_conn_id: Connection ID to fetch parameters from.
     :param bool autoconf: Whether to use autoconfig to discover
@@ -54,20 +81,29 @@ class HdfsHook(BaseHook):
                 self._conn = hdfs3.HDFileSystem(autoconf=self._autoconf)
             else:
                 params = self.get_connection(self.hdfs_conn_id)
+                extra_params = params.extra_dejson
 
                 # Extract hadoop parameters from extra.
-                hdfs_pars = params.extra_dejson.get('pars', {})
+                hdfs_params = extra_params.get("pars", {})
+
+                # Configure kerberos security if used by Airflow.
+                if configuration.conf.get("core", "security") == "kerberos":
+                    hdfs_params["hadoop.security.authentication"] = "kerberos"
+
+                # Extract high-availability config if given.
+                ha_params = extra_params.get("ha", {})
+                hdfs_params.update(ha_params.get("conf", {}))
 
                 # Collect extra parameters to pass to kwargs.
                 extra_kws = {}
                 if params.login:
-                    extra_kws['user'] = params.login
+                    extra_kws["user"] = params.login
 
                 # Build connection.
                 self._conn = hdfs3.HDFileSystem(
-                    host=params.host or MyNone,
+                    host=ha_params.get("host") or params.host or MyNone,
                     port=params.port or MyNone,
-                    pars=hdfs_pars,
+                    pars=hdfs_params,
                     autoconf=self._autoconf,
                     **extra_kws)
 
@@ -107,5 +143,5 @@ class _DeprecationHelper(object):
 
 HDFSHook = _DeprecationHelper(
     HdfsHook,
-    message='The `HDFSHook` has been renamed to `HdfsHook`. Support for '
-            'the old naming will be dropped in a future version of Airflow.')
+    message="The `HDFSHook` has been renamed to `HdfsHook`. Support for "
+            "the old naming will be dropped in a future version of Airflow.")
