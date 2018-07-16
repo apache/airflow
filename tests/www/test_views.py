@@ -156,8 +156,6 @@ class TestVariableView(unittest.TestCase):
         response = self.app.get('/admin/variable', follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.session.query(models.Variable).count(), 1)
-        self.assertIn('<span class="label label-danger">Invalid</span>',
-                      response.data.decode('utf-8'))
 
     def test_xss_prevention(self):
         xss = "/admin/airflow/variables/asdf<img%20src=''%20onerror='alert(1);'>"
