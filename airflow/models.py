@@ -686,8 +686,8 @@ class Connection(Base, LoggingMixin):
         self.conn_type = conn_type
         self.host = hostname
         self.schema = temp_uri.path[1:]
-        self.login = unquote(temp_uri.username)
-        self.password = unquote(temp_uri.password)
+        self.login = unquote(temp_uri.username or '')
+        self.password = unquote(temp_uri.password or '')
         self.port = temp_uri.port
         if temp_uri.query:
             self.extra = json.dumps(dict(parse_qsl(temp_uri.query)))
