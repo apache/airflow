@@ -25,6 +25,34 @@ from airflow.exceptions import AirflowException
 
 class SageMakerCreateTrainingJobOperator(BaseOperator):
 
+    """
+       Initiate a SageMaker training
+
+       This operator returns The ARN of the model created in Amazon SageMaker
+
+       :param job_name: The unique SageMaker Training job name. (templated)
+       :type job_name: string
+       :param training_job_config:
+       The configuration necessary to start a training job (templated)
+       :type training_job_config: dict
+       :param sagemaker_conn_id: The SageMaker connection ID to use.
+       :type aws_conn_id: string
+       :param aws_conn_id: The AWS connection ID to use.
+       :type aws_conn_id: string
+
+       **Example**:
+           The following operator would start a training job when executed
+
+            sagemaker_training =
+               SageMakerCreateTrainingJobOperator(
+                   task_id='sagemaker_training',
+                   training_job_config=config,
+                   job_name='my_sagemaker_training'
+                   sagemaker_conn_id='sagemaker_customers_conn'
+                   aws_conn_id='aws_customers_conn'
+               )
+       """
+
     template_fields = ['training_job_config']
     template_ext = ()
     ui_color = '#ededed'
