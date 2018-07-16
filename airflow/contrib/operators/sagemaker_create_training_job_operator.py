@@ -46,7 +46,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
             sagemaker_conn_id=self.sagemaker_conn_id, job_name=self.job_name)
 
         self.log.info(
-            "Creating SageMaker Training Job"
+            "Creating SageMaker Training Job %s." % self.job_name
         )
         response = sagemaker.create_training_job(self.training_job_config)
         if not response['ResponseMetadata']['HTTPStatusCode'] \
