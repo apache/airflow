@@ -102,7 +102,8 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
-async = [
+
+async_packages = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
     'gevent>=0.13'
@@ -218,6 +219,10 @@ devel = [
     'rednose',
     'requests_mock'
 ]
+
+if not PY3:
+    devel += ['unittest2']
+
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
@@ -231,7 +236,7 @@ if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
 else:
-    devel_ci = devel_all + ['unittest2']
+    devel_ci = devel_all
 
 
 def do_setup():
@@ -294,7 +299,7 @@ def do_setup():
             'devel_ci': devel_ci,
             'all_dbs': all_dbs,
             'atlas': atlas,
-            'async': async,
+            'async': async_packages,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
             'cassandra': cassandra,
