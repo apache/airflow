@@ -2559,7 +2559,7 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
     )
     column_list = ('key', 'val', 'is_encrypted',)
     column_filters = ('key', 'val')
-    column_searchable_list = ('key', 'val')
+    column_searchable_list = ('key', 'val', 'is_encrypted',)
     column_default_sort = ('key', False)
     form_widget_args = {
         'is_encrypted': {'disabled': True},

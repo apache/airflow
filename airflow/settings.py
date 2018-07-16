@@ -190,7 +190,10 @@ def configure_orm(disable_connection_pool=False):
     setup_event_handlers(engine, reconnect_timeout)
 
     Session = scoped_session(
-        sessionmaker(autocommit=False, autoflush=False, bind=engine))
+        sessionmaker(autocommit=False,
+                     autoflush=False,
+                     bind=engine,
+                     expire_on_commit=False))
 
 
 def dispose_orm():

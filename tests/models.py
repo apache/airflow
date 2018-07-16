@@ -1256,7 +1256,7 @@ class DagRunTest(unittest.TestCase):
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.REMOVED, flaky_ti.state)
+        self.assertEquals(State.NONE, flaky_ti.state)
 
         dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
 

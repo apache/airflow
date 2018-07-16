@@ -1338,6 +1338,9 @@ def create_user(args):
         if password != password_confirmation:
             raise SystemExit('Passwords did not match!')
 
+    if appbuilder.sm.find_user(args.username):
+        print('{} already exist in the db'.format(args.username))
+        return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
                                   args.email, role, password)
     if user:
@@ -1396,6 +1399,16 @@ def list_dag_runs(args, dag=None):
                                                              dag_run['execution_date'],
                                                              dag_run['start_date'])
         print(record)
+
+
+@cli_utils.action_logging
+def sync_perm(args): # noqa
+    if settings.RBAC:
+        appbuilder = cached_appbuilder()
+        print('Update permission, view-menu for all existing roles')
+        appbuilder.sm.sync_roles()
+    else:
+        print('The sync_perm command only works for rbac UI.')
 
 
 Arg = namedtuple(
@@ -2000,6 +2013,11 @@ class CLIFactory(object):
             'args': ('role', 'username', 'email', 'firstname', 'lastname',
                      'password', 'use_random_password'),
         },
+        {
+            'func': sync_perm,
+            'help': "Update existing role's permissions.",
+            'args': tuple(),
+        }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
