@@ -129,9 +129,7 @@ class HiveToDruidTransfer(BaseOperator):
         columns = [col.name for col in t.sd.cols]
 
         # Get the path on hdfs
-        hdfs_uri = m.get_table(hive_table).sd.location
-        pos = hdfs_uri.find('/user')
-        static_path = hdfs_uri[pos:]
+        static_path = m.get_table(hive_table).sd.location
 
         schema, table = hive_table.split('.')
 
