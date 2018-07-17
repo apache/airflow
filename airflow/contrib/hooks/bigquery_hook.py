@@ -1255,6 +1255,35 @@ class BigQueryBaseCursor(LoggingMixin):
                 source_dataset)
             return source_dataset_resource
 
+    def delete_dataset(self,
+                       project_id,
+                       dataset_id
+                       ):
+        """
+        Delete a dataset of Big query in your project.
+        :param project_id: The name of the project where we have the dataset .
+        :type project_id: str
+        :param dataset_id: The dataset to be delete.
+        :type dataset_id: str
+        :return:
+        """
+        project_id = project_id if project_id is not None else self.project_id
+        self.log.info('Deleting from project: %s  Dataset:%s',
+                      project_id, dataset_id)
+
+        try:
+            self.service.datasets().delete(
+                projectId=project_id,
+                datasetId=dataset_id).execute()
+
+            self.log.info('Dataset deleted successfully: In project %s Dataset %s',
+                          project_id, dataset_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
