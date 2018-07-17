@@ -73,7 +73,8 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                 project_id=TEST_PROJECT_ID,
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
-                time_partitioning={}
+                time_partitioning={},
+                labels=None
             )
 
 
@@ -112,7 +113,8 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 quote_character=None,
                 allow_quoted_newlines=False,
                 allow_jagged_rows=False,
-                src_fmt_configs={}
+                src_fmt_configs={},
+                labels=None
             )
 
 

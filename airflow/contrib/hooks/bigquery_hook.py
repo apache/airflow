@@ -206,7 +206,8 @@ class BigQueryBaseCursor(LoggingMixin):
                            dataset_id,
                            table_id,
                            schema_fields=None,
-                           time_partitioning={}
+                           time_partitioning={},
+                           labels=None
                            ):
         """
         Creates a new, empty table in the dataset.
@@ -219,6 +220,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :type table_id: str
         :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+        :param labels: a dictionary containing labels for the table, passed to BigQuery
+        :type labels: dict
 
         **Example**: ::
 
@@ -248,6 +251,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if time_partitioning:
             table_resource['timePartitioning'] = time_partitioning
+
+        if labels:
+            table_resource['labels'] = labels
 
         self.log.info('Creating Table %s:%s.%s',
                       project_id, dataset_id, table_id)
@@ -280,7 +286,8 @@ class BigQueryBaseCursor(LoggingMixin):
                               quote_character=None,
                               allow_quoted_newlines=False,
                               allow_jagged_rows=False,
-                              src_fmt_configs={}
+                              src_fmt_configs={},
+                              labels=None
                               ):
         """
         Creates a new external table in the dataset with the data in Google
@@ -341,6 +348,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :type allow_jagged_rows: bool
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
+        :param labels: a dictionary containing labels for the table, passed to BigQuery
+        :type labels: dict
         """
 
         project_id, dataset_id, external_table_id = \
@@ -439,6 +448,9 @@ class BigQueryBaseCursor(LoggingMixin):
             table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
                 source_format]] = src_fmt_configs
 
+        if labels:
+            table_resource['labels'] = labels
+
         try:
             self.service.tables().insert(
                 projectId=project_id,
@@ -467,6 +479,7 @@ class BigQueryBaseCursor(LoggingMixin):
                   maximum_bytes_billed=None,
                   create_disposition='CREATE_IF_NEEDED',
                   query_params=None,
+                  labels=None,
                   schema_update_options=(),
                   priority='INTERACTIVE',
                   time_partitioning={}):
@@ -516,6 +529,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :param query_params a dictionary containing query parameter types and
             values, passed to BigQuery
         :type query_params: dict
+        :param labels a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the query job.
         :type schema_update_options: tuple
@@ -606,6 +622,9 @@ class BigQueryBaseCursor(LoggingMixin):
             else:
                 configuration['query']['queryParameters'] = query_params
 
+        if labels:
+            configuration['labels'] = labels
+
         time_partitioning = _cleanse_time_partitioning(
             destination_dataset_table,
             time_partitioning
@@ -636,7 +655,8 @@ class BigQueryBaseCursor(LoggingMixin):
             compression='NONE',
             export_format='CSV',
             field_delimiter=',',
-            print_header=True):
+            print_header=True,
+            labels=None):
         """
         Executes a BigQuery extract command to copy data from BigQuery to
         Google Cloud Storage. See here:
@@ -661,6 +681,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :type field_delimiter: string
         :param print_header: Whether to print a header for a CSV file extract.
         :type print_header: boolean
+        :param labels: a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
         """
 
         source_project, source_dataset, source_table = \
@@ -681,6 +704,9 @@ class BigQueryBaseCursor(LoggingMixin):
             }
         }
 
+        if labels:
+            configuration['labels'] = labels
+
         if export_format == 'CSV':
             # Only set fieldDelimiter and printHeader fields if using CSV.
             # Google does not like it if you set these fields for other export
@@ -694,7 +720,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  source_project_dataset_tables,
                  destination_project_dataset_table,
                  write_disposition='WRITE_EMPTY',
-                 create_disposition='CREATE_IF_NEEDED'):
+                 create_disposition='CREATE_IF_NEEDED',
+                 labels=None):
         """
         Executes a BigQuery copy command to copy data from one BigQuery table
         to another. See here:
@@ -717,6 +744,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :type write_disposition: string
         :param create_disposition: The create disposition if the table doesn't exist.
         :type create_disposition: string
+        :param labels a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
         """
         source_project_dataset_tables = ([
             source_project_dataset_tables
@@ -753,6 +783,9 @@ class BigQueryBaseCursor(LoggingMixin):
                 }
             }
         }
+
+        if labels:
+            configuration['labels'] = labels
 
         return self.run_with_configuration(configuration)
 
