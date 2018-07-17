@@ -118,9 +118,9 @@ WasbHook
 Azure File Share
 ''''''''''''''''
 
-Cloud variant of a SMB file share. Make sure that a Airflow connection of 
-type `wasb` exists. Authorization can be done by supplying a login (=Storage account name) 
-and password (=Storage account key), or login and SAS token in the extra field 
+Cloud variant of a SMB file share. Make sure that a Airflow connection of
+type `wasb` exists. Authorization can be done by supplying a login (=Storage account name)
+and password (=Storage account key), or login and SAS token in the extra field
 (see connection `wasb_default` for an example).
 
 AzureFileShareHook
@@ -349,6 +349,7 @@ BigQuery Operators
 - :ref:`BigQueryIntervalCheckOperator` : Checks that the values of metrics given as SQL expressions are within a certain tolerance of the ones from days_back before.
 - :ref:`BigQueryCreateEmptyTableOperator` : Creates a new, empty table in the specified BigQuery dataset optionally with schema.
 - :ref:`BigQueryCreateExternalTableOperator` : Creates a new, external table in the dataset with the data in Google Cloud Storage.
+- :ref:`BigQueryDeleteDatasetOperator` : Deletes an existing BigQuery dataset.
 - :ref:`BigQueryOperator` : Executes BigQuery SQL queries in a specific BigQuery database.
 - :ref:`BigQueryToBigQueryOperator` : Copy a BigQuery table to another BigQuery table.
 - :ref:`BigQueryToCloudStorageOperator` : Transfers a BigQuery table to a Google Cloud Storage bucket
@@ -395,6 +396,13 @@ BigQueryCreateExternalTableOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator
+
+.. _BigQueryDeleteDatasetOperator:
+
+BigQueryDeleteDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
 
 .. _BigQueryOperator:
 
