@@ -2039,6 +2039,11 @@ class CLIFactory(object):
             'help': "List accounts for the Web UI",
             'args': tuple(),
         },
+        {
+            'func': sync_perm,
+            'help': "Update existing role's permissions.",
+            'args': tuple(),
+        },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
