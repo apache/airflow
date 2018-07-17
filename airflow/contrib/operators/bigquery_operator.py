@@ -481,3 +481,55 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             allow_jagged_rows=self.allow_jagged_rows,
             src_fmt_configs=self.src_fmt_configs
         )
+
+
+class BigQueryDeleteDatasetOperator(BaseOperator):
+    """"
+    This operator deletes an existing dataset from your Project in Big query.
+    https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
+    :param project_id: The project id of the dataset.
+    :type project_id: string
+    :param dataset_id: The dataset to be deleted.
+    :type dataset_id: string
+
+    **Example**: ::
+
+        delete_temp_data = BigQueryDeleteDatasetOperator(
+                                        dataset_id = 'temp-dataset',
+                                        project_id = 'temp-project',
+                                        bigquery_conn_id='_my_gcp_conn_',
+                                        task_id='Deletetemp',
+                                        dag=dag)
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f00004'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id,
+                 project_id=None,
+                 bigquery_conn_id='bigquery_default',
+                 delegate_to=None,
+                 *args, **kwargs):
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.bigquery_conn_id = bigquery_conn_id
+        self.delegate_to = delegate_to
+
+        self.log.info('Dataset id: %s', self.dataset_id)
+        self.log.info('Project id: %s', self.project_id)
+
+        super(BigQueryDeleteDatasetOperator, self).__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+                               delegate_to=self.delegate_to)
+
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        cursor.delete_dataset(
+            project_id=self.project_id,
+            dataset_id=self.dataset_id
+        )
