@@ -35,6 +35,28 @@ class MockHdfs3Client(object):
             entry['name']: entry for entry in file_details
         }
 
+    @classmethod
+    def from_file_details(cls, file_details, test_instance,
+                          conn_id='hdfs_default'):
+        """Builds mock hdsf3 client using file_details."""
+
+        mock_client = cls(file_details)
+        mock_params = models.Connection(conn_id=conn_id)
+
+        # Setup mock for get_connection.
+        patcher = mock.patch.object(
+            HdfsHook, 'get_connection', return_value=mock_params)
+        test_instance.addCleanup(patcher.stop)
+        patcher.start()
+
+        # Setup mock for get_conn.
+        patcher = mock.patch.object(
+            HdfsHook, 'get_conn', return_value=mock_client)
+        test_instance.addCleanup(patcher.stop)
+        patcher.start()
+
+        return mock_client, mock_params
+
     def glob(self, pattern):
         """Returns glob of files matching pattern."""
         return fnmatch.filter(self._file_details.keys(), pattern)
@@ -79,20 +101,8 @@ class HdfsSensorTests(unittest.TestCase):
             }
         ]
 
-        self._mock_client = MockHdfs3Client(file_details)
-        self._mock_params = models.Connection(conn_id='hdfs_default')
-
-        # Setup mock for get_connection.
-        patcher = mock.patch.object(
-            HdfsHook, 'get_connection', return_value=self._mock_params)
-        self.addCleanup(patcher.stop)
-        patcher.start()
-
-        # Setup mock for get_conn.
-        patcher = mock.patch.object(
-            HdfsHook, 'get_conn', return_value=self._mock_client)
-        self.addCleanup(patcher.stop)
-        patcher.start()
+        self._mock_client, self._mock_params = \
+            MockHdfs3Client.from_file_details(file_details, test_instance=self)
 
         self._default_task_kws = {
             'timeout': 1,

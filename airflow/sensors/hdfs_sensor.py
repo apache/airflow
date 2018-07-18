@@ -65,6 +65,29 @@ def deprecated_args(renamed=None, dropped=None):
     return decorator
 
 
+def deprecated(new_name=None):
+    """This is a decorator which can be used to mark functions
+       as deprecated. It will result in a warning being emitted
+       when the function is used.
+    """
+
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            if new_name:
+                message = ("{} has been deprecated and will be replaced by "
+                           "{} in a future version of Airflow."
+                           .format(function.__name__, new_name))
+            else:
+                message = ("{} has been deprecated and will be removed "
+                           "in a future version of Airflow."
+                           .format(function.__name__))
+            warnings.warn(message, category=DeprecationWarning)
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 class HdfsSensor(BaseSensorOperator):
     """
     Waits for a file or folder to land in HDFS.
@@ -73,71 +96,124 @@ class HdfsSensor(BaseSensorOperator):
     template_fields = ('file_path',)
     ui_color = settings.WEB_COLORS['LIGHTBLUE']
 
-    @deprecated_args(renamed={'filepath': 'file_path',
-                              'file_size': 'min_size'},
+    @deprecated_args(renamed={'filepath': 'file_pattern',
+                              'file_size': 'min_size',
+                              'ignored_ext': 'ignore_exts'},
                      dropped={'ignore_copying'})
     @apply_defaults
     def __init__(self,
-                 file_path=None,
+                 file_pattern,
                  hdfs_conn_id='hdfs_default',
-                 filters=None,
-                 hook=HdfsHook,
                  min_size=None,
-                 ignored_ext=('_COPYING_', ),
+                 ignore_exts=('_COPYING_', ),
+                 extra_filters=None,
+                 hook=HdfsHook,
                  *args,
                  **kwargs):
-
-        if filters is None:
-            filters = []
-
-        filters = self._setup_filters(
-            filters, min_size=min_size, ignored_exts=ignored_ext)
-
         super(HdfsSensor, self).__init__(*args, **kwargs)
-        self.hdfs_conn_id = hdfs_conn_id
-        self.file_path = file_path
 
-        self.min_size = min_size
-        self.ignored_ext = set(ignored_ext)
+        default_filters = self._default_filters(
+            min_size=min_size, ignore_exts=ignore_exts)
+        filters = default_filters + (extra_filters or [])
 
-        self.hook = hook
+        self._file_pattern = file_pattern
+        self._conn_id = hdfs_conn_id
+
+        self._min_size = min_size
+        self._ignore_exts = set(ignore_exts)
+
+        self._hook = hook(hdfs_conn_id)
         self._filters = filters
 
     @property
+    def file_pattern(self):
+        """File pattern (glob) that the sensor matches against."""
+        return self._file_pattern
+
+    @property
+    def conn_id(self):
+        """Connection ID used by the sensor."""
+        return self._conn_id
+
+    @deprecated(new_name="file_pattern")
+    @property
     def filepath(self):
-        warnings.warn(
-            'The `filepath` property has been renamed to `file_path`. '
-            'Support for the old accessor will be dropped in the next '
-            'version of Airflow.',
-            category=PendingDeprecationWarning)
-        return self.file_path
+        return self.file_pattern
+
+    @deprecated(new_name="conn_id")
+    @property
+    def hdfs_conn_id(self):
+        return self.conn_id
+
+    @deprecated()
+    @property
+    def min_size(self):
+        return self._min_size
+
+    @deprecated()
+    @property
+    def ignored_ext(self):
+        return self._ignore_exts
+
+    @classmethod
+    def _default_filters(cls, min_size=None, ignore_exts=None):
+        filters = []
+
+        if min_size is not None:
+            def _size_filter(hook, file_path):
+                return cls._filter_size(hook, file_path, min_size=min_size)
+            filters.append(_size_filter)
+
+        if ignore_exts:
+            def _ext_filter(hook, file_path):
+                return cls._filter_ext(hook, file_path, exts=ignore_exts)
+            filters.append(_ext_filter)
+
+        return filters
+
+    @staticmethod
+    def _filter_size(hook, file_path, min_size):
+        """Filters any files below a minimum file size."""
+
+        info = hook.get_conn().info(file_path)
+        min_size_mb = min_size * settings.MEGABYTE
+
+        return info['kind'] == 'file' and info['size'] > min_size_mb
+
+    @staticmethod
+    def _filter_ext(_, file_path, exts):
+        """Filters any files with the given extensions."""
+
+        file_ext = posixpath.splitext(file_path)[1][1:]
+        return file_ext not in exts
 
     def poke(self, context):
-        self.log.info('Poking for file %s', self.file_path)
-        hdfs_conn = self.hook(self.hdfs_conn_id).get_conn()
+        self.log.info('Poking for file pattern %s', self.file_pattern)
+        hdfs_conn = self._hook.get_conn()
 
         try:
-            file_paths = hdfs_conn.glob(self.file_path)
+            file_paths = hdfs_conn.glob(self.file_pattern)
         except IOError:
             # File path doesn't exist yet.
             return False
 
         self.log.info('Files matching pattern: %s', file_paths)
 
-        file_paths = self._apply_filters(file_paths, self._filters, hdfs_conn)
+        file_paths = self._apply_filters(
+            file_paths, self._filters, hook=self._hook)
         self.log.info('Filters after filtering: %s', file_paths)
 
         return self._not_empty(file_paths)
 
     @staticmethod
-    def _apply_filters(file_paths, filter_funcs, conn):
+    def _apply_filters(file_paths, filter_funcs, hook):
         """Filters file paths that fail any of the filters (i.e. any
            of the filter functions returns true for a given file).
         """
 
         for file_path in file_paths:
             for func in filter_funcs:
-                if not func(conn, file_path):
+                if not func(hook, file_path):
                     break
             else:
                 yield file_path
@@ -151,35 +227,3 @@ class HdfsSensor(BaseSensorOperator):
             return True
         except StopIteration:
             return False
-
-    @classmethod
-    def _setup_filters(cls, filters, min_size, ignored_exts):
-        """Returns default filters."""
-
-        filters = list(filters)
-
-        if min_size is not None:
-            filters.append(
-                lambda conn, fp: cls._filter_size(
-                    conn, fp, min_size=min_size))
-
-        if ignored_exts:
-            filters.append(lambda conn, fp: cls._filter_ext(fp, ignored_exts))
-
-        return filters
-
-    @staticmethod
-    def _filter_size(hdfs_conn, file_path, min_size):
-        """Filters any files below a minimum file size."""
-
-        info = hdfs_conn.info(file_path)
-        min_size_mb = min_size * settings.MEGABYTE
-
-        return info['kind'] == 'file' and info['size'] > min_size_mb
-
-    @staticmethod
-    def _filter_ext(file_path, exts):
-        """Filters any files with the given extensions."""
-
-        file_ext = posixpath.splitext(file_path)[1][1:]
-        return file_ext not in exts

@@ -16,16 +16,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+import posixpath
+
 from airflow.sensors.hdfs_sensor import HdfsSensor
 
 
 class HdfsSensorRegex(HdfsSensor):
     """HdfsSensor subclass that filters using a specific regex."""
 
-    def __init__(self, regex, *args, **kwargs):
+    def __init__(self, file_pattern, regex, *args, **kwargs):
+        if not self._is_pattern(file_pattern):
+            # If file path is not a pattern, we assume it is a directory
+            # containing files that we want to match the regex against.
+            # This matches the legacy behaviour of the sensor.
+            file_pattern = posixpath.join(file_pattern, '*')
 
-        kwargs['filters'] = [lambda conn, fp: regex.match(fp) is not None]
-        super(HdfsSensorRegex, self).__init__(*args, **kwargs)
+        def _filter_regex(_, file_path):
+            file_name = posixpath.basename(file_path)
+            return regex.match(file_name) is not None
+
+        super(HdfsSensorRegex, self).__init__(
+            *args,
+            file_pattern=file_pattern,
+            extra_filters=[_filter_regex],
+            **kwargs)
+
+    @staticmethod
+    def _is_pattern(path_):
+        """Checks if given path contains any glob patterns."""
+        return '*' in path_ or '[' in path_
 
 
 class HdfsSensorFolder(HdfsSensor):
