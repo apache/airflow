@@ -23,6 +23,7 @@ jdk:
   - openjdk8
 services:
   - cassandra
+  - mongodb
   - mysql
   - postgresql
   - rabbitmq
