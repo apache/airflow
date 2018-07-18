@@ -2478,7 +2478,7 @@ class LogModelView(ModelViewOnly):
     verbose_name = "log"
     column_display_actions = False
     column_default_sort = ('dttm', True)
-    column_filters = ('dag_id', 'task_id', 'execution_date')
+    column_filters = ('dag_id', 'task_id', 'execution_date', 'extra')
     column_formatters = dict(
         dttm=datetime_f, execution_date=datetime_f, dag_id=dag_link)
 
