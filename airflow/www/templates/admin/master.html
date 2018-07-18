@@ -57,7 +57,11 @@
           <a class="navbar-brand" rel="home" href="{{ url_for('admin.index') }}" style="cursor: pointer;">
               <img style="float: left; width:35px; margin-top: -7px;"
                    src="{{ url_for("static", filename="pin_100.png") }}"
-                   title="{{ current_user.username }}">
+                   {% if current_user.user is defined %}
+                      title="{{ current_user.user.username }}"
+                   {% else %}
+                      title="{{ current_user.username }}"
+                   {% endif %}>
               <span>Airflow</span>
           </a>
       </div>

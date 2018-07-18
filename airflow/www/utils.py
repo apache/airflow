@@ -223,8 +223,9 @@ def action_logging(f):
     def wrapper(*args, **kwargs):
         session = settings.Session()
 
-        if current_user and hasattr(current_user, 'username'):
-            user = current_user.username
+        # AnonymousUserMixin() has user attribute but its value is None.
+        if current_user and hasattr(current_user, 'user') and current_user.user:
+            user = current_user.user.username
         else:
             user = 'anonymous'
 
