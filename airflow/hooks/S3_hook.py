@@ -22,7 +22,10 @@ from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 from six import BytesIO
-from urllib.parse import urlparse
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 import re
 import fnmatch
 
@@ -62,7 +65,6 @@ class S3Hook(AwsHook):
     def get_bucket(self, bucket_name):
         """
         Returns a boto3.S3.Bucket object
-
         :param bucket_name: the name of the bucket
         :type bucket_name: str
         """
