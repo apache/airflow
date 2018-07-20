@@ -21,13 +21,14 @@
 import mock
 import unittest
 
+from botocore.exceptions import NoCredentialsError
+
 from airflow import configuration
 
 try:
     from airflow.hooks.S3_hook import S3Hook
 except ImportError:
     S3Hook = None
-
 
 try:
     import boto3
@@ -51,6 +52,7 @@ class TestS3Hook(unittest.TestCase):
         self.assertEqual(parsed,
                          ("test", "this/is/not/a-real-key.txt"),
                          "Incorrect parsing of the s3 url")
+
     @mock_s3
     def test_check_for_bucket(self):
         hook = S3Hook(aws_conn_id=None)
@@ -59,6 +61,12 @@ class TestS3Hook(unittest.TestCase):
 
         self.assertTrue(hook.check_for_bucket('bucket'))
         self.assertFalse(hook.check_for_bucket('not-a-bucket'))
+
+    def test_check_for_bucket_raises_error_with_invalid_conn_id(self):
+        hook = S3Hook(aws_conn_id="does_not_exist")
+
+        with self.assertRaises(NoCredentialsError):
+            hook.check_for_bucket('bucket')
 
     @mock_s3
     def test_get_bucket(self):
@@ -145,6 +153,12 @@ class TestS3Hook(unittest.TestCase):
         self.assertTrue(hook.check_for_key('s3://bucket//a'))
         self.assertFalse(hook.check_for_key('b', 'bucket'))
         self.assertFalse(hook.check_for_key('s3://bucket//b'))
+
+    def test_check_for_key_raises_error_with_invalid_conn_id(self):
+        hook = S3Hook(aws_conn_id="does_not_exist")
+
+        with self.assertRaises(NoCredentialsError):
+            hook.check_for_key('a', 'bucket')
 
     @mock_s3
     def test_get_key(self):
