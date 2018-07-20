@@ -18,7 +18,7 @@ import mock
 import unittest
 
 from airflow import configuration
-from airflow.models import Pool, BaseOperator, DAG
+from airflow.models import Pool, BaseOperator, DAG, Log
 from airflow.settings import Session
 from airflow.www import app as application
 
@@ -163,6 +163,35 @@ class TestExtraLinks(unittest.TestCase):
         self.assertEqual(json.loads(response_str), {
             'url': None,
             'error': 'No URL found for no_response'})
+
+
+class TestUiSignals(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(TestUiSignals, cls).setUpClass()
+        session = Session()
+        session.query(Log).delete()
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestUiSignals, self).setUp()
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+        self.session = Session()
+
+    def tearDown(self):
+        self.session.query(Log).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestUiSignals, self).tearDown()
+
+    def test_ui_signals_will_be_logged(self):
+        from airflow.www.views import ui_signals
+        ui_signals.send(self, message='test_ui_signals_will_be_logged')
+        self.assertEqual(self.session.query(Log).count(), 1)
 
 
 if __name__ == '__main__':
