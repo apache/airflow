@@ -37,6 +37,13 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
        :type training_job_config: dict
        :param sagemaker_conn_id: The SageMaker connection ID to use.
        :type aws_conn_id: string
+       :param use_db_config: Whether or not to use db config
+       associated with sagemaker_conn_id.
+       If set to true, will automatically update the training config
+       with what's in db, so the db config doesn't need to
+       included everything, but what's there does replace the ones
+       in the training_job_config, so be careful
+       :type use_db_config:
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
 
@@ -47,13 +54,14 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                SageMakerCreateTrainingJobOperator(
                    task_id='sagemaker_training',
                    training_job_config=config,
-                   job_name='my_sagemaker_training'
-                   sagemaker_conn_id='sagemaker_customers_conn'
+                   job_name='my_sagemaker_training',
+                   use_db_config=True,
+                   sagemaker_conn_id='sagemaker_customers_conn',
                    aws_conn_id='aws_customers_conn'
                )
        """
 
-    template_fields = ['training_job_config']
+    template_fields = ['training_job_config', 'job_name']
     template_ext = ()
     ui_color = '#ededed'
 
@@ -62,16 +70,20 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                  sagemaker_conn_id=None,
                  job_name=None,
                  training_job_config=None,
+                 use_db_config=False,
                  *args, **kwargs):
         super(SageMakerCreateTrainingJobOperator, self).__init__(*args, **kwargs)
 
         self.sagemaker_conn_id = sagemaker_conn_id
         self.job_name = job_name
         self.training_job_config = training_job_config
+        self.use_db_config = use_db_config
 
     def execute(self, context):
         sagemaker = SageMakerHook(
-            sagemaker_conn_id=self.sagemaker_conn_id, job_name=self.job_name)
+            sagemaker_conn_id=self.sagemaker_conn_id,
+            job_name=self.job_name,
+            use_db_config=self.use_db_config)
 
         self.log.info(
             "Creating SageMaker Training Job %s." % self.job_name
