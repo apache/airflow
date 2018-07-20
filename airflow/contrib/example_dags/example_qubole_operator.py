@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 """
 This is only an example DAG to highlight usage of QuboleOperator in various scenarios,
@@ -44,21 +49,31 @@ dag = DAG('example_qubole_operator', default_args=default_args, schedule_interva
 
 dag.doc_md = __doc__
 
+
 def compare_result(ds, **kwargs):
     ti = kwargs['ti']
     r1 = t1.get_results(ti)
     r2 = t2.get_results(ti)
     return filecmp.cmp(r1, r2)
 
+
 t1 = QuboleOperator(
     task_id='hive_show_table',
     command_type='hivecmd',
     query='show tables',
-    cluster_label='default',
-    fetch_logs=True, # If true, will fetch qubole command logs and concatenate them into corresponding airflow task logs
-    tags='aiflow_example_run',  # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
-    qubole_conn_id='qubole_default',  # Connection id to submit commands inside QDS, if not set "qubole_default" is used
-    dag=dag)
+    cluster_label='{{ params.cluster_label }}',
+    fetch_logs=True,
+    # If `fetch_logs`=true, will fetch qubole command logs and concatenate
+    # them into corresponding airflow task logs
+    tags='aiflow_example_run',
+    # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
+    qubole_conn_id='qubole_default',
+    # Connection id to submit commands inside QDS, if not set "qubole_default" is used
+    dag=dag,
+    params={
+        'cluster_label': 'default',
+    }
+)
 
 t2 = QuboleOperator(
     task_id='hive_s3_location',
@@ -98,10 +113,19 @@ join = DummyOperator(
 t4 = QuboleOperator(
     task_id='hadoop_jar_cmd',
     command_type='hadoopcmd',
-    sub_command='jar s3://paid-qubole/HadoopAPIExamples/jars/hadoop-0.20.1-dev-streaming.jar -mapper wc -numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/data/3.tsv -output s3://paid-qubole/HadoopAPITests/data/3_wc',
-    cluster_label='default',
+    sub_command='jar s3://paid-qubole/HadoopAPIExamples/'
+                'jars/hadoop-0.20.1-dev-streaming.jar '
+                '-mapper wc '
+                '-numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/'
+                'data/3.tsv -output '
+                's3://paid-qubole/HadoopAPITests/data/3_wc',
+    cluster_label='{{ params.cluster_label }}',
     fetch_logs=True,
-    dag=dag)
+    dag=dag,
+    params={
+        'cluster_label': 'default',
+    }
+)
 
 t5 = QuboleOperator(
     task_id='pig_cmd',

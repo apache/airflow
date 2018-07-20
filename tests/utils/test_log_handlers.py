@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import logging
 import logging.config
@@ -91,10 +96,13 @@ class TestFileTaskLogHandler(unittest.TestCase):
         file_handler.close()
 
         self.assertTrue(hasattr(file_handler, 'read'))
-        # Return value of read must be a list.
-        logs = file_handler.read(ti)
+        # Return value of read must be a tuple of list and list.
+        logs, metadatas = file_handler.read(ti)
         self.assertTrue(isinstance(logs, list))
+        self.assertTrue(isinstance(metadatas, list))
         self.assertEqual(len(logs), 1)
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertTrue(isinstance(metadatas[0], dict))
         target_re = r'\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n'
 
         # We should expect our log line from the callable above to appear in
@@ -139,11 +147,15 @@ class TestFileTaskLogHandler(unittest.TestCase):
 
         logger.info("Test")
 
-        # Return value of read must be a list.
-        logs = file_handler.read(ti)
+        # Return value of read must be a tuple of list and list.
+        logs, metadatas = file_handler.read(ti)
         self.assertTrue(isinstance(logs, list))
         # Logs for running tasks should show up too.
+        self.assertTrue(isinstance(logs, list))
+        self.assertTrue(isinstance(metadatas, list))
         self.assertEqual(len(logs), 2)
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertTrue(isinstance(metadatas[0], dict))
 
         # Remove the generated tmp log file.
         os.remove(log_filename)

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from __future__ import absolute_import
 from __future__ import division
@@ -43,7 +48,6 @@ def date_range(
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to ``datetime.datetime``
     or a cron expression as a ``str``
-
     :param start_date: anchor date to start the series from
     :type start_date: datetime.datetime
     :param end_date: right boundary for the date range
@@ -52,13 +56,15 @@ def date_range(
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
     :type num: int
-
     >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0), datetime.datetime(2016, 1, 3, 0, 0)]
+    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+     datetime.datetime(2016, 1, 3, 0, 0)]
     >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta='0 0 * * *')
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0), datetime.datetime(2016, 1, 3, 0, 0)]
+    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+     datetime.datetime(2016, 1, 3, 0, 0)]
     >>> date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0), datetime.datetime(2016, 3, 1, 0, 0)]
+    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0),
+     datetime.datetime(2016, 3, 1, 0, 0)]
     """
     if not delta:
         return []
@@ -70,20 +76,22 @@ def date_range(
         end_date = timezone.utcnow()
 
     delta_iscron = False
+    tz = start_date.tzinfo
     if isinstance(delta, six.string_types):
         delta_iscron = True
-        tz = start_date.tzinfo
         start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
-    l = []
+    dates = []
     if end_date:
+        if timezone.is_naive(start_date):
+            end_date = timezone.make_naive(end_date, tz)
         while start_date <= end_date:
             if timezone.is_naive(start_date):
-                l.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, tz))
             else:
-                l.append(start_date)
+                dates.append(start_date)
 
             if delta_iscron:
                 start_date = cron.get_next(datetime)
@@ -92,9 +100,9 @@ def date_range(
     else:
         for _ in range(abs(num)):
             if timezone.is_naive(start_date):
-                l.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, tz))
             else:
-                l.append(start_date)
+                dates.append(start_date)
 
             if delta_iscron:
                 if num > 0:
@@ -106,16 +114,14 @@ def date_range(
                     start_date += delta
                 else:
                     start_date -= delta
-    return sorted(l)
+    return sorted(dates)
 
 
 def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     """
     Returns the datetime of the form start_date + i * delta
     which is closest to dt for any non-negative integer i.
-
     Note that delta may be a datetime.timedelta or a dateutil.relativedelta
-
     >>> round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
     datetime.datetime(2015, 1, 1, 0, 0)
     >>> round_time(datetime(2015, 1, 2), relativedelta(months=1))
@@ -146,7 +152,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
 
     # We are looking for a datetime in the form start_date + i * delta
     # which is as close as possible to dt. Since delta could be a relative
-    # delta we don't know it's exact length in seconds so we cannot rely on
+    # delta we don't know its exact length in seconds so we cannot rely on
     # division to find i. Instead we employ a binary search algorithm, first
     # finding an upper and lower limit and then disecting the interval until
     # we have found the closest match.
@@ -198,7 +204,6 @@ def infer_time_unit(time_seconds_arr):
     """
     Determine the most appropriate time unit for an array of time durations
     specified in seconds.
-
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
     if len(time_seconds_arr) == 0:

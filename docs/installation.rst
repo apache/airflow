@@ -16,6 +16,14 @@ You can also install Airflow with support for extra features like ``s3`` or ``po
 
     pip install "apache-airflow[s3, postgres]"
 
+.. note:: GPL dependency
+
+    One of the dependencies of Apache Airflow by default pulls in a GPL library ('unidecode').
+    In case this is a concern you can force a non GPL library by issuing
+    ``export SLUGIFY_USES_TEXT_UNIDECODE=yes`` and then proceed with the normal installation.
+    Please note that this needs to be specified at every upgrade. Also note that if `unidecode`
+    is already present on the system the dependency will still be used.
+
 Extra Packages
 ''''''''''''''
 
@@ -67,7 +75,7 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  mysql        | ``pip install apache-airflow[mysql]``        | MySQL operators and hook, support as            |
 |               |                                              | an Airflow backend. The version of MySQL server |
-|               |                                              | has to be 5.6.4+. The exact version upper bound | 
+|               |                                              | has to be 5.6.4+. The exact version upper bound |
 |               |                                              | depends on version of ``mysqlclient`` package.  |
 |               |                                              | For example, ``mysqlclient`` 1.3.12 can only be |
 |               |                                              | used with MySQL server 5.6.4 through 5.7.       |
@@ -87,6 +95,8 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  slack        | ``pip install apache-airflow[slack]``        | ``SlackAPIPostOperator``                        |
 +---------------+----------------------------------------------+-------------------------------------------------+
+|  ssh          | ``pip install apache-airflow[ssh]``          | SSh hooks and Operator                          |
++---------------+----------------------------------------------+-------------------------------------------------+
 |  vertica      | ``pip install apache-airflow[vertica]``      | Vertica hook                                    |
 |               |                                              | support as an Airflow backend                   |
 +---------------+----------------------------------------------+-------------------------------------------------+
@@ -94,3 +104,18 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  redis        | ``pip install apache-airflow[redis]``        | Redis hooks and sensors                         |
 +---------------+----------------------------------------------+-------------------------------------------------+
+
+Initiating Airflow Database
+'''''''''''''''''''''''''''
+
+Airflow requires a database to be initiated before you can run tasks. If
+you're just experimenting and learning Airflow, you can stick with the
+default SQLite option. If you don't want to use SQLite, then take a look at
+:doc:`howto/initialize-database` to setup a different database.
+
+After configuration, you'll need to initialize the database before you can
+run tasks:
+
+.. code-block:: bash
+
+    airflow initdb

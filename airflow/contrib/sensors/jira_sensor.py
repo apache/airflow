@@ -1,21 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from jira.resources import Resource
 
 from airflow.contrib.operators.jira_operator import JIRAError
 from airflow.contrib.operators.jira_operator import JiraOperator
-from airflow.operators.sensors import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -83,7 +88,8 @@ class JiraTicketSensor(JiraSensor):
                  field=None,
                  expected_value=None,
                  field_checker_func=None,
-                 *args, **kwargs):
+                 *args,
+                 **kwargs):
 
         self.jira_conn_id = jira_conn_id
         self.ticket_id = ticket_id
@@ -94,7 +100,8 @@ class JiraTicketSensor(JiraSensor):
 
         super(JiraTicketSensor, self).__init__(jira_conn_id=jira_conn_id,
                                                result_processor=field_checker_func,
-                                               *args, **kwargs)
+                                               *args,
+                                               **kwargs)
 
     def poke(self, context):
         self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
@@ -110,18 +117,17 @@ class JiraTicketSensor(JiraSensor):
         result = None
         try:
             if issue is not None \
-                    and self.field is not None \
-                    and self.expected_value is not None:
+               and self.field is not None \
+               and self.expected_value is not None:
 
-                field_value = getattr(issue.fields, self.field)
-                if field_value is not None:
-                    if isinstance(field_value, list):
-                        result = self.expected_value in field_value
-                    elif isinstance(field_value, str):
-                        result = self.expected_value.lower() == field_value.lower()
-                    elif isinstance(field_value, Resource) \
-                            and getattr(field_value, 'name'):
-                        result = self.expected_value.lower() == field_value.name.lower()
+                field_val = getattr(issue.fields, self.field)
+                if field_val is not None:
+                    if isinstance(field_val, list):
+                        result = self.expected_value in field_val
+                    elif isinstance(field_val, str):
+                        result = self.expected_value.lower() == field_val.lower()
+                    elif isinstance(field_val, Resource) and getattr(field_val, 'name'):
+                        result = self.expected_value.lower() == field_val.name.lower()
                     else:
                         self.log.warning(
                             "Not implemented checker for issue field %s which "
@@ -130,12 +136,16 @@ class JiraTicketSensor(JiraSensor):
                         )
 
         except JIRAError as jira_error:
-            self.log.error("Jira error while checking with expected value: %s", jira_error)
+            self.log.error("Jira error while checking with expected value: %s",
+                           jira_error)
         except Exception as e:
-            self.log.error("Error while checking with expected value %s:", self.expected_value)
+            self.log.error("Error while checking with expected value %s:",
+                           self.expected_value)
             self.log.exception(e)
         if result is True:
-            self.log.info("Issue field %s has expected value %s, returning success", self.field, self.expected_value)
+            self.log.info("Issue field %s has expected value %s, returning success",
+                          self.field, self.expected_value)
         else:
-            self.log.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
+            self.log.info("Issue field %s don't have expected value %s yet.",
+                          self.field, self.expected_value)
         return result

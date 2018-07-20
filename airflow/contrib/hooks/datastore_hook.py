@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
-import json
 import time
 from apiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -25,7 +29,7 @@ class DatastoreHook(GoogleCloudBaseHook):
     connection.
 
     This object is not threads safe. If you want to make multiple requests
-    simultaniously, you will need to create a hook per thread.
+    simultaneously, you will need to create a hook per thread.
     """
 
     def __init__(self,
@@ -40,7 +44,8 @@ class DatastoreHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         http_authorized = self._authorize()
-        return build('datastore', version, http=http_authorized)
+        return build(
+            'datastore', version, http=http_authorized, cache_discovery=False)
 
     def allocate_ids(self, partialKeys):
         """
@@ -50,34 +55,45 @@ class DatastoreHook(GoogleCloudBaseHook):
         :param partialKeys: a list of partial keys
         :return: a list of full keys.
         """
-        resp = self.connection.projects().allocateIds(projectId=self.project_id, body={'keys': partialKeys}).execute()
+        resp = self.connection.projects().allocateIds(
+            projectId=self.project_id, body={'keys': partialKeys}
+        ).execute()
         return resp['keys']
 
     def begin_transaction(self):
         """
         Get a new transaction handle
-        see https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
+
+            .. seealso::
+                https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
 
         :return: a transaction handle
         """
-        resp = self.connection.projects().beginTransaction(projectId=self.project_id, body={}).execute()
+        resp = self.connection.projects().beginTransaction(
+            projectId=self.project_id, body={}).execute()
         return resp['transaction']
 
     def commit(self, body):
         """
         Commit a transaction, optionally creating, deleting or modifying some entities.
-        see https://cloud.google.com/datastore/docs/reference/rest/v1/projects/commit
+
+        .. seealso::
+            https://cloud.google.com/datastore/docs/reference/rest/v1/projects/commit
 
         :param body: the body of the commit request
         :return: the response body of the commit request
         """
-        resp = self.connection.projects().commit(projectId=self.project_id, body=body).execute()
+        resp = self.connection.projects().commit(
+            projectId=self.project_id, body=body).execute()
         return resp
 
     def lookup(self, keys, read_consistency=None, transaction=None):
         """
         Lookup some entities by key
-        see https://cloud.google.com/datastore/docs/reference/rest/v1/projects/lookup
+
+        .. seealso::
+            https://cloud.google.com/datastore/docs/reference/rest/v1/projects/lookup
+
         :param keys: the keys to lookup
         :param read_consistency: the read consistency to use. default, strong or eventual.
                 Cannot be used with a transaction.
@@ -89,25 +105,34 @@ class DatastoreHook(GoogleCloudBaseHook):
             body['readConsistency'] = read_consistency
         if transaction:
             body['transaction'] = transaction
-        return self.connection.projects().lookup(projectId=self.project_id, body=body).execute()
+        return self.connection.projects().lookup(
+            projectId=self.project_id, body=body).execute()
 
     def rollback(self, transaction):
         """
         Roll back a transaction
-        see https://cloud.google.com/datastore/docs/reference/rest/v1/projects/rollback
+
+        .. seealso::
+            https://cloud.google.com/datastore/docs/reference/rest/v1/projects/rollback
+
         :param transaction: the transaction to roll back
         """
-        self.connection.projects().rollback(projectId=self.project_id, body={'transaction': transaction})\
+        self.connection.projects().rollback(
+            projectId=self.project_id, body={'transaction': transaction})\
             .execute()
 
     def run_query(self, body):
         """
         Run a query for entities.
-        see https://cloud.google.com/datastore/docs/reference/rest/v1/projects/runQuery
+
+        .. seealso::
+            https://cloud.google.com/datastore/docs/reference/rest/v1/projects/runQuery
+
         :param body: the body of the query request
         :return: the batch of query results.
         """
-        resp = self.connection.projects().runQuery(projectId=self.project_id, body=body).execute()
+        resp = self.connection.projects().runQuery(
+            projectId=self.project_id, body=body).execute()
         return resp['batch']
 
     def get_operation(self, name):
@@ -142,7 +167,8 @@ class DatastoreHook(GoogleCloudBaseHook):
             else:
                 return result
 
-    def export_to_storage_bucket(self, bucket, namespace=None, entity_filter=None, labels=None):
+    def export_to_storage_bucket(self, bucket, namespace=None,
+                                 entity_filter=None, labels=None):
         """
         Export entities from Cloud Datastore to Cloud Storage for backup
         """
@@ -156,10 +182,12 @@ class DatastoreHook(GoogleCloudBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }
-        resp = self.admin_connection.projects().export(projectId=self.project_id, body=body).execute()
+        resp = self.admin_connection.projects().export(
+            projectId=self.project_id, body=body).execute()
         return resp
 
-    def import_from_storage_bucket(self, bucket, file, namespace=None, entity_filter=None, labels=None):
+    def import_from_storage_bucket(self, bucket, file,
+                                   namespace=None, entity_filter=None, labels=None):
         """
         Import a backup from Cloud Storage to Cloud Datastore
         """
@@ -173,5 +201,6 @@ class DatastoreHook(GoogleCloudBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }
-        resp = self.admin_connection.projects().import_(projectId=self.project_id, body=body).execute()
+        resp = self.admin_connection.projects().import_(
+            projectId=self.project_id, body=body).execute()
         return resp

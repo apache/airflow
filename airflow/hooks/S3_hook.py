@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -19,6 +24,7 @@ from six import BytesIO
 from urllib.parse import urlparse
 import re
 import fnmatch
+
 
 class S3Hook(AwsHook):
     """
@@ -32,7 +38,7 @@ class S3Hook(AwsHook):
     def parse_s3_url(s3url):
         parsed_url = urlparse(s3url)
         if not parsed_url.netloc:
-            raise AirflowException('Please provide a bucket_name')
+            raise AirflowException('Please provide a bucket_name instead of "%s"' % s3url)
         else:
             bucket_name = parsed_url.netloc
             key = parsed_url.path.strip('/')
@@ -71,7 +77,8 @@ class S3Hook(AwsHook):
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
         return False if plist is None else prefix in plist
 
-    def list_prefixes(self, bucket_name, prefix='', delimiter=''):
+    def list_prefixes(self, bucket_name, prefix='', delimiter='',
+                      page_size=None, max_items=None):
         """
         Lists prefixes in a bucket under prefix
 
@@ -81,13 +88,35 @@ class S3Hook(AwsHook):
         :type prefix: str
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
+        :param page_size: pagination size
+        :type page_size: int
+        :param max_items: maximum items to return
+        :type max_items: int
         """
-        response = self.get_conn().list_objects_v2(Bucket=bucket_name, 
-                                                   Prefix=prefix, 
-                                                   Delimiter=delimiter)
-        return [p['Prefix'] for p in response['CommonPrefixes']] if response.get('CommonPrefixes') else None
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
 
-    def list_keys(self, bucket_name, prefix='', delimiter=''):
+        paginator = self.get_conn().get_paginator('list_objects_v2')
+        response = paginator.paginate(Bucket=bucket_name,
+                                      Prefix=prefix,
+                                      Delimiter=delimiter,
+                                      PaginationConfig=config)
+
+        has_results = False
+        prefixes = []
+        for page in response:
+            if 'CommonPrefixes' in page:
+                has_results = True
+                for p in page['CommonPrefixes']:
+                    prefixes.append(p['Prefix'])
+
+        if has_results:
+            return prefixes
+
+    def list_keys(self, bucket_name, prefix='', delimiter='',
+                  page_size=None, max_items=None):
         """
         Lists keys in a bucket under prefix and not containing delimiter
 
@@ -97,11 +126,32 @@ class S3Hook(AwsHook):
         :type prefix: str
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
+        :param page_size: pagination size
+        :type page_size: int
+        :param max_items: maximum items to return
+        :type max_items: int
         """
-        response = self.get_conn().list_objects_v2(Bucket=bucket_name,
-                                                   Prefix=prefix,
-                                                   Delimiter=delimiter)
-        return [k['Key'] for k in response['Contents']] if response.get('Contents') else None
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
+
+        paginator = self.get_conn().get_paginator('list_objects_v2')
+        response = paginator.paginate(Bucket=bucket_name,
+                                      Prefix=prefix,
+                                      Delimiter=delimiter,
+                                      PaginationConfig=config)
+
+        has_results = False
+        keys = []
+        for page in response:
+            if 'Contents' in page:
+                has_results = True
+                for k in page['Contents']:
+                    keys.append(k['Key'])
+
+        if has_results:
+            return keys
 
     def check_for_key(self, key, bucket_name=None):
         """
@@ -150,6 +200,48 @@ class S3Hook(AwsHook):
         obj = self.get_key(key, bucket_name)
         return obj.get()['Body'].read().decode('utf-8')
 
+    def select_key(self, key, bucket_name=None,
+                   expression='SELECT * FROM S3Object',
+                   expression_type='SQL',
+                   input_serialization={'CSV': {}},
+                   output_serialization={'CSV': {}}):
+        """
+        Reads a key with S3 Select.
+
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which the file is stored
+        :type bucket_name: str
+        :param expression: S3 Select expression
+        :type expression: str
+        :param expression_type: S3 Select expression type
+        :type expression_type: str
+        :param input_serialization: S3 Select input data serialization format
+        :type input_serialization: dict
+        :param output_serialization: S3 Select output data serialization format
+        :type output_serialization: dict
+        :return: retrieved subset of original data by S3 Select
+        :rtype: str
+
+        .. seealso::
+            For more details about S3 Select parameters:
+            http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
+        """
+        if not bucket_name:
+            (bucket_name, key) = self.parse_s3_url(key)
+
+        response = self.get_conn().select_object_content(
+            Bucket=bucket_name,
+            Key=key,
+            Expression=expression,
+            ExpressionType=expression_type,
+            InputSerialization=input_serialization,
+            OutputSerialization=output_serialization)
+
+        return ''.join(event['Records']['Payload']
+                       for event in response['Payload']
+                       if 'Records' in event)
+
     def check_for_wildcard_key(self,
                                wildcard_key, bucket_name=None, delimiter=''):
         """
@@ -161,10 +253,10 @@ class S3Hook(AwsHook):
 
     def get_wildcard_key(self, wildcard_key, bucket_name=None, delimiter=''):
         """
-        Returns a boto3.s3.Object object matching the regular expression
+        Returns a boto3.s3.Object object matching the wildcard expression
 
-        :param regex_key: the path to the key
-        :type regex_key: str
+        :param wildcard_key: the path to the key
+        :type wildcard_key: str
         :param bucket_name: the name of the bucket
         :type bucket_name: str
         """
@@ -207,16 +299,16 @@ class S3Hook(AwsHook):
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
 
-        extra_args={}
+        extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
 
-    def load_string(self, 
+    def load_string(self,
                     string_data,
-                    key, 
+                    key,
                     bucket_name=None,
                     replace=False,
                     encrypt=False,
@@ -225,7 +317,7 @@ class S3Hook(AwsHook):
         Loads a string to S3
 
         This is provided as a convenience to drop a string in S3. It uses the
-        boto infrastructure to ship a file to s3. 
+        boto infrastructure to ship a file to s3.
 
         :param string_data: string to set as content for the key.
         :type string_data: str
@@ -240,17 +332,48 @@ class S3Hook(AwsHook):
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
         """
+        self.load_bytes(string_data.encode(encoding),
+                        key=key,
+                        bucket_name=bucket_name,
+                        replace=replace,
+                        encrypt=encrypt)
+
+    def load_bytes(self,
+                   bytes_data,
+                   key,
+                   bucket_name=None,
+                   replace=False,
+                   encrypt=False):
+        """
+        Loads bytes to S3
+
+        This is provided as a convenience to drop a string in S3. It uses the
+        boto infrastructure to ship a file to s3.
+
+        :param bytes_data: bytes to set as content for the key.
+        :type bytes_data: bytes
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which to store the file
+        :type bucket_name: str
+        :param replace: A flag to decide whether or not to overwrite the key
+            if it already exists
+        :type replace: bool
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :type encrypt: bool
+        """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
-        
+
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
-        
-        extra_args={}
+
+        extra_args = {}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
-        
-        filelike_buffer = BytesIO(string_data.encode(encoding))
-        
+
+        filelike_buffer = BytesIO(bytes_data)
+
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)

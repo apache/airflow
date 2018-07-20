@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 """
@@ -66,7 +71,11 @@ class SqoopHook(BaseHook, LoggingMixin):
         self.verbose = verbose
         self.num_mappers = num_mappers
         self.properties = properties or {}
-        self.log.info("Using connection to: {}:{}/{}".format(self.conn.host, self.conn.port, self.conn.schema))
+        self.log.info(
+            "Using connection to: {}:{}/{}".format(
+                self.conn.host, self.conn.port, self.conn.schema
+            )
+        )
 
     def get_conn(self):
         return self.conn
@@ -90,10 +99,11 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
         self.log.info("Executing command: {}".format(masked_cmd))
-        self.sp = subprocess.Popen(cmd,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT,
-                              **kwargs)
+        self.sp = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            **kwargs)
 
         for line in iter(self.sp.stdout):
             self.log.info(line.strip())
@@ -184,7 +194,8 @@ class SqoopHook(BaseHook, LoggingMixin):
         if extra_import_options:
             for key, value in extra_import_options.items():
                 cmd += ['--{}'.format(key)]
-                if value: cmd += [value]
+                if value:
+                    cmd += [value]
 
         return cmd
 
@@ -290,7 +301,8 @@ class SqoopHook(BaseHook, LoggingMixin):
         if extra_export_options:
             for key, value in extra_export_options.items():
                 cmd += ['--{}'.format(key)]
-                if value: cmd += [value]
+                if value:
+                    cmd += [value]
 
         # The required option
         cmd += ["--table", table]

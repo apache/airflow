@@ -17,7 +17,6 @@ import random
 import time
 from apiclient import errors
 from apiclient.discovery import build
-from oauth2client.client import GoogleCredentials
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -55,8 +54,8 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Returns a Google MLEngine service object.
         """
-        credentials = GoogleCredentials.get_application_default()
-        return build('ml', 'v1', credentials=credentials)
+        authed_http = self._authorize()
+        return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
     def create_job(self, project_id, job, use_existing_job_fn=None):
         """
@@ -67,14 +66,14 @@ class MLEngineHook(GoogleCloudBaseHook):
         :type project_id: string
 
         :param job: MLEngine Job object that should be provided to the MLEngine
-            API, such as:
-            {
-              'jobId': 'my_job_id',
-              'trainingInput': {
-                'scaleTier': 'STANDARD_1',
-                ...
-              }
-            }
+            API, such as: ::
+                {
+                  'jobId': 'my_job_id',
+                  'trainingInput': {
+                    'scaleTier': 'STANDARD_1',
+                    ...
+                  }
+                }
         :type job: dict
 
         :param use_existing_job_fn: In case that a MLEngine job with the same

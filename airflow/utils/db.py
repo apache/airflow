@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from __future__ import absolute_import
 from __future__ import division
@@ -80,7 +85,7 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb():
+def initdb(rbac=False):
     session = settings.Session()
 
     from airflow import models
@@ -103,7 +108,8 @@ def initdb():
             schema='default'))
     merge_conn(
         models.Connection(
-            conn_id='bigquery_default', conn_type='bigquery'))
+            conn_id='bigquery_default', conn_type='google_cloud_platform',
+            schema='default'))
     merge_conn(
         models.Connection(
             conn_id='local_mysql', conn_type='mysql',
@@ -132,6 +138,10 @@ def initdb():
             conn_id='metastore_default', conn_type='hive_metastore',
             host='localhost', extra="{\"authMechanism\": \"PLAIN\"}",
             port=9083))
+    merge_conn(
+        models.Connection(
+            conn_id='mongo_default', conn_type='mongo',
+            host='localhost', port=27017))
     merge_conn(
         models.Connection(
             conn_id='mysql_default', conn_type='mysql',
@@ -173,6 +183,13 @@ def initdb():
             host='localhost'))
     merge_conn(
         models.Connection(
+            conn_id='sftp_default', conn_type='sftp',
+            host='localhost', port=22, login='travis',
+            extra='''
+                {"private_key": "~/.ssh/id_rsa", "ignore_hostkey_verification": true}
+            '''))
+    merge_conn(
+        models.Connection(
             conn_id='fs_default', conn_type='fs',
             extra='{"path": "/"}'))
     merge_conn(
@@ -183,6 +200,10 @@ def initdb():
         models.Connection(
             conn_id='spark_default', conn_type='spark',
             host='yarn', extra='{"queue": "root.default"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='druid_broker_default', conn_type='druid',
+            host='druid-broker', port=8082, extra='{"endpoint": "druid/v2/sql"}'))
     merge_conn(
         models.Connection(
             conn_id='druid_ingest_default', conn_type='druid',
@@ -251,6 +272,18 @@ def initdb():
         models.Connection(
             conn_id='qubole_default', conn_type='qubole',
             host= 'localhost'))
+    merge_conn(
+        models.Connection(
+            conn_id='segment_default', conn_type='segment',
+            extra='{"write_key": "my-segment-write-key"}')),
+    merge_conn(
+        models.Connection(
+            conn_id='azure_data_lake_default', conn_type='azure_data_lake',
+            extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }'))
+    merge_conn(
+        models.Connection(
+            conn_id='cassandra_default', conn_type='cassandra',
+            host='localhost', port=9042))
 
     # Known event types
     KET = models.KnownEventType
@@ -291,6 +324,11 @@ def initdb():
         session.add(chart)
         session.commit()
 
+    if rbac:
+        from flask_appbuilder.security.sqla import models
+        from flask_appbuilder.models.sqla import Base
+        Base.metadata.create_all(settings.engine)
+
 
 def upgradedb():
     # alembic adds significant import time, so we import it lazily
@@ -308,11 +346,12 @@ def upgradedb():
     command.upgrade(config, 'heads')
 
 
-def resetdb():
-    '''
+def resetdb(rbac):
+    """
     Clear out the database
-    '''
+    """
     from airflow import models
+
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
 
@@ -322,4 +361,11 @@ def resetdb():
     mc = MigrationContext.configure(settings.engine)
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
-    initdb()
+
+    if rbac:
+        # drop rbac security tables
+        from flask_appbuilder.security.sqla import models
+        from flask_appbuilder.models.sqla import Base
+        Base.metadata.drop_all(settings.engine)
+
+    initdb(rbac)

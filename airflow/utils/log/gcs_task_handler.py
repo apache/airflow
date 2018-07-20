@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import os
 
 from airflow import configuration
@@ -35,7 +40,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = True
 
     def _build_hook(self):
-        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
             return GoogleCloudStorageHook(
@@ -60,7 +65,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # log path to upload log files into GCS and read from the
         # remote location.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.is_raw
+        self.upload_on_close = not ti.raw
 
     def close(self):
         """
@@ -89,12 +94,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number):
+    def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
         """
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
@@ -106,13 +113,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             remote_log = self.gcs_read(remote_loc)
             log = '*** Reading remote log from {}.\n{}\n'.format(
                 remote_loc, remote_log)
+            return log, {'end_of_log': True}
         except Exception as e:
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
                 remote_loc, str(e))
             self.log.error(log)
-            log += super(GCSTaskHandler, self)._read(ti, try_number)
-
-        return log
+            local_log, metadata = super(GCSTaskHandler, self)._read(ti, try_number)
+            log += local_log
+            return log, metadata
 
     def gcs_read(self, remote_log_location):
         """

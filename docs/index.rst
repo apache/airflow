@@ -75,7 +75,7 @@ Content
     start
     installation
     tutorial
-    configuration
+    howto/index
     ui
     concepts
     profiling
@@ -86,5 +86,6 @@ Content
     timezone
     api
     integration
+    lineage
     faq
     code

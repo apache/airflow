@@ -69,7 +69,7 @@
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                     {% if dag_id in orm_dags %}
-                    <a href="/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
+                  <a href="{{ url_for('dagmodel.edit_view') }}?id={{ dag_id }}" title="Info">
                         <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
                     {% endif %}
@@ -100,7 +100,7 @@
                 <!-- Column 4: Dag Schedule -->
                 <td>
                     {% if dag_id in webserver_dags %}
-                    <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+                  <a class="label label-default schedule {{ dag.dag_id }}" href="{{ url_for('dagrun.index_view') }}?flt2_dag_id_equals={{ dag.dag_id }}">
                         {{ dag.schedule_interval }}
                     </a>
                     {% endif %}
@@ -119,7 +119,7 @@
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
                   {% if dag %}
-                    {% set last_run = dag.get_last_dagrun() %}
+                    {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
                     {% if last_run and last_run.execution_date %}
                       <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
                         {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
@@ -145,7 +145,7 @@
                 </a>
 
                 <!-- Tree -->
-                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}">
+                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}">
                     <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
                 </a>
 
@@ -180,7 +180,7 @@
                 </a>
 
                 <!-- Logs -->
-                <a href="/admin/log/?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}">
+                <a href="{{ url_for('log.index_view') }}?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}">
                     <span class="glyphicon glyphicon-align-justify" aria-hidden="true" data-original-title="Logs"></span>
                 </a>
                 {% endif %}
@@ -188,6 +188,12 @@
                 <!-- Refresh -->
                 <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}">
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
+                </a>
+
+                <!-- Delete -->
+                <a href="{{ url_for('airflow.delete', dag_id=dag.dag_id) }}"
+                  onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
+                   <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
 
                 </td>
@@ -209,9 +215,9 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="/admin/?showPaused=False">Hide Paused DAGs</a>
+    <a href="{{ url_for('admin.index') }}?showPaused=False">Hide Paused DAGs</a>
     {% else %}
-    <a href="/admin/?showPaused=True">Show Paused DAGs</a>
+    <a href="{{ url_for('admin.index') }}?showPaused=True">Show Paused DAGs</a>
     {% endif %}
   </div>
 {% endblock %}
@@ -224,8 +230,8 @@
   <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = {{ url_for('admin.index') }}
-      const ENTER_KEY_CODE = 13
+      const DAGS_INDEX = "{{ url_for('admin.index') }}";
+      const ENTER_KEY_CODE = 13;
 
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
@@ -243,6 +249,12 @@
 
       function confirmTriggerDag(dag_id){
           return confirm("Are you sure you want to run '"+dag_id+"' now?");
+      }
+
+      function confirmDeleteDag(dag_id){
+          return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+          This option will delete ALL metadata, DAG runs, etc.\n\
+          This cannot be undone.");
       }
       all_dags = $("[id^=toggle]");
       $.each(all_dags, function(i,v) {
@@ -278,8 +290,9 @@
 
       $input.change(function() {
         var current = $input.typeahead("getActive");
-
       });
+
+      $input.attr("autocomplete", "off");
 
       $('#dags').dataTable({
         "iDisplayLength": 500,
@@ -353,7 +366,7 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "/admin/dagrun/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+                    window.location = "{{ url_for('dagrun.index_view') }}?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {
@@ -389,7 +402,7 @@
             states = json[dag_id];
             g = d3.select('svg#task-run-' + dag_id)
               .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '180px')
+              .attr('width', '240px')
               .selectAll("g")
               .data(states)
               .enter()
@@ -432,7 +445,7 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "/admin/taskinstance/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+                    window.location = "{{ url_for('taskinstance.index_view') }}?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {

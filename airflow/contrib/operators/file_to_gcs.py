@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
@@ -22,11 +27,11 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     """
     Uploads a file to Google Cloud Storage
 
-    :param src: Path to the local file
+    :param src: Path to the local file. (templated)
     :type src: string
-    :param dst: Destination path within the specified bucket
+    :param dst: Destination path within the specified bucket. (templated)
     :type dst: string
-    :param bucket: The bucket to upload to
+    :param bucket: The bucket to upload to. (templated)
     :type bucket: string
     :param google_cloud_storage_conn_id: The Airflow connection ID to upload with
     :type google_cloud_storage_conn_id: string
@@ -36,13 +41,13 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     :type delegate_to: string
     """
     template_fields = ('src', 'dst', 'bucket')
-    
+
     @apply_defaults
     def __init__(self,
                  src,
                  dst,
                  bucket,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  mime_type='application/octet-stream',
                  delegate_to=None,
                  *args,
@@ -60,8 +65,8 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
         Uploads the file to Google cloud storage
         """
         hook = GoogleCloudStorageHook(
-                google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                delegate_to=self.delegate_to)
+            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            delegate_to=self.delegate_to)
 
         hook.upload(
             bucket=self.bucket,

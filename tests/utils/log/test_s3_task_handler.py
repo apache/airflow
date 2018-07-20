@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import mock
 import unittest
@@ -108,9 +113,17 @@ class TestS3TaskHandler(unittest.TestCase):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'Log line\n')
         self.assertEqual(
             self.s3_task_handler.read(self.ti),
-            ['*** Reading remote log from s3://bucket/remote/log/location/1.log.\n'
-             'Log line\n\n']
+            (['*** Reading remote log from s3://bucket/remote/log/location/1.log.\n'
+             'Log line\n\n'], [{'end_of_log': True}])
         )
+
+    def test_read_when_s3_log_missing(self):
+        log, metadata = self.s3_task_handler.read(self.ti)
+
+        self.assertEqual(1, len(log))
+        self.assertEqual(len(log), len(metadata))
+        self.assertIn('*** Log file does not exist:', log[0])
+        self.assertEqual({'end_of_log': True}, metadata[0])
 
     def test_read_raises_return_error(self):
         handler = self.s3_task_handler
@@ -155,7 +168,7 @@ class TestS3TaskHandler(unittest.TestCase):
         boto3.resource('s3').Object('bucket', self.remote_log_key).get()
 
     def test_close_no_upload(self):
-        self.ti.is_raw = True
+        self.ti.raw = True
         self.s3_task_handler.set_context(self.ti)
         self.assertFalse(self.s3_task_handler.upload_on_close)
         self.s3_task_handler.close()

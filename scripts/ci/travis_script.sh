@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -24,7 +26,7 @@ then
   tox -e $TOX_ENV
 else
   KUBERNETES_VERSION=${KUBERNETES_VERSION} $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.minikube_tests \
+  tox -e $TOX_ENV -- tests.contrib.minikube \
                      --with-coverage \
                      --cover-erase \
                      --cover-html \

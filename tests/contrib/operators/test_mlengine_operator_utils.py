@@ -158,14 +158,14 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             'dag': dag,
         }
 
-        with self.assertRaisesRegexp(ValueError, 'Missing model origin'):
+        with self.assertRaisesRegexp(AirflowException, 'Missing model origin'):
             _ = create_evaluate_ops(**other_params_but_models)
 
-        with self.assertRaisesRegexp(ValueError, 'Ambiguous model origin'):
+        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
             _ = create_evaluate_ops(model_uri='abc', model_name='cde',
                                     **other_params_but_models)
 
-        with self.assertRaisesRegexp(ValueError, 'Ambiguous model origin'):
+        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
             _ = create_evaluate_ops(model_uri='abc', version_name='vvv',
                                     **other_params_but_models)
 

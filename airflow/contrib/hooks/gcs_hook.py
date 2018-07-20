@@ -1,22 +1,30 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
 from googleapiclient import errors
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.exceptions import AirflowException
+
+import re
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -26,7 +34,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     """
 
     def __init__(self,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None):
         super(GoogleCloudStorageHook, self).__init__(google_cloud_storage_conn_id,
                                                      delegate_to)
@@ -36,7 +44,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         http_authorized = self._authorize()
-        return build('storage', 'v1', http=http_authorized)
+        return build(
+            'storage', 'v1', http=http_authorized, cache_discovery=False)
 
     # pylint:disable=redefined-builtin
     def copy(self, source_bucket, source_object, destination_bucket=None,
@@ -59,8 +68,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         destination_bucket = destination_bucket or source_bucket
         destination_object = destination_object or source_object
-        if (source_bucket == destination_bucket and
-            source_object == destination_object):
+        if source_bucket == destination_bucket and \
+                source_object == destination_object:
+
             raise ValueError(
                 'Either source/destination bucket or source/destination object '
                 'must be different, not both the same: bucket=%s, object=%s' %
@@ -82,6 +92,57 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 return False
             raise
 
+    def rewrite(self, source_bucket, source_object, destination_bucket,
+                destination_object=None):
+        """
+        Has the same functionality as copy, except that will work on files
+        over 5 TB, as well as when copying between locations and/or storage
+        classes.
+
+        destination_object can be omitted, in which case source_object is used.
+
+        :param source_bucket: The bucket of the object to copy from.
+        :type source_bucket: string
+        :param source_object: The object to copy.
+        :type source_object: string
+        :param destination_bucket: The destination of the object to copied to.
+        :type destination_bucket: string
+        :param destination_object: The (renamed) path of the object if given.
+            Can be omitted; then the same name is used.
+        """
+        destination_object = destination_object or source_object
+        if (source_bucket == destination_bucket and
+                source_object == destination_object):
+            raise ValueError(
+                'Either source/destination bucket or source/destination object '
+                'must be different, not both the same: bucket=%s, object=%s' %
+                (source_bucket, source_object))
+        if not source_bucket or not source_object:
+            raise ValueError('source_bucket and source_object cannot be empty.')
+
+        service = self.get_conn()
+        request_count = 1
+        try:
+            result = service.objects() \
+                .rewrite(sourceBucket=source_bucket, sourceObject=source_object,
+                         destinationBucket=destination_bucket,
+                         destinationObject=destination_object, body='') \
+                .execute()
+            self.log.info('Rewrite request #%s: %s', request_count, result)
+            while not result['done']:
+                request_count += 1
+                result = service.objects() \
+                    .rewrite(sourceBucket=source_bucket, sourceObject=source_object,
+                             destinationBucket=destination_bucket,
+                             destinationObject=destination_object,
+                             rewriteToken=result['rewriteToken'], body='') \
+                    .execute()
+                self.log.info('Rewrite request #%s: %s', request_count, result)
+            return True
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                return False
+            raise
 
     # pylint:disable=redefined-builtin
     def download(self, bucket, object, filename=None):
@@ -125,10 +186,16 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         service = self.get_conn()
         media = MediaFileUpload(filename, mime_type)
-        response = service \
-            .objects() \
-            .insert(bucket=bucket, name=object, media_body=media) \
-            .execute()
+        try:
+            service \
+                .objects() \
+                .insert(bucket=bucket, name=object, media_body=media) \
+                .execute()
+            return True
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                return False
+            raise
 
     # pylint:disable=redefined-builtin
     def exists(self, bucket, object):
@@ -228,10 +295,11 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type versions: boolean
         :param maxResults: max count of items to return in a single page of responses
         :type maxResults: integer
-        :param prefix: prefix string which filters objects whose name begin with this prefix
+        :param prefix: prefix string which filters objects whose name begin with
+            this prefix
         :type prefix: string
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
-        :type delimiter:string
+        :type delimiter: string
         :return: a stream of object names matching the filtering criteria
         """
         service = self.get_conn()
@@ -273,13 +341,16 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def get_size(self, bucket, object):
         """
         Gets the size of a file in Google Cloud Storage.
+
         :param bucket: The Google cloud storage bucket where the object is.
         :type bucket: string
-        :param object: The name of the object to check in the Google cloud
-            storage bucket.
+        :param object: The name of the object to check in the Google cloud storage bucket.
         :type object: string
+
         """
-        self.log.info('Checking the file size of object: %s in bucket: %s', object, bucket)
+        self.log.info('Checking the file size of object: %s in bucket: %s',
+                      object,
+                      bucket)
         service = self.get_conn()
         try:
             response = service.objects().get(
@@ -290,10 +361,177 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             if 'name' in response and response['name'][-1] != '/':
                 # Remove Directories & Just check size of files
                 size = response['size']
-                self.log.info('The file size of %s is %s', object, size)
+                self.log.info('The file size of %s is %s bytes.', object, size)
                 return size
             else:
                 raise ValueError('Object is not a file')
         except errors.HttpError as ex:
             if ex.resp['status'] == '404':
                 raise ValueError('Object Not Found')
+
+    def get_crc32c(self, bucket, object):
+        """
+        Gets the CRC32c checksum of an object in Google Cloud Storage.
+
+        :param bucket: The Google cloud storage bucket where the object is.
+        :type bucket: string
+        :param object: The name of the object to check in the Google cloud
+            storage bucket.
+        :type object: string
+        """
+        self.log.info('Retrieving the crc32c checksum of '
+                      'object: %s in bucket: %s', object, bucket)
+        service = self.get_conn()
+        try:
+            response = service.objects().get(
+                bucket=bucket,
+                object=object
+            ).execute()
+
+            crc32c = response['crc32c']
+            self.log.info('The crc32c checksum of %s is %s', object, crc32c)
+            return crc32c
+
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                raise ValueError('Object Not Found')
+
+    def get_md5hash(self, bucket, object):
+        """
+        Gets the MD5 hash of an object in Google Cloud Storage.
+
+        :param bucket: The Google cloud storage bucket where the object is.
+        :type bucket: string
+        :param object: The name of the object to check in the Google cloud
+            storage bucket.
+        :type object: string
+        """
+        self.log.info('Retrieving the MD5 hash of '
+                      'object: %s in bucket: %s', object, bucket)
+        service = self.get_conn()
+        try:
+            response = service.objects().get(
+                bucket=bucket,
+                object=object
+            ).execute()
+
+            md5hash = response['md5Hash']
+            self.log.info('The md5Hash of %s is %s', object, md5hash)
+            return md5hash
+
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                raise ValueError('Object Not Found')
+
+    def create_bucket(self,
+                      bucket_name,
+                      storage_class='MULTI_REGIONAL',
+                      location='US',
+                      project_id=None,
+                      labels=None
+                      ):
+        """
+        Creates a new bucket. Google Cloud Storage uses a flat namespace, so
+        you can't create a bucket with a name that is already in use.
+
+        .. seealso::
+            For more information, see Bucket Naming Guidelines:
+            https://cloud.google.com/storage/docs/bucketnaming.html#requirements
+
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: string
+        :param storage_class: This defines how objects in the bucket are stored
+            and determines the SLA and the cost of storage. Values include
+
+            - ``MULTI_REGIONAL``
+            - ``REGIONAL``
+            - ``STANDARD``
+            - ``NEARLINE``
+            - ``COLDLINE``.
+            If this value is not specified when the bucket is
+            created, it will default to STANDARD.
+        :type storage_class: string
+        :param location: The location of the bucket.
+            Object data for objects in the bucket resides in physical storage
+            within this region. Defaults to US.
+
+            .. seealso::
+                https://developers.google.com/storage/docs/bucket-locations
+
+        :type location: string
+        :param project_id: The ID of the GCP Project.
+        :type project_id: string
+        :param labels: User-provided labels, in key/value pairs.
+        :type labels: dict
+        :return: If successful, it returns the ``id`` of the bucket.
+        """
+
+        project_id = project_id if project_id is not None else self.project_id
+        storage_classes = [
+            'MULTI_REGIONAL',
+            'REGIONAL',
+            'NEARLINE',
+            'COLDLINE',
+            'STANDARD',  # alias for MULTI_REGIONAL/REGIONAL, based on location
+        ]
+
+        self.log.info('Creating Bucket: %s; Location: %s; Storage Class: %s',
+                      bucket_name, location, storage_class)
+        assert storage_class in storage_classes, \
+            'Invalid value ({}) passed to storage_class. Value should be ' \
+            'one of {}'.format(storage_class, storage_classes)
+
+        assert re.match('[a-zA-Z0-9]+', bucket_name[0]), \
+            'Bucket names must start with a number or letter.'
+
+        assert re.match('[a-zA-Z0-9]+', bucket_name[-1]), \
+            'Bucket names must end with a number or letter.'
+
+        service = self.get_conn()
+        bucket_resource = {
+            'name': bucket_name,
+            'location': location,
+            'storageClass': storage_class
+        }
+
+        self.log.info('The Default Project ID is %s', self.project_id)
+
+        if labels is not None:
+            bucket_resource['labels'] = labels
+
+        try:
+            response = service.buckets().insert(
+                project=project_id,
+                body=bucket_resource
+            ).execute()
+
+            self.log.info('Bucket: %s created successfully.', bucket_name)
+
+            return response['id']
+
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Bucket creation failed. Error was: {}'.format(ex.content)
+            )
+
+
+def _parse_gcs_url(gsurl):
+    """
+    Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
+    tuple containing the corresponding bucket and blob.
+    """
+    # Python 3
+    try:
+        from urllib.parse import urlparse
+    # Python 2
+    except ImportError:
+        from urlparse import urlparse
+
+    parsed_url = urlparse(gsurl)
+    if not parsed_url.netloc:
+        raise AirflowException('Please provide a bucket name')
+    else:
+        bucket = parsed_url.netloc
+        # Remove leading '/' but NOT trailing one
+        blob = parsed_url.path.lstrip('/')
+        return bucket, blob

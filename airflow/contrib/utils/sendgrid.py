@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import absolute_import
 from __future__ import division
@@ -20,11 +25,13 @@ from __future__ import unicode_literals
 import base64
 import mimetypes
 import os
+
 import sendgrid
+from sendgrid.helpers.mail import Attachment, Content, Email, Mail, \
+    Personalization, CustomArg, Category
 
 from airflow.utils.email import get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin
-from sendgrid.helpers.mail import Attachment, Content, Email, Mail, Personalization
 
 
 def send_email(to, subject, html_content, files=None,
@@ -44,7 +51,9 @@ def send_email(to, subject, html_content, files=None,
     SENDGRID_API_KEY={your-sendgrid-api-key}.
     """
     mail = Mail()
-    mail.from_email = Email(os.environ.get('SENDGRID_MAIL_FROM'))
+    from_email = kwargs.get('from_email') or os.environ.get('SENDGRID_MAIL_FROM')
+    from_name = kwargs.get('from_name') or os.environ.get('SENDGRID_MAIL_SENDER')
+    mail.from_email = Email(from_email, from_name)
     mail.subject = subject
 
     # Add the recipient list of to emails.
@@ -60,8 +69,19 @@ def send_email(to, subject, html_content, files=None,
         bcc = get_email_address_list(bcc)
         for bcc_address in bcc:
             personalization.add_bcc(Email(bcc_address))
+
+    # Add custom_args to personalization if present
+    pers_custom_args = kwargs.get('personalization_custom_args', None)
+    if isinstance(pers_custom_args, dict):
+        for key in pers_custom_args.keys():
+            personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))
+
     mail.add_personalization(personalization)
     mail.add_content(Content('text/html', html_content))
+
+    categories = kwargs.get('categories', [])
+    for cat in categories:
+        mail.add_category(Category(cat))
 
     # Add email attachment.
     for fname in files or []:
