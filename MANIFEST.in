@@ -21,6 +21,7 @@ include LICENSE
 include DISCLAIMER
 include CHANGELOG.txt
 include README.md
+graft licenses/
 graft airflow/www/templates
 graft airflow/www/static
 graft airflow/www_rbac/static
