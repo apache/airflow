@@ -47,7 +47,6 @@ from airflow import configuration
 from airflow.executors import SequentialExecutor
 from airflow.models import Variable
 
-configuration.conf.load_test_config()
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.operators.bash_operator import BashOperator
@@ -97,6 +96,7 @@ def reset(dag_id=TEST_DAG_ID):
     session.close()
 
 
+configuration.conf.load_test_config()
 reset()
 
 
@@ -979,12 +979,15 @@ class CliTests(unittest.TestCase):
 
     def setUp(self):
         super(CliTests, self).setUp()
+        from airflow.www_rbac import app as application
         configuration.load_test_config()
-        app = application.create_app()
-        app.config['TESTING'] = True
+        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+        self.app.config['TESTING'] = True
+
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = models.DagBag(dag_folder=DEV_NULL, include_examples=True)
-        self.session = Session()
+        settings.configure_orm()
+        self.session = Session
 
     def tearDown(self):
         self._cleanup(session=self.session)
@@ -1025,6 +1028,39 @@ class CliTests(unittest.TestCase):
             '-e', 'jdoe@apache.org', '-r', 'Viewer', '-p', 'test'
         ])
         cli.create_user(args)
+
+    def test_cli_delete_user(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test3', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@example.com', '-r', 'Viewer', '--use_random_password'
+        ])
+        cli.create_user(args)
+        args = self.parser.parse_args([
+            'delete_user', '-u', 'test3',
+        ])
+        cli.delete_user(args)
+
+    def test_cli_list_users(self):
+        for i in range(0, 3):
+            args = self.parser.parse_args([
+                'create_user', '-u', 'user{}'.format(i), '-l', 'doe', '-f', 'jon',
+                '-e', 'jdoe+{}@gmail.com'.format(i), '-r', 'Viewer',
+                '--use_random_password'
+            ])
+            cli.create_user(args)
+        with mock.patch('sys.stdout',
+                        new_callable=six.StringIO) as mock_stdout:
+            cli.list_users(self.parser.parse_args(['list_users']))
+            stdout = mock_stdout.getvalue()
+        for i in range(0, 3):
+            self.assertIn('user{}'.format(i), stdout)
+
+    def test_cli_sync_perm(self):
+        # test whether sync_perm cli will throw exceptions or not
+        args = self.parser.parse_args([
+            'sync_perm'
+        ])
+        cli.sync_perm(args)
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():

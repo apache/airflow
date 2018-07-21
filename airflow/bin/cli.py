@@ -1282,12 +1282,46 @@ def create_user(args):
         if password != password_confirmation:
             raise SystemExit('Passwords did not match!')
 
+    if appbuilder.sm.find_user(args.username):
+        print('{} already exist in the db'.format(args.username))
+        return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
                                   args.email, role, password)
     if user:
         print('{} user {} created.'.format(args.role, args.username))
     else:
         raise SystemExit('Failed to create user.')
+
+
+@cli_utils.action_logging
+def delete_user(args):
+    if not args.username:
+        raise SystemExit('Required arguments are missing: username')
+
+    appbuilder = cached_appbuilder()
+
+    try:
+        u = next(u for u in appbuilder.sm.get_all_users() if u.username == args.username)
+    except StopIteration:
+        raise SystemExit('{} is not a valid user.'.format(args.username))
+
+    if appbuilder.sm.del_register_user(u):
+        print('User {} deleted.'.format(args.username))
+    else:
+        raise SystemExit('Failed to delete user.')
+
+
+@cli_utils.action_logging
+def list_users(args):
+    appbuilder = cached_appbuilder()
+    users = appbuilder.sm.get_all_users()
+    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+    users = [[user.__getattribute__(field) for field in fields] for user in users]
+    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
+                   tablefmt="fancy_grid")
+    if sys.version_info[0] < 3:
+        msg = msg.encode('utf-8')
+    print(msg)
 
 
 @cli_utils.action_logging
@@ -1342,6 +1376,16 @@ def list_dag_runs(args, dag=None):
         print(record)
 
 
+@cli_utils.action_logging
+def sync_perm(args): # noqa
+    if settings.RBAC:
+        appbuilder = cached_appbuilder()
+        print('Update permission, view-menu for all existing roles')
+        appbuilder.sm.sync_roles()
+    else:
+        print('The sync_perm command only works for rbac UI.')
+
+
 Arg = namedtuple(
     'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
 Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
@@ -1388,6 +1432,10 @@ class CLIFactory(object):
             "Do not prompt to confirm reset. Use with care!",
             "store_true",
             default=False),
+        'username': Arg(
+            ('-u', '--username',),
+            help='Username of the user',
+            type=str),
 
         # list_dag_runs
         'no_backfill': Arg(
@@ -1749,10 +1797,6 @@ class CLIFactory(object):
             ('-e', '--email',),
             help='Email of the user',
             type=str),
-        'username': Arg(
-            ('-u', '--username',),
-            help='Username of the user',
-            type=str),
         'password': Arg(
             ('-p', '--password',),
             help='Password of the user',
@@ -1920,10 +1964,23 @@ class CLIFactory(object):
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': create_user,
-            'help': "Create an admin account",
+            'help': "Create an account for the Web UI",
             'args': ('role', 'username', 'email', 'firstname', 'lastname',
                      'password', 'use_random_password'),
+        }, {
+            'func': delete_user,
+            'help': "Delete an account for the Web UI",
+            'args': ('username',),
+        }, {
+            'func': list_users,
+            'help': "List accounts for the Web UI",
+            'args': tuple(),
         },
+        {
+            'func': sync_perm,
+            'help': "Update existing role's permissions.",
+            'args': tuple(),
+        }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
