@@ -47,7 +47,7 @@ class _DataflowJob(LoggingMixin):
         jobs = self._dataflow.projects().locations().jobs().list(
             projectId=self._project_number,
             location=self._job_location
-        ).execute()
+        ).execute(num_retries=5)
         for job in jobs['jobs']:
             if job['name'] == self._job_name:
                 self._job_id = job['id']
@@ -61,7 +61,7 @@ class _DataflowJob(LoggingMixin):
             job = self._dataflow.projects().jobs().get(
                 projectId=self._project_number,
                 jobId=self._job_id
-            ).execute()
+            ).execute(num_retries=5)
 
         if job and 'currentState' in job:
             self.log.info(
