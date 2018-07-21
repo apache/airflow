@@ -68,19 +68,24 @@ class SSHOperator(BaseOperator):
 
     def execute(self, context):
         try:
-            if self.ssh_conn_id and not self.ssh_hook:
-                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
+            if not self.command:
+                raise AirflowException("No command specified. Unable to execute.")
 
             if not self.ssh_hook:
-                raise AirflowException("can not operate without ssh_hook or ssh_conn_id")
+                # Create hook from given parameters
+                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id,
+                                        timeout=self.timeout,
+                                        remote_host=self.remote_host)
+            else:
+                # Don't overwrite passed in hook's options unless they are None
+                self.ssh_hook.remote_host = self.ssh_hook.remote_host or self.remote_host
+                self.ssh_hook.ssh_conn_id = self.ssh_hook.ssh_conn_id or self.ssh_conn_id
+                self.ssh_hook.timeout = self.ssh_hook.timeout or self.timeout
 
-            if self.remote_host is not None:
-                self.ssh_hook.remote_host = self.remote_host
+            if not self.ssh_hook or not self.ssh_hook.ssh_conn_id:
+                raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id")
 
             ssh_client = self.ssh_hook.get_conn()
-
-            if not self.command:
-                raise AirflowException("no command specified so nothing to execute here.")
 
             # Auto apply tty when its required in case of sudo
             get_pty = False
