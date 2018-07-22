@@ -137,14 +137,17 @@ class WorkerConfiguration(LoggingMixin):
 
         volumes = [
             _construct_volume(
-                dags_volume_name,
-                self.kube_config.dags_volume_claim
-            ),
-            _construct_volume(
                 logs_volume_name,
                 self.kube_config.logs_volume_claim
             )
         ]
+
+        # add dag volume if dags are NOT in the worker container
+        if not self.kube_config.dag_path_in_worker_container:
+            volumes.append(_construct_volume(
+                dags_volume_name,
+                self.kube_config.dags_volume_claim
+            ))
 
         dag_volume_mount_path = ""
 
@@ -169,7 +172,6 @@ class WorkerConfiguration(LoggingMixin):
         }
         if self.kube_config.logs_volume_subpath:
             logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
-
 
         volume_mounts = [
             dags_volume_mount,
