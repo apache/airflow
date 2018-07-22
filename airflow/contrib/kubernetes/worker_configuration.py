@@ -41,6 +41,10 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.dags_volume_claim:
             return []
 
+        # skip if in base container
+        if self.kube_config.dags_in_worker_container:
+            return []
+
         # Otherwise, define a git-sync init container
         init_environment = [{
             'name': 'GIT_SYNC_REPO',
@@ -80,8 +84,15 @@ class WorkerConfiguration(LoggingMixin):
 
     def _get_environment(self):
         """Defines any necessary environment variables for the pod executor"""
+        dag_path = '/tmp/dags'
+
+        if self.kube_config.dag_path_in_worker_container:
+            dag_path = self.kube_config.dag_path_in_worker_container
+
         env = {
-            "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
+            'AIRFLOW__CORE__DAGS_FOLDER': dag_path,
+            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor',
+            'AIRFLOW__CORE__SQL_ALCHEMY_CONN': conf.get('core', 'SQL_ALCHEMY_CONN')
         }
 
         if self.kube_config.airflow_configmap:
@@ -159,10 +170,15 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.logs_volume_subpath:
             logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
 
+
         volume_mounts = [
             dags_volume_mount,
             logs_volume_mount
         ]
+
+        # skip dag mount if dags in the worker container
+        if self.kube_config.dag_path_in_worker_container:
+            volume_mounts = [logs_volume_mount]
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
