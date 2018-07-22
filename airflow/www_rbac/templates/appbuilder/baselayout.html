@@ -20,9 +20,9 @@
 
 {% block head_css %}
   {{ super() }}
-  <link href="{{ url_for('static', filename='main.css') }}" rel="stylesheet">
-  <link href="{{ url_for('static', filename='bootstrap-theme.css') }}" rel="stylesheet">
-  <link rel="icon" type="image/png" href="{{ url_for("static", filename="pin_30.png") }}">
+  {# styleBundle.css file contains the styles from main.css and bootstrap-theme.css #}
+  <link href="{{ url_for_asset('styleBundle.css') }}" rel="stylesheet">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_30.png') }}">
 {% endblock %}
 
 
@@ -34,7 +34,7 @@
         {% include 'appbuilder/navbar.html' %}
         </header>
     {% endblock %}
-   
+
 
     <div class="container">
       <div class="row">
@@ -60,25 +60,10 @@
 
 {% block tail_js %}
 {{ super() }}
-<script src="{{ url_for('static', filename='jqClock.min.js') }}" type="text/javascript"></script>
-<script>
-    x = new Date()
-    var UTCseconds = (x.getTime() + x.getTimezoneOffset()*60*1000);
-    $("#clock").clock({
-        "dateFormat":"Y-m-d ",
-        "timeFormat":"H:i:s %UTC%",
-        "timestamp":UTCseconds
-    }).click(function(){
-        alert('{{ hostname }}');
-    });
-    $('span').tooltip();
-
-    $.ajaxSetup({
-      beforeSend: function(xhr, settings) {
-        if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-          xhr.setRequestHeader("X-CSRFToken", "{{ csrf_token() }}");
-        }
-      }
-    });
+<script type="text/javascript">
+  // below variables are used in clock.js
+  var hostName = '{{ hostname }}';
+  var csrfToken = '{{ csrf_token() }}';
 </script>
+<script src="{{ url_for_asset('clock.js') }}" type="text/javascript"></script>
 {% endblock %}
