@@ -28,14 +28,14 @@ class ImapHook(BaseHook):
         self.mail_client.close()
         self.mail_client.logout()
 
-    def has_mail_attachments(self, name, mail_folder='inbox', check_regex=False):
+    def has_mail_attachments(self, name, mail_folder='INBOX', check_regex=False):
         """
         Checks the mail folder for a mail containing attachments with the given name.
 
         :param name: The name of the attachment that will be searched for.
         :type name: str
         :param mail_folder: The mail folder where to look at.
-                            The default value is 'inbox'.
+                            The default value is 'INBOX'.
         :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
                             The default value is False.
@@ -46,7 +46,7 @@ class ImapHook(BaseHook):
         mail_attachments = self._retrieve_mail_attachments(name, mail_folder, check_regex)
         return len(mail_attachments) > 0
 
-    def retrieve_mail_attachments(self, name, local_output_directory, mail_folder='inbox', check_regex=False):
+    def retrieve_mail_attachments(self, name, local_output_directory, mail_folder='INBOX', check_regex=False):
         """
         Downloads email's attachments in the mail folder by its name to the local directory.
 
@@ -55,7 +55,7 @@ class ImapHook(BaseHook):
         :param local_output_directory: The output directory on the local machine where the files will be downloaded to.
         :type local_output_directory: str
         :param mail_folder: The mail folder where to look at.
-                            The default value is 'inbox'.
+                            The default value is 'INBOX'.
         :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
                             The default value is False.
@@ -99,7 +99,7 @@ class Mail:
     """
     This class simplifies working with emails returned by the imaplib client.
 
-    :param email_body: The email body of a mail received from imaplib client
+    :param email_body: The email body of a mail received from imaplib client.
     :type email_body: str
     """
 
