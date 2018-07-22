@@ -21,8 +21,7 @@
 
 {% block head_css %}
   {{ super() }}
-  <link href="{{ url_for('static', filename='main.css') }}" rel="stylesheet">
-  <link href="{{ url_for('static', filename='bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
+  <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block content %}
@@ -53,48 +52,48 @@
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
       {% endif %}
-      <li><a href="{{ url_for("Airflow.graph", dag_id=dag.dag_id, root=root) }}">
+      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
-      <li><a href="{{ url_for("Airflow.tree", dag_id=dag.dag_id, num_runs=num_runs, root=root) }}">
+      <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs, root=root) }}">
           <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
         Tree View
       </a></li>
-      <li><a href="{{ url_for("Airflow.duration", dag_id=dag.dag_id, days=30, root=root) }}">
+      <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root) }}">
           <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
           Task Duration
       </a></li>
-      <li><a href="{{ url_for("Airflow.tries", dag_id=dag.dag_id, days=30, root=root) }}">
+      <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root) }}">
           <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
           Task Tries
       </a></li>
       <li>
-        <a href="{{ url_for("Airflow.landing_times", dag_id=dag.dag_id, days=30, root=root) }}">
+        <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root) }}">
           <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
           Landing Times
         </a>
       </li>
       <li>
-        <a href="{{ url_for("Airflow.gantt", dag_id=dag.dag_id, root=root) }}">
+        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
           <i class="icon-align-left"></i>
           Gantt
         </a>
       </li>
       <li>
-      <a href="{{ url_for("Airflow.dag_details", dag_id=dag.dag_id) }}">
+      <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
           <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
           Details
         </a>
       </li>
       <li>
-        <a href="{{ url_for("Airflow.code", dag_id=dag.dag_id, root=root) }}">
+        <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
           Code
         </a>
       </li>
       <li>
-        <a href="{{ url_for("Airflow.refresh", dag_id=dag.dag_id) }}" title="Refresh">
+        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh">
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
           Refresh
         </a>
@@ -255,7 +254,7 @@
 {% endblock %}
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
 function updateQueryStringParameter(uri, key, value) {
   var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");

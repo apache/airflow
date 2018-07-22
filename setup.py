@@ -24,6 +24,7 @@ import imp
 import logging
 import os
 import sys
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,23 @@ class CleanCommand(Command):
 
     def run(self):
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
+
+
+class CompileAssets(Command):
+    """
+    Custom compile assets command to compile and build the frontend
+    assets using npm and webpack.
+    """
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        subprocess.call('./airflow/www_rbac/compile_assets.sh')
 
 
 def git_version(version):
@@ -386,6 +404,7 @@ def do_setup():
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,
+            'compile_assets': CompileAssets
         },
         python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
     )
