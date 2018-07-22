@@ -173,7 +173,6 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.logs_volume_subpath:
             logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
 
-
         volume_mounts = [
             dags_volume_mount,
             logs_volume_mount
