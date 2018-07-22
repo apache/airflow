@@ -65,7 +65,7 @@ If you are proposing a feature:
 
 The latest API documentation is usually available
 [here](https://airflow.incubator.apache.org/). To generate a local version,
-you need to have set up an Airflow development environemnt (see below). Also
+you need to have set up an Airflow development environment (see below). Also
 install the `doc` extra.
 
     pip install -e .[doc]
