@@ -26,7 +26,7 @@ class TestImapHook(unittest.TestCase):
         mock_imaplib.IMAP4_SSL.return_value = mock_conn
         mock_conn.login.return_value = ('OK', [])
 
-        with ImapHook() as imap_hook:
+        with ImapHook():
             pass
 
         mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address')
