@@ -139,6 +139,14 @@ rat-results.txt
 *.tar.gz
 scripts/ci/kubernetes/kube/.generated/airflow.yaml
 
+# Node & Webpack Stuff
+*.entry.js
+node_modules
+npm-debug.log*
+static/dist
+derby.log
+metastore_db
+
 # Airflow log files when airflow is run locally
 airflow-*.err
 airflow-*.out

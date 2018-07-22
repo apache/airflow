@@ -32,7 +32,7 @@ from werkzeug.contrib.fixers import ProxyFix
 from airflow import settings
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
-
+from airflow.www_rbac.static_config import configure_manifest_files
 
 app = None
 appbuilder = None
@@ -68,6 +68,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
     app.register_blueprint(routes)
 
     configure_logging()
+    configure_manifest_files(app)
 
     with app.app_context():
         appbuilder = AppBuilder(

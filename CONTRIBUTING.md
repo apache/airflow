@@ -258,3 +258,60 @@ $ alembic revision -m "add new field to db"
   Generating
 ~/airflow/airflow/migrations/versions/12341123_add_new_field_to_db.py
 ```
+
+## Setting up the node / npm javascript environment (ONLY FOR www_rbac)
+
+`airflow/www_rbac/` contains all npm-managed, front end assets.
+Flask-Appbuilder itself comes bundled with jQuery and bootstrap.
+While these may be phased out over time, these packages are currently not
+managed with npm.
+
+### Node/npm versions
+Make sure you are using recent versions of node and npm. No problems have been found with node>=8.11.3 and npm>=6.1.3
+
+### Using npm to generate bundled files
+
+#### npm
+First, npm must be available in your environment. If it is not you can run the following commands
+(taken from [this source](https://gist.github.com/DanHerbert/9520689))
+```
+brew install node --without-npm
+echo prefix=~/.npm-packages >> ~/.npmrc
+curl -L https://www.npmjs.com/install.sh | sh
+```
+
+The final step is to add `~/.npm-packages/bin` to your `PATH` so commands you install globally are usable.
+Add something like this to your `.bashrc` file, then `source ~/.bashrc` to reflect the change.
+```
+export PATH="$HOME/.npm-packages/bin:$PATH"
+```
+
+#### npm packages
+To install third party libraries defined in `package.json`, run the
+following within the `airflow/www_rbac/` directory which will install them in a
+new `node_modules/` folder within `www_rbac/`.
+
+```bash
+# from the root of the repository, move to where our JS package.json lives
+cd airflow/www_rbac/
+# run npm install to fetch all the dependencies
+npm install
+```
+
+To parse and generate bundled files for airflow, run either of the
+following commands. The `dev` flag will keep the npm script running and
+re-run it upon any changes within the assets directory.
+
+```
+# Compiles the production / optimized js & css
+npm run prod
+
+# Start a web server that manages and updates your assets as you modify them
+npm run dev
+```
+
+#### Upgrading npm packages
+
+Should you add or upgrade a npm package, which involves changing `package.json`, you'll need to re-run `npm install` 
+and push the newly generated `package-lock.json` file so we get the reproducible build.
+

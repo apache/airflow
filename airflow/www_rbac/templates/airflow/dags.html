@@ -21,8 +21,8 @@
 
 {% block head_css %}
 {{ super() }}
-<link href="{{ url_for("static", filename="dataTables.bootstrap.css") }}" rel="stylesheet" type="text/css" >
-<link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
+<link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block content %}
@@ -225,14 +225,15 @@
 
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('jquery.dataTables.min.js') }}"></script>
+  <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = "{{ url_for('Airflow.index') }}"
-      const ENTER_KEY_CODE = 13
+      const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
+      const ENTER_KEY_CODE = 13;
 
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search

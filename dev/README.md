@@ -100,5 +100,16 @@ Unauthenticated users can only make 60 requests/hour to the Github API. If you g
 The release signing tool can be used to create the SHA512/MD5 and ASC files that required for Apache releases.
 
 ### Execution
-To create a release tar ball execute `python setup.py sdist --formats=gztar` from Airflow's root. After that `cd dist` and
-execute `../dev/sign.sh <the_created_tar_ball.tar.gz`. Signing files will be created in the same directory.
+To create a release tar ball execute following command from Airflow's root. 
+
+`python setup.py compile_assets sdist --formats=gztar`
+
+*Note: `compile_assets` command build the frontend assets (JS and CSS) files for the 
+Web UI using webpack and npm. Please make sure you have `npm` installed on your local machine globally.
+Details on how to install `npm` can be found in CONTRIBUTING.md file.*
+
+After that navigate to relative directory i.e., `cd dist` and sign the release files.
+
+`../dev/sign.sh <the_created_tar_ball.tar.gz` 
+
+Signing files will be created in the same directory.

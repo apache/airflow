@@ -22,9 +22,7 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='dagre.css') }}">
-<link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='graph.css') }}">
+      href="{{ url_for('static', filename='css/graph.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -95,8 +93,10 @@
 {% block tail %}
     {{ super() }}
 
-    <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='dagre-d3.js') }}"></script>
+    <script src="{{ url_for_asset('d3.min.js') }}"></script>
+    {# It's an old or custom dagre-d3 library not supported with webpack 4. #}
+    {# TODO: Fix this using NPM version #}
+    <script src="{{ url_for_asset('dagreD3.js') }}"></script>
     <script>
 
     var highlight_color = "#000000";
