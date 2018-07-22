@@ -4,7 +4,7 @@
 * Distributed scheduler (supervisors)
     * Get the supervisors to run sensors (as opposed to each sensor taking a slot)
     * Improve DagBag differential refresh
-    * Pickle all the THINGS! supervisors maintains fresh, versionned pickles in the database as they monitor for change
+    * Pickle all the THINGS! supervisors maintains fresh, versioned pickles in the database as they monitor for change
 * Pre-prod running off of master
 * Containment / YarnExecutor / Docker?
 * Get s3 logs
