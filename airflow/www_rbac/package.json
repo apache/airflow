@@ -1,0 +1,55 @@
+{
+  "description": "Apache Airflow is a platform to programmatically author, schedule and monitor workflows.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "NODE_ENV=dev webpack --watch --colors --progress --debug --output-pathinfo --devtool eval-cheap-source-map --mode development",
+    "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js -p --colors --progress",
+    "build": "NODE_ENV=production webpack --colors --progress"
+  },
+  "author": "Apache",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apache/incubator-airflow.git"
+  },
+  "homepage": "http://airflow.apache.org/",
+  "keywords": [
+    "big",
+    "data",
+    "workflow",
+    "airflow",
+    "d3",
+    "nerds",
+    "database",
+    "flask"
+  ],
+  "devDependencies": {
+    "babel": "^6.23.0",
+    "babel-core": "^6.26.3",
+    "babel-istanbul": "^0.12.2",
+    "babel-loader": "^7.1.4",
+    "babel-plugin-css-modules-transform": "^1.6.1",
+    "babel-polyfill": "^6.26.0",
+    "clean-webpack-plugin": "^0.1.19",
+    "copy-webpack-plugin": "^4.5.2",
+    "css-loader": "^0.28.11",
+    "file-loader": "^1.1.11",
+    "imports-loader": "^0.8.0",
+    "mini-css-extract-plugin": "^0.4.1",
+    "style-loader": "^0.21.0",
+    "url-loader": "^1.0.1",
+    "webpack": "^4.12.2",
+    "webpack-cli": "^3.0.8",
+    "webpack-manifest-plugin": "^2.0.3"
+  },
+  "dependencies": {
+    "bootstrap-3-typeahead": "^4.0.2",
+    "bootstrap-toggle": "^2.2.2",
+    "d3": "^3.4.4",
+    "d3-tip": "^0.9.1",
+    "datatables.net": "^1.10.19",
+    "datatables.net-bs": "^1.10.19",
+    "npm": "^6.1.0",
+    "nvd3": "^1.8.6"
+  }
+}
