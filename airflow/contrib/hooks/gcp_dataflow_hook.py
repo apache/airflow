@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import json
+import re
 import select
 import subprocess
 import time
@@ -166,7 +167,7 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def get_conn(self):
         """
-        Returns a Google Cloud Storage service object.
+        Returns a Google Cloud Dataflow service object.
         """
         http_authorized = self._authorize()
         return build(
@@ -191,10 +192,7 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def start_java_dataflow(self, task_id, variables, dataflow, job_class=None,
                             append_job_name=True):
-        if append_job_name:
-            name = task_id + "-" + str(uuid.uuid1())[:8]
-        else:
-            name = task_id
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         variables['jobName'] = name
 
         def label_formatter(labels_dict):
@@ -207,19 +205,13 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def start_template_dataflow(self, task_id, variables, parameters, dataflow_template,
                                 append_job_name=True):
-        if append_job_name:
-            name = task_id + "-" + str(uuid.uuid1())[:8]
-        else:
-            name = task_id
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         self._start_template_dataflow(
             name, variables, parameters, dataflow_template)
 
     def start_python_dataflow(self, task_id, variables, dataflow, py_options,
                               append_job_name=True):
-        if append_job_name:
-            name = task_id + "-" + str(uuid.uuid1())[:8]
-        else:
-            name = task_id
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         variables['job_name'] = name
 
         def label_formatter(labels_dict):
@@ -228,6 +220,23 @@ class DataFlowHook(GoogleCloudBaseHook):
         self._start_dataflow(task_id, variables, name,
                              ["python"] + py_options + [dataflow],
                              label_formatter)
+
+    @staticmethod
+    def _build_dataflow_job_name(task_id, append_job_name=True):
+        task_id = str(task_id).replace('_', '-')
+
+        assert re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", task_id), \
+            'Invalid job_name ({}); the name must consist of ' \
+            'only the characters [-a-z0-9], starting with a ' \
+            'letter and ending with a letter or number '.format(
+                task_id)
+
+        if append_job_name:
+            job_name = task_id + "-" + str(uuid.uuid1())[:8]
+        else:
+            job_name = task_id
+
+        return job_name
 
     def _build_cmd(self, task_id, variables, label_formatter):
         command = ["--runner=DataflowRunner"]
