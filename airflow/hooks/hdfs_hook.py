@@ -24,6 +24,7 @@ from hdfs3.utils import MyNone
 
 from airflow import configuration
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.deprecation import RenamedClass
 
 
 class HdfsHook(BaseHook):
@@ -123,25 +124,4 @@ class HdfsHook(BaseHook):
         self._conn = None
 
 
-class _DeprecationHelper(object):
-    def __init__(self, new_target, message, category=PendingDeprecationWarning):
-        self._message = message
-        self._new_target = new_target
-        self._category = category
-
-    def _warn(self):
-        warnings.warn(self._message, category=self._category)
-
-    def __call__(self, *args, **kwargs):
-        self._warn()
-        return self._new_target(*args, **kwargs)
-
-    def __getattr__(self, attr):
-        self._warn()
-        return getattr(self._new_target, attr)
-
-
-HDFSHook = _DeprecationHelper(
-    HdfsHook,
-    message="The `HDFSHook` has been renamed to `HdfsHook`. Support for "
-            "the old naming will be dropped in a future version of Airflow.")
+HDFSHook = RenamedClass('HDFSHook', new_class=HdfsHook, old_module=__name__)

@@ -17,64 +17,49 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from functools import partial
 import posixpath
 
-from airflow.sensors.hdfs_sensor import HdfsSensor
+from airflow.sensors import hdfs_sensor
+from airflow.utils.deprecation import RenamedClass
 
 
-class HdfsSensorRegex(HdfsSensor):
+class HdfsRegexFileSensor(hdfs_sensor.HdfsFileSensor):
     """HdfsSensor subclass that filters using a specific regex."""
 
-    def __init__(self, file_pattern, regex, *args, **kwargs):
-        if not self._is_pattern(file_pattern):
+    def __init__(self, pattern, regex, **kwargs):
+        if not self._is_pattern(pattern):
             # If file path is not a pattern, we assume it is a directory
             # containing files that we want to match the regex against.
             # This matches the legacy behaviour of the sensor.
-            file_pattern = posixpath.join(file_pattern, '*')
+            pattern = posixpath.join(pattern, "*")
 
-        def _filter_regex(_, file_path):
-            file_name = posixpath.basename(file_path)
-            return regex.match(file_name) is not None
-
-        super(HdfsSensorRegex, self).__init__(
-            *args,
-            file_pattern=file_pattern,
-            extra_filters=[_filter_regex],
-            **kwargs)
+        super(HdfsRegexFileSensor, self).__init__(
+            pattern=pattern,
+            filters=[partial(filter_regex, regex=regex)],
+            **kwargs
+        )
 
     @staticmethod
     def _is_pattern(path_):
         """Checks if given path contains any glob patterns."""
-        return '*' in path_ or '[' in path_
+        return "*" in path_ or "[" in path_
 
 
-class HdfsSensorFolder(HdfsSensor):
-    """HdfsSensor subclass that filters specifically for directories."""
+def filter_regex(_, file_paths, regex):
+    """Filters file paths for given regex."""
 
-    def __init__(self,
-                 be_empty=False,
-                 *args,
-                 **kwargs):
-        super(HdfsSensorFolder, self).__init__(*args, **kwargs)
-        self.be_empty = be_empty
+    for file_path in file_paths:
+        if regex.match(posixpath.basename(file_path)):
+            yield file_path
 
-    def poke(self, context):
-        """
-        poke for a non empty directory
 
-        :return: Bool depending on the search criteria
-        """
-        sb = self.hook(self.hdfs_conn_id).get_conn()
-        result = [f for f in sb.ls([self.filepath], include_toplevel=True)]
-        result = self.filter_for_ignored_ext(result, self.ignored_ext,
-                                             self.ignore_copying)
-        result = self.filter_for_filesize(result, self.file_size)
-        if self.be_empty:
-            self.log.info('Poking for filepath {self.filepath} to a empty directory'
-                          .format(**locals()))
-            return len(result) == 1 and result[0]['path'] == self.filepath
-        else:
-            self.log.info('Poking for filepath {self.filepath} to a non empty directory'
-                          .format(**locals()))
-            result.pop(0)
-            return bool(result) and result[0]['file_type'] == 'f'
+HdfsSensorRegex = RenamedClass(
+    "HdfsSensorRegex", new_class=HdfsRegexFileSensor, old_module=__name__
+)
+
+HdfsSensorFolder = RenamedClass(
+    "HdfsSensorFolder",
+    new_class=hdfs_sensor.HdfsFolderSensor,
+    old_module=__name__
+)
