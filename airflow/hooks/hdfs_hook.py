@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import warnings
-
 import hdfs3
 from hdfs3.utils import MyNone
 
@@ -43,12 +41,12 @@ class HdfsHook(BaseHook):
         "ha": {
             "host": "nameservice1",
             "conf": {
-                "dfs.nameservices": "nameservice1",
-                "dfs.ha.namenodes.nameservice1": "namenode113,namenode188",
-                "dfs.namenode.rpc-address.nameservice1.namenode113": "host1:8020",
-                "dfs.namenode.rpc-address.nameservice1.namenode188": "host2:8020",
-                "dfs.namenode.http-address.nameservice1.namenode113": "host1:50070",
-                "dfs.namenode.http-address.nameservice1.namenode188": "host2:50070"
+                "dfs.nameservices": "ns1",
+                "dfs.ha.namenodes.ns1": "nn1,nn2",
+                "dfs.namenode.rpc-address.ns1.nn1": "host1:8020",
+                "dfs.namenode.rpc-address.ns1.nn2": "host2:8020",
+                "dfs.namenode.http-address.ns1.nn1": "host1:50070",
+                "dfs.namenode.http-address.ns1.nn2": "host2:50070"
             }
         }
     }
@@ -78,32 +76,35 @@ class HdfsHook(BaseHook):
 
     def get_conn(self):
         if self._conn is None:
+            hdfs_params = {}
+
+            # Configure kerberos security if used by Airflow.
+            if configuration.conf.get("core", "security") == "kerberos":
+                hdfs_params["hadoop.security.authentication"] = "kerberos"
+
             if self.hdfs_conn_id is None:
-                self._conn = hdfs3.HDFileSystem(autoconf=self._autoconf)
+                self._conn = hdfs3.HDFileSystem(
+                    autoconf=self._autoconf, pars=hdfs_params)
             else:
-                params = self.get_connection(self.hdfs_conn_id)
-                extra_params = params.extra_dejson
+                conn_params = self.get_connection(self.hdfs_conn_id)
+                conn_extra_params = conn_params.extra_dejson
 
                 # Extract hadoop parameters from extra.
-                hdfs_params = extra_params.get("pars", {})
-
-                # Configure kerberos security if used by Airflow.
-                if configuration.conf.get("core", "security") == "kerberos":
-                    hdfs_params["hadoop.security.authentication"] = "kerberos"
+                hdfs_params.update(conn_extra_params.get("pars", {}))
 
                 # Extract high-availability config if given.
-                ha_params = extra_params.get("ha", {})
+                ha_params = conn_extra_params.get("ha", {})
                 hdfs_params.update(ha_params.get("conf", {}))
 
                 # Collect extra parameters to pass to kwargs.
                 extra_kws = {}
-                if params.login:
-                    extra_kws["user"] = params.login
+                if conn_params.login:
+                    extra_kws["user"] = conn_params.login
 
                 # Build connection.
                 self._conn = hdfs3.HDFileSystem(
-                    host=ha_params.get("host") or params.host or MyNone,
-                    port=params.port or MyNone,
+                    host=ha_params.get("host") or conn_params.host or MyNone,
+                    port=conn_params.port or MyNone,
                     pars=hdfs_params,
                     autoconf=self._autoconf,
                     **extra_kws)

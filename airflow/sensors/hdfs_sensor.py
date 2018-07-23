@@ -121,7 +121,8 @@ class HdfsFileSensor(BaseSensorOperator):
 
             try:
                 file_paths = [
-                    fp for fp in conn.glob(self._pattern) if not conn.isdir(fp)
+                    fp for fp in conn.glob(self._pattern)
+                    if not conn.isdir(fp)
                 ]
             except IOError:
                 # File path doesn't exist yet.

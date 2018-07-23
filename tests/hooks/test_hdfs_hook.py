@@ -22,7 +22,7 @@ import unittest
 import mock
 from hdfs3.utils import MyNone
 
-from airflow.hooks.hdfs_hook import HdfsHook, hdfs3
+from airflow.hooks.hdfs_hook import HdfsHook, hdfs3, configuration
 
 
 class TestHDFSHook(unittest.TestCase):
@@ -48,7 +48,7 @@ class TestHDFSHook(unittest.TestCase):
             hook.get_conn()
 
         conn_mock.assert_not_called()
-        hdfs3_mock.assert_called_once_with(autoconf=True)
+        hdfs3_mock.assert_called_once_with(autoconf=True, pars={})
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
     @mock.patch.object(HdfsHook, 'get_connection')
@@ -59,12 +59,12 @@ class TestHDFSHook(unittest.TestCase):
             hook.get_conn()
 
         conn_mock.assert_not_called()
-        hdfs3_mock.assert_called_once_with(autoconf=False)
+        hdfs3_mock.assert_called_once_with(autoconf=False, pars={})
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
     @mock.patch.object(HdfsHook, 'get_connection')
     def test_get_conn_with_conn(self, conn_mock, hdfs3_mock):
-        """Tests get_conn call with ID."""
+        """Tests get_conn call with specified connection."""
 
         conn_mock.return_value = mock.Mock(
             host='namenode',
@@ -83,6 +83,92 @@ class TestHDFSHook(unittest.TestCase):
             pars={'dfs.namenode.logging.level': 'info'},
             user='hdfs_user',
             autoconf=True)
+
+    @mock.patch.object(hdfs3, 'HDFileSystem')
+    @mock.patch.object(HdfsHook, 'get_connection')
+    def test_get_conn_with_conn_ha(self, conn_mock, hdfs3_mock):
+        """Tests get_conn call with connection containing HA config."""
+
+        conn_mock.return_value = mock.Mock(
+            host='namenode',
+            login='hdfs_user',
+            port=8020,
+            extra_dejson={
+                'pars': {
+                    'dfs.namenode.logging.level': 'info'
+                },
+                "ha": {
+                    "host": "ns1",
+                    "conf": {
+                        "dfs.nameservices": "ns1",
+                        "dfs.ha.namenodes.ns1": "nn1,nn2",
+                        "dfs.namenode.rpc-address.ns1.nn1": "host1:8020",
+                        "dfs.namenode.rpc-address.ns1.nn2": "host2:8020",
+                        "dfs.namenode.http-address.ns1.nn1": "host1:50070",
+                        "dfs.namenode.http-address.ns1.nn2": "host2:50070"
+                    }
+                }
+            })
+
+        with HdfsHook(hdfs_conn_id='hdfs_default') as hook:
+            hook.get_conn()
+
+        conn_mock.assert_called_once_with('hdfs_default')
+
+        hdfs3_mock.assert_called_once_with(
+            host='ns1',
+            port=8020,
+            pars={
+                'dfs.namenode.logging.level': 'info',
+                'dfs.nameservices': 'ns1',
+                'dfs.ha.namenodes.ns1': 'nn1,nn2',
+                'dfs.namenode.rpc-address.ns1.nn1': 'host1:8020',
+                'dfs.namenode.rpc-address.ns1.nn2': 'host2:8020',
+                'dfs.namenode.http-address.ns1.nn1': 'host1:50070',
+                'dfs.namenode.http-address.ns1.nn2': 'host2:50070'
+            },
+            user='hdfs_user',
+            autoconf=True)
+
+    @mock.patch.object(configuration.conf, 'get')
+    @mock.patch.object(hdfs3, 'HDFileSystem')
+    @mock.patch.object(HdfsHook, 'get_connection')
+    def test_kerberos(self, conn_mock, hdfs3_mock, conf_mock):
+        """Tests setting kerberos auth from Airflow config."""
+
+        conn_mock.return_value = mock.Mock(
+            host='namenode',
+            login='hdfs_user',
+            port=8020,
+            extra_dejson={})
+
+        conf_mock.return_value = 'kerberos'
+
+        with HdfsHook(hdfs_conn_id='hdfs_default') as hook:
+            hook.get_conn()
+
+        hdfs3_mock.assert_called_once_with(
+            host='namenode',
+            port=8020,
+            user='hdfs_user',
+            pars={'hadoop.security.authentication': 'kerberos'},
+            autoconf=True
+        )
+
+    @mock.patch.object(configuration.conf, 'get')
+    @mock.patch.object(hdfs3, 'HDFileSystem')
+    def test_kerberos_wo_conn(self, hdfs3_mock, conf_mock):
+        """Tests setting kerberos auth from Airflow config without conn."""
+
+        conf_mock.return_value = 'kerberos'
+
+        with HdfsHook() as hook:
+            hook.get_conn()
+
+        hdfs3_mock.assert_called_once_with(
+            pars={'hadoop.security.authentication': 'kerberos'},
+            autoconf=True
+        )
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
     @mock.patch.object(HdfsHook, 'get_connection')

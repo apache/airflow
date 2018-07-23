@@ -2749,6 +2749,7 @@ class WebHDFSHookTest(unittest.TestCase):
         self.assertEqual('someone', c.proxy_user)
 
 
+<<<<<<< HEAD
 HDFSHook = None
 if six.PY2:
     from airflow.hooks.hdfs_hook import HDFSHook
@@ -2798,6 +2799,8 @@ class HDFSHookTest(unittest.TestCase):
         self.assertIsInstance(client, snakebite.client.HAClient)
 
 
+=======
+>>>>>>> Apply kerberos even without connection.
 send_email_test = mock.Mock()
 
 
