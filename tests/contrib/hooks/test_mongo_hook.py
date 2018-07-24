@@ -118,6 +118,15 @@ class TestMongoHook(unittest.TestCase):
         results = [result for result in results]
         self.assertEqual(len(results), 2)
 
+    def test_context_manager(self):
+        with MongoHook(conn_id='mongo_default', mongo_db='default') as ctxHook:
+            ctxHook.get_conn()
+
+            self.assertIsInstance(ctxHook, MongoHook)
+            self.assertIsNotNone(ctxHook.client)
+
+        self.assertIsNone(ctxHook.client)
+
 
 if __name__ == '__main__':
     unittest.main()
