@@ -34,13 +34,16 @@ svg {
 .edgePath {
     stroke: #333;
     stroke-width: 1px;
-    fill: none;
 }
 
 g.node rect {
-    stroke-width: 3;
+    stroke-width: 3px;
     stroke: white;
     cursor: pointer;
+}
+g.node .label {
+  font-size: inherit;
+  font-weight: normal;
 }
 g.node text {
     cursor: pointer;
