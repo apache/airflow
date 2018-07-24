@@ -36,7 +36,6 @@ const config = {
   entry: {
     connectionForm: STATIC_DIR + '/js/connection_form.js',
     clock: STATIC_DIR + '/js/clock.js',
-    dagreD3: STATIC_DIR + '/js/dagre-d3.js',
     ganttChartD3v2: STATIC_DIR + '/js/gantt-chart-d3v2.js',
     styleBundle: [
       STATIC_DIR + '/css/main.css',
