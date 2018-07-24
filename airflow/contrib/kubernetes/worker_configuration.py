@@ -185,9 +185,9 @@ class WorkerConfiguration(LoggingMixin):
             limit_cpu=kube_executor_config.limit_cpu
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
-        annotations = {
-            'iam.cloud.google.com/service-account': gcp_sa_key
-        } if gcp_sa_key else {}
+        annotations = kube_executor_config.annotations.copy()
+        if gcp_sa_key:
+            annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
 
         return Pod(
             namespace=namespace,

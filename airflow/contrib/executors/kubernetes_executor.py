@@ -39,7 +39,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
-                 gcp_service_account_key=None, node_selectors=None, affinity=None):
+                 gcp_service_account_key=None, node_selectors=None, affinity=None,
+                 annotations=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -49,15 +50,16 @@ class KubernetesExecutorConfig:
         self.gcp_service_account_key = gcp_service_account_key
         self.node_selectors = node_selectors
         self.affinity = affinity
+        self.annotations = annotations
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
-               "node_selectors={}, affinity={})" \
+               "node_selectors={}, affinity={}, annotations={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
-                    self.affinity)
+                    self.affinity, self.annotations)
 
     @staticmethod
     def from_dict(obj):
@@ -79,7 +81,8 @@ class KubernetesExecutorConfig:
             limit_cpu=namespaced.get('limit_cpu', None),
             gcp_service_account_key=namespaced.get('gcp_service_account_key', None),
             node_selectors=namespaced.get('node_selectors', None),
-            affinity=namespaced.get('affinity', None)
+            affinity=namespaced.get('affinity', None),
+            annotations=namespaced.get('annotations', {}),
         )
 
     def as_dict(self):
@@ -92,7 +95,8 @@ class KubernetesExecutorConfig:
             'limit_cpu': self.limit_cpu,
             'gcp_service_account_key': self.gcp_service_account_key,
             'node_selectors': self.node_selectors,
-            'affinity': self.affinity
+            'affinity': self.affinity,
+            'annotations': self.annotations,
         }
 
 
