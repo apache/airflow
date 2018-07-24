@@ -35,7 +35,6 @@ dag = DAG(
     schedule_interval='0 0 * * *',
     dagrun_timeout=timedelta(minutes=60))
 
-cmd = 'ls -l'
 run_this_last = DummyOperator(task_id='run_this_last', dag=dag)
 
 # [START howto_operator_bash]
