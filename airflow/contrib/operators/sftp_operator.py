@@ -82,18 +82,20 @@ class SFTPOperator(BaseOperator):
             if self.remote_host is not None:
                 self.ssh_hook.remote_host = self.remote_host
 
-            ssh_client = self.ssh_hook.get_conn()
-            sftp_client = ssh_client.open_sftp()
-            if self.operation.lower() == SFTPOperation.GET:
-                file_msg = "from {0} to {1}".format(self.remote_filepath,
-                                                    self.local_filepath)
-                self.log.debug("Starting to transfer %s", file_msg)
-                sftp_client.get(self.remote_filepath, self.local_filepath)
-            else:
-                file_msg = "from {0} to {1}".format(self.local_filepath,
-                                                    self.remote_filepath)
-                self.log.debug("Starting to transfer file %s", file_msg)
-                sftp_client.put(self.local_filepath, self.remote_filepath)
+            with self.ssh_hook.get_conn() as ssh_client:
+                sftp_client = ssh_client.open_sftp()
+                if self.operation.lower() == SFTPOperation.GET:
+                    file_msg = "from {0} to {1}".format(self.remote_filepath,
+                                                        self.local_filepath)
+                    self.log.debug("Starting to transfer %s", file_msg)
+                    sftp_client.get(self.remote_filepath, self.local_filepath)
+                else:
+                    file_msg = "from {0} to {1}".format(self.local_filepath,
+                                                        self.remote_filepath)
+                    self.log.debug("Starting to transfer file %s", file_msg)
+                    sftp_client.put(self.local_filepath,
+                                    self.remote_filepath,
+                                    confirm=self.confirm)
 
         except Exception as e:
             raise AirflowException("Error while transferring {0}, error: {1}"
