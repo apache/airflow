@@ -67,7 +67,7 @@ class HdfsHook(BaseHook):
     """
 
     def __init__(self, hdfs_conn_id=None, autoconf=True):
-        super().__init__(None)
+        super(HdfsHook, self).__init__(None)
 
         self.hdfs_conn_id = hdfs_conn_id
         self._autoconf = autoconf

@@ -80,23 +80,23 @@ class HdfsFileSensor(BaseSensorOperator):
 
     # Deprecated properties that exist for backwards compatibility.
 
-    @deprecated(new_name="file_pattern")
     @property
+    @deprecated(new_name="file_pattern")
     def filepath(self):
         return self._pattern
 
-    @deprecated(new_name="conn_id")
     @property
+    @deprecated(new_name="conn_id")
     def hdfs_conn_id(self):
         return self._conn_id
 
-    @deprecated()
     @property
+    @deprecated()
     def min_size(self):
         return self._min_size
 
-    @deprecated()
     @property
+    @deprecated()
     def ignored_ext(self):
         return self._ignore_exts
 
