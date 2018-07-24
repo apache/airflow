@@ -206,7 +206,7 @@ def nobr_f(v, c, m, p):
 def label_link(v, c, m, p):
     try:
         default_params = ast.literal_eval(m.default_params)
-    except:
+    except Exception:
         default_params = {}
     url = url_for(
         'airflow.chart', chart_id=m.id, iteration_no=m.iteration_no,
@@ -404,9 +404,9 @@ class Airflow(BaseView):
         # Processing templated fields
         try:
             args = ast.literal_eval(chart.default_params)
-            if type(args) is not type(dict()):
+            if not isinstance(args, dict):
                 raise AirflowException('Not a dict')
-        except:
+        except Exception:
             args = {}
             payload['error'] += (
                 "Default params is not valid, string has to evaluate as "
@@ -448,15 +448,15 @@ class Airflow(BaseView):
         if not payload['error'] and len(df) == 0:
             payload['error'] += "Empty result set. "
         elif (
-                        not payload['error'] and
-                            chart.sql_layout == 'series' and
-                        chart.chart_type != "datatable" and
-                    len(df.columns) < 3):
+                not payload['error'] and
+                chart.sql_layout == 'series' and
+                chart.chart_type != "datatable" and
+                len(df.columns) < 3):
             payload['error'] += "SQL needs to return at least 3 columns. "
         elif (
-                    not payload['error'] and
-                        chart.sql_layout == 'columns' and
-                    len(df.columns) < 2):
+                not payload['error'] and
+                chart.sql_layout == 'columns' and
+                len(df.columns) < 2):
             payload['error'] += "SQL needs to return at least 2 columns. "
         elif not payload['error']:
             import numpy as np
@@ -622,13 +622,13 @@ class Airflow(BaseView):
         # If no dag_run is active, return task instances from most recent dag_run.
         LastTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                .join(LastDagRun, and_(
+            .join(LastDagRun, and_(
                 LastDagRun.c.dag_id == TI.dag_id,
                 LastDagRun.c.execution_date == TI.execution_date))
         )
         RunningTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                .join(RunningDagRun, and_(
+            .join(RunningDagRun, and_(
                 RunningDagRun.c.dag_id == TI.dag_id,
                 RunningDagRun.c.execution_date == TI.execution_date))
         )
@@ -636,7 +636,7 @@ class Airflow(BaseView):
         UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
         qry = (
             session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
-                .group_by(UnionTI.c.dag_id, UnionTI.c.state)
+            .group_by(UnionTI.c.dag_id, UnionTI.c.state)
         )
 
         data = {}
@@ -652,7 +652,7 @@ class Airflow(BaseView):
             for state in State.task_states:
                 try:
                     count = data[dag.dag_id][state]
-                except:
+                except Exception:
                     count = 0
                 d = {
                     'state': state,
@@ -1540,13 +1540,13 @@ class Airflow(BaseView):
         TF = models.TaskFail
         ti_fails = (
             session
-                .query(TF)
-                .filter(
+            .query(TF)
+            .filter(
                 TF.dag_id == dag.dag_id,
                 TF.execution_date >= min_date,
                 TF.execution_date <= base_date,
                 TF.task_id.in_([t.task_id for t in dag.tasks]))
-                .all()
+            .all()
         )
 
         fails_totals = defaultdict(int)
@@ -1892,7 +1892,7 @@ class Airflow(BaseView):
                 return self.render(
                     'airflow/variables/{}.html'.format(form)
                 )
-        except:
+        except Exception:
             # prevent XSS
             form = escape(form)
             return ("Error: form airflow/variables/{}.html "
@@ -2463,7 +2463,7 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
             val = None
             try:
                 val = d.decode(var.val)
-            except:
+            except Exception:
                 val = var.val
             var_dict[var.key] = val
 
@@ -2802,7 +2802,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         fk = None
         try:
             fk = conf.get('core', 'fernet_key')
-        except:
+        except Exception:
             pass
         return fk is None
 
@@ -2814,10 +2814,10 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         """
         is_secure = False
         try:
-            import cryptography
+            import cryptography  # noqa F401
             conf.get('core', 'fernet_key')
             is_secure = True
-        except:
+        except Exception:
             pass
         return is_secure
 
