@@ -836,9 +836,11 @@ def webserver(args):
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
+        os.environ['SKIP_DAGS_PARSING'] = 'True'
         app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
+        os.environ.pop('SKIP_DAGS_PARSING')
         if args.daemon:
             handle = setup_logging(log_file)
             stdout = open(stdout, 'w+')
