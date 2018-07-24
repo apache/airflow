@@ -52,17 +52,6 @@ class TestHDFSHook(unittest.TestCase):
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
     @mock.patch.object(HdfsHook, 'get_connection')
-    def test_get_conn_no_autoconf(self, conn_mock, hdfs3_mock):
-        """Tests get_conn call without ID and autoconf = False."""
-
-        with HdfsHook(autoconf=False) as hook:
-            hook.get_conn()
-
-        conn_mock.assert_not_called()
-        hdfs3_mock.assert_called_once_with(autoconf=False, pars={})
-
-    @mock.patch.object(hdfs3, 'HDFileSystem')
-    @mock.patch.object(HdfsHook, 'get_connection')
     def test_get_conn_with_conn(self, conn_mock, hdfs3_mock):
         """Tests get_conn call with specified connection."""
 
@@ -70,7 +59,13 @@ class TestHDFSHook(unittest.TestCase):
             host='namenode',
             login='hdfs_user',
             port=8020,
-            extra_dejson={'pars': {'dfs.namenode.logging.level': 'info'}})
+            extra_dejson={
+                'pars': {
+                    'dfs.namenode.logging.level': 'info'
+                },
+                'autoconf': False,
+                'ticket_cache': '/path/to/cache'
+            })
 
         with HdfsHook(hdfs_conn_id='hdfs_default') as hook:
             hook.get_conn()
@@ -82,7 +77,8 @@ class TestHDFSHook(unittest.TestCase):
             port=8020,
             pars={'dfs.namenode.logging.level': 'info'},
             user='hdfs_user',
-            autoconf=True)
+            autoconf=False,
+            ticket_cache='/path/to/cache')
 
     @mock.patch.object(hdfs3, 'HDFileSystem')
     @mock.patch.object(HdfsHook, 'get_connection')
@@ -152,8 +148,7 @@ class TestHDFSHook(unittest.TestCase):
             port=8020,
             user='hdfs_user',
             pars={'hadoop.security.authentication': 'kerberos'},
-            autoconf=True
-        )
+            autoconf=True)
 
     @mock.patch.object(configuration.conf, 'get')
     @mock.patch.object(hdfs3, 'HDFileSystem')

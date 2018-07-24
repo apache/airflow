@@ -48,14 +48,20 @@ class HdfsHook(BaseHook):
                 "dfs.namenode.http-address.ns1.nn1": "host1:50070",
                 "dfs.namenode.http-address.ns1.nn2": "host2:50070"
             }
-        }
+        },
+        "autoconf": True,
+        "token": "...",
+        "ticket_cache": "..."
     }
 
     Here `pars` can be used to supply configuration options with the same key
     names as typically contained in the XML config files, which will take
     precedence over any parameters loaded from files. The `ha` configuration
     section can be used to supply options for using hdfs3 in high-availability
-    mode. See the hdfs3 documentation for more details.
+    mode (see the hdfs3 documentation for more details). The `autoconf` option
+    controls whether hdfs3 uses the available hadoop config files for
+    its configuration, whilst the `token` and `ticket_cache` options are
+    used for configuring kerberos.
 
     Security modes can also be configured by defining appropriate value for
     the `hadoop.security.authentication` key in `pars`. Kerberos is used
@@ -66,12 +72,10 @@ class HdfsHook(BaseHook):
         configuration options from the hdfs XML configuration files.
     """
 
-    def __init__(self, hdfs_conn_id=None, autoconf=True):
+    def __init__(self, hdfs_conn_id=None):
         super(HdfsHook, self).__init__(None)
 
         self.hdfs_conn_id = hdfs_conn_id
-        self._autoconf = autoconf
-
         self._conn = None
 
     def get_conn(self):
@@ -83,8 +87,7 @@ class HdfsHook(BaseHook):
                 hdfs_params["hadoop.security.authentication"] = "kerberos"
 
             if self.hdfs_conn_id is None:
-                self._conn = hdfs3.HDFileSystem(
-                    autoconf=self._autoconf, pars=hdfs_params)
+                self._conn = hdfs3.HDFileSystem(pars=hdfs_params, autoconf=True)
             else:
                 conn_params = self.get_connection(self.hdfs_conn_id)
                 conn_extra_params = conn_params.extra_dejson
@@ -96,18 +99,24 @@ class HdfsHook(BaseHook):
                 ha_params = conn_extra_params.get("ha", {})
                 hdfs_params.update(ha_params.get("conf", {}))
 
-                # Collect extra parameters to pass to kwargs.
-                extra_kws = {}
-                if conn_params.login:
-                    extra_kws["user"] = conn_params.login
+                # Collect extra parameters to pass to kwargs. Note that we
+                # avoid passing empty parameters, as hdfs3 seems to do
+                # funky things with defining its own None variable.
+                extra_kws = {
+                    "user": conn_params.login or None,
+                    "ticket_cache": conn_extra_params.get("ticket_cache"),
+                    "token": conn_extra_params.get("token"),
+                }
+                extra_kws = {k: v for k, v in extra_kws.items() if v}
 
                 # Build connection.
                 self._conn = hdfs3.HDFileSystem(
                     host=ha_params.get("host") or conn_params.host or MyNone,
                     port=conn_params.port or MyNone,
                     pars=hdfs_params,
-                    autoconf=self._autoconf,
-                    **extra_kws)
+                    autoconf=conn_extra_params.get("autoconf", True),
+                    **extra_kws
+                )
 
         return self._conn
 
@@ -125,4 +134,4 @@ class HdfsHook(BaseHook):
         self._conn = None
 
 
-HDFSHook = RenamedClass('HDFSHook', new_class=HdfsHook, old_module=__name__)
+HDFSHook = RenamedClass("HDFSHook", new_class=HdfsHook, old_module=__name__)
