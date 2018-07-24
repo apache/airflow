@@ -115,6 +115,7 @@ const config = {
       {from: 'node_modules/nvd3/build/\*.min.\*',flatten:true},
       // Update this when upgrade d3 package, as the path in new D3 is different
       {from: 'node_modules/d3/d3.min.\*', flatten:true},
+      {from: 'node_modules/dagre-d3/dist/\*.min.\*', flatten:true},
       {from: 'node_modules/d3-tip/dist/index.js', to:'d3-tip.js', flatten:true},
       {from: 'node_modules/bootstrap-3-typeahead/\*min.\*', flatten:true},
       {from: 'node_modules/bootstrap-toggle/**/*bootstrap-toggle.min.\*',

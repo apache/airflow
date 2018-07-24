@@ -1255,6 +1255,8 @@ class Airflow(AirflowBaseView):
                     'label': task.task_id,
                     'labelStyle': "fill:{0};".format(task.ui_fgcolor),
                     'style': "fill:{0};".format(task.ui_color),
+                    'rx': 5,
+                    'ry': 5,
                 }
             })
 
