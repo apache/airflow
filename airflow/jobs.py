@@ -869,7 +869,8 @@ class SchedulerJob(BaseJob):
                 )
 
             # don't ever schedule in the future
-            if next_run_date and next_run_date > timezone.utcnow():
+
+            if next_run_date is not None and next_run_date > timezone.utcnow():
                 return
 
             # this structure is necessary to avoid a TypeError from concatenating
