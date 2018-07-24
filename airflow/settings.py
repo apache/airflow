@@ -47,7 +47,7 @@ try:
         TIMEZONE = pendulum.local_timezone()
     else:
         TIMEZONE = pendulum.timezone(tz)
-except:
+except Exception:
     pass
 log.info("Configured default timezone %s" % TIMEZONE)
 
@@ -226,9 +226,9 @@ def configure_action_logging():
 
 
 try:
-    from airflow_local_settings import *
+    from airflow_local_settings import *  # noqa F403 F401
     log.info("Loaded airflow_local_settings.")
-except:
+except Exception:
     pass
 
 configure_logging()
