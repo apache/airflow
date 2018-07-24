@@ -200,6 +200,7 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=0.8.3, <0.9',
+            'blinker==1.4',
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',
             'flask>=0.11, <=0.12.1',

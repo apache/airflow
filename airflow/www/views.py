@@ -49,6 +49,8 @@ import markdown
 import nvd3
 import ast
 
+from blinker import Namespace
+
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField, StringField, validators)
 
@@ -87,6 +89,10 @@ QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
 dagbag = models.DagBag(settings.DAGS_FOLDER)
+
+airflow_signals = Namespace()
+ui_signals = airflow_signals.signal('ui_action')
+ui_signals.connect(wwwutils.log_ui_signal)
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
@@ -974,6 +980,9 @@ class Airflow(BaseView):
         flash(
             "Sent {} to the message queue, "
             "it should start any moment now.".format(ti))
+
+        ui_signals.send(self, message='run task instance - {}'.format(ti))
+
         return redirect(origin)
 
     @expose('/trigger')
@@ -1010,6 +1019,9 @@ class Airflow(BaseView):
         flash(
             "Triggered {}, "
             "it should start any moment now.".format(dag_id))
+
+        ui_signals.send(self, message='trigger dag - {}'.format(dag_id))
+
         return redirect(origin)
 
     @expose('/clear')
@@ -1038,6 +1050,13 @@ class Airflow(BaseView):
 
         end_date = execution_date if not future else None
         start_date = execution_date if not past else None
+
+        tis = dag.clear(
+            start_date=start_date,
+            end_date=end_date,
+            include_subdags=recursive,
+            dry_run=True)
+
         if confirmed:
             count = dag.clear(
                 start_date=start_date,
@@ -1045,13 +1064,12 @@ class Airflow(BaseView):
                 include_subdags=recursive)
 
             flash("{0} task instances have been cleared".format(count))
+
+            if tis:
+                ui_signals.send(self, message='clear task instance - {}'.format(tis))
+
             return redirect(origin)
         else:
-            tis = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive,
-                dry_run=True)
             if not tis:
                 flash("No task instances to clear", 'error')
                 response = redirect(origin)
@@ -1120,6 +1138,13 @@ class Airflow(BaseView):
 
         from airflow.api.common.experimental.mark_tasks import set_state
 
+        to_be_altered = set_state(task=task, execution_date=execution_date,
+                                  upstream=upstream, downstream=downstream,
+                                  future=future, past=past, state=State.SUCCESS,
+                                  commit=False)
+
+        details = "\n".join([str(t) for t in to_be_altered])
+
         if confirmed:
             altered = set_state(task=task, execution_date=execution_date,
                                 upstream=upstream, downstream=downstream,
@@ -1127,14 +1152,11 @@ class Airflow(BaseView):
                                 commit=True)
 
             flash("Marked success on {} task instances".format(len(altered)))
+
+            if to_be_altered:
+                ui_signals.send(self, message='mark task instance success - {}'.format(to_be_altered))
+
             return redirect(origin)
-
-        to_be_altered = set_state(task=task, execution_date=execution_date,
-                                  upstream=upstream, downstream=downstream,
-                                  future=future, past=past, state=State.SUCCESS,
-                                  commit=False)
-
-        details = "\n".join([str(t) for t in to_be_altered])
 
         response = self.render("airflow/confirm.html",
                                message=("Here's the list of task instances you are "
@@ -1639,6 +1661,10 @@ class Airflow(BaseView):
         session.close()
 
         dagbag.get_dag(dag_id)
+
+        action = 'turn off dag' if request.args.get('is_paused') == 'false' else 'turn on dag'
+        ui_signals.send(self, message='{} - {}'.format(action, dag_id))
+
         return "OK"
 
     @expose('/refresh')
@@ -2396,8 +2422,8 @@ class JobModelView(ModelViewOnly):
 
 class DagRunModelView(ModelViewOnly):
     verbose_name_plural = "DAG Runs"
-    can_edit = True
-    can_create = True
+    can_edit = False # our user does not need this permission
+    can_create = False # our user does not need this permission
     column_editable_list = ('state',)
     verbose_name = "dag run"
     column_default_sort = ('execution_date', True)
@@ -2431,6 +2457,9 @@ class DagRunModelView(ModelViewOnly):
             .filter(models.DagRun.id.in_(ids))\
             .delete(synchronize_session='fetch')
         session.commit()
+
+        ui_signals.send(self, message='delete dag run - {}'.format(list(deleted)))
+
         dirty_ids = []
         for row in deleted:
             dirty_ids.append(row.dag_id)
@@ -2455,8 +2484,10 @@ class DagRunModelView(ModelViewOnly):
             DR = models.DagRun
             count = 0
             dirty_ids = []
+            log_drs = []
             for dr in session.query(DR).filter(DR.id.in_(ids)).all():
                 dirty_ids.append(dr.dag_id)
+                log_drs.append(dr)
                 count += 1
                 dr.state = target_state
                 if target_state == State.RUNNING:
@@ -2467,6 +2498,7 @@ class DagRunModelView(ModelViewOnly):
             models.DagStat.update(dirty_ids, session=session)
             flash(
                 "{count} dag runs were set to '{target_state}'".format(**locals()))
+            ui_signals.send(self, message='set dag run {} - {}'.format(target_state, log_drs))
         except Exception as ex:
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
@@ -2478,7 +2510,7 @@ class LogModelView(ModelViewOnly):
     verbose_name = "log"
     column_display_actions = False
     column_default_sort = ('dttm', True)
-    column_filters = ('dag_id', 'task_id', 'execution_date', 'extra')
+    column_filters = ('dag_id', 'task_id', 'execution_date', 'event', 'extra')
     column_formatters = dict(
         dttm=datetime_f, execution_date=datetime_f, dag_id=dag_link)
 
@@ -2514,7 +2546,10 @@ class TaskInstanceModelView(ModelViewOnly):
         'start_date', 'end_date', 'duration', 'job_id', 'hostname',
         'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
         'pool', 'log_url')
-    can_delete = True
+    # can_delete = True
+    # By overriding action_new_delete() method,
+    # users are still able to delete task_instance from this view,
+    # but their delete actions will be logged
     page_size = 500
 
     @action('set_running', "Set state to 'running'", None)
@@ -2532,6 +2567,10 @@ class TaskInstanceModelView(ModelViewOnly):
     @action('set_retry', "Set state to 'up_for_retry'", None)
     def action_set_retry(self, ids):
         self.set_task_instance_state(ids, State.UP_FOR_RETRY)
+
+    @action('new_delete', "Delete", "Are you sure you want to delete selected records?")
+    def action_new_delete(self, ids):
+        self.delete_task_instances(ids)
 
     @action('delete',
             lazy_gettext('Delete'),
@@ -2553,16 +2592,19 @@ class TaskInstanceModelView(ModelViewOnly):
         try:
             TI = models.TaskInstance
             count = len(ids)
+            log_tis = []
             for id in ids:
                 task_id, dag_id, execution_date = iterdecode(id)
                 execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
                 ti = session.query(TI).filter(TI.task_id == task_id,
                                               TI.dag_id == dag_id,
                                               TI.execution_date == execution_date).one()
+                log_tis.append(copy.deepcopy(ti))
                 ti.state = target_state
             session.commit()
             flash(
                 "{count} task instances were set to '{target_state}'".format(**locals()))
+            ui_signals.send(self, message='set task instance {} - {}'.format(target_state, log_tis))
         except Exception as ex:
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
@@ -2573,14 +2615,19 @@ class TaskInstanceModelView(ModelViewOnly):
         try:
             TI = models.TaskInstance
             count = 0
+            log_tis = []
             for id in ids:
                 task_id, dag_id, execution_date = iterdecode(id)
                 execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                log_tis += list(set(session.query(TI).filter(TI.task_id == task_id,
+                                                             TI.dag_id == dag_id,
+                                                             TI.execution_date == execution_date).all()))
                 count += session.query(TI).filter(TI.task_id == task_id,
                                                   TI.dag_id == dag_id,
                                                   TI.execution_date == execution_date).delete()
             session.commit()
             flash("{count} task instances were deleted".format(**locals()))
+            ui_signals.send(self, message='delete task instance - {}'.format(log_tis))
         except Exception as ex:
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")

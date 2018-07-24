@@ -215,6 +215,37 @@ def epoch(dttm):
     return int(time.mktime(dttm.timetuple())) * 1000,
 
 
+def get_user():
+    """
+    A function to get username from current_user
+    :return: username
+    :rtype: str
+    """
+    # AnonymousUserMixin() has user attribute but its value is None.
+    if current_user and hasattr(current_user, 'user') and current_user.user:
+        user = current_user.user.username
+    else:
+        user = 'anonymous'
+    return user
+
+
+def log_ui_signal(app, **extra):
+    """
+    A function that is connected to flask ui signal,
+    designated to log ui actions into log table
+    """
+    session = settings.Session()
+    user = get_user()
+    log = models.Log(
+        event='ui_action',
+        task_instance=None,
+        owner=user,
+        extra=str(extra))
+
+    session.add(log)
+    session.commit()
+
+
 def action_logging(f):
     '''
     Decorator to log user actions
@@ -223,16 +254,10 @@ def action_logging(f):
     def wrapper(*args, **kwargs):
         session = settings.Session()
 
-        # AnonymousUserMixin() has user attribute but its value is None.
-        if current_user and hasattr(current_user, 'user') and current_user.user:
-            user = current_user.user.username
-        else:
-            user = 'anonymous'
-
         log = models.Log(
             event=f.__name__,
             task_instance=None,
-            owner=user,
+            owner=get_user(),
             extra=str(list(request.args.items())),
             task_id=request.args.get('task_id'),
             dag_id=request.args.get('dag_id'))
