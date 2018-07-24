@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -33,6 +33,7 @@ from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
+
 
 class AirflowPluginException(Exception):
     pass
@@ -106,6 +107,7 @@ def make_module(name, objects):
     module._objects = objects
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
+
 
 # Plugin components to integrate as modules
 operators_modules = []

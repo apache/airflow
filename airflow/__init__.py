@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -80,11 +80,12 @@ class AirflowMacroPlugin(object):
     def __init__(self, namespace):
         self.namespace = namespace
 
-from airflow import operators
+
+from airflow import operators  # noqa: E402
 from airflow import sensors  # noqa: E402
-from airflow import hooks
-from airflow import executors
-from airflow import macros
+from airflow import hooks  # noqa: E402
+from airflow import executors  # noqa: E402
+from airflow import macros  # noqa: E402
 
 operators._integrate_plugins()
 sensors._integrate_plugins()  # noqa: E402

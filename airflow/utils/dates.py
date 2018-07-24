@@ -160,7 +160,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     # We first search an upper limit for i for which start_date + upper * delta
     # exceeds dt.
     upper = 1
-    while start_date + upper*delta < dt:
+    while start_date + upper * delta < dt:
         # To speed up finding an upper limit we grow this exponentially by a
         # factor of 2
         upper *= 2
@@ -177,20 +177,20 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
         # Invariant: start + lower * delta < dt <= start + upper * delta
         # If start_date + (lower + 1)*delta exceeds dt, then either lower or
         # lower+1 has to be the solution we are searching for
-        if start_date + (lower + 1)*delta >= dt:
+        if start_date + (lower + 1) * delta >= dt:
             # Check if start_date + (lower + 1)*delta or
             # start_date + lower*delta is closer to dt and return the solution
             if (
                     (start_date + (lower + 1) * delta) - dt <=
                     dt - (start_date + lower * delta)):
-                return start_date + (lower + 1)*delta
+                return start_date + (lower + 1) * delta
             else:
                 return start_date + lower * delta
 
         # We intersect the interval and either replace the lower or upper
         # limit with the candidate
         candidate = lower + (upper - lower) // 2
-        if start_date + candidate*delta >= dt:
+        if start_date + candidate * delta >= dt:
             upper = candidate
         else:
             lower = candidate
@@ -209,11 +209,11 @@ def infer_time_unit(time_seconds_arr):
     if len(time_seconds_arr) == 0:
         return 'hours'
     max_time_seconds = max(time_seconds_arr)
-    if max_time_seconds <= 60*2:
+    if max_time_seconds <= 60 * 2:
         return 'seconds'
-    elif max_time_seconds <= 60*60*2:
+    elif max_time_seconds <= 60 * 60 * 2:
         return 'minutes'
-    elif max_time_seconds <= 24*60*60*2:
+    elif max_time_seconds <= 24 * 60 * 60 * 2:
         return 'hours'
     else:
         return 'days'
@@ -224,11 +224,11 @@ def scale_time_units(time_seconds_arr, unit):
     Convert an array of time durations in seconds to the specified time unit.
     """
     if unit == 'minutes':
-        return list(map(lambda x: x*1.0/60, time_seconds_arr))
+        return list(map(lambda x: x * 1.0 / 60, time_seconds_arr))
     elif unit == 'hours':
-        return list(map(lambda x: x*1.0/(60*60), time_seconds_arr))
+        return list(map(lambda x: x * 1.0 / (60 * 60), time_seconds_arr))
     elif unit == 'days':
-        return list(map(lambda x: x*1.0/(24*60*60), time_seconds_arr))
+        return list(map(lambda x: x * 1.0 / (24 * 60 * 60), time_seconds_arr))
     return time_seconds_arr
 
 

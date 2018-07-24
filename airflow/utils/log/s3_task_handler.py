@@ -42,7 +42,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             from airflow.hooks.S3_hook import S3Hook
             return S3Hook(remote_conn_id)
-        except:
+        except Exception:
             self.log.error(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that airflow[s3] is installed and '
@@ -139,7 +139,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             return self.hook.read_key(remote_log_location)
-        except:
+        except Exception:
             msg = 'Could not read logs from {}'.format(remote_log_location)
             self.log.exception(msg)
             # return error if needed
@@ -169,5 +169,5 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 replace=True,
                 encrypt=configuration.conf.getboolean('core', 'ENCRYPT_S3_LOGS'),
             )
-        except:
+        except Exception:
             self.log.exception('Could not write logs to %s', remote_log_location)

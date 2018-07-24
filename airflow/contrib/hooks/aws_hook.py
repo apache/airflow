@@ -72,7 +72,7 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
         try:
             access_key = config.get(cred_section, key_id_option)
             secret_key = config.get(cred_section, secret_key_option)
-        except:
+        except Exception:
             logging.warning("Option Error in parsing s3 config file")
             raise
         return access_key, secret_key

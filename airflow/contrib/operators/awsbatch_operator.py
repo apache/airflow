@@ -139,7 +139,7 @@ class AWSBatchOperator(BaseOperator):
                 if response['jobs'][-1]['status'] in ['SUCCEEDED', 'FAILED']:
                     retry = False
 
-                sleep( 1 + pow(retries * 0.1, 2))
+                sleep(1 + pow(retries * 0.1, 2))
                 retries += 1
 
     def _check_success_task(self):
