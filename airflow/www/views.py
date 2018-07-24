@@ -2134,7 +2134,7 @@ class ModelViewOnly(wwwutils.LoginMixin, AirflowModelView):
     column_display_pk = True
 
 
-class PoolModelView(wwwutils.SuperUserMixin, AirflowModelView):
+class PoolModelView(wwwutils.SuperUserMixin, ModelViewOnly):
     column_list = ('pool', 'slots', 'used_slots', 'queued_slots')
     column_formatters = dict(
         pool=pool_link, used_slots=fused_slots, queued_slots=fqueued_slots)
