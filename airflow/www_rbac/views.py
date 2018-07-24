@@ -73,7 +73,10 @@ from airflow.www_rbac.widgets import AirflowModelListWidget
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
-dagbag = models.DagBag(settings.DAGS_FOLDER)
+if os.environ.get('SKIP_DAGS_PARSING') != 'True':
+    dagbag = models.DagBag(settings.DAGS_FOLDER)
+else:
+    dagbag = models.DagBag
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
