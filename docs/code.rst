@@ -301,6 +301,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.cloudant_hook.CloudantHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
+.. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 
 Executors
 ---------
