@@ -23,6 +23,7 @@ from airflow.settings import Session
 from airflow.www import app as application
 
 
+@unittest.skip("PoolModelView is now with ModelViewOnly permission")
 class TestPoolModelView(unittest.TestCase):
 
     CREATE_ENDPOINT = '/admin/pool/new/?url=/admin/pool/'
