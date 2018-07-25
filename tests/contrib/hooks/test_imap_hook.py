@@ -39,13 +39,13 @@ class TestImapHook(unittest.TestCase):
         mock_conn = Mock(spec=imaplib.IMAP4_SSL)
         mock_imaplib.IMAP4_SSL.return_value = mock_conn
         mock_conn.login.return_value = ('OK', [])
+        mock_conn.logout.return_value = ('OK', [])
 
         with ImapHook():
             pass
 
         mock_imaplib.IMAP4_SSL.assert_called_once_with('imap_server_address')
         mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
-        mock_conn.close.assert_called_once()
         mock_conn.logout.assert_called_once()
 
     @patch('airflow.contrib.hooks.imap_hook.imaplib')
@@ -58,6 +58,9 @@ class TestImapHook(unittest.TestCase):
         mock_conn.search.return_value = ('OK', [b'1'])
         # TODO Add example mail with attachment test.txt
         mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
+        mock_conn.close.return_value = ('OK', [])
+
+        mock_conn.logout.return_value = ('OK', [])
 
         with ImapHook() as imap_hook:
             has_test_txt_in_inbox = imap_hook.has_mail_attachments('test.txt')
@@ -72,18 +75,59 @@ class TestImapHook(unittest.TestCase):
         mock_conn.select.return_value = ('OK', [])
         mock_conn.search.return_value = ('OK', [b'1'])
         mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
+        mock_conn.close.return_value = ('OK', [])
+
+        mock_conn.logout.return_value = ('OK', [])
 
         with ImapHook() as imap_hook:
             has_test_txt_in_inbox = imap_hook.has_mail_attachments('test.txt')
             self.assertFalse(has_test_txt_in_inbox)
 
-    # TODO Add test_has_mail_attachments_with_regex_found
-    # TODO Add test_has_mail_attachments_with_regex_not_found
+    @patch('airflow.contrib.hooks.imap_hook.imaplib')
+    def test_has_mail_attachments_with_regex_found(self, mock_imaplib):
+        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
+        mock_imaplib.IMAP4_SSL.return_value = mock_conn
+        mock_conn.login.return_value = ('OK', [])
+
+        mock_conn.select.return_value = ('OK', [])
+        mock_conn.search.return_value = ('OK', [b'1'])
+        # TODO Add example mail with attachment test2.txt
+        mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
+        mock_conn.close.return_value = ('OK', [])
+
+        mock_conn.logout.return_value = ('OK', [])
+
+        with ImapHook() as imap_hook:
+            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test(\d+).txt', check_regex=True)
+            self.assertTrue(has_test_txt_in_inbox)
+
+    @patch('airflow.contrib.hooks.imap_hook.imaplib')
+    def test_has_mail_attachments_with_regex_not_found(self, mock_imaplib):
+        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
+        mock_imaplib.IMAP4_SSL.return_value = mock_conn
+        mock_conn.login.return_value = ('OK', [])
+
+        mock_conn.select.return_value = ('OK', [])
+        mock_conn.search.return_value = ('OK', [b'1'])
+        # TODO Add example mail with attachment test2.txt
+        mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
+        mock_conn.close.return_value = ('OK', [])
+
+        mock_conn.logout.return_value = ('OK', [])
+
+        with ImapHook() as imap_hook:
+            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test_x(\d+).txt', check_regex=True)
+            self.assertFalse(has_test_txt_in_inbox)
 
     # TODO Add test_retrieve_mail_attachments_found
     # TODO Add test_retrieve_mail_attachments_not_found
     # TODO Add test_retrieve_mail_attachments_with_regex_found
     # TODO Add test_retrieve_mail_attachments_with_regex_not_found
+
+    # TODO Add test_download_mail_attachments_found
+    # TODO Add test_download_mail_attachments_not_found
+    # TODO Add test_download_mail_attachments_with_regex_found
+    # TODO Add test_download_mail_attachments_with_regex_not_found
 
 
 if __name__ == '__main__':

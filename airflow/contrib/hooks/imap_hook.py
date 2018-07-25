@@ -30,16 +30,14 @@ class ImapHook(BaseHook):
 
     def __init__(self, imap_conn_id='imap_default'):
         super().__init__(imap_conn_id)
-        self.imap_conn_id = imap_conn_id
+        self.conn = self.get_connection(imap_conn_id)
+        self.mail_client = imaplib.IMAP4_SSL(self.conn.host)
 
     def __enter__(self):
-        conn = self.get_connection(self.imap_conn_id)
-        self.mail_client = imaplib.IMAP4_SSL(conn.host)
-        self.mail_client.login(conn.login, conn.password)
+        self.mail_client.login(self.conn.login, self.conn.password)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.mail_client.close()
         self.mail_client.logout()
 
     def has_mail_attachments(self, name, mail_folder='INBOX', check_regex=False):
@@ -57,10 +55,28 @@ class ImapHook(BaseHook):
         :returns: True if there is an attachment with the given name and False if not.
         :rtype: bool
         """
-        mail_attachments = self._retrieve_mail_attachments(name, mail_folder, check_regex)
+        mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder, check_regex)
         return len(mail_attachments) > 0
 
-    def retrieve_mail_attachments(self, name, local_output_directory, mail_folder='INBOX', check_regex=False):
+    def retrieve_mail_attachments(self, name, mail_folder='INBOX', check_regex=False):
+        """
+        Retrieves email's attachments in the mail folder by its name.
+
+        :param name: The name of the attachment that will be downloaded.
+        :type name: str
+        :param mail_folder: The mail folder where to look at.
+                            The default value is 'INBOX'.
+        :type mail_folder: str
+        :param check_regex: Checks the name for a regular expression.
+                            The default value is False.
+        :type check_regex: bool
+        :returns: a list of tuple each containing the attachment filename and its payload.
+        :rtype: a list of tuple
+        """
+        mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder, check_regex)
+        return mail_attachments
+
+    def download_mail_attachments(self, name, local_output_directory, mail_folder='INBOX', check_regex=False):
         """
         Downloads email's attachments in the mail folder by its name to the local directory.
 
@@ -75,10 +91,10 @@ class ImapHook(BaseHook):
                             The default value is False.
         :type check_regex: bool
         """
-        mail_attachments = self._retrieve_mail_attachments(name, mail_folder, check_regex)
-        self._download_mail_attachments(mail_attachments, local_output_directory)
+        mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder, check_regex)
+        self._download_files(mail_attachments, local_output_directory)
 
-    def _retrieve_mail_attachments(self, name, mail_folder, check_regex):
+    def _retrieve_mails_attachments_by_name(self, name, mail_folder, check_regex):
         all_mails_attachments = []
 
         self.mail_client.select(mail_folder)
@@ -89,6 +105,8 @@ class ImapHook(BaseHook):
             if mail.has_attachments():
                 mail_attachments = mail.get_attachments_by_name(name, check_regex)
                 all_mails_attachments.append(mail_attachments)
+
+        self.mail_client.close()
 
         return all_mails_attachments
 
@@ -103,7 +121,7 @@ class ImapHook(BaseHook):
         email_body_str = email_body.decode('utf-8')
         return email_body_str
 
-    def _download_mail_attachments(self, mail_attachments, local_output_directory):
+    def _download_files(self, mail_attachments, local_output_directory):
         for name, payload in mail_attachments:
             with open(local_output_directory + '/' + name, 'wb') as file:
                 file.write(payload)
