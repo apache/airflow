@@ -60,7 +60,8 @@ class TestImapHook(unittest.TestCase):
         mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
 
         with ImapHook() as imap_hook:
-            self.assertTrue(imap_hook.has_mail_attachments('test.txt', 'inbox', False))
+            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test.txt')
+            self.assertTrue(has_test_txt_in_inbox)
 
     @patch('airflow.contrib.hooks.imap_hook.imaplib')
     def test_has_mail_attachments_not_found(self, mock_imaplib):
@@ -73,7 +74,8 @@ class TestImapHook(unittest.TestCase):
         mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
 
         with ImapHook() as imap_hook:
-            self.assertFalse(imap_hook.has_mail_attachments('test.txt', 'inbox', False))
+            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test.txt')
+            self.assertFalse(has_test_txt_in_inbox)
 
     # TODO Add test_has_mail_attachments_with_regex_found
     # TODO Add test_has_mail_attachments_with_regex_not_found
