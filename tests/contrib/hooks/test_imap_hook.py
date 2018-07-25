@@ -20,6 +20,30 @@ from airflow import configuration, models
 from airflow.contrib.hooks.imap_hook import ImapHook
 from airflow.utils import db
 
+imaplib_string = 'airflow.contrib.hooks.imap_hook.imaplib'
+
+
+def _create_fake_imap(mock_imaplib, with_mail=False):
+    mock_conn = Mock(spec=imaplib.IMAP4_SSL)
+    mock_imaplib.IMAP4_SSL.return_value = mock_conn
+
+    mock_conn.login.return_value = ('OK', [])
+
+    if with_mail:
+        mock_conn.select.return_value = ('OK', [])
+        mock_conn.search.return_value = ('OK', [b'1'])
+        mock_conn.fetch.return_value = ('OK', [(
+            b'',  # ..because the email parser awaits 2 elements
+            b'Content-Type: multipart/mixed; boundary=123\r\n--123\r\n'
+            b'Content-Disposition: attachment; filename="test1.csv";'
+            b'Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--'
+        )])
+        mock_conn.close.return_value = ('OK', [])
+
+    mock_conn.logout.return_value = ('OK', [])
+
+    return mock_conn
+
 
 class TestImapHook(unittest.TestCase):
     def setUp(self):
@@ -34,12 +58,9 @@ class TestImapHook(unittest.TestCase):
             )
         )
 
-    @patch('airflow.contrib.hooks.imap_hook.imaplib')
-    def test_connect(self, mock_imaplib):
-        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
-        mock_imaplib.IMAP4_SSL.return_value = mock_conn
-        mock_conn.login.return_value = ('OK', [])
-        mock_conn.logout.return_value = ('OK', [])
+    @patch(imaplib_string)
+    def test_connect_and_disconnect(self, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
 
         with ImapHook():
             pass
@@ -48,81 +69,73 @@ class TestImapHook(unittest.TestCase):
         mock_conn.login.assert_called_once_with('imap_user', 'imap_password')
         mock_conn.logout.assert_called_once()
 
-    @patch('airflow.contrib.hooks.imap_hook.imaplib')
+    @patch(imaplib_string)
     def test_has_mail_attachments_found(self, mock_imaplib):
-        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
-        mock_imaplib.IMAP4_SSL.return_value = mock_conn
-        mock_conn.login.return_value = ('OK', [])
-
-        mock_conn.select.return_value = ('OK', [])
-        mock_conn.search.return_value = ('OK', [b'1'])
-        # TODO Add example mail with attachment test.txt
-        mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
-        mock_conn.close.return_value = ('OK', [])
-
-        mock_conn.logout.return_value = ('OK', [])
+        _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test.txt')
-            self.assertTrue(has_test_txt_in_inbox)
+            has_attachment_in_inbox = imap_hook.has_mail_attachments('test1.csv')
+            self.assertTrue(has_attachment_in_inbox)
 
-    @patch('airflow.contrib.hooks.imap_hook.imaplib')
+    @patch(imaplib_string)
     def test_has_mail_attachments_not_found(self, mock_imaplib):
-        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
-        mock_imaplib.IMAP4_SSL.return_value = mock_conn
-        mock_conn.login.return_value = ('OK', [])
-
-        mock_conn.select.return_value = ('OK', [])
-        mock_conn.search.return_value = ('OK', [b'1'])
-        mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
-        mock_conn.close.return_value = ('OK', [])
-
-        mock_conn.logout.return_value = ('OK', [])
+        _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test.txt')
-            self.assertFalse(has_test_txt_in_inbox)
+            has_attachment_in_inbox = imap_hook.has_mail_attachments('test1.txt')
+            self.assertFalse(has_attachment_in_inbox)
 
-    @patch('airflow.contrib.hooks.imap_hook.imaplib')
+    @patch(imaplib_string)
     def test_has_mail_attachments_with_regex_found(self, mock_imaplib):
-        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
-        mock_imaplib.IMAP4_SSL.return_value = mock_conn
-        mock_conn.login.return_value = ('OK', [])
-
-        mock_conn.select.return_value = ('OK', [])
-        mock_conn.search.return_value = ('OK', [b'1'])
-        # TODO Add example mail with attachment test2.txt
-        mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
-        mock_conn.close.return_value = ('OK', [])
-
-        mock_conn.logout.return_value = ('OK', [])
+        _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test(\d+).txt', check_regex=True)
-            self.assertTrue(has_test_txt_in_inbox)
+            has_attachment_in_inbox = imap_hook.has_mail_attachments('test(\d+).csv', check_regex=True)
+            self.assertTrue(has_attachment_in_inbox)
 
-    @patch('airflow.contrib.hooks.imap_hook.imaplib')
+    @patch(imaplib_string)
     def test_has_mail_attachments_with_regex_not_found(self, mock_imaplib):
-        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
-        mock_imaplib.IMAP4_SSL.return_value = mock_conn
-        mock_conn.login.return_value = ('OK', [])
-
-        mock_conn.select.return_value = ('OK', [])
-        mock_conn.search.return_value = ('OK', [b'1'])
-        # TODO Add example mail with attachment test2.txt
-        mock_conn.fetch.return_value = ('OK', [(b'1 (RFC822 {123456}', b'body of the message', b')')])
-        mock_conn.close.return_value = ('OK', [])
-
-        mock_conn.logout.return_value = ('OK', [])
+        _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_test_txt_in_inbox = imap_hook.has_mail_attachments('test_x(\d+).txt', check_regex=True)
-            self.assertFalse(has_test_txt_in_inbox)
+            has_attachment_in_inbox = imap_hook.has_mail_attachments('test_(\d+).csv', check_regex=True)
+            self.assertFalse(has_attachment_in_inbox)
 
-    # TODO Add test_retrieve_mail_attachments_found
-    # TODO Add test_retrieve_mail_attachments_not_found
-    # TODO Add test_retrieve_mail_attachments_with_regex_found
-    # TODO Add test_retrieve_mail_attachments_with_regex_not_found
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_found(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            attachments_in_inbox = imap_hook.retrieve_mail_attachments('test1.csv')
+
+        self.assertEquals(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_not_found(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            attachments_in_inbox = imap_hook.retrieve_mail_attachments('test1.txt')
+
+        self.assertEquals(attachments_in_inbox, [])
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_regex_found(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            attachments_in_inbox = imap_hook.retrieve_mail_attachments('test(\d+).csv', check_regex=True)
+
+        self.assertEquals(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_regex_not_found(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            attachments_in_inbox = imap_hook.retrieve_mail_attachments('test_(\d+).csv', check_regex=True)
+
+        self.assertEquals(attachments_in_inbox, [])
 
     # TODO Add test_download_mail_attachments_found
     # TODO Add test_download_mail_attachments_not_found

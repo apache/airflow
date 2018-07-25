@@ -16,6 +16,7 @@ import email
 import imaplib
 import re
 
+from airflow import LoggingMixin
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -104,7 +105,8 @@ class ImapHook(BaseHook):
             mail = Mail(response_mail_body)
             if mail.has_attachments():
                 mail_attachments = mail.get_attachments_by_name(name, check_regex)
-                all_mails_attachments.append(mail_attachments)
+                for mail_attachment in mail_attachments:
+                    all_mails_attachments.append(mail_attachment)
 
         self.mail_client.close()
 
@@ -127,7 +129,7 @@ class ImapHook(BaseHook):
                 file.write(payload)
 
 
-class Mail:
+class Mail(LoggingMixin):
     """
     This class simplifies working with emails returned by the imaplib client.
 
@@ -136,6 +138,7 @@ class Mail:
     """
 
     def __init__(self, email_body):
+        super().__init__()
         self.mail = email.message_from_string(email_body)
 
     def has_attachments(self):
@@ -159,12 +162,15 @@ class Mail:
         :rtype: list of tuple
         """
         attachments = []
+
         for part in self.mail.walk():
             mail_part = MailPart(part)
             if mail_part.is_attachment():
                 found_attachment = mail_part.has_similar_name(name) if check_regex else mail_part.has_equal_name(name)
                 if found_attachment:
-                    attachments.append(mail_part.get_file())
+                    file_name, file_payload = mail_part.get_file()
+                    self.log.info('Found attachment: {}'.format(file_name))
+                    attachments.append((file_name, file_payload))
 
         return attachments
 
@@ -187,7 +193,7 @@ class MailPart:
         :return: True if it is an attachment and False if not.
         :rtype: bool
         """
-        self.part.get_content_maintype() != 'multipart' and self.part.get('Content-Disposition')
+        return self.part.get_content_maintype() != 'multipart' and self.part.get('Content-Disposition')
 
     def has_similar_name(self, name):
         """
