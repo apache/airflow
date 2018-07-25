@@ -89,7 +89,7 @@ sphinx
 sphinx-argparse
 Sphinx-PyPI-upload
 sphinx_rtd_theme
-sqlalchemy>=1.1.15, <1.2.0
+sqlalchemy>=1.1.15, <1.3.0
 statsd
 tenacity==4.8.0
 thrift
