@@ -1,16 +1,21 @@
 # Copyright 2015 Matthew Pelland (matt@pelland.io)
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import flask_login
 
 # Need to expose these downstream
@@ -34,7 +39,7 @@ log = LoggingMixin().log
 
 
 def get_config_param(param):
-    return str(configuration.get('github_enterprise', param))
+    return str(configuration.conf.get('github_enterprise', param))
 
 
 class GHEUser(models.User):
@@ -43,27 +48,27 @@ class GHEUser(models.User):
         self.user = user
 
     def is_active(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_authenticated(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_anonymous(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return False
 
     def get_id(self):
-        '''Returns the current user id as required by flask_login'''
+        """Returns the current user id as required by flask_login"""
         return self.user.get_id()
 
     def data_profiling(self):
-        '''Provides access to data profiling tools'''
+        """Provides access to data profiling tools"""
         return True
 
     def is_superuser(self):
-        '''Access all the things'''
+        """Access all the things"""
         return True
 
 
@@ -79,17 +84,18 @@ class GHEAuthBackend(object):
         self.login_manager.login_view = 'airflow.login'
         self.flask_app = None
         self.ghe_oauth = None
-        self.api_rev = None
+        self.api_url = None
 
     def ghe_api_route(self, leaf):
-        if not self.api_rev:
-            self.api_rev = get_config_param('api_rev')
-
-        return '/'.join(['https:/',
-                         self.ghe_host,
-                         'api',
-                         self.api_rev,
-                         leaf.strip('/')])
+        if not self.api_url:
+            self.api_url = (
+                'https://api.github.com' if self.ghe_host == 'github.com'
+                else '/'.join(['https:/',
+                               self.ghe_host,
+                               'api',
+                               get_config_param('api_rev')])
+            )
+        return self.api_url + leaf
 
     def init_app(self, flask_app):
         self.flask_app = flask_app
@@ -122,8 +128,8 @@ class GHEAuthBackend(object):
         log.debug('Redirecting user to GHE login')
         return self.ghe_oauth.authorize(callback=url_for(
             'ghe_oauth_callback',
-            _external=True,
-            next=request.args.get('next') or request.referrer or None))
+            _external=True),
+            state=request.args.get('next') or request.referrer or None)
 
     def get_ghe_user_profile_info(self, ghe_token):
         resp = self.ghe_oauth.get(self.ghe_api_route('/user'),
@@ -145,8 +151,9 @@ class GHEAuthBackend(object):
                                  get_config_param('allowed_teams').split(',')]
             except ValueError:
                 # this is to deprecate using the string name for a team
-                raise ValueError('it appears that you are using the string name for a team, '
-                                 'please use the id number instead')
+                raise ValueError(
+                    'it appears that you are using the string name for a team, '
+                    'please use the id number instead')
 
         except AirflowConfigException:
             # No allowed teams defined, let anyone in GHE in.
@@ -170,8 +177,8 @@ class GHEAuthBackend(object):
                 return True
 
         log.debug('Denying access for user "%s", not a member of "%s"',
-                   username,
-                   str(allowed_teams))
+                  username,
+                  str(allowed_teams))
 
         return False
 
@@ -188,7 +195,7 @@ class GHEAuthBackend(object):
     def oauth_callback(self, session=None):
         log.debug('GHE OAuth callback called')
 
-        next_url = request.args.get('next') or url_for('admin.index')
+        next_url = request.args.get('state') or url_for('admin.index')
 
         resp = self.ghe_oauth.authorized_response()
 
@@ -224,6 +231,7 @@ class GHEAuthBackend(object):
         session.commit()
 
         return redirect(next_url)
+
 
 login_manager = GHEAuthBackend()
 

@@ -1,22 +1,29 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from tempfile import NamedTemporaryFile
+
 from airflow.hooks.hive_hooks import HiveServer2Hook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-from tempfile import NamedTemporaryFile
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class HiveToMySqlTransfer(BaseOperator):
@@ -25,23 +32,23 @@ class HiveToMySqlTransfer(BaseOperator):
     into memory before being pushed to MySQL, so this operator should
     be used for smallish amount of data.
 
-    :param sql: SQL query to execute against the MySQL database
+    :param sql: SQL query to execute against Hive server. (templated)
     :type sql: str
     :param mysql_table: target MySQL table, use dot notation to target a
-        specific database
+        specific database. (templated)
     :type mysql_table: str
     :param mysql_conn_id: source mysql connection
     :type mysql_conn_id: str
     :param hiveserver2_conn_id: destination hive connection
     :type hiveserver2_conn_id: str
     :param mysql_preoperator: sql statement to run against mysql prior to
-        import, typically use to truncate of delete in place of the data
-        coming in, allowing the task to be idempotent (running the task
-        twice won't double load data)
+        import, typically use to truncate of delete in place
+        of the data coming in, allowing the task to be idempotent (running
+        the task twice won't double load data). (templated)
     :type mysql_preoperator: str
     :param mysql_postoperator: sql statement to run against mysql after the
-        import, typically used to move data from staging to production
-        and issue cleanup commands.
+        import, typically used to move data from staging to
+        production and issue cleanup commands. (templated)
     :type mysql_postoperator: str
     :param bulk_load: flag to use bulk_load option.  This loads mysql directly
         from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.
@@ -51,7 +58,7 @@ class HiveToMySqlTransfer(BaseOperator):
     """
 
     template_fields = ('sql', 'mysql_table', 'mysql_preoperator',
-        'mysql_postoperator')
+                       'mysql_postoperator')
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
@@ -82,7 +89,8 @@ class HiveToMySqlTransfer(BaseOperator):
         if self.bulk_load:
             tmpfile = NamedTemporaryFile()
             hive.to_csv(self.sql, tmpfile.name, delimiter='\t',
-                lineterminator='\n', output_header=False)
+                        lineterminator='\n', output_header=False,
+                        hive_conf=context_to_airflow_vars(context))
         else:
             results = hive.get_records(self.sql)
 

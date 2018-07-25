@@ -119,7 +119,7 @@
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
                   {% if dag %}
-                    {% set last_run = dag.get_last_dagrun() %}
+                    {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
                     {% if last_run and last_run.execution_date %}
                       <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
                         {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
@@ -145,7 +145,7 @@
                 </a>
 
                 <!-- Tree -->
-                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}">
+                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=num_runs) }}">
                     <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" data-original-title="Tree View"></span>
                 </a>
 
@@ -188,6 +188,12 @@
                 <!-- Refresh -->
                 <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}">
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
+                </a>
+
+                <!-- Delete -->
+                <a href="{{ url_for('airflow.delete', dag_id=dag.dag_id) }}"
+                  onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
+                   <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
 
                 </td>
@@ -244,6 +250,12 @@
       function confirmTriggerDag(dag_id){
           return confirm("Are you sure you want to run '"+dag_id+"' now?");
       }
+
+      function confirmDeleteDag(dag_id){
+          return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+          This option will delete ALL metadata, DAG runs, etc.\n\
+          This cannot be undone.");
+      }
       all_dags = $("[id^=toggle]");
       $.each(all_dags, function(i,v) {
         $(v).change (function() {
@@ -278,8 +290,9 @@
 
       $input.change(function() {
         var current = $input.typeahead("getActive");
-
       });
+
+      $input.attr("autocomplete", "off");
 
       $('#dags').dataTable({
         "iDisplayLength": 500,

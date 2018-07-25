@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import chr
 from collections import OrderedDict
@@ -38,16 +43,17 @@ class VerticaToHiveTransfer(BaseOperator):
     stage the data into a temporary table before loading it into its
     final destination using a ``HiveOperator``.
 
-    :param sql: SQL query to execute against the Vertia database
+    :param sql: SQL query to execute against the Vertia database. (templated)
     :type sql: str
     :param hive_table: target Hive table, use dot notation to target a
-        specific database
+        specific database. (templated)
     :type hive_table: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
     :param recreate: whether to drop and recreate the table at every execution
     :type recreate: bool
-    :param partition: target partition as a dict of partition columns and values
+    :param partition: target partition as a dict of partition columns
+        and values. (templated)
     :type partition: dict
     :param delimiter: field delimiter in the file
     :type delimiter: str
@@ -88,7 +94,9 @@ class VerticaToHiveTransfer(BaseOperator):
     @classmethod
     def type_map(cls, vertica_type):
         # vertica-python datatype.py donot provied the full type mapping access.
-        # Manual hack. Reference: https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
+        # Manual hack.
+        # Reference:
+        # https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
         d = {
             5: 'BOOLEAN',
             6: 'INT',
@@ -114,7 +122,8 @@ class VerticaToHiveTransfer(BaseOperator):
             for field in cursor.description:
                 col_count += 1
                 col_position = "Column{position}".format(position=col_count)
-                field_dict[col_position if field[0] == '' else field[0]] = self.type_map(field[1])
+                field_dict[col_position if field[0] == '' else field[0]] = \
+                    self.type_map(field[1])
             csv_writer.writerows(cursor.iterate())
             f.flush()
             cursor.close()

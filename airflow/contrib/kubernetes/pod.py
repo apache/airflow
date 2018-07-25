@@ -43,15 +43,19 @@ class Pod:
     Represents a kubernetes pod and manages execution of a single pod.
     :param image: The docker image
     :type image: str
-    :param env: A dict containing the environment variables
-    :type env: dict
+    :param envs: A dict containing the environment variables
+    :type envs: dict
     :param cmds: The command to be run on the pod
-    :type cmd: list str
+    :type cmds: list str
     :param secrets: Secrets to be launched to the pod
     :type secrets: list Secret
     :param result: The result that will be returned to the operator after
                    successful execution of the pod
     :type result: any
+    :param image_pull_policy: Specify a policy to cache or always pull an image
+    :type image_pull_policy: str
+    :param affinity: A dict containing a group of affinity scheduling rules
+    :type affinity: dict
     """
     def __init__(
             self,
@@ -67,11 +71,13 @@ class Pod:
             volume_mounts=None,
             namespace='default',
             result=None,
-            image_pull_policy="IfNotPresent",
+            image_pull_policy='IfNotPresent',
             image_pull_secrets=None,
             init_containers=None,
             service_account_name=None,
-            resources=None
+            resources=None,
+            annotations=None,
+            affinity=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -83,10 +89,12 @@ class Pod:
         self.name = name
         self.volumes = volumes or []
         self.volume_mounts = volume_mounts or []
-        self.node_selectors = node_selectors or []
+        self.node_selectors = node_selectors or {}
         self.namespace = namespace
         self.image_pull_policy = image_pull_policy
         self.image_pull_secrets = image_pull_secrets
         self.init_containers = init_containers
         self.service_account_name = service_account_name
         self.resources = resources or Resources()
+        self.annotations = annotations or {}
+        self.affinity = affinity or {}

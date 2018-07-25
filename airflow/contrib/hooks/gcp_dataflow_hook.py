@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import json
+import re
 import select
 import subprocess
 import time
@@ -22,20 +28,26 @@ from apiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+# This is the default location
+# https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+DEFAULT_DATAFLOW_LOCATION = 'us-central1'
+
 
 class _DataflowJob(LoggingMixin):
-    def __init__(self, dataflow, project_number, name, poll_sleep=10):
+    def __init__(self, dataflow, project_number, name, location, poll_sleep=10):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
+        self._job_location = location
         self._job_id = None
         self._job = self._get_job()
         self._poll_sleep = poll_sleep
 
     def _get_job_id_from_name(self):
-        jobs = self._dataflow.projects().jobs().list(
-            projectId=self._project_number
-        ).execute()
+        jobs = self._dataflow.projects().locations().jobs().list(
+            projectId=self._project_number,
+            location=self._job_location
+        ).execute(num_retries=5)
         for job in jobs['jobs']:
             if job['name'] == self._job_name:
                 self._job_id = job['id']
@@ -43,26 +55,34 @@ class _DataflowJob(LoggingMixin):
         return None
 
     def _get_job(self):
-        if self._job_id is None:
+        if self._job_name:
             job = self._get_job_id_from_name()
         else:
-            job = self._dataflow.projects().jobs().get(projectId=self._project_number,
-                                                       jobId=self._job_id).execute()
-        if 'currentState' in job:
+            job = self._dataflow.projects().jobs().get(
+                projectId=self._project_number,
+                jobId=self._job_id
+            ).execute(num_retries=5)
+
+        if job and 'currentState' in job:
             self.log.info(
                 'Google Cloud DataFlow job %s is %s',
                 job['name'], job['currentState']
             )
-        else:
+        elif job:
             self.log.info(
                 'Google Cloud DataFlow with job_id %s has name %s',
                 self._job_id, job['name']
             )
+        else:
+            self.log.info(
+                'Google Cloud DataFlow job not available yet..'
+            )
+
         return job
 
     def wait_for_done(self):
         while True:
-            if 'currentState' in self._job:
+            if self._job and 'currentState' in self._job:
                 if 'JOB_STATE_DONE' == self._job['currentState']:
                     return True
                 elif 'JOB_STATE_RUNNING' == self._job['currentState'] and \
@@ -106,9 +126,9 @@ class _Dataflow(LoggingMixin):
         if fd == self._proc.stderr.fileno():
             lines = self._proc.stderr.readlines()
             for line in lines:
-              self.log.warning(line[:-1])
-            line = lines[-1][:-1]
-            return line
+                self.log.warning(line[:-1])
+            if lines:
+                return lines[-1]
         if fd == self._proc.stdout.fileno():
             line = self._proc.stdout.readline()
             return line
@@ -127,7 +147,8 @@ class _Dataflow(LoggingMixin):
             if ret is not None:
                 for fd in ret[0]:
                     line = self._line(fd)
-                    self.log.debug(line[:-1])
+                    if line:
+                        self.log.debug(line[:-1])
             else:
                 self.log.info("Waiting for DataFlow process to complete.")
         if self._proc.returncode is not 0:
@@ -146,30 +167,37 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def get_conn(self):
         """
-        Returns a Google Cloud Storage service object.
+        Returns a Google Cloud Dataflow service object.
         """
         http_authorized = self._authorize()
-        return build('dataflow', 'v1b3', http=http_authorized)
+        return build(
+            'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
     def _start_dataflow(self, task_id, variables, name,
                         command_prefix, label_formatter):
+        variables = self._set_variables(variables)
         cmd = command_prefix + self._build_cmd(task_id, variables,
                                                label_formatter)
         _Dataflow(cmd).wait_for_done()
-        _DataflowJob(self.get_conn(), variables['project'],
-                     name, self.poll_sleep).wait_for_done()
+        _DataflowJob(self.get_conn(), variables['project'], name,
+                     variables['region'], self.poll_sleep).wait_for_done()
+
+    @staticmethod
+    def _set_variables(variables):
+        if variables['project'] is None:
+            raise Exception('Project not specified')
+        if 'region' not in variables.keys():
+            variables['region'] = DEFAULT_DATAFLOW_LOCATION
+        return variables
 
     def start_java_dataflow(self, task_id, variables, dataflow, job_class=None,
                             append_job_name=True):
-        if append_job_name:
-            name = task_id + "-" + str(uuid.uuid1())[:8]
-        else:
-            name = task_id
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         variables['jobName'] = name
 
         def label_formatter(labels_dict):
             return ['--labels={}'.format(
-                    json.dumps(labels_dict).replace(' ', ''))]
+                json.dumps(labels_dict).replace(' ', ''))]
         command_prefix = (["java", "-cp", dataflow, job_class] if job_class
                           else ["java", "-jar", dataflow])
         self._start_dataflow(task_id, variables, name,
@@ -177,20 +205,14 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def start_template_dataflow(self, task_id, variables, parameters, dataflow_template,
                                 append_job_name=True):
-        if append_job_name:
-            name = task_id + "-" + str(uuid.uuid1())[:8]
-        else:
-            name = task_id
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         self._start_template_dataflow(
             name, variables, parameters, dataflow_template)
 
     def start_python_dataflow(self, task_id, variables, dataflow, py_options,
                               append_job_name=True):
-        if append_job_name:
-            name = task_id + "-" + str(uuid.uuid1())[:8]
-        else:
-            name = task_id
-        variables["job_name"] = name
+        name = self._build_dataflow_job_name(task_id, append_job_name)
+        variables['job_name'] = name
 
         def label_formatter(labels_dict):
             return ['--labels={}={}'.format(key, value)
@@ -198,6 +220,23 @@ class DataFlowHook(GoogleCloudBaseHook):
         self._start_dataflow(task_id, variables, name,
                              ["python"] + py_options + [dataflow],
                              label_formatter)
+
+    @staticmethod
+    def _build_dataflow_job_name(task_id, append_job_name=True):
+        task_id = str(task_id).replace('_', '-')
+
+        assert re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", task_id), \
+            'Invalid job_name ({}); the name must consist of ' \
+            'only the characters [-a-z0-9], starting with a ' \
+            'letter and ending with a letter or number '.format(
+                task_id)
+
+        if append_job_name:
+            job_name = task_id + "-" + str(uuid.uuid1())[:8]
+        else:
+            job_name = task_id
+
+        return job_name
 
     def _build_cmd(self, task_id, variables, label_formatter):
         command = ["--runner=DataflowRunner"]
@@ -223,13 +262,11 @@ class DataFlowHook(GoogleCloudBaseHook):
                 "parameters": parameters,
                 "environment": environment}
         service = self.get_conn()
-        if variables['project'] is None:
-            raise Exception(
-                'Project not specified')
         request = service.projects().templates().launch(projectId=variables['project'],
                                                         gcsPath=dataflow_template,
                                                         body=body)
         response = request.execute()
-        _DataflowJob(
-            self.get_conn(), variables['project'], name, self.poll_sleep).wait_for_done()
+        variables = self._set_variables(variables)
+        _DataflowJob(self.get_conn(), variables['project'], name, variables['region'],
+                     self.poll_sleep).wait_for_done()
         return response

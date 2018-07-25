@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import unittest
@@ -86,6 +91,7 @@ class DataFlowHookTest(unittest.TestCase):
             task_id=TASK_ID, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
         EXPECTED_CMD = ['python', '-m', PY_FILE,
+                        '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
                         '--staging_location=gs://test/staging',
@@ -109,6 +115,7 @@ class DataFlowHookTest(unittest.TestCase):
             task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE)
         EXPECTED_CMD = ['java', '-jar', JAR_FILE,
+                        '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
@@ -132,6 +139,7 @@ class DataFlowHookTest(unittest.TestCase):
             task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE, job_class=JOB_CLASS)
         EXPECTED_CMD = ['java', '-cp', JAR_FILE, JOB_CLASS,
+                        '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
@@ -163,6 +171,73 @@ class DataFlowHookTest(unittest.TestCase):
       mock_logging.info.assert_called_with('Running command: %s', 'test cmd')
       self.assertRaises(Exception, dataflow.wait_for_done)
       mock_logging.warning.assert_has_calls([call('test'), call('error')])
+
+    def test_valid_dataflow_job_name(self):
+        job_name = self.dataflow_hook._build_dataflow_job_name(
+            task_id=TASK_ID, append_job_name=False
+        )
+
+        self.assertEquals(job_name, TASK_ID)
+
+    def test_fix_underscore_in_task_id(self):
+        task_id_with_underscore = 'test_example'
+        fixed_job_name = task_id_with_underscore.replace(
+            '_', '-'
+        )
+        job_name = self.dataflow_hook._build_dataflow_job_name(
+            task_id=task_id_with_underscore, append_job_name=False
+        )
+
+        self.assertEquals(job_name, fixed_job_name)
+
+    def test_invalid_dataflow_job_name(self):
+        invalid_job_name = '9test_invalid_name'
+        fixed_name = invalid_job_name.replace(
+            '_', '-')
+
+        with self.assertRaises(AssertionError) as e:
+            self.dataflow_hook._build_dataflow_job_name(
+                task_id=invalid_job_name, append_job_name=False
+            )
+        #   Test whether the job_name is present in the Error msg
+        self.assertIn('Invalid job_name ({})'.format(fixed_name),
+                      str(e.exception))
+
+    def test_dataflow_job_regex_check(self):
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='df-job-1', append_job_name=False
+        ), 'df-job-1')
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='df-job', append_job_name=False
+        ), 'df-job')
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='dfjob', append_job_name=False
+        ), 'dfjob')
+
+        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+            task_id='dfjob1', append_job_name=False
+        ), 'dfjob1')
+
+        self.assertRaises(
+            AssertionError,
+            self.dataflow_hook._build_dataflow_job_name,
+            task_id='1dfjob', append_job_name=False
+        )
+
+        self.assertRaises(
+            AssertionError,
+            self.dataflow_hook._build_dataflow_job_name,
+            task_id='dfjob@', append_job_name=False
+        )
+
+        self.assertRaises(
+            AssertionError,
+            self.dataflow_hook._build_dataflow_job_name,
+            task_id='df^jo', append_job_name=False
+        )
 
 
 class DataFlowTemplateHookTest(unittest.TestCase):

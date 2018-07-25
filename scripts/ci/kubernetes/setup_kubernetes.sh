@@ -24,5 +24,7 @@ echo "For development, start minikube yourself (ie: minikube start) then run thi
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
 $DIRNAME/minikube/start_minikube.sh
+$DIRNAME/docker/build.sh
+$DIRNAME/kube/deploy.sh
 
 echo "Airflow environment on kubernetes is good to go!"

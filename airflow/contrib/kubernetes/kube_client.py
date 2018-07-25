@@ -14,18 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.configuration import conf
+from six import PY2
 
 
-def _load_kube_config(in_cluster):
+def _load_kube_config(in_cluster, cluster_context, config_file):
     from kubernetes import config, client
     if in_cluster:
         config.load_incluster_config()
-        return client.CoreV1Api()
     else:
-        config.load_kube_config()
-        return client.CoreV1Api()
+        config.load_kube_config(config_file=config_file, context=cluster_context)
+    if PY2:
+        # For connect_get_namespaced_pod_exec
+        from kubernetes.client import Configuration
+        configuration = Configuration()
+        configuration.assert_hostname = False
+        Configuration.set_default(configuration)
+    return client.CoreV1Api()
 
 
-def get_kube_client(in_cluster=True):
-    # TODO: This should also allow people to point to a cluster.
-    return _load_kube_config(in_cluster)
+def get_kube_client(in_cluster=conf.getboolean('kubernetes', 'in_cluster'),
+                    cluster_context=None,
+                    config_file=None):
+    return _load_kube_config(in_cluster, cluster_context, config_file)

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import six
@@ -19,6 +24,10 @@ import time
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.models import BaseOperator
+
+
+XCOM_RUN_ID_KEY = 'run_id'
+XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
@@ -79,8 +88,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
-        take precedence and override the top level json keys. This field will be
-        templated.
+        take precedence and override the top level json keys. (templated)
 
         .. seealso::
             For more information about templating see :ref:`jinja-templating`.
@@ -138,6 +146,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
+    :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
+    :type do_xcom_push: boolean
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
@@ -158,6 +168,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             databricks_conn_id='databricks_default',
             polling_period_seconds=30,
             databricks_retry_limit=3,
+            do_xcom_push=False,
             **kwargs):
         """
         Creates a new ``DatabricksSubmitRunOperator``.
@@ -187,19 +198,21 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.json = self._deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id = None
+        self.do_xcom_push = do_xcom_push
 
     def _deep_string_coerce(self, content, json_path='json'):
         """
         Coerces content or all values of content if it is a dict to a string. The
         function will throw if content contains non-string or non-numeric types.
 
-        The reason why we have this function is because the ``self.json`` field must be a dict
-        with only string values. This is because ``render_template`` will fail for numerical values.
+        The reason why we have this function is because the ``self.json`` field must be a
+         dict with only string values. This is because ``render_template`` will fail
+        for numerical values.
         """
         c = self._deep_string_coerce
         if isinstance(content, six.string_types):
             return content
-        elif isinstance(content, six.integer_types+(float,)):
+        elif isinstance(content, six.integer_types + (float,)):
             # Databricks can tolerate either numeric or string types in the API backend.
             return str(content)
         elif isinstance(content, (list, tuple)):
@@ -209,8 +222,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
                     for k, v in list(content.items())}
         else:
             param_type = type(content)
-            msg = 'Type {0} used for parameter {1} is not a number or a string' \
-                    .format(param_type, json_path)
+            msg = 'Type {0} used for parameter {1} is not a number or a string'\
+                .format(param_type, json_path)
             raise AirflowException(msg)
 
     def _log_run_page_url(self, url):
@@ -224,8 +237,12 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def execute(self, context):
         hook = self.get_hook()
         self.run_id = hook.submit_run(self.json)
-        run_page_url = hook.get_run_page_url(self.run_id)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
         self.log.info('Run submitted with run_id: %s', self.run_id)
+        run_page_url = hook.get_run_page_url(self.run_id)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
         self._log_run_page_url(run_page_url)
         while True:
             run_state = hook.get_run_state(self.run_id)

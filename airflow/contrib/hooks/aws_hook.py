@@ -1,20 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 
 import boto3
 import configparser
+import logging
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -95,13 +101,16 @@ class AwsHook(BaseHook):
                     aws_secret_access_key = connection_object.password
 
                 elif 'aws_secret_access_key' in connection_object.extra_dejson:
-                    aws_access_key_id = connection_object.extra_dejson['aws_access_key_id']
-                    aws_secret_access_key = connection_object.extra_dejson['aws_secret_access_key']
+                    aws_access_key_id = connection_object.extra_dejson[
+                        'aws_access_key_id']
+                    aws_secret_access_key = connection_object.extra_dejson[
+                        'aws_secret_access_key']
 
                 elif 's3_config_file' in connection_object.extra_dejson:
                     aws_access_key_id, aws_secret_access_key = \
-                        _parse_s3_config(connection_object.extra_dejson['s3_config_file'],
-                                         connection_object.extra_dejson.get('s3_config_format'))
+                        _parse_s3_config(
+                            connection_object.extra_dejson['s3_config_file'],
+                            connection_object.extra_dejson.get('s3_config_format'))
 
                 if region_name is None:
                     region_name = connection_object.extra_dejson.get('region_name')
@@ -112,7 +121,6 @@ class AwsHook(BaseHook):
 
                 if role_arn is None and aws_account_id is not None and \
                         aws_iam_role is not None:
-
                     role_arn = "arn:aws:iam::" + aws_account_id + ":role/" + aws_iam_role
 
                 if role_arn is not None:
@@ -151,3 +159,19 @@ class AwsHook(BaseHook):
         session, endpoint_url = self._get_credentials(region_name)
 
         return session.resource(resource_type, endpoint_url=endpoint_url)
+
+    def get_session(self, region_name=None):
+        """Get the underlying boto3.session."""
+        session, _ = self._get_credentials(region_name)
+        return session
+
+    def get_credentials(self, region_name=None):
+        """Get the underlying `botocore.Credentials` object.
+
+        This contains the attributes: access_key, secret_key and token.
+        """
+        session, _ = self._get_credentials(region_name)
+        # Credentials are refreshable, so accessing your access key / secret key
+        # separately can lead to a race condition.
+        # See https://stackoverflow.com/a/36291428/8283373
+        return session.get_credentials().get_frozen_credentials()
