@@ -141,7 +141,7 @@ class KubeConfig:
         # which means we are allow to "skip" the volumes and git repo syncing
         self.dags_in_worker_container = conf.getboolean(
             self.kubernetes_section, 'worker_container_contains_dags')
-        
+
         # path inside the worker container for the dags
         self.dag_path_in_worker_container = conf.get(
             self.kubernetes_section, 'worker_container_dag_path')
@@ -606,8 +606,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.task_queue.put((key, command, kube_executor_config))
 
     def sync(self):
-        if self.running:
-            self.log.info('self.running: %s', self.running)
+        # way too verbose
+        #if self.running:
+        #    self.log.info('self.running: %s', self.running)
         if self.queued_tasks:
             self.log.info('self.queued: %s', self.queued_tasks)
         self.kube_scheduler.sync()
