@@ -172,8 +172,8 @@ def configure_orm(disable_connection_pool=False):
         except conf.AirflowConfigException:
             pool_recycle = 1800
 
-        log.info("setting.configure_orm(): Using pool settings. pool_size={}, "
-                 "pool_recycle={}".format(pool_size, pool_recycle))
+        log.debug("setting.configure_orm(): Using pool settings. pool_size={}, "
+                  "pool_recycle={}".format(pool_size, pool_recycle))
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
 
