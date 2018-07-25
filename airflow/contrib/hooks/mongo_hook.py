@@ -37,6 +37,13 @@ class MongoHook(BaseHook):
         self.extras = self.connection.extra_dejson
         self.client = None
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.client is not None:
+            self.close_conn()
+
     def get_conn(self):
         """
         Fetches PyMongo Client
@@ -66,6 +73,12 @@ class MongoHook(BaseHook):
         self.client = MongoClient(uri, **options)
 
         return self.client
+
+    def close_conn(self):
+        client = self.client
+        if client is not None:
+            client.close()
+            self.client = None
 
     def get_collection(self, mongo_collection, mongo_db=None):
         """
