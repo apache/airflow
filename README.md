@@ -157,6 +157,7 @@ Currently **officially** using Airflow:
 1. [HBO](http://www.hbo.com/)[[@yiwang](https://github.com/yiwang)]
 1. [Healthjump](http://www.healthjump.com/) [[@miscbits](https://github.com/miscbits)]
 1. [HelloFresh](https://www.hellofresh.com) [[@tammymendt](https://github.com/tammymendt) & [@davidsbatista](https://github.com/davidsbatista) & [@iuriinedostup](https://github.com/iuriinedostup)]
+1. [Hipages](https://www.hipages.com.au/) [[@arihantsurana](https://github.com/arihantsurana)]
 1. [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
 1. [Hootsuite](https://github.com/hootsuite)
 1. [Hostnfly](https://www.hostnfly.com/) [[@CyrilLeMat](https://github.com/CyrilLeMat) & [@pierrechopin](https://github.com/pierrechopin) & [@alexisrosuel](https://github.com/alexisrosuel)]
