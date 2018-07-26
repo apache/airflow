@@ -116,6 +116,7 @@ class AwsHook(BaseHook):
                     region_name = connection_object.extra_dejson.get('region_name')
 
                 role_arn = connection_object.extra_dejson.get('role_arn')
+                external_id = connection_object.extra_dejson.get('external_id')
                 aws_account_id = connection_object.extra_dejson.get('aws_account_id')
                 aws_iam_role = connection_object.extra_dejson.get('aws_iam_role')
 
@@ -130,9 +131,17 @@ class AwsHook(BaseHook):
                         region_name=region_name)
 
                     sts_client = sts_session.client('sts')
-                    sts_response = sts_client.assume_role(
-                        RoleArn=role_arn,
-                        RoleSessionName='Airflow_' + self.aws_conn_id)
+
+                    if external_id is None:
+                        sts_response = sts_client.assume_role(
+                            RoleArn=role_arn,
+                            RoleSessionName='Airflow_' + self.aws_conn_id)
+                    else:
+                        sts_response = sts_client.assume_role(
+                            RoleArn=role_arn,
+                            RoleSessionName='Airflow_' + self.aws_conn_id,
+                            ExternalId=external_id)
+
                     aws_access_key_id = sts_response['Credentials']['AccessKeyId']
                     aws_secret_access_key = sts_response['Credentials']['SecretAccessKey']
                     aws_session_token = sts_response['Credentials']['SessionToken']
