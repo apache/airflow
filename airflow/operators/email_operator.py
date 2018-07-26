@@ -60,7 +60,7 @@ class EmailOperator(BaseOperator):
             cc=None,
             bcc=None,
             mime_subtype='mixed',
-            mime_charset='us_ascii',
+            mime_charset='utf-8',
             *args, **kwargs):
         super(EmailOperator, self).__init__(*args, **kwargs)
         self.to = to
