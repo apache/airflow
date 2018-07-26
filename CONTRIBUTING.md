@@ -360,3 +360,19 @@ npm run dev
 Should you add or upgrade a npm package, which involves changing `package.json`, you'll need to re-run `npm install` 
 and push the newly generated `package-lock.json` file so we get the reproducible build.
 
+#### Javascript Style Guide
+
+We try to enforce a more consistent style and try to follow the JS community guidelines. 
+Once you add or modify any javascript code in the project, please make sure it follows the guidelines 
+defined in [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript).
+Apache Airflow uses [ESLint](https://eslint.org/) as a tool for identifying and reporting on patterns in JavaScript,
+which can be used by running any of the following commands.
+
+```bash
+# Check JS code in .js and .html files, and report any errors/warnings
+npm run lint
+
+# Check JS code in .js and .html files, report any errors/warnings and fix them if possible 
+npm run lint:fix
+```
+ 

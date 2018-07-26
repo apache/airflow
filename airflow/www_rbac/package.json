@@ -4,7 +4,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "NODE_ENV=dev webpack --watch --colors --progress --debug --output-pathinfo --devtool eval-cheap-source-map --mode development",
     "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js -p --colors --progress",
-    "build": "NODE_ENV=production webpack --colors --progress"
+    "build": "NODE_ENV=production webpack --colors --progress",
+    "lint": "eslint --ignore-path=.eslintignore --ext .js,.html .",
+    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.html ."
   },
   "author": "Apache",
   "license": "Apache-2.0",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "babel": "^6.23.0",
     "babel-core": "^6.26.3",
+    "babel-eslint": "^8.2.6",
     "babel-istanbul": "^0.12.2",
     "babel-loader": "^7.1.4",
     "babel-plugin-css-modules-transform": "^1.6.1",
@@ -33,6 +36,13 @@
     "clean-webpack-plugin": "^0.1.19",
     "copy-webpack-plugin": "^4.5.2",
     "css-loader": "^0.28.11",
+    "eslint": "^4.19.1",
+    "eslint-config-airbnb-base": "^13.0.0",
+    "eslint-plugin-html": "^4.0.5",
+    "eslint-plugin-import": "^2.13.0",
+    "eslint-plugin-node": "^7.0.1",
+    "eslint-plugin-promise": "^3.8.0",
+    "eslint-plugin-standard": "^3.1.0",
     "file-loader": "^1.1.11",
     "imports-loader": "^0.8.0",
     "mini-css-extract-plugin": "^0.4.1",
