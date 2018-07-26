@@ -1825,7 +1825,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.state = State.UP_FOR_RETRY
                 self.log.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
-                    self.email_alert(error, is_retry=True)
+                    self.email_alert(error)
             else:
                 self.state = State.FAILED
                 if task.retries:
@@ -1833,7 +1833,7 @@ class TaskInstance(Base, LoggingMixin):
                 else:
                     self.log.info('Marking task as FAILED.')
                 if task.email_on_failure and task.email:
-                    self.email_alert(error, is_retry=False)
+                    self.email_alert(error)
         except Exception as e2:
             self.log.error('Failed to send email to: %s', task.email)
             self.log.exception(e2)
@@ -2013,7 +2013,7 @@ class TaskInstance(Base, LoggingMixin):
                 rendered_content = rt(attr, content, jinja_context)
                 setattr(task, attr, rendered_content)
 
-    def email_alert(self, exception, is_retry=False):
+    def email_alert(self, exception):
         task = self.task
         title = "Airflow alert: {self}".format(**locals())
         exception = str(exception).replace('\n', '<br>')
