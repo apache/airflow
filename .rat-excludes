@@ -3,6 +3,8 @@
 .coverage
 .coveragerc
 .codecov.yml
+.eslintrc
+.eslintignore
 .rat-excludes
 requirements.txt
 .*log
