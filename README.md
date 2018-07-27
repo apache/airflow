@@ -231,6 +231,7 @@ Currently **officially** using Airflow:
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
 1. [Stackspace](https://beta.stackspace.io/)
 1. [Stripe](https://stripe.com) [[@jbalogh](https://github.com/jbalogh)]
+1. [Strongmind](https://www.strongmind.com) [[@tomchapin](https://github.com/tomchapin) & [@wongstein](https://github.com/wongstein)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
