@@ -166,9 +166,8 @@ class HdfsSensorFolderTests(unittest.TestCase):
             {"kind": "directory", "name": "/nested/a", "size": 0}
         ]
 
-        self._mock_client, self._mock_params = MockHdfs3Client.from_file_details(
-            file_details, test_instance=self
-        )
+        self._mock_client, self._mock_params = \
+            MockHdfs3Client.from_file_details(file_details, test_instance=self)
 
         self._default_task_kws = {
             "timeout": 1,

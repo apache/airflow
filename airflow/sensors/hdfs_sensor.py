@@ -24,7 +24,7 @@ from airflow import settings
 from airflow.hooks.hdfs_hook import HdfsHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.deprecation import deprecated_args, deprecated, RenamedClass
+from airflow.utils.deprecation import deprecated_args, RenamedClass
 
 
 class HdfsFileSensor(BaseSensorOperator):
@@ -35,7 +35,7 @@ class HdfsFileSensor(BaseSensorOperator):
 
     @deprecated_args(
         renamed={
-            "filepath": "file_pattern",
+            "filepath": "pattern",
             "hdfs_conn_id": "conn_id",
             "file_size": "min_size",
             "ignored_ext": "ignore_exts",
@@ -67,38 +67,6 @@ class HdfsFileSensor(BaseSensorOperator):
 
         self._min_size = min_size
         self._ignore_exts = set(ignore_exts)
-
-    @property
-    def pattern(self):
-        """File pattern (glob) that the sensor matches against."""
-        return self._pattern
-
-    @property
-    def conn_id(self):
-        """ID of connection used by the sensor."""
-        return self._conn_id
-
-    # Deprecated properties that exist for backwards compatibility.
-
-    @property
-    @deprecated(new_name="file_pattern")
-    def filepath(self):
-        return self._pattern
-
-    @property
-    @deprecated(new_name="conn_id")
-    def hdfs_conn_id(self):
-        return self._conn_id
-
-    @property
-    @deprecated()
-    def min_size(self):
-        return self._min_size
-
-    @property
-    @deprecated()
-    def ignored_ext(self):
-        return self._ignore_exts
 
     @classmethod
     def _default_filters(cls, min_size=None, ignore_exts=None):
@@ -152,6 +120,14 @@ class HdfsFolderSensor(BaseSensorOperator):
     template_fields = ("_pattern",)
     ui_color = settings.WEB_COLORS["LIGHTBLUE"]
 
+    @deprecated_args(
+        renamed={
+            "filepath": "pattern",
+            "hdfs_conn_id": "conn_id",
+            "be_empty": "require_empty"
+        },
+        dropped=["ignored_ext", "min_size"]
+    )
     def __init__(
         self,
         pattern,

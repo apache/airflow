@@ -21,12 +21,13 @@ from functools import partial
 import posixpath
 
 from airflow.sensors import hdfs_sensor
-from airflow.utils.deprecation import RenamedClass
+from airflow.utils.deprecation import RenamedClass, deprecated_args
 
 
 class HdfsRegexFileSensor(hdfs_sensor.HdfsFileSensor):
     """HdfsSensor subclass that filters using a specific regex."""
 
+    @deprecated_args(renamed={"filepath": "pattern"})
     def __init__(self, pattern, regex, **kwargs):
         if not self._is_pattern(pattern):
             # If file path is not a pattern, we assume it is a directory
