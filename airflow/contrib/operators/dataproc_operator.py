@@ -1265,7 +1265,7 @@ class DataprocWorkflowTemplateBaseOperator(BaseOperator):
         )
 
     def execute(self, context):
-        self.hook.await(self.start())
+        self.hook.wait(self.start())
 
     def start(self, context):
         raise AirflowException('plese start a workflow operation')

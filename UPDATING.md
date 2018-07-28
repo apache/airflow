@@ -5,6 +5,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Replace DataProcHook.await calls to DataProcHook.wait
+
+The method name was changed to be compatible with the Python 3.7 async/await keywords
+
 ### DAG level Access Control for new RBAC UI
 
 Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
