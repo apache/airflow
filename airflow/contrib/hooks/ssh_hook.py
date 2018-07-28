@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2012-2015 Spotify AB
-# Ported to Airflow by Bolke de Bruin
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
