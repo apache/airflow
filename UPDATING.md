@@ -5,6 +5,20 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Replace DataProcHook.await calls to DataProcHook.wait
+
+The method name was changed to be compatible with the Python 3.7 async/await keywords
+
+### DAG level Access Control for new RBAC UI
+
+Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
+The admin will create new role, associate the dag permission with the target dag and assign that role to users. That user can only access / view the certain dags on the UI
+that he has permissions on. If a new role wants to access all the dags, the admin could associate dag permissions on an artificial view(``all_dags``) with that role.
+
+We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
+
+### Setting UTF-8 as default mime_charset in email utils
+
 ### Add a configuration variable(default_dag_run_display_number) to control numbers of dag run for display
 Add a configuration variable(default_dag_run_display_number) under webserver section to control num of dag run to show in UI.
 
