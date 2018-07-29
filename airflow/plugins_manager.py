@@ -76,7 +76,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
                 continue
             mod_name, file_ext = os.path.splitext(
                 os.path.split(filepath)[-1])
-            if file_ext != '.py':
+            if file_ext.lower() != '.py':
                 continue
 
             log.debug('Importing plugin module %s', filepath)
