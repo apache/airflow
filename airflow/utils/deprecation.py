@@ -41,6 +41,9 @@ def deprecated_args(renamed=None, dropped=None):
         in the new function/method.
     """
 
+    renamed = renamed or {}
+    dropped = dropped or set()
+
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
