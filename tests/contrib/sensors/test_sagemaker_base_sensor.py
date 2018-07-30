@@ -30,8 +30,11 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
     def test_subclasses_succeed_when_response_is_good(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
+            def non_terminal_states(self):
+                return ['PENDING', 'RUNNING', 'CONTINUE']
+
+            def failed_states(self):
+                return ['FAILED']
 
             def get_sagemaker_response(self):
                 return {
@@ -52,8 +55,11 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
     def test_poke_returns_false_when_state_is_a_non_terminal_state(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
+            def non_terminal_states(self):
+                return ['PENDING', 'RUNNING', 'CONTINUE']
+
+            def failed_states(self):
+                return ['FAILED']
 
             def get_sagemaker_response(self):
                 return {
@@ -74,8 +80,11 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
     def test_poke_raise_exception_when_method_not_implemented(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
+            def non_terminal_states(self):
+                return ['PENDING', 'RUNNING', 'CONTINUE']
+
+            def failed_states(self):
+                return ['FAILED']
 
         sensor = SageMakerBaseSensorSubclass(
             task_id='test_task',
@@ -87,8 +96,11 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
     def test_poke_returns_false_when_http_response_is_bad(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
+            def non_terminal_states(self):
+                return ['PENDING', 'RUNNING', 'CONTINUE']
+
+            def failed_states(self):
+                return ['FAILED']
 
             def get_sagemaker_response(self):
                 return {
@@ -109,8 +121,11 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
     def test_poke_raises_error_when_job_has_failed(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
+            def non_terminal_states(self):
+                return ['PENDING', 'RUNNING', 'CONTINUE']
+
+            def failed_states(self):
+                return ['FAILED']
 
             def get_sagemaker_response(self):
                 return {

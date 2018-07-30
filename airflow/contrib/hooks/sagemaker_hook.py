@@ -26,7 +26,7 @@ from airflow.hooks.S3_hook import S3Hook
 class SageMakerHook(AwsHook):
     """
     Interact with Amazon SageMaker.
-    sagemaker_conn_is is required for using
+    sagemaker_conn_id is required for using
     the config stored in db for training/tuning
     """
 
@@ -35,10 +35,10 @@ class SageMakerHook(AwsHook):
                  use_db_config=False,
                  region_name=None,
                  *args, **kwargs):
+        super(SageMakerHook, self).__init__(*args, **kwargs)
         self.sagemaker_conn_id = sagemaker_conn_id
         self.use_db_config = use_db_config
         self.region_name = region_name
-        super(SageMakerHook, self).__init__(*args, **kwargs)
         self.conn = self.get_conn()
 
     def check_for_url(self, s3url):

@@ -31,8 +31,6 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     :type job_name: string
     """
 
-    NON_TERMINAL_STATES = ['InProgress', 'Stopping', 'Stopped']
-    FAILED_STATE = ['Failed']
     template_fields = ['job_name']
     template_ext = ()
 
@@ -46,6 +44,12 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.job_name = job_name
         self.region_name = region_name
 
+    def non_terminal_states(self):
+        return ['InProgress', 'Stopping', 'Stopped']
+
+    def failed_states(self):
+        return ['Failed']
+
     def get_sagemaker_response(self):
         sagemaker = SageMakerHook(
             aws_conn_id=self.aws_conn_id,
@@ -54,6 +58,9 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
 
         self.log.info('Poking Sagemaker Training Job %s', self.job_name)
         return sagemaker.describe_training_job(self.job_name)
+
+    def get_failed_reason_from_response(self, response):
+        return response['FailureReason']
 
     def state_from_response(self, response):
         return response['TrainingJobStatus']

@@ -49,7 +49,8 @@ DESCRIBE_TRAINING_FAILED_RETURN = {
     'TrainingJobStatus': 'Failed',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
-    }
+    },
+    'FailureReason': 'Unknown'
 }
 DESCRIBE_TRAINING_STOPPING_RETURN = {
     'TrainingJobStatus': 'Stopping',

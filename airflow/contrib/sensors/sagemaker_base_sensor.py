@@ -24,8 +24,9 @@ from airflow.exceptions import AirflowException
 class SageMakerBaseSensor(BaseSensorOperator):
     """
     Contains general sensor behavior for SageMaker.
-    Subclasses should implement get_emr_response() and state_from_response() methods.
-    Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE constants.
+    Subclasses should implement get_sagemaker_response()
+    and state_from_response() methods.
+    Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE methods.
     """
     ui_color = '#66c3ff'
 
@@ -38,26 +39,38 @@ class SageMakerBaseSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
 
     def poke(self, context):
-        try:
-            response = self.get_sagemaker_response()
-        except AttributeError:
-            raise AirflowException(
-                "Method get_sagemaker_response()not implemented.")
+        response = self.get_sagemaker_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             self.log.info('Bad HTTP response: %s', response)
             return False
-        try:
-            state = self.state_from_response(response)
-        except ValueError:
-            raise AirflowException(
-                "Method state_from_response()not implemented.")
+
+        state = self.state_from_response(response)
 
         self.log.info('Job currently %s', state)
 
-        if state in self.NON_TERMINAL_STATES:
+        if state in self.non_terminal_states():
             return False
 
-        if state in self.FAILED_STATE:
-            raise AirflowException("Sagemaker job failed")
+        if state in self.failed_states():
+            failed_reason = self.get_failed_reason_from_response(response)
+            raise AirflowException("Sagemaker job failed for the following reason: %s"
+                                   % failed_reason)
         return True
+
+    def non_terminal_states(self):
+        raise AirflowException("Non Terminal States need to be specified in subclass")
+
+    def failed_states(self):
+        raise AirflowException("Failed States need to be specified in subclass")
+
+    def get_sagemaker_response(self):
+        raise AirflowException(
+            "Method get_sagemaker_response()not implemented.")
+
+    def get_failed_reason_from_response(self, response):
+        return 'Unknown'
+
+    def state_from_response(self, response):
+        raise AirflowException(
+            "Method state_from_response()not implemented.")
