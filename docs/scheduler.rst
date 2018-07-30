@@ -134,6 +134,8 @@ specific ``run_id``. The ``DAG Runs`` created externally to the
 scheduler get associated to the trigger's timestamp, and will be displayed
 in the UI alongside scheduled ``DAG runs``.
 
+In addition, you can also manually trigger a ``DAG Run`` using the web UI (tab "DAGs" -> column "Links" -> button "Trigger Dag").
+
 
 To Keep in Mind
 '''''''''''''''
