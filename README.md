@@ -23,6 +23,7 @@ makes it easy to visualize pipelines running in production,
 monitor progress, and troubleshoot issues when needed.
 
 ## Getting started
+
 Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.incubator.apache.org/installation.html), getting a [quick start](https://airflow.incubator.apache.org/start.html), or a more complete [tutorial](https://airflow.incubator.apache.org/tutorial.html).
 
 Documentation of GitHub master (latest development branch): [ReadTheDocs Documentation](https://airflow.readthedocs.io/en/latest/)
@@ -54,22 +55,28 @@ unit of work and continuity.
 ## User Interface
 
 - **DAGs**: Overview of all DAGs in your environment.
-![](/docs/img/dags.png)
+
+  ![](/docs/img/dags.png)
 
 - **Tree View**: Tree representation of a DAG that spans across time.
-![](/docs/img/tree.png)
+
+  ![](/docs/img/tree.png)
 
 - **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
-![](/docs/img/graph.png)
+
+  ![](/docs/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
-![](/docs/img/duration.png)
+
+  ![](/docs/img/duration.png)
 
 - **Gantt View**: Duration and overlap of a DAG.
-![](/docs/img/gantt.png)
+
+  ![](/docs/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
-![](/docs/img/code.png)
+
+  ![](/docs/img/code.png)
 
 ## Who uses Airflow?
 
@@ -79,7 +86,7 @@ if you may.
 
 Committers:
 
-* Refer to [Committers](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers)
+- Refer to [Committers](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers)
 
 Currently **officially** using Airflow:
 
@@ -130,7 +137,7 @@ Currently **officially** using Airflow:
 1. [CreditCards.com](https://www.creditcards.com/)[[@vmAggies](https://github.com/vmAggies) &  [@jay-wallaby](https://github.com/jay-wallaby)]
 1. [Creditas](https://www.creditas.com.br) [[@dcassiano](https://github.com/dcassiano)]
 1. [Custom Ink](https://www.customink.com/) [[@david-dalisay](https://github.com/david-dalisay), [@dmartin11](https://github.com/dmartin11) & [@mpeteuil](https://github.com/mpeteuil)]
-1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)] 
+1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)]
 1. [Data Reply](https://www.datareply.co.uk/) [[@kaxil](https://github.com/kaxil)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
@@ -266,8 +273,7 @@ Currently **officially** using Airflow:
 
 ## Links
 
-
-* [Documentation](https://airflow.incubator.apache.org/)
-* [Chat](https://gitter.im/apache/incubator-airflow)
-* [Apache Airflow Incubation Status](http://incubator.apache.org/projects/airflow.html)
-* [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
+- [Documentation](https://airflow.incubator.apache.org/)
+- [Chat](https://gitter.im/apache/incubator-airflow)
+- [Apache Airflow Incubation Status](http://incubator.apache.org/projects/airflow.html)
+- [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
