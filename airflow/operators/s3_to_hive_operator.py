@@ -153,7 +153,7 @@ class S3ToHiveTransfer(BaseOperator):
 
         root, file_ext = os.path.splitext(s3_key_object.key)
         if (self.select_expression and self.input_compressed and
-                file_ext != '.gz'):
+                file_ext.lower() != '.gz'):
             raise AirflowException("GZIP is the only compression " +
                                    "format Amazon S3 Select supports")
 
