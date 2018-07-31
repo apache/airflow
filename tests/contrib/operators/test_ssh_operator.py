@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -57,6 +57,23 @@ class SSHOperatorTest(unittest.TestCase):
         dag.schedule_interval = '@once'
         self.hook = hook
         self.dag = dag
+
+    def test_hook_created_correctly(self):
+        TIMEOUT = 20
+        SSH_ID = "ssh_default"
+        task = SSHOperator(
+            task_id="test",
+            command="echo -n airflow",
+            dag=self.dag,
+            timeout=TIMEOUT,
+            ssh_conn_id="ssh_default"
+        )
+        self.assertIsNotNone(task)
+
+        task.execute(None)
+
+        self.assertEquals(TIMEOUT, task.ssh_hook.timeout)
+        self.assertEquals(SSH_ID, task.ssh_hook.ssh_conn_id)
 
     def test_json_command_execution(self):
         configuration.conf.set("core", "enable_xcom_pickling", "False")
