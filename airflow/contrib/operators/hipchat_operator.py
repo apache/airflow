@@ -99,24 +99,23 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     :param card: HipChat-defined card object
     :type card: dict
     """
-    template_fields = ('token', 'room_id', 'message')
+    template_fields = ('token', 'room_id', 'message', 'message_format',
+                       'color', 'frm', 'attach_to', 'notify', 'card')
     ui_color = '#2980b9'
 
     @apply_defaults
-    def __init__(self, room_id, message, *args, **kwargs):
+    def __init__(self, room_id, message, message_format='html',
+                 color='yellow', frm='airflow', attach_to=None,
+                 notify=False, card=None, *args, **kwargs):
         super(HipChatAPISendRoomNotificationOperator, self).__init__(*args, **kwargs)
         self.room_id = room_id
         self.message = message
-        default_options = {
-            'message_format': 'html',
-            'color': 'yellow',
-            'frm': 'airflow',
-            'attach_to': None,
-            'notify': False,
-            'card': None
-        }
-        for (prop, default) in default_options.items():
-            setattr(self, prop, kwargs.get(prop, default))
+        self.message_format = message_format
+        self.color = color
+        self.frm = frm
+        self.attach_to = attach_to
+        self.notify = notify
+        self.card = card
 
     def prepare_request(self):
         params = {
