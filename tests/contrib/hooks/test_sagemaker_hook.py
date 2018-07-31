@@ -117,49 +117,49 @@ create_training_params = \
         ]
     }
 
-create_tuning_params = {'HyperParameterTuningJobName': job_name,
-                        'HyperParameterTuningJobConfig': {
-                            'Strategy': 'Bayesian',
-                            'HyperParameterTuningJobObjective': {
-                                'Type': 'Maximize',
-                                'MetricName': 'test_metric'
-                            },
-                            'ResourceLimits': {
-                                'MaxNumberOfTrainingJobs': 123,
-                                'MaxParallelTrainingJobs': 123
-                            },
-                            'ParameterRanges': {
-                                'IntegerParameterRanges': [
-                                    {
-                                        'Name': 'k',
-                                        'MinValue': '2',
-                                        'MaxValue': '10'
-                                    },
-                                ]
-                            }
-                        },
-                        'TrainingJobDefinition': {
-                            'StaticHyperParameters':
-                                create_training_params['HyperParameters'],
-                            'AlgorithmSpecification':
-                                create_training_params['AlgorithmSpecification'],
-                            'RoleArn': 'string',
-                            'InputDataConfig':
-                                create_training_params['InputDataConfig'],
-                            'OutputDataConfig':
-                                create_training_params['OutputDataConfig'],
-                            'ResourceConfig':
-                                create_training_params['ResourceConfig'],
-                            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
-                        }
-                        }
-
-db_config = {'Tags': [
+create_tuning_params = \
     {
-        'Key': 'test-db-key',
-        'Value': 'test-db-value',
-    },
-]
+        'HyperParameterTuningJobName': job_name,
+        'HyperParameterTuningJobConfig': {
+            'Strategy': 'Bayesian',
+            'HyperParameterTuningJobObjective': {
+                'Type': 'Maximize',
+                'MetricName': 'test_metric'
+            },
+            'ResourceLimits': {
+                'MaxNumberOfTrainingJobs': 123,
+                'MaxParallelTrainingJobs': 123
+            },
+            'ParameterRanges': {
+                'IntegerParameterRanges': [
+                    {
+                        'Name': 'k',
+                        'MinValue': '2',
+                        'MaxValue': '10'
+                    },
+
+                ]
+            }
+        },
+        'TrainingJobDefinition': {
+            'StaticHyperParameters': create_training_params['HyperParameters'],
+            'AlgorithmSpecification': create_training_params['AlgorithmSpecification'],
+            'RoleArn': 'string',
+            'InputDataConfig': create_training_params['InputDataConfig'],
+            'OutputDataConfig': create_training_params['OutputDataConfig'],
+            'ResourceConfig': create_training_params['ResourceConfig'],
+            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
+        }
+    }
+
+db_config = {
+    'Tags': [
+        {
+            'Key': 'test-db-key',
+            'Value': 'test-db-value',
+
+        },
+    ]
 }
 
 

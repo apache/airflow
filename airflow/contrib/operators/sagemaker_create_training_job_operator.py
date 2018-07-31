@@ -36,14 +36,14 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
        :param region_name: The AWS region_name
        :type region_name: string
        :param sagemaker_conn_id: The SageMaker connection ID to use.
-       :type aws_conn_id: string
+       :type sagemaker_conn_id: string
        :param use_db_config: Whether or not to use db config
        associated with sagemaker_conn_id.
        If set to true, will automatically update the training config
        with what's in db, so the db config doesn't need to
        included everything, but what's there does replace the ones
        in the training_job_config, so be careful
-       :type use_db_config:
+       :type use_db_config: bool
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
 
@@ -54,9 +54,9 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                SageMakerCreateTrainingJobOperator(
                    task_id='sagemaker_training',
                    training_job_config=config,
-                   use_db_config=True,
                    region_name='us-west-2'
                    sagemaker_conn_id='sagemaker_customers_conn',
+                   use_db_config=True,
                    aws_conn_id='aws_customers_conn'
                )
        """
@@ -67,10 +67,10 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sagemaker_conn_id=None,
                  training_job_config=None,
-                 use_db_config=False,
                  region_name=None,
+                 sagemaker_conn_id=None,
+                 use_db_config=False,
                  *args, **kwargs):
         super(SageMakerCreateTrainingJobOperator, self).__init__(*args, **kwargs)
 
