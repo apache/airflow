@@ -3751,6 +3751,7 @@ class DAG(BaseDag, LoggingMixin):
     def clear(
             self, start_date=None, end_date=None,
             only_failed=False,
+            only_failed_or_upstream_failed=False,
             only_running=False,
             confirm_prompt=False,
             include_subdags=True,
@@ -3783,6 +3784,8 @@ class DAG(BaseDag, LoggingMixin):
             tis = tis.filter(TI.execution_date <= end_date)
         if only_failed:
             tis = tis.filter(TI.state == State.FAILED)
+        if only_failed_or_upstream_failed:
+            tis = tis.filter(or_(TI.state == State.FAILED, TI.state == State.UPSTREAM_FAILED))
         if only_running:
             tis = tis.filter(TI.state == State.RUNNING)
 
@@ -3826,6 +3829,7 @@ class DAG(BaseDag, LoggingMixin):
             start_date=None,
             end_date=None,
             only_failed=False,
+            only_failed_or_upstream_failed=False,
             only_running=False,
             confirm_prompt=False,
             include_subdags=True,
@@ -3838,6 +3842,7 @@ class DAG(BaseDag, LoggingMixin):
                 start_date=start_date,
                 end_date=end_date,
                 only_failed=only_failed,
+                only_failed_or_upstream_failed=only_failed_or_upstream_failed,
                 only_running=only_running,
                 confirm_prompt=False,
                 include_subdags=include_subdags,
@@ -3866,6 +3871,7 @@ class DAG(BaseDag, LoggingMixin):
                 dag.clear(start_date=start_date,
                           end_date=end_date,
                           only_failed=only_failed,
+                          only_failed_or_upstream_failed=only_failed_or_upstream_failed,
                           only_running=only_running,
                           confirm_prompt=False,
                           include_subdags=include_subdags,
