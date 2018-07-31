@@ -69,16 +69,17 @@ class SSHOperator(BaseOperator):
     def execute(self, context):
         try:
             if self.ssh_conn_id and not self.ssh_hook:
-                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
+                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id,
+                                        timeout=self.timeout)
 
             if not self.ssh_hook:
-                raise AirflowException("can not operate without ssh_hook or ssh_conn_id")
+                raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
 
             if self.remote_host is not None:
                 self.ssh_hook.remote_host = self.remote_host
 
             if not self.command:
-                raise AirflowException("no command specified so nothing to execute here.")
+                raise AirflowException("SSH command not specified. Aborting.")
 
             with self.ssh_hook.get_conn() as ssh_client:
                 # Auto apply tty when its required in case of sudo
