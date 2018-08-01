@@ -55,6 +55,7 @@ import textwrap
 import traceback
 import warnings
 import hashlib
+import random
 
 import uuid
 from datetime import datetime
@@ -118,7 +119,7 @@ class InvalidFernetToken(Exception):
     pass
 
 
-class NullFernet(object):
+class NullFernet(LoggingMixin):
     """
     A "Null" encryptor class that doesn't encrypt or decrypt but that presents
     a similar interface to Fernet.
@@ -129,11 +130,26 @@ class NullFernet(object):
     """
     is_encrypted = False
 
+    def __init__(self, k):
+        self.log.warn(
+            "cryptography not found - values will not be stored encrypted.", exc_info=1)
+
+    @classmethod
+    def generate_key():
+        return ""
+
     def decrpyt(self, b):
         return b
 
     def encrypt(self, b):
         return b
+
+
+try:
+    from cryptography.fernet import Fernet, InvalidToken
+    InvalidFernetToken = InvalidToken  # noqa: F811
+except BuiltinImportError:
+    Fernet = NullFernet
 
 
 _fernet = None
@@ -143,8 +159,7 @@ def get_fernet():
     """
     Deferred load of Fernet key.
 
-    This function could fail either because Cryptography is not installed
-    or because the Fernet key is invalid.
+    This function could fail because the Fernet key is invalid.
 
     :return: Fernet object
     :raises: AirflowException if there's a problem trying to load Fernet
@@ -152,21 +167,10 @@ def get_fernet():
     global _fernet
     if _fernet:
         return _fernet
-    try:
-        from cryptography.fernet import Fernet, InvalidToken
-        global InvalidFernetToken
-        InvalidFernetToken = InvalidToken
-
-    except BuiltinImportError:
-        LoggingMixin().log.warn("cryptography not found - values will not be stored "
-                                "encrypted.",
-                                exc_info=1)
-        _fernet = NullFernet()
-        return _fernet
 
     try:
         _fernet = Fernet(configuration.conf.get('core', 'FERNET_KEY').encode('utf-8'))
-        _fernet.is_encrypted = True
+        _fernet.is_encrypted = (Fernet != NullFernet)
         return _fernet
     except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
@@ -631,6 +635,8 @@ class Connection(Base, LoggingMixin):
     """
     __tablename__ = "connection"
 
+    _conn_env_prefix = 'AIRFLOW_CONN_'
+
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN))
     conn_type = Column(String(500))
@@ -642,6 +648,11 @@ class Connection(Base, LoggingMixin):
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
+    conn_key = Column(String(200))
+    _kms_conn_id = Column(String(ID_LEN))
+    _kms_extra = Column(String(5000))
+
+    _plain_conn_key = None
 
     _types = [
         ('docker', 'Docker Registry',),
@@ -683,8 +694,15 @@ class Connection(Base, LoggingMixin):
             self, conn_id=None, conn_type=None,
             host=None, login=None, password=None,
             schema=None, port=None, extra=None,
+            conn_key=None, kms_conn_id=None, kms_extra=None,
             uri=None):
         self.conn_id = conn_id
+
+        # KMS first, so that later properties are correctly encrypted.
+        self.conn_key = conn_key
+        self._kms_conn_id = kms_conn_id
+        self._kms_extra = kms_extra
+
         if uri:
             self.parse_from_uri(uri)
         else:
@@ -695,6 +713,19 @@ class Connection(Base, LoggingMixin):
             self.schema = schema
             self.port = port
             self.extra = extra
+
+    def _init_keys(self):
+        kms_conn = Connection.get_connection(self.kms_conn_id)
+        if kms_conn.kms_conn_id:
+            raise AirflowException("Can't chain KMS encrypted Connections.")
+
+        kms_hook = kms_conn.get_kms_hook()
+
+        if self.conn_key:
+            kms_hook.decrypt_conn_key(self)
+        else:
+            self._plain_conn_key = Fernet.generate_key()
+            kms_hook.encrypt_conn_key(self)
 
     def parse_from_uri(self, uri):
         temp_uri = urlparse(uri)
@@ -715,7 +746,7 @@ class Connection(Base, LoggingMixin):
 
     def get_password(self):
         if self._password and self.is_encrypted:
-            fernet = get_fernet()
+            fernet = self._get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
                     "Can't decrypt encrypted password for login={}, \
@@ -726,7 +757,7 @@ class Connection(Base, LoggingMixin):
 
     def set_password(self, value):
         if value:
-            fernet = get_fernet()
+            fernet = self._get_fernet()
             self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_encrypted = fernet.is_encrypted
 
@@ -737,7 +768,7 @@ class Connection(Base, LoggingMixin):
 
     def get_extra(self):
         if self._extra and self.is_extra_encrypted:
-            fernet = get_fernet()
+            fernet = self._get_fernet()
             if not fernet.is_encrypted:
                 raise AirflowException(
                     "Can't decrypt `extra` params for login={},\
@@ -748,7 +779,7 @@ class Connection(Base, LoggingMixin):
 
     def set_extra(self, value):
         if value:
-            fernet = get_fernet()
+            fernet = self._get_fernet()
             self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_extra_encrypted = fernet.is_encrypted
         else:
@@ -759,6 +790,44 @@ class Connection(Base, LoggingMixin):
     def extra(cls):
         return synonym('_extra',
                        descriptor=property(cls.get_extra, cls.set_extra))
+
+    @property
+    def kms_conn_id(self):
+        return self._kms_conn_id
+
+    @property
+    def kms_extra(self):
+        return self._kms_extra
+
+    def update_kms(self, kms_conn_id=None, kms_extra=None, clear=False):
+        """
+        Updates a KMS-encrypted connection to use a new set of KMS credentials.
+        This prevents broken access to encrypted fields when updating either or
+        both KMS fields.
+
+        :param kms_conn_id: The new KMS connection ID to use.
+        :type kms_conn_id: str
+        :param kms_extra: The new KMS extra field string to use.
+        :type kms_extra: str
+        :param clear: If True, allows `None` values in the other fields to clear those
+                      fields. Default is to preserve existing fields.
+        :type clear: bool
+        """
+        # Decrypt the current encrypted fields.
+        password = self.password
+        extra = self.extra
+        # Throw out the old key.
+        self.conn_key = None
+        self._plain_conn_key = None
+        if clear or kms_conn_id:
+            self._kms_conn_id = kms_conn_id
+        if clear or kms_extra:
+            self._kms_extra = kms_extra
+        if self.kms_conn_id:
+            self._init_keys()
+        # Re-encrypt the sensitive fields.
+        self.password = password
+        self.extra = extra
 
     def get_hook(self):
         try:
@@ -819,6 +888,19 @@ class Connection(Base, LoggingMixin):
         except Exception:
             pass
 
+    def get_kms_hook(self):
+        """
+        Returns a KMS Hook that uses this connection, if this connection's type has
+        an associated KMS Hook.
+
+        :rtype: KmsApiHook
+        """
+        if self.conn_type == 'google_cloud_platform':
+            from airflow.contrib.hooks.gcp_kms_hook import GoogleCloudKMSHook
+            return GoogleCloudKMSHook(gcp_conn_id=self.conn_id)
+        else:
+            raise ValueError("No KMS hook for conn_type {0}".format(self.conn_type))
+
     def __repr__(self):
         return self.conn_id
 
@@ -834,6 +916,74 @@ class Connection(Base, LoggingMixin):
                 self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
 
         return obj
+
+    @property
+    def kms_extra_dejson(self):
+        """Returns the kms_extra property by deserializing json."""
+        obj = {}
+        if self.kms_extra:
+            try:
+                obj = json.loads(self.kms_extra)
+            except Exception as e:
+                self.log.exception(e)
+                self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
+
+        return obj
+
+    @classmethod
+    @provide_session
+    def _get_connections_from_db(cls, conn_id, session=None):
+        db = (
+            session.query(Connection)
+            .filter(Connection.conn_id == conn_id)
+            .all()
+        )
+        session.expunge_all()
+        if not db:
+            raise AirflowException(
+                "The conn_id `{0}` isn't defined".format(conn_id))
+        return db
+
+    @classmethod
+    def _get_connection_from_env(cls, conn_id):
+        environment_uri = os.environ.get(cls._conn_env_prefix + conn_id.upper())
+        conn = None
+        if environment_uri:
+            conn = Connection(conn_id=conn_id, uri=environment_uri)
+        return conn
+
+    @classmethod
+    def get_connections(cls, conn_id):
+        conn = cls._get_connection_from_env(conn_id)
+        if conn:
+            conns = [conn]
+        else:
+            conns = cls._get_connections_from_db(conn_id)
+        return conns
+
+    @classmethod
+    def get_connection(cls, conn_id):
+        conn = random.choice(cls.get_connections(conn_id))
+        if conn.host:
+            log = LoggingMixin().log
+            log.info("Using connection to: %s", conn.host)
+        return conn
+
+    def _get_fernet(self):
+        global_fernet = get_fernet()
+
+        if self.kms_conn_id and not self._plain_conn_key:
+            self._init_keys()
+
+        if self._plain_conn_key:
+            try:
+                conn_fernet = Fernet(self._plain_conn_key)
+                conn_fernet.is_encrypted = True
+                return conn_fernet
+            except (ValueError, TypeError) as ve:
+                raise AirflowException("Could not create Fernet object: {}".format(ve))
+        else:
+            return global_fernet
 
 
 class DagPickle(Base):

@@ -20,6 +20,7 @@
 
 import base64
 
+from airflow.hooks.kmsapi_hook import KmsApiHook
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 from apiclient.discovery import build
@@ -35,7 +36,7 @@ def _b64decode(s):
     return base64.b64decode(s.encode('utf-8'))
 
 
-class GoogleCloudKMSHook(GoogleCloudBaseHook):
+class GoogleCloudKMSHook(GoogleCloudBaseHook, KmsApiHook):
     """
     Interact with Google Cloud KMS. This hook uses the Google Cloud Platform
     connection.
@@ -106,3 +107,17 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
 
         plaintext = _b64decode(response['plaintext'])
         return plaintext
+
+    def encrypt_conn_key(self, connection):
+        kms_extras = connection.kms_extra_dejson
+        key_name = kms_extras['kms_extra__google_cloud_platform__key_name']
+        conn_key = connection._plain_conn_key
+
+        connection.conn_key = self.encrypt(key_name, conn_key)
+
+    def decrypt_conn_key(self, connection):
+        kms_extras = connection.kms_extra_dejson
+        key_name = kms_extras['kms_extra__google_cloud_platform__key_name']
+        conn_key = connection.conn_key
+
+        connection._plain_conn_key = self.decrypt(key_name, conn_key)

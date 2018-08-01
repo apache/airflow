@@ -62,6 +62,32 @@ TEST_DAGS_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
 
 
+class FernetTest(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+        models._fernet = None
+
+    def tearDown(self):
+        models._fernet = None
+        configuration.load_test_config()
+
+    def test_get_fernet(self):
+        test_fernet = models.get_fernet()
+        self.assertTrue(test_fernet.is_encrypted)
+        self.assertIs(test_fernet, models.get_fernet())
+
+    def test_get_fernet_bad_key(self):
+        too_short_key = ""
+        configuration.conf.set('core', 'FERNET_KEY', too_short_key)
+        with self.assertRaises(AirflowException):
+            models.get_fernet()
+
+    @patch('airflow.models.Fernet', new=models.NullFernet)
+    def test_get_fernet_no_fernet(self):
+        test_fernet = models.get_fernet()
+        self.assertFalse(test_fernet.is_encrypted)
+
+
 class DagTest(unittest.TestCase):
 
     def test_params_not_passed_is_empty_dict(self):
@@ -2696,3 +2722,94 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.port, 1234)
         self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
                                                        'extra2': '/path/'})
+
+    @patch.object(Connection, 'get_connection')
+    def test_connection_kms_encryption(self, mock_get_conn):
+        from mock import Mock
+        mock_conn = Mock()
+        mock_hook = Mock()
+
+        mock_conn.kms_conn_id = None  # KMS conn is not itself encrypted
+        mock_get_conn.return_value = mock_conn
+        mock_conn.get_kms_hook.return_value = mock_hook
+
+        password = 'test_pass'
+        extra = 'test_extra'
+        kms_conn_id = 'test_kms_id'
+        connection = Connection(password=password, extra=extra, kms_conn_id=kms_conn_id)
+
+        self.assertEqual(connection.password, password)
+        self.assertEqual(connection.extra, extra)
+        mock_get_conn.assert_called_with(kms_conn_id)
+        mock_conn.get_kms_hook.assert_called_with()
+        mock_hook.encrypt_conn_key.assert_called_with(connection)
+
+    @patch.object(Connection, 'get_connection')
+    def test_connection_from_uri_kms_encryption(self, mock_get_conn):
+        from mock import Mock
+        mock_conn = Mock()
+        mock_hook = Mock()
+
+        mock_conn.kms_conn_id = None  # KMS conn is not itself encrypted
+        mock_get_conn.return_value = mock_conn
+        mock_conn.get_kms_hook.return_value = mock_hook
+
+        kms_conn_id = 'test_kms_id'
+        uri = 'scheme://user:password@host%2flocation:1234/schema?'\
+            'extra1=a%20value&extra2=%2fpath%2f'
+        connection = Connection(uri=uri, kms_conn_id=kms_conn_id)
+
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
+                                                       'extra2': '/path/'})
+        mock_get_conn.assert_called_with(kms_conn_id)
+        mock_conn.get_kms_hook.assert_called_with()
+        mock_hook.encrypt_conn_key.assert_called_with(connection)
+
+    def test_get_kms_hook_missing(self):
+        test_conn_type = "Missing KMS Type"
+        test_connection = Connection(conn_type=test_conn_type)
+        with self.assertRaises(ValueError):
+            test_connection.get_kms_hook()
+
+    @patch.object(Connection, 'get_connection')
+    def test_update_kms(self, mock_get_conn):
+        from mock import Mock
+        mock_conn = Mock()
+        mock_hook = Mock()
+
+        mock_conn.kms_conn_id = None  # KMS conn is not itself encrypted
+        mock_get_conn.return_value = mock_conn
+        mock_conn.get_kms_hook.return_value = mock_hook
+
+        password = 'test_pass'
+        extra = 'test_extra'
+        kms_conn_id = 'test_kms_id'
+        kms_extra = 'test_kms_extra'
+        connection = Connection(password=password, extra=extra, kms_conn_id=kms_conn_id,
+                                kms_extra=kms_extra)
+
+        new_kms_conn_id = 'test_kms_id_2'
+        new_kms_extra = 'test_kms_extra_2'
+        first_conn_key = connection._plain_conn_key
+        connection.update_kms(kms_conn_id=new_kms_conn_id, kms_extra=new_kms_extra)
+
+        self.assertEqual(connection.password, password)
+        self.assertEqual(connection.extra, extra)
+        self.assertEqual(connection.kms_conn_id, new_kms_conn_id)
+        self.assertEqual(connection.kms_extra, new_kms_extra)
+        self.assertNotEqual(connection._plain_conn_key, first_conn_key)
+        mock_get_conn.assert_called_with(new_kms_conn_id)
+        mock_conn.get_kms_hook.assert_called_with()
+        mock_hook.encrypt_conn_key.assert_called_with(connection)
+
+        connection.update_kms(clear=True)
+        self.assertEqual(connection.password, password)
+        self.assertEqual(connection.extra, extra)
+        self.assertIsNone(connection.kms_conn_id)
+        self.assertIsNone(connection.kms_extra)

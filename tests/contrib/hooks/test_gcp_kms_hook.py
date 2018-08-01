@@ -158,3 +158,27 @@ class GoogleCloudKMSHookTest(unittest.TestCase):
                                           body=body)
         execute_method.assert_called_with()
         self.assertEqual(plaintext, ret_val)
+
+    @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.encrypt'))
+    def test_encrypt_conn(self, mock_encrypt):
+        conn_key = "Test Key"
+        mock_conn = mock.Mock()
+        mock_conn._plain_conn_key = conn_key
+        mock_conn.kms_extra_dejson = {
+            "kms_extra__google_cloud_platform__key_name": TEST_KEY_ID}
+
+        self.kms_hook.encrypt_conn_key(mock_conn)
+
+        mock_encrypt.assert_called_with(TEST_KEY_ID, conn_key)
+
+    @mock.patch(KMS_STRING.format('GoogleCloudKMSHook.decrypt'))
+    def test_decrypt_conn(self, mock_decrypt):
+        conn_key = "Test Key"
+        mock_conn = mock.Mock()
+        mock_conn.conn_key = conn_key
+        mock_conn.kms_extra_dejson = {
+            "kms_extra__google_cloud_platform__key_name": TEST_KEY_ID}
+
+        self.kms_hook.decrypt_conn_key(mock_conn)
+
+        mock_decrypt.assert_called_with(TEST_KEY_ID, conn_key)

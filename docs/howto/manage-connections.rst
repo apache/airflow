@@ -28,7 +28,9 @@ to create a new connection.
 2. Choose the connection type with the ``Conn Type`` field.
 3. Fill in the remaining fields. See
    :ref:`manage-connections-connection-types` for a description of the fields
-   belonging to the different connection types.
+   belonging to the different connection types, and 
+   :ref:`secure-connections-kms` if you want to encrypt connection
+   credentials using a Key Management System.
 4. Click the ``Save`` button to create the connection.
 
 Editing a Connection with the UI

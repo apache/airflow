@@ -1133,7 +1133,8 @@ def version(args):  # noqa
 
 
 alternative_conn_specs = ['conn_type', 'conn_host',
-                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
+                          'conn_login', 'conn_password', 'conn_schema', 'conn_port',
+                          'kms_conn_id', 'kms_extra']
 
 
 @cli_utils.action_logging
@@ -1235,7 +1236,10 @@ def connections(args):
             return
 
         if args.conn_uri:
-            new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+            new_conn = Connection(conn_id=args.conn_id,
+                                  uri=args.conn_uri,
+                                  kms_conn_id=args.kms_conn_id,
+                                  kms_extra=args.kms_extra)
         else:
             new_conn = Connection(conn_id=args.conn_id,
                                   conn_type=args.conn_type,
@@ -1243,7 +1247,10 @@ def connections(args):
                                   login=args.conn_login,
                                   password=args.conn_password,
                                   schema=args.conn_schema,
-                                  port=args.conn_port)
+                                  port=args.conn_port,
+                                  kms_conn_id=args.kms_conn_id,
+                                  kms_extra=args.kms_extra
+                                  )
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
@@ -1882,6 +1889,15 @@ class CLIFactory(object):
         'conn_extra': Arg(
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
+            type=str),
+        'kms_conn_id': Arg(
+            ('--kms_conn_id',),
+            help='An existing connection to use when encrypting this connection with a '
+                 'KMS, optional when adding a connection',
+            type=str),
+        'kms_extra': Arg(
+            ('--kms_extra',),
+            help='Connection `KMS Extra` field, optional when adding a connection',
             type=str),
         # users
         'username': Arg(
