@@ -34,6 +34,17 @@ version = imp.load_source(
 PY3 = sys.version_info[0] == 3
 
 
+# See LEGAL-362
+def verify_gpl_dependency():
+    if (not os.getenv("AIRFLOW_GPL_UNIDECODE")
+            and not os.getenv("SLUGIFY_USES_TEXT_UNIDECODE") == "yes"):
+        raise RuntimeError("By default one of Airflow's dependencies installs a GPL "
+                           "dependency (unidecode). To avoid this dependency set "
+                           "SLUGIFY_USES_TEXT_UNIDECODE=yes in your environment when you "
+                           "install or upgrade Airflow. To force installing the GPL "
+                           "version set AIRFLOW_GPL_UNIDECODE")
+
+
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
 
@@ -235,6 +246,7 @@ else:
 
 
 def do_setup():
+    verify_gpl_dependency()
     write_version()
     setup(
         name='apache-airflow',
@@ -353,6 +365,7 @@ def do_setup():
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.4',
+            'Programming Language :: Python :: 3.5',
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
@@ -364,6 +377,7 @@ def do_setup():
             'test': Tox,
             'extra_clean': CleanCommand,
         },
+        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
     )
 
 
