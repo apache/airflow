@@ -5,6 +5,7 @@ If you don't have minikube installed, please run `./minikube/start_minikube.sh` 
 First build the docker images by running `./docker/build.sh`. This will build the image and push it to the local registry. Secondly, deploy Apache Airflow using `./kube/deploy.sh`. Finally, open the Airflow webserver page by browsing to `http://192.168.99.100:30809/admin/` (on OSX).
 
 When kicking of a new job, you should be able to see new pods being kicked off:
+
 ```
 $ kubectl get pods
 NAME                                                                  READY     STATUS              RESTARTS   AGE
