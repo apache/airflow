@@ -206,7 +206,10 @@ def _set_dag_run_state(dag_id, execution_date, state, session=None):
         DR.execution_date == execution_date
     ).one()
     dr.state = state
-    dr.end_date = timezone.utcnow()
+    if state == State.RUNNING:
+        dr.start_date = timezone.utcnow()
+    else:
+        dr.end_date = timezone.utcnow()
     session.commit()
 
 

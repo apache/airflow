@@ -2793,7 +2793,8 @@ class DagRunModelView(ModelViewOnly):
             altered_tis = set_dag_run_state_to_success(
                 dagbag.get_dag(dagrun.dag_id),
                 dagrun.execution_date,
-                commit=True)
+                commit=True,
+                session=session)
         elif dagrun.state == State.FAILED:
             altered_tis = set_dag_run_state_to_failed(
                 dagbag.get_dag(dagrun.dag_id),
