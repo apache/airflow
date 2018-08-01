@@ -17,6 +17,8 @@
 
 FROM ubuntu:16.04
 
+ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
+
 # install deps
 RUN apt-get update -y && apt-get install -y \
         wget \
@@ -32,7 +34,6 @@ RUN apt-get update -y && apt-get install -y \
         zip \
         unzip \
     && apt-get clean
-
 
 RUN pip install --upgrade pip
 

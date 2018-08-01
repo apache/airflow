@@ -46,6 +46,7 @@ python:
   - "3.5"
 env:
   global:
+    - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
     - KRB5_CONFIG=/etc/krb5.conf
     - KRB5_KTNAME=/etc/airflow.keytab
