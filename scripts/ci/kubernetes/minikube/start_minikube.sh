@@ -27,18 +27,17 @@ _MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
 _KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 _MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.28.2}"
 
-echo "setting up kubernetes ${_KUBERNETES_VERSION}"
+echo "setting up kubernetes ${_KUBERNETES_VERSION}, using minikube ${_MINIKUBE_VERSION}"
 
-_MINIKUBE_VERSION="v0.26.0"
-_HELM_VERSION=v2.8.1
-_VM_DRIVER=none
+_VM_DRIVER="${VM_DRIVER:-none}"
 USE_MINIKUBE_DRIVER_NONE=true
 
 _UNAME_OUT=$(uname -s)
 case "${_UNAME_OUT}" in
     Linux*)     _MY_OS=linux;;
     Darwin*)    _MY_OS=darwin;;
-    *)          _MY_OS="UNKNOWN:${unameOut}"
+    *)          echo "${_UNAME_OUT} is unsupported."
+                exit 1;;
 esac
 echo "Local OS is ${_MY_OS}"
 
@@ -62,27 +61,25 @@ if [[ ! -x /usr/local/bin/kubectl ]]; then
   curl -Lo bin/kubectl  \
     https://storage.googleapis.com/kubernetes-release/release/${_KUBERNETES_VERSION}/bin/${_MY_OS}/amd64/kubectl
   chmod +x bin/kubectl
+  sudo mv bin/kubectl /usr/local/bin/kubectl
 fi
 if [[ ! -x /usr/local/bin/minikube ]]; then
   echo Downloading minikube.
   curl -Lo bin/minikube  \
     https://storage.googleapis.com/minikube/releases/${_MINIKUBE_VERSION}/minikube-${_MY_OS}-amd64
   chmod +x bin/minikube
+  sudo mv bin/minikube /usr/local/bin/minikube
 fi
-
-sudo mv bin/minikube /usr/local/bin/minikube
-sudo mv bin/kubectl /usr/local/bin/kubectl
 
 export PATH="${_MY_DIR}/bin:$PATH"
 
 if [[ "${USE_MINIKUBE_DRIVER_NONE:-}" = "true" ]]; then
   # Run minikube with none driver.
   # See https://blog.travis-ci.com/2017-10-26-running-kubernetes-on-travis-ci-with-minikube
-  _VM_DRIVER="--vm-driver=none"
+  _VM_DRIVER=none
   if [[ ! -x /usr/local/bin/nsenter ]]; then
     # From https://engineering.bitnami.com/articles/implementing-kubernetes-integration-tests-in-travis.html
     # Travis ubuntu trusty env doesn't have nsenter, needed for --vm-driver=none
-    which nsenter >/dev/null && return 0
     echo "INFO: Building 'nsenter' ..."
 cat <<-EOF | docker run -i --rm -v "$(pwd):/build" ubuntu:14.04 >& nsenter.build.log
         apt-get update
@@ -97,7 +94,7 @@ EOF
     if [ ! -f ./nsenter ]; then
         echo "ERROR: nsenter build failed, log:"
         cat nsenter.build.log
-        return 1
+        exit 1
     fi
     echo "INFO: nsenter build OK"
     sudo mv ./nsenter /usr/local/bin
@@ -106,10 +103,10 @@ fi
 
 echo "your path is ${PATH}"
 
-_MINIKUBE="sudo PATH=$PATH minikube"
+_MINIKUBE="sudo -E PATH=$PATH minikube"
 
 $_MINIKUBE config set bootstrapper localkube
-$_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION}  --vm-driver=none
+$_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION} --vm-driver=${_VM_DRIVER}
 $_MINIKUBE update-context
 
 # Wait for Kubernetes to be up and ready.
