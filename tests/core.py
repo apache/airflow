@@ -147,7 +147,7 @@ class CoreTest(unittest.TestCase):
             datetime(2015, 1, 2, 0, 0),
             dag_run.execution_date,
             msg='dag_run.execution_date did not match expectation: {0}'
-            .format(dag_run.execution_date)
+                .format(dag_run.execution_date)
         )
         self.assertEqual(State.RUNNING, dag_run.state)
         self.assertFalse(dag_run.external_trigger)
@@ -1241,6 +1241,70 @@ class CliTests(unittest.TestCase):
             elif conn_id == 'new6':
                 self.assertEqual(result, (conn_id, 'google_cloud_platform',
                                           None, None, "{'extra': 'yes'}"))
+
+        new_uri = 'postgresql://airflow:different_password@host:5432/airflow'
+
+        # Update Connections
+        with mock.patch('sys.stdout',
+                        new_callable=six.StringIO) as mock_stdout:
+            cli.connections(self.parser.parse_args(
+                ['connections', '--update', '--conn_id=new1',
+                 '--conn_uri=%s' % new_uri]))
+
+            cli.connections(self.parser.parse_args(
+                ['connections', '-u', '--conn_id=new2',
+                 '--conn_uri=%s' % new_uri]))
+
+            cli.connections(self.parser.parse_args(
+                ['connections', '--update', '--conn_id=new3',
+                 '--conn_uri=%s' % new_uri, '--conn_extra', "{'extra': 'yes'}"]))
+
+            cli.connections(self.parser.parse_args(
+                ['connections', '-u', '--conn_id=new4',
+                 '--conn_uri=%s' % new_uri, '--conn_extra', "{'extra': 'yes'}"]))
+
+            cli.connections(self.parser.parse_args(
+                ['connections', '--update', '--conn_id=new5',
+                 '--conn_type=hive_metastore', '--conn_login=airflow',
+                 '--conn_password=different_password', '--conn_host=host',
+                 '--conn_port=9083', '--conn_schema=airflow']))
+
+            cli.connections(self.parser.parse_args(
+                ['connections', '-u', '--conn_id=new6',
+                 '--conn_uri', "", '--conn_type=google_cloud_platform',
+                 '--conn_extra', "{'extra': 'yes'}"]))
+            stdout = mock_stdout.getvalue()
+
+        # Check addition stdout
+        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        self.assertListEqual(lines, [
+            ("\tSuccessfully updated `conn_id`=new1 : " +
+             "postgresql://airflow:different_password@host:5432/airflow"),
+            ("\tSuccessfully updated `conn_id`=new2 : " +
+             "postgresql://airflow:different_password@host:5432/airflow"),
+            ("\tSuccessfully updated `conn_id`=new3 : " +
+             "postgresql://airflow:different_password@host:5432/airflow"),
+            ("\tSuccessfully updated `conn_id`=new4 : " +
+             "postgresql://airflow:different_password@host:5432/airflow"),
+            ("\tSuccessfully updated `conn_id`=new5 : " +
+             "hive_metastore://airflow:different_password@host:9083/airflow"),
+            ("\tSuccessfully updated `conn_id`=new6 : " +
+             "google_cloud_platform://:@:")
+        ])
+
+        # Attempt to udpate without providing conn_uri
+        with mock.patch('sys.stdout',
+                        new_callable=six.StringIO) as mock_stdout:
+            cli.connections(self.parser.parse_args(
+                ['connections', '--update', '--conn_id=new']))
+            stdout = mock_stdout.getvalue()
+
+        # Check stdout for addition attempt
+        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        self.assertListEqual(lines, [
+            ("\tThe following args are required to add a connection:" +
+             " ['conn_uri or conn_type']"),
+        ])
 
         # Delete connections
         with mock.patch('sys.stdout',
@@ -2459,6 +2523,7 @@ class HDFSHookTest(unittest.TestCase):
         mock_get_connections.return_value = [c1, c2]
         client = HDFSHook().get_conn()
         self.assertIsInstance(client, snakebite.client.HAClient)
+
 
 send_email_test = mock.Mock()
 
