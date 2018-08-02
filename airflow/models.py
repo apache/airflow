@@ -3785,7 +3785,8 @@ class DAG(BaseDag, LoggingMixin):
         if only_failed:
             tis = tis.filter(TI.state == State.FAILED)
         if only_failed_or_upstream_failed:
-            tis = tis.filter(or_(TI.state == State.FAILED, TI.state == State.UPSTREAM_FAILED))
+            tis = tis.filter(or_(TI.state == State.FAILED,
+                                 TI.state == State.UPSTREAM_FAILED))
         if only_running:
             tis = tis.filter(TI.state == State.RUNNING)
 

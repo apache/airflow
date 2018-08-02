@@ -1401,7 +1401,8 @@ class CLIFactory(object):
         'only_failed': Arg(
             ("-f", "--only_failed"), "Only failed jobs", "store_true"),
         'only_failed_or_upstream_failed': Arg(
-            ("-p", "--only_failed_or_upstream_failed"), "Only failed or upstream_failed jobs", "store_true"),
+            ("-p", "--only_failed_or_upstream_failed"),
+            "Only failed or upstream_failed jobs", "store_true"),
         'only_running': Arg(
             ("-r", "--only_running"), "Only running jobs", "store_true"),
         'downstream': Arg(
@@ -1730,7 +1731,8 @@ class CLIFactory(object):
             'help': "Clear a set of task instance, as if they never ran",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                'upstream', 'downstream', 'no_confirm', 'only_failed', 'only_failed_or_upstream_failed',
+                'upstream', 'downstream', 'no_confirm', 'only_failed',
+                'only_failed_or_upstream_failed',
                 'only_running', 'exclude_subdags', 'dag_regex'),
         }, {
             'func': pause,
