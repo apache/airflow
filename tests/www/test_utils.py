@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import mock
 import unittest
 from xml.dom import minidom
@@ -227,6 +228,42 @@ class UtilsTest(unittest.TestCase):
         instance.open.assert_called_once()
         (args, kwargs) = instance.open.call_args_list[0]
         self.assertEqual('deep/path/to/file.txt', args[0])
+
+    def test_get_python_source_from_method(self):
+        class AMockClass(object):
+            def a_method(self):
+                """ A method """
+                pass
+
+        mocked_class = AMockClass()
+
+        result = utils.get_python_source(mocked_class.a_method)
+        self.assertIn('A method', result)
+
+    def test_get_python_source_from_class(self):
+        class AMockClass(object):
+            def __call__(self):
+                """ A __call__ method """
+                pass
+
+        mocked_class = AMockClass()
+
+        result = utils.get_python_source(mocked_class)
+        self.assertIn('A __call__ method', result)
+
+    def test_get_python_source_from_partial_func(self):
+        def a_function(arg_x, arg_y):
+            """ A function with two args """
+            pass
+
+        partial_function = functools.partial(a_function, arg_x=1)
+
+        result = utils.get_python_source(partial_function)
+        self.assertIn('A function with two args', result)
+
+    def test_get_python_source_from_none(self):
+        result = utils.get_python_source(None)
+        self.assertIn('No source code available', result)
 
 
 if __name__ == '__main__':

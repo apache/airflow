@@ -248,7 +248,9 @@ attr_renderer = {
     'doc_yaml': lambda x: render(x, lexers.YamlLexer),
     'doc_md': wrapped_markdown,
     'python_callable': lambda x: render(
-        inspect.getsource(x), lexers.PythonLexer),
+        wwwutils.get_python_source(x),
+        lexers.PythonLexer,
+    ),
 }
 
 
