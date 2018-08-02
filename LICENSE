@@ -210,6 +210,18 @@ limitations under the License.
 
 
 ========================================================================
+Third party Apache 2.0 licenses
+========================================================================
+
+The following components are provided under the Apache 2.0 License.
+See project link for details. The text of each license is also included
+at licenses/LICENSE-[project].txt.
+
+    (ALv2 License) hue (https://github.com/cloudera/hue/)
+    (ALv2 License) jqclock (https://github.com/JohnRDOrazio/jQuery-Clock-Plugin)
+    (ALv2 License) bootstrap3-typeahead (https://github.com/bassjobsen/Bootstrap-3-Typeahead)
+
+========================================================================
 MIT licenses
 ========================================================================
 
@@ -239,10 +251,11 @@ The text of each license is also included at licenses/LICENSE-[project].txt.
 ========================================================================
 BSD 3-Clause licenses
 ========================================================================
-The following components are provided under the BSD 2-Clause license.
-See file headers and project links for details.
+The following components are provided under the BSD 3-Clause license. See project links for details.
 The text of each license is also included at licenses/LICENSE-[project].txt.
 
     (BSD 3 License) Ace (https://github.com/ajaxorg/ace)
     (BSD 3 License) d3js (https://d3js.org)
     (BSD 3 License) parallel-coordinates (http://syntagmatic.github.com/parallel-coordinates/)
+    (BSD 3 License) scikit-learn (https://github.com/scikit-learn/scikit-learn)
+

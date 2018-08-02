@@ -395,7 +395,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                 log.info(
                     "Processing %s took %.3f seconds", file_path, end_time - start_time
                 )
-            except:
+            except Exception:
                 # Log exceptions through the logging framework.
                 log.exception("Got an exception! Propagating...")
                 raise
@@ -1027,8 +1027,7 @@ class SchedulerJob(BaseJob):
                     models.TaskInstance.dag_id == subq.c.dag_id,
                     models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
-                    subq.c.execution_date,
-                    models.TaskInstance.task_id == subq.c.task_id)) \
+                    subq.c.execution_date)) \
                 .update({models.TaskInstance.state: new_state},
                         synchronize_session=False)
             session.commit()
@@ -1078,9 +1077,6 @@ class SchedulerJob(BaseJob):
         :type states: Tuple[State]
         :return: List[TaskInstance]
         """
-        # TODO(saguziel): Change this to include QUEUED, for concurrency
-        # purposes we may want to count queued tasks
-        states_to_count_as_running = [State.RUNNING]
         executable_tis = []
 
         # Get all the queued task instances from associated with scheduled
@@ -1093,17 +1089,18 @@ class SchedulerJob(BaseJob):
             session
             .query(TI)
             .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
-            .outerjoin(DR,
-                and_(DR.dag_id == TI.dag_id,
-                     DR.execution_date == TI.execution_date))
-            .filter(or_(DR.run_id == None,
+            .outerjoin(
+                DR,
+                and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
+            )
+            .filter(or_(DR.run_id == None,  # noqa E711
                     not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
-            .outerjoin(DM, DM.dag_id==TI.dag_id)
-            .filter(or_(DM.dag_id == None,
+            .outerjoin(DM, DM.dag_id == TI.dag_id)
+            .filter(or_(DM.dag_id == None,  # noqa E711
                     not_(DM.is_paused)))
         )
         if None in states:
-            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(states)))
+            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(states))) # noqa E711
         else:
             ti_query = ti_query.filter(TI.state.in_(states))
 
@@ -1125,7 +1122,9 @@ class SchedulerJob(BaseJob):
         for task_instance in task_instances_to_examine:
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
-        task_concurrency_map = self.__get_task_concurrency_map(states=states_to_count_as_running, session=session)
+        states_to_count_as_running = [State.RUNNING, State.QUEUED]
+        task_concurrency_map = self.__get_task_concurrency_map(
+            states=states_to_count_as_running, session=session)
 
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
@@ -1174,7 +1173,6 @@ class SchedulerJob(BaseJob):
                 simple_dag = simple_dag_bag.get_dag(dag_id)
 
                 if dag_id not in dag_id_to_possibly_running_task_count:
-                    # TODO(saguziel): also check against QUEUED state, see AIRFLOW-1104
                     dag_id_to_possibly_running_task_count[dag_id] = \
                         DAG.get_num_task_instances(
                             dag_id,
@@ -1196,9 +1194,14 @@ class SchedulerJob(BaseJob):
                     )
                     continue
 
-                task_concurrency = simple_dag.get_task_special_arg(task_instance.task_id, 'task_concurrency')
+                task_concurrency = simple_dag.get_task_special_arg(
+                    task_instance.task_id,
+                    'task_concurrency')
                 if task_concurrency is not None:
-                    num_running = task_concurrency_map[((task_instance.dag_id, task_instance.task_id))]
+                    num_running = task_concurrency_map[
+                        ((task_instance.dag_id, task_instance.task_id))
+                    ]
+
                     if num_running >= task_concurrency:
                         self.log.info("Not executing %s since the task concurrency for"
                                       " this task has been reached.", task_instance)
@@ -1218,7 +1221,8 @@ class SchedulerJob(BaseJob):
 
         task_instance_str = "\n\t".join(
             ["{}".format(x) for x in executable_tis])
-        self.log.info("Setting the follow tasks to queued state:\n\t%s", task_instance_str)
+        self.log.info(
+            "Setting the follow tasks to queued state:\n\t%s", task_instance_str)
         # so these dont expire on commit
         for ti in executable_tis:
             copy_dag_id = ti.dag_id
@@ -1260,7 +1264,9 @@ class SchedulerJob(BaseJob):
             .filter(or_(*filter_for_ti_state_change)))
 
         if None in acceptable_states:
-            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(acceptable_states)))
+            ti_query = ti_query.filter(
+                or_(TI.state == None, TI.state.in_(acceptable_states)) # noqa E711
+            )
         else:
             ti_query = ti_query.filter(TI.state.in_(acceptable_states))
 
@@ -1605,7 +1611,8 @@ class SchedulerJob(BaseJob):
                     child.terminate()
                 # TODO: Remove magic number
                 timeout = 5
-                self.log.info("Waiting up to %s seconds for processes to exit...", timeout)
+                self.log.info(
+                    "Waiting up to %s seconds for processes to exit...", timeout)
                 try:
                     psutil.wait_procs(
                         child_processes, timeout=timeout,
@@ -1662,7 +1669,9 @@ class SchedulerJob(BaseJob):
                 self.log.info("Searching for files in %s", self.subdir)
                 known_file_paths = list_py_file_paths(self.subdir)
                 last_dag_dir_refresh_time = timezone.utcnow()
-                self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
+                self.log.info(
+                    "There are %s files in %s", len(known_file_paths), self.subdir)
+
                 processor_manager.set_file_paths(known_file_paths)
 
                 self.log.debug("Removing old import errors")
@@ -1675,7 +1684,9 @@ class SchedulerJob(BaseJob):
             if self.using_sqlite:
                 # For the sqlite case w/ 1 thread, wait until the processor
                 # is finished to avoid concurrent access to the DB.
-                self.log.debug("Waiting for processors to finish since we're using sqlite")
+                self.log.debug(
+                    "Waiting for processors to finish since we're using sqlite")
+
                 processor_manager.wait_until_finished()
 
             # Send tasks for execution if available

@@ -62,7 +62,7 @@ def get_ldap_connection(dn=None, password=None):
         cacert = configuration.conf.get("ldap", "cacert")
         tls_configuration = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cacert)
         use_ssl = True
-    except:
+    except Exception:
         pass
 
     server = Server(configuration.conf.get("ldap", "uri"), use_ssl, tls_configuration)
@@ -94,7 +94,7 @@ def groups_user(conn, search_base, user_filter, user_name_att, username):
     search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
     try:
         memberof_attr = configuration.conf.get("ldap", "group_member_attr")
-    except:
+    except Exception:
         memberof_attr = "memberOf"
     res = conn.search(native(search_base), native(search_filter),
                       attributes=[native(memberof_attr)])

@@ -43,7 +43,7 @@ def create_session():
         yield session
         session.expunge_all()
         session.commit()
-    except:
+    except Exception:
         session.rollback()
         raise
     finally:
