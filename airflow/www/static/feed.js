@@ -26,7 +26,8 @@
 // and publish them to an S3 bucket so any service at Lyft can
 // reference them
 
-var DP_ANNOUNCEMENTS_FEED_URL = "https://dataplatformadmin.lyft.net/announcements.atom";
+var DP_ANNOUNCEMENTS_FEED_ATOM_URL = "https://dataplatformadmin.lyft.net/announcements.atom";
+var DP_ANNOUNCEMENTS_FEED_HTML_URL = "https://dataplatformadmin.lyft.net/announcements/recent";
 
 var setCss = function(el, attrs) {
     el.setAttribute("style", attrs.join('; '));
@@ -51,7 +52,7 @@ var onLoadRssEntries = function() {
     var body = getXmlElementValue(latestEntry, "content");
 
 
-    external_link.setAttribute('href', DP_ANNOUNCEMENTS_FEED_URL);
+    external_link.setAttribute('href', DP_ANNOUNCEMENTS_FEED_HTML_URL);
     title_box.innerHTML = title;
     modal_title.innerHTML = summary;
     modal_body.innerHTML = body;
@@ -60,7 +61,7 @@ var onLoadRssEntries = function() {
 var populateRssFeed = function() {
     var oReq = new XMLHttpRequest();
     oReq.addEventListener("load", onLoadRssEntries);
-    oReq.open("GET", DP_ANNOUNCEMENTS_FEED_URL);
+    oReq.open("GET", DP_ANNOUNCEMENTS_FEED_ATOM_URL);
     oReq.send();
 };
 
