@@ -776,6 +776,12 @@ GKEClusterDeleteOperator
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
 .. _GKEClusterDeleteOperator:
 
+GKEPodOperator
+^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEPodOperator
+.. _GKEPodOperator:
+
 Google Kubernetes Engine Hook
 """""""""""""""""""""""""""""
 
