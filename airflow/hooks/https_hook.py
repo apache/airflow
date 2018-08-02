@@ -105,5 +105,5 @@ class HttpsHook(BaseHook):
                 # That's ok to do, because GETs should be repeatable and
                 # all data should be visible in the log (no post data)
                 logging.error(response.text)
-            raise AirflowException(str(response.status_code)+":"+response.reason)
+            raise AirflowException(str(response.status_code) + ":" + response.reason)
         return response
