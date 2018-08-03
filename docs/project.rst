@@ -30,6 +30,7 @@ Committers
 - @fokko (Fokko Driesprong)
 - @ash (Ash Berlin-Taylor)
 - @kaxilnaik (Kaxil Naik)
+- @feng-tao (Tao Feng)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
