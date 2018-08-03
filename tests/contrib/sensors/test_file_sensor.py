@@ -125,6 +125,18 @@ class FileSensorTest(unittest.TestCase):
         finally:
             shutil.rmtree(dir)
 
+    def test_default_fs_conn_id(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            task = FileSensor(
+                task_id="test",
+                filepath=tmp.name[1:],
+                dag=self.dag,
+                timeout=0,
+            )
+            task._hook = self.hook
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                     ignore_ti_state=True)
+
 
 if __name__ == '__main__':
     unittest.main()
