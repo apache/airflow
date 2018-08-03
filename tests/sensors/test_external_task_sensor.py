@@ -22,7 +22,7 @@ from datetime import timedelta, time
 
 from airflow import DAG, configuration, settings
 from airflow import exceptions
-from airflow.exceptions import AirflowSensorTimeout
+from airflow.exceptions import AirflowSensorTimeout, AirflowException
 from airflow.models import TaskInstance, DagBag
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -246,4 +246,21 @@ exit 0
                 execution_date_fn=lambda dt: dt,
                 allowed_states=['success'],
                 dag=self.dag
+            )
+
+    def test_external_task_sensor_check_existence(self):
+        self.test_time_sensor()
+        t = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=TEST_TASK_ID + "-non-existing",
+            check_existence=True,
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True
             )

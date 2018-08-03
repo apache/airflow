@@ -22,6 +22,7 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
+from airflow.exceptions import AirflowException
 
 
 class ExternalTaskSensor(BaseSensorOperator):
@@ -46,6 +47,10 @@ class ExternalTaskSensor(BaseSensorOperator):
         and returns the desired execution dates to query. Either execution_delta
         or execution_date_fn can be passed to ExternalTaskSensor, but not both.
     :type execution_date_fn: callable
+    :param check_existence: Default value is False. Set to True to check if the
+        external task exists, and immediately cease waiting if the external task
+        does not exist.
+    :type check_existence: bool
     """
     template_fields = ['external_dag_id', 'external_task_id']
     ui_color = '#19647e'
@@ -57,6 +62,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                  allowed_states=None,
                  execution_delta=None,
                  execution_date_fn=None,
+                 check_existence=False,
                  *args,
                  **kwargs):
         super(ExternalTaskSensor, self).__init__(*args, **kwargs)
@@ -70,9 +76,24 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.execution_date_fn = execution_date_fn
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
+        self.check_existence = check_existence
 
     @provide_session
     def poke(self, context, session=None):
+        TI = TaskInstance
+
+        if self.check_existence:
+            existence = session.query(TI).filter(
+                TI.dag_id == self.external_dag_id,
+                TI.task_id == self.external_task_id,
+            ).count()
+            session.commit()
+            if existence == 0:
+                raise AirflowException('The external task "' +
+                                       self.external_dag_id + " - " +
+                                       self.external_task_id +
+                                       '" does not exist.')
+
         if self.execution_delta:
             dttm = context['execution_date'] - self.execution_delta
         elif self.execution_date_fn:
@@ -89,7 +110,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             '{self.external_dag_id}.'
             '{self.external_task_id} on '
             '{} ... '.format(serialized_dttm_filter, **locals()))
-        TI = TaskInstance
+
 
         count = session.query(TI).filter(
             TI.dag_id == self.external_dag_id,
