@@ -596,8 +596,7 @@ class SchedulerJob(BaseJob):
         # 30 seconds.
         self.print_stats_interval = conf.getint('scheduler',
                                                 'print_stats_interval')
-        # Parse and schedule each file no faster than this interval. Default
-        # to 3 minutes.
+
         self.file_process_interval = file_process_interval
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
