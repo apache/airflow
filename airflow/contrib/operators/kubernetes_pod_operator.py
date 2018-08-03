@@ -102,6 +102,7 @@ class KubernetesPodOperator(BaseOperator):
                 labels=self.labels,
             )
 
+            pod.service_account_name = self.service_account_name
             pod.secrets = self.secrets
             pod.envs = self.env_vars
             pod.image_pull_policy = self.image_pull_policy
@@ -116,6 +117,10 @@ class KubernetesPodOperator(BaseOperator):
                 pod,
                 startup_timeout=self.startup_timeout_seconds,
                 get_logs=self.get_logs)
+
+            if self.is_delete_operator_pod:
+                launcher.delete_pod(pod)
+
             if final_state != State.SUCCESS:
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state)
@@ -148,6 +153,9 @@ class KubernetesPodOperator(BaseOperator):
                  config_file=None,
                  xcom_push=False,
                  node_selectors=None,
+                 image_pull_secrets=None,
+                 service_account_name="default",
+                 is_delete_operator_pod=False,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -172,3 +180,6 @@ class KubernetesPodOperator(BaseOperator):
         self.xcom_push = xcom_push
         self.resources = resources or Resources()
         self.config_file = config_file
+        self.image_pull_secrets = image_pull_secrets
+        self.service_account_name = service_account_name
+        self.is_delete_operator_pod = is_delete_operator_pod
