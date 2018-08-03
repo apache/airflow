@@ -16,26 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-require('./jqClock.min');
+
+import {defaultFormatWithTZ, moment} from './datetime-utils';
+
+function displayTime() {
+  let utcTime = moment().utc().format(defaultFormatWithTZ);
+  $('#clock')
+    .attr("data-original-title", function() {
+      return hostName
+    })
+    .html(utcTime);
+
+  setTimeout(displayTime, 1000);
+}
 
 $(document).ready(function () {
-  x = new Date();
-  const UTCseconds = (x.getTime() + x.getTimezoneOffset() * 60 * 1000);
-  $("#clock").clock({
-    "dateFormat": "Y-m-d ",
-    "timeFormat": "H:i:s %UTC%",
-    "timestamp": UTCseconds
-  }).click(function () {
-    alert(hostName); // Declared in baselayout.html
-  });
+  displayTime();
   $('span').tooltip();
-
-  $.ajaxSetup({
-    beforeSend: function (xhr, settings) {
-      if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-        // csrfToken declared in baselayout.html
-        xhr.setRequestHeader("X-CSRFToken", csrfToken);
-      }
-    }
-  });
 });

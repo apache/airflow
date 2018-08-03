@@ -36,10 +36,11 @@ const config = {
   entry: {
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
     clock: `${STATIC_DIR}/js/clock.js`,
+    graph: `${STATIC_DIR}/js/graph.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     styleBundle: [
-      `${STATIC_DIR}/css/main.css`,
       `${STATIC_DIR}/css/bootstrap-theme.css`,
+      `${STATIC_DIR}/css/main.css`,
     ],
   },
   output: {
@@ -102,6 +103,11 @@ const config = {
     new ManifestPlugin(),
     new CleanWebpackPlugin(['static/dist']),
     new MiniCssExtractPlugin({ filename: '[name].[chunkhash].css' }),
+
+    // MomentJS loads all the locale, making it a huge JS file.
+    // This will ignore the locales from momentJS
+    new webpack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify(process.env.NODE_ENV),

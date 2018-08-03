@@ -296,6 +296,7 @@ function updateQueryStringParameter(uri, key, value) {
 
     var id = '';
     var dag_id = '{{ dag.dag_id }}';
+    var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime-utils.js
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
