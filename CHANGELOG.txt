@@ -1,6 +1,8 @@
-AIRFLOW 1.10.0, 2018-07-08
+AIRFLOW 1.10.0, 2018-08-03
 --------------------------
-
+[AIRFLOW-2817] Force explicit choice on GPL dependency
+[AIRFLOW-2716] Replace async and await py3.7 keywords
+[AIRFLOW-2810] Fix typo in Xcom model timestamp
 [AIRFLOW-2710] Clarify fernet key value in documentation
 [AIRFLOW-2606] Fix DB schema and SQLAlchemy model
 [AIRFLOW-2646] Fix setup.py not to install snakebite on Python3
