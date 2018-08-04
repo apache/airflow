@@ -1086,10 +1086,10 @@ class LocalTaskJobTest(unittest.TestCase):
         mock_pid.return_value = 2
         self.assertRaises(AirflowException, job1.heartbeat_callback)
 
-    @unittest.skipIf('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
-                     "flaky when run on mysql")
-    @unittest.skipIf('postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'),
-                     'flaky when run on postgresql')
+    # @unittest.skipIf('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    #                  "flaky when run on mysql")
+    # @unittest.skipIf('postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+    #                  'flaky when run on postgresql')
     def test_mark_success_no_kill(self):
         """
         Test that ensures that mark_success in the UI doesn't cause
