@@ -246,7 +246,8 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'rednose',
-    'requests_mock'
+    'requests_mock',
+    'flake8'
 ]
 
 if not PY3:
