@@ -100,6 +100,26 @@ looks like:
 
 
 
+You can derive it by inheritance (please refer to the example below).
+Please note ``name`` inside this class must be specified.
+
+After the plugin is imported into Airflow,
+you can invoke it using statement like
+
+
+.. code:: python
+
+    from airflow.{type, like "operators", "sensors"}.{name specificed inside the plugin class} import *
+
+
+When you write your own plugins, make sure you understand them well.
+There are some essential properties for each type of plugin.
+For example,
+
+* For ``Operator`` plugin, an ``execute`` method is compulsory.
+* For ``Sensor`` plugin, a ``poke`` method returning a Boolean value is compulsory.
+
+
 Example
 -------
 
