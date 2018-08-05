@@ -18,7 +18,7 @@
 # under the License.
 from airflow.contrib.hooks.emr_hook import EmrHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
 
