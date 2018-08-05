@@ -84,10 +84,6 @@ As the Airflow community grows, we'd like to keep track of who is using
 the platform. Please send a PR with your company name and @githubhandle
 if you may.
 
-Committers:
-
-- Refer to [Committers](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers)
-
 Currently **officially** using Airflow:
 
 1. [6play](https://www.6play.fr) [[@lemourA](https://github.com/lemoura), [@achaussende](https://github.com/achaussende), [@d-nguyen](https://github.com/d-nguyen), [@julien-gm](https://github.com/julien-gm)]
@@ -273,6 +269,15 @@ Currently **officially** using Airflow:
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
+
+## Who Maintains Airflow?
+
+Airflow is the work of the 
+[community](https://github.com/apache/incubator-airflow/graphs/contributors),
+but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
+are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
+If you would like to become a maintainer, please review the Apache Airflow
+[committer requirements](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers).
 
 ## Links
 
