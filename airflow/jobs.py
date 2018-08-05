@@ -2568,6 +2568,7 @@ class LocalTaskJob(BaseJob):
             pool=None,
             *args, **kwargs):
         self.task_instance = task_instance
+        self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
         self.ignore_task_deps = ignore_task_deps

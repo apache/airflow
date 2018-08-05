@@ -1099,6 +1099,39 @@ class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
         pass
 
+    def test_localtaskjob_essential_attr(self):
+        """
+        Check whether essential attributes
+        of LocalTaskJob can be assigned with
+        proper values without intervention
+        """
+        dag = DAG(
+            'test_localtaskjob_essential_attr',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id="test",
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task_id=op1.task_id)
+
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+
+        essential_attr = ["dag_id", "job_type", "start_date", "hostname"]
+
+        check_result_1 = [hasattr(job1, attr) for attr in essential_attr]
+        self.assertTrue(all(check_result_1))
+
+        check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
+        self.assertTrue(all(check_result_2))
+
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
         session = settings.Session()
