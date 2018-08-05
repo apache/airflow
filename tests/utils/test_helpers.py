@@ -116,6 +116,43 @@ class TestHelpers(unittest.TestCase):
                                                   2),
                          14)
 
+    def test_is_in(self):
+        obj = ["list", "object"]
+        # Check for existence of a list object within a list
+        self.assertTrue(
+            helpers.is_in(obj, [obj])
+        )
+
+        # Check that an empty list returns false
+        self.assertFalse(
+            helpers.is_in(obj, [])
+        )
+
+        # Check to ensure it handles None types
+        self.assertFalse(
+            helpers.is_in(None, [obj])
+        )
+
+        # Check to ensure true will be returned of multiple objects exist
+        self.assertTrue(
+            helpers.is_in(obj, [obj, obj])
+        )
+
+    def test_is_container(self):
+        self.assertFalse(helpers.is_container("a string is not a container"))
+        self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
+
+    def test_as_tuple(self):
+        self.assertEquals(
+            helpers.as_tuple("a string is not a container"),
+            ("a string is not a container",)
+        )
+
+        self.assertEquals(
+            helpers.as_tuple(["a", "list", "is", "a", "container"]),
+            ("a", "list", "is", "a", "container")
+        )
+
 
 class HelpersTest(unittest.TestCase):
     def test_as_tuple_iter(self):
