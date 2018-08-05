@@ -20,6 +20,7 @@ import os
 import shutil
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow import AirflowException
+from kubernetes.client.rest import ApiException
 from subprocess import check_call
 import mock
 import json
@@ -232,7 +233,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             startup_timeout_seconds=5,
             service_account_name=bad_service_account_name
         )
-        with self.assertRaises(AirflowException) as cm:
+        with self.assertRaises(ApiException) as cm:
             k.execute(None),
 
         print("exception: {}".format(cm))
