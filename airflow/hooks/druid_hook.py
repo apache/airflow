@@ -81,8 +81,6 @@ class DruidHook(BaseHook):
 
             self.log.info("Job still running for %s seconds...", sec)
 
-            sec = sec + 1
-
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post("{0}/{1}/shutdown".format(url, druid_task_id))
@@ -90,6 +88,8 @@ class DruidHook(BaseHook):
                                        '%s seconds', self.max_ingestion_time)
 
             time.sleep(self.timeout)
+
+            sec = sec + self.timeout
 
             status = req_status.json()['status']['status']
             if status == 'RUNNING':
