@@ -1007,7 +1007,6 @@ def initdb(args):  # noqa
     print("Done.")
 
 
-@cli_utils.action_logging
 def resetdb(args):
     print("DB: " + repr(settings.engine.url))
     if args.yes or input("This will drop existing tables "
