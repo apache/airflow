@@ -592,9 +592,11 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         if destination_dataset_table:
-            assert '.' in destination_dataset_table, (
-                'Expected destination_dataset_table in the format of '
-                '<dataset>.<table>. Got: {}').format(destination_dataset_table)
+            if '.' not in destination_dataset_table:
+                raise ValueError(
+                    'Expected destination_dataset_table name in the format of '
+                    '<dataset>.<table>. Got: {}'.format(
+                        destination_dataset_table))
             destination_project, destination_dataset, destination_table = \
                 _split_tablename(table_input=destination_dataset_table,
                                  default_project_id=self.project_id)
@@ -610,7 +612,9 @@ class BigQueryBaseCursor(LoggingMixin):
                 }
             })
         if udf_config:
-            assert isinstance(udf_config, list)
+            if not isinstance(udf_config, list):
+                raise TypeError("udf_config argument must have a type 'list'"
+                                " not {}".format(type(udf_config)))
             configuration['query'].update({
                 'userDefinedFunctionResources': udf_config
             })
@@ -1153,10 +1157,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :type ignore_if_missing: boolean
         :return:
         """
-
-        assert '.' in deletion_dataset_table, (
-            'Expected deletion_dataset_table in the format of '
-            '<dataset>.<table>. Got: {}').format(deletion_dataset_table)
+        if '.' not in deletion_dataset_table:
+            raise ValueError(
+                'Expected deletion_dataset_table name in the format of '
+                '<dataset>.<table>. Got: {}'.format(deletion_dataset_table))
         deletion_project, deletion_dataset, deletion_table = \
             _split_tablename(table_input=deletion_dataset_table,
                              default_project_id=self.project_id)
@@ -1284,14 +1288,10 @@ class BigQueryBaseCursor(LoggingMixin):
             # if view is already in access, do nothing.
             self.log.info(
                 'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
-                view_project, view_dataset, view_table, source_project,
-                source_dataset)
+                view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
 
-    def delete_dataset(self,
-                       project_id,
-                       dataset_id
-                       ):
+    def delete_dataset(self, project_id, dataset_id):
         """
         Delete a dataset of Big query in your project.
         :param project_id: The name of the project where we have the dataset .
@@ -1308,9 +1308,8 @@ class BigQueryBaseCursor(LoggingMixin):
             self.service.datasets().delete(
                 projectId=project_id,
                 datasetId=dataset_id).execute()
-
-            self.log.info('Dataset deleted successfully: In project %s Dataset %s',
-                          project_id, dataset_id)
+            self.log.info('Dataset deleted successfully: In project %s '
+                          'Dataset %s', project_id, dataset_id)
 
         except HttpError as err:
             raise AirflowException(
@@ -1518,14 +1517,17 @@ def _bq_cast(string_field, bq_type):
     elif bq_type == 'FLOAT' or bq_type == 'TIMESTAMP':
         return float(string_field)
     elif bq_type == 'BOOLEAN':
-        assert string_field in set(['true', 'false'])
+        if string_field not in ['true', 'false']:
+            raise ValueError("{} must have value 'true' or 'false'".format(
+                string_field))
         return string_field == 'true'
     else:
         return string_field
 
 
 def _split_tablename(table_input, default_project_id, var_name=None):
-    assert default_project_id is not None, "INTERNAL: No default project is specified"
+    if not default_project_id:
+        raise ValueError("INTERNAL: No default project is specified")
 
     def var_print(var_name):
         if var_name is None:
@@ -1537,7 +1539,6 @@ def _split_tablename(table_input, default_project_id, var_name=None):
         raise Exception(('{var}Use either : or . to specify project '
                          'got {input}').format(
                              var=var_print(var_name), input=table_input))
-
     cmpt = table_input.rsplit(':', 1)
     project_id = None
     rest = table_input
@@ -1555,8 +1556,10 @@ def _split_tablename(table_input, default_project_id, var_name=None):
 
     cmpt = rest.split('.')
     if len(cmpt) == 3:
-        assert project_id is None, ("{var}Use either : or . to specify project"
-                                    ).format(var=var_print(var_name))
+        if project_id:
+            raise ValueError(
+                "{var}Use either : or . to specify project".format(
+                    var=var_print(var_name)))
         project_id = cmpt[0]
         dataset_id = cmpt[1]
         table_id = cmpt[2]
@@ -1586,10 +1589,10 @@ def _cleanse_time_partitioning(destination_dataset_table, time_partitioning_in):
     # if it is a partitioned table ($ is in the table name) add partition load option
     time_partitioning_out = {}
     if destination_dataset_table and '$' in destination_dataset_table:
-        assert not time_partitioning_in.get('field'), (
-            "Cannot specify field partition and partition name "
-            "(dataset.table$partition) at the same time"
-        )
+        if time_partitioning_in.get('field'):
+            raise ValueError(
+                "Cannot specify field partition and partition name"
+                "(dataset.table$partition) at the same time")
         time_partitioning_out['type'] = 'DAY'
 
     time_partitioning_out.update(time_partitioning_in)
