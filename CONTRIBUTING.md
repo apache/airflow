@@ -16,6 +16,7 @@ little bit helps, and credit will always be given.
 - [Development and Testing](#development-and-testing)
   - [Setting up a development environment](#setting-up-a-development-environment)
   - [Pull requests guidelines](#pull-request-guidelines)
+  - [Testing on Travis CI](#testing-on-travis-ci)
   - [Testing Locally](#testing-locally)
 - [Changing the Metadata Database](#changing-the-metadata-database)
 
@@ -138,7 +139,7 @@ Feel free to customize based on the extras available in [setup.py](./setup.py)
 Before you submit a pull request from your forked repo, check that it
 meets these guidelines:
 
-1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/incubator-airflow) to run the tests and [codecov](https://codecov.io/gh/apache/incubator-airflow) to track coverage. You can set up both for free on your fork. It will help you making sure you do not break the build with your PR and that you help increase coverage.
+1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/incubator-airflow) to run the tests and [codecov](https://codecov.io/gh/apache/incubator-airflow) to track coverage. You can set up both for free on your fork (see the "Testing on Travis CI" section below). It will help you making sure you do not break the build with your PR and that you help increase coverage.
 1. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993), squash commits, and resolve all conflicts.
 1. Every pull request should have an associated [JIRA](https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel). The JIRA link should also be contained in the PR description.
 1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and Github PRs for more details about a particular change.
@@ -147,6 +148,71 @@ meets these guidelines:
 1. The pull request should work for Python 2.7 and 3.4. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
 1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We track this using [landscape.io](https://landscape.io/github/apache/incubator-airflow/), which you can setup on your fork as well to check before you submit your PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
 1. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and adhere to them. It makes the lives of those who come after you a lot easier.
+
+### Testing on Travis CI
+
+We currently rely heavily on Travis CI for running the full Airflow test suite
+as running all of the tests locally requires significant setup.  You can setup
+Travis CI in your fork of Airflow by following the
+[Travis CI Getting Started guide][travis-ci-getting-started].
+
+There are two different options available for running Travis CI which are
+setup as separate components on GitHub:
+
+1. **Travis CI GitHub App** (new version)
+1. **Travis CI GitHub Services** (legacy version)
+
+#### Travis CI GitHub App (new version)
+
+1. Once installed, you can configure the Travis CI GitHub App at
+https://github.com/settings/installations/169040.
+
+1. For the Travis CI GitHub App, you can set repository access to either "all
+repositories" for convenience, or "only select repositories" and choose
+`<username>/incubator-airflow` in the dropdown.
+
+1. You can access Travis CI for your fork at
+`https://travis-ci.com/<username>/incubator-airflow`.
+
+#### Travis CI GitHub Services (legacy version)
+
+The Travis CI GitHub Services versions uses an Authorized OAuth App.  Note
+that `apache/incubator-airflow` is currently still using the legacy version.
+
+1. Once installed, you can configure the Travis CI Authorized OAuth App at
+https://github.com/settings/connections/applications/88c5b97de2dbfc50f3ac.
+
+1. If you are a GitHub admin, click the "Grant" button next to your
+organization; otherwise, click the "Request" button.
+
+1. For the Travis CI Authorized OAuth App, you may have to grant access to the
+forked `<organization>/incubator-airflow` repo even though it is public.
+
+1. You can access Travis CI for your fork at
+`https://travis-ci.org/<organization>/incubator-airflow`.
+
+#### Prefer travis-ci.com over travis-ci.org
+
+The travis-ci.org site for open source projects is now legacy and new projects
+should instead be created on travis-ci.com for both private repos and open
+source.
+
+Note that there is a second Authorized OAuth App available called "Travis CI
+for Open Source" used for the
+[legacy travis-ci.org service][travis-ci-org-vs-com].  It should not be used
+for new projects.
+
+More information:
+
+- [Open Source on travis-ci.com][travis-ci-open-source]
+- [Legacy GitHub Services to GitHub Apps Migration Guide][travis-ci-migrating]
+- [Migrating Multiple Repositories to GitHub Apps Guide][travis-ci-migrating-2]
+
+[travis-ci-getting-started]: https://docs.travis-ci.com/user/getting-started/
+[travis-ci-migrating-2]: https://docs.travis-ci.com/user/travis-migrate-to-apps-gem-guide/
+[travis-ci-migrating]: https://docs.travis-ci.com/user/legacy-services-to-github-apps-migration-guide/
+[travis-ci-open-source]: https://docs.travis-ci.com/user/open-source-on-travis-ci-com/
+[travis-ci-org-vs-com]: https://devops.stackexchange.com/a/4305/8830
 
 ### Testing locally
 
