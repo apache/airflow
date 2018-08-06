@@ -1302,11 +1302,20 @@ class DagRunTest(unittest.TestCase):
 
     def test_is_backfill(self):
         dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
+
         dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
         dagrun.run_id = BackfillJob.ID_PREFIX + '_sfddsffds'
-        dagrun2 = self.create_dag_run(dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+
+        dagrun2 = self.create_dag_run(
+            dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+
+        dagrun3 = self.create_dag_run(
+            dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=2))
+        dagrun3.run_id = None
+
         self.assertTrue(dagrun.is_backfill)
         self.assertFalse(dagrun2.is_backfill)
+        self.assertFalse(dagrun3.is_backfill)
 
     def test_removed_task_instances_can_be_restored(self):
         def with_all_tasks_removed(dag):
