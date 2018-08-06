@@ -84,12 +84,14 @@ class WorkerConfiguration(LoggingMixin):
     def _get_environment(self):
         """Defines any necessary environment variables for the pod executor"""
         env = {
-            'AIRFLOW__CORE__DAGS_FOLDER': '/tmp/dags',
-            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor',
-            'AIRFLOW__CORE__SQL_ALCHEMY_CONN': conf.get('core', 'SQL_ALCHEMY_CONN')
+            "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
+            "AIRFLOW__CORE__SQL_ALCHEMY_CONN": conf.get("core", "SQL_ALCHEMY_CONN"),
         }
+
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
+        if self.kube_config.worker_dags_folder:
+            env['AIRFLOW__CORE__DAGS_FOLDER'] = self.kube_config.worker_dags_folder
         return env
 
     def _get_secrets(self):
