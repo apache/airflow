@@ -48,7 +48,7 @@ class AirflowPlugin(object):
     # value is the function to call to get the URL corresponding to the button
     # The function should follow this format:
     # type: (BaseOperator, datetime) -> str
-    extra_links = {}
+    extra_link_functions = {}
 
     @classmethod
     def validate(cls):
@@ -121,12 +121,12 @@ menu_links = []
 
 # Extra links used by all operators.
 # Key is the link name and value is the function to execute.
-extra_links = {}
+extra_link_functions = {}
 
 for p in plugins:
-    extra_links.update(p.extra_links)
+    extra_link_functions.update(p.extra_link_functions)
 
-BaseOperator.extra_link_functions = extra_links
+BaseOperator.extra_link_functions = extra_link_functions
 
 for p in plugins:
     operators_modules.append(

@@ -72,6 +72,6 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     menu_links = [ml]
     # A button in every Airflow operator that will redirect you to other places.
-    extra_links = {
+    extra_link_functions = {
         'Extra link': lambda task, dttm: 'i am lost',
     }
