@@ -427,7 +427,9 @@ class MLEngineVersionOperator(BaseOperator):
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
 
         if self._operation == 'create':
-            assert self._version is not None
+            if not self._version:
+                raise ValueError("version attribute of {} could not "
+                                 "be empty".format(self.__class__.__name__))
             return hook.create_version(self._project_id, self._model_name,
                                        self._version)
         elif self._operation == 'set_default':
