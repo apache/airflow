@@ -225,11 +225,11 @@ class DataFlowHook(GoogleCloudBaseHook):
     def _build_dataflow_job_name(task_id, append_job_name=True):
         task_id = str(task_id).replace('_', '-')
 
-        assert re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", task_id), \
-            'Invalid job_name ({}); the name must consist of ' \
-            'only the characters [-a-z0-9], starting with a ' \
-            'letter and ending with a letter or number '.format(
-                task_id)
+        if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", task_id):
+            raise ValueError(
+                'Invalid job_name ({}); the name must consist of'
+                'only the characters [-a-z0-9], starting with a '
+                'letter and ending with a letter or number '.format(task_id))
 
         if append_job_name:
             job_name = task_id + "-" + str(uuid.uuid1())[:8]
@@ -238,7 +238,8 @@ class DataFlowHook(GoogleCloudBaseHook):
 
         return job_name
 
-    def _build_cmd(self, task_id, variables, label_formatter):
+    @staticmethod
+    def _build_cmd(task_id, variables, label_formatter):
         command = ["--runner=DataflowRunner"]
         if variables is not None:
             for attr, value in variables.items():
@@ -250,7 +251,8 @@ class DataFlowHook(GoogleCloudBaseHook):
                     command.append("--" + attr + "=" + value)
         return command
 
-    def _start_template_dataflow(self, name, variables, parameters, dataflow_template):
+    def _start_template_dataflow(self, name, variables, parameters,
+                                 dataflow_template):
         # Builds RuntimeEnvironment from variables dictionary
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
         environment = {}
@@ -262,9 +264,11 @@ class DataFlowHook(GoogleCloudBaseHook):
                 "parameters": parameters,
                 "environment": environment}
         service = self.get_conn()
-        request = service.projects().templates().launch(projectId=variables['project'],
-                                                        gcsPath=dataflow_template,
-                                                        body=body)
+        request = service.projects().templates().launch(
+            projectId=variables['project'],
+            gcsPath=dataflow_template,
+            body=body
+        )
         response = request.execute()
         variables = self._set_variables(variables)
         _DataflowJob(self.get_conn(), variables['project'], name, variables['region'],
