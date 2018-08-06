@@ -70,10 +70,12 @@ install the `doc` extra.
 pip install -e .[doc]
 ```
 
-Generate the documentation by running:
+Generate and serve the documentation by running:
 
 ```
-cd docs && ./build.sh
+cd docs
+./build.sh
+./start_doc_server.sh
 ```
 
 Only a subset of the API reference documentation builds. Install additional
