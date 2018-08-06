@@ -152,7 +152,8 @@ class MLEngineHook(GoogleCloudBaseHook):
             apiclient.errors.HttpError: if HTTP error is returned when getting
             the job
         """
-        assert interval > 0
+        if interval <= 0:
+            raise ValueError("Interval must be > 0")
         while True:
             job = self._get_job(project_id, job_id)
             if job['state'] in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
@@ -242,7 +243,9 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Create a Model. Blocks until finished.
         """
-        assert model['name'] is not None and model['name'] is not ''
+        if not model['name']:
+            raise ValueError("Model name must be provided and "
+                             "could not be an empty string")
         project = 'projects/{}'.format(project_id)
 
         request = self._mlengine.projects().models().create(
@@ -253,7 +256,9 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Gets a Model. Blocks until finished.
         """
-        assert model_name is not None and model_name is not ''
+        if not model_name:
+            raise ValueError("Model name must be provided and "
+                             "it could not be an empty string")
         full_model_name = 'projects/{}/models/{}'.format(
             project_id, model_name)
         request = self._mlengine.projects().models().get(name=full_model_name)

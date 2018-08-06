@@ -477,15 +477,16 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         self.log.info('Creating Bucket: %s; Location: %s; Storage Class: %s',
                       bucket_name, location, storage_class)
-        assert storage_class in storage_classes, \
-            'Invalid value ({}) passed to storage_class. Value should be ' \
-            'one of {}'.format(storage_class, storage_classes)
+        if storage_class not in storage_classes:
+            raise ValueError(
+                'Invalid value ({}) passed to storage_class. Value should be '
+                'one of {}'.format(storage_class, storage_classes))
 
-        assert re.match('[a-zA-Z0-9]+', bucket_name[0]), \
-            'Bucket names must start with a number or letter.'
+        if not re.match('[a-zA-Z0-9]+', bucket_name[0]):
+            raise ValueError('Bucket names must start with a number or letter.')
 
-        assert re.match('[a-zA-Z0-9]+', bucket_name[-1]), \
-            'Bucket names must end with a number or letter.'
+        if not re.match('[a-zA-Z0-9]+', bucket_name[-1]):
+            raise ValueError('Bucket names must end with a number or letter.')
 
         service = self.get_conn()
         bucket_resource = {

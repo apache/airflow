@@ -195,7 +195,7 @@ class DataFlowHookTest(unittest.TestCase):
         fixed_name = invalid_job_name.replace(
             '_', '-')
 
-        with self.assertRaises(AssertionError) as e:
+        with self.assertRaises(ValueError) as e:
             self.dataflow_hook._build_dataflow_job_name(
                 task_id=invalid_job_name, append_job_name=False
             )
@@ -222,19 +222,19 @@ class DataFlowHookTest(unittest.TestCase):
         ), 'dfjob1')
 
         self.assertRaises(
-            AssertionError,
+            ValueError,
             self.dataflow_hook._build_dataflow_job_name,
             task_id='1dfjob', append_job_name=False
         )
 
         self.assertRaises(
-            AssertionError,
+            ValueError,
             self.dataflow_hook._build_dataflow_job_name,
             task_id='dfjob@', append_job_name=False
         )
 
         self.assertRaises(
-            AssertionError,
+            ValueError,
             self.dataflow_hook._build_dataflow_job_name,
             task_id='df^jo', append_job_name=False
         )

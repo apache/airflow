@@ -61,7 +61,8 @@ class DatabricksHook(BaseHook, LoggingMixin):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
-        assert retry_limit >= 1, 'Retry limit must be greater than equal to 1'
+        if retry_limit < 1:
+            raise ValueError('Retry limit must be greater than equal to 1')
         self.retry_limit = retry_limit
 
     def _parse_host(self, host):

@@ -414,7 +414,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         self.assertEqual(tp_out, expect)
 
     def test_cant_add_dollar_and_field_name(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             _cleanse_time_partitioning(
                 'test.teast$20170101',
                 {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
