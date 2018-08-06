@@ -1952,10 +1952,22 @@ class BaseOperator(object):
 
     # For derived classes to define which fields will get jinjaified
     template_fields = []
-    # Defines wich files extensions to look for in the templated fields
+    # Defines which files extensions to look for in the templated fields
     template_ext = []
-    # Defines the extra buttons to display in the task instance model view
-    extra_links = []
+    # Defines which function to call per button
+    # key is the name of the button, which is a string
+    # value is the function to call to get the URL corresponding to the button
+    # The function should follow this format:
+    # type: (BaseOperator, datetime) -> str
+    extra_link_functions = {}
+
+    @property
+    def extra_links(self):
+        """
+        :return: a list of extra buttons to display in the task instance model view
+        """
+        return list(self.extra_link_functions)
+
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
@@ -2598,18 +2610,6 @@ class BaseOperator(object):
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
 
-    def get_extra_links(self, dttm, link_name):
-        """
-        For an operator, gets the URL that the external links specified in
-        `extra_links` should point to.
-        :raise ValueError: The error message of a ValueError will be passed on through to
-            the fronted to show up as a tooltip on the disabled link
-        :param dttm: The datetime parsed execution date for the URL being searched for
-        :param link_name: The name of the link we're looking for the URL for. Should be
-            one of the options specified in `extra_links`
-        :return: A URL
-        """
-        pass
 
 class DagModel(Base):
 

@@ -101,13 +101,17 @@ class TestExtraLinks(unittest.TestCase):
         class DummyTestOperator(BaseOperator):
             extra_links = ['foo-bar']
 
-            def get_extra_links(self, ddtm, link_name):
-                if link_name == 'raise_error':
-                    raise ValueError('This is an error')
-                if link_name == 'no_response':
-                    return None
-                return 'http://www.example.com/{0}/{1}/{2}'.format(self.task_id,
-                                                                   link_name, ddtm)
+            def foo_bar(self, dttm):
+                return 'http://www.example.com/{0}/{1}/{2}'.format(self.task_id, 'foo-bar', dttm)
+
+            def raise_error(self, dttm):
+                raise ValueError('This is an error')
+
+            extra_link_functions = {
+                'foo-bar': foo_bar,
+                'raise_error': raise_error,
+                'no_response': lambda task, dttm: None,
+            }
 
         self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)

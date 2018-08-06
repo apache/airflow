@@ -289,13 +289,14 @@ class DagTest(unittest.TestCase):
         result = task.render_template('', "{{ 'world' | hello}}", dict())
         self.assertEqual(result, 'Hello world')
 
-    def test_extra_links_no_affect(self):
+    def test_extra_links_registered_in_test_plugin(self):
         """
-        test for no affect on existing operators with no extra_links
+        test that extra links registered in test plugin is available.
         """
         task = DummyOperator(task_id="some_dummy_task")
-        self.assertEqual(task.extra_links, [])
-        self.assertEqual(task.get_extra_links(DEFAULT_DATE, 'foo-bar'), None)
+        self.assertEqual(task.extra_links, ['Extra link'])
+        extra_link_func = task.extra_link_functions['Extra link']
+        self.assertEqual(extra_link_func(task, DEFAULT_DATE), 'i am lost')
 
     def test_extra_links(self):
         """
@@ -303,14 +304,14 @@ class DagTest(unittest.TestCase):
         """
         class DummyTestOperator(BaseOperator):
             extra_links = ['foo-bar']
-
-            def get_extra_links(self, ddtm, link_name):
-                return('www.foo-bar.com')
+            extra_link_functions = {
+                'foo-bar': lambda dttm, link_name: 'www.foo-bar.com',
+            }
 
         task = DummyTestOperator(task_id="some_dummy_task")
         self.assertEqual(task.extra_links, ['foo-bar'])
-        self.assertEqual(task.get_extra_links(DEFAULT_DATE, 'foo-bar'),
-                         'www.foo-bar.com')
+        extra_link_func = task.extra_link_functions['foo-bar']
+        self.assertEqual(extra_link_func(task, DEFAULT_DATE), 'www.foo-bar.com')
 
 
 class DagStatTest(unittest.TestCase):

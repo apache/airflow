@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from builtins import object
+import copy
 import imp
 import inspect
 import logging
@@ -26,7 +27,7 @@ import re
 import sys
 
 from airflow import configuration
-
+from airflow.models import BaseOperator
 
 class AirflowPluginException(Exception):
     pass
@@ -41,6 +42,13 @@ class AirflowPlugin(object):
     admin_views = []
     flask_blueprints = []
     menu_links = []
+
+    # Defines which function to call per button
+    # key is the name of the button, which is a string
+    # value is the function to call to get the URL corresponding to the button
+    # The function should follow this format:
+    # type: (BaseOperator, datetime) -> str
+    extra_links = {}
 
     @classmethod
     def validate(cls):
@@ -111,6 +119,15 @@ admin_views = []
 flask_blueprints = []
 menu_links = []
 
+# Extra links used by all operators.
+# Key is the link name and value is the function to execute.
+extra_links = {}
+
+for p in plugins:
+    extra_links.update(p.extra_links)
+
+BaseOperator.extra_link_functions = extra_links
+
 for p in plugins:
     operators_modules.append(
         make_module('airflow.operators.' + p.name, p.operators))
@@ -122,3 +139,11 @@ for p in plugins:
     admin_views.extend(p.admin_views)
     flask_blueprints.extend(p.flask_blueprints)
     menu_links.extend(p.menu_links)
+
+# Merge base extra links with operators' own extra links
+for operators_module in operators_modules:
+    for operator in operators_module._objects:
+        if issubclass(operator, BaseOperator):
+            operator_extra_link_functions = copy.copy(BaseOperator.extra_link_functions)
+            operator_extra_link_functions.update(operator.extra_link_functions)
+            operator.extra_link_functions = operator_extra_link_functions

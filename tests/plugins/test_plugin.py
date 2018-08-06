@@ -60,6 +60,7 @@ ml = MenuLink(
     name='Test Menu Link',
     url='http://pythonhosted.org/airflow/')
 
+
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -70,3 +71,7 @@ class AirflowTestPlugin(AirflowPlugin):
     admin_views = [v]
     flask_blueprints = [bp]
     menu_links = [ml]
+    # A button in every Airflow operator that will redirect you to other places.
+    extra_links = {
+        'Extra link': lambda task, dttm: 'i am lost',
+    }

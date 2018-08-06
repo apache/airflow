@@ -1806,11 +1806,11 @@ class Airflow(BaseView):
             response.status_code = 404
             return response
 
-
         task = dag.get_task(task_id)
 
         try:
-            url = task.get_extra_links(dttm, link_name)
+            link_func = task.extra_link_functions[link_name]
+            url = link_func(task, dttm)
         except ValueError as err:
             response = jsonify({'url': None, 'error': str(err)})
             response.status_code = 404
