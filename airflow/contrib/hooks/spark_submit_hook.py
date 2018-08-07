@@ -26,7 +26,6 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.contrib.kubernetes import kube_client
-from kubernetes.client.rest import ApiException
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -136,6 +135,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._connection = self._resolve_connection()
         self._is_yarn = 'yarn' in self._connection['master']
         self._is_kubernetes = 'k8s' in self._connection['master']
+        if self._is_kubernetes and kube_client is None:
+            raise RuntimeError(
+                "{master} specified by kubernetes dependencies are not installed!".format(
+                    self._connection['master']))
 
         self._should_track_driver_status = self._resolve_should_track_driver_status()
         self._driver_id = None
@@ -559,6 +562,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
                     self.log.info("Spark on K8s killed with response: %s", api_response)
 
-                except ApiException as e:
+                except kube_client.ApiException as e:
                     self.log.info("Exception when attempting to kill Spark on K8s:")
                     self.log.exception(e)
