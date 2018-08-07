@@ -39,7 +39,8 @@ except Exception as e:
 
 class KubernetesPodOperatorTest(unittest.TestCase):
 
-    def test_config_path_move(self):
+    @staticmethod
+    def test_config_path_move():
         new_config_path = '/tmp/kube_config'
         old_config_path = os.path.expanduser('~/.kube/config')
         shutil.copy(old_config_path, new_config_path)
@@ -80,7 +81,8 @@ class KubernetesPodOperatorTest(unittest.TestCase):
                                        cluster_context='default',
                                        config_file=file_path)
 
-    def test_working_pod(self):
+    @staticmethod
+    def test_working_pod():
         k = KubernetesPodOperator(
             namespace='default',
             image="ubuntu:16.04",
@@ -138,7 +140,8 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         )
         k.execute(None)
 
-    def test_pod_affinity(self):
+    @staticmethod
+    def test_pod_affinity():
         affinity = {
             'nodeAffinity': {
                 'requiredDuringSchedulingIgnoredDuringExecution': {
@@ -169,7 +172,8 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         )
         k.execute(None)
 
-    def test_logging(self):
+    @staticmethod
+    def test_logging():
         with mock.patch.object(PodLauncher, 'log') as mock_logger:
             k = KubernetesPodOperator(
                 namespace='default',
@@ -184,7 +188,8 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             k.execute(None)
             mock_logger.info.assert_any_call(b"+ echo 10\n")
 
-    def test_volume_mount(self):
+    @staticmethod
+    def test_volume_mount():
         with mock.patch.object(PodLauncher, 'log') as mock_logger:
             volume_mount = VolumeMount('test-volume',
                                        mount_path='/root/mount_file',

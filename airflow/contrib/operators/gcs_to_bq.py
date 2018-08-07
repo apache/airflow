@@ -143,14 +143,18 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  schema_update_options=(),
-                 src_fmt_configs={},
+                 src_fmt_configs=None,
                  external_table=False,
-                 time_partitioning={},
+                 time_partitioning=None,
                  *args, **kwargs):
 
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
 
         # GCS config
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
+        if time_partitioning is None:
+            time_partitioning = {}
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object

@@ -123,7 +123,7 @@ class SchedulerMetricsJob(SchedulerJob):
         if (len(successful_tis) == num_task_instances or
                 (datetime.now()-self.start_date).total_seconds() >
                 MAX_RUNTIME_SECS):
-            if (len(successful_tis) == num_task_instances):
+            if len(successful_tis) == num_task_instances:
                 self.log.info("All tasks processed! Printing stats.")
             else:
                 self.log.info("Test timeout reached. "

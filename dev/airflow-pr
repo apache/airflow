@@ -757,7 +757,7 @@ def standardize_jira_ref(text, only_jira=False):
 
     # Cleanup any remaining symbols:
     pattern = re.compile(r'^\W+(.*)', re.IGNORECASE)
-    if (pattern.search(text) is not None):
+    if pattern.search(text) is not None:
         text = pattern.search(text).groups()[0]
 
     def unique(seq):

@@ -65,7 +65,7 @@ class ApiKerberosTests(unittest.TestCase):
 
             response.url = 'http://{}'.format(get_hostname())
 
-            class Request():
+            class Request:
                 headers = {}
 
             response.request = Request()

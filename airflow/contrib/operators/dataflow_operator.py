@@ -332,7 +332,7 @@ class DataFlowPythonOperator(BaseOperator):
             self.py_file, self.py_options)
 
 
-class GoogleCloudBucketHelper():
+class GoogleCloudBucketHelper(object):
     """GoogleCloudStorageHook helper class to download GCS object."""
     GCS_PREFIX_LENGTH = 5
 

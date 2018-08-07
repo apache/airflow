@@ -42,7 +42,7 @@ class S3Hook(AwsHook):
         else:
             bucket_name = parsed_url.netloc
             key = parsed_url.path.strip('/')
-            return (bucket_name, key)
+            return bucket_name, key
 
     def check_for_bucket(self, bucket_name):
         """
@@ -223,8 +223,8 @@ class S3Hook(AwsHook):
     def select_key(self, key, bucket_name=None,
                    expression='SELECT * FROM S3Object',
                    expression_type='SQL',
-                   input_serialization={'CSV': {}},
-                   output_serialization={'CSV': {}}):
+                   input_serialization=None,
+                   output_serialization=None):
         """
         Reads a key with S3 Select.
 
@@ -247,6 +247,10 @@ class S3Hook(AwsHook):
             For more details about S3 Select parameters:
             http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
         """
+        if input_serialization is None:
+            input_serialization = {'CSV': {}}
+        if output_serialization is None:
+            output_serialization = {'CSV': {}}
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
 

@@ -74,7 +74,8 @@ class DatabricksHook(BaseHook, LoggingMixin):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
 
-    def _parse_host(self, host):
+    @staticmethod
+    def _parse_host(host):
         """
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.

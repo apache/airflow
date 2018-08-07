@@ -153,7 +153,8 @@ class DockerOperatorTestCase(unittest.TestCase):
         with self.assertRaises(AirflowException):
             operator.execute(None)
 
-    def test_on_kill(self):
+    @staticmethod
+    def test_on_kill():
         client_mock = mock.Mock(spec=APIClient)
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')

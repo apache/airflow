@@ -26,7 +26,8 @@ except ImportError:
 
 
 class TestAirflowKubernetesScheduler(unittest.TestCase):
-    def _gen_random_string(self, str_len):
+    @staticmethod
+    def _gen_random_string(str_len):
         return ''.join([random.choice(string.printable) for _ in range(str_len)])
 
     def _cases(self):
@@ -45,7 +46,8 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
 
         return cases
 
-    def _is_valid_name(self, name):
+    @staticmethod
+    def _is_valid_name(name):
         regex = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
         return (
             len(name) <= 253 and

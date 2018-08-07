@@ -206,7 +206,7 @@ class BigQueryBaseCursor(LoggingMixin):
                            dataset_id,
                            table_id,
                            schema_fields=None,
-                           time_partitioning={},
+                           time_partitioning=None,
                            labels=None
                            ):
         """
@@ -238,6 +238,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :return:
         """
+        if time_partitioning is None:
+            time_partitioning = dict()
         project_id = project_id if project_id is not None else self.project_id
 
         table_resource = {
@@ -286,7 +288,7 @@ class BigQueryBaseCursor(LoggingMixin):
                               quote_character=None,
                               allow_quoted_newlines=False,
                               allow_jagged_rows=False,
-                              src_fmt_configs={},
+                              src_fmt_configs=None,
                               labels=None
                               ):
         """
@@ -352,6 +354,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :type labels: dict
         """
 
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
         project_id, dataset_id, external_table_id = \
             _split_tablename(table_input=external_project_dataset_table,
                              default_project_id=self.project_id,
@@ -482,7 +486,7 @@ class BigQueryBaseCursor(LoggingMixin):
                   labels=None,
                   schema_update_options=(),
                   priority='INTERACTIVE',
-                  time_partitioning={}):
+                  time_partitioning=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -546,6 +550,8 @@ class BigQueryBaseCursor(LoggingMixin):
         """
 
         # TODO remove `bql` in Airflow 2.0 - Jira: [AIRFLOW-2513]
+        if time_partitioning is None:
+            time_partitioning = {}
         sql = bql if sql is None else sql
 
         if bql:
@@ -806,8 +812,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  schema_update_options=(),
-                 src_fmt_configs={},
-                 time_partitioning={}):
+                 src_fmt_configs=None,
+                 time_partitioning=None):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -876,6 +882,10 @@ class BigQueryBaseCursor(LoggingMixin):
         # if it's not, we raise a ValueError
         # Refer to this link for more details:
         #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
+        if time_partitioning is None:
+            time_partitioning = {}
         source_format = source_format.upper()
         allowed_formats = [
             "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
@@ -1007,12 +1017,12 @@ class BigQueryBaseCursor(LoggingMixin):
 
         # Wait for query to finish.
         keep_polling_job = True
-        while (keep_polling_job):
+        while keep_polling_job:
             try:
                 job = jobs.get(
                     projectId=self.project_id,
                     jobId=self.running_job_id).execute()
-                if (job['status']['state'] == 'DONE'):
+                if job['status']['state'] == 'DONE':
                     keep_polling_job = False
                     # Check if job had errors.
                     if 'errorResult' in job['status']:
@@ -1041,7 +1051,7 @@ class BigQueryBaseCursor(LoggingMixin):
         jobs = self.service.jobs()
         try:
             job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
-            if (job['status']['state'] == 'DONE'):
+            if job['status']['state'] == 'DONE':
                 return True
         except HttpError as err:
             if err.resp.status in [500, 503]:
@@ -1075,13 +1085,13 @@ class BigQueryBaseCursor(LoggingMixin):
         polling_attempts = 0
 
         job_complete = False
-        while (polling_attempts < max_polling_attempts and not job_complete):
+        while polling_attempts < max_polling_attempts and not job_complete:
             polling_attempts = polling_attempts + 1
             job_complete = self.poll_job_complete(self.running_job_id)
-            if (job_complete):
+            if job_complete:
                 self.log.info('Job successfully canceled: %s, %s',
                               self.project_id, self.running_job_id)
-            elif (polling_attempts == max_polling_attempts):
+            elif polling_attempts == max_polling_attempts:
                 self.log.info(
                     "Stopping polling due to timeout. Job with id %s "
                     "has not completed cancel and may or may not finish.",

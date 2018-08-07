@@ -284,7 +284,7 @@ class DagTest(unittest.TestCase):
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
-                correct_weight = ((task_depth) * width + 1) * weight
+                correct_weight = (task_depth * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
                 self.assertEquals(calculated_weight, correct_weight)
@@ -1398,7 +1398,7 @@ class DagBagTest(unittest.TestCase):
 
         dagbag = models.DagBag(include_examples=False)
         found_dags = dagbag.process_file(f.name)
-        return (dagbag, found_dags, f.name)
+        return dagbag, found_dags, f.name
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag,
                       should_be_found=True):
@@ -2814,7 +2814,7 @@ class ClearTasksTest(unittest.TestCase):
     def test_xcom_disable_pickle_type_fail_on_non_json(self):
         class PickleRce(object):
             def __reduce__(self):
-                return (os.system, ("ls -alt",))
+                return os.system, ("ls -alt",)
 
         configuration.set("core", "xcom_enable_pickling", "False")
 
