@@ -23,7 +23,7 @@ import time
 from airflow import AirflowException, version
 from airflow.hooks.base_hook import BaseHook
 
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
@@ -146,7 +146,7 @@ class GKEClusterHook(BaseHook):
             op = self.wait_for_operation(op)
             # Returns server-defined url for the resource
             return op.self_link
-        except exceptions.NotFound as error:
+        except NotFound as error:
             self.log.info('Assuming Success: ' + error.message)
 
     def create_cluster(self, cluster, retry=DEFAULT, timeout=DEFAULT):
