@@ -36,6 +36,14 @@ PY3 = sys.version_info[0] == 3
 
 # See LEGAL-362
 def verify_gpl_dependency():
+    # The Read the Docs build environment [1] does a pip install of Airflow which cannot
+    # be overridden with custom environment variables, so we detect the READTHEDOCS env
+    # var they provide to set the env var that avoids the GPL dependency on install when
+    # building the docs site.
+    # [1]: http://docs.readthedocs.io/en/latest/builds.html#build-environment
+    if os.getenv("READTHEDOCS") == "True":
+        os.environ["SLUGIFY_USES_TEXT_UNIDECODE"] = "yes"
+
     if (not os.getenv("AIRFLOW_GPL_UNIDECODE")
             and not os.getenv("SLUGIFY_USES_TEXT_UNIDECODE") == "yes"):
         raise RuntimeError("By default one of Airflow's dependencies installs a GPL "
@@ -142,6 +150,7 @@ dask = [
 databricks = ['requests>=2.5.1, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
+    'mock',
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
     'sphinx-rtd-theme>=0.1.6',
