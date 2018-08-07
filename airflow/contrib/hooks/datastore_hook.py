@@ -172,7 +172,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         Export entities from Cloud Datastore to Cloud Storage for backup
         """
-        output_uri_prefix = 'gs://' + ('/').join(filter(None, [bucket, namespace]))
+        output_uri_prefix = 'gs://' + '/'.join(filter(None, [bucket, namespace]))
         if not entity_filter:
             entity_filter = {}
         if not labels:
@@ -191,7 +191,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         Import a backup from Cloud Storage to Cloud Datastore
         """
-        input_url = 'gs://' + ('/').join(filter(None, [bucket, namespace, file]))
+        input_url = 'gs://' + '/'.join(filter(None, [bucket, namespace, file]))
         if not entity_filter:
             entity_filter = {}
         if not labels:

@@ -140,7 +140,8 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             raise Exception
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
 
-    def _invert_python_major_version(self):
+    @staticmethod
+    def _invert_python_major_version():
         if sys.version_info[0] == 2:
             return 3
         else:

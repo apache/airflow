@@ -102,10 +102,12 @@ import dill
 
 
 class JsonCoder(object):
-    def encode(self, x):
+    @staticmethod
+    def encode(x):
         return json.dumps(x)
 
-    def decode(self, x):
+    @staticmethod
+    def decode(x):
         return json.loads(x)
 
 
