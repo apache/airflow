@@ -42,7 +42,8 @@ def get_minikube_host():
 
 
 class KubernetesExecutorTest(unittest.TestCase):
-    def _delete_airflow_pod(self):
+    @staticmethod
+    def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
         air_pod = air_pod.split('\n')
         names = [re.compile('\s+').split(x)[0] for x in air_pod if 'airflow' in x]

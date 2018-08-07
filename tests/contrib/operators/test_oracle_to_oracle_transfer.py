@@ -34,7 +34,8 @@ except ImportError:
 
 class OracleToOracleTransferTest(unittest.TestCase):
 
-    def test_execute(self):
+    @staticmethod
+    def test_execute():
         oracle_destination_conn_id = 'oracle_destination_conn_id'
         destination_table = 'destination_table'
         oracle_source_conn_id = 'oracle_source_conn_id'
