@@ -54,7 +54,8 @@ class DruidHook(BaseHook):
         self.max_ingestion_time = max_ingestion_time
         self.header = {'content-type': 'application/json'}
 
-        assert self.timeout >= 1
+        if self.timeout < 1:
+            raise ValueError("Druid timeout should be equal or greater than 1")
 
     def get_conn_url(self):
         conn = self.get_connection(self.druid_ingest_conn_id)
