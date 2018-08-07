@@ -124,6 +124,17 @@ elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
+The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storages. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
+
+#### Change of per-task log path
+
+With the change to Airflow core to be timezone aware the default log path for task instances will now include timezone information. This will by default mean all previous task logs won't be found. You can get the old behaviour back by setting the following config options:
+
+```
+[core]
+log_filename_template = {{ ti.dag_id }}/{{ ti.task_id }}/{{ execution_date.strftime("%%Y-%%m-%%dT%%H:%%M:%%S") }}/{{ try_number }}.log
+```
+
 ## Airflow 1.9
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator
