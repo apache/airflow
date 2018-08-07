@@ -156,6 +156,46 @@ class CoreTest(unittest.TestCase):
         self.assertFalse(dag_run.external_trigger)
         dag.clear()
 
+    def test_schedule_dag_relativedelta(self):
+        """
+        Tests scheduling a dag with a relativedelta schedule_interval
+        """
+        delta = relativedelta(hours=+1)
+        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_relativedelta',
+                  schedule_interval=delta)
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0)))
+
+        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        self.assertIsNotNone(dag_run)
+        self.assertEqual(dag.dag_id, dag_run.dag_id)
+        self.assertIsNotNone(dag_run.run_id)
+        self.assertNotEqual('', dag_run.run_id)
+        self.assertEqual(
+            datetime(2015, 1, 2, 0, 0),
+            dag_run.execution_date,
+            msg='dag_run.execution_date did not match expectation: {0}'
+            .format(dag_run.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run.state)
+        self.assertFalse(dag_run.external_trigger)
+        dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        self.assertIsNotNone(dag_run2)
+        self.assertEqual(dag.dag_id, dag_run2.dag_id)
+        self.assertIsNotNone(dag_run2.run_id)
+        self.assertNotEqual('', dag_run2.run_id)
+        self.assertEqual(
+            datetime(2015, 1, 2, 0, 0) + delta,
+            dag_run2.execution_date,
+            msg='dag_run2.execution_date did not match expectation: {0}'
+            .format(dag_run2.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run2.state)
+        self.assertFalse(dag_run2.external_trigger)
+        dag.clear()
+
     def test_schedule_dag_fake_scheduled_previous(self):
         """
         Test scheduling a dag where there is a prior DagRun

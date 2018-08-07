@@ -26,7 +26,7 @@ from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
-from collections import namedtuple, defaultdict, OrderedDict
+from collections import namedtuple, defaultdict, Hashable, OrderedDict
 from datetime import timedelta
 
 import dill
@@ -3387,7 +3387,7 @@ class DAG(BaseDag, LoggingMixin):
             )
 
         self.schedule_interval = schedule_interval
-        if schedule_interval in cron_presets:
+        if isinstance(schedule_interval, Hashable) and schedule_interval in cron_presets:
             self._schedule_interval = cron_presets.get(schedule_interval)
         elif schedule_interval == '@once':
             self._schedule_interval = None
@@ -3518,7 +3518,7 @@ class DAG(BaseDag, LoggingMixin):
                 tz = pendulum.timezone(self.timezone.name)
                 following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
-        elif isinstance(self._schedule_interval, timedelta):
+        elif self._schedule_interval is not None:
             return dttm + self._schedule_interval
 
     def previous_schedule(self, dttm):
