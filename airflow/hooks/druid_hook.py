@@ -37,7 +37,8 @@ class DruidHook(BaseHook):
                                  which accepts index jobs
     :type druid_ingest_conn_id: string
     :param timeout: The interval between polling
-                    the Druid job for the status of the ingestion job
+                    the Druid job for the status of the ingestion job.
+                    Must be greater than or equal to 1
     :type timeout: int
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :type max_ingestion_time: int
@@ -52,6 +53,9 @@ class DruidHook(BaseHook):
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
         self.header = {'content-type': 'application/json'}
+
+        if self.timeout < 1:
+            raise ValueError("Druid timeout should be equal or greater than 1")
 
     def get_conn_url(self):
         conn = self.get_connection(self.druid_ingest_conn_id)
