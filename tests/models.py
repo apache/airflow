@@ -896,6 +896,34 @@ class DagRunTest(unittest.TestCase):
         updated_dag_state = dag_run.update_state()
         self.assertEqual(State.FAILED, updated_dag_state)
 
+    def test_dagrun_clear_removed(self):
+        session = settings.Session()
+
+        dag = DAG(
+            'test_dagrun_clear_removed',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op = DummyOperator(task_id='A')
+
+        dag.clear()
+
+        now = datetime.datetime.now()
+        dr = dag.create_dagrun(run_id='test_dagrun_clear_removed',
+                               state=State.RUNNING,
+                               execution_date=now,
+                               start_date=now)
+
+        ti_op = dr.get_task_instance(task_id=op.task_id)
+        ti_op.set_state(state=State.REMOVED, session=session)
+
+        self.assertEqual(
+            dr.get_task_instance(task_id=op.task_id).state,
+            State.REMOVED)
+        dr.update_state()
+        self.assertIsNone(dr.get_task_instance(task_id=op.task_id))
+
     def test_get_task_instance_on_empty_dagrun(self):
         """
         Make sure that a proper value is returned when a dagrun has no task instances
