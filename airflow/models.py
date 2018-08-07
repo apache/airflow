@@ -26,7 +26,7 @@ from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, Hashable
 from datetime import timedelta
 
 import dill
@@ -3233,7 +3233,7 @@ class DAG(BaseDag, LoggingMixin):
             )
 
         self.schedule_interval = schedule_interval
-        if schedule_interval in cron_presets:
+        if isinstance(schedule_interval, Hashable) and schedule_interval in cron_presets:
             self._schedule_interval = cron_presets.get(schedule_interval)
         elif schedule_interval == '@once':
             self._schedule_interval = None
@@ -3333,7 +3333,7 @@ class DAG(BaseDag, LoggingMixin):
             cron = croniter(self._schedule_interval, dttm)
             following = timezone.make_aware(cron.get_next(datetime), self.timezone)
             return timezone.convert_to_utc(following)
-        elif isinstance(self._schedule_interval, timedelta):
+        elif self._schedule_interval is not None:
             return dttm + self._schedule_interval
 
     def previous_schedule(self, dttm):
@@ -3348,7 +3348,7 @@ class DAG(BaseDag, LoggingMixin):
             cron = croniter(self._schedule_interval, dttm)
             prev = timezone.make_aware(cron.get_prev(datetime), self.timezone)
             return timezone.convert_to_utc(prev)
-        elif isinstance(self._schedule_interval, timedelta):
+        elif self._schedule_interval is not None:
             return dttm - self._schedule_interval
 
     def get_run_dates(self, start_date, end_date=None):
