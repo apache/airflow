@@ -34,10 +34,10 @@ from past.builtins import basestring
 from past.builtins import unicode
 from six.moves import zip
 
-import airflow.security.utils as utils
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.security import utils
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING

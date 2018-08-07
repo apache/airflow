@@ -18,7 +18,7 @@
 # under the License.
 #
 import sys
-import os as _os
+import os
 
 _sensors = {
     'base_sensor_operator': ['BaseSensorOperator'],
@@ -36,7 +36,7 @@ _sensors = {
     'web_hdfs_sensor': ['WebHdfsSensor']
 }
 
-if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
     from airflow.utils.helpers import AirflowImporter
     airflow_importer = AirflowImporter(sys.modules[__name__], _sensors)
 
@@ -51,12 +51,12 @@ def _integrate_plugins():
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
 
-        if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
-            from zope.deprecation import deprecated as _deprecated
+        if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+            from zope.deprecation import deprecated
             for _sensor in sensors_module._objects:
                 sensor_name = _sensor.__name__
                 globals()[sensor_name] = _sensor
-                _deprecated(
+                deprecated(
                     sensor_name,
                     "Importing plugin operator '{i}' directly from "
                     "'airflow.operators' has been deprecated. Please "
