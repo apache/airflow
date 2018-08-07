@@ -110,11 +110,11 @@ def _integrate_plugins():
         # TODO FIXME Remove in Airflow 2.0
 
         if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
-            from zope.deprecation import deprecated as _deprecated
+            from zope.deprecation import deprecated
             for _operator in operators_module._objects:
                 operator_name = _operator.__name__
                 globals()[operator_name] = _operator
-                _deprecated(
+                deprecated(
                     operator_name,
                     "Importing plugin operator '{i}' directly from "
                     "'airflow.operators' has been deprecated. Please "

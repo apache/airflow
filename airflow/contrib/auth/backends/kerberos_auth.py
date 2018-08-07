@@ -28,7 +28,7 @@ from wtforms.validators import InputRequired
 # pykerberos should be used as it verifies the KDC, the "kerberos" module does not do so
 # and make it possible to spoof the KDC
 import kerberos
-import airflow.security.utils as utils
+from airflow.security import utils
 
 from flask import url_for, redirect
 
