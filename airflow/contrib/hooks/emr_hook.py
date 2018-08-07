@@ -63,6 +63,8 @@ class EmrHook(AwsHook):
             VisibleToAllUsers=config.get('VisibleToAllUsers'),
             JobFlowRole=config.get('JobFlowRole'),
             ServiceRole=config.get('ServiceRole'),
+            AutoScalingRole=config.get('AutoScalingRole'),
+            ScaleDownBehavior=config.get('ScaleDownBehavior'),            
             Tags=config.get('Tags')
         )
 
