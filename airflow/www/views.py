@@ -1898,7 +1898,7 @@ class Airflow(BaseView):
         if dttm:
             dttm = pendulum.parse(dttm)
         else:
-            return ("Error: Invalid execution_date")
+            return "Error: Invalid execution_date"
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)

@@ -44,7 +44,8 @@ class GKEClusterHook(BaseHook):
         client_info = ClientInfo(client_library_version='airflow_v' + version.version)
         self.client = container_v1.ClusterManagerClient(client_info=client_info)
 
-    def _dict_to_proto(self, py_dict, proto):
+    @staticmethod
+    def _dict_to_proto(py_dict, proto):
         """
         Converts a python dictionary to the proto supplied
 
@@ -93,7 +94,8 @@ class GKEClusterHook(BaseHook):
                                          zone=self.location,
                                          operation_id=operation_name)
 
-    def _append_label(self, cluster_proto, key, val):
+    @staticmethod
+    def _append_label(cluster_proto, key, val):
         """
         Append labels to provided Cluster Protobuf
 

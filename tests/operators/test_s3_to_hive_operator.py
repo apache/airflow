@@ -145,15 +145,17 @@ class S3ToHiveTransferTest(unittest.TestCase):
         key = self._get_key(ext, header)
         return self.fn[key]
 
-    def _get_key(self, ext, header):
+    @staticmethod
+    def _get_key(ext, header):
         key = ext + "_" + ('h' if header else 'nh')
         return key
 
-    def _check_file_equality(self, fn_1, fn_2, ext):
+    @staticmethod
+    def _check_file_equality(fn_1, fn_2, ext):
         # gz files contain mtime and filename in the header that
         # causes filecmp to return False even if contents are identical
         # Hence decompress to test for equality
-        if(ext.lower() == '.gz'):
+        if ext.lower() == '.gz':
             with gzip.GzipFile(fn_1, 'rb') as f_1,\
                     NamedTemporaryFile(mode='wb') as f_txt_1,\
                     gzip.GzipFile(fn_2, 'rb') as f_2,\

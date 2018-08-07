@@ -2467,7 +2467,7 @@ if six.PY2:
 class HDFSHookTest(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
-        os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = ('hdfs://localhost:8020')
+        os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
     def test_get_client(self):
         client = HDFSHook(proxy_user='foo').get_conn()

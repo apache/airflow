@@ -538,7 +538,8 @@ class DataprocClusterScaleOperator(BaseOperator):
         }
         return scale_data
 
-    def _get_graceful_decommission_timeout(self, timeout):
+    @staticmethod
+    def _get_graceful_decommission_timeout(timeout):
         match = re.match(r"^(\d+)(s|m|h|d)$", timeout)
         if match:
             if match.group(2) == "s":
@@ -622,7 +623,8 @@ class DataprocClusterDeleteOperator(BaseOperator):
         self.project_id = project_id
         self.region = region
 
-    def _wait_for_done(self, service, operation_name):
+    @staticmethod
+    def _wait_for_done(service, operation_name):
         time.sleep(15)
         while True:
             response = service.projects().regions().operations().get(

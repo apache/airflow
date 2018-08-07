@@ -35,7 +35,8 @@ class TestAwsRedshiftClusterSensor(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
 
-    def _create_cluster(self):
+    @staticmethod
+    def _create_cluster():
         client = boto3.client('redshift', region_name='us-east-1')
         client.create_cluster(
             ClusterIdentifier='test_cluster',

@@ -94,7 +94,7 @@ class GKEClusterCreateOperator(BaseOperator):
     def __init__(self,
                  project_id,
                  location,
-                 body={},
+                 body=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v2',
                  *args,
@@ -143,6 +143,8 @@ class GKEClusterCreateOperator(BaseOperator):
         """
         super(GKEClusterCreateOperator, self).__init__(*args, **kwargs)
 
+        if body is None:
+            body = {}
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.location = location

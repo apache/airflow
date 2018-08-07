@@ -351,7 +351,8 @@ class PythonVirtualenvOperator(PythonOperator):
             cmd = ['{}/bin/pip'.format(tmp_dir), 'install']
             return cmd + self.requirements
 
-    def _generate_python_cmd(self, tmp_dir, script_filename,
+    @staticmethod
+    def _generate_python_cmd(tmp_dir, script_filename,
                              input_filename, output_filename, string_args_filename):
         # direct path alleviates need to activate
         return ['{}/bin/python'.format(tmp_dir), script_filename,

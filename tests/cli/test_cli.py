@@ -70,12 +70,14 @@ def create_mock_args(
     ignore_dependencies=False,
     force=False,
     run_as_user=None,
-    executor_config={},
+    executor_config=None,
     cfg_path=None,
     pickle=None,
     raw=None,
     interactive=None,
 ):
+    if executor_config is None:
+        executor_config = {}
     args = MagicMock(spec=Namespace)
     args.task_id = task_id
     args.dag_id = dag_id

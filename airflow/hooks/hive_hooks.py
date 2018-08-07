@@ -137,7 +137,8 @@ class HiveCliHook(BaseHook):
 
         return [hive_bin] + cmd_extra + hive_params_list
 
-    def _prepare_hiveconf(self, d):
+    @staticmethod
+    def _prepare_hiveconf(d):
         """
         This function prepares a list of hiveconf params
         from a dictionary of key value pairs.

@@ -1183,7 +1183,7 @@ class SchedulerJob(BaseJob):
                     'task_concurrency')
                 if task_concurrency is not None:
                     num_running = task_concurrency_map[
-                        ((task_instance.dag_id, task_instance.task_id))
+                        (task_instance.dag_id, task_instance.task_id)
                     ]
 
                     if num_running >= task_concurrency:

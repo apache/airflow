@@ -93,7 +93,7 @@ class ConnectionForm(DynamicForm):
         widget=BS3TextFieldWidget())
     conn_type = SelectField(
         lazy_gettext('Conn Type'),
-        choices=(models.Connection._types),
+        choices=models.Connection._types,
         widget=Select2Widget())
     host = StringField(
         lazy_gettext('Host'),

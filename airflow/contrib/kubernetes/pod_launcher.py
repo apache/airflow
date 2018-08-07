@@ -113,7 +113,7 @@ class PodLauncher(LoggingMixin):
         while self.pod_is_running(pod):
             self.log.info('Pod %s has state %s', pod.name, State.RUNNING)
             time.sleep(2)
-        return (self._task_status(self.read_pod(pod)), result)
+        return self._task_status(self.read_pod(pod)), result
 
     def _task_status(self, event):
         self.log.info(

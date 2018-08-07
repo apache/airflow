@@ -326,7 +326,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         ids = list()
         pageToken = None
-        while(True):
+        while True:
             response = service.objects().list(
                 bucket=bucket,
                 versions=versions,
