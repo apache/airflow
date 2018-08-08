@@ -46,6 +46,15 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
        :type use_db_config: bool
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
+       :param wait: if the program should keep running until job finishes
+       :type wait: bool
+       :param check_interval: if wait is set to be true, this is the time interval
+       which the operator will check the status of the training job
+       :type check_interval: int
+       :param max_ingestion_time: if wait is set to be true, the operator will fail
+       if the training job hasn't finish within the max_ingestion_time
+       (Caution: be careful to set this parameters because training can take very long)
+       :type max_ingestion_time: int
 
        **Example**:
            The following operator would start a training job when executed
@@ -71,6 +80,9 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                  region_name=None,
                  sagemaker_conn_id=None,
                  use_db_config=False,
+                 wait=True,
+                 check_interval=5,
+                 max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerCreateTrainingJobOperator, self).__init__(*args, **kwargs)
 
@@ -78,18 +90,25 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
         self.training_job_config = training_job_config
         self.use_db_config = use_db_config
         self.region_name = region_name
+        self.wait = wait
+        self.check_interval = check_interval
+        self.max_ingestion_time = max_ingestion_time
 
     def execute(self, context):
         sagemaker = SageMakerHook(
             sagemaker_conn_id=self.sagemaker_conn_id,
             use_db_config=self.use_db_config,
-            region_name=self.region_name)
+            region_name=self.region_name,
+            check_interval=self.check_interval,
+            max_ingestion_time=self.max_ingestion_time
+        )
 
         self.log.info(
             "Creating SageMaker Training Job %s."
             % self.training_job_config['TrainingJobName']
         )
-        response = sagemaker.create_training_job(self.training_job_config)
+        response = sagemaker.create_training_job(self.training_job_config,
+                                                 wait=self.wait)
         if not response['ResponseMetadata']['HTTPStatusCode'] \
            == 200:
             raise AirflowException(

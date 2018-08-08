@@ -95,7 +95,9 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
             sagemaker_conn_id='sagemaker_test_id',
             training_job_config=create_training_params,
             region_name='us-west-2',
-            use_db_config=True
+            use_db_config=True,
+            wait=False,
+            check_interval=5
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -110,7 +112,10 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         hook_init.assert_called_once_with(
             sagemaker_conn_id='sagemaker_test_id',
             region_name='us-west-2',
-            use_db_config=True)
+            use_db_config=True,
+            check_interval=5,
+            max_ingestion_time=None
+        )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
@@ -119,7 +124,9 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
                                       "ResponseMetadata":
                                           {"HTTPStatusCode": 200}}
         self.sagemaker.execute(None)
-        mock_training.assert_called_once_with(create_training_params)
+        mock_training.assert_called_once_with(create_training_params,
+                                              wait=False
+                                              )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')

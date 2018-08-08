@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
+import time
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -34,11 +36,15 @@ class SageMakerHook(AwsHook):
                  sagemaker_conn_id=None,
                  use_db_config=False,
                  region_name=None,
+                 check_interval=5,
+                 max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerHook, self).__init__(*args, **kwargs)
         self.sagemaker_conn_id = sagemaker_conn_id
         self.use_db_config = use_db_config
         self.region_name = region_name
+        self.check_interval = check_interval
+        self.max_ingestion_time = max_ingestion_time
         self.conn = self.get_conn()
 
     def check_for_url(self, s3url):
@@ -80,6 +86,53 @@ class SageMakerHook(AwsHook):
             self.check_for_url(channel['DataSource']
                                ['S3DataSource']['S3Uri'])
 
+    def check_status(self, non_terminal_states,
+                     failed_state, key,
+                     describe_function, *args):
+        """
+        :param non_terminal_states: the set of non_terminal states
+        :type non_terminal_states: dict
+        :param failed_state: the set of failed states
+        :type failed_state: dict
+        :param key: the key of the response dict
+        that points to the state
+        :type key: string
+        :param describe_function: the function used to retrieve the status
+        :type describe_function: python callable
+        :param args: the arguments for the function
+        :return: None
+        """
+        sec = 0
+        running = True
+
+        while running:
+
+            sec = sec + self.check_interval
+
+            if self.max_ingestion_time and sec > self.max_ingestion_time:
+                # ensure that the job gets killed if the max ingestion time is exceeded
+                raise AirflowException("SageMaker job took more than "
+                                       "%s seconds", self.max_ingestion_time)
+
+            time.sleep(self.check_interval)
+            try:
+                status = describe_function(*args)[key]
+                self.log.info("Job still running for %s seconds... "
+                              "current status is %s" % (sec, status))
+            except KeyError:
+                raise AirflowException("Could not get status of the SageMaker job")
+            except ClientError:
+                raise AirflowException("AWS request failed, check log for more info")
+
+            if status in non_terminal_states:
+                running = True
+            elif status in failed_state:
+                raise AirflowException("SageMaker job failed")
+            else:
+                running = False
+
+        self.log.info('SageMaker Job Compeleted')
+
     def get_conn(self):
         """
         Establish an AWS connection
@@ -111,11 +164,13 @@ class SageMakerHook(AwsHook):
         return self.conn.list_hyper_parameter_tuning_job(
             NameContains=name_contains, StatusEquals=status_equals)
 
-    def create_training_job(self, training_job_config):
+    def create_training_job(self, training_job_config, wait=True):
         """
         Create a training job
         :param training_job_config: the config for training
         :type training_job_config: dict
+        :param wait: if the program should keep running until job finishes
+        :param wait: bool
         :return: A dict that contains ARN of the training job.
         """
         if self.use_db_config:
@@ -129,8 +184,15 @@ class SageMakerHook(AwsHook):
 
         self.check_valid_training_input(training_job_config)
 
-        return self.conn.create_training_job(
+        response = self.conn.create_training_job(
             **training_job_config)
+        if wait:
+            self.check_status(['InProgress', 'Stopping', 'Stopped'],
+                              ['Failed'],
+                              'TrainingJobStatus',
+                              self.describe_training_job,
+                              training_job_config['TrainingJobName'])
+        return response
 
     def create_tuning_job(self, tuning_job_config):
         """
