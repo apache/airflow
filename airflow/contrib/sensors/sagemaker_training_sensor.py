@@ -19,7 +19,7 @@
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.sensors.sagemaker_base_sensor import SageMakerBaseSensor
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class SageMakerTrainingSensor(SageMakerBaseSensor):
