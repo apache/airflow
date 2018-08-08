@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -68,6 +68,11 @@ class ConfTest(unittest.TestCase):
         cfg_dict = conf.as_dict(display_sensitive=True, display_source=True)
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
+
+        # test escape_env_vars
+        cfg_dict = conf.as_dict(escape_env_vars=True)
+        self.assertEqual(
+            cfg_dict['testsection']['testkeywithpercent'], 'test%%with%%percent')
 
     def test_command_config(self):
         TEST_CONFIG = '''[test]

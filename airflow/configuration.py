@@ -330,7 +330,7 @@ class AirflowConfigParser(ConfigParser):
             _section[key] = val
         return _section
 
-    def as_dict(self, display_source=False, display_sensitive=False):
+    def as_dict(self, display_source=False, display_sensitive=False, escape_env_vars=False):
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
         :param display_source: If False, the option value is returned. If True,
@@ -378,6 +378,8 @@ class AirflowConfigParser(ConfigParser):
             if opt:
                 if not display_sensitive:
                     opt = '< hidden >'
+                if escape_env_vars:
+                    opt = opt.replace('%', '%%')
                 if display_source:
                     opt = (opt, 'bash cmd')
                 cfg.setdefault(section, OrderedDict()).update({key: opt})
