@@ -27,7 +27,9 @@ import google.oauth2.service_account
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
+from airflow.utils.helpers import convert_to_int
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 
@@ -129,7 +131,8 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         service hook connection.
         """
         credentials = self._get_credentials()
-        http = httplib2.Http()
+        proxy_obj = self._get_proxy_obj()
+        http = httplib2.Http(proxy_info=proxy_obj)
         authed_http = google_auth_httplib2.AuthorizedHttp(
             credentials, http=http)
         return authed_http
@@ -146,6 +149,49 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
             return self.extras[long_f]
         else:
             return default
+
+    def _get_proxy_obj(self):
+        """
+        Returns proxy object with proxy details auch as host, port and type
+        """
+        proxy_obj = None
+        if self._get_useproxy() is True:
+            proxy = self.get_proxyconfig()
+            proxy_host = proxy.get('proxy_host')
+            proxy_port = convert_to_int(proxy.get('proxy_port'), 8080)
+            proxy_type = self._get_proxy_type(proxy)
+            proxy_obj = httplib2.ProxyInfo(proxy_type, proxy_host, proxy_port)
+        return proxy_obj
+
+    def _get_proxy_type(self, proxy):
+        """
+        :param proxy: Proxy details fetched from configuration file
+        :return: Proxy type
+        """
+        proxy_type_dictionary = {
+            "SOCKS4": httplib2.socks.PROXY_TYPE_SOCKS4,
+            "SOCKS5": httplib2.socks.PROXY_TYPE_SOCKS5,
+            "HTTP": httplib2.socks.PROXY_TYPE_HTTP,
+            "HTTP_NO_TUNNEL": httplib2.socks.PROXY_TYPE_HTTP_NO_TUNNEL
+        }
+
+        proxy_type_from_config = proxy.get('proxy_type')
+        proxy_type = proxy_type_dictionary.get(proxy_type_from_config)
+
+        if proxy_type is None:
+            self.log.info("Proxy type does not exist returning proxy type as None")
+        return proxy_type
+
+    def _get_useproxy(self):
+        """
+        Fetch use_proxy field from config file
+        """
+        use_proxy = None
+        try:
+            use_proxy = conf.getboolean('core', 'use_proxy')
+        except AirflowConfigException:
+            use_proxy = False
+        return use_proxy
 
     @property
     def project_id(self):

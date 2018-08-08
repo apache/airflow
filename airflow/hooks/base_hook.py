@@ -29,6 +29,7 @@ from airflow.models import Connection
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow import configuration
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
@@ -87,6 +88,20 @@ class BaseHook(LoggingMixin):
     def get_hook(cls, conn_id):
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
+
+    def get_proxyconfig(self):
+        log = LoggingMixin().log
+        proxy_config = None
+        try:
+            conf_dict = configuration.as_dict(display_sensitive=False)
+            if conf_dict and 'proxy' in conf_dict:
+                proxy_config = conf_dict['proxy']
+            else:
+                log.error("Proxy section not found in config")
+        except Exception as err:
+            log.error(err)
+            log.error("Got Exception! returning Proxy details as None")
+        return proxy_config
 
     def get_conn(self):
         raise NotImplementedError()
