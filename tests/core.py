@@ -38,7 +38,6 @@ from dateutil.relativedelta import relativedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
 from time import sleep
@@ -70,6 +69,7 @@ from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
 from jinja2.sandbox import SecurityError
 from jinja2 import UndefinedError
+from pendulum import utcnow
 
 import six
 
@@ -261,7 +261,6 @@ class CoreTest(unittest.TestCase):
 
         self.assertIsNone(additional_dag_run)
 
-    @freeze_time('2016-01-01')
     def test_schedule_dag_no_end_date_up_to_today_only(self):
         """
         Tests that a Dag created without an end_date can only be scheduled up
@@ -273,8 +272,11 @@ class CoreTest(unittest.TestCase):
         """
         session = settings.Session()
         delta = timedelta(days=1)
-        start_date = DEFAULT_DATE
-        runs = 365
+        now = utcnow()
+        start_date = now.subtract(weeks=1)
+
+        runs = (now - start_date).days
+
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_end_date_up_to_today_only',
                   start_date=start_date,
                   schedule_interval=delta)
