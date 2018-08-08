@@ -89,3 +89,13 @@ AUTH_TYPE = AUTH_DB
 #    { 'name': 'AOL', 'url': 'http://openid.aol.com/<username>' },
 #    { 'name': 'Flickr', 'url': 'http://www.flickr.com/<username>' },
 #    { 'name': 'MyOpenID', 'url': 'https://www.myopenid.com' }]
+
+# ----------------------------------------------------
+# Theme CONFIG
+# ----------------------------------------------------
+# Flask App Builder comes up with a number of predefined themes
+# that you can use for Apache Airflow.
+# http://flask-appbuilder.readthedocs.io/en/latest/customizing.html#changing-themes
+# Please make sure to remove "navbar_color" configuration from airflow.cfg
+# in order to fully utilize the theme. (or use that property in conjunction with theme)
+# APP_THEME = "bootstrap-theme.css"  # default bootstrap
