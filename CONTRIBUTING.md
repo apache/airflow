@@ -85,10 +85,7 @@ Go to your Airflow directory and start a new docker container. You can choose be
 
 ```
 # Start docker in your Airflow directory
-docker run -t -i -v `pwd`:/airflow/ python:2 bash
-
-# Go to the Airflow directory
-cd /airflow/
+docker run -t -i -v `pwd`:/airflow/ -w /airflow/ -e SLUGIFY_USES_TEXT_UNIDECODE=yes python:2 bash
 
 # Install Airflow with all the required dependencies,
 # including the devel which will provide the development tools
