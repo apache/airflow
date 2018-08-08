@@ -56,7 +56,7 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from mock import patch, ANY
 from parameterized import parameterized
-from tempfile import NamedTemporaryFile
+from tempfile import mkdtemp, NamedTemporaryFile
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -1174,6 +1174,19 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag()
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
+
+    def test_process_file_cron_validity_check(self):
+        """
+        test if an invalid cron expression
+        as schedule interval can be identified
+        """
+        invalid_dag_files = ["test_invalid_cron.py", "test_zip_invalid_cron.zip"]
+        dagbag = models.DagBag(dag_folder=mkdtemp())
+
+        self.assertEqual(len(dagbag.import_errors), 0)
+        for d in invalid_dag_files:
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, d))
+        self.assertEqual(len(dagbag.import_errors), len(invalid_dag_files))
 
     @patch.object(DagModel,'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):
