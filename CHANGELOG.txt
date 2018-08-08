@@ -1,5 +1,10 @@
 AIRFLOW 1.10.0, 2018-08-03
 --------------------------
+[AIRFLOW-2870] Use abstract TaskInstance for migration
+[AIRFLOW-2859] Implement own UtcDateTime (#3708)
+[AIRFLOW-2140] Don't require kubernetes for the SparkSubmit hook
+[AIRFLOW-2869] Remove smart quote from default config
+[AIRFLOW-2857] Fix Read the Docs env
 [AIRFLOW-2817] Force explicit choice on GPL dependency
 [AIRFLOW-2716] Replace async and await py3.7 keywords
 [AIRFLOW-2810] Fix typo in Xcom model timestamp
