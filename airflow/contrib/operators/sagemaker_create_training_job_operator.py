@@ -46,8 +46,9 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
        :type use_db_config: bool
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
-       :param wait: if the program should keep running until job finishes
-       :type wait: bool
+       :param wait_for_completion: if the operator should block
+       until training job finishes
+       :type wait_for_completion: bool
        :param check_interval: if wait is set to be true, this is the time interval
        which the operator will check the status of the training job
        :type check_interval: int
@@ -68,7 +69,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                    use_db_config=True,
                    aws_conn_id='aws_customers_conn'
                )
-       """
+    """
 
     template_fields = ['training_job_config']
     template_ext = ()
