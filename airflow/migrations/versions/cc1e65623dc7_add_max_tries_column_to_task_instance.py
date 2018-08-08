@@ -1,3 +1,4 @@
+# flake8: noqa
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,10 +34,27 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from airflow import settings
-from airflow.models import DagBag, TaskInstance
-from sqlalchemy.engine.reflection import Inspector
+from airflow.models import DagBag
+from airflow.utils.sqlalchemy import UtcDateTime
 
+from sqlalchemy import (
+    Column, Integer, String)
+from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
 BATCH_SIZE = 5000
+ID_LEN = 250
+
+
+class TaskInstance(Base):
+    __tablename__ = "task_instance"
+
+    task_id = Column(String(ID_LEN), primary_key=True)
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    execution_date = Column(UtcDateTime, primary_key=True)
+    max_tries = Column(Integer)
+    try_number = Column(Integer, default=0)
 
 
 def upgrade():
