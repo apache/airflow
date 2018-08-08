@@ -61,8 +61,16 @@ If you are proposing a feature:
 
 ## Documentation
 
-The latest API documentation is usually available
-[here](https://airflow.incubator.apache.org/). To generate a local version,
+The Airflow documentation is located at:
+
+- <https://airflow.apache.org> (points to
+  <https://airflow.readthedocs.io/en/stable/>) (latest stable)
+- <https://airflow.readthedocs.io/en/latest/> (latest master)
+
+The documentation for release versions ≥ 1.9 can be accessed from the above
+links as well (e.g., 1.9.0 is https://airflow.readthedocs.io/en/1.9.0/).
+
+To generate a local version,
 you need to have set up an Airflow development environment (see below). Also
 install the `doc` extra.
 

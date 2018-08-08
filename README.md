@@ -24,9 +24,12 @@ monitor progress, and troubleshoot issues when needed.
 
 ## Getting started
 
-Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.incubator.apache.org/installation.html), getting a [quick start](https://airflow.incubator.apache.org/start.html), or a more complete [tutorial](https://airflow.incubator.apache.org/tutorial.html).
+Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), getting a [quick start](https://airflow.apache.org/start.html), or a more complete [tutorial](https://airflow.apache.org/tutorial.html).
 
-Documentation of GitHub master (latest development branch): [ReadTheDocs Documentation](https://airflow.readthedocs.io/en/latest/)
+Documentation for the latest master branch is available at <https://airflow.readthedocs.io/en/latest/>.
+
+The documentation for release versions ≥ 1.9 can be accessed from the above
+links as well (e.g., 1.9.0 is https://airflow.readthedocs.io/en/1.9.0/).
 
 For further information, please visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
@@ -272,7 +275,7 @@ Currently **officially** using Airflow:
 
 ## Who Maintains Airflow?
 
-Airflow is the work of the 
+Airflow is the work of the
 [community](https://github.com/apache/incubator-airflow/graphs/contributors),
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
@@ -281,7 +284,7 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## Links
 
-- [Documentation](https://airflow.incubator.apache.org/)
+- [Documentation](https://airflow.apache.org)
 - [Chat](https://gitter.im/apache/incubator-airflow)
 - [Apache Airflow Incubation Status](http://incubator.apache.org/projects/airflow.html)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

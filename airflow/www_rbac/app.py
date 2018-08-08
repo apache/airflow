@@ -126,7 +126,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 "XComs",
                                 category="Admin")
             appbuilder.add_link("Documentation",
-                                href='https://airflow.apache.org/',
+                                href='https://airflow.apache.org',
                                 category="Docs",
                                 category_icon="fa-cube")
             appbuilder.add_link("Github",

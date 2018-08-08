@@ -40,7 +40,7 @@ Contributor page:
 Resources & links
 -----------------
 
-* `Airflow's official documentation <http://airflow.apache.org/>`_
+* `Airflow's official documentation <https://airflow.apache.org>`_
 * Mailing list (send emails to
   ``dev-subscribe@airflow.incubator.apache.org`` and/or
   ``commits-subscribe@airflow.incubator.apache.org``
