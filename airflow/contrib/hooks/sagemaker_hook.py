@@ -67,8 +67,8 @@ class SageMakerHook(AwsHook):
     def check_valid_training_input(self, training_config):
         """
         Run checks before a training starts
-        :param config: training_config
-        :type config: dict
+        :param training_config: training_config
+        :type training_config: dict
         :return: None
         """
         for channel in training_config['InputDataConfig']:
@@ -78,8 +78,8 @@ class SageMakerHook(AwsHook):
     def check_valid_tuning_input(self, tuning_config):
         """
         Run checks before a tuning job starts
-        :param config: tuning_config
-        :type config: dict
+        :param tuning_config: tuning_config
+        :type tuning_config: dict
         :return: None
         """
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
@@ -116,7 +116,8 @@ class SageMakerHook(AwsHook):
 
             time.sleep(self.check_interval)
             try:
-                status = describe_function(*args)[key]
+                response = describe_function(*args)
+                status = response[key]
                 self.log.info("Job still running for %s seconds... "
                               "current status is %s" % (sec, status))
             except KeyError:
@@ -127,7 +128,8 @@ class SageMakerHook(AwsHook):
             if status in non_terminal_states:
                 running = True
             elif status in failed_state:
-                raise AirflowException("SageMaker job failed")
+                raise AirflowException("SageMaker job failed because %s"
+                                       % response['FailureReason'])
             else:
                 running = False
 
@@ -164,13 +166,13 @@ class SageMakerHook(AwsHook):
         return self.conn.list_hyper_parameter_tuning_job(
             NameContains=name_contains, StatusEquals=status_equals)
 
-    def create_training_job(self, training_job_config, wait=True):
+    def create_training_job(self, training_job_config, wait_for_completion=True):
         """
         Create a training job
         :param training_job_config: the config for training
         :type training_job_config: dict
-        :param wait: if the program should keep running until job finishes
-        :param wait: bool
+        :param wait_for_completion: if the program should keep running until job finishes
+        :param wait_for_completion: bool
         :return: A dict that contains ARN of the training job.
         """
         if self.use_db_config:
@@ -186,7 +188,7 @@ class SageMakerHook(AwsHook):
 
         response = self.conn.create_training_job(
             **training_job_config)
-        if wait:
+        if wait_for_completion:
             self.check_status(['InProgress', 'Stopping', 'Stopped'],
                               ['Failed'],
                               'TrainingJobStatus',
