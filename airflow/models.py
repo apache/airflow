@@ -62,7 +62,9 @@ from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
 from sqlalchemy_utc import UtcDateTime
 
-from croniter import croniter
+from croniter import (
+    croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
+)
 import six
 
 from airflow import settings, utils
@@ -412,8 +414,18 @@ class DagBag(BaseDagBag, LoggingMixin):
                     try:
                         dag.is_subdag = False
                         self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                        if isinstance(dag._schedule_interval, six.string_types):
+                            croniter(dag._schedule_interval)
                         found_dags.append(dag)
                         found_dags += dag.subdags
+                    except (CroniterBadCronError,
+                            CroniterBadDateError,
+                            CroniterNotAlphaError) as cron_e:
+                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                        self.import_errors[dag.full_filepath] = \
+                            "Invalid Cron expression: " + str(cron_e)
+                        self.file_last_changed[dag.full_filepath] = \
+                            file_last_changed_on_disk
                     except AirflowDagCycleException as cycle_exception:
                         self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                         self.import_errors[dag.full_filepath] = str(cycle_exception)
