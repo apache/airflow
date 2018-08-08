@@ -96,7 +96,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
             training_job_config=create_training_params,
             region_name='us-west-2',
             use_db_config=True,
-            wait=False,
+            wait_for_completion=False,
             check_interval=5
         )
 
@@ -125,7 +125,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
                                           {"HTTPStatusCode": 200}}
         self.sagemaker.execute(None)
         mock_training.assert_called_once_with(create_training_params,
-                                              wait=False
+                                              wait_for_completion=False
                                               )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
