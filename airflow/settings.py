@@ -27,7 +27,7 @@ import logging
 import os
 import pendulum
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -209,6 +209,26 @@ def configure_adapters():
         MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
     except ImportError:
         pass
+
+
+def validate_session():
+    try:
+        worker_precheck = conf.getboolean('core', 'worker_precheck')
+    except conf.AirflowConfigException:
+        worker_precheck = False
+    if not worker_precheck:
+        return True
+    else:
+        check_session = sessionmaker(bind=engine)
+        session = check_session()
+        try:
+            session.execute("select 1")
+            conn_status = True
+        except exc.DBAPIError as err:
+            log.error(err)
+            conn_status = False
+        session.close()
+        return conn_status
 
 
 def configure_action_logging():
