@@ -1805,14 +1805,15 @@ class TaskInstance(Base, LoggingMixin):
         tables = None
         if 'tables' in task.params:
             tables = task.params['tables']
+        # convert to default timezone
+        execution_date_tz = settings.TIMEZONE.convert(self.execution_date)
+        ds = execution_date_tz.strftime('%Y-%m-%d')
+        ts = execution_date_tz.isoformat()
+        yesterday_ds = (execution_date_tz - timedelta(1)).strftime('%Y-%m-%d')
+        tomorrow_ds = (execution_date_tz + timedelta(1)).strftime('%Y-%m-%d')
 
-        ds = self.execution_date.strftime('%Y-%m-%d')
-        ts = self.execution_date.isoformat()
-        yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
-        tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
-
-        prev_execution_date = task.dag.previous_schedule(self.execution_date)
-        next_execution_date = task.dag.following_schedule(self.execution_date)
+        prev_execution_date = task.dag.previous_schedule(execution_date_tz)
+        next_execution_date = task.dag.following_schedule(execution_date_tz)
 
         next_ds = None
         if next_execution_date:
@@ -1899,7 +1900,7 @@ class TaskInstance(Base, LoggingMixin):
             'end_date': ds,
             'dag_run': dag_run,
             'run_id': run_id,
-            'execution_date': self.execution_date,
+            'execution_date': execution_date_tz,
             'prev_execution_date': prev_execution_date,
             'next_execution_date': next_execution_date,
             'latest_date': ds,
