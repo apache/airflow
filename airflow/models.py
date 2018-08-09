@@ -2254,7 +2254,8 @@ class BaseOperator(LoggingMixin):
     :type dag: DAG
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
-        others when things get backed up.
+        others when things get backed up. Set priority_weight as a higher
+        number for more important tasks.
     :type priority_weight: int
     :param weight_rule: weighting method used for the effective total
         priority weight of the task. Options are:
