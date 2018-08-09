@@ -2200,7 +2200,6 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
             hook = db.get_hook()
             try:
                 df = hook.get_pandas_df(wwwutils.limit_sql(sql, QUERY_LIMIT, conn_type=db.conn_type))
-                # df = hook.get_pandas_df(sql)
                 has_data = len(df) > 0
                 df = df.fillna('')
                 results = df.to_html(
@@ -2208,7 +2207,7 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
                         'table', 'table-bordered', 'table-striped', 'no-wrap'],
                     index=False,
                     na_rep='',
-                ) if has_data else ''
+                ) if (has_data and not csv) else ''
             except Exception as e:
                 flash(str(e), 'error')
                 error = True
@@ -2221,19 +2220,18 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
         if not has_data and error:
             flash('No data', 'error')
 
-        if csv:
+        if csv and has_data:
             return Response(
                 response=df.to_csv(index=False),
                 status=200,
-                mimetype="application/text")
+                mimetype="text/csv")
 
         form = QueryForm(request.form, data=data)
         session.commit()
         return self.render(
             'airflow/query.html', form=form,
             title="Ad Hoc Query",
-            results=results or '',
-            has_data=has_data)
+            results=results or '')
 
 
 class AirflowModelView(ModelView):

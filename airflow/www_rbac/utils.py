@@ -20,10 +20,12 @@
 from future import standard_library  # noqa
 standard_library.install_aliases()  # noqa
 
+from cgi import escape
 import inspect
 import json
 import time
 import wtforms
+from wtforms.compat import text_type
 import bleach
 import markdown
 
@@ -353,3 +355,50 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+def limit_sql(sql, limit, conn_type):
+    sql = sql.strip()
+    sql = sql.rstrip(';')
+    if sql.lower().startswith("select"):
+        if conn_type in ['mssql']:
+            sql = """\
+            SELECT TOP {limit} * FROM (
+            {sql}
+            ) qry
+            """.format(**locals())
+        elif conn_type in ['oracle']:
+            sql = """\
+            SELECT * FROM (
+            {sql}
+            ) qry
+            WHERE ROWNUM <= {limit}
+            """.format(**locals())
+        else:
+            sql = """\
+            SELECT * FROM (
+            {sql}
+            ) qry
+            LIMIT {limit}
+            """.format(**locals())
+    return sql
+
+
+class AceEditorWidget(wtforms.widgets.TextArea):
+    """
+    Renders an ACE code editor.
+    """
+    def __call__(self, field, **kwargs):
+        kwargs.setdefault('id', field.id)
+        html = '''
+        <div id="{el_id}" style="height:100px;">{contents}</div>
+        <textarea
+            id="{el_id}_ace" name="{form_name}"
+            style="display:none;visibility:hidden;">
+        </textarea>
+        '''.format(
+            el_id=kwargs.get('id', field.id),
+            contents=escape(text_type(field._value())),
+            form_name=field.id,
+        )
+        return wtforms.widgets.core.HTMLString(html)
