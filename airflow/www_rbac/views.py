@@ -231,8 +231,9 @@ class Airflow(AirflowBaseView):
             }
 
             all_dag_ids = (set([dag.dag_id for dag in orm_dags.values()
-                                if lower_search_query in dag.dag_id.lower() or
-                                lower_search_query in dag.owners.lower()]) |
+                                if dag.owners is not None and
+                                (lower_search_query in dag.dag_id.lower() or
+                                lower_search_query in dag.owners.lower())]) |
                            set(webserver_dags_filtered.keys()))
 
             sorted_dag_ids = sorted(all_dag_ids)
