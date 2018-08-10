@@ -20,6 +20,7 @@
 import io
 import copy
 import logging.config
+import mock
 import os
 import shutil
 import tempfile
@@ -450,6 +451,28 @@ class TestVarImportView(unittest.TestCase):
         session.close()
         super(TestVarImportView, cls).tearDownClass()
 
+    def test_import_variable_fail(self):
+        with mock.patch('airflow.models.Variable.set') as set_mock:
+            set_mock.side_effect = UnicodeEncodeError
+            content = '{"fail_key": "fail_val"}'
+
+            try:
+                # python 3+
+                bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
+            except TypeError:
+                # python 2.7
+                bytes_content = io.BytesIO(bytes(content))
+            response = self.app.post(
+                self.IMPORT_ENDPOINT,
+                data={'file': (bytes_content, 'test.json')},
+                follow_redirects=True
+            )
+            self.assertEqual(response.status_code, 200)
+            session = Session()
+            db_dict = {x.key: x.get_val() for x in session.query(models.Variable).all()}
+            session.close()
+            self.assertNotIn('fail_key', db_dict)
+
     def test_import_variables(self):
         content = ('{"str_key": "str_value", "int_key": 60,'
                    '"list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}')
@@ -465,21 +488,24 @@ class TestVarImportView(unittest.TestCase):
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
-        body = response.data.decode('utf-8')
-        self.assertIn('str_key', body)
-        self.assertIn('int_key', body)
-        self.assertIn('list_key', body)
-        self.assertIn('dict_key', body)
-        self.assertIn('str_value', body)
-        self.assertIn('60', body)
-        self.assertIn('[1, 2]', body)
-        # As dicts are not ordered, we may get any of the following cases.
-        case_a_dict = '{&#34;k_a&#34;: 2, &#34;k_b&#34;: 3}'
-        case_b_dict = '{&#34;k_b&#34;: 3, &#34;k_a&#34;: 2}'
+        session = Session()
+        # Extract values from Variable
+        db_dict = {x.key: x.get_val() for x in session.query(models.Variable).all()}
+        session.close()
+        self.assertIn('str_key', db_dict)
+        self.assertIn('int_key', db_dict)
+        self.assertIn('list_key', db_dict)
+        self.assertIn('dict_key', db_dict)
+        self.assertEquals('str_value', db_dict['str_key'])
+        self.assertEquals('60', db_dict['int_key'])
+        self.assertEquals('[1, 2]', db_dict['list_key'])
+
+        case_a_dict = '{"k_a": 2, "k_b": 3}'
+        case_b_dict = '{"k_b": 3, "k_a": 2}'
         try:
-            self.assertIn(case_a_dict, body)
+            self.assertEquals(case_a_dict, db_dict['dict_key'])
         except AssertionError:
-            self.assertIn(case_b_dict, body)
+            self.assertEquals(case_b_dict, db_dict['dict_key'])
 
 
 class TestMountPoint(unittest.TestCase):
