@@ -24,7 +24,7 @@ from airflow.www.utils import LoginMixin
 
 
 from builtins import str
-from queue import Queue
+from queue import Queue, Empty
 
 import mesos.interface
 from mesos.interface import mesos_pb2
@@ -35,10 +35,58 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.exceptions import AirflowException
+from airflow.executors import Executors
 
 standard_library.install_aliases()
 DEFAULT_FRAMEWORK_NAME = 'Airflow'
 FRAMEWORK_CONNID_PREFIX = 'mesos_framework_'
+
+
+class MesosExecutorConfig:
+    """
+    MesosExecutorConfig allows resources and docker image to be specified
+    at the operator level.
+    """
+    def __init__(self, image=None, request_memory=None, request_cpu=None):
+        self.image = image
+        self.request_memory = request_memory
+        self.request_cpu = request_cpu
+
+    def __repr__(self):
+        return "{}(image={}, request_memory={} ,request_cpu={})".format(
+            MesosExecutorConfig.__name__,
+            self.image, self.request_memory, self.request_cpu
+        )
+
+    @staticmethod
+    def from_dict(dictionary, default_config):
+        """
+        from_dict converts a dictionary to a MesosExecutorConfig
+        """
+        if dictionary is None:
+            return default_config
+
+        if not isinstance(dictionary, dict):
+            raise TypeError("Input must be a dictionary")
+
+        namespaced = dictionary.get(Executors.MesosExecutor, {})
+
+        return MesosExecutorConfig(
+            image=namespaced.get("image", default_config.image),
+            request_memory=namespaced.get("request_memory",
+                                          default_config.request_memory),
+            request_cpu=namespaced.get("request_cpu", default_config.request_cpu),
+        )
+
+    def as_dict(self):
+        """
+        as_dict converts a MesosExecutorConfig to a dictionary
+        """
+        return {
+            "image": self.image,
+            "request_memory": self.request_memory,
+            "request_cpu": self.request_cpu,
+        }
 
 
 def get_framework_name():
@@ -59,19 +107,11 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
     """
     def __init__(self,
                  task_queue,
-                 result_queue,
-                 task_cpu=1,
-                 task_mem=256):
+                 result_queue):
         self.task_queue = task_queue
         self.result_queue = result_queue
-        self.task_cpu = task_cpu
-        self.task_mem = task_mem
         self.task_counter = 0
         self.task_key_map = {}
-        if configuration.get('mesos', 'DOCKER_IMAGE_SLAVE'):
-            self.mesos_slave_docker_image = configuration.get(
-                'mesos', 'DOCKER_IMAGE_SLAVE'
-            )
 
     def registered(self, driver, frameworkId, masterInfo):
         self.log.info("AirflowScheduler registered to Mesos with framework ID %s",
@@ -134,11 +174,23 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
 
             remainingCpus = offerCpus
             remainingMem = offerMem
+            unmatched_tasks = []
+            # Matches tasks to offer or adds them to unmatched list to be requeued
+            while True:
+                try:
+                    key, cmd, mesos_executor_config = self.task_queue.get(block=False)
+                except Empty:
+                    for task in unmatched_tasks:
+                        self.task_queue.put(task)
+                    break
+                task_cpu = mesos_executor_config.request_cpu
+                task_mem = mesos_executor_config.request_memory
+                docker_image = mesos_executor_config.image
 
-            while (not self.task_queue.empty()) and \
-                    remainingCpus >= self.task_cpu and \
-                    remainingMem >= self.task_mem:
-                key, cmd = self.task_queue.get()
+                if remainingCpus <= task_cpu or remainingMem <= task_mem:
+                    unmatched_tasks.append((key, cmd, mesos_executor_config))
+                    continue
+
                 tid = self.task_counter
                 self.task_counter += 1
                 self.task_key_map[str(tid)] = key
@@ -153,12 +205,12 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
                 cpus = task.resources.add()
                 cpus.name = "cpus"
                 cpus.type = mesos_pb2.Value.SCALAR
-                cpus.scalar.value = self.task_cpu
+                cpus.scalar.value = task_cpu
 
                 mem = task.resources.add()
                 mem.name = "mem"
                 mem.type = mesos_pb2.Value.SCALAR
-                mem.scalar.value = self.task_mem
+                mem.scalar.value = task_mem
 
                 command = mesos_pb2.CommandInfo()
                 command.shell = True
@@ -167,10 +219,10 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
 
                 # If docker image for airflow is specified in config then pull that
                 # image before running the above airflow command
-                if self.mesos_slave_docker_image:
+                if docker_image:
                     network = mesos_pb2.ContainerInfo.DockerInfo.Network.Value('BRIDGE')
                     docker = mesos_pb2.ContainerInfo.DockerInfo(
-                        image=self.mesos_slave_docker_image,
+                        image=docker_image,
                         force_pull_image=False,
                         network=network
                     )
@@ -182,8 +234,8 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
 
                 tasks.append(task)
 
-                remainingCpus -= self.task_cpu
-                remainingMem -= self.task_mem
+                remainingCpus -= task_cpu
+                remainingMem -= task_mem
 
             driver.launchTasks(offer.id, tasks)
 
@@ -238,15 +290,15 @@ class MesosExecutor(BaseExecutor, LoginMixin):
 
         framework.name = get_framework_name()
 
-        if not configuration.conf.get('mesos', 'TASK_CPU'):
-            task_cpu = 1
-        else:
-            task_cpu = configuration.conf.getint('mesos', 'TASK_CPU')
+        task_cpu = configuration.conf.getint('mesos', 'TASK_CPU')
+        task_mem = configuration.conf.getint('mesos', 'TASK_MEMORY')
 
-        if not configuration.conf.get('mesos', 'TASK_MEMORY'):
-            task_memory = 256
-        else:
-            task_memory = configuration.conf.getint('mesos', 'TASK_MEMORY')
+        docker_image = None
+        # Configuration errors when DOCKER_IMAGE_SLAVE is not present in config
+        if 'DOCKER_IMAGE_SLAVE' in configuration.as_dict()['mesos']:
+            docker_image = configuration.get('mesos', 'DOCKER_IMAGE_SLAVE')
+        self.default_mesos_config = MesosExecutorConfig(
+            image=docker_image, request_memory=task_mem, request_cpu=task_cpu)
 
         if configuration.conf.getboolean('mesos', 'CHECKPOINT'):
             framework.checkpoint = True
@@ -273,7 +325,7 @@ class MesosExecutor(BaseExecutor, LoginMixin):
         self.log.info(
             'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s',
             master, framework.name,
-            str(task_cpu), str(task_memory), str(framework.checkpoint)
+            str(task_cpu), str(task_mem), str(framework.checkpoint)
         )
 
         implicit_acknowledgements = 1
@@ -296,9 +348,7 @@ class MesosExecutor(BaseExecutor, LoginMixin):
 
             driver = mesos.native.MesosSchedulerDriver(
                 AirflowMesosScheduler(self.task_queue,
-                                      self.result_queue,
-                                      task_cpu,
-                                      task_memory),
+                                      self.result_queue),
                 framework,
                 master,
                 implicit_acknowledgements,
@@ -307,9 +357,7 @@ class MesosExecutor(BaseExecutor, LoginMixin):
             framework.principal = 'Airflow'
             driver = mesos.native.MesosSchedulerDriver(
                 AirflowMesosScheduler(self.task_queue,
-                                      self.result_queue,
-                                      task_cpu,
-                                      task_memory),
+                                      self.result_queue),
                 framework,
                 master,
                 implicit_acknowledgements)
@@ -318,7 +366,9 @@ class MesosExecutor(BaseExecutor, LoginMixin):
         self.mesos_driver.start()
 
     def execute_async(self, key, command, queue=None, executor_config=None):
-        self.task_queue.put((key, command))
+        mesos_executor_config = MesosExecutorConfig.from_dict(executor_config,
+                                                              self.default_mesos_config)
+        self.task_queue.put((key, command, mesos_executor_config))
 
     def sync(self):
         while not self.result_queue.empty():
