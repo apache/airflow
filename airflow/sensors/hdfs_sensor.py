@@ -17,31 +17,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import functools
 import posixpath
 
 from airflow import settings
 from airflow.hooks.hdfs_hook import HdfsHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.deprecation import deprecated_args, RenamedClass
 
 
 class HdfsFileSensor(BaseSensorOperator):
-    """Waits for file(s) to land in HDFS."""
+    """Sensor that waits for files matching a specific (glob) pattern to land in HDFS.
+
+    :param str file_pattern: Glob pattern to match.
+    :param str conn_id: Connection to use.
+    :param Iterable[FilePathFilter] filters: Optional list of filters that can be
+        used to apply further filtering to any file paths matching the glob pattern.
+        Any files that fail a filter are dropped from consideration.
+    :param int min_size: Minimum size (in MB) for files to be considered. Can be used
+        to filter any intermediate files that are below the expected file size.
+    :param Set[str] ignore_exts: File extensions to ignore. By default, files with
+        a '_COPYING_' extension are ignored, as these represent temporary files.
+    """
 
     template_fields = ("_pattern",)
     ui_color = settings.WEB_COLORS["LIGHTBLUE"]
 
-    @deprecated_args(
-        renamed={
-            "filepath": "pattern",
-            "hdfs_conn_id": "conn_id",
-            "file_size": "min_size",
-            "ignored_ext": "ignore_exts",
-        },
-        dropped={"ignore_copying", "hook"},
-    )
     @apply_defaults
     def __init__(
         self,
@@ -56,29 +56,17 @@ class HdfsFileSensor(BaseSensorOperator):
 
         # Min-size and ignore-ext filters are added via
         # arguments for backwards compatibility.
-        default_filters = self._default_filters(
-            min_size=min_size, ignore_exts=ignore_exts
-        )
-        filters = default_filters + (filters or [])
+        filters = list(filters or [])
+
+        if min_size:
+            filters.append(SizeFilter(min_size=min_size))
+
+        if ignore_exts:
+            filters.append(ExtFilter(exts=ignore_exts))
 
         self._pattern = pattern
         self._conn_id = conn_id
         self._filters = filters
-
-        self._min_size = min_size
-        self._ignore_exts = set(ignore_exts)
-
-    @classmethod
-    def _default_filters(cls, min_size=None, ignore_exts=None):
-        filters = []
-
-        if min_size is not None:
-            filters.append(functools.partial(filter_by_size, min_size=min_size))
-
-        if ignore_exts:
-            filters.append(functools.partial(filter_for_exts, exts=ignore_exts))
-
-        return filters
 
     def poke(self, context):
         with HdfsHook(self._conn_id) as hook:
@@ -89,8 +77,7 @@ class HdfsFileSensor(BaseSensorOperator):
 
             try:
                 file_paths = [
-                    fp for fp in conn.glob(self._pattern)
-                    if not conn.isdir(fp)
+                    fp for fp in conn.glob(self._pattern) if not conn.isdir(fp)
                 ]
             except IOError:
                 # File path doesn't exist yet.
@@ -99,8 +86,8 @@ class HdfsFileSensor(BaseSensorOperator):
             self.log.info("Files matching pattern: %s", file_paths)
 
             # Filter using any provided filters.
-            for filter_func in self._filters:
-                file_paths = filter_func(hook, file_paths)
+            for filter_ in self._filters:
+                file_paths = filter_(file_paths, hook)
             file_paths = list(file_paths)
 
             self.log.info("Filters after filtering: %s", file_paths)
@@ -108,26 +95,33 @@ class HdfsFileSensor(BaseSensorOperator):
             return bool(file_paths)
 
 
-HdfsSensor = RenamedClass(
-    "HdfsSensor",
-    new_class=HdfsFileSensor,
-    old_module=__name__)
-
-
 class HdfsFolderSensor(BaseSensorOperator):
-    """Waits for folders to lands in HDFS."""
+    """Waits for folder(s) matching the given pattern to be created in HDFS.
+
+    By default, the sensor does not check whether any matched folders contain
+    files. If folders are required to (not) be empty, this behaviour can be modified
+    using the `require_empty` and `require_not_empty` parameters. If `require_empty`
+    is True, the sensor fails if any matched folders contain files. Similarly, if
+    `require_not_empty` is True, the sensor fails if any matched folders do not contain
+    files. The list of file paths considered in these checks can be modified using the
+    `sub_pattern` and `sub_filters` parameters.
+
+    :param str pattern: Glob pattern to match.
+    :param str conn_id: Connection to use.
+    :param bool require_empty: Whether folders are required to be empty. If true,
+        the sensor fails if any of the matched directories is not empty.
+    :param bool require_not_empty: Whether folders are required to be NOT empty.
+        If true, the sensor fails if any of the matched directories is empty.
+    :param str sub_pattern: Glob pattern to filter nested file paths on when
+        checking whether directories are (not) empty.
+    :param Iterable[FilePathFilter] sub_filters: File path filters that should be used
+        to filter nested file paths on when checking whether directories are (not)
+        empty. See `HdfsFileSensor` for more details.
+    """
 
     template_fields = ("_pattern",)
     ui_color = settings.WEB_COLORS["LIGHTBLUE"]
 
-    @deprecated_args(
-        renamed={
-            "filepath": "pattern",
-            "hdfs_conn_id": "conn_id",
-            "be_empty": "require_empty"
-        },
-        dropped=["ignored_ext", "min_size"]
-    )
     def __init__(
         self,
         pattern,
@@ -153,7 +147,7 @@ class HdfsFolderSensor(BaseSensorOperator):
         self._require_not_empty = require_not_empty
 
         self._sub_pattern = sub_pattern or "*"
-        self._sub_filters = sub_filters or []
+        self._sub_filters = list(sub_filters or [])
 
     def poke(self, context):
         with HdfsHook(self._conn_id) as hook:
@@ -174,7 +168,7 @@ class HdfsFolderSensor(BaseSensorOperator):
 
             if self._require_empty or self._require_not_empty:
                 self.log.info(
-                    "Checking for files or subdirectories " "matching pattern: %s",
+                    "Checking for files or subdirectories matching pattern: %s",
                     self._sub_pattern,
                 )
 
@@ -184,16 +178,16 @@ class HdfsFolderSensor(BaseSensorOperator):
                     sub_pattern = posixpath.join(dir_path, self._sub_pattern)
                     sub_paths = conn.glob(sub_pattern)
 
-                    for filter_func in self._sub_filters:
-                        sub_paths = filter_func(hook, sub_paths)
+                    for filter_ in self._sub_filters:
+                        sub_paths = filter_(sub_paths, hook)
 
                     sub_paths = list(sub_paths)
-                    is_empty = not sub_paths
 
                     self.log.info(
                         "Sub-directories/files matching pattern: %s", sub_paths
                     )
 
+                    is_empty = not sub_paths
                     if (self._require_empty and not is_empty) or (
                         self._require_not_empty and is_empty
                     ):
@@ -202,22 +196,52 @@ class HdfsFolderSensor(BaseSensorOperator):
             return bool(dir_paths)
 
 
-def filter_by_size(hook, file_paths, min_size):
-    """Filters any HDFS files below a minimum file size."""
+class FilePathFilter:
+    """Base file path filter class.
 
-    conn = hook.get_conn()
-    min_size_mb = min_size * settings.MEGABYTE
+    Allows a given list of file paths to be filtered on a given criteria.
+    Examples include a size filter (which filters files for a given minimum file
+    size) and a extension filter (which filters files with a given extension).
 
-    for file_path in file_paths:
-        info = conn.info(file_path)
+    Filters are required to implement a single __call__ method, which takes the
+    file system hook and a set of file paths to filter. As a result, this method
+    should return the set of filtered file paths.
+    """
 
-        if info["kind"] == "file" and info["size"] > min_size_mb:
-            yield file_path
+    def __call__(self, file_paths, hook):
+        raise NotImplementedError()
 
 
-def filter_for_exts(_, file_paths, exts):
-    """Filters any HDFS files with the given extensions."""
+class SizeFilter(FilePathFilter):
+    """Filter that drops any file paths below the given file size.
 
-    for file_path in file_paths:
-        if posixpath.splitext(file_path)[1][1:] not in exts:
-            yield file_path
+    :param int min_size: Minimum file size in megabytes.
+    """
+
+    def __init__(self, min_size):
+        self._min_size = min_size
+
+    def __call__(self, file_paths, hook):
+        min_size_mb = self._min_size * settings.MEGABYTE
+
+        conn = hook.get_conn()
+        for file_path in file_paths:
+            info = conn.info(file_path)
+
+            if info["kind"] == "file" and info["size"] > min_size_mb:
+                yield file_path
+
+
+class ExtFilter(FilePathFilter):
+    """Filter that drops any file paths with given extensions.
+
+    :param Set[str] exts: Set of extensions to filter for.
+    """
+
+    def __init__(self, exts):
+        self._exts = set(exts)
+
+    def __call__(self, file_paths, hook):
+        for file_path in file_paths:
+            if posixpath.splitext(file_path)[1][1:] not in self._exts:
+                yield file_path

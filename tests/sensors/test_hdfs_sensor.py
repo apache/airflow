@@ -21,13 +21,11 @@ from datetime import timedelta
 import fnmatch
 import posixpath
 import unittest
-import warnings
 
 import mock
 
 from airflow import models
-from airflow.sensors.hdfs_sensor import (HdfsSensor, HdfsFileSensor,
-                                         HdfsFolderSensor, HdfsHook)
+from airflow.sensors.hdfs_sensor import HdfsFileSensor, HdfsFolderSensor, HdfsHook
 
 
 class MockHdfs3Client(object):
@@ -198,35 +196,6 @@ class HdfsFileSensorTests(unittest.TestCase):
             **self._default_task_kws
         )
         self.assertFalse(task.poke(context={}))
-
-    def test_file_filter_ext_old(self):
-        """Tests poking for file while filtering for extension
-           with deprecated ignored_ext argument."""
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-
-            task = HdfsFileSensor(
-                task_id="existing_file_large",
-                pattern="/data/not_empty/f*",
-                ignored_ext=("_COPYING_",),
-                **self._default_task_kws
-            )
-            self.assertFalse(task.poke(context={}))
-
-    def test_old_class(self):
-        """Tests sensor with old class name."""
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-
-            task = HdfsSensor(
-                task_id="existing_file",
-                pattern="/data/not_empty/small.txt",
-                **self._default_task_kws
-            )
-
-            self.assertTrue(task.poke(context={}))
 
 
 class HdfsFolderSensorTests(unittest.TestCase):

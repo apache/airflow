@@ -22,7 +22,6 @@ from hdfs3.utils import MyNone
 
 from airflow import configuration
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.deprecation import RenamedClass
 
 
 class HdfsHook(BaseHook):
@@ -132,6 +131,3 @@ class HdfsHook(BaseHook):
         if self._conn is not None:
             self._conn.disconnect()
         self._conn = None
-
-
-HDFSHook = RenamedClass("HDFSHook", new_class=HdfsHook, old_module=__name__)
