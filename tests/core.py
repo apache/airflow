@@ -1512,6 +1512,42 @@ class CliTests(unittest.TestCase):
         except Exception as e:
             self.fail("The 'pool' command raised unexpectedly: %s" % e)
 
+    def test_pool_import_export(self):
+        # Create two pools first
+        pool_config_input = {
+            "foo": {
+                "description": "foo_test",
+                "slots": 1
+            },
+            "baz": {
+                "description": "baz_test",
+                "slots": 2
+            }
+        }
+        with open('pools_import.json', mode='w') as f:
+            json.dump(pool_config_input, f)
+
+        # Import json
+        try:
+            cli.pool(self.parser.parse_args(['pool', '-i', 'pools_import.json']))
+        except Exception as e:
+            self.fail("The 'pool -i pools_import.json' failed: %s" % e)
+
+        # Export json
+        try:
+            cli.pool(self.parser.parse_args(['pool', '-e', 'pools_export.json']))
+        except Exception as e:
+            self.fail("The 'pool -e pools_export.json' failed: %s" % e)
+
+        with open('pools_export.json', mode='r') as f:
+            pool_config_output = json.load(f)
+            self.assertEqual(
+                pool_config_input,
+                pool_config_output,
+                "Input and output pool files are not same")
+        os.remove('pools_import.json')
+        os.remove('pools_export.json')
+
     def test_variables(self):
         # Checks if all subcommands are properly received
         cli.variables(self.parser.parse_args([
