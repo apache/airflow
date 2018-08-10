@@ -29,6 +29,7 @@ except ImportError:
 try:
     from mesos.interface import mesos_pb2
     from airflow.contrib.executors.mesos_executor import AirflowMesosScheduler
+    from airflow.contrib.executors.mesos_executor import MesosExecutorConfig
     mock_mesos = True
 except ImportError:
     mock_mesos = None
@@ -63,29 +64,31 @@ class MesosExecutorTest(unittest.TestCase):
     def test_mesos_executor(self, driver):
         # create task queue, empty result queue, task_cpu and task_memory
         tasks_queue = Queue()
-        fake_af_task1 = {"key1", "airflow run tutorial"}
-        fake_af_task2 = {"key2", "airflow run tutorial2"}
+        task_cpu = 2
+        task_memory = 4
+        fake_af_task1 = ("key1", "airflow run tutorial",
+                         MesosExecutorConfig(request_memory=task_memory,
+                                             request_cpu=task_cpu))
+        fake_af_task2 = ("key2", "airflow run tutorial2",
+                         MesosExecutorConfig(request_memory=task_memory / 2,
+                                             request_cpu=task_cpu / 2))
         tasks_queue.put(fake_af_task1)
         tasks_queue.put(fake_af_task2)
         results_queue = Queue()
-        task_cpu = 2
-        task_memory = 4
         scheduler = AirflowMesosScheduler(tasks_queue,
-                                          results_queue,
-                                          task_cpu,
-                                          task_memory)
+                                          results_queue)
         # Create Offers
         resources = []
         fake_cpu_resource = mesos_pb2.Resource(
             name='cpus',
             type=mesos_pb2.Value.SCALAR,
         )
-        fake_cpu_resource.scalar.value = task_cpu
+        fake_cpu_resource.scalar.value = task_cpu * 1.5
         fake_mem_resource = mesos_pb2.Resource(
             name='mem',
             type=mesos_pb2.Value.SCALAR,
         )
-        fake_mem_resource.scalar.value = task_memory
+        fake_mem_resource.scalar.value = task_memory * 1.5
         resources.append(fake_cpu_resource)
         resources.append(fake_mem_resource)
         fake_offer = mesos_pb2.Offer(
