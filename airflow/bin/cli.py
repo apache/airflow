@@ -291,6 +291,7 @@ def pool(args):
     else:
         log.info(_tabulate(pools=pools))
 
+
 def pool_import_helper(filepath):
     with open(filepath, 'r') as poolfile:
         pl = poolfile.read()
@@ -305,9 +306,9 @@ def pool_import_helper(filepath):
             for k, v in d.items():
                 if isinstance(v, dict) and len(v) == 2:
                     pools.append(api_client.create_pool(name=k,
-                                            slots=v["slots"],
-                                            description=v["description"]))
-                    n += 1                  
+                                                        slots=v["slots"],
+                                                        description=v["description"]))
+                    n += 1
                 else:
                     pass
         except Exception:
@@ -316,16 +317,17 @@ def pool_import_helper(filepath):
             print("{} of {} pool(s) successfully updated.".format(n, len(d)))
             return pools
 
+
 def pool_export_helper(filepath):
     pool_dict = {}
-    d = json.JSONDecoder()   
-    pools = api_client.get_pools() 
+    pools = api_client.get_pools()
     for pool in pools:
-        pool_dict[pool[0]] = {"slots":pool[1],"description":pool[2]}
+        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
     with open(filepath, 'w') as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
     return pools
+
 
 @cli_utils.action_logging
 def variables(args):
