@@ -267,6 +267,7 @@ def pool(args):
                                  tablefmt="fancy_grid")
 
     try:
+        imp = getattr(args, 'import')
         if args.get is not None:
             pools = [api_client.get_pool(name=args.get)]
         elif args.set:
@@ -275,12 +276,57 @@ def pool(args):
                                             description=args.set[2])]
         elif args.delete:
             pools = [api_client.delete_pool(name=args.delete)]
+        elif imp:
+            if os.path.exists(imp):
+                pools = pool_import_helper(imp)
+            else:
+                print("Missing pools file.")
+                pools = api_client.get_pools()
+        elif args.export:
+            pools = pool_export_helper(args.export)
         else:
             pools = api_client.get_pools()
     except (AirflowException, IOError) as err:
         log.error(err)
     else:
         log.info(_tabulate(pools=pools))
+
+
+def pool_import_helper(filepath):
+    with open(filepath, 'r') as poolfile:
+        pl = poolfile.read()
+    try:
+        d = json.loads(pl)
+    except Exception as e:
+        print("Please check the validity of the json file: " + str(e))
+    else:
+        try:
+            pools = []
+            n = 0
+            for k, v in d.items():
+                if isinstance(v, dict) and len(v) == 2:
+                    pools.append(api_client.create_pool(name=k,
+                                                        slots=v["slots"],
+                                                        description=v["description"]))
+                    n += 1
+                else:
+                    pass
+        except Exception:
+            pass
+        finally:
+            print("{} of {} pool(s) successfully updated.".format(n, len(d)))
+            return pools
+
+
+def pool_export_helper(filepath):
+    pool_dict = {}
+    pools = api_client.get_pools()
+    for pool in pools:
+        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
+    with open(filepath, 'w') as poolfile:
+        poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
+    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
+    return pools
 
 
 @cli_utils.action_logging
@@ -1551,6 +1597,14 @@ class CLIFactory(object):
             ("-x", "--delete"),
             metavar="NAME",
             help="Delete a pool"),
+        'pool_import': Arg(
+            ("-i", "--import"),
+            metavar="FILEPATH",
+            help="Import pool from JSON file"),
+        'pool_export': Arg(
+            ("-e", "--export"),
+            metavar="FILEPATH",
+            help="Export pool to JSON file"),
         # variables
         'set': Arg(
             ("-s", "--set"),
@@ -1870,7 +1924,7 @@ class CLIFactory(object):
         }, {
             'func': pool,
             'help': "CRUD operations on pools",
-            "args": ('pool_set', 'pool_get', 'pool_delete'),
+            "args": ('pool_set', 'pool_get', 'pool_delete', 'pool_import', 'pool_export'),
         }, {
             'func': variables,
             'help': "CRUD operations on variables",
