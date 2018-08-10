@@ -33,6 +33,7 @@ from airflow.settings import Session
 from airflow import models
 
 import os
+import json
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
@@ -165,3 +166,38 @@ class TestCLI(unittest.TestCase):
             ti.refresh_from_db()
             state = ti.current_state()
             self.assertEqual(state, State.SUCCESS)
+
+    def test_cli_pool_import_export(self):
+        pool_config_input = {
+            "s3_pool": {
+                "description": "This is my test s3_pool",
+                "slots": 5
+            },
+            "s3_pool2": {
+                "description": "This is my test s3_pool",
+                "slots": 8
+            }
+        }
+        with open('pool_import.json', mode='w', encoding='utf-8') as f:
+            json.dump(pool_config_input, f)
+        process_import = psutil.Popen(["airflow", "pool", "-i", "pool_import.json"])
+        sleep(3)  # wait for webserver to start
+        import_return_code = process_import.poll()
+        self.assertEqual(
+            0,
+            import_return_code,
+            "pool import with return code {}".format(import_return_code))
+
+        process_export = psutil.Popen(["airflow", "pool", "-e", "pool_export.json"])
+        sleep(3)
+        export_return_code = process_export.poll()
+        self.assertEqual(
+            0,
+            export_return_code,
+            "pool export with return code {}".format(export_return_code))
+        with open('pool_export.json', mode='r', encoding='utf-8') as f:
+            pool_config_output = json.load(f)
+            self.assertEqual(
+                pool_config_input,
+                pool_config_output,
+                "Input and output pool files are not same")
