@@ -21,6 +21,7 @@ import copy
 import io
 import json
 import logging.config
+import mock
 import os
 import shutil
 import sys
@@ -167,6 +168,25 @@ class TestVariableModelView(TestBase):
         self.assertEqual(resp.status_code, 404)
         self.assertNotIn("<img src='' onerror='alert(1);'>",
                          resp.data.decode("utf-8"))
+
+    def test_import_variables(self):
+        content = '{"str_key": "str_value"}'
+
+        with mock.patch('airflow.models.Variable.set') as set_mock:
+            set_mock.side_effect = UnicodeEncodeError
+            self.assertEqual(self.session.query(models.Variable).count(), 0)
+
+            try:
+                # python 3+
+                bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
+            except TypeError:
+                # python 2.7
+                bytes_content = io.BytesIO(bytes(content))
+
+            resp = self.client.post('/variable/varimport',
+                                    data={'file': (bytes_content, 'test.json')},
+                                    follow_redirects=True)
+            self.check_content_in_response('1 variable(s) failed to be updated.', resp)
 
     def test_import_variables(self):
         self.assertEqual(self.session.query(models.Variable).count(), 0)

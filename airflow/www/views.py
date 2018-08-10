@@ -1903,9 +1903,20 @@ class Airflow(BaseView):
         except Exception as e:
             flash("Missing file or syntax error: {}.".format(e))
         else:
+            suc_count = fail_count = 0
             for k, v in d.items():
-                models.Variable.set(k, v, serialize_json=isinstance(v, dict))
-            flash("{} variable(s) successfully updated.".format(len(d)))
+                try:
+                    models.Variable.set(k, v, serialize_json=isinstance(v, dict))
+                except Exception as e:
+                    logging.info('Variable import failed: {}'.format(repr(e)))
+                    fail_count += 1
+                else:
+                    suc_count += 1
+            flash("{} variable(s) successfully updated.".format(suc_count), 'info')
+            if fail_count:
+                flash(
+                    "{} variables(s) failed to be updated.".format(fail_count), 'error')
+
         return redirect('/admin/variable')
 
 

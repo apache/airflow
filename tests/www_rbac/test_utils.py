@@ -29,6 +29,10 @@ class UtilsTest(unittest.TestCase):
     def setUp(self):
         super(UtilsTest, self).setUp()
 
+    def test_empty_variable_should_not_be_hidden(self):
+        self.assertFalse(utils.should_hide_value_for_key(""))
+        self.assertFalse(utils.should_hide_value_for_key(None))
+
     def test_normal_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key("key"))
 
