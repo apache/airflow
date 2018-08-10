@@ -737,7 +737,8 @@
     - name: secret_key
       description: |
         Secret key used to run your flask app
-        It should be as random as possible
+        If default value is given ("temporary_key"), a random secret_key will be generated
+        when you launch your webserver for security reason
       version_added: ~
       type: string
       example: ~
