@@ -178,7 +178,7 @@ class TestCLI(unittest.TestCase):
                 "slots": 8
             }
         }
-        with open('pool_import.json', mode='w', encoding='utf-8') as f:
+        with open('pool_import.json', mode='w') as f:
             json.dump(pool_config_input, f)
 
         with psutil.Popen(
@@ -197,7 +197,7 @@ class TestCLI(unittest.TestCase):
                 export_return_code,
                 "pool export with return code {}".format(export_return_code))
 
-        with open('pool_export.json', mode='r', encoding='utf-8') as f:
+        with open('pool_export.json', mode='r') as f:
             pool_config_output = json.load(f)
             self.assertEqual(
                 pool_config_input,
