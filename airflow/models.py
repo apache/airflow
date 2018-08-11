@@ -1414,7 +1414,9 @@ class TaskInstance(Base, LoggingMixin):
                 delay = min(self.task.max_retry_delay, delay)
 
         if self.end_date is None:
-            return datetime.now() + delay
+            # this will never be "true" in the comparison of when to run,
+            # so we try to run now
+            return timezone.utcnow() - timedelta(seconds=1)
         return self.end_date + delay
 
     def ready_for_retry(self):
