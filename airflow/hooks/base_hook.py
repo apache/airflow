@@ -90,17 +90,7 @@ class BaseHook(LoggingMixin):
         return connection.get_hook()
 
     def get_proxyconfig(self):
-        log = LoggingMixin().log
-        proxy_config = None
-        try:
-            conf_dict = configuration.as_dict(display_sensitive=False)
-            if conf_dict and 'proxy' in conf_dict:
-                proxy_config = conf_dict['proxy']
-            else:
-                log.error("Proxy section not found in config")
-        except Exception as err:
-            log.error(err)
-            log.error("Got Exception! returning Proxy details as None")
+        proxy_config = configuration.getsection('proxy')
         return proxy_config
 
     def get_conn(self):

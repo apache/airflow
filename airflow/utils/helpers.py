@@ -40,7 +40,6 @@ from jinja2 import Template
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
@@ -260,19 +259,6 @@ def parse_template_string(template_string):
         return None, Template(template_string)
     else:
         return template_string, None
-
-
-def convert_to_int(non_int_value, default_value=None):
-    log = LoggingMixin().log
-    int_value = None
-    try:
-        if non_int_value:
-            int_value = int(non_int_value)
-    except ValueError as err:
-        log.warning(err)
-    if int_value is None and default_value:
-        int_value = default_value
-    return int_value
 
 
 class AirflowImporter(object):

@@ -28,8 +28,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
-from airflow.utils.helpers import convert_to_int
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 
@@ -158,8 +156,11 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         if self._get_useproxy() is True:
             proxy = self.get_proxyconfig()
             proxy_host = proxy.get('proxy_host')
-            proxy_port = convert_to_int(proxy.get('proxy_port'), 8080)
             proxy_type = self._get_proxy_type(proxy)
+            try:
+                proxy_port = conf.getint('proxy', 'proxy_port')
+            except ValueError:
+                proxy_port = None
             proxy_obj = httplib2.ProxyInfo(proxy_type, proxy_host, proxy_port)
         return proxy_obj
 
@@ -186,11 +187,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         """
         Fetch use_proxy field from config file
         """
-        use_proxy = None
-        try:
-            use_proxy = conf.getboolean('core', 'use_proxy')
-        except AirflowConfigException:
-            use_proxy = False
+        use_proxy = conf.getboolean('core', 'use_proxy')
         return use_proxy
 
     @property
