@@ -185,7 +185,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.describe_tasks.assert_called_once_with(
             cluster='c', tasks=['arn'])
 
-    def test_check_success_tasks_raises_mutliple(self):
+    def test_check_success_tasks_raises_multiple(self):
         client_mock = mock.Mock()
         self.ecs.client = client_mock
         self.ecs.arn = 'arn'

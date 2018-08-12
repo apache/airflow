@@ -162,7 +162,7 @@ class HiveToDruidTransfer(BaseOperator):
         :type columns: list
         """
 
-        # backward compatibilty for num_shards,
+        # backward compatibility for num_shards,
         # but target_partition_size is the default setting
         # and overwrites the num_shards
         num_shards = self.num_shards

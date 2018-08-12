@@ -235,6 +235,6 @@ setattr(
     DataProcHook,
     "await",
     deprecation.deprecated(
-        DataProcHook.wait, "renamed to 'wait' for Python3.7 compatability"
+        DataProcHook.wait, "renamed to 'wait' for Python3.7 compatibility"
     ),
 )

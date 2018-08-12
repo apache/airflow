@@ -100,7 +100,7 @@ class AzureFileShareHook(BaseHook):
 
     def create_directory(self, share_name, directory_name, **kwargs):
         """
-        Create a new direcotry on a Azure File Share.
+        Create a new directory on a Azure File Share.
 
         :param share_name: Name of the share.
         :type share_name: str

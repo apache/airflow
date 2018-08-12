@@ -101,7 +101,7 @@ class DagTest(unittest.TestCase):
         """
         Test DAG as a context manager.
         When used as a context manager, Operators are automatically added to
-        the DAG (unless they specifiy a different DAG)
+        the DAG (unless they specify a different DAG)
         """
         dag = DAG(
             'dag',

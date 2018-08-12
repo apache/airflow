@@ -625,7 +625,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if query_params:
             if self.use_legacy_sql:
-                raise ValueError("Query paramaters are not allowed when using "
+                raise ValueError("Query parameters are not allowed when using "
                                  "legacy SQL")
             else:
                 configuration['query']['queryParameters'] = query_params

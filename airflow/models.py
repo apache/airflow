@@ -954,7 +954,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def try_number(self):
         """
-        Return the try number that this task number will be when it is acutally
+        Return the try number that this task number will be when it is actually
         run.
 
         If the TI is currently running, this will match the column in the

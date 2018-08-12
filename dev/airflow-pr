@@ -713,8 +713,8 @@ def standardize_jira_ref(text, only_jira=False):
     '[AIRFLOW-5954][MLLIB] Top by key'
     >>> standardize_jira_ref("[AIRFLOW-979] a LRU scheduler for load balancing in TaskSchedulerImpl")
     '[AIRFLOW-979] a LRU scheduler for load balancing in TaskSchedulerImpl'
-    >>> standardize_jira_ref("AIRFLOW-1094 Support MiMa for reporting binary compatibility accross versions.")
-    '[AIRFLOW-1094] Support MiMa for reporting binary compatibility accross versions.'
+    >>> standardize_jira_ref("AIRFLOW-1094 Support MiMa for reporting binary compatibility across versions.")
+    '[AIRFLOW-1094] Support MiMa for reporting binary compatibility across versions.'
     >>> standardize_jira_ref("[WIP]  [AIRFLOW-1146] Vagrant support for Spark")
     '[AIRFLOW-1146][WIP] Vagrant support for Spark'
     >>> standardize_jira_ref("AIRFLOW-1032. If Yarn app fails before registering, app master stays aroun...")
@@ -973,7 +973,7 @@ def cli():
     status = run_cmd('git status --porcelain', echo_cmd=False)
     if status:
         msg = (
-            'You have uncomitted changes in this branch. Running this tool\n'
+            'You have uncommitted changes in this branch. Running this tool\n'
             'will delete them permanently. Continue?')
         if click.confirm(click.style(msg, fg='red', bold=True)):
             run_cmd('git reset --hard', echo_cmd=False)

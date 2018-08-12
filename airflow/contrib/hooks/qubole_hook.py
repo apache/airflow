@@ -123,7 +123,7 @@ class QuboleHook(BaseHook, LoggingMixin):
 
     def kill(self, ti):
         """
-        Kill (cancel) a Qubole commmand
+        Kill (cancel) a Qubole command
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: response from Qubole
         """
