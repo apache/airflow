@@ -31,6 +31,8 @@ complicated, a line by line explanation follows below.
         'email_on_retry': False,
         'retries': 1,
         'retry_delay': timedelta(minutes=5),
+        # 'email_cc': ['airflow_cc@example.com'],
+        # 'email_bcc': ['airflow_bcc@example.com'],
         # 'queue': 'bash_queue',
         # 'pool': 'backfill',
         # 'priority_weight': 10,

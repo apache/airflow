@@ -708,22 +708,28 @@ class SchedulerJob(BaseJob):
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
             """.format(bug=asciiart.bug, **locals())
-            emails = []
+            emails = {'email': [], 'email_cc': [], 'email_bcc': []}
             for t in dag.tasks:
-                if t.email:
-                    if isinstance(t.email, basestring):
-                        l = [t.email]
-                    elif isinstance(t.email, (list, tuple)):
-                        l = t.email
-                    for email in l:
-                        if email not in emails:
-                            emails.append(email)
-            if emails and len(slas):
+                for email_type in emails.keys():
+                    email_addr = getattr(t, email_type)
+                    if email_addr:
+                        if isinstance(email_addr, basestring):
+                            email_list = [email_addr]
+                        elif isinstance(email_addr, (list, tuple)):
+                            email_list = email_addr
+
+                        for email in email_list:
+                            if email not in emails[email_type]:
+                                emails[email_type].append(email)
+
+            if emails['email'] and len(slas):
                 try:
                     send_email(
-                        emails,
+                        emails['email'],
                         "[airflow] SLA miss on DAG=" + dag.dag_id,
-                        email_content)
+                        email_content,
+                        cc=emails['email_cc'] if emails['email_cc'] else None,
+                        bcc=emails['email_bcc'] if emails['email_bcc'] else None)
                     email_sent = True
                     notification_sent = True
                 except Exception:

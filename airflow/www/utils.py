@@ -318,7 +318,8 @@ def notify_owner(f):
                     </table>
                     ''').render(**locals())
                 if task.email:
-                    send_email(task.email, subject, content)
+                    send_email(task.email, subject, content,
+                               cc=task.email_cc, bcc=task.email_bcc)
         """
         return f(*args, **kwargs)
     return wrapper

@@ -1954,7 +1954,7 @@ class TaskInstance(Base, LoggingMixin):
             "Log file: {self.log_filepath}<br>"
             "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
         ).format(try_number=self.try_number, max_tries=self.max_tries + 1, **locals())
-        send_email(task.email, title, body)
+        send_email(task.email, title, body, cc=task.email_cc, bcc=task.email_bcc)
 
     def set_duration(self):
         if self.end_date and self.start_date:
@@ -2362,6 +2362,8 @@ class BaseOperator(LoggingMixin):
             task_id,
             owner=configuration.conf.get('operators', 'DEFAULT_OWNER'),
             email=None,
+            email_cc=None,
+            email_bcc=None,
             email_on_retry=True,
             email_on_failure=True,
             retries=0,
@@ -2411,6 +2413,8 @@ class BaseOperator(LoggingMixin):
         self.task_id = task_id
         self.owner = owner
         self.email = email
+        self.email_cc = email_cc
+        self.email_bcc = email_bcc
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
         self.start_date = start_date
