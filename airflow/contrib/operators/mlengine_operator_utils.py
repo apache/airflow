@@ -160,7 +160,7 @@ def create_evaluate_ops(task_prefix,
         then the `dag`'s `default_args['model_name']` will be used.
     :type model_name: string
 
-    :param version_name: Used to indicate a model version to use for prediciton,
+    :param version_name: Used to indicate a model version to use for prediction,
         in combination with model_name. Cannot be used together with model_uri.
         See MLEngineBatchPredictionOperator for more detail. If None, then the
         `dag`'s `default_args['version_name']` will be used.
