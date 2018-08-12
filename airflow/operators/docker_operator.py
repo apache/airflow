@@ -66,6 +66,8 @@ class DockerOperator(BaseOperator):
     :type mem_limit: float or str
     :param network_mode: Network mode for the container.
     :type network_mode: str
+    :param auto_remove: Remove the container after execution. Default is false.
+    :type auto_remove: bool
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
     :type tls_ca_cert: str
@@ -115,6 +117,7 @@ class DockerOperator(BaseOperator):
             force_pull=False,
             mem_limit=None,
             network_mode=None,
+            auto_remove=False,
             tls_ca_cert=None,
             tls_client_cert=None,
             tls_client_key=None,
@@ -131,6 +134,7 @@ class DockerOperator(BaseOperator):
             **kwargs):
 
         super(DockerOperator, self).__init__(*args, **kwargs)
+        self.auto_remove = auto_remove
         self.api_version = api_version
         self.command = command
         self.cpus = cpus
@@ -203,7 +207,8 @@ class DockerOperator(BaseOperator):
                 host_config=self.cli.create_host_config(
                     binds=self.volumes,
                     network_mode=self.network_mode,
-                    shm_size=self.shm_size),
+                    shm_size=self.shm_size,
+                    auto_remove=self.auto_remove),
                 image=image,
                 mem_limit=self.mem_limit,
                 user=self.user,
