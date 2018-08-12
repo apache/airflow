@@ -843,7 +843,7 @@ class CoreTest(unittest.TestCase):
         with self.assertRaises(AirflowException):
             DummyOperator(
                 task_id='test_bad_trigger',
-                trigger_rule="non_existant",
+                trigger_rule="non_existent",
                 dag=self.dag)
 
     def test_terminate_task(self):

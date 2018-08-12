@@ -86,7 +86,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         for other formats.
     :type allow_jagged_rows: bool
     :param max_id_key: If set, the name of a column in the BigQuery table
-        that's to be loaded. Thsi will be used to select the MAX value from
+        that's to be loaded. This will be used to select the MAX value from
         BigQuery after the load occurs. The results will be returned by the
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during

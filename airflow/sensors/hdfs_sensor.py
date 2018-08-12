@@ -88,12 +88,12 @@ class HdfsSensor(BaseSensorOperator):
         if ignore_copying:
             log = LoggingMixin().log
             regex_builder = "^.*\.(%s$)$" % '$|'.join(ignored_ext)
-            ignored_extentions_regex = re.compile(regex_builder)
+            ignored_extensions_regex = re.compile(regex_builder)
             log.debug(
                 'Filtering result for ignored extensions: %s in files %s',
-                ignored_extentions_regex.pattern, map(lambda x: x['path'], result)
+                ignored_extensions_regex.pattern, map(lambda x: x['path'], result)
             )
-            result = [x for x in result if not ignored_extentions_regex.match(x['path'])]
+            result = [x for x in result if not ignored_extensions_regex.match(x['path'])]
             log.debug('HdfsSensor.poke: after ext filter result is %s', result)
         return result
 

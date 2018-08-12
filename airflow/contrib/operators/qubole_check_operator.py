@@ -28,7 +28,7 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
     """
     Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
     a command that will be executed on QDS.
-    By default, each value on first row of the result of this Qubole Commmand
+    By default, each value on first row of the result of this Qubole Command
     is evaluated using python ``bool`` casting. If any of the
     values return ``False``, the check is failed and errors out.
 
