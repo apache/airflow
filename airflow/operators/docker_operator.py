@@ -117,7 +117,6 @@ class DockerOperator(BaseOperator):
             force_pull=False,
             mem_limit=None,
             network_mode=None,
-            auto_remove=False,
             tls_ca_cert=None,
             tls_client_cert=None,
             tls_client_key=None,
@@ -130,6 +129,7 @@ class DockerOperator(BaseOperator):
             xcom_push=False,
             xcom_all=False,
             docker_conn_id=None,
+            auto_remove=False,
             *args,
             **kwargs):
 
