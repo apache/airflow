@@ -1768,6 +1768,18 @@ class SchedulerJob(BaseJob):
     def heartbeat_callback(self, session=None):
         Stats.incr('scheduler_heartbeat', 1, 1)
 
+        # this acts as a mild "liveness probe" for k8, where if the file has not been
+        # touched in "x" min consider it dead and restart it.
+        touch_file = conf.get('scheduler', 'liveness_touch_file', None)
+        if not touch_file:
+            return
+
+        try:
+            with open(touch_file, 'a') as t_file:
+                os.utime(touch_file, None)
+        except Exception as excp:
+            self.log.error("Failed to touch %s: %s", touch_file, excp)
+
 
 class BackfillJob(BaseJob):
     """
