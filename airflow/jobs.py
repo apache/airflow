@@ -1770,7 +1770,17 @@ class SchedulerJob(BaseJob):
 
         # this acts as a mild "liveness probe" for k8, where if the file has not been
         # touched in "x" min consider it dead and restart it.
-        touch_file = conf.get('scheduler', 'liveness_touch_file', None)
+        # example of 10 min liveness probe check
+        #
+        # if [[ $(find {liveness_touch_file} -type f -mmin +10) = {liveness_touch_file} ]]; then
+        #   exit 1
+        # fi
+        # exit 0
+        #
+        if not conf.has_option('scheduler', 'liveness_touch_file'):
+            return
+
+        touch_file = conf.get('scheduler', 'liveness_touch_file')
         if not touch_file:
             return
 
