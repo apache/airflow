@@ -47,7 +47,7 @@ from past.builtins import unicode
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import or_, desc, and_, union_all
-from wtforms import SelectField, validators
+from wtforms import SelectField, validators, Form, TextAreaField
 
 import airflow
 from airflow import configuration as conf
@@ -77,6 +77,8 @@ if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER)
 else:
     dagbag = models.DagBag
+
+QUERY_LIMIT = 100000
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -1752,6 +1754,72 @@ class VersionView(AirflowBaseView):
                            title=title,
                            airflow_version=airflow_version,
                            git_version=git_version)
+
+
+class QueryView(AirflowBaseView):
+    @expose('/queryview', methods=['POST', 'GET'])
+    @has_access
+    @provide_session
+    def query(self, session=None):
+        dbs = session.query(models.Connection).order_by(
+            models.Connection.conn_id).all()
+        session.expunge_all()
+        db_choices = list(
+            ((db.conn_id, db.conn_id) for db in dbs if db.get_hook()))
+        conn_id_str = request.form.get('conn_id')
+        csv = request.form.get('csv') == "true"
+        sql = request.form.get('sql')
+
+        class QueryForm(Form):
+            conn_id = SelectField("Layout", choices=db_choices)
+            sql = TextAreaField("SQL", widget=wwwutils.AceEditorWidget())
+
+        data = {
+            'conn_id': conn_id_str,
+            'sql': sql,
+        }
+        results = None
+        has_data = False
+        error = False
+        if conn_id_str:
+            db = [db for db in dbs if db.conn_id == conn_id_str][0]
+            hook = db.get_hook()
+            try:
+                df = hook.get_pandas_df(wwwutils.limit_sql(sql,
+                                                           QUERY_LIMIT,
+                                                           conn_type=db.conn_type))
+                has_data = len(df) > 0
+                df = df.fillna('')
+                results = df.to_html(
+                    classes=[
+                        'table', 'table-bordered', 'table-striped', 'no-wrap'],
+                    index=False,
+                    na_rep='',
+                ) if (has_data and not csv) else ''
+            except Exception as e:
+                flash(str(e), 'error')
+                error = True
+
+        if has_data and len(df) == QUERY_LIMIT:
+            flash(
+                "Query output truncated at " + str(QUERY_LIMIT) +
+                " rows", 'info')
+
+        if not has_data and error:
+            flash('No data', 'error')
+
+        if csv and has_data:
+            return Response(
+                response=df.to_csv(index=False),
+                status=200,
+                mimetype="text/csv")
+
+        form = QueryForm(request.form, data=data)
+        session.commit()
+        return self.render(
+            'airflow/query.html', form=form,
+            title="Ad Hoc Query",
+            results=results or '')
 
 
 class ConfigurationView(AirflowBaseView):

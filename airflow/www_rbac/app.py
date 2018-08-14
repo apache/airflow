@@ -93,6 +93,11 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             appbuilder.add_view_no_menu(views.DagModelView())
             appbuilder.add_view_no_menu(views.ConfigurationView())
             appbuilder.add_view_no_menu(views.VersionView())
+            appbuilder.add_view_no_menu(views.QueryView())
+            appbuilder.add_link("Ad Hoc Query",
+                                href='/queryview',
+                                category="Data Profiling",
+                                category_icon="fa-database")
             appbuilder.add_view(views.DagRunModelView,
                                 "DAG Runs",
                                 category="Browse",
