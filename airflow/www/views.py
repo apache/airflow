@@ -2566,10 +2566,13 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
         d = json.JSONDecoder()
         for var in qry:
             val = None
-            try:
-                val = d.decode(var.val)
-            except Exception:
-                val = var.val
+            if wwwutils.should_hide_value_for_key(var):
+                val = '*' * 8
+            else:
+                try:
+                    val = d.decode(var.val)
+                except Exception:
+                    val = var.val
             var_dict[var.key] = val
 
         response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
