@@ -737,12 +737,11 @@
     - name: secret_key
       description: |
         Secret key used to run your flask app
-        If default value is given ("temporary_key"), a random secret_key will be generated
-        when you launch your webserver for security reason
+        It should be as random as possible
       version_added: ~
       type: string
       example: ~
-      default: "temporary_key"
+      default: "{SECRET_KEY}"
     - name: workers
       description: |
         Number of workers to run the Gunicorn web server
