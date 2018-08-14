@@ -43,10 +43,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app)
-    if conf.get('webserver', 'SECRET_KEY') == "temporary_key":
-        app.secret_key = os.urandom(16)
-    else:
-        app.secret_key = conf.get('webserver', 'SECRET_KEY')
+    app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     airflow_home_path = conf.get('core', 'AIRFLOW_HOME')
     webserver_config_path = airflow_home_path + '/webserver_config.py'

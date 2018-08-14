@@ -49,13 +49,7 @@ def create_app(config=None, testing=False):
 
     app = Flask(__name__)
     app.wsgi_app = ProxyFix(app.wsgi_app)
-
-    if configuration.conf.get('webserver', 'SECRET_KEY') == "temporary_key":
-        log.info("SECRET_KEY for Flask App is not specified. Using a random one.")
-        app.secret_key = os.urandom(16)
-    else:
-        app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
-
+    app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not configuration.conf.getboolean(
         'webserver', 'AUTHENTICATE')
 
