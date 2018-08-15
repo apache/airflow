@@ -267,11 +267,12 @@ class DataFlowJobTest(unittest.TestCase):
 
     def test_dataflow_job_init_with_job_id(self):
         mock_jobs = MagicMock()
-        self.mock_dataflow.projects.return_value.\
+        self.mock_dataflow.projects.return_value.locations.return_value.\
             jobs.return_value = mock_jobs
         _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
                      TEST_LOCATION, 10, TEST_JOB_ID)
-        mock_jobs.get.assert_called_with(projectId=TEST_PROJECT, jobId=TEST_JOB_ID)
+        mock_jobs.get.assert_called_with(projectId=TEST_PROJECT, location=TEST_LOCATION,
+                                         jobId=TEST_JOB_ID)
 
     def test_dataflow_job_init_without_job_id(self):
         mock_jobs = MagicMock()
