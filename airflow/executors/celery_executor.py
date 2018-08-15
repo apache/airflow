@@ -60,7 +60,7 @@ def execute_command(command):
     log.info("Executing command in Celery: %s", command)
     env = os.environ.copy()
     try:
-        subprocess.check_call(command, shell=True, stderr=subprocess.STDOUT,
+        subprocess.check_call(command, stderr=subprocess.STDOUT,
                               close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
         log.exception('execute_command encountered a CalledProcessError')
@@ -141,7 +141,7 @@ class CeleryExecutor(BaseExecutor):
         self.log.info("[celery] queuing {key} through celery, "
                       "queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
-            args=[command], queue=queue)
+            args=command, queue=queue)
         self.last_state[key] = celery_states.PENDING
 
     def _num_tasks_per_process(self):

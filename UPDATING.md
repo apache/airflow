@@ -43,6 +43,13 @@ was not installed before.
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
 
+### Rename of BashTaskRunner to StandardTaskRunner
+
+BashTaskRunner has been renamed to StandardTaskRunner. It is the default task runner
+so you might need to update your config.
+
+`task_runner = StandardTaskRunner`
+
 ## Airflow 1.10.2
 
 ### Modification to `ts_nodash` macro

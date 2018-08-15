@@ -33,11 +33,11 @@ class LocalExecutorTest(unittest.TestCase):
         executor.start()
 
         success_key = 'success {}'
-        success_command = 'echo {}'
-        fail_command = 'exit 1'
+        success_command = ['true', ]
+        fail_command = ['false', ]
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
-            key, command = success_key.format(i), success_command.format(i)
+            key, command = success_key.format(i), success_command
             executor.execute_async(key=key, command=command)
             executor.running[key] = True
 

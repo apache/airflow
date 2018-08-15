@@ -100,7 +100,7 @@ class BaseTaskRunner(LoggingMixin):
                           self._task_instance.job_id, self._task_instance.task_id,
                           line.rstrip('\n'))
 
-    def run_command(self, run_with, join_args=False):
+    def run_command(self, run_with=None, join_args=False):
         """
         Run the task command
 
@@ -113,8 +113,10 @@ class BaseTaskRunner(LoggingMixin):
         :return: the process that was run
         :rtype: subprocess.Popen
         """
+        run_with = run_with or []
         cmd = [" ".join(self._command)] if join_args else self._command
         full_cmd = run_with + cmd
+
         self.log.info('Running: %s', full_cmd)
         proc = subprocess.Popen(
             full_cmd,
