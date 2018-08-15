@@ -89,3 +89,38 @@ class HdfsSensorTests(unittest.TestCase):
         # Then
         with self.assertRaises(AirflowSensorTimeout):
             task.execute(None)
+
+    def test_filter_for_ignored_ext(self):
+        """
+        Test the method HdfsSensor.filter_for_ignored_ext
+        :return:
+        """
+        sample_files = [{'path': 'x.py'}, {'path': 'x.txt'}, {'path': 'x.exe'}]
+
+        check_1 = HdfsSensor.filter_for_ignored_ext(result=sample_files,
+                                                    ignored_ext=['exe', 'py'],
+                                                    ignore_copying=True)
+        self.assertTrue(len(check_1) == 1)
+        self.assertEqual(check_1[0]['path'].rsplit(".")[-1], "txt")
+
+        check_2 = HdfsSensor.filter_for_ignored_ext(result=sample_files,
+                                                    ignored_ext=['EXE', 'PY'],
+                                                    ignore_copying=True)
+        self.assertTrue(len(check_2) == 1)
+        self.assertEqual(check_2[0]['path'].rsplit(".")[-1], "txt")
+
+    def test_filter_for_filesize(self):
+        """
+        Test the method HdfsSensor.filter_for_filesize
+        :return:
+        """
+        # unit of 'length' here is "byte"
+        sample_files = [{'path': 'small_file_1.txt', 'length': 1024},
+                        {'path': 'small_file_2.txt', 'length': 2048},
+                        {'path': 'big_file.txt', 'length': 1024 ** 2 + 1}]
+
+        # unit of argument 'size' inside HdfsSensor.filter_for_filesize is "MB"
+        check = HdfsSensor.filter_for_filesize(result=sample_files,
+                                               size=1)
+        self.assertTrue(len(check) == 1)
+        self.assertEqual(check[0]['path'], 'big_file.txt')

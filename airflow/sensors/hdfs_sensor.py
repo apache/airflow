@@ -81,19 +81,20 @@ class HdfsSensor(BaseSensorOperator):
         Will filter if instructed to do so the result to remove matching criteria
 
         :param result: (list) of dicts returned by Snakebite ls
-        :param ignored_ext: (list) of ignored extensions
+        :param ignored_ext: (list) of ignored extensions, like ``['exe', 'py']``
         :param ignore_copying: (bool) shall we ignore ?
         :return: (list) of dicts which were not removed
         """
         if ignore_copying:
             log = LoggingMixin().log
-            regex_builder = "^.*\.(%s$)$" % '$|'.join(ignored_ext)
+            regex_builder = "^.*\.(%s$)$" % '$|'.join([e.lower() for e in ignored_ext])
             ignored_extensions_regex = re.compile(regex_builder)
             log.debug(
                 'Filtering result for ignored extensions: %s in files %s',
                 ignored_extensions_regex.pattern, map(lambda x: x['path'], result)
             )
-            result = [x for x in result if not ignored_extensions_regex.match(x['path'])]
+            result = [x for x in result
+                      if not ignored_extensions_regex.match(x['path'].lower())]
             log.debug('HdfsSensor.poke: after ext filter result is %s', result)
         return result
 
