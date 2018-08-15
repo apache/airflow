@@ -225,3 +225,18 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
         second=second,
         microsecond=microsecond)
     return today - timedelta(days=n)
+
+
+def execution_date_ptime(date_string):
+    """
+    Get datetime.datetime object from given date_string assuming format
+    string is ISO8601-like (aka looks like an execution_date).
+    Like datetime.strptime but for execution_dates.
+    Handles execution dates with *and* without fractional seconds.
+    """
+    ISO8601_FMT = '%Y-%m-%d %H:%M:%S'
+    ISO8601_FMT_FRACTIONAL = ISO8601_FMT + '.%f'
+    if len(date_string) > 19:  # eg: 'YYYY-MM-DD HH:MM:SS.fffffff'
+        return datetime.strptime(date_string, ISO8601_FMT_FRACTIONAL)
+    else:  # eg 'YYYY-MM-DD HH:MM:SS'
+        return datetime.strptime(ISO8601_FMT)
