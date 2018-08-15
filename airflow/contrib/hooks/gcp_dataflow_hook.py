@@ -34,12 +34,13 @@ DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 
 class _DataflowJob(LoggingMixin):
-    def __init__(self, dataflow, project_number, name, location, poll_sleep=10):
+    def __init__(self, dataflow, project_number, name, location, poll_sleep=10,
+                 job_id=None):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
         self._job_location = location
-        self._job_id = None
+        self._job_id = job_id
         self._job = self._get_job()
         self._poll_sleep = poll_sleep
 
@@ -55,13 +56,15 @@ class _DataflowJob(LoggingMixin):
         return None
 
     def _get_job(self):
-        if self._job_name:
-            job = self._get_job_id_from_name()
-        else:
+        if self._job_id:
             job = self._dataflow.projects().jobs().get(
                 projectId=self._project_number,
                 jobId=self._job_id
             ).execute(num_retries=5)
+        elif self._job_name:
+            job = self._get_job_id_from_name()
+        else:
+            raise Exception('Missing both dataflow job ID and name.')
 
         if job and 'currentState' in job:
             self.log.info(
@@ -124,36 +127,50 @@ class _Dataflow(LoggingMixin):
 
     def _line(self, fd):
         if fd == self._proc.stderr.fileno():
-            lines = self._proc.stderr.readlines()
-            for line in lines:
+            line = b''.join(self._proc.stderr.readlines())
+            if line:
                 self.log.warning(line[:-1])
-            if lines:
-                return lines[-1]
+            return line
         if fd == self._proc.stdout.fileno():
-            line = self._proc.stdout.readline()
+            line = b''.join(self._proc.stdout.readlines())
+            if line:
+                self.log.info(line[:-1])
             return line
 
     @staticmethod
     def _extract_job(line):
-        if line is not None:
-            if line.startswith("Submitted job: "):
-                return line[15:-1]
+        # Job id info: https://goo.gl/SE29y9.
+        job_id_pattern = re.compile(
+            b'.*console.cloud.google.com/dataflow.*/jobs/([a-z|0-9|A-Z|\-|\_]+).*')
+        matched_job = job_id_pattern.search(line or '')
+        if matched_job:
+            return matched_job.group(1).decode()
 
     def wait_for_done(self):
         reads = [self._proc.stderr.fileno(), self._proc.stdout.fileno()]
         self.log.info("Start waiting for DataFlow process to complete.")
-        while self._proc.poll() is None:
+        job_id = None
+        # Make sure logs are processed regardless whether the subprocess is
+        # terminated.
+        process_ends = False
+        while True:
             ret = select.select(reads, [], [], 5)
             if ret is not None:
                 for fd in ret[0]:
                     line = self._line(fd)
                     if line:
-                        self.log.debug(line[:-1])
+                        job_id = job_id or self._extract_job(line)
             else:
                 self.log.info("Waiting for DataFlow process to complete.")
+            if process_ends:
+                break
+            if self._proc.poll() is not None:
+                # Mark process completion but allows its outputs to be consumed.
+                process_ends = True
         if self._proc.returncode is not 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
+        return job_id
 
 
 class DataFlowHook(GoogleCloudBaseHook):
@@ -178,9 +195,10 @@ class DataFlowHook(GoogleCloudBaseHook):
         variables = self._set_variables(variables)
         cmd = command_prefix + self._build_cmd(task_id, variables,
                                                label_formatter)
-        _Dataflow(cmd).wait_for_done()
+        job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
-                     variables['region'], self.poll_sleep).wait_for_done()
+                     variables['region'],
+                     self.poll_sleep, job_id).wait_for_done()
 
     @staticmethod
     def _set_variables(variables):

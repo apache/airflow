@@ -22,8 +22,8 @@ import unittest
 from mock import call
 from mock import MagicMock
 
-from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook
-from airflow.contrib.hooks.gcp_dataflow_hook import _Dataflow
+from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\
+    _Dataflow, _DataflowJob
 
 try:
     from unittest import mock
@@ -62,6 +62,10 @@ DATAFLOW_OPTIONS_TEMPLATE = {
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 DATAFLOW_STRING = 'airflow.contrib.hooks.gcp_dataflow_hook.{}'
 MOCK_UUID = '12345678'
+TEST_PROJECT = 'test-project'
+TEST_JOB_NAME = 'test-job-name'
+TEST_JOB_ID = 'test-job-id'
+TEST_LOCATION = 'us-central1'
 
 
 def mock_init(self, gcp_conn_id, delegate_to=None):
@@ -152,25 +156,25 @@ class DataFlowHookTest(unittest.TestCase):
     @mock.patch('subprocess.Popen')
     @mock.patch('select.select')
     def test_dataflow_wait_for_done_logging(self, mock_select, mock_popen, mock_logging):
-      mock_logging.info = MagicMock()
-      mock_logging.warning = MagicMock()
-      mock_proc = MagicMock()
-      mock_proc.stderr = MagicMock()
-      mock_proc.stderr.readlines = MagicMock(return_value=['test\n','error\n'])
-      mock_stderr_fd = MagicMock()
-      mock_proc.stderr.fileno = MagicMock(return_value=mock_stderr_fd)
-      mock_proc_poll = MagicMock()
-      mock_select.return_value = [[mock_stderr_fd]]
-      def poll_resp_error():
-        mock_proc.return_code = 1
-        return True
-      mock_proc_poll.side_effect=[None, poll_resp_error]
-      mock_proc.poll = mock_proc_poll
-      mock_popen.return_value = mock_proc
-      dataflow = _Dataflow(['test', 'cmd'])
-      mock_logging.info.assert_called_with('Running command: %s', 'test cmd')
-      self.assertRaises(Exception, dataflow.wait_for_done)
-      mock_logging.warning.assert_has_calls([call('test'), call('error')])
+        mock_logging.info = MagicMock()
+        mock_logging.warning = MagicMock()
+        mock_proc = MagicMock()
+        mock_proc.stderr = MagicMock()
+        mock_proc.stderr.readlines = MagicMock(return_value=['test\n', 'error\n'])
+        mock_stderr_fd = MagicMock()
+        mock_proc.stderr.fileno = MagicMock(return_value=mock_stderr_fd)
+        mock_proc_poll = MagicMock()
+        mock_select.return_value = [[mock_stderr_fd]]
+
+        def poll_resp_error():
+            mock_proc.return_code = 1
+            return True
+        mock_proc_poll.side_effect = [None, poll_resp_error]
+        mock_proc.poll = mock_proc_poll
+        mock_popen.return_value = mock_proc
+        dataflow = _Dataflow(['test', 'cmd'])
+        mock_logging.info.assert_called_with('Running command: %s', 'test cmd')
+        self.assertRaises(Exception, dataflow.wait_for_done)
 
     def test_valid_dataflow_job_name(self):
         job_name = self.dataflow_hook._build_dataflow_job_name(
@@ -254,3 +258,40 @@ class DataFlowTemplateHookTest(unittest.TestCase):
             dataflow_template=TEMPLATE)
         internal_dataflow_mock.assert_called_once_with(
             mock.ANY, DATAFLOW_OPTIONS_TEMPLATE, PARAMETERS, TEMPLATE)
+
+
+class DataFlowJobTest(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_dataflow = MagicMock()
+
+    def test_dataflow_job_init_with_job_id(self):
+        mock_jobs = MagicMock()
+        self.mock_dataflow.projects.return_value.\
+            jobs.return_value = mock_jobs
+        _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
+                     TEST_LOCATION, 10, TEST_JOB_ID)
+        mock_jobs.get.assert_called_with(projectId=TEST_PROJECT, jobId=TEST_JOB_ID)
+
+    def test_dataflow_job_init_without_job_id(self):
+        mock_jobs = MagicMock()
+        self.mock_dataflow.projects.return_value.locations.return_value.\
+            jobs.return_value = mock_jobs
+        _DataflowJob(self.mock_dataflow, TEST_PROJECT, TEST_JOB_NAME,
+                     TEST_LOCATION, 10)
+        mock_jobs.list.assert_called_with(projectId=TEST_PROJECT,
+                                          location=TEST_LOCATION)
+
+
+class DataflowTest(unittest.TestCase):
+
+    def test_data_flow_valid_job_id(self):
+        cmd = ['echo', 'additional unit test lines.\n' +
+               'INFO: the Dataflow monitoring console, please navigate to' +
+               'https://console.cloud.google.com/dataflow/jobsDetail/locations/' +
+               '{}/jobs/{}?project={}'.format(TEST_LOCATION, TEST_JOB_ID, TEST_PROJECT)]
+        self.assertEqual(_Dataflow(cmd).wait_for_done(), TEST_JOB_ID)
+
+    def test_data_flow_missing_job_id(self):
+        cmd = ['echo', 'unit testing']
+        self.assertEqual(_Dataflow(cmd).wait_for_done(), None)
