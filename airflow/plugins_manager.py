@@ -28,6 +28,7 @@ import inspect
 import os
 import re
 import sys
+from collections import Counter
 
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -91,8 +92,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
                         issubclass(obj, AirflowPlugin) and
                         obj is not AirflowPlugin):
                     obj.validate()
-                    if obj not in plugins:
-                        plugins.append(obj)
+                    plugins.append(obj)
 
         except Exception as e:
             log.exception(e)
@@ -121,7 +121,12 @@ admin_views = []
 flask_blueprints = []
 menu_links = []
 
+uniq_plugin_modules = []
+
 for p in plugins:
+
+    uniq_plugin_modules.append(p.name)
+
     operators_modules.append(
         make_module('airflow.operators.' + p.name, p.operators + p.sensors))
     sensors_modules.append(
@@ -135,3 +140,9 @@ for p in plugins:
     admin_views.extend(p.admin_views)
     flask_blueprints.extend(p.flask_blueprints)
     menu_links.extend(p.menu_links)
+
+plugins_counter = Counter(uniq_plugin_modules)
+if max(plugins_counter.values()) > 1:
+    log.warn("There are duplicated plugin files for method(s) %s.",
+             [p[0] for p in plugins_counter.items() if p[1] > 1])
+    log.warn("Among duplicated plugins of each method, only one to be loaded.")
