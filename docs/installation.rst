@@ -31,7 +31,7 @@ You can also install Airflow with support for extra features like ``s3`` or ``po
 
 .. code-block:: bash
 
-    pip install "apache-airflow[s3, postgres]"
+    pip install apache-airflow[postgres,s3]
 
 .. note:: GPL dependency
 

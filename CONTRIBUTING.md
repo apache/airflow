@@ -108,7 +108,7 @@ docker run -t -i -v `pwd`:/airflow/ -w /airflow/ -e SLUGIFY_USES_TEXT_UNIDECODE=
 
 # Install Airflow with all the required dependencies,
 # including the devel which will provide the development tools
-pip install -e ".[hdfs,hive,druid,devel]"
+pip install -e .[devel,druid,hdfs,hive]
 
 # Init the database
 airflow initdb
