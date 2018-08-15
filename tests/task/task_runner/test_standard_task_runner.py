@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,7 +25,7 @@ import unittest
 from airflow import models, settings
 from airflow.jobs import LocalTaskJob
 from airflow.models import TaskInstance as TI
-from airflow.task.task_runner import BashTaskRunner
+from airflow.task.task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -61,7 +61,7 @@ LOGGING_CONFIG = {
 }
 
 
-class TestBashTaskRunner(unittest.TestCase):
+class TestStandardTaskRunner(unittest.TestCase):
     def setUp(self):
         dictConfig(LOGGING_CONFIG)
 
@@ -71,7 +71,7 @@ class TestBashTaskRunner(unittest.TestCase):
         local_task_job.task_instance.run_as_user = None
         local_task_job.task_instance.command_as_list.return_value = ['sleep', '1000']
 
-        runner = BashTaskRunner(local_task_job)
+        runner = StandardTaskRunner(local_task_job)
         runner.start()
 
         pgid = os.getpgid(runner.process.pid)
@@ -119,7 +119,7 @@ class TestBashTaskRunner(unittest.TestCase):
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
 
-        runner = BashTaskRunner(job1)
+        runner = StandardTaskRunner(job1)
         runner.start()
 
         # give the task some time to startup
