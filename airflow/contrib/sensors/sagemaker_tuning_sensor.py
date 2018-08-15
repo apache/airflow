@@ -25,10 +25,13 @@ from airflow.utils.decorators import apply_defaults
 class SageMakerTuningSensor(SageMakerBaseSensor):
     """
     Asks for the state of the tuning state until it reaches a terminal state.
-    If it fails the sensor errors, failing the task.
+    The sensor will error if the job errors, throwing a AirflowException
+    containing the failure reason.
 
     :param job_name: job_name of the tuning instance to check the state of
     :type job_name: string
+    :param region_name: The AWS region_name
+    :type region_name: string
     """
 
     template_fields = ['job_name']

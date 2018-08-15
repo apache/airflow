@@ -29,7 +29,7 @@ except ImportError:
 from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_create_tuning_job_operator \
-    import SageMakerCreateHyperParameterTuningJobOperator
+    import SageMakerCreateTuningJobOperator
 from airflow.exceptions import AirflowException
 
 role = 'test-role'
@@ -115,7 +115,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
 
     def setUp(self):
         configuration.load_test_config()
-        self.sagemaker = SageMakerCreateHyperParameterTuningJobOperator(
+        self.sagemaker = SageMakerCreateTuningJobOperator(
             task_id='test_sagemaker_operator',
             sagemaker_conn_id='sagemaker_test_conn',
             tuning_job_config=create_tuning_params,

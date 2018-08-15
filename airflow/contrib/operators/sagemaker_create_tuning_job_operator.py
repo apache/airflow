@@ -23,32 +23,30 @@ from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
 
-class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
+class SageMakerCreateTuningJobOperator(BaseOperator):
 
     """
        Initiate a SageMaker HyperParameter Tuning Job
 
        This operator returns The ARN of the model created in Amazon SageMaker
 
+       :param sagemaker_conn_id: The SageMaker connection ID to use.
+       :type sagemaker_conn_id: string
        :param region_name: The AWS region_name
        :type region_name: string
        :param tuning_job_config:
        The configuration necessary to start a tuning job (templated)
        :type tuning_job_config: dict
-       :param sagemaker_conn_id: The SageMaker connection ID to use.
-       :type sagemaker_conn_id: string
        :param use_db_config: Whether or not to use db config
        associated with sagemaker_conn_id.
        If set to true, will automatically update the tuning config
        with what's in db, so the db config doesn't need to
        included everything, but what's there does replace the ones
        in the tuning_job_config, so be careful
-       :type use_db_config: bool
-       :param aws_conn_id: The AWS connection ID to use.
-       :type aws_conn_id: string
        :param wait_for_completion: if the operator should block
        until tuning job finishes
        :type wait_for_completion: bool
+       :type use_db_config: bool
        :param check_interval: if wait is set to be true, this is the time interval
        which the operator will check the status of the tuning job
        :type check_interval: int
@@ -56,17 +54,19 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
        if the tuning job hasn't finish within the max_ingestion_time
        (Caution: be careful to set this parameters because tuning can take very long)
        :type max_ingestion_time: int
+       :param aws_conn_id: The AWS connection ID to use.
+       :type aws_conn_id: string
 
        **Example**:
            The following operator would start a tuning job when executed
 
             sagemaker_tuning =
-               SageMakerCreateHyperParameterTuningJobOperator(
+               SageMakerCreateTuningJobOperator(
                    task_id='sagemaker_tuning',
+                   sagemaker_conn_id='sagemaker_customers_conn',
                    tuning_job_config=config,
-                   job_name='my_sagemaker_tuning'
-                   sagemaker_conn_id='sagemaker_customers_conn'
-                   aws_conn_id='aws_customers_conn'
+                   job_name='my_sagemaker_tuning',
+                   aws_conn_id='aws_customers_conn',
                )
        """
 
@@ -84,7 +84,7 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
                  check_interval=5,
                  max_ingestion_time=None,
                  *args, **kwargs):
-        super(SageMakerCreateHyperParameterTuningJobOperator, self)\
+        super(SageMakerCreateTuningJobOperator, self)\
             .__init__(*args, **kwargs)
 
         self.sagemaker_conn_id = sagemaker_conn_id
