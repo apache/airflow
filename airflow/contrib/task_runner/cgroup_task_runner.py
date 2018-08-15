@@ -117,7 +117,7 @@ class CgroupTaskRunner(BaseTaskRunner):
                 "creating another one",
                 cgroups.get("cpu"), cgroups.get("memory")
             )
-            self.process = self.run_command(['bash', '-c'], join_args=True)
+            self.process = self.run_command()
             return
 
         # Create a unique cgroup name
