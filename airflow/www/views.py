@@ -75,7 +75,11 @@ from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.dates import (
+    infer_time_unit,
+    scale_time_units,
+    execution_date_ptime
+)
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 from airflow.www.validators import GreaterEqualThan
@@ -2527,10 +2531,12 @@ class TaskInstanceModelView(ModelViewOnly):
             count = len(ids)
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
-                ti = session.query(TI).filter(TI.task_id == task_id,
-                                              TI.dag_id == dag_id,
-                                              TI.execution_date == execution_date).one()
+                execution_date = execution_date_ptime(execution_date)
+                ti = session.query(TI).filter(
+                    TI.task_id == task_id,
+                    TI.dag_id == dag_id,
+                    TI.execution_date == execution_date
+                ).one()
                 ti.state = target_state
             session.commit()
             flash(
@@ -2547,10 +2553,12 @@ class TaskInstanceModelView(ModelViewOnly):
             count = 0
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
-                count += session.query(TI).filter(TI.task_id == task_id,
-                                                  TI.dag_id == dag_id,
-                                                  TI.execution_date == execution_date).delete()
+                execution_date = execution_date_ptime(execution_date)
+                count += session.query(TI).filter(
+                    TI.task_id == task_id,
+                    TI.dag_id == dag_id,
+                    TI.execution_date == execution_date
+                ).delete()
             session.commit()
             flash("{count} task instances were deleted".format(**locals()))
         except Exception as ex:
