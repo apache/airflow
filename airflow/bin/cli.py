@@ -298,7 +298,7 @@ def pool_import_helper(filepath):
     try:
         d = json.loads(pl)
     except Exception as e:
-        print("Invalid pool json file with exception: " + str(e) + ". please check the validity of the json")
+        print("Please check the validity of the json file: " + str(e))
     else:
         try:
             pools = []
