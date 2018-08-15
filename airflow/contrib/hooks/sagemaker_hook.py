@@ -65,7 +65,8 @@ class SageMakerHook(AwsHook):
             # check if s3 key exists in the case user provides a single file
             # or if s3 prefix exists in the case user provides a prefix for files
             raise AirflowException("The input S3 Key "
-                                   "or Prefix {} does not exist in the Bucket {}")
+                                   "or Prefix {} does not exist in the Bucket {}"
+                                   .format(s3url, bucket))
         return True
 
     def check_valid_training_input(self, training_config):
