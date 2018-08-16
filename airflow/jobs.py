@@ -188,7 +188,7 @@ class BaseJob(Base, LoggingMixin):
 
                 self.heartbeat_callback(session=session)
                 self.log.debug('[heartbeat]')
-        except Exception as e:
+        except OperationalError as e:
             self.log.error("Scheduler heartbeat got an exception: %s", str(e))
 
     def run(self):
