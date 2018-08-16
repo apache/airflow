@@ -24,6 +24,7 @@ import unittest
 from botocore.exceptions import NoCredentialsError
 
 from airflow import configuration
+from airflow.models import Connection
 
 try:
     from airflow.hooks.S3_hook import S3Hook
@@ -242,6 +243,66 @@ class TestS3Hook(unittest.TestCase):
 
         self.assertEqual(body, b'Cont\xC3\xA9nt')
 
+        # [AIRFLOW-2315] Testing with argument for new param `upload_args`
+        hook.load_string(u"Contént",
+                         "my_key_2",
+                         "mybucket",
+                         upload_args={
+                             "Metadata": {
+                                 "mykey": "my_value_from_param"
+                             }
+                         })
+        metadata = boto3.resource('s3').Object('mybucket', 'my_key_2').get()['Metadata']
+
+        self.assertEqual(metadata, {"mykey": "my_value_from_param"})
+
+    @mock_s3
+    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_connection')
+    def test_load_string_with_extras(self, mock_get_connection):
+        """
+        [AIRFLOW-2315] Testing with new json extras
+        """
+        mock_connection = Connection(
+            extra=(
+                '{"s3_upload_args":{'
+                '"Metadata":{'
+                '"mykey": "my_value_from_json_extras" } } }'
+            )
+        )
+        mock_get_connection.return_value = mock_connection
+
+        hook = S3Hook()
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+
+        hook.load_string(u"Contént", "my_key", "mybucket")
+        body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+
+        self.assertEqual(body, b'Cont\xC3\xA9nt')
+
+        metadata = boto3.resource('s3').Object('mybucket', 'my_key').get()['Metadata']
+
+        self.assertEqual(metadata, {"mykey": "my_value_from_json_extras"})
+
+        # [AIRFLOW-2315] Testing with argument for new param `upload_args`
+        hook.load_string(u"Contént",
+                         "my_key_2",
+                         "mybucket",
+                         upload_args={
+                             "Metadata": {
+                                 "mykey": "my_value_from_param"
+                             }
+                         })
+        body2 = boto3.resource('s3').Object('mybucket', 'my_key_2').get()['Body'].read()
+
+        self.assertEqual(body2, b'Cont\xC3\xA9nt')
+
+        metadata2 = boto3.resource('s3').Object('mybucket', 'my_key_2').get()['Metadata']
+
+        self.assertEqual(metadata2, {"mykey": "my_value_from_param"})
+
     @mock_s3
     def test_load_bytes(self):
         hook = S3Hook(aws_conn_id=None)
@@ -250,10 +311,70 @@ class TestS3Hook(unittest.TestCase):
         # AWS account
         conn.create_bucket(Bucket="mybucket")
 
-        hook.load_bytes(b"Content", "my_key", "mybucket")
+        hook.load_bytes(b"Cont\xC3\xA9nt", "my_key", "mybucket")
         body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
 
-        self.assertEqual(body, b'Content')
+        self.assertEqual(body, b'Cont\xC3\xA9nt')
+
+        # [AIRFLOW-2315] Testing with argument for new param `upload_args`
+        hook.load_bytes(b"Cont\xC3\xA9nt",
+                        "my_key_2",
+                        "mybucket",
+                        upload_args={
+                            "Metadata": {
+                                "mykey": "my_value_from_param"
+                            }
+                        })
+        metadata = boto3.resource('s3').Object('mybucket', 'my_key_2').get()['Metadata']
+
+        self.assertEqual(metadata, {"mykey": "my_value_from_param"})
+
+    @mock_s3
+    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_connection')
+    def test_load_byes_with_extras(self, mock_get_connection):
+        """
+        [AIRFLOW-2315] Testing with new json extras
+        """
+        mock_connection = Connection(
+            extra=(
+                '{"s3_upload_args":{'
+                '"Metadata":{'
+                '"mykey": "my_value_from_json_extras" } } }'
+            )
+        )
+        mock_get_connection.return_value = mock_connection
+
+        hook = S3Hook()
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+
+        hook.load_bytes(b"Cont\xC3\xA9nt", "my_key", "mybucket")
+        body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+
+        self.assertEqual(body, b'Cont\xC3\xA9nt')
+
+        metadata = boto3.resource('s3').Object('mybucket', 'my_key').get()['Metadata']
+
+        self.assertEqual(metadata, {"mykey": "my_value_from_json_extras"})
+
+        # [AIRFLOW-2315] Testing with argument for new param `upload_args`
+        hook.load_bytes(b"Cont\xC3\xA9nt",
+                        "my_key_2",
+                        "mybucket",
+                        upload_args={
+                            "Metadata": {
+                                "mykey": "my_value_from_param"
+                            }
+                        })
+        body2 = boto3.resource('s3').Object('mybucket', 'my_key_2').get()['Body'].read()
+
+        self.assertEqual(body2, b'Cont\xC3\xA9nt')
+
+        metadata2 = boto3.resource('s3').Object('mybucket', 'my_key_2').get()['Metadata']
+
+        self.assertEqual(metadata2, {"mykey": "my_value_from_param"})
 
 
 if __name__ == '__main__':

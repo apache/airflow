@@ -282,7 +282,8 @@ class S3Hook(AwsHook):
                   key,
                   bucket_name=None,
                   replace=False,
-                  encrypt=False):
+                  encrypt=False,
+                  upload_args=None):
         """
         Loads a local file to S3
 
@@ -299,16 +300,15 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param upload_args: S3 upload args.
+            See: boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS
+        :type upload_args: dictionary
         """
-        if not bucket_name:
-            (bucket_name, key) = self.parse_s3_url(key)
-
-        if not replace and self.check_for_key(key, bucket_name):
-            raise ValueError("The key {key} already exists.".format(key=key))
-
-        extra_args = {}
-        if encrypt:
-            extra_args['ServerSideEncryption'] = "AES256"
+        (bucket_name, key, extra_args) = self._prepare_load(key,
+                                                            bucket_name,
+                                                            replace,
+                                                            encrypt,
+                                                            upload_args)
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
@@ -319,7 +319,8 @@ class S3Hook(AwsHook):
                     bucket_name=None,
                     replace=False,
                     encrypt=False,
-                    encoding='utf-8'):
+                    encoding='utf-8',
+                    upload_args=None):
         """
         Loads a string to S3
 
@@ -338,19 +339,24 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param upload_args: S3 upload's "ExtraArgs"
+            See: boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS
+        :type upload_args: dictionary
         """
         self.load_bytes(string_data.encode(encoding),
                         key=key,
                         bucket_name=bucket_name,
                         replace=replace,
-                        encrypt=encrypt)
+                        encrypt=encrypt,
+                        upload_args=upload_args)
 
     def load_bytes(self,
                    bytes_data,
                    key,
                    bucket_name=None,
                    replace=False,
-                   encrypt=False):
+                   encrypt=False,
+                   upload_args=None):
         """
         Loads bytes to S3
 
@@ -369,18 +375,69 @@ class S3Hook(AwsHook):
         :param encrypt: If True, the file will be encrypted on the server-side
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
+        :param upload_args: S3 upload's "ExtraArgs"
+            See: boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS
+        :type upload_args: dictionary
         """
-        if not bucket_name:
-            (bucket_name, key) = self.parse_s3_url(key)
-
-        if not replace and self.check_for_key(key, bucket_name):
-            raise ValueError("The key {key} already exists.".format(key=key))
-
-        extra_args = {}
-        if encrypt:
-            extra_args['ServerSideEncryption'] = "AES256"
+        (bucket_name, key, extra_args) = self._prepare_load(key,
+                                                            bucket_name,
+                                                            replace,
+                                                            encrypt,
+                                                            upload_args)
 
         filelike_buffer = BytesIO(bytes_data)
 
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)
+
+    def _prepare_load(self,
+                      key,
+                      bucket_name=None,
+                      replace=False,
+                      encrypt=False,
+                      upload_args=None):
+        """
+        Prepares S3 load by:
+            1. Examining arguments
+            2. Checking key existence
+            3. Determining Upload "ExtraArgs"
+
+        ExtraArg Order of Precedence:
+            1) "encrypt" argument
+            1) "upload_args" argument
+            3) Connection's json extra property: "s3_upload_args"
+
+        Returns a tuple of the prepared values: (bucket_name, key, upload_args)
+
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which to store the file
+        :type bucket_name: str
+        :param replace: A flag to decide whether or not to overwrite the key
+            if it already exists
+        :type replace: bool
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :type encrypt: bool
+        :param upload_args: S3 upload's "ExtraArgs"
+            See: boto3.s3.transfer.S3Transfer.ALLOWED_UPLOAD_ARGS
+        :type upload_args: dictionary
+        """
+        if not upload_args:
+            upload_args = {}
+        if not bucket_name:
+            (bucket_name, key) = self.parse_s3_url(key)
+
+        if not replace and self.check_for_key(key, bucket_name):
+            raise ValueError("The key {key} already exists.".format(key=key))
+        applied_upload_args = {}
+        if(self.aws_conn_id):
+            connection_object = self.get_connection(self.aws_conn_id)
+            if 's3_upload_args' in connection_object.extra_dejson:
+                applied_upload_args.update(
+                    connection_object.extra_dejson.get('s3_upload_args'))
+        applied_upload_args.update(upload_args)
+        if encrypt:
+            applied_upload_args['ServerSideEncryption'] = "AES256"
+
+        return (bucket_name, key, applied_upload_args)
