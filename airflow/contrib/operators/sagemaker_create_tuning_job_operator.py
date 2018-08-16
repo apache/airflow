@@ -43,10 +43,10 @@ class SageMakerCreateTuningJobOperator(BaseOperator):
        with what's in db, so the db config doesn't need to
        included everything, but what's there does replace the ones
        in the tuning_job_config, so be careful
+       :type use_db_config: bool
        :param wait_for_completion: if the operator should block
        until tuning job finishes
        :type wait_for_completion: bool
-       :type use_db_config: bool
        :param check_interval: if wait is set to be true, this is the time interval
        which the operator will check the status of the tuning job
        :type check_interval: int
@@ -65,7 +65,8 @@ class SageMakerCreateTuningJobOperator(BaseOperator):
                    task_id='sagemaker_tuning',
                    sagemaker_conn_id='sagemaker_customers_conn',
                    tuning_job_config=config,
-                   job_name='my_sagemaker_tuning',
+                   check_interval=2,
+                   max_ingestion_time=3600,
                    aws_conn_id='aws_customers_conn',
                )
        """
