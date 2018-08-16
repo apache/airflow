@@ -87,6 +87,11 @@ class SubDagOperator(BaseOperator):
 
     def execute(self, context):
         ed = context['execution_date']
+        # Use the parent's run id as a template for the subdag dag run's run_id
+        run_id = context['run_id']
+        run_id_template = run_id + '.{0}'
         self.subdag.run(
             start_date=ed, end_date=ed, donot_pickle=True,
-            executor=self.executor)
+            executor=self.executor,
+            run_id_template=run_id_template
+        )

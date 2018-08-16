@@ -1922,6 +1922,7 @@ class BackfillJob(BaseJob):
             ignore_task_deps=False,
             pool=None,
             delay_on_limit_secs=1.0,
+            run_id_template=None,
             *args, **kwargs):
         self.dag = dag
         self.dag_id = dag.dag_id
@@ -1934,6 +1935,9 @@ class BackfillJob(BaseJob):
         self.ignore_task_deps = ignore_task_deps
         self.pool = pool
         self.delay_on_limit_secs = delay_on_limit_secs
+        self.run_id_template = BackfillJob.ID_FORMAT_PREFIX
+        if run_id_template:
+            self.run_id_template = run_id_template
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
@@ -2023,7 +2027,7 @@ class BackfillJob(BaseJob):
         :type session: Session
         :return: a DagRun in state RUNNING or None
         """
-        run_id = BackfillJob.ID_FORMAT_PREFIX.format(run_date.isoformat())
+        run_id = self.run_id_template.format(run_date.isoformat())
 
         # consider max_active_runs but ignore when running subdags
         respect_dag_max_active_limit = (True

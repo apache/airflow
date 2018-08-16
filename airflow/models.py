@@ -3675,7 +3675,9 @@ class DAG(BaseDag, LoggingMixin):
             ignore_task_deps=False,
             ignore_first_depends_on_past=False,
             pool=None,
-            delay_on_limit_secs=1.0):
+            delay_on_limit_secs=1.0,
+            run_id_template=None
+    ):
         """
         Runs the DAG.
 
@@ -3703,6 +3705,8 @@ class DAG(BaseDag, LoggingMixin):
         :param delay_on_limit_secs: Time in seconds to wait before next attempt to run
             dag run when max_active_runs limit has been reached
         :type delay_on_limit_secs: float
+        :param run_id_template: Template for the run_id to be with the execution date
+        :type run_id_template: string
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
@@ -3720,7 +3724,9 @@ class DAG(BaseDag, LoggingMixin):
             ignore_task_deps=ignore_task_deps,
             ignore_first_depends_on_past=ignore_first_depends_on_past,
             pool=pool,
-            delay_on_limit_secs=delay_on_limit_secs)
+            delay_on_limit_secs=delay_on_limit_secs,
+            run_id_template=run_id_template
+        )
         job.run()
 
     def cli(self):
