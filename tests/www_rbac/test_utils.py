@@ -113,6 +113,11 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('page=3&search=bash_&showPaused=False',
                          utils.get_params(showPaused=False, page=3, search='bash_'))
 
+    def test_params_all_page_zero(self):
+        """Should return params string ordered by param key"""
+        self.assertEqual('page=0&search=bash_&showPaused=False',
+                         utils.get_params(showPaused=False, page=0, search='bash_'))
+
 
 if __name__ == '__main__':
     unittest.main()

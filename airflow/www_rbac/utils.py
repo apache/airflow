@@ -71,7 +71,7 @@ def get_params(**kwargs):
             if v or v is None:
                 continue
             params.append('{}={}'.format(k, v))
-        elif v:
+        elif v is not None:
             params.append('{}={}'.format(k, v))
     params = sorted(params, key=lambda x: x.split('=')[0])
     return '&'.join(params)
