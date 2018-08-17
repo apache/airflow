@@ -32,9 +32,11 @@ class S3KeySensor(BaseSensorOperator):
     a resource.
 
     :param bucket_key: The key being waited on. Supports full s3:// style url
-        or relative path from root level.
+        or relative path from root level. When it's specified as a full s3://
+        url, please leave bucket_name as `None`.
     :type bucket_key: str
-    :param bucket_name: Name of the S3 bucket
+    :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
+        is not provided as a full s3:// url.
     :type bucket_name: str
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
@@ -64,6 +66,12 @@ class S3KeySensor(BaseSensorOperator):
                     bucket_key = parsed_url.path[1:]
                 else:
                     bucket_key = parsed_url.path
+        else:
+            parsed_url = urlparse(bucket_key)
+            if parsed_url.scheme != '' or parsed_url.netloc != '':
+                raise AirflowException('If bucket_name is provided, bucket_key' +
+                                       ' should be relative path from root' +
+                                       ' level, rather than a full s3:// url')
         self.bucket_name = bucket_name
         self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
