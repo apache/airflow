@@ -147,7 +147,7 @@
                 <svg height="10" width="10" id='dag-{{ row.dag_id }}' style="display: block;"></svg>
             </td>
             <td>
-              <a href="{{ url_for("airflow.tree", dag_id=row.dag_id, num_runs=25) }}" title="Tree View">
+              <a href="{{ url_for("airflow.tree", dag_id=row.dag_id, num_runs=num_runs) }}" title="Tree View">
                   <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
               </a>
               <a href="{{ url_for("airflow.graph", dag_id=row.dag_id) }}" title="Graph View">

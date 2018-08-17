@@ -102,24 +102,26 @@ import dill
 
 
 class JsonCoder(object):
-    def encode(self, x):
+    @staticmethod
+    def encode(x):
         return json.dumps(x)
 
-    def decode(self, x):
+    @staticmethod
+    def decode(x):
         return json.loads(x)
 
 
 @beam.ptransform_fn
 def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
     return (
-        pcoll
-        | "ApplyMetricFnPerInstance" >> beam.Map(metric_fn)
-        | "PairWith1" >> beam.Map(lambda tup: tup + (1,))
-        | "SumTuple" >> beam.CombineGlobally(beam.combiners.TupleCombineFn(
-            *([sum] * (len(metric_keys) + 1))))
-        | "AverageAndMakeDict" >> beam.Map(
+        pcoll |
+        "ApplyMetricFnPerInstance" >> beam.Map(metric_fn) |
+        "PairWith1" >> beam.Map(lambda tup: tup + (1,)) |
+        "SumTuple" >> beam.CombineGlobally(beam.combiners.TupleCombineFn(
+            *([sum] * (len(metric_keys) + 1)))) |
+        "AverageAndMakeDict" >> beam.Map(
             lambda tup: dict(
-                [(name, tup[i]/tup[-1]) for i, name in enumerate(metric_keys)] +
+                [(name, tup[i] / tup[-1]) for i, name in enumerate(metric_keys)] +
                 [("count", tup[-1])])))
 
 

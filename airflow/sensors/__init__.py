@@ -1,19 +1,24 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 import sys
-import os as _os
+import os
 
 _sensors = {
     'base_sensor_operator': ['BaseSensorOperator'],
@@ -31,7 +36,7 @@ _sensors = {
     'web_hdfs_sensor': ['WebHdfsSensor']
 }
 
-if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
     from airflow.utils.helpers import AirflowImporter
     airflow_importer = AirflowImporter(sys.modules[__name__], _sensors)
 
@@ -46,15 +51,15 @@ def _integrate_plugins():
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
 
-        if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
-            from zope.deprecation import deprecated as _deprecated
-            for _operator in sensors_module._objects:
-                operator_name = _operator.__name__
-                globals()[operator_name] = _operator
-                _deprecated(
-                    operator_name,
+        if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+            from zope.deprecation import deprecated
+            for _sensor in sensors_module._objects:
+                sensor_name = _sensor.__name__
+                globals()[sensor_name] = _sensor
+                deprecated(
+                    sensor_name,
                     "Importing plugin operator '{i}' directly from "
                     "'airflow.operators' has been deprecated. Please "
                     "import from 'airflow.operators.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
-                    "entirely in Airflow 2.0.".format(i=operator_name))
+                    "entirely in Airflow 2.0.".format(i=sensor_name))

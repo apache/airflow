@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
@@ -24,11 +29,12 @@ class GoogleCloudStorageListOperator(BaseOperator):
     This operator returns a python list with the name of objects which can be used by
      `xcom` in the downstream task.
 
-    :param bucket: The Google cloud storage bucket to find the objects.
+    :param bucket: The Google cloud storage bucket to find the objects. (templated)
     :type bucket: string
-    :param prefix: Prefix string which filters objects whose name begin with this prefix
+    :param prefix: Prefix string which filters objects whose name begin with
+           this prefix. (templated)
     :type prefix: string
-    :param delimiter: The delimiter by which you want to filter the objects.
+    :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :type delimiter: string
@@ -40,16 +46,17 @@ class GoogleCloudStorageListOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: string
 
-    Example: The following Operator would list all the Avro files from `sales/sales-2017`
-        folder in `data` bucket.
+    **Example**:
+        The following Operator would list all the Avro files from ``sales/sales-2017``
+        folder in ``data`` bucket. ::
 
-    GCS_Files = GoogleCloudStorageListOperator(
-        task_id='GCS_Files',
-        bucket='data',
-        prefix='sales/sales-2017/',
-        delimiter='.avro',
-        google_cloud_storage_conn_id=google_cloud_conn_id
-    )
+            GCS_Files = GoogleCloudStorageListOperator(
+                task_id='GCS_Files',
+                bucket='data',
+                prefix='sales/sales-2017/',
+                delimiter='.avro',
+                google_cloud_storage_conn_id=google_cloud_conn_id
+            )
     """
     template_fields = ('bucket', 'prefix', 'delimiter')
     ui_color = '#f0eee4'
@@ -59,7 +66,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
                  bucket,
                  prefix=None,
                  delimiter=None,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):

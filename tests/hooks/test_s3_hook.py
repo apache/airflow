@@ -1,19 +1,27 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
+import mock
 import unittest
+
+from botocore.exceptions import NoCredentialsError
 
 from airflow import configuration
 
@@ -21,7 +29,6 @@ try:
     from airflow.hooks.S3_hook import S3Hook
 except ImportError:
     S3Hook = None
-
 
 try:
     import boto3
@@ -45,6 +52,7 @@ class TestS3Hook(unittest.TestCase):
         self.assertEqual(parsed,
                          ("test", "this/is/not/a-real-key.txt"),
                          "Incorrect parsing of the s3 url")
+
     @mock_s3
     def test_check_for_bucket(self):
         hook = S3Hook(aws_conn_id=None)
@@ -53,6 +61,12 @@ class TestS3Hook(unittest.TestCase):
 
         self.assertTrue(hook.check_for_bucket('bucket'))
         self.assertFalse(hook.check_for_bucket('not-a-bucket'))
+
+    def test_check_for_bucket_raises_error_with_invalid_conn_id(self):
+        hook = S3Hook(aws_conn_id="does_not_exist")
+
+        with self.assertRaises(NoCredentialsError):
+            hook.check_for_bucket('bucket')
 
     @mock_s3
     def test_get_bucket(self):
@@ -85,6 +99,23 @@ class TestS3Hook(unittest.TestCase):
         self.assertListEqual(['dir/b'], hook.list_keys('bucket', prefix='dir/'))
 
     @mock_s3
+    def test_list_prefixes_paged(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+
+        # we dont need to test the paginator
+        # that's covered by boto tests
+        keys = ["%s/b" % i for i in range(2)]
+        dirs = ["%s/" % i for i in range(2)]
+        for key in keys:
+            b.put_object(Key=key, Body=b'a')
+
+        self.assertListEqual(sorted(dirs),
+                             sorted(hook.list_prefixes('bucket', delimiter='/',
+                                                       page_size=1)))
+
+    @mock_s3
     def test_list_keys(self):
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
@@ -98,6 +129,20 @@ class TestS3Hook(unittest.TestCase):
         self.assertListEqual(['dir/b'], hook.list_keys('bucket', prefix='dir/'))
 
     @mock_s3
+    def test_list_keys_paged(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+
+        keys = [str(i) for i in range(2)]
+        for key in keys:
+            b.put_object(Key=key, Body=b'a')
+
+        self.assertListEqual(sorted(keys),
+                             sorted(hook.list_keys('bucket', delimiter='/',
+                                                   page_size=1)))
+
+    @mock_s3
     def test_check_for_key(self):
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
@@ -108,6 +153,12 @@ class TestS3Hook(unittest.TestCase):
         self.assertTrue(hook.check_for_key('s3://bucket//a'))
         self.assertFalse(hook.check_for_key('b', 'bucket'))
         self.assertFalse(hook.check_for_key('s3://bucket//b'))
+
+    def test_check_for_key_raises_error_with_invalid_conn_id(self):
+        hook = S3Hook(aws_conn_id="does_not_exist")
+
+        with self.assertRaises(NoCredentialsError):
+            hook.check_for_key('a', 'bucket')
 
     @mock_s3
     def test_get_key(self):
@@ -130,6 +181,13 @@ class TestS3Hook(unittest.TestCase):
 
         self.assertEqual(hook.read_key('my_key', 'mybucket'), u'Contént')
 
+    # As of 1.3.2, Moto doesn't support select_object_content yet.
+    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    def test_select_key(self, mock_get_client_type):
+        mock_get_client_type.return_value.select_object_content.return_value = \
+            {'Payload': [{'Records': {'Payload': u'Contént'}}]}
+        hook = S3Hook(aws_conn_id=None)
+        self.assertEqual(hook.select_key('my_key', 'mybucket'), u'Contént')
 
     @mock_s3
     def test_check_for_wildcard_key(self):
@@ -183,6 +241,19 @@ class TestS3Hook(unittest.TestCase):
         body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
 
         self.assertEqual(body, b'Cont\xC3\xA9nt')
+
+    @mock_s3
+    def test_load_bytes(self):
+        hook = S3Hook(aws_conn_id=None)
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+
+        hook.load_bytes(b"Content", "my_key", "mybucket")
+        body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+
+        self.assertEqual(body, b'Content')
 
 
 if __name__ == '__main__':

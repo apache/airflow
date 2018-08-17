@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import unittest
 try:
@@ -84,6 +89,11 @@ class S3ToHiveTransferTest(unittest.TestCase):
                                mode="wb") as f_gz_h:
                 self._set_fn(fn_gz, '.gz', True)
                 f_gz_h.writelines([header, line1, line2])
+            fn_gz_upper = self._get_fn('.txt', True) + ".GZ"
+            with gzip.GzipFile(filename=fn_gz_upper,
+                               mode="wb") as f_gz_upper_h:
+                self._set_fn(fn_gz_upper, '.GZ', True)
+                f_gz_upper_h.writelines([header, line1, line2])
             fn_bz2 = self._get_fn('.txt', True) + '.bz2'
             with bz2.BZ2File(filename=fn_bz2,
                              mode="wb") as f_bz2_h:
@@ -100,6 +110,11 @@ class S3ToHiveTransferTest(unittest.TestCase):
                                mode="wb") as f_gz_nh:
                 self._set_fn(fn_gz, '.gz', False)
                 f_gz_nh.writelines([line1, line2])
+            fn_gz_upper = self._get_fn('.txt', False) + ".GZ"
+            with gzip.GzipFile(filename=fn_gz_upper,
+                               mode="wb") as f_gz_upper_nh:
+                self._set_fn(fn_gz_upper, '.GZ', False)
+                f_gz_upper_nh.writelines([line1, line2])
             fn_bz2 = self._get_fn('.txt', False) + '.bz2'
             with bz2.BZ2File(filename=fn_bz2,
                              mode="wb") as f_bz2_nh:
@@ -130,15 +145,17 @@ class S3ToHiveTransferTest(unittest.TestCase):
         key = self._get_key(ext, header)
         return self.fn[key]
 
-    def _get_key(self, ext, header):
+    @staticmethod
+    def _get_key(ext, header):
         key = ext + "_" + ('h' if header else 'nh')
         return key
 
-    def _check_file_equality(self, fn_1, fn_2, ext):
+    @staticmethod
+    def _check_file_equality(fn_1, fn_2, ext):
         # gz files contain mtime and filename in the header that
         # causes filecmp to return False even if contents are identical
         # Hence decompress to test for equality
-        if(ext == '.gz'):
+        if ext.lower() == '.gz':
             with gzip.GzipFile(fn_1, 'rb') as f_1,\
                  NamedTemporaryFile(mode='wb') as f_txt_1,\
                  gzip.GzipFile(fn_2, 'rb') as f_2,\
@@ -215,14 +232,14 @@ class S3ToHiveTransferTest(unittest.TestCase):
         conn.create_bucket(Bucket='bucket')
 
         # Testing txt, zip, bz2 files with and without header row
-        for (ext, has_header) in product(['.txt', '.gz', '.bz2'], [True, False]):
+        for (ext, has_header) in product(['.txt', '.gz', '.bz2', '.GZ'], [True, False]):
             self.kwargs['headers'] = has_header
             self.kwargs['check_headers'] = has_header
             logging.info("Testing {0} format {1} header".
                          format(ext,
                                 ('with' if has_header else 'without'))
                          )
-            self.kwargs['input_compressed'] = (False if ext == '.txt' else True)
+            self.kwargs['input_compressed'] = ext.lower() != '.txt'
             self.kwargs['s3_key'] = 's3://bucket/' + self.s3_key + ext
             ip_fn = self._get_fn(ext, self.kwargs['headers'])
             op_fn = self._get_fn(ext, False)
@@ -230,19 +247,66 @@ class S3ToHiveTransferTest(unittest.TestCase):
             # Upload the file into the Mocked S3 bucket
             conn.upload_file(ip_fn, 'bucket', self.s3_key + ext)
 
-            # file paramter to HiveCliHook.load_file is compared
-            # against expected file oputput
+            # file parameter to HiveCliHook.load_file is compared
+            # against expected file output
             mock_hiveclihook().load_file.side_effect = \
                 lambda *args, **kwargs: \
                 self.assertTrue(
-                    self._check_file_equality(args[0],
-                                              op_fn,
-                                              ext
-                                              ),
+                    self._check_file_equality(args[0], op_fn, ext),
                     msg='{0} output file not as expected'.format(ext))
             # Execute S3ToHiveTransfer
             s32hive = S3ToHiveTransfer(**self.kwargs)
             s32hive.execute(None)
+
+    @unittest.skipIf(mock is None, 'mock package not present')
+    @unittest.skipIf(mock_s3 is None, 'moto package not present')
+    @mock.patch('airflow.operators.s3_to_hive_operator.HiveCliHook')
+    @mock_s3
+    def test_execute_with_select_expression(self, mock_hiveclihook):
+        conn = boto3.client('s3')
+        conn.create_bucket(Bucket='bucket')
+
+        select_expression = "SELECT * FROM S3Object s"
+        bucket = 'bucket'
+
+        # Only testing S3ToHiveTransfer calls S3Hook.select_key with
+        # the right parameters and its execute method succeeds here,
+        # since Moto doesn't support select_object_content as of 1.3.2.
+        for (ext, has_header) in product(['.txt', '.gz', '.GZ'], [True, False]):
+            input_compressed = ext.lower() != '.txt'
+            key = self.s3_key + ext
+
+            self.kwargs['check_headers'] = False
+            self.kwargs['headers'] = has_header
+            self.kwargs['input_compressed'] = input_compressed
+            self.kwargs['select_expression'] = select_expression
+            self.kwargs['s3_key'] = 's3://{0}/{1}'.format(bucket, key)
+
+            ip_fn = self._get_fn(ext, has_header)
+
+            # Upload the file into the Mocked S3 bucket
+            conn.upload_file(ip_fn, bucket, key)
+
+            input_serialization = {
+                'CSV': {'FieldDelimiter': self.delimiter}
+            }
+            if input_compressed:
+                input_serialization['CompressionType'] = 'GZIP'
+            if has_header:
+                input_serialization['CSV']['FileHeaderInfo'] = 'USE'
+
+            # Confirm that select_key was called with the right params
+            with mock.patch('airflow.hooks.S3_hook.S3Hook.select_key',
+                            return_value="") as mock_select_key:
+                # Execute S3ToHiveTransfer
+                s32hive = S3ToHiveTransfer(**self.kwargs)
+                s32hive.execute(None)
+
+                mock_select_key.assert_called_once_with(
+                    bucket_name=bucket, key=key,
+                    expression=select_expression,
+                    input_serialization=input_serialization
+                )
 
 
 if __name__ == '__main__':

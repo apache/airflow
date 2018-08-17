@@ -1,19 +1,25 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import subprocess
 import time
+import os
 
 from celery import Celery
 from celery import states as celery_states
@@ -25,22 +31,22 @@ from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
-PARALLELISM = configuration.get('core', 'PARALLELISM')
+PARALLELISM = configuration.conf.get('core', 'PARALLELISM')
 
 '''
 To start the celery worker, run the command:
 airflow worker
 '''
 
-if configuration.has_option('celery', 'celery_config_options'):
+if configuration.conf.has_option('celery', 'celery_config_options'):
     celery_configuration = import_string(
-        configuration.get('celery', 'celery_config_options')
+        configuration.conf.get('celery', 'celery_config_options')
     )
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
 app = Celery(
-    configuration.get('celery', 'CELERY_APP_NAME'),
+    configuration.conf.get('celery', 'CELERY_APP_NAME'),
     config_source=celery_configuration)
 
 
@@ -48,10 +54,14 @@ app = Celery(
 def execute_command(command):
     log = LoggingMixin().log
     log.info("Executing command in Celery: %s", command)
+    env = os.environ.copy()
     try:
-        subprocess.check_call(command, shell=True, close_fds=True)
+        subprocess.check_call(command, stderr=subprocess.STDOUT,
+                              close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
-        log.error(e)
+        log.exception('execute_command encountered a CalledProcessError')
+        log.error(e.output)
+
         raise AirflowException('Celery command failed')
 
 
@@ -69,18 +79,19 @@ class CeleryExecutor(BaseExecutor):
         self.last_state = {}
 
     def execute_async(self, key, command,
-                      queue=DEFAULT_CELERY_CONFIG['task_default_queue']):
-        self.log.info( "[celery] queuing {key} through celery, "
-                       "queue={queue}".format(**locals()))
+                      queue=DEFAULT_CELERY_CONFIG['task_default_queue'],
+                      executor_config=None):
+        self.log.info("[celery] queuing {key} through celery, "
+                      "queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
-            args=[command], queue=queue)
+            args=command, queue=queue)
         self.last_state[key] = celery_states.PENDING
 
     def sync(self):
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
-        for key, async in list(self.tasks.items()):
+        for key, task in list(self.tasks.items()):
             try:
-                state = async.state
+                state = task.state
                 if self.last_state[key] != state:
                     if state == celery_states.SUCCESS:
                         self.success(key)
@@ -95,8 +106,8 @@ class CeleryExecutor(BaseExecutor):
                         del self.tasks[key]
                         del self.last_state[key]
                     else:
-                        self.log.info("Unexpected state: %s", async.state)
-                    self.last_state[key] = async.state
+                        self.log.info("Unexpected state: %s", task.state)
+                    self.last_state[key] = task.state
             except Exception as e:
                 self.log.error("Error syncing the celery executor, ignoring it:")
                 self.log.exception(e)
@@ -104,7 +115,7 @@ class CeleryExecutor(BaseExecutor):
     def end(self, synchronous=False):
         if synchronous:
             while any([
-                    async.state not in celery_states.READY_STATES
-                    for async in self.tasks.values()]):
+                    task.state not in celery_states.READY_STATES
+                    for task in self.tasks.values()]):
                 time.sleep(5)
         self.sync()

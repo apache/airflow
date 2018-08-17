@@ -35,6 +35,9 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
+.. note:: When searching for DAGs, Airflow will only consider files where the string
+   "airflow" and "DAG" both appear in the contents of the ``.py`` file.
+
 Scope
 -----
 
@@ -47,7 +50,7 @@ scope.
 
     dag_1 = DAG('this_dag_will_be_discovered')
 
-    def my_function()
+    def my_function():
         dag_2 = DAG('but_this_dag_will_not')
 
     my_function()
@@ -64,9 +67,10 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
 .. code:: python
 
-    default_args=dict(
-        start_date=datetime(2016, 1, 1),
-        owner='Airflow')
+    default_args = {
+        'start_date': datetime(2016, 1, 1),
+        'owner': 'Airflow'
+    }
 
     dag = DAG('my_dag', default_args=default_args)
     op = DummyOperator(task_id='dummy', dag=dag)
@@ -85,6 +89,8 @@ DAGs can be used as context managers to automatically assign new operators to th
         op = DummyOperator('op')
 
     op.dag is dag # True
+
+.. _concepts-operators:
 
 Operators
 =========
@@ -124,6 +130,8 @@ the main distribution, but allow users to more easily add new functionality to
 the platform.
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
+
+See :doc:`howto/operator` for how to use Airflow operators.
 
 DAG Assignment
 --------------
@@ -307,6 +315,8 @@ UI. As slots free up, queued tasks start running based on the
 Note that by default tasks aren't assigned to any pool and their
 execution parallelism is only limited to the executor's setting.
 
+.. _concepts-connections:
+
 Connections
 ===========
 
@@ -324,15 +334,22 @@ for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
 Airflow also has the ability to reference connections via environment
-variables from the operating system. The environment variable needs to be
-prefixed with ``AIRFLOW_CONN_`` to be considered a connection. When
-referencing the connection in the Airflow pipeline, the ``conn_id`` should
-be the name of the variable without the prefix. For example, if the ``conn_id``
-is named ``postgres_master`` the environment variable should be named
-``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable must be
-all uppercase). Airflow assumes the value returned from the environment
-variable to be in a URI format (e.g.
-``postgres://user:password@localhost:5432/master`` or ``s3://accesskey:secretkey@S3``).
+variables from the operating system. But it only supports URI format. If you
+need to specify ``extra`` for your connection, please use web UI.
+
+If connections with the same ``conn_id`` are defined in both Airflow metadata
+database and environment variables, only the one in environment variables
+will be referenced by Airflow (for example, given ``conn_id`` ``postgres_master``,
+Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+in environment variables first and directly reference it if found,
+before it starts to search in metadata database).
+
+Many hooks have a default ``conn_id``, where operators using that hook do not
+need to supply an explicit connection ID. For example, the default
+``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
+``postgres_default``.
+
+See :doc:`howto/manage-connections` for how to create and manage connections.
 
 Queues
 ======
@@ -380,7 +397,7 @@ opposed to XComs that are pushed manually).
 
 If ``xcom_pull`` is passed a single string for ``task_ids``, then the most
 recent XCom value from that task is returned; if a list of ``task_ids`` is
-passed, then a correpsonding list of XCom values is returned.
+passed, then a corresponding list of XCom values is returned.
 
 .. code:: python
 
@@ -409,7 +426,8 @@ Variables
 Variables are a generic way to store and retrieve arbitrary content or
 settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
-code or CLI. While your pipeline code definition and most of your constants
+code or CLI. In addition, json settings files can be bulk uploaded through
+the UI. While your pipeline code definition and most of your constants
 and variables should be defined in code and stored in source control,
 it can be useful to have some variables or configuration items
 accessible and modifiable through the UI.
@@ -424,6 +442,18 @@ accessible and modifiable through the UI.
 The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
 as such.
+
+You can use a variable from a jinja template with the syntax :
+
+.. code:: bash
+
+    echo {{ var.value.<variable_name> }}
+
+or if you need to deserialize a json object from the variable :
+
+.. code:: bash
+
+    echo {{ var.json.<variable_name> }}
 
 
 Branching
@@ -731,7 +761,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, dag_md is the only attribute interpreted.
+Please note that for dags, doc_md is the only attribute interpreted.
 
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led

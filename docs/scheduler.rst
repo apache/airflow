@@ -13,7 +13,7 @@ execute ``airflow scheduler``. It will use the configuration specified in
 ``airflow.cfg``.
 
 Note that if you run a DAG on a ``schedule_interval`` of one day,
-the run stamped ``2016-01-01`` will be trigger soon after ``2016-01-01T23:59``.
+the run stamped ``2016-01-01`` will be triggered soon after ``2016-01-01T23:59``.
 In other words, the job instance is started once the period it covers
 has ended.
 
@@ -45,7 +45,7 @@ a ``str``, or a ``datetime.timedelta`` object. Alternatively, you can also
 use one of these cron "preset":
 
 +--------------+----------------------------------------------------------------+---------------+
-| preset       | Run once a year at midnight of January 1                       | cron          |
+| preset       | meaning                                                        | cron          |
 +==============+================================================================+===============+
 | ``None``     | Don't schedule, use for exclusively "externally triggered"     |               |
 |              | DAGs                                                           |               |
@@ -134,6 +134,8 @@ specific ``run_id``. The ``DAG Runs`` created externally to the
 scheduler get associated to the trigger's timestamp, and will be displayed
 in the UI alongside scheduled ``DAG runs``.
 
+In addition, you can also manually trigger a ``DAG Run`` using the web UI (tab "DAGs" -> column "Links" -> button "Trigger Dag").
+
 
 To Keep in Mind
 '''''''''''''''
@@ -158,6 +160,7 @@ Here are some of the ways you can **unblock tasks**:
   states (``failed``, or ``success``)
 * Clearing a task instance will no longer delete the task instance record. Instead it updates
   max_tries and set the current task instance state to be None.
+* Marking task instances as failed can be done through the UI. This can be used to stop running task instances.
 * Marking task instances as successful can be done through the UI. This is mostly to fix false negatives,
   or for instance when the fix has been applied outside of Airflow.
 * The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting

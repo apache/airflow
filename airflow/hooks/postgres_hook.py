@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
+import os
 import psycopg2
 import psycopg2.extensions
 from contextlib import closing
@@ -55,14 +61,38 @@ class PostgresHook(DbApiHook):
         return self.conn
 
     def copy_expert(self, sql, filename, open=open):
-        '''
-        Executes SQL using psycopg2 copy_expert method
-        Necessary to execute COPY command without access to a superuser
-        '''
-        f = open(filename, 'w')
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                cur.copy_expert(sql, f)
+        """
+        Executes SQL using psycopg2 copy_expert method.
+        Necessary to execute COPY command without access to a superuser.
+
+        Note: if this method is called with a "COPY FROM" statement and
+        the specified input file does not exist, it creates an empty
+        file and no data is loaded, but the operation succeeds.
+        So if users want to be aware when the input file does not exist,
+        they have to check its existence by themselves.
+        """
+        if not os.path.isfile(filename):
+            with open(filename, 'w'):
+                pass
+
+        with open(filename, 'r+') as f:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.copy_expert(sql, f)
+                    f.truncate(f.tell())
+                    conn.commit()
+
+    def bulk_load(self, table, tmp_file):
+        """
+        Loads a tab-delimited file into a database table
+        """
+        self.copy_expert("COPY {table} FROM STDIN".format(table=table), tmp_file)
+
+    def bulk_dump(self, table, tmp_file):
+        """
+        Dumps a database table into a tab-delimited file
+        """
+        self.copy_expert("COPY {table} TO STDOUT".format(table=table), tmp_file)
 
     @staticmethod
     def _serialize_cell(cell, conn):

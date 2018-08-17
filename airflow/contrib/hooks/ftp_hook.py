@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import datetime
@@ -91,6 +96,7 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         conn = self.conn
         conn.quit()
+        self.conn = None
 
     def describe_directory(self, path):
         """
@@ -154,7 +160,7 @@ class FTPHook(BaseHook, LoggingMixin):
         :type remote_full_path: str
         :param local_full_path_or_buffer: full path to the local file or a
             file-like buffer
-        :type local_full_path: str or file-like buffer
+        :type local_full_path_or_buffer: str or file-like buffer
         """
         conn = self.get_conn()
 
@@ -244,7 +250,7 @@ class FTPSHook(FTPHook):
             params = self.get_connection(self.ftp_conn_id)
 
             if params.port:
-               ftplib.FTP_TLS.port=params.port
+                ftplib.FTP_TLS.port = params.port
 
             self.conn = ftplib.FTP_TLS(
                 params.host, params.login, params.password

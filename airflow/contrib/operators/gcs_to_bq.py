@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import json
 
@@ -29,29 +34,29 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     point the operator to a Google cloud storage object name. The object in
     Google cloud storage must be a JSON file with the schema fields in it.
 
-    :param bucket: The bucket to load from.
+    :param bucket: The bucket to load from. (templated)
     :type bucket: string
-    :param source_objects: List of Google cloud storage URIs to load from.
+    :param source_objects: List of Google cloud storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type object: list
     :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
-        BigQuery table to load data into. If <project> is not included, project will
-        be the project defined in the connection json.
+        BigQuery table to load data into. If <project> is not included,
+        project will be the project defined in the connection json. (templated)
     :type destination_project_dataset_table: string
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         Should not be set when source_format is 'DATASTORE_BACKUP'.
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
-        contains the schema for the table.
+        contains the schema for the table. (templated)
     :param schema_object: string
     :param source_format: File format to export.
     :type source_format: string
     :param compression: [Optional] The compression type of the data source.
-            Possible values include GZIP and NONE.
-            The default value is NONE.
-            This setting is ignored for Google Cloud Bigtable,
-                Google Cloud Datastore backups and Avro formats.
+        Possible values include GZIP and NONE.
+        The default value is NONE.
+        This setting is ignored for Google Cloud Bigtable,
+        Google Cloud Datastore backups and Avro formats.
     :type compression: string
     :param create_disposition: The create disposition if the table doesn't exist.
     :type create_disposition: string
@@ -66,6 +71,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :type max_bad_records: int
     :param quote_character: The value that is used to quote data sections in a CSV file.
     :type quote_character: string
+    :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
+        extra values that are not represented in the table schema.
+        If true, the extra values are ignored. If false, records with extra columns
+        are treated as bad records, and if there are too many bad records, an
+        invalid error is returned in the job result.
+    :type ignore_unknown_values: bool
     :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
     :type allow_quoted_newlines: boolean
     :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
@@ -75,7 +86,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         for other formats.
     :type allow_jagged_rows: bool
     :param max_id_key: If set, the name of a column in the BigQuery table
-        that's to be loaded. Thsi will be used to select the MAX value from
+        that's to be loaded. This will be used to select the MAX value from
         BigQuery after the load occurs. The results will be returned by the
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during
@@ -124,21 +135,26 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  field_delimiter=',',
                  max_bad_records=0,
                  quote_character=None,
+                 ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  max_id_key=None,
                  bigquery_conn_id='bigquery_default',
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  schema_update_options=(),
-                 src_fmt_configs={},
+                 src_fmt_configs=None,
                  external_table=False,
-                 time_partitioning={},
+                 time_partitioning=None,
                  *args, **kwargs):
 
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
 
         # GCS config
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
+        if time_partitioning is None:
+            time_partitioning = {}
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
@@ -154,6 +170,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.field_delimiter = field_delimiter
         self.max_bad_records = max_bad_records
         self.quote_character = quote_character
+        self.ignore_unknown_values = ignore_unknown_values
         self.allow_quoted_newlines = allow_quoted_newlines
         self.allow_jagged_rows = allow_jagged_rows
         self.external_table = external_table
@@ -171,8 +188,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        if not self.schema_fields and self.schema_object \
-                                  and self.source_format != 'DATASTORE_BACKUP':
+        if not self.schema_fields and \
+                self.schema_object and \
+                self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)
@@ -198,6 +216,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 field_delimiter=self.field_delimiter,
                 max_bad_records=self.max_bad_records,
                 quote_character=self.quote_character,
+                ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
                 src_fmt_configs=self.src_fmt_configs
@@ -214,6 +233,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 field_delimiter=self.field_delimiter,
                 max_bad_records=self.max_bad_records,
                 quote_character=self.quote_character,
+                ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
                 schema_update_options=self.schema_update_options,

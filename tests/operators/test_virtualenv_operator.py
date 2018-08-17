@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import print_function, unicode_literals
 
@@ -135,7 +140,8 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             raise Exception
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
 
-    def _invert_python_major_version(self):
+    @staticmethod
+    def _invert_python_major_version():
         if sys.version_info[0] == 2:
             return 3
         else:
@@ -158,6 +164,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_string_args(self):
         def f():
+            global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
@@ -192,4 +199,3 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         def f(**kwargs):
             return kwargs['templates_dict']['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
-

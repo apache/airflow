@@ -20,6 +20,8 @@ import re
 import socket
 import airflow.configuration as conf
 
+from airflow.utils.net import get_hostname
+
 # Pattern to replace with hostname
 HOSTNAME_PATTERN = '_HOST'
 
@@ -30,7 +32,8 @@ def get_kerberos_principal(principal, host):
         return principal
     else:
         if not host:
-            raise IOError("Can't replace %s pattern since host is null." % HOSTNAME_PATTERN)
+            raise IOError("Can't replace %s pattern "
+                          "since host is null." % HOSTNAME_PATTERN)
         return replace_hostname_pattern(components, host)
 
 
@@ -53,7 +56,7 @@ def replace_hostname_pattern(components, host=None):
 
 
 def get_localhost_name():
-    return socket.getfqdn()
+    return get_hostname()
 
 
 def get_fqdn(hostname_or_ip=None):

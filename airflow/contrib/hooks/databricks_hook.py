@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 import requests
 
@@ -56,10 +61,12 @@ class DatabricksHook(BaseHook, LoggingMixin):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
-        assert retry_limit >= 1, 'Retry limit must be greater than equal to 1'
+        if retry_limit < 1:
+            raise ValueError('Retry limit must be greater than equal to 1')
         self.retry_limit = retry_limit
 
-    def _parse_host(self, host):
+    @staticmethod
+    def _parse_host(host):
         """
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
@@ -112,7 +119,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
         else:
             raise AirflowException('Unexpected HTTP Method: ' + method)
 
-        for attempt_num in range(1, self.retry_limit+1):
+        for attempt_num in range(1, self.retry_limit + 1):
             try:
                 response = request_func(
                     url,
@@ -190,10 +197,11 @@ class RunState:
     @property
     def is_terminal(self):
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise AirflowException(('Unexpected life cycle state: {}: If the state has '
-                            'been introduced recently, please check the Databricks user '
-                            'guide for troubleshooting information').format(
-                                self.life_cycle_state))
+            raise AirflowException(
+                ('Unexpected life cycle state: {}: If the state has '
+                 'been introduced recently, please check the Databricks user '
+                 'guide for troubleshooting information').format(
+                    self.life_cycle_state))
         return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
 
     @property

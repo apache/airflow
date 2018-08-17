@@ -64,6 +64,18 @@ class KubernetesRequestFactory:
             req['metadata']['labels'][k] = v
 
     @staticmethod
+    def extract_annotations(pod, req):
+        req['metadata']['annotations'] = req['metadata'].get('annotations', {})
+        for k, v in six.iteritems(pod.annotations):
+            req['metadata']['annotations'][k] = v
+
+    @staticmethod
+    def extract_affinity(pod, req):
+        req['spec']['affinity'] = req['spec'].get('affinity', {})
+        for k, v in six.iteritems(pod.affinity):
+            req['spec']['affinity'][k] = v
+
+    @staticmethod
     def extract_cmds(pod, req):
         req['spec']['containers'][0]['command'] = pod.cmds
 
@@ -73,12 +85,16 @@ class KubernetesRequestFactory:
 
     @staticmethod
     def extract_node_selector(pod, req):
-        if len(pod.node_selectors) > 0:
-            req['spec']['nodeSelector'] = pod.node_selectors
+        req['spec']['nodeSelector'] = req['spec'].get('nodeSelector', {})
+        for k, v in six.iteritems(pod.node_selectors):
+            req['spec']['nodeSelector'][k] = v
 
     @staticmethod
     def attach_volumes(pod, req):
-        req['spec']['volumes'] = pod.volumes
+        req['spec']['volumes'] = (
+            req['spec'].get('volumes', []))
+        if len(pod.volumes) > 0:
+            req['spec']['volumes'].extend(pod.volumes)
 
     @staticmethod
     def attach_volume_mounts(pod, req):
@@ -95,8 +111,10 @@ class KubernetesRequestFactory:
     def extract_volume_secrets(pod, req):
         vol_secrets = [s for s in pod.secrets if s.deploy_type == 'volume']
         if any(vol_secrets):
-            req['spec']['containers'][0]['volumeMounts'] = []
-            req['spec']['volumes'] = []
+            req['spec']['containers'][0]['volumeMounts'] = (
+                req['spec']['containers'][0].get('volumeMounts', []))
+            req['spec']['volumes'] = (
+                req['spec'].get('volumes', []))
         for idx, vol in enumerate(vol_secrets):
             vol_id = 'secretvol' + str(idx)
             req['spec']['containers'][0]['volumeMounts'].append({

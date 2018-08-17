@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
-'''
+"""
 Override this file to handle your authenticating / login.
 
 Copy and alter this file and put in your PYTHONPATH as airflow_login.py,
 the new module will override this one.
-'''
+"""
 
 import flask_login
 from flask_login import login_required, current_user, logout_user
@@ -40,27 +45,27 @@ class DefaultUser(object):
         self.user = user
 
     def is_active(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_authenticated(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_anonymous(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return False
 
     def data_profiling(self):
-        '''Provides access to data profiling tools'''
+        """Provides access to data profiling tools"""
         return True
 
     def is_superuser(self):
-        '''Access all the things'''
+        """Access all the things"""
         return True
 
-#models.User = User  # hack!
-#del User
+# models.User = User  # hack!
+# del User
 
 
 @login_manager.user_loader

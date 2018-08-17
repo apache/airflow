@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import re
 import uuid
@@ -31,34 +36,35 @@ class DataFlowJavaOperator(BaseOperator):
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
 
-    ```
-    default_args = {
-        'dataflow_default_options': {
-            'project': 'my-gcp-project',
-            'zone': 'europe-west1-d',
-            'stagingLocation': 'gs://my-staging-bucket/staging/'
-        }
-    }
-    ```
+    .. code-block:: python
+
+       default_args = {
+           'dataflow_default_options': {
+               'project': 'my-gcp-project',
+               'zone': 'europe-west1-d',
+               'stagingLocation': 'gs://my-staging-bucket/staging/'
+           }
+       }
 
     You need to pass the path to your dataflow as a file reference with the ``jar``
-    parameter, the jar needs to be a self executing jar. Use ``options`` to pass on
-    options to your job.
+    parameter, the jar needs to be a self executing jar (see documentation here:
+    https://beam.apache.org/documentation/runners/dataflow/#self-executing-jar).
+    Use ``options`` to pass on options to your job.
 
-    ```
-    t1 = DataFlowOperation(
-        task_id='datapflow_example',
-        jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
-        options={
-            'autoscalingAlgorithm': 'BASIC',
-            'maxNumWorkers': '50',
-            'start': '{{ds}}',
-            'partitionType': 'DAY',
-            'labels': {'foo' : 'bar'}
-        },
-        gcp_conn_id='gcp-airflow-service-account',
-        dag=my-dag)
-    ```
+    .. code-block:: python
+
+       t1 = DataFlowOperation(
+           task_id='datapflow_example',
+           jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
+           options={
+               'autoscalingAlgorithm': 'BASIC',
+               'maxNumWorkers': '50',
+               'start': '{{ds}}',
+               'partitionType': 'DAY',
+               'labels': {'foo' : 'bar'}
+           },
+           gcp_conn_id='gcp-airflow-service-account',
+           dag=my-dag)
 
     Both ``jar`` and ``options`` are templated so you can use variables in them.
     """
@@ -84,9 +90,10 @@ class DataFlowJavaOperator(BaseOperator):
         high-level options, for instances, project and zone information, which
         apply to all dataflow operators in the DAG.
 
-        For more detail on job submission have a look at the reference:
 
-        https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+        .. seealso::
+            For more detail on job submission have a look at the reference:
+            https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
         :param jar: The reference to a self executing DataFlow jar.
         :type jar: string
@@ -144,33 +151,39 @@ class DataflowTemplateOperator(BaseOperator):
     will be passed to the job.
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
-    https://cloud.google.com/dataflow/docs/reference/rest/v1b3/LaunchTemplateParameters
-    https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
-    ```
-    default_args = {
-        'dataflow_default_options': {
-            'project': 'my-gcp-project'
-            'zone': 'europe-west1-d',
-            'tempLocation': 'gs://my-staging-bucket/staging/'
-            }
-        }
-    }
-    ```
+
+    .. seealso::
+        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/LaunchTemplateParameters
+        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+
+    .. code-block:: python
+
+       default_args = {
+           'dataflow_default_options': {
+               'project': 'my-gcp-project'
+               'zone': 'europe-west1-d',
+               'tempLocation': 'gs://my-staging-bucket/staging/'
+               }
+           }
+       }
+
     You need to pass the path to your dataflow template as a file reference with the
     ``template`` parameter. Use ``parameters`` to pass on parameters to your job.
     Use ``environment`` to pass on runtime environment variables to your job.
-    ```
-    t1 = DataflowTemplateOperator(
-        task_id='datapflow_example',
-        template='{{var.value.gcp_dataflow_base}}',
-        parameters={
-            'inputFile': "gs://bucket/input/my_input.txt",
-            'outputFile': "gs://bucket/output/my_output.txt"
-        },
-        gcp_conn_id='gcp-airflow-service-account',
-        dag=my-dag)
-    ```
-    ``template`` ``dataflow_default_options`` and ``parameters`` are templated so you can
+
+    .. code-block:: python
+
+       t1 = DataflowTemplateOperator(
+           task_id='datapflow_example',
+           template='{{var.value.gcp_dataflow_base}}',
+           parameters={
+               'inputFile': "gs://bucket/input/my_input.txt",
+               'outputFile': "gs://bucket/output/my_output.txt"
+           },
+           gcp_conn_id='gcp-airflow-service-account',
+           dag=my-dag)
+
+    ``template``, ``dataflow_default_options`` and ``parameters`` are templated so you can
     use variables in them.
     """
     template_fields = ['parameters', 'dataflow_default_options', 'template']
@@ -191,11 +204,14 @@ class DataflowTemplateOperator(BaseOperator):
         Create a new DataflowTemplateOperator. Note that
         dataflow_default_options is expected to save high-level options
         for project information, which apply to all dataflow operators in the DAG.
-        https://cloud.google.com/dataflow/docs/reference/rest/v1b3
-        /LaunchTemplateParameters
-        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
-        For more detail on job template execution have a look at the reference:
-        https://cloud.google.com/dataflow/docs/templates/executing-templates
+
+        .. seealso::
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3
+            /LaunchTemplateParameters
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+            For more detail on job template execution have a look at the reference:
+            https://cloud.google.com/dataflow/docs/templates/executing-templates
+
         :param template: The reference to the DataFlow template.
         :type template: string
         :param dataflow_default_options: Map of default job environment options.
@@ -258,9 +274,9 @@ class DataFlowPythonOperator(BaseOperator):
         high-level options, for instances, project and zone information, which
         apply to all dataflow operators in the DAG.
 
-        For more detail on job submission have a look at the reference:
-
-        https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+        .. seealso::
+            For more detail on job submission have a look at the reference:
+            https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
         :param py_file: Reference to the python dataflow pipleline file.py, e.g.,
             /some/local/file/path/to/your/python/pipeline/file.
@@ -315,7 +331,7 @@ class DataFlowPythonOperator(BaseOperator):
             self.py_file, self.py_options)
 
 
-class GoogleCloudBucketHelper():
+class GoogleCloudBucketHelper(object):
     """GoogleCloudStorageHook helper class to download GCS object."""
     GCS_PREFIX_LENGTH = 5
 

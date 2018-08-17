@@ -2,9 +2,9 @@ Time zones
 ==========
 
 Support for time zones is enabled by default. Airflow stores datetime information in UTC internally and in the database.
- It allows you to run your DAGs with time zone dependent schedules. At the moment Airflow does not them to the end 
- user’s time zone in the user interface. Also templates used in Operators are not translated. Time zone information 
- is exposed and it is left up to the writer of DAG what do with it.
+It allows you to run your DAGs with time zone dependent schedules. At the moment Airflow does not convert them to the 
+end user’s time zone in the user interface. There it will always be displayed in UTC. Also templates used in Operators 
+are not converted. Time zone information is exposed and it is up to the writer of DAG what do with it.
 
 This is handy if your users live in more than one time zone and you want to display datetime information according to 
 each user’s wall clock.

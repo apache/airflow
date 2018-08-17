@@ -22,11 +22,11 @@ class Secret:
     def __init__(self, deploy_type, deploy_target, secret, key):
         """Initialize a Kubernetes Secret Object. Used to track requested secrets from
         the user.
-
         :param deploy_type: The type of secret deploy in Kubernetes, either `env` or
             `volume`
         :type deploy_type: ``str``
-        :param deploy_target: The environment variable to be created in the worker.
+        :param deploy_target: The environment variable when `deploy_type` `env` or
+            file path when `deploy_type` `volume` where expose secret
         :type deploy_target: ``str``
         :param secret: Name of the secrets object in Kubernetes
         :type secret: ``str``
@@ -35,5 +35,7 @@ class Secret:
         """
         self.deploy_type = deploy_type
         self.deploy_target = deploy_target.upper()
+        if deploy_type == 'volume':
+            self.deploy_target = deploy_target
         self.secret = secret
         self.key = key

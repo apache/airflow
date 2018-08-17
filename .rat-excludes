@@ -3,11 +3,14 @@
 .coverage
 .coveragerc
 .codecov.yml
+.eslintrc
+.eslintignore
 .rat-excludes
 requirements.txt
 .*log
 .travis.yml
 .*pyc
+.*lock
 docs
 .*md
 dist
@@ -36,3 +39,5 @@ bootstrap-toggle.min.js
 bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
+airflow/www_rbac/node_modules
+.*json
