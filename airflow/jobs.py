@@ -658,7 +658,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)
+            .filter(SlaMiss.notification_sent is False)
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
@@ -708,16 +708,13 @@ class SchedulerJob(BaseJob):
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
             """.format(bug=asciiart.bug, **locals())
-            emails = []
-            for t in dag.tasks:
-                if t.email:
-                    if isinstance(t.email, basestring):
-                        l = [t.email]
-                    elif isinstance(t.email, (list, tuple)):
-                        l = t.email
-                    for email in l:
-                        if email not in emails:
-                            emails.append(email)
+            emails = set()
+            for task in dag.tasks:
+                if task.email:
+                    if isinstance(task.email, basestring):
+                        emails.add(task.email)
+                    elif isinstance(task.email, (list, tuple)):
+                        emails = emails | set(task.email)
             if emails and len(slas):
                 try:
                     send_email(
@@ -818,7 +815,7 @@ class SchedulerJob(BaseJob):
                 session.query(func.max(DagRun.execution_date))
                 .filter_by(dag_id=dag.dag_id)
                 .filter(or_(
-                    DagRun.external_trigger == False,
+                    DagRun.external_trigger is False,
                     # add % as a wildcard for the like query
                     DagRun.run_id.like(DagRun.ID_PREFIX + '%')
                 ))

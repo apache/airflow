@@ -19,7 +19,6 @@
 #
 import socket
 import six
-import os
 
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
@@ -59,7 +58,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     api.load_auth()
     api.api_auth.init_app(app)
 
-    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})  # noqa
+    # flake8: noqa: F841
+    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     from airflow.www_rbac.blueprints import routes
     app.register_blueprint(routes)
