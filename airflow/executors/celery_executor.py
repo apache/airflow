@@ -31,8 +31,6 @@ from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
-PARALLELISM = configuration.conf.get('core', 'PARALLELISM')
-
 '''
 To start the celery worker, run the command:
 airflow worker
