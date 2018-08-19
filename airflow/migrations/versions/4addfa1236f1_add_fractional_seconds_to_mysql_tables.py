@@ -24,16 +24,15 @@ Create Date: 2016-09-11 13:39:18.592072
 
 """
 
+from alembic import op
+from sqlalchemy.dialects import mysql
+from alembic import context
+
 # revision identifiers, used by Alembic.
 revision = '4addfa1236f1'
 down_revision = 'f2ca10b85618'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
-from alembic import context
 
 
 def upgrade():
@@ -60,14 +59,16 @@ def upgrade():
         op.alter_column(table_name='log', column_name='dttm', type_=mysql.DATETIME(fsp=6))
         op.alter_column(table_name='log', column_name='execution_date', type_=mysql.DATETIME(fsp=6))
 
-        op.alter_column(table_name='sla_miss', column_name='execution_date', type_=mysql.DATETIME(fsp=6), nullable=False)
+        op.alter_column(table_name='sla_miss', column_name='execution_date', type_=mysql.DATETIME(fsp=6),
+                        nullable=False)
         op.alter_column(table_name='sla_miss', column_name='timestamp', type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(table_name='task_fail', column_name='execution_date', type_=mysql.DATETIME(fsp=6))
         op.alter_column(table_name='task_fail', column_name='start_date', type_=mysql.DATETIME(fsp=6))
         op.alter_column(table_name='task_fail', column_name='end_date', type_=mysql.DATETIME(fsp=6))
 
-        op.alter_column(table_name='task_instance', column_name='execution_date', type_=mysql.DATETIME(fsp=6), nullable=False)
+        op.alter_column(table_name='task_instance', column_name='execution_date', type_=mysql.DATETIME(fsp=6),
+                        nullable=False)
         op.alter_column(table_name='task_instance', column_name='start_date', type_=mysql.DATETIME(fsp=6))
         op.alter_column(table_name='task_instance', column_name='end_date', type_=mysql.DATETIME(fsp=6))
         op.alter_column(table_name='task_instance', column_name='queued_dttm', type_=mysql.DATETIME(fsp=6))
@@ -107,7 +108,8 @@ def downgrade():
         op.alter_column(table_name='task_fail', column_name='start_date', type_=mysql.DATETIME())
         op.alter_column(table_name='task_fail', column_name='end_date', type_=mysql.DATETIME())
 
-        op.alter_column(table_name='task_instance', column_name='execution_date', type_=mysql.DATETIME(), nullable=False)
+        op.alter_column(table_name='task_instance', column_name='execution_date', type_=mysql.DATETIME(),
+                        nullable=False)
         op.alter_column(table_name='task_instance', column_name='start_date', type_=mysql.DATETIME())
         op.alter_column(table_name='task_instance', column_name='end_date', type_=mysql.DATETIME())
         op.alter_column(table_name='task_instance', column_name='queued_dttm', type_=mysql.DATETIME())

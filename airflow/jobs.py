@@ -708,16 +708,13 @@ class SchedulerJob(BaseJob):
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
             """.format(bug=asciiart.bug, **locals())
-            emails = []
-            for t in dag.tasks:
-                if t.email:
-                    if isinstance(t.email, basestring):
-                        l = [t.email]
-                    elif isinstance(t.email, (list, tuple)):
-                        l = t.email
-                    for email in l:
-                        if email not in emails:
-                            emails.append(email)
+            emails = set()
+            for task in dag.tasks:
+                if task.email:
+                    if isinstance(task.email, basestring):
+                        emails.add(task.email)
+                    elif isinstance(task.email, (list, tuple)):
+                        emails = emails | set(task.email)
             if emails and len(slas):
                 try:
                     send_email(

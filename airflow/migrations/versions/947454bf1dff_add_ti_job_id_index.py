@@ -24,15 +24,13 @@ Revises: bdaa763e6c56
 Create Date: 2017-08-15 15:12:13.845074
 
 """
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '947454bf1dff'
 down_revision = 'bdaa763e6c56'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():
