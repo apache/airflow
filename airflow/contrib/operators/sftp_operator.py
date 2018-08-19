@@ -37,7 +37,7 @@ class SFTPOperator(BaseOperator):
     :type ssh_hook: :class:`SSHHook`
     :param ssh_conn_id: connection id from airflow Connections
     :type ssh_conn_id: str
-    :param remote_host: remote host to connect
+    :param remote_host: remote host to connect (templated)
     :type remote_host: str
     :param local_filepath: local file path to get or put. (templated)
     :type local_filepath: str
@@ -48,7 +48,7 @@ class SFTPOperator(BaseOperator):
     :param confirm: specify if the SFTP operation should be confirmed, defaults to True
     :type confirm: bool
     """
-    template_fields = ('local_filepath', 'remote_filepath')
+    template_fields = ('local_filepath', 'remote_filepath', 'remote_host')
 
     @apply_defaults
     def __init__(self,
