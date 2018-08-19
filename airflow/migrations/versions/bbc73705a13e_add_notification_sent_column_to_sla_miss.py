@@ -24,6 +24,8 @@ Revises: 4446e08588
 Create Date: 2016-01-14 18:05:54.871682
 
 """
+from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'bbc73705a13e'
@@ -31,12 +33,9 @@ down_revision = '4446e08588'
 branch_labels = None
 depends_on = None
 
-from alembic import op
-import sqlalchemy as sa
-
 
 def upgrade():
-    op.add_column('sla_miss', sa.Column('notification_sent', sa.Boolean,default=False))
+    op.add_column('sla_miss', sa.Column('notification_sent', sa.Boolean, default=False))
 
 
 def downgrade():

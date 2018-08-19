@@ -19,7 +19,6 @@
 
 import sys
 import os
-from airflow.models import BaseOperator
 
 # ------------------------------------------------------------------------
 #

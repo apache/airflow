@@ -35,7 +35,7 @@ import nvd3
 import pendulum
 import sqlalchemy as sqla
 from flask import (
-    g, redirect, request, Markup, Response, render_template,
+    redirect, request, Markup, Response, render_template,
     make_response, flash, jsonify)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access

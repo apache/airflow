@@ -24,11 +24,10 @@ from __future__ import unicode_literals
 
 from airflow.utils import timezone
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # for doctest
+from dateutil.relativedelta import relativedelta  # flake8: noqa: F401 for doctest
 import six
 
 from croniter import croniter
-
 
 cron_presets = {
     '@hourly': '0 * * * *',
@@ -39,11 +38,7 @@ cron_presets = {
 }
 
 
-def date_range(
-        start_date,
-        end_date=None,
-        num=None,
-        delta=None):
+def date_range(start_date, end_date=None, num=None, delta=None):
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to ``datetime.datetime``
@@ -181,8 +176,8 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
             # Check if start_date + (lower + 1)*delta or
             # start_date + lower*delta is closer to dt and return the solution
             if (
-                    (start_date + (lower + 1) * delta) - dt <=
-                    dt - (start_date + lower * delta)):
+                (start_date + (lower + 1) * delta) - dt <=
+                dt - (start_date + lower * delta)):
                 return start_date + (lower + 1) * delta
             else:
                 return start_date + lower * delta
