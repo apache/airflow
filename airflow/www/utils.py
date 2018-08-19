@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# flake8: noqa: E402
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -37,7 +38,7 @@ from flask_login import current_user
 import wtforms
 from wtforms.compat import text_type
 
-from airflow import configuration, models, settings
+from airflow import configuration, models
 from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder

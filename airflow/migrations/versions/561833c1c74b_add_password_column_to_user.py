@@ -24,15 +24,14 @@ Revises: 40e67319e3a9
 Create Date: 2015-11-30 06:51:25.872557
 
 """
+from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '561833c1c74b'
 down_revision = '40e67319e3a9'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():

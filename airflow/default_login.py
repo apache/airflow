@@ -25,11 +25,11 @@ the new module will override this one.
 """
 
 import flask_login
-from flask_login import login_required, current_user, logout_user
+from flask_login import login_required, current_user, logout_user  # noqa: F401
 
 from flask import url_for, redirect
 
-from airflow import settings
+from airflow import settings  # noqa: F401
 from airflow import models
 from airflow.utils.db import provide_session
 
@@ -63,9 +63,6 @@ class DefaultUser(object):
     def is_superuser(self):
         """Access all the things"""
         return True
-
-# models.User = User  # hack!
-# del User
 
 
 @login_manager.user_loader

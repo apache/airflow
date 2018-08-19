@@ -18,7 +18,6 @@
 # under the License.
 #
 import six
-import os
 
 from flask import Flask
 from flask_admin import Admin, base
@@ -64,8 +63,7 @@ def create_app(config=None, testing=False):
     api.load_auth()
     api.api_auth.init_app(app)
 
-    cache = Cache(
-        app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
+    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})  # noqa: F841
 
     app.register_blueprint(routes)
 

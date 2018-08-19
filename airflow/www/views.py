@@ -22,7 +22,6 @@ import ast
 import codecs
 import copy
 import datetime as dt
-import inspect
 import itertools
 import json
 import logging
@@ -481,8 +480,6 @@ class Airflow(BaseView):
             else:
                 if chart.sql_layout == 'series':
                     # User provides columns (series, x, y)
-                    xaxis_label = df.columns[1]
-                    yaxis_label = df.columns[2]
                     df[df.columns[2]] = df[df.columns[2]].astype(np.float)
                     df = df.pivot_table(
                         index=df.columns[1],
@@ -490,8 +487,6 @@ class Airflow(BaseView):
                         values=df.columns[2], aggfunc=np.sum)
                 else:
                     # User provides columns (x, y, metric1, metric2, ...)
-                    xaxis_label = df.columns[0]
-                    yaxis_label = 'y'
                     df.index = df[df.columns[0]]
                     df = df.sort(df.columns[0])
                     del df[df.columns[0]]
