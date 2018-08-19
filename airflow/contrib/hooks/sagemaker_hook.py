@@ -59,8 +59,13 @@ class SageMakerHook(AwsHook):
         if not s3hook.check_for_bucket(bucket_name=bucket):
             raise AirflowException(
                 "The input S3 Bucket {} does not exist ".format(bucket))
-        if not s3hook.check_for_key(key=key, bucket_name=bucket):
-            raise AirflowException("The input S3 Key {} does not exist in the Bucket"
+        if key and not s3hook.check_for_key(key=key, bucket_name=bucket)\
+           and not s3hook.check_for_prefix(
+                prefix=key, bucket_name=bucket, delimiter='/'):
+            # check if s3 key exists in the case user provides a single file
+            # or if s3 prefix exists in the case user provides a prefix for files
+            raise AirflowException("The input S3 Key "
+                                   "or Prefix {} does not exist in the Bucket {}"
                                    .format(s3url, bucket))
         return True
 
@@ -196,11 +201,13 @@ class SageMakerHook(AwsHook):
                               training_job_config['TrainingJobName'])
         return response
 
-    def create_tuning_job(self, tuning_job_config):
+    def create_tuning_job(self, tuning_job_config, wait_for_completion=True):
         """
         Create a tuning job
         :param tuning_job_config: the config for tuning
         :type tuning_job_config: dict
+        :param wait_for_completion: if the program should keep running until job finishes
+        :param wait_for_completion: bool
         :return: A dict that contains ARN of the tuning job.
         """
         if self.use_db_config:
@@ -216,13 +223,20 @@ class SageMakerHook(AwsHook):
 
         self.check_valid_tuning_input(tuning_job_config)
 
-        return self.conn.create_hyper_parameter_tuning_job(
+        response = self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
+        if wait_for_completion:
+            self.check_status(['InProgress', 'Stopping', 'Stopped'],
+                              ['Failed'],
+                              'HyperParameterTuningJobStatus',
+                              self.describe_tuning_job,
+                              tuning_job_config['HyperParameterTuningJobName'])
+        return response
 
     def describe_training_job(self, training_job_name):
         """
         :param training_job_name: the name of the training job
-        :type train_job_name: string
+        :type training_job_name: string
         Return the training job info associated with the current job_name
         :return: A dict contains all the training job info
         """
