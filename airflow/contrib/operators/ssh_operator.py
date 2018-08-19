@@ -35,7 +35,7 @@ class SSHOperator(BaseOperator):
     :type ssh_hook: :class:`SSHHook`
     :param ssh_conn_id: connection id from airflow Connections
     :type ssh_conn_id: str
-    :param remote_host: remote host to connect
+    :param remote_host: remote host to connect (templated)
     :type remote_host: str
     :param command: command to execute on remote host. (templated)
     :type command: str
@@ -45,7 +45,7 @@ class SSHOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ('command',)
+    template_fields = ('command', 'remote_host')
     template_ext = ('.sh',)
 
     @apply_defaults
