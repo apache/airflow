@@ -49,7 +49,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
             databricks_conn_id='databricks_default',
             timeout_seconds=180,
             retry_limit=3,
-            retry_delay=1):
+            retry_delay=1.0):
         """
         :param databricks_conn_id: The name of the databricks connection to use.
         :type databricks_conn_id: string
