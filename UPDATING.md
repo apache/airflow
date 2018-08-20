@@ -12,6 +12,11 @@ so you might need to update your config.
 
 `task_runner = StandardTaskRunner`
 
+### min_file_parsing_loop_time config option temporarily disabled
+
+The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
+some bugs.
+
 ## Airflow 1.10
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
@@ -428,7 +433,7 @@ indefinitely. This is only available on the command line.
 After how much time should an updated DAG be picked up from the filesystem.
 
 #### min_file_parsing_loop_time
-
+CURRENTLY DISABLED DUE TO A BUG
 How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
 
 #### dag_dir_list_interval
