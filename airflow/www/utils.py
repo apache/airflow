@@ -29,11 +29,19 @@ import functools
 import gzip
 import json
 import time
+import datetime
 
 from flask import after_this_request, request, Response
 from flask_admin.contrib.sqla.filters import FilterConverter
+from flask_admin.model.filters import BaseDateTimeFilter
 from flask_admin.model import filters
 from flask_login import current_user
+from flask_admin.contrib.sqla.filters import ( 
+    DateTimeEqualFilter, DateTimeNotEqualFilter,
+    DateTimeGreaterFilter, DateTimeSmallerFilter,
+    DateTimeBetweenFilter, DateTimeNotBetweenFilter,
+    FilterEmpty
+)
 import wtforms
 from wtforms.compat import text_type
 
@@ -41,6 +49,7 @@ from airflow import configuration, models, settings
 from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.timezone import make_aware
 
 AUTHENTICATE = configuration.conf.getboolean('webserver', 'AUTHENTICATE')
 
@@ -428,7 +437,26 @@ class AceEditorWidget(wtforms.widgets.TextArea):
         return wtforms.widgets.core.HTMLString(html)
 
 
+# This class simply does the same as the base class, but returns
+# an aware datetime object (should be in UTC)
+class BaseUTCDateTimeFilter(BaseDateTimeFilter):
+    def clean(self, value):
+        return make_aware(datetime.datetime.strptime(value, '%Y-%m-%d %H:%M:%S'))
+
+class UTCDateTimeEqualFilter(DateTimeEqualFilter, BaseUTCDateTimeFilter): pass
+class UTCDateTimeNotEqualFilter(DateTimeNotEqualFilter, BaseUTCDateTimeFilter): pass
+class UTCDateTimeGreaterFilter(DateTimeGreaterFilter, BaseUTCDateTimeFilter): pass
+class UTCDateTimeSmallerFilter(DateTimeSmallerFilter, BaseUTCDateTimeFilter): pass
+class UTCDateTimeBetweenFilter(DateTimeBetweenFilter, BaseUTCDateTimeFilter): pass
+class UTCDateTimeNotBetweenFilter(DateTimeNotBetweenFilter, BaseUTCDateTimeFilter): pass
+
+
 class UtcFilterConverter(FilterConverter):
+    utcdatetime_filters = (UTCDateTimeEqualFilter, UTCDateTimeNotEqualFilter,
+                           UTCDateTimeGreaterFilter, UTCDateTimeSmallerFilter,
+                           UTCDateTimeBetweenFilter, UTCDateTimeNotBetweenFilter,
+                           FilterEmpty)
+
     @filters.convert('utcdatetime')
     def conv_utcdatetime(self, column, name, **kwargs):
-        return self.conv_datetime(column, name, **kwargs)
+        return [f(column, name, **kwargs) for f in self.utcdatetime_filters]
