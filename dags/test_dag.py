@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,7 +23,9 @@ from airflow.operators.dummy_operator import DummyOperator
 from datetime import datetime, timedelta
 
 now = datetime.now()
-now_to_the_hour = (now - timedelta(0, 0, 0, 0, 0, 3)).replace(minute=0, second=0, microsecond=0)
+now_to_the_hour = (
+    now - timedelta(0, 0, 0, 0, 0, 3)
+).replace(minute=0, second=0, microsecond=0)
 START_DATE = now_to_the_hour
 DAG_NAME = 'test_dag_v1'
 
