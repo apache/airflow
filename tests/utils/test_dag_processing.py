@@ -32,7 +32,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
             parallelism=1,
             process_file_interval=1,
             max_runs=1,
-            min_file_parsing_loop_time=0,
             processor_factory=MagicMock().return_value)
 
         mock_processor = MagicMock()
@@ -52,7 +51,6 @@ class TestDagFileProcessorManager(unittest.TestCase):
             parallelism=1,
             process_file_interval=1,
             max_runs=1,
-            min_file_parsing_loop_time=0,
             processor_factory=MagicMock().return_value)
 
         mock_processor = MagicMock()
