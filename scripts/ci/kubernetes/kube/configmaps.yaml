@@ -57,9 +57,6 @@ data:
     statsd_port = 8125
     statsd_prefix = airflow
 
-    # How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
-    min_file_parsing_loop_time = 1
-
     print_stats_interval = 30
     scheduler_zombie_task_threshold = 300
     max_tis_per_query = 0
