@@ -996,16 +996,25 @@ class Airflow(BaseView):
         ignore_task_deps = request.args.get('ignore_task_deps') == "true"
         ignore_ti_state = request.args.get('ignore_ti_state') == "true"
 
+        from airflow.executors import GetDefaultExecutor
+        executor = GetDefaultExecutor()
+        valid_celery_config = False
+        valid_kubernetes_config = False
+
         try:
-            from airflow.executors import GetDefaultExecutor
             from airflow.executors.celery_executor import CeleryExecutor
-            executor = GetDefaultExecutor()
-            if not isinstance(executor, CeleryExecutor):
-                flash("Only works with the CeleryExecutor, sorry", "error")
-                return redirect(origin)
+            valid_celery_config = isinstance(executor, CeleryExecutor)
         except ImportError:
-            # in case CeleryExecutor cannot be imported it is not active either
-            flash("Only works with the CeleryExecutor, sorry", "error")
+            pass
+
+        try:
+            from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+            valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
+        except ImportError:
+            pass
+
+        if not valid_celery_config and not valid_kubernetes_config:
+            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
         ti = models.TaskInstance(task=task, execution_date=execution_date)
