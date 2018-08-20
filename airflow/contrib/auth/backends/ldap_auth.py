@@ -19,13 +19,12 @@
 from future.utils import native
 
 import flask_login
-from flask_login import login_required, current_user, logout_user
+from flask_login import login_required, current_user, logout_user  # noqa: F401
 from flask import flash
-from wtforms import (
-    Form, PasswordField, StringField)
+from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE, BASE
+from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE
 import ssl
 
 from flask import url_for, redirect

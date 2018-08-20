@@ -25,22 +25,21 @@ Create Date: 2017-06-19 16:53:12.851141
 
 """
 
-# revision identifiers, used by Alembic.
-revision = 'cc1e65623dc7'
-down_revision = '127d2bf2dfa7'
-branch_labels = None
-depends_on = None
-
 from alembic import op
 import sqlalchemy as sa
 from airflow import settings
 from airflow.models import DagBag
 from airflow.utils.sqlalchemy import UtcDateTime
 
-from sqlalchemy import (
-    Column, Integer, String)
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.ext.declarative import declarative_base
+
+# revision identifiers, used by Alembic.
+revision = 'cc1e65623dc7'
+down_revision = '127d2bf2dfa7'
+branch_labels = None
+depends_on = None
 
 Base = declarative_base()
 BATCH_SIZE = 5000
@@ -58,8 +57,7 @@ class TaskInstance(Base):
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('max_tries', sa.Integer,
-        server_default="-1"))
+    op.add_column('task_instance', sa.Column('max_tries', sa.Integer, server_default="-1"))
     # Check if table task_instance exist before data migration. This check is
     # needed for database that does not create table until migration finishes.
     # Checking task_instance table exists prevent the error of querying
@@ -129,7 +127,7 @@ def downgrade():
                     # max number of self retry (task.retries) minus number of
                     # times left for task instance to try the task.
                     ti.try_number = max(0, task.retries - (ti.max_tries -
-                        ti.try_number))
+                                                           ti.try_number))
                 ti.max_tries = -1
                 session.merge(ti)
             session.commit()

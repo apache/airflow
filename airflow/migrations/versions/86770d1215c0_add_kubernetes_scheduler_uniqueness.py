@@ -25,16 +25,14 @@ Revises: 27c6a30d7c24
 Create Date: 2018-04-03 15:31:20.814328
 
 """
+from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '86770d1215c0'
 down_revision = '27c6a30d7c24'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
-
 
 RESOURCE_TABLE = "kube_worker_uuid"
 

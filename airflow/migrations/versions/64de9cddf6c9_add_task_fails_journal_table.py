@@ -23,15 +23,14 @@ Revises: 211e584da130
 Create Date: 2016-08-03 14:02:59.203021
 
 """
+from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '64de9cddf6c9'
 down_revision = '211e584da130'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():
@@ -46,6 +45,7 @@ def upgrade():
         sa.Column('duration', sa.Integer(), nullable=True),
         sa.PrimaryKeyConstraint('id'),
     )
+
 
 def downgrade():
     op.drop_table('task_fail')

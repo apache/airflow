@@ -32,7 +32,6 @@ import imp
 import os
 import re
 import signal
-import subprocess
 import sys
 import warnings
 
@@ -226,6 +225,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
+
     def on_terminate(p):
         log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
 

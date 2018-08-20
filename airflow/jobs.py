@@ -657,7 +657,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)
+            .filter(SlaMiss.notification_sent == False)  # noqa: E712
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
@@ -707,16 +707,13 @@ class SchedulerJob(BaseJob):
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
             """.format(bug=asciiart.bug, **locals())
-            emails = []
-            for t in dag.tasks:
-                if t.email:
-                    if isinstance(t.email, basestring):
-                        l = [t.email]
-                    elif isinstance(t.email, (list, tuple)):
-                        l = t.email
-                    for email in l:
-                        if email not in emails:
-                            emails.append(email)
+            emails = set()
+            for task in dag.tasks:
+                if task.email:
+                    if isinstance(task.email, basestring):
+                        emails.add(task.email)
+                    elif isinstance(task.email, (list, tuple)):
+                        emails |= set(task.email)
             if emails and len(slas):
                 try:
                     send_email(
@@ -817,7 +814,7 @@ class SchedulerJob(BaseJob):
                 session.query(func.max(DagRun.execution_date))
                 .filter_by(dag_id=dag.dag_id)
                 .filter(or_(
-                    DagRun.external_trigger == False,
+                    DagRun.external_trigger == False,  # noqa: E712
                     # add % as a wildcard for the like query
                     DagRun.run_id.like(DagRun.ID_PREFIX + '%')
                 ))
@@ -1088,14 +1085,16 @@ class SchedulerJob(BaseJob):
                 DR,
                 and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
             )
-            .filter(or_(DR.run_id == None,  # noqa E711
+            .filter(or_(DR.run_id == None,  # noqa: E711
                     not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
             .outerjoin(DM, DM.dag_id == TI.dag_id)
-            .filter(or_(DM.dag_id == None,  # noqa E711
+            .filter(or_(DM.dag_id == None,  # noqa: E711
                     not_(DM.is_paused)))
         )
         if None in states:
-            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(states))) # noqa E711
+            ti_query = ti_query.filter(
+                or_(TI.state == None, TI.state.in_(states))  # noqa: E711
+            )
         else:
             ti_query = ti_query.filter(TI.state.in_(states))
 
@@ -1183,8 +1182,8 @@ class SchedulerJob(BaseJob):
                 )
                 if current_task_concurrency >= task_concurrency_limit:
                     self.log.info(
-                        "Not executing %s since the number of tasks running or queued from DAG %s"
-                        " is >= to the DAG's task concurrency limit of %s",
+                        "Not executing %s since the number of tasks running or queued "
+                        "from DAG %s is >= to the DAG's task concurrency limit of %s",
                         task_instance, dag_id, task_concurrency_limit
                     )
                     continue
@@ -1260,7 +1259,7 @@ class SchedulerJob(BaseJob):
 
         if None in acceptable_states:
             ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(acceptable_states)) # noqa E711
+                or_(TI.state == None, TI.state.in_(acceptable_states))  # noqa: E711
             )
         else:
             ti_query = ti_query.filter(TI.state.in_(acceptable_states))

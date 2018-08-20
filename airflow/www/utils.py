@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# flake8: noqa: E402
 import inspect
 from future import standard_library
 standard_library.install_aliases()
-from builtins import str
-from builtins import object
+from builtins import str, object
 
 from cgi import escape
 from io import BytesIO as IO
@@ -29,13 +29,13 @@ import functools
 import gzip
 import json
 import time
-
-from flask import after_this_request, request, Response
-from flask_admin.contrib.sqla.filters import FilterConverter
-from flask_admin.model import filters
-from flask_login import current_user
 import wtforms
 from wtforms.compat import text_type
+
+from flask import after_this_request, request, Response
+from flask_admin.model import filters
+from flask_admin.contrib.sqla.filters import FilterConverter
+from flask_login import current_user
 
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
