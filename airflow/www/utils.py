@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# flake8: noqa: E402
 import inspect
 from future import standard_library
 standard_library.install_aliases()  # noqa: E402
@@ -31,14 +32,14 @@ import json
 import os
 import re
 import time
+import wtforms
+from wtforms.compat import text_type
 import zipfile
 
 from flask import after_this_request, request, Response
 from flask_admin.model import filters
 import flask_admin.contrib.sqla.filters as sqlafilters
 from flask_login import current_user
-import wtforms
-from wtforms.compat import text_type
 
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
