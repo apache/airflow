@@ -58,6 +58,21 @@ class KubernetesRequestFactory:
         })
 
     @staticmethod
+    def add_downward_api_metadata_to_env(env):
+        env.append({
+            'name': 'POD_NAME',
+            'valueFrom': {
+                'fieldRef': {'fieldPath': 'metadata.name'}
+            }
+        })
+        env.append({
+            'name': 'POD_NAMESPACE',
+            'valueFrom': {
+                'fieldRef': {'fieldPath': 'metadata.namespace'}
+            }
+        })
+
+    @staticmethod
     def extract_labels(pod, req):
         req['metadata']['labels'] = req['metadata'].get('labels', {})
         for k, v in six.iteritems(pod.labels):
@@ -138,6 +153,7 @@ class KubernetesRequestFactory:
                 env.append({'name': k, 'value': pod.envs[k]})
             for secret in env_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
+            KubernetesRequestFactory.add_downward_api_metadata_to_env(env)
             req['spec']['containers'][0]['env'] = env
 
     @staticmethod
