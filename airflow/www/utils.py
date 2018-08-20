@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# flake8: noqa: E402
+import inspect
 from future import standard_library
 standard_library.install_aliases()  # noqa: E402
 from builtins import str, object
@@ -71,8 +73,8 @@ class LoginMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or (
-                not current_user.is_anonymous and
-                current_user.is_authenticated
+                not current_user.is_anonymous() and
+                current_user.is_authenticated()
             )
         )
 
@@ -81,7 +83,7 @@ class SuperUserMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or
-            (not current_user.is_anonymous and current_user.is_superuser())
+            (not current_user.is_anonymous() and current_user.is_superuser())
         )
 
 
@@ -89,7 +91,7 @@ class DataProfilingMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or
-            (not current_user.is_anonymous and current_user.data_profiling())
+            (not current_user.is_anonymous() and current_user.data_profiling())
         )
 
 
@@ -397,6 +399,33 @@ def make_cache_key(*args, **kwargs):
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')
+
+
+def get_python_source(x):
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+
+    return source_code
 
 
 class AceEditorWidget(wtforms.widgets.TextArea):

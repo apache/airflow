@@ -26,17 +26,15 @@ Create Date: 2017-09-11 15:26:47.598494
 
 """
 
+from alembic import op
+import sqlalchemy as sa
+import dill
+
 # revision identifiers, used by Alembic.
 revision = '27c6a30d7c24'
 down_revision = '33ae817a1ff4'
 branch_labels = None
 depends_on = None
-
-
-from alembic import op
-import sqlalchemy as sa
-import dill
-
 
 TASK_INSTANCE_TABLE = "task_instance"
 NEW_COLUMN = "executor_config"
@@ -48,4 +46,3 @@ def upgrade():
 
 def downgrade():
     op.drop_column(TASK_INSTANCE_TABLE, NEW_COLUMN)
-

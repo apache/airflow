@@ -22,8 +22,7 @@ import flask_login
 from airflow.exceptions import AirflowConfigException
 from flask_login import current_user
 from flask import flash
-from wtforms import (
-    Form, PasswordField, StringField)
+from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
 # pykerberos should be used as it verifies the KDC, the "kerberos" module does not do so
@@ -33,7 +32,6 @@ import airflow.security.utils as utils
 
 from flask import url_for, redirect
 
-from airflow import settings
 from airflow import models
 from airflow import configuration
 from airflow.utils.db import provide_session

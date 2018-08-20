@@ -34,7 +34,7 @@ import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
-    g, redirect, request, Markup, Response, render_template,
+    redirect, request, Markup, Response, render_template,
     make_response, flash, jsonify)
 from flask._compat import PY2
 
