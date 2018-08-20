@@ -280,7 +280,7 @@ Google Authentication
 '''''''''''''''''''''
 
 The Google authentication backend can be used to authenticate users
-against Google using OAuth2. You must specify the domains to restrict
+against Google using OAuth2. You must specify the email domains to restrict
 login, separated with a comma, to only members of those domains.
 
 .. code-block:: bash
