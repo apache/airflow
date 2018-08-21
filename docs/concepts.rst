@@ -115,13 +115,12 @@ Airflow provides operators for many common tasks, including:
 - ``BashOperator`` - executes a bash command
 - ``PythonOperator`` - calls an arbitrary Python function
 - ``EmailOperator`` - sends an email
-- ``HTTPOperator`` - sends an HTTP request
+- ``SimpleHttpOperator`` - sends an HTTP request
 - ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
-
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransferOperator``,
+operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransformOperator``,
 ``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
