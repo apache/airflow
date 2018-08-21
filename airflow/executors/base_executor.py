@@ -193,7 +193,7 @@ class BaseExecutor(LoggingMixin):
 
     def end(self):  # pragma: no cover
         """
-        This method is called when the caller is done submitting job and is
+        This method is called when the caller is done submitting job and
         wants to wait synchronously for the job submitted previously to be
         all done.
         """
