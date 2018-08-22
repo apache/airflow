@@ -3,22 +3,20 @@
 Contributions are welcome and are greatly appreciated! Every
 little bit helps, and credit will always be given.
 
-## Table of Contents
-
-- [TOC](#table-of-contents)
-- [Types of Contributions](#types-of-contributions)
-  - [Report Bugs](#report-bugs)
-  - [Fix Bugs](#fix-bugs)
-  - [Implement Features](#implement-features)
-  - [Improve Documentation](#improve-documentation)
-  - [Submit Feedback](#submit-feedback)
-- [Documentation](#documentation)
-- [Development and Testing](#development-and-testing)
-  - [Setting up a development environment](#setting-up-a-development-environment)
-  - [Pull requests guidelines](#pull-request-guidelines)
-  - [Testing on Travis CI](#testing-on-travis-ci)
-  - [Testing Locally](#testing-locally)
-- [Changing the Metadata Database](#changing-the-metadata-database)
+# Table of Contents
+  * [TOC](#table-of-contents)
+  * [Types of Contributions](#types-of-contributions)
+      - [Report Bugs](#report-bugs)
+      - [Fix Bugs](#fix-bugs)
+      - [Implement Features](#implement-features)
+      - [Improve Documentation](#improve-documentation)
+      - [Submit Feedback](#submit-feedback)
+  * [Documentation](#documentation)
+  * [Development and Testing](#development-and-testing)
+      - [Setting up a development environment](#setting-up-a-development-environment)
+      - [Running unit tests](#running-unit-tests)
+  * [Pull requests guidelines](#pull-request-guidelines)
+  * [Changing the Metadata Database](#changing-the-metadata-database)
 
 ## Types of Contributions
 
@@ -83,57 +81,110 @@ extras to build the full API reference.
 
 ## Development and Testing
 
-### Set up a development env using Docker
+### Set up a development environment
 
-Go to your Airflow directory and start a new docker container. You can choose between Python 2 or 3, whatever you prefer.
+There are three ways to setup an Apache Airflow development environment.
+
+1. Using tools and libraries installed directly on your system.
+
+  Install Python (2.7.x or 3.4.x), MySQL, and libxml by using system-level package
+  managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/incubator-airflow-ci/blob/master/Dockerfile.base) for
+  a comprehensive list of required packages.
+
+  Then install python development requirements. It is usually best to work in a virtualenv:
+
+  ```bash
+  cd $AIRFLOW_HOME
+  virtualenv env
+  source env/bin/activate
+  pip install -e .[devel]
+  ```
+
+2. Using a Docker container
+
+  Go to your Airflow directory and start a new docker container. You can choose between Python 2 or 3, whatever you prefer.
+
+  ```
+  # Start docker in your Airflow directory
+  docker run -t -i -v `pwd`:/airflow/ -w /airflow/ -e SLUGIFY_USES_TEXT_UNIDECODE=yes python:2 bash
+
+  # Go to the Airflow directory
+  cd /airflow/
+
+  # Install Airflow with all the required dependencies,
+  # including the devel which will provide the development tools
+  pip install -e ".[hdfs,hive,druid,devel]"
+
+  # Init the database
+  airflow initdb
+
+  nosetests -v tests/hooks/test_druid_hook.py
+
+    test_get_first_record (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+    test_get_records (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+    test_get_uri (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
+    test_get_conn_url (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+    test_submit_gone_wrong (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+    test_submit_ok (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+    test_submit_timeout (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+    test_submit_unknown_response (tests.hooks.test_druid_hook.TestDruidHook) ... ok
+
+    ----------------------------------------------------------------------
+    Ran 8 tests in 3.036s
+
+    OK
+  ```
+
+  The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test is in the container.
+
+3. Using [Docker Compose](https://docs.docker.com/compose/) and Airflow's CI scripts.
+
+  Start a docker container through Compose for development to avoid installing the packages directly on your system. The following will give you a shell inside a container, run all required service containers (MySQL, PostgresSQL, krb5 and so on) and install all the dependencies:
+
+  ```bash
+  docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
+  # From the container
+  pip install -e .[devel]
+  # Run all the tests with python and mysql through tox
+  tox -e py35-backend_mysql
+  ```
+
+### Running unit tests
+
+To run tests locally, once your unit test environment is setup (directly on your
+system or through our Docker setup) you should be able to simply run
+``./run_unit_tests.sh`` at will.
+
+For example, in order to just execute the "core" unit tests, run the following:
 
 ```
-# Start docker in your Airflow directory
-docker run -t -i -v `pwd`:/airflow/ -w /airflow/ -e SLUGIFY_USES_TEXT_UNIDECODE=yes python:2 bash
-
-# Install Airflow with all the required dependencies,
-# including the devel which will provide the development tools
-pip install -e .[devel,druid,hdfs,hive]
-
-# Init the database
-airflow initdb
-
-nosetests -v tests/hooks/test_druid_hook.py
-
-  test_get_first_record (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
-  test_get_records (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
-  test_get_uri (tests.hooks.test_druid_hook.TestDruidDbApiHook) ... ok
-  test_get_conn_url (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-  test_submit_gone_wrong (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-  test_submit_ok (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-  test_submit_timeout (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-  test_submit_unknown_response (tests.hooks.test_druid_hook.TestDruidHook) ... ok
-
-  ----------------------------------------------------------------------
-  Ran 8 tests in 3.036s
-
-  OK
+./run_unit_tests.sh tests.core:CoreTest -s --logging-level=DEBUG
 ```
 
-The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test is in the container.
-
-### Set up a development env using Virtualenv
-
-Please install python(2.7.x or 3.4.x), mysql, and libxml by using system-level package
-managers like yum, apt-get for Linux, or homebrew for Mac OS at first.
-It is usually best to work in a virtualenv and tox. Install development requirements:
+or a single test method:
 
 ```
-cd $AIRFLOW_HOME
-virtualenv env
-source env/bin/activate
-pip install -e .[devel]
-tox
+./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
 ```
+
+To run the whole test suite with Docker Compose, do:
+
+```
+# Install Docker Compose first, then this will run the tests
+docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+```
+
+Alternatively can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
+It is free for open source projects.
+
+For more information on how to run a subset of the tests, take a look at the
+nosetests docs.
+
+See also the list of test classes and methods in `tests/core.py`.
 
 Feel free to customize based on the extras available in [setup.py](./setup.py)
 
-### Pull Request Guidelines
+## Pull Request Guidelines
 
 Before you submit a pull request from your forked repo, check that it
 meets these guidelines:
@@ -213,64 +264,6 @@ More information:
 [travis-ci-open-source]: https://docs.travis-ci.com/user/open-source-on-travis-ci-com/
 [travis-ci-org-vs-com]: https://devops.stackexchange.com/a/4305/8830
 
-### Testing locally
-
-#### TL;DR
-
-Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
-
-```
-./run_unit_tests.sh
-```
-
-Individual test files can be run with:
-
-```
-nosetests [path to file]
-```
-
-#### Running unit tests
-
-We *highly* recommend setting up [Travis CI](https://travis-ci.org/) on
-your repo to automate this. It is free for open source projects. If for
-some reason you cannot, you can use the steps below to run tests.
-
-Here are loose guidelines on how to get your environment to run the unit tests.
-We do understand that no one out there can run the full test suite since
-Airflow is meant to connect to virtually any external system and that you most
-likely have only a subset of these in your environment. You should run the
-CoreTests and tests related to things you touched in your PR.
-
-To set up a unit test environment, first take a look at `run_unit_tests.sh` and
-understand that your ``AIRFLOW_CONFIG`` points to an alternate config file
-while running the tests. You shouldn't have to alter this config file but
-you may if need be.
-
-From that point, you can actually export these same environment variables in
-your shell, start an Airflow webserver ``airflow webserver -d`` and go and
-configure your connection. Default connections that are used in the tests
-should already have been created, you just need to point them to the systems
-where you want your tests to run.
-
-Once your unit test environment is setup, you should be able to simply run
-``./run_unit_tests.sh`` at will.
-
-For example, in order to just execute the "core" unit tests, run the following:
-
-```
-./run_unit_tests.sh tests.core:CoreTest -s --logging-level=DEBUG
-```
-
-or a single test method:
-
-```
-./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
-```
-
-For more information on how to run a subset of the tests, take a look at the
-nosetests docs.
-
-See also the list of test classes and methods in `tests/core.py`.
 
 ### Changing the Metadata Database
 

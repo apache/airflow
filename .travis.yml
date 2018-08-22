@@ -19,94 +19,40 @@
 sudo: true
 dist: trusty
 language: python
-jdk:
-  - oraclejdk8
-services:
-  - cassandra
-  - mongodb
-  - mysql
-  - postgresql
-  - rabbitmq
-addons:
-  apt:
-    packages:
-      - slapd
-      - ldap-utils
-      - openssh-server
-      - mysql-server-5.6
-      - mysql-client-core-5.6
-      - mysql-client-5.6
-      - krb5-user
-      - krb5-kdc
-      - krb5-admin-server
-      - oracle-java8-installer
-  postgresql: "9.2"
-python:
-  - "2.7"
-  - "3.5"
 env:
   global:
+    - DOCKER_COMPOSE_VERSION=1.20.0
     - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
-    - KRB5_CONFIG=/etc/krb5.conf
-    - KRB5_KTNAME=/etc/airflow.keytab
-    # Travis on google cloud engine has a global /etc/boto.cfg that
-    # does not work with python 3
-    - BOTO_CONFIG=/tmp/bogusvalue
   matrix:
+    - TOX_ENV=flake8
     - TOX_ENV=py27-backend_mysql
     - TOX_ENV=py27-backend_sqlite
     - TOX_ENV=py27-backend_postgres
-    - TOX_ENV=py35-backend_mysql
-    - TOX_ENV=py35-backend_sqlite
-    - TOX_ENV=py35-backend_postgres
-    - TOX_ENV=flake8
+    - TOX_ENV=py35-backend_mysql PYTHON_VERSION=3
+    - TOX_ENV=py35-backend_sqlite PYTHON_VERSION=3
+    - TOX_ENV=py35-backend_postgres PYTHON_VERSION=3
     - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
-    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0
-matrix:
-  exclude:
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_mysql
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_sqlite
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_mysql
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_sqlite
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_postgres
-    - python: "2.7"
-      env: TOX_ENV=flake8
-    - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
-    - python: "2.7"
-      env: TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0
+    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
 cache:
   directories:
     - $HOME/.wheelhouse/
+    - $HOME/.cache/pip
     - $HOME/.travis_cache/
 before_install:
-  - yes | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
-  - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-  - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
-  - chmod 600 ~/.ssh/*
-  - jdk_switcher use oraclejdk8
+  - sudo ls -lh $HOME/.cache/pip/
+  - sudo rm -rf $HOME/.cache/pip/* $HOME/.wheelhouse/*
+  - sudo chown -R travis.travis $HOME/.cache/pip
 install:
+  # Use recent docker-compose version
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
-  - pip install tox
   - pip install codecov
-before_script:
-  - cat "$TRAVIS_BUILD_DIR/scripts/ci/my.cnf" | sudo tee -a /etc/mysql/my.cnf
-  - mysql -e 'drop database if exists airflow; create database airflow' -u root
-  - sudo service mysql restart
-  - psql -c 'create database airflow;' -U postgres
-  - export PATH=${PATH}:/tmp/hive/bin
-  # Required for K8s v1.10.x. See
-  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-  - sudo mount --make-shared / && sudo service docker restart
 script:
-  - ./scripts/ci/travis_script.sh
+  - docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
 after_success:
+  - sudo chown -R travis.travis .
   - codecov

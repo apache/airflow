@@ -144,3 +144,5 @@ scripts/ci/kubernetes/kube/.generated/airflow.yaml
 node_modules
 npm-debug.log*
 static/dist
+derby.log
+metastore_db
