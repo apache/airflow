@@ -89,7 +89,8 @@ unit of work and continuity.
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/master/CONTRIBUTING.md).
 
-## Who uses Apache Airflow?
+
+## Who uses Airflow?
 
 As the Apache Airflow community grows, we'd like to keep track of who is using
 the platform. Please send a PR with your company name and @githubhandle

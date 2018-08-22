@@ -45,6 +45,12 @@ echo Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN
 export AIRFLOW_HOME=${AIRFLOW_HOME:=~}
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
 
+# configuration test
+export AIRFLOW__TESTSECTION__TESTKEY=testvalue
+
+# use Airflow 2.0-style imports
+export AIRFLOW_USE_NEW_IMPORTS=1
+
 # any argument received is overriding the default nose execution arguments:
 nose_args=$@
 

@@ -53,9 +53,7 @@ acquire_rat_jar () {
 FWDIR="$(cd "`dirname "$0"`"/../..; pwd)"
 cd "$FWDIR"
 
-if [ -z "${TRAVIS_CACHE}" ]; then
-    TRAVIS_CACHE=/tmp
-fi
+TMP_DIR=/tmp
 
 if test -x "$JAVA_HOME/bin/java"; then
     declare java_cmd="$JAVA_HOME/bin/java"
@@ -64,8 +62,8 @@ else
 fi
 
 export RAT_VERSION=0.12
-export rat_jar="${TRAVIS_CACHE}"/lib/apache-rat-${RAT_VERSION}.jar
-mkdir -p ${TRAVIS_CACHE}/lib
+export rat_jar="${TMP_DIR}"/lib/apache-rat-${RAT_VERSION}.jar
+mkdir -p ${TMP_DIR}/lib
 
 
 [[ -f "$rat_jar" ]] || acquire_rat_jar || {
