@@ -34,5 +34,5 @@ cd $AIRFLOW_ROOT
 python setup.py sdist -q
 echo "Copy distro $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
 cp $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz
-cd $DIRNAME && docker build --pull $DIRNAME --tag=${IMAGE}:${TAG}
+cd $DIRNAME && docker build --pull $DIRNAME -f Dockerfile.py3 --tag=${IMAGE}:${TAG}
 rm $DIRNAME/airflow.tar.gz
