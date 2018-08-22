@@ -25,7 +25,8 @@ from airflow.executors.celery_executor import app
 from airflow.utils.state import State
 
 # leave this it is used by the test worker
-import celery.contrib.testing.tasks
+import celery.contrib.testing.tasks  # noqa: F401
+
 
 class CeleryExecutorTest(unittest.TestCase):
     def test_celery_integration(self):
@@ -52,6 +53,9 @@ class CeleryExecutorTest(unittest.TestCase):
 
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
+
+        self.assertNotIn('success', executor.last_state)
+        self.assertNotIn('fail', executor.last_state)
 
 
 if __name__ == '__main__':
