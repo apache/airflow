@@ -78,6 +78,12 @@ unit of work and continuity.
 
   ![](/docs/img/code.png)
 
+
+## Contributing
+
+Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/incubator-airflow/blob/master/CONTRIBUTING.md).
+
+
 ## Who uses Airflow?
 
 As the Airflow community grows, we'd like to keep track of who is using

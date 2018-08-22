@@ -15,14 +15,9 @@
 #  KIND, either express or implied.  See the License for the    *
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
-set -o verbose
 
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-DATA_DIR="${DIR}/data"
-DATA_FILE="${DATA_DIR}/baby_names.csv"
-DATABASE=airflow_ci
+set -exuo pipefail
 
-mysqladmin -u root create ${DATABASE}
-mysql -u root < ${DATA_DIR}/mysql_schema.sql
-mysqlimport --local -u root --fields-optionally-enclosed-by="\"" --fields-terminated-by=, --ignore-lines=1 ${DATABASE} ${DATA_FILE}
+MYSQL_HOST=mysql
 
+mysql -h ${MYSQL_HOST} -u root -e 'drop database if exists airflow; create database airflow'
