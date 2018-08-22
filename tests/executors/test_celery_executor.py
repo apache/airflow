@@ -54,6 +54,8 @@ class CeleryExecutorTest(unittest.TestCase):
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
 
+        self.assertNotIn('success', executor.last_state)
+        self.assertNotIn('fail', executor.last_state)
 
 if __name__ == '__main__':
     unittest.main()
