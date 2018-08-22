@@ -111,7 +111,7 @@ Follow the steps below to enable Google Cloud Storage logging.
             'filename_template': FILENAME_TEMPLATE,
         },
 
-        # Update the airflow.task and airflow.tas_runner blocks to be 'gcs.task' instead of 'file.task'.
+        # Update the airflow.task and airflow.task_runner blocks to be 'gcs.task' instead of 'file.task'.
         'loggers': {
             'airflow.task': {
                 'handlers': ['gcs.task'],
