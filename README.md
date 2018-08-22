@@ -1,43 +1,30 @@
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
-# Apache Airflow
+# Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
-[![Build Status](https://travis-ci.org/apache/airflow.svg?branch=master)](https://travis-ci.org/apache/airflow)
-[![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/master.svg)](https://codecov.io/github/apache/airflow?branch=master)
+[![Build Status](https://travis-ci.org/apache/incubator-airflow.svg?branch=master)](https://travis-ci.org/apache/incubator-airflow)
+[![Coverage Status](https://img.shields.io/codecov/c/github/apache/incubator-airflow/master.svg)](https://codecov.io/github/apache/incubator-airflow?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/airflow/badge/?version=latest)](https://airflow.readthedocs.io/en/latest/?badge=latest)
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
-[![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
+[![Join the chat at https://gitter.im/apache/incubator-airflow](https://badges.gitter.im/apache/incubator-airflow.svg)](https://gitter.im/apache/incubator-airflow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-_NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Apache Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
+_NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
 
-Apache Airflow (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
+Airflow is a platform to programmatically author, schedule, and monitor
+workflows.
 
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
 
-Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
+Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks.
+The Airflow scheduler executes your tasks on an array of workers while
+following the specified dependencies. Rich command line utilities make
+performing complex surgeries on DAGs a snap. The rich user interface
+makes it easy to visualize pipelines running in production,
+monitor progress, and troubleshoot issues when needed.
 
 ## Getting started
-Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), getting a [quick start](https://airflow.apache.org/start.html), or a more complete [tutorial](https://airflow.apache.org/tutorial.html).
+
+Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.incubator.apache.org/installation.html), getting a [quick start](https://airflow.incubator.apache.org/start.html), or a more complete [tutorial](https://airflow.incubator.apache.org/tutorial.html).
 
 Documentation of GitHub master (latest development branch): [ReadTheDocs Documentation](https://airflow.readthedocs.io/en/latest/)
 
@@ -63,44 +50,49 @@ unit of work and continuity.
 - **Dynamic**:  Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
 - **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
-- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
+- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers. Airflow is ready to scale to infinity.
 
 ## User Interface
 
 - **DAGs**: Overview of all DAGs in your environment.
-![](/docs/img/dags.png)
+
+  ![](/docs/img/dags.png)
 
 - **Tree View**: Tree representation of a DAG that spans across time.
-![](/docs/img/tree.png)
+
+  ![](/docs/img/tree.png)
 
 - **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
-![](/docs/img/graph.png)
+
+  ![](/docs/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
-![](/docs/img/duration.png)
+
+  ![](/docs/img/duration.png)
 
 - **Gantt View**: Duration and overlap of a DAG.
-![](/docs/img/gantt.png)
+
+  ![](/docs/img/gantt.png)
 
 - **Code View**:  Quick way to view source code of a DAG.
-![](/docs/img/code.png)
+
+  ![](/docs/img/code.png)
+
 
 ## Contributing
 
-Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/master/CONTRIBUTING.md).
+Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/incubator-airflow/blob/master/CONTRIBUTING.md).
 
-## Who uses Apache Airflow?
 
-As the Apache Airflow community grows, we'd like to keep track of who is using
+## Who uses Airflow?
+
+As the Airflow community grows, we'd like to keep track of who is using
 the platform. Please send a PR with your company name and @githubhandle
 if you may.
 
-Committers:
-
-* Refer to [Committers](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers)
-
 Currently **officially** using Airflow:
 
+1. [6play](https://www.6play.fr) [[@lemourA](https://github.com/lemoura), [@achaussende](https://github.com/achaussende), [@d-nguyen](https://github.com/d-nguyen), [@julien-gm](https://github.com/julien-gm)]
 1. [AdBOOST](https://www.adboost.sk) [[AdBOOST](https://github.com/AdBOOST)]
 1. [Agari](https://github.com/agaridata) [[@r39132](https://github.com/r39132)]
 1. [Airbnb](http://airbnb.io/) [[@mistercrunch](https://github.com/mistercrunch), [@artwr](https://github.com/artwr)]
@@ -117,6 +109,7 @@ Currently **officially** using Airflow:
 1. [BalanceHero](http://truebalance.io/) [[@swalloow](https://github.com/swalloow)]
 1. [Banco de Formaturas](https://www.bancodeformaturas.com.br) [[@guiligan](https://github.com/guiligan)]
 1. [BandwidthX](http://www.bandwidthx.com) [[@dineshdsharma](https://github.com/dineshdsharma)]
+1. [BBM](https://www.bbm.com/)
 1. [Bellhops](https://github.com/bellhops)
 1. [BelugaDB](https://belugadb.com) [[@fabio-nukui](https://github.com/fabio-nukui) & [@joao-sallaberry](http://github.com/joao-sallaberry) & [@lucianoviola](https://github.com/lucianoviola) & [@tmatuki](https://github.com/tmatuki)]
 1. [BlaBlaCar](https://www.blablacar.com) [[@puckel](https://github.com/puckel) & [@wmorin](https://github.com/wmorin)]
@@ -139,6 +132,7 @@ Currently **officially** using Airflow:
 1. [Clairvoyant](https://clairvoyantsoft.com) [@shekharv](https://github.com/shekharv)
 1. [Clover Health](https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
 1. [Chartboost](https://www.chartboost.com) [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
+1. [Collectivehealth Inc.](https://www.collectivehealth.com) [@retornam](https://github.com/retornam)
 1. [ContaAzul](https://www.contaazul.com) [[@bern4rdelli](https://github.com/bern4rdelli), [@renanleme](https://github.com/renanleme) & [@sabino](https://github.com/sabino)]
 1. [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
 1. [Craig@Work](https://www.craigatwork.com)
@@ -146,6 +140,7 @@ Currently **officially** using Airflow:
 1. [CreditCards.com](https://www.creditcards.com/)[[@vmAggies](https://github.com/vmAggies) &  [@jay-wallaby](https://github.com/jay-wallaby)]
 1. [Creditas](https://www.creditas.com.br) [[@dcassiano](https://github.com/dcassiano)]
 1. [Custom Ink](https://www.customink.com/) [[@david-dalisay](https://github.com/david-dalisay), [@dmartin11](https://github.com/dmartin11) & [@mpeteuil](https://github.com/mpeteuil)]
+1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)]
 1. [Data Reply](https://www.datareply.co.uk/) [[@kaxil](https://github.com/kaxil)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
@@ -162,6 +157,7 @@ Currently **officially** using Airflow:
 1. [Glassdoor](https://github.com/Glassdoor) [[@syvineckruyk](https://github.com/syvineckruyk)]
 1. [Global Fashion Group](http://global-fashion-group.com) [[@GFG](https://github.com/GFG)]
 1. [GovTech GDS](https://gds-gov.tech) [[@chrissng](https://github.com/chrissng) & [@datagovsg](https://github.com/datagovsg)]
+1. [Gradeup](https://gradeup.co) [[@gradeup](https://github.com/gradeup)]
 1. [Grand Rounds](https://www.grandrounds.com/) [[@richddr](https://github.com/richddr), [@timz1290](https://github.com/timz1290), [@wenever](https://github.com/@wenever), & [@runongirlrunon](https://github.com/runongirlrunon)]
 1. [Groupalia](http://es.groupalia.com) [[@jesusfcr](https://github.com/jesusfcr)]
 1. [Groupon](https://groupon.com) [[@stevencasey](https://github.com/stevencasey)]
@@ -172,6 +168,7 @@ Currently **officially** using Airflow:
 1. [HBO](http://www.hbo.com/)[[@yiwang](https://github.com/yiwang)]
 1. [Healthjump](http://www.healthjump.com/) [[@miscbits](https://github.com/miscbits)]
 1. [HelloFresh](https://www.hellofresh.com) [[@tammymendt](https://github.com/tammymendt) & [@davidsbatista](https://github.com/davidsbatista) & [@iuriinedostup](https://github.com/iuriinedostup)]
+1. [Hipages](https://www.hipages.com.au/) [[@arihantsurana](https://github.com/arihantsurana)]
 1. [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
 1. [Hootsuite](https://github.com/hootsuite)
 1. [Hostnfly](https://www.hostnfly.com/) [[@CyrilLeMat](https://github.com/CyrilLeMat) & [@pierrechopin](https://github.com/pierrechopin) & [@alexisrosuel](https://github.com/alexisrosuel)]
@@ -188,9 +185,11 @@ Currently **officially** using Airflow:
 1. [Karmic](https://karmiclabs.com) [[@hyw](https://github.com/hyw)]
 1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
 1. [Kogan.com](https://github.com/kogan) [[@geeknam](https://github.com/geeknam)]
+1. [KPN B.V.](https://www.kpn.com/) [[@biyanisuraj](https://github.com/biyanisuraj) & [@gmic](https://github.com/gmic)]
 1. [Lemann Foundation](http://fundacaolemann.org.br) [[@fernandosjp](https://github.com/fernandosjp)]
 1. [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
 1. [LetsBonus](http://www.letsbonus.com) [[@jesusfcr](https://github.com/jesusfcr) & [@OpringaoDoTurno](https://github.com/OpringaoDoTurno)]
+1. [Liberty Global](https://www.libertyglobal.com/) [[@LibertyGlobal](https://github.com/LibertyGlobal/)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 1. [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]
@@ -203,6 +202,7 @@ Currently **officially** using Airflow:
 1. [Mercari](http://www.mercari.com/) [[@yu-iskw](https://github.com/yu-iskw)]
 1. [MFG Labs](https://github.com/MfgLabs)
 1. [MiNODES](https://www.minodes.com) [[@dice89](https://github.com/dice89), [@diazcelsa](https://github.com/diazcelsa)]
+1. [Modernizing Medicine](https://www.modmed.com/)[[@kehv1n](https://github.com/kehv1n), [@dalupus](https://github.com/dalupus)]
 1. [Multiply](https://www.multiply.com) [[@nrhvyc](https://github.com/nrhvyc)]
 1. [mytaxi](https://mytaxi.com) [[@mytaxi](https://github.com/mytaxi)]
 1. [Nerdwallet](https://www.nerdwallet.com)
@@ -223,6 +223,7 @@ Currently **officially** using Airflow:
 1. [PMC](https://pmc.com/) [[@andrewm4894](https://github.com/andrewm4894)]
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
+1. [Publicis Pixelpark](https://www.publicispixelpark.de/) [[@feluelle](https://github.com/feluelle)]
 1. [PubNub](https://pubnub.com) [[@jzucker2](https://github.com/jzucker2)]
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
 1. [Quantopian](https://www.quantopian.com/) [[@eronarn](http://github.com/eronarn)]
@@ -243,6 +244,7 @@ Currently **officially** using Airflow:
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
 1. [Stackspace](https://beta.stackspace.io/)
 1. [Stripe](https://stripe.com) [[@jbalogh](https://github.com/jbalogh)]
+1. [Strongmind](https://www.strongmind.com) [[@tomchapin](https://github.com/tomchapin) & [@wongstein](https://github.com/wongstein)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
@@ -258,6 +260,8 @@ Currently **officially** using Airflow:
 1. [Upsight](https://www.upsight.com) [[@dhuang](https://github.com/dhuang)]
 1. [Vente-Exclusive.com](http://www.vente-exclusive.com/) [[@alexvanboxel](https://github.com/alexvanboxel)]
 1. [Vevo](https://www.vevo.com/) [[@csetiawan](https://github.com/csetiawan) & [@jerrygillespie](https://github.com/jerrygillespie)]
+1. [Vidio](https://www.vidio.com/)
+1. [Ville de Montréal](http://ville.montreal.qc.ca/)[@VilledeMontreal](https://github.com/VilledeMontreal/)]
 1. [Vnomics](https://github.com/vnomics) [[@lpalum](https://github.com/lpalum)]
 1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. [WeTransfer](https://github.com/WeTransfer) [[@jochem](https://github.com/jochem)]
@@ -275,9 +279,10 @@ Currently **officially** using Airflow:
 1. [Zymergen](https://www.zymergen.com/)
 1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
 
-## Who Maintains Apache Airflow?
+## Who Maintains Airflow?
 
-Airflow is the work of the [community](https://github.com/apache/airflow/graphs/contributors),
+Airflow is the work of the
+[community](https://github.com/apache/incubator-airflow/graphs/contributors),
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
@@ -285,7 +290,7 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## Links
 
-
-- [Documentation](https://airflow.apache.org/)
-- [Chat](https://apache-airflow-slack.herokuapp.com/)
+- [Documentation](https://airflow.incubator.apache.org/)
+- [Chat](https://gitter.im/apache/incubator-airflow)
+- [Apache Airflow Incubation Status](http://incubator.apache.org/projects/airflow.html)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
