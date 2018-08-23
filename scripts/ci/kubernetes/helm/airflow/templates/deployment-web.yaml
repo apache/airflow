@@ -1,0 +1,95 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ template "airflow.fullname" . }}-web
+  labels:
+    app: {{ template "airflow.name" . }}-web
+    chart: {{ template "airflow.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "airflow.name" . }}-web
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "airflow.name" . }}-web
+        release: {{ .Release.Name }}
+    spec:
+      initContainers:
+        - name: "init"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - name: airflow-configmap
+            mountPath: /home/airflow/airflow.cfg
+            subPath: airflow.cfg
+          env:
+          - name: SQL_ALCHEMY_CONN
+            value: postgresql+psycopg2://{{ .Values.postgresql.postgresUser }}:{{ .Values.postgresql.postgresPassword }}@{{ template "airflow.postgresql.fullname" . }}:5432/{{ .Values.postgresql.postgresDatabase }}
+          command:
+            - "bash"
+          args:
+            - "-cx"
+            - "mkdir -pv /home/airflow/dags/ && ./home/airflow/airflow-init.sh"
+      containers:
+        - name: {{ .Chart.Name }}-web
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: webserver
+              containerPort: 8080
+              protocol: TCP
+          args: ["webserver"]
+          livenessProbe:
+            httpGet:
+              path: /login/
+              port: webserver
+          readinessProbe:
+            httpGet:
+              path: /login/
+              port: webserver
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POSTGRES_HOST
+            value: {{ template "airflow.postgresql.fullname" . }}
+          - name: POSTGRES_NAME
+            value: {{ .Values.postgresql.postgresDatabase }}
+          - name: POSTGRES_PASSWORD
+            value: {{ .Values.postgresql.postgresPassword }}
+          - name: POSTGRES_USERNAME
+            value: {{ .Values.postgresql.postgresUser }}
+          - name: SQL_ALCHEMY_CONN
+            value: postgresql+psycopg2://{{ .Values.postgresql.postgresUser }}:{{ .Values.postgresql.postgresPassword }}@{{ template "airflow.postgresql.fullname" . }}:5432/{{ .Values.postgresql.postgresDatabase }}
+          - name: TZ
+            value: Etc/UTC
+          volumeMounts:
+          - name: airflow-configmap
+            mountPath: /home/airflow/airflow.cfg
+            subPath: airflow.cfg
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+      - name: airflow-configmap
+        configMap:
+          name: {{ template "airflow.fullname" . }}-config
+      - name: airflow-logs
+        emptyDir: {}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

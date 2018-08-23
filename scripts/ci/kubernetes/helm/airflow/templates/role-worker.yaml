@@ -1,0 +1,21 @@
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ template "airflow.fullname" . }}-worker
+  labels:
+    app: {{ template "airflow.name" . }}
+    chart: {{ template "airflow.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+  - apiGroups: 
+     - ""
+    resources:
+     - pods
+     - pods/log
+    verbs: 
+     - create
+     - delete
+     - get
+     - watch
+     - list

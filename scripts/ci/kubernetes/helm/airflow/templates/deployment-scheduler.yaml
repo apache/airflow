@@ -1,0 +1,70 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ template "airflow.fullname" . }}-scheduler
+  labels:
+    app: {{ template "airflow.name" . }}-scheduler
+    chart: {{ template "airflow.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "airflow.name" . }}-scheduler
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "airflow.name" . }}-scheduler
+        release: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ template "airflow.fullname" . }}-scheduler
+      containers:
+        - name: {{ .Chart.Name }}-scheduler
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["scheduler"]
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POSTGRES_HOST
+            value: {{ template "airflow.postgresql.fullname" . }}
+          - name: POSTGRES_NAME
+            value: {{ .Values.postgresql.postgresDatabase }}
+          - name: POSTGRES_PASSWORD
+            value: {{ .Values.postgresql.postgresPassword }}
+          - name: POSTGRES_USERNAME
+            value: {{ .Values.postgresql.postgresUser }}
+          - name: SQL_ALCHEMY_CONN
+            value: postgresql+psycopg2://{{ .Values.postgresql.postgresUser }}:{{ .Values.postgresql.postgresPassword }}@{{ template "airflow.postgresql.fullname" . }}:5432/{{ .Values.postgresql.postgresDatabase }}
+          - name: TZ
+            value: Etc/UTC
+          volumeMounts:
+          - name: airflow-configmap
+            mountPath: /home/airflow/airflow.cfg
+            subPath: airflow.cfg
+          - name: airflow-logs
+            mountPath: /home/airflow/logs
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+      - name: airflow-configmap
+        configMap:
+          name: {{ template "airflow.fullname" . }}-config
+      - name: airflow-logs
+        emptyDir: {}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
