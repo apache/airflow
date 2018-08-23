@@ -46,6 +46,7 @@ NEW_CLUSTER = {
     'node_type_id': 'r3.xlarge',
     'num_workers': 1
 }
+CLUSTER_ID = 'cluster_id'
 RUN_ID = 1
 HOST = 'xx.cloud.databricks.com'
 HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
@@ -79,16 +80,40 @@ def get_run_endpoint(host):
     """
     return 'https://{}/api/2.0/jobs/runs/get'.format(host)
 
+
 def cancel_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
     return 'https://{}/api/2.0/jobs/runs/cancel'.format(host)
 
+
+def start_cluster_endpoint(host):
+    """
+    Utility function to generate the get run endpoint given the host.
+    """
+    return 'https://{}/api/2.0/clusters/start'.format(host)
+
+
+def restart_cluster_endpoint(host):
+    """
+    Utility function to generate the get run endpoint given the host.
+    """
+    return 'https://{}/api/2.0/clusters/restart'.format(host)
+
+
+def terminate_cluster_endpoint(host):
+    """
+    Utility function to generate the get run endpoint given the host.
+    """
+    return 'https://{}/api/2.0/clusters/delete'.format(host)
+
+
 class DatabricksHookTest(unittest.TestCase):
     """
     Tests for DatabricksHook.
     """
+
     @db.provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
@@ -111,7 +136,7 @@ class DatabricksHookTest(unittest.TestCase):
 
     def test_init_bad_retry_limit(self):
         with self.assertRaises(ValueError):
-            DatabricksHook(retry_limit = 0)
+            DatabricksHook(retry_limit=0)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_with_error_retry(self, mock_requests):
@@ -140,8 +165,8 @@ class DatabricksHookTest(unittest.TestCase):
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
         json = {
-          'notebook_task': NOTEBOOK_TASK,
-          'new_cluster': NEW_CLUSTER
+            'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER
         }
         run_id = self.hook.submit_run(json)
 
@@ -209,11 +234,60 @@ class DatabricksHookTest(unittest.TestCase):
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
 
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_start_cluster(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        self.hook.start_cluster({"cluster_id": CLUSTER_ID})
+
+        mock_requests.post.assert_called_once_with(
+            start_cluster_endpoint(HOST),
+            json={'cluster_id': CLUSTER_ID},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_restart_cluster(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        self.hook.restart_cluster({"cluster_id": CLUSTER_ID})
+
+        mock_requests.post.assert_called_once_with(
+            restart_cluster_endpoint(HOST),
+            json={'cluster_id': CLUSTER_ID},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_terminate_cluster(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        self.hook.terminate_cluster({"cluster_id": CLUSTER_ID})
+
+        mock_requests.post.assert_called_once_with(
+            terminate_cluster_endpoint(HOST),
+            json={'cluster_id': CLUSTER_ID},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
 
 class DatabricksHookTokenTest(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with token.
     """
+
     @db.provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
@@ -231,8 +305,8 @@ class DatabricksHookTokenTest(unittest.TestCase):
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
         json = {
-          'notebook_task': NOTEBOOK_TASK,
-          'new_cluster': NEW_CLUSTER
+            'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER
         }
         run_id = self.hook.submit_run(json)
 
