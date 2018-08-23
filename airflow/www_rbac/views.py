@@ -1922,6 +1922,11 @@ class ConnectionModelView(AirflowModelView):
         except Exception:
             d = {}
 
+        if not hasattr(d, 'get'):
+            logging.warning('extra field for {} is not iterable'.format(
+                form.data.get('conn_id', '<unknown>')))
+            return
+
         for field in self.extra_fields:
             value = d.get(field, '')
             if value:
