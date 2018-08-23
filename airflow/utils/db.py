@@ -27,6 +27,7 @@ from functools import wraps
 import os
 import contextlib
 
+from airflow import configuration
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -85,11 +86,8 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb(rbac=False):
-    session = settings.Session()
-
+def load_default_conns():
     from airflow import models
-    upgradedb()
 
     merge_conn(
         models.Connection(
@@ -285,6 +283,16 @@ def initdb(rbac=False):
         models.Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
+
+
+def initdb(rbac=False):
+    session = settings.Session()
+
+    from airflow import models
+    upgradedb()
+
+    if configuration.conf.getboolean('core', 'LOAD_DEFAULT_CONNS'):
+        load_default_conns()
 
     # Known event types
     KET = models.KnownEventType
