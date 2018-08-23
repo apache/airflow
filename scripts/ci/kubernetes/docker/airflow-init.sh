@@ -17,6 +17,8 @@
 #  specific language governing permissions and limitations      *
 #  under the License.
 
+set -e
+
 cd /usr/local/lib/python3.7/site-packages/airflow/ && \
 cp -R example_dags/* /home/airflow/dags/ && \
 airflow initdb && \
