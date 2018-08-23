@@ -18,7 +18,7 @@
 #  under the License.
 
 cd /usr/local/lib/python3.7/site-packages/airflow/ && \
-cp -R example_dags/* /root/airflow/dags/ && \
+cp -R example_dags/* /home/airflow/dags/ && \
 airflow initdb && \
 alembic upgrade heads && \
 (airflow create_user -u airflow -l airflow -f jon -e airflow@apache.org -r Admin -p airflow || true) && \

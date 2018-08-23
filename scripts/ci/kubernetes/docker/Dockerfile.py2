@@ -17,13 +17,16 @@
 
 FROM python:2.7.15-slim-stretch
 
+ENV AIRFLOW_HOME /home/airflow/
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
 
 COPY airflow.tar.gz /tmp/airflow.tar.gz
 COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
 COPY bootstrap.sh /bootstrap.sh
 
-RUN apt-get update && \
+RUN useradd -ms /bin/bash -d ${AIRFLOW_HOME} airflow && \
+    chown -Rv airflow: ${AIRFLOW_HOME} && \
+    apt-get update && \
     apt-get install --no-install-recommends -y build-essential && \
     pip install --upgrade pip && \
     pip install -U setuptools && \
@@ -34,6 +37,7 @@ RUN apt-get update && \
     chmod +x /bootstrap.sh && \
     apt-get remove --purge -y build-essential && \
     apt-get autoremove --purge -y && \
-    rm -rf /var/lib/apt/lists/* \
+    rm -rf /var/lib/apt/lists/*
 
+USER airflow
 ENTRYPOINT ["/bootstrap.sh"]
