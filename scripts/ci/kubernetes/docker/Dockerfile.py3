@@ -21,7 +21,7 @@ ENV AIRFLOW_HOME /home/airflow/
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
 
 COPY airflow.tar.gz /tmp/airflow.tar.gz
-COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
+COPY airflow-init.sh /home/airflow/airflow-init.sh
 COPY bootstrap.sh /bootstrap.sh
 
 RUN useradd -ms /bin/bash -d ${AIRFLOW_HOME} airflow && \
@@ -34,7 +34,7 @@ RUN useradd -ms /bin/bash -d ${AIRFLOW_HOME} airflow && \
     pip install cryptography && \
     pip install psycopg2-binary && \
     pip install /tmp/airflow.tar.gz && \
-    chmod +x /bootstrap.sh && \
+    chmod +x /bootstrap.sh /home/airflow/airflow-init.sh && \
     apt-get remove --purge -y build-essential && \
     apt-get autoremove --purge -y && \
     rm -rf /var/lib/apt/lists/*
