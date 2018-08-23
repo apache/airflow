@@ -27,7 +27,7 @@ COPY bootstrap.sh /bootstrap.sh
 RUN useradd -ms /bin/bash -d ${AIRFLOW_HOME} airflow && \
     chown -Rv airflow: ${AIRFLOW_HOME} && \
     apt-get update && \
-    apt-get install --no-install-recommends -y build-essential && \
+    apt-get install --no-install-recommends -y build-essential libxml2-dev libxslt1-dev && \
     pip install --upgrade pip && \
     pip install -U setuptools && \
     pip install kubernetes && \
@@ -35,7 +35,7 @@ RUN useradd -ms /bin/bash -d ${AIRFLOW_HOME} airflow && \
     pip install psycopg2-binary && \
     pip install /tmp/airflow.tar.gz && \
     chmod +x /bootstrap.sh /home/airflow/airflow-init.sh && \
-    apt-get remove --purge -y build-essential && \
+    apt-get remove --purge -y build-essential libxml2-dev libxslt1-dev && \
     apt-get autoremove --purge -y && \
     rm -rf /var/lib/apt/lists/*
 
