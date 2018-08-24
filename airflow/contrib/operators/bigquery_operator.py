@@ -75,6 +75,13 @@ class BigQueryOperator(BaseOperator):
         (without incurring a charge). If unspecified, this will be
         set to your project default.
     :type maximum_bytes_billed: float
+    :param api_resource_configs: a dictionary that contain params
+        'configuration' applied for Google BigQuery Jobs API:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
+        for example, {'query': {'useQueryCache': False}}. You could use it
+        if you need to provide some params that are not supported by BigQueryOperator
+        like args.
+    :type api_resource_configs: dict
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :type schema_update_options: tuple
@@ -106,7 +113,7 @@ class BigQueryOperator(BaseOperator):
                  destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
-                 flatten_results=False,
+                 flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  udf_config=False,
@@ -118,7 +125,8 @@ class BigQueryOperator(BaseOperator):
                  query_params=None,
                  labels=None,
                  priority='INTERACTIVE',
-                 time_partitioning={},
+                 time_partitioning=None,
+                 api_resource_configs=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -140,7 +148,10 @@ class BigQueryOperator(BaseOperator):
         self.labels = labels
         self.bq_cursor = None
         self.priority = priority
-        self.time_partitioning = time_partitioning
+        if time_partitioning is None:
+            self.time_partitioning = {}
+        if api_resource_configs is None:
+            self.api_resource_configs = {}
 
         # TODO remove `bql` in Airflow 2.0
         if self.bql:
@@ -179,7 +190,8 @@ class BigQueryOperator(BaseOperator):
             labels=self.labels,
             schema_update_options=self.schema_update_options,
             priority=self.priority,
-            time_partitioning=self.time_partitioning
+            time_partitioning=self.time_partitioning,
+            api_resource_configs=self.api_resource_configs,
         )
 
     def on_kill(self):
@@ -234,48 +246,48 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: string
-    :param labels a dictionary containing labels for the table, passed to BigQuery
+    :param labels: a dictionary containing labels for the table, passed to BigQuery
+
+        **Example (with schema JSON in GCS)**: ::
+
+            CreateTable = BigQueryCreateEmptyTableOperator(
+                task_id='BigQueryCreateEmptyTableOperator_task',
+                dataset_id='ODS',
+                table_id='Employees',
+                project_id='internal-gcp-project',
+                gcs_schema_object='gs://schema-bucket/employee_schema.json',
+                bigquery_conn_id='airflow-service-account',
+                google_cloud_storage_conn_id='airflow-service-account'
+            )
+
+        **Corresponding Schema file** (``employee_schema.json``): ::
+
+            [
+              {
+                "mode": "NULLABLE",
+                "name": "emp_name",
+                "type": "STRING"
+              },
+              {
+                "mode": "REQUIRED",
+                "name": "salary",
+                "type": "INTEGER"
+              }
+            ]
+
+        **Example (with schema in the DAG)**: ::
+
+            CreateTable = BigQueryCreateEmptyTableOperator(
+                task_id='BigQueryCreateEmptyTableOperator_task',
+                dataset_id='ODS',
+                table_id='Employees',
+                project_id='internal-gcp-project',
+                schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                               {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}],
+                bigquery_conn_id='airflow-service-account',
+                google_cloud_storage_conn_id='airflow-service-account'
+            )
     :type labels: dict
-
-    **Example (with schema JSON in GCS)**: ::
-
-        CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id='BigQueryCreateEmptyTableOperator_task',
-            dataset_id='ODS',
-            table_id='Employees',
-            project_id='internal-gcp-project',
-            gcs_schema_object='gs://schema-bucket/employee_schema.json',
-            bigquery_conn_id='airflow-service-account',
-            google_cloud_storage_conn_id='airflow-service-account'
-        )
-
-    **Corresponding Schema file** (``employee_schema.json``): ::
-
-        [
-          {
-            "mode": "NULLABLE",
-            "name": "emp_name",
-            "type": "STRING"
-          },
-          {
-            "mode": "REQUIRED",
-            "name": "salary",
-            "type": "INTEGER"
-          }
-        ]
-
-    **Example (with schema in the DAG)**: ::
-
-        CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id='BigQueryCreateEmptyTableOperator_task',
-            dataset_id='ODS',
-            table_id='Employees',
-            project_id='internal-gcp-project',
-            schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}],
-            bigquery_conn_id='airflow-service-account',
-            google_cloud_storage_conn_id='airflow-service-account'
-        )
 
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',

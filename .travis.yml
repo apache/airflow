@@ -42,7 +42,7 @@ cache:
 before_install:
   - sudo ls -lh $HOME/.cache/pip/
   - sudo rm -rf $HOME/.cache/pip/* $HOME/.wheelhouse/*
-  - sudo chown -R travis.travis $HOME/.cache/pip
+  - sudo chown -R travis:travis $HOME/.cache/pip
 install:
   # Use recent docker-compose version
   - sudo rm /usr/local/bin/docker-compose
@@ -50,9 +50,5 @@ install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
-  - pip install codecov
 script:
   - docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
-after_success:
-  - sudo chown -R travis.travis .
-  - codecov

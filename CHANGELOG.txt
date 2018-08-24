@@ -780,7 +780,6 @@ AIRFLOW 1.10.0, 2018-08-03
 [AIRFLOW-1609] Fix gitignore to ignore all venvs
 [AIRFLOW-1601] Add configurable task cleanup time
 
->>>>>>> 862ad8b9... [AIRFLOW-XXX] Update changelog for 1.10
 AIRFLOW 1.9.0, 2018-01-02
 -------------------------
 
