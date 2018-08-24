@@ -143,7 +143,7 @@ class DatabricksHookTest(unittest.TestCase):
         self.assertEquals(host, HOST)
 
     def test_init_bad_retry_limit(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
