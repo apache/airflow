@@ -86,16 +86,6 @@ class SageMakerHook(AwsHook):
             self.check_for_url(channel['DataSource']
                                ['S3DataSource']['S3Uri'])
 
-    def check_valid_transform_input(self, transform_config):
-        """
-        Run checks before a transform job starts
-        :param transform_config: transform_config
-        :type transform_config: dict
-        :return: None
-        """
-        self.check_for_url(transform_config
-                           ['TransformInput']['DataSource']['S3Uri'])
-
     def check_status(self, non_terminal_states,
                      failed_state, key,
                      describe_function, *args):
@@ -182,7 +172,7 @@ class SageMakerHook(AwsHook):
         :param training_job_config: the config for training
         :type training_job_config: dict
         :param wait_for_completion: if the program should keep running until job finishes
-        :param wait_for_completion: bool
+        :type wait_for_completion: bool
         :return: A dict that contains ARN of the training job.
         """
         if self.use_db_config:
@@ -231,12 +221,12 @@ class SageMakerHook(AwsHook):
 
     def create_transform_job(self, transform_job_config, wait_for_completion=True):
         """
-        Create a tuning job
+        Create a transform job
         :param transform_job_config: the config for transform job
         :type transform_job_config: dict
         :param wait_for_completion:
         if the program should keep running until job finishes
-        :param wait_for_completion: bool
+        :type wait_for_completion: bool
         :return: A dict that contains ARN of the transform job.
         """
         if self.use_db_config:
@@ -250,7 +240,8 @@ class SageMakerHook(AwsHook):
             config = sagemaker_conn.extra_dejson.copy()
             transform_job_config.update(config)
 
-        self.check_valid_transform_input(transform_job_config)
+        self.check_for_url(transform_job_config
+                           ['TransformInput']['DataSource']['S3Uri'])
 
         response = self.conn.create_transform_job(
             **transform_job_config)
@@ -264,7 +255,7 @@ class SageMakerHook(AwsHook):
 
     def create_model(self, model_config):
         """
-        Create a tuning job
+        Create a model job
         :param model_config: the config for model
         :type model_config: dict
         :return: A dict that contains ARN of the model.

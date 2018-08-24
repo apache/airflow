@@ -30,6 +30,8 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
 
     :param job_name: job_name of the transform job instance to check the state of
     :type job_name: string
+    :param region_name: The AWS region_name
+    :type region_name: string
     """
 
     template_fields = ['job_name']
