@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from base64 import b64encode
 from builtins import str
 from collections import OrderedDict
 import copy
@@ -36,7 +37,7 @@ import sys
 import warnings
 
 from backports.configparser import ConfigParser
-from zope.deprecation import deprecated as _deprecated
+from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -101,15 +102,20 @@ def run_command(command):
     return output
 
 
-_templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
-with open(os.path.join(_templates_dir, 'default_airflow.cfg')) as f:
-    DEFAULT_CONFIG = f.read()
+def _read_default_config_file(file_name):
+    templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
+    file_path = os.path.join(templates_dir, file_name)
     if six.PY2:
-        DEFAULT_CONFIG = DEFAULT_CONFIG.decode('utf-8')
-with open(os.path.join(_templates_dir, 'default_test.cfg')) as f:
-    TEST_CONFIG = f.read()
-    if six.PY2:
-        TEST_CONFIG = TEST_CONFIG.decode('utf-8')
+        with open(file_path) as f:
+            config = f.read()
+            return config.decode('utf-8')
+    else:
+        with open(file_path, encoding='utf-8') as f:
+            return f.read()
+
+
+DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
+TEST_CONFIG = _read_default_config_file('default_test.cfg')
 
 
 class AirflowConfigParser(ConfigParser):
@@ -473,6 +479,8 @@ if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
 else:
     FERNET_KEY = ''
 
+SECRET_KEY = b64encode(os.urandom(16)).decode('utf-8')
+
 TEMPLATE_START = (
     '# ----------------------- TEMPLATE BEGINS HERE -----------------------')
 if not os.path.isfile(TEST_CONFIG_FILE):
@@ -502,8 +510,7 @@ conf.read(AIRFLOW_CONFIG)
 
 
 if conf.getboolean('webserver', 'rbac'):
-    with open(os.path.join(_templates_dir, 'default_webserver_config.py')) as f:
-        DEFAULT_WEBSERVER_CONFIG = f.read()
+    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
 
     WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
@@ -530,7 +537,7 @@ set = conf.set # noqa
 
 for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
              remove_option, as_dict, set]:
-    _deprecated(
+    deprecated(
         func,
         "Accessing configuration method '{f.__name__}' directly from "
         "the configuration module is deprecated. Please access the "

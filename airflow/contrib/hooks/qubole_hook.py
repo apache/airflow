@@ -66,10 +66,12 @@ COMMAND_ARGS = {
                  'user_program_arguments'],
     'dbexportcmd': ['mode', 'hive_table', 'partition_spec', 'dbtap_id', 'db_table',
                     'db_update_mode', 'db_update_keys', 'export_dir',
-                    'fields_terminated_by', 'tags', 'name'],
+                    'fields_terminated_by', 'tags', 'name', 'customer_cluster_label',
+                    'use_customer_cluster', 'additional_options'],
     'dbimportcmd': ['mode', 'hive_table', 'dbtap_id', 'db_table', 'where_clause',
                     'parallelism', 'extract_query', 'boundary_query', 'split_column',
-                    'tags', 'name']
+                    'tags', 'name', 'hive_serde', 'customer_cluster_label',
+                    'use_customer_cluster', 'schema', 'additional_options']
 }
 
 
@@ -123,7 +125,7 @@ class QuboleHook(BaseHook, LoggingMixin):
 
     def kill(self, ti):
         """
-        Kill (cancel) a Qubole commmand
+        Kill (cancel) a Qubole command
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: response from Qubole
         """

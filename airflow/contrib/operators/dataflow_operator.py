@@ -160,9 +160,9 @@ class DataflowTemplateOperator(BaseOperator):
 
        default_args = {
            'dataflow_default_options': {
-               'project': 'my-gcp-project'
+               'project': 'my-gcp-project',
                'zone': 'europe-west1-d',
-               'tempLocation': 'gs://my-staging-bucket/staging/'
+               'tempLocation': 'gs://my-staging-bucket/staging/',
                }
            }
        }
@@ -331,7 +331,7 @@ class DataFlowPythonOperator(BaseOperator):
             self.py_file, self.py_options)
 
 
-class GoogleCloudBucketHelper():
+class GoogleCloudBucketHelper(object):
     """GoogleCloudStorageHook helper class to download GCS object."""
     GCS_PREFIX_LENGTH = 5
 

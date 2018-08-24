@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -177,13 +177,30 @@ def list_py_file_paths(directory, safe_mode=True):
     elif os.path.isfile(directory):
         return [directory]
     elif os.path.isdir(directory):
-        patterns = []
+        patterns_by_dir = {}
         for root, dirs, files in os.walk(directory, followlinks=True):
-            ignore_file = [f for f in files if f == '.airflowignore']
-            if ignore_file:
-                f = open(os.path.join(root, ignore_file[0]), 'r')
-                patterns += [p for p in f.read().split('\n') if p]
-                f.close()
+            patterns = patterns_by_dir.get(root, [])
+            ignore_file = os.path.join(root, '.airflowignore')
+            if os.path.isfile(ignore_file):
+                with open(ignore_file, 'r') as f:
+                    # If we have new patterns create a copy so we don't change
+                    # the previous list (which would affect other subdirs)
+                    patterns = patterns + [p for p in f.read().split('\n') if p]
+
+            # If we can ignore any subdirs entirely we should - fewer paths
+            # to walk is better. We have to modify the ``dirs`` array in
+            # place for this to affect os.walk
+            dirs[:] = [
+                d
+                for d in dirs
+                if not any(re.search(p, os.path.join(root, d)) for p in patterns)
+            ]
+
+            # We want patterns defined in a parent folder's .airflowignore to
+            # apply to subdirs too
+            for d in dirs:
+                patterns_by_dir[os.path.join(root, d)] = patterns
+
             for f in files:
                 try:
                     file_path = os.path.join(root, f)
@@ -309,7 +326,6 @@ class DagFileProcessorManager(LoggingMixin):
                  file_paths,
                  parallelism,
                  process_file_interval,
-                 min_file_parsing_loop_time,
                  max_runs,
                  processor_factory):
         """
@@ -323,9 +339,6 @@ class DagFileProcessorManager(LoggingMixin):
         :param process_file_interval: process a file at most once every this
         many seconds
         :type process_file_interval: float
-        :param min_file_parsing_loop_time: wait until at least this many seconds have
-        passed before parsing files once all files have finished parsing.
-        :type min_file_parsing_loop_time: float
         :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
         :type max_runs: int
@@ -341,7 +354,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._dag_directory = dag_directory
         self._max_runs = max_runs
         self._process_file_interval = process_file_interval
-        self._min_file_parsing_loop_time = min_file_parsing_loop_time
         self._processor_factory = processor_factory
         # Map from file path to the processor
         self._processors = {}
@@ -512,24 +524,12 @@ class DagFileProcessorManager(LoggingMixin):
             file_paths_in_progress = self._processors.keys()
             now = timezone.utcnow()
             file_paths_recently_processed = []
-
-            longest_parse_duration = 0
             for file_path in self._file_paths:
                 last_finish_time = self.get_last_finish_time(file_path)
-                if last_finish_time is not None:
-                    duration = now - last_finish_time
-                    longest_parse_duration = max(duration.total_seconds(),
-                                                 longest_parse_duration)
-                    if duration.total_seconds() < self._process_file_interval:
-                        file_paths_recently_processed.append(file_path)
-
-            sleep_length = max(self._min_file_parsing_loop_time - longest_parse_duration,
-                               0)
-            if sleep_length > 0:
-                self.log.debug("Sleeping for %.2f seconds to prevent excessive "
-                               "logging",
-                               sleep_length)
-                time.sleep(sleep_length)
+                if (last_finish_time is not None and
+                    (now - last_finish_time).total_seconds() <
+                        self._process_file_interval):
+                    file_paths_recently_processed.append(file_path)
 
             files_paths_at_run_limit = [file_path
                                         for file_path, num_runs in self._run_count.items()

@@ -198,7 +198,7 @@ def backfill(args, dag=None):
                 start_date=args.start_date,
                 end_date=args.end_date,
                 confirm_prompt=True,
-                include_subdags=False,
+                include_subdags=True,
             )
 
         dag.run(
@@ -787,9 +787,11 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
+        os.environ['SKIP_DAGS_PARSING'] = 'True'
         app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
+        os.environ.pop('SKIP_DAGS_PARSING')
         if args.daemon:
             handle = setup_logging(log_file)
             stdout = open(stdout, 'w+')
@@ -953,6 +955,11 @@ def worker(args):
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
 
+    if not settings.validate_session():
+        log = LoggingMixin().log
+        log.error("Worker exiting... database connection precheck failed! ")
+        sys.exit(1)
+
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
     from celery.bin import worker
@@ -1005,7 +1012,6 @@ def initdb(args):  # noqa
     print("Done.")
 
 
-@cli_utils.action_logging
 def resetdb(args):
     print("DB: " + repr(settings.engine.url))
     if args.yes or input("This will drop existing tables "
@@ -1282,12 +1288,46 @@ def create_user(args):
         if password != password_confirmation:
             raise SystemExit('Passwords did not match!')
 
+    if appbuilder.sm.find_user(args.username):
+        print('{} already exist in the db'.format(args.username))
+        return
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
                                   args.email, role, password)
     if user:
         print('{} user {} created.'.format(args.role, args.username))
     else:
         raise SystemExit('Failed to create user.')
+
+
+@cli_utils.action_logging
+def delete_user(args):
+    if not args.username:
+        raise SystemExit('Required arguments are missing: username')
+
+    appbuilder = cached_appbuilder()
+
+    try:
+        u = next(u for u in appbuilder.sm.get_all_users() if u.username == args.username)
+    except StopIteration:
+        raise SystemExit('{} is not a valid user.'.format(args.username))
+
+    if appbuilder.sm.del_register_user(u):
+        print('User {} deleted.'.format(args.username))
+    else:
+        raise SystemExit('Failed to delete user.')
+
+
+@cli_utils.action_logging
+def list_users(args):
+    appbuilder = cached_appbuilder()
+    users = appbuilder.sm.get_all_users()
+    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+    users = [[user.__getattribute__(field) for field in fields] for user in users]
+    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
+                   tablefmt="fancy_grid")
+    if sys.version_info[0] < 3:
+        msg = msg.encode('utf-8')
+    print(msg)
 
 
 @cli_utils.action_logging
@@ -1342,6 +1382,16 @@ def list_dag_runs(args, dag=None):
         print(record)
 
 
+@cli_utils.action_logging
+def sync_perm(args): # noqa
+    if settings.RBAC:
+        appbuilder = cached_appbuilder()
+        print('Update permission, view-menu for all existing roles')
+        appbuilder.sm.sync_roles()
+    else:
+        print('The sync_perm command only works for rbac UI.')
+
+
 Arg = namedtuple(
     'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
 Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
@@ -1388,6 +1438,10 @@ class CLIFactory(object):
             "Do not prompt to confirm reset. Use with care!",
             "store_true",
             default=False),
+        'username': Arg(
+            ('-u', '--username',),
+            help='Username of the user',
+            type=str),
 
         # list_dag_runs
         'no_backfill': Arg(
@@ -1749,10 +1803,6 @@ class CLIFactory(object):
             ('-e', '--email',),
             help='Email of the user',
             type=str),
-        'username': Arg(
-            ('-u', '--username',),
-            help='Username of the user',
-            type=str),
         'password': Arg(
             ('-p', '--password',),
             help='Password of the user',
@@ -1920,10 +1970,23 @@ class CLIFactory(object):
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': create_user,
-            'help': "Create an admin account",
+            'help': "Create an account for the Web UI",
             'args': ('role', 'username', 'email', 'firstname', 'lastname',
                      'password', 'use_random_password'),
+        }, {
+            'func': delete_user,
+            'help': "Delete an account for the Web UI",
+            'args': ('username',),
+        }, {
+            'func': list_users,
+            'help': "List accounts for the Web UI",
+            'args': tuple(),
         },
+        {
+            'func': sync_perm,
+            'help': "Update existing role's permissions.",
+            'args': tuple(),
+        }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (

@@ -66,11 +66,13 @@ class DatabricksHook(BaseHook, LoggingMixin):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
-        assert retry_limit >= 1, 'Retry limit must be greater than equal to 1'
+        if retry_limit < 1:
+            raise ValueError('Retry limit must be greater than equal to 1')
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
 
-    def _parse_host(self, host):
+    @staticmethod
+    def _parse_host(host):
         """
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.

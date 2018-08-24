@@ -37,16 +37,18 @@ class SFTPOperator(BaseOperator):
     :type ssh_hook: :class:`SSHHook`
     :param ssh_conn_id: connection id from airflow Connections
     :type ssh_conn_id: str
-    :param remote_host: remote host to connect
+    :param remote_host: remote host to connect (templated)
     :type remote_host: str
     :param local_filepath: local file path to get or put. (templated)
     :type local_filepath: str
     :param remote_filepath: remote file path to get or put. (templated)
     :type remote_filepath: str
-    :param operation: specify operation 'get' or 'put', defaults to get
+    :param operation: specify operation 'get' or 'put', defaults to put
     :type get: bool
+    :param confirm: specify if the SFTP operation should be confirmed, defaults to True
+    :type confirm: bool
     """
-    template_fields = ('local_filepath', 'remote_filepath')
+    template_fields = ('local_filepath', 'remote_filepath', 'remote_host')
 
     @apply_defaults
     def __init__(self,
@@ -56,6 +58,7 @@ class SFTPOperator(BaseOperator):
                  local_filepath=None,
                  remote_filepath=None,
                  operation=SFTPOperation.PUT,
+                 confirm=True,
                  *args,
                  **kwargs):
         super(SFTPOperator, self).__init__(*args, **kwargs)
@@ -65,6 +68,7 @@ class SFTPOperator(BaseOperator):
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
         self.operation = operation
+        self.confirm = confirm
         if not (self.operation.lower() == SFTPOperation.GET or
                 self.operation.lower() == SFTPOperation.PUT):
             raise TypeError("unsupported operation value {0}, expected {1} or {2}"
@@ -82,18 +86,20 @@ class SFTPOperator(BaseOperator):
             if self.remote_host is not None:
                 self.ssh_hook.remote_host = self.remote_host
 
-            ssh_client = self.ssh_hook.get_conn()
-            sftp_client = ssh_client.open_sftp()
-            if self.operation.lower() == SFTPOperation.GET:
-                file_msg = "from {0} to {1}".format(self.remote_filepath,
-                                                    self.local_filepath)
-                self.log.debug("Starting to transfer %s", file_msg)
-                sftp_client.get(self.remote_filepath, self.local_filepath)
-            else:
-                file_msg = "from {0} to {1}".format(self.local_filepath,
-                                                    self.remote_filepath)
-                self.log.debug("Starting to transfer file %s", file_msg)
-                sftp_client.put(self.local_filepath, self.remote_filepath)
+            with self.ssh_hook.get_conn() as ssh_client:
+                sftp_client = ssh_client.open_sftp()
+                if self.operation.lower() == SFTPOperation.GET:
+                    file_msg = "from {0} to {1}".format(self.remote_filepath,
+                                                        self.local_filepath)
+                    self.log.debug("Starting to transfer %s", file_msg)
+                    sftp_client.get(self.remote_filepath, self.local_filepath)
+                else:
+                    file_msg = "from {0} to {1}".format(self.local_filepath,
+                                                        self.remote_filepath)
+                    self.log.debug("Starting to transfer file %s", file_msg)
+                    sftp_client.put(self.local_filepath,
+                                    self.remote_filepath,
+                                    confirm=self.confirm)
 
         except Exception as e:
             raise AirflowException("Error while transferring {0}, error: {1}"

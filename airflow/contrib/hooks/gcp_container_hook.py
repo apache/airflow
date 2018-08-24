@@ -23,7 +23,7 @@ import time
 from airflow import AirflowException, version
 from airflow.hooks.base_hook import BaseHook
 
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
@@ -44,7 +44,8 @@ class GKEClusterHook(BaseHook):
         client_info = ClientInfo(client_library_version='airflow_v' + version.version)
         self.client = container_v1.ClusterManagerClient(client_info=client_info)
 
-    def _dict_to_proto(self, py_dict, proto):
+    @staticmethod
+    def _dict_to_proto(py_dict, proto):
         """
         Converts a python dictionary to the proto supplied
         :param py_dict: The dictionary to convert
@@ -90,7 +91,8 @@ class GKEClusterHook(BaseHook):
                                          zone=self.location,
                                          operation_id=operation_name)
 
-    def _append_label(self, cluster_proto, key, val):
+    @staticmethod
+    def _append_label(cluster_proto, key, val):
         """
         Append labels to provided Cluster Protobuf
 
@@ -141,7 +143,7 @@ class GKEClusterHook(BaseHook):
             op = self.wait_for_operation(op)
             # Returns server-defined url for the resource
             return op.self_link
-        except exceptions.NotFound as error:
+        except NotFound as error:
             self.log.info('Assuming Success: ' + error.message)
 
     def create_cluster(self, cluster, retry=DEFAULT, timeout=DEFAULT):

@@ -19,6 +19,7 @@ import copy
 import os
 import six
 
+from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -80,11 +81,16 @@ class WorkerConfiguration(LoggingMixin):
     def _get_environment(self):
         """Defines any necessary environment variables for the pod executor"""
         env = {
-            'AIRFLOW__CORE__DAGS_FOLDER': '/tmp/dags',
-            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor'
+            "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
         }
+
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
+        if self.kube_config.worker_dags_folder:
+            env['AIRFLOW__CORE__DAGS_FOLDER'] = self.kube_config.worker_dags_folder
+        if (not self.kube_config.airflow_configmap and
+                'AIRFLOW__CORE__SQL_ALCHEMY_CONN' not in self.kube_config.kube_secrets):
+            env['AIRFLOW__CORE__SQL_ALCHEMY_CONN'] = conf.get("core", "SQL_ALCHEMY_CONN")
         return env
 
     def _get_secrets(self):
@@ -189,9 +195,9 @@ class WorkerConfiguration(LoggingMixin):
             limit_cpu=kube_executor_config.limit_cpu
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
-        annotations = {
-            'iam.cloud.google.com/service-account': gcp_sa_key
-        } if gcp_sa_key else {}
+        annotations = kube_executor_config.annotations.copy()
+        if gcp_sa_key:
+            annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
 
         return Pod(
             namespace=namespace,
@@ -199,8 +205,7 @@ class WorkerConfiguration(LoggingMixin):
             image=kube_executor_config.image or self.kube_config.kube_image,
             image_pull_policy=(kube_executor_config.image_pull_policy or
                                self.kube_config.kube_image_pull_policy),
-            cmds=['bash', '-cx', '--'],
-            args=[airflow_command],
+            cmds=airflow_command,
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,

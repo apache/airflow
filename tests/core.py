@@ -38,7 +38,6 @@ from dateutil.relativedelta import relativedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
 from time import sleep
@@ -47,7 +46,6 @@ from airflow import configuration
 from airflow.executors import SequentialExecutor
 from airflow.models import Variable
 
-configuration.conf.load_test_config()
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.operators.bash_operator import BashOperator
@@ -70,10 +68,11 @@ from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
 from jinja2.sandbox import SecurityError
 from jinja2 import UndefinedError
+from pendulum import utcnow
 
 import six
 
-NUM_EXAMPLE_DAGS = 20
+NUM_EXAMPLE_DAGS = 21
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -97,6 +96,7 @@ def reset(dag_id=TEST_DAG_ID):
     session.close()
 
 
+configuration.conf.load_test_config()
 reset()
 
 
@@ -151,6 +151,46 @@ class CoreTest(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, dag_run.state)
         self.assertFalse(dag_run.external_trigger)
+        dag.clear()
+
+    def test_schedule_dag_relativedelta(self):
+        """
+        Tests scheduling a dag with a relativedelta schedule_interval
+        """
+        delta = relativedelta(hours=+1)
+        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_relativedelta',
+                  schedule_interval=delta)
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0)))
+
+        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        self.assertIsNotNone(dag_run)
+        self.assertEqual(dag.dag_id, dag_run.dag_id)
+        self.assertIsNotNone(dag_run.run_id)
+        self.assertNotEqual('', dag_run.run_id)
+        self.assertEqual(
+            datetime(2015, 1, 2, 0, 0),
+            dag_run.execution_date,
+            msg='dag_run.execution_date did not match expectation: {0}'
+            .format(dag_run.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run.state)
+        self.assertFalse(dag_run.external_trigger)
+        dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        self.assertIsNotNone(dag_run2)
+        self.assertEqual(dag.dag_id, dag_run2.dag_id)
+        self.assertIsNotNone(dag_run2.run_id)
+        self.assertNotEqual('', dag_run2.run_id)
+        self.assertEqual(
+            datetime(2015, 1, 2, 0, 0) + delta,
+            dag_run2.execution_date,
+            msg='dag_run2.execution_date did not match expectation: {0}'
+            .format(dag_run2.execution_date)
+        )
+        self.assertEqual(State.RUNNING, dag_run2.state)
+        self.assertFalse(dag_run2.external_trigger)
         dag.clear()
 
     def test_schedule_dag_fake_scheduled_previous(self):
@@ -261,7 +301,6 @@ class CoreTest(unittest.TestCase):
 
         self.assertIsNone(additional_dag_run)
 
-    @freeze_time('2016-01-01')
     def test_schedule_dag_no_end_date_up_to_today_only(self):
         """
         Tests that a Dag created without an end_date can only be scheduled up
@@ -273,8 +312,11 @@ class CoreTest(unittest.TestCase):
         """
         session = settings.Session()
         delta = timedelta(days=1)
-        start_date = DEFAULT_DATE
-        runs = 365
+        now = utcnow()
+        start_date = now.subtract(weeks=1)
+
+        runs = (now - start_date).days
+
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_end_date_up_to_today_only',
                   start_date=start_date,
                   schedule_interval=delta)
@@ -789,7 +831,7 @@ class CoreTest(unittest.TestCase):
         with self.assertRaises(AirflowException):
             DummyOperator(
                 task_id='test_bad_trigger',
-                trigger_rule="non_existant",
+                trigger_rule="non_existent",
                 dag=self.dag)
 
     def test_terminate_task(self):
@@ -979,12 +1021,15 @@ class CliTests(unittest.TestCase):
 
     def setUp(self):
         super(CliTests, self).setUp()
+        from airflow.www_rbac import app as application
         configuration.load_test_config()
-        app = application.create_app()
-        app.config['TESTING'] = True
+        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+        self.app.config['TESTING'] = True
+
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = models.DagBag(dag_folder=DEV_NULL, include_examples=True)
-        self.session = Session()
+        settings.configure_orm()
+        self.session = Session
 
     def tearDown(self):
         self._cleanup(session=self.session)
@@ -1025,6 +1070,39 @@ class CliTests(unittest.TestCase):
             '-e', 'jdoe@apache.org', '-r', 'Viewer', '-p', 'test'
         ])
         cli.create_user(args)
+
+    def test_cli_delete_user(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test3', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@example.com', '-r', 'Viewer', '--use_random_password'
+        ])
+        cli.create_user(args)
+        args = self.parser.parse_args([
+            'delete_user', '-u', 'test3',
+        ])
+        cli.delete_user(args)
+
+    def test_cli_list_users(self):
+        for i in range(0, 3):
+            args = self.parser.parse_args([
+                'create_user', '-u', 'user{}'.format(i), '-l', 'doe', '-f', 'jon',
+                '-e', 'jdoe+{}@gmail.com'.format(i), '-r', 'Viewer',
+                '--use_random_password'
+            ])
+            cli.create_user(args)
+        with mock.patch('sys.stdout',
+                        new_callable=six.StringIO) as mock_stdout:
+            cli.list_users(self.parser.parse_args(['list_users']))
+            stdout = mock_stdout.getvalue()
+        for i in range(0, 3):
+            self.assertIn('user{}'.format(i), stdout)
+
+    def test_cli_sync_perm(self):
+        # test whether sync_perm cli will throw exceptions or not
+        args = self.parser.parse_args([
+            'sync_perm'
+        ])
+        cli.sync_perm(args)
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
@@ -1842,6 +1920,20 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url)
         self.assertIn("print_the_context", response.data.decode('utf-8'))
 
+    def test_dag_view_task_with_python_operator_using_partial(self):
+        response = self.app.get(
+            '/admin/airflow/task?'
+            'task_id=test_dagrun_functool_partial&dag_id=test_task_view_type_check&'
+            'execution_date={}'.format(DEFAULT_DATE_DS))
+        self.assertIn("A function with two args", response.data.decode('utf-8'))
+
+    def test_dag_view_task_with_python_operator_using_instance(self):
+        response = self.app.get(
+            '/admin/airflow/task?'
+            'task_id=test_dagrun_instance&dag_id=test_task_view_type_check&'
+            'execution_date={}'.format(DEFAULT_DATE_DS))
+        self.assertIn("A __call__ method", response.data.decode('utf-8'))
+
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
@@ -1986,7 +2078,7 @@ class WebLdapAuthTest(unittest.TestCase):
             configuration.conf.add_section("ldap")
         except:
             pass
-        configuration.conf.set("ldap", "uri", "ldap://localhost:3890")
+        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
         configuration.conf.set("ldap", "user_name_attr", "uid")
         configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
@@ -2073,7 +2165,7 @@ class LdapGroupTest(unittest.TestCase):
             configuration.conf.add_section("ldap")
         except:
             pass
-        configuration.conf.set("ldap", "uri", "ldap://localhost:3890")
+        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
         configuration.conf.set("ldap", "user_name_attr", "uid")
         configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
@@ -2373,7 +2465,7 @@ if six.PY2:
 class HDFSHookTest(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
-        os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = ('hdfs://localhost:8020')
+        os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = 'hdfs://localhost:8020'
 
     def test_get_client(self):
         client = HDFSHook(proxy_user='foo').get_conn()

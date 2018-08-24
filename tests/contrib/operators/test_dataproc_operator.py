@@ -45,7 +45,7 @@ except ImportError:
     except ImportError:
         mock = None
 
-from mock import Mock
+from mock import MagicMock, Mock
 from mock import patch
 
 TASK_ID = 'test-dataproc-operator'
@@ -80,6 +80,27 @@ MAIN_URI = 'test-uri'
 TEMPLATE_ID = 'template-id'
 
 HOOK = 'airflow.contrib.operators.dataproc_operator.DataProcHook'
+DATAPROC_JOB_ID = 'dataproc_job_id'
+DATAPROC_JOB_TO_SUBMIT = {
+    'job': {
+        'reference': {
+            'projectId': PROJECT_ID,
+            'jobId': DATAPROC_JOB_ID,
+        },
+        'placement': {
+            'clusterName': CLUSTER_NAME
+        }
+    }
+}
+
+
+def _assert_dataproc_job_id(mock_hook, dataproc_task):
+    hook = mock_hook.return_value
+    job = MagicMock()
+    job.build.return_value = DATAPROC_JOB_TO_SUBMIT
+    hook.create_job_template.return_value = job
+    dataproc_task.execute(None)
+    assert dataproc_task.dataproc_job_id == DATAPROC_JOB_ID
 
 
 class DataprocClusterCreateOperatorTest(unittest.TestCase):
@@ -433,32 +454,57 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
 
 class DataProcHadoopOperatorTest(unittest.TestCase):
     # Unit test for the DataProcHadoopOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcHadoopOperator(
                 task_id=TASK_ID,
                 region=REGION
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  REGION)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcHadoopOperator(
+                task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
 
 class DataProcHiveOperatorTest(unittest.TestCase):
     # Unit test for the DataProcHiveOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcHiveOperator(
                 task_id=TASK_ID,
                 region=REGION
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  REGION)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcHiveOperator(
+                task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
 
 class DataProcPySparkOperatorTest(unittest.TestCase):
     # Unit test for the DataProcPySparkOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcPySparkOperator(
                 task_id=TASK_ID,
                 main=MAIN_URI,
@@ -466,19 +512,42 @@ class DataProcPySparkOperatorTest(unittest.TestCase):
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  REGION)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcPySparkOperator(
+                task_id=TASK_ID,
+                main=MAIN_URI
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
 
 class DataProcSparkOperatorTest(unittest.TestCase):
     # Unit test for the DataProcSparkOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcSparkOperator(
                 task_id=TASK_ID,
                 region=REGION
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  REGION)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcSparkOperator(
+                task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
 class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
@@ -508,7 +577,7 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
         with patch(HOOK) as MockHook:
             hook = MockHook()
             hook.get_conn.return_value = self.mock_conn
-            hook.await.return_value = None
+            hook.wait.return_value = None
 
             dataproc_task = DataprocWorkflowTemplateInstantiateOperator(
                 task_id=TASK_ID,
@@ -525,7 +594,7 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
             self.mock_workflows.instantiate.assert_called_once_with(
                 name=template_name,
                 body=mock.ANY)
-            hook.await.assert_called_once_with(self.operation)
+            hook.wait.assert_called_once_with(self.operation)
 
 
 class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
@@ -556,7 +625,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
         with patch(HOOK) as MockHook:
             hook = MockHook()
             hook.get_conn.return_value = self.mock_conn
-            hook.await.return_value = None
+            hook.wait.return_value = None
 
             template = {
                 "placement": {
@@ -591,4 +660,4 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
                 parent='projects/test-project-id/regions/test-region',
                 instanceId=mock.ANY,
                 body=template)
-            hook.await.assert_called_once_with(self.operation)
+            hook.wait.assert_called_once_with(self.operation)

@@ -206,7 +206,8 @@ class BigQueryBaseCursor(LoggingMixin):
                            dataset_id,
                            table_id,
                            schema_fields=None,
-                           time_partitioning={}
+                           time_partitioning=None,
+                           labels=None
                            ):
         """
         Creates a new, empty table in the dataset.
@@ -219,6 +220,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :type table_id: str
         :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+        :param labels: a dictionary containing labels for the table, passed to BigQuery
+        :type labels: dict
 
         **Example**: ::
 
@@ -235,6 +238,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :return:
         """
+        if time_partitioning is None:
+            time_partitioning = dict()
         project_id = project_id if project_id is not None else self.project_id
 
         table_resource = {
@@ -248,6 +253,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if time_partitioning:
             table_resource['timePartitioning'] = time_partitioning
+
+        if labels:
+            table_resource['labels'] = labels
 
         self.log.info('Creating Table %s:%s.%s',
                       project_id, dataset_id, table_id)
@@ -280,7 +288,8 @@ class BigQueryBaseCursor(LoggingMixin):
                               quote_character=None,
                               allow_quoted_newlines=False,
                               allow_jagged_rows=False,
-                              src_fmt_configs={}
+                              src_fmt_configs=None,
+                              labels=None
                               ):
         """
         Creates a new external table in the dataset with the data in Google
@@ -341,8 +350,12 @@ class BigQueryBaseCursor(LoggingMixin):
         :type allow_jagged_rows: bool
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
+        :param labels: a dictionary containing labels for the table, passed to BigQuery
+        :type labels: dict
         """
 
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
         project_id, dataset_id, external_table_id = \
             _split_tablename(table_input=external_project_dataset_table,
                              default_project_id=self.project_id,
@@ -439,6 +452,9 @@ class BigQueryBaseCursor(LoggingMixin):
             table_resource['externalDataConfiguration'][src_fmt_to_param_mapping[
                 source_format]] = src_fmt_configs
 
+        if labels:
+            table_resource['labels'] = labels
+
         try:
             self.service.tables().insert(
                 projectId=project_id,
@@ -467,9 +483,10 @@ class BigQueryBaseCursor(LoggingMixin):
                   maximum_bytes_billed=None,
                   create_disposition='CREATE_IF_NEEDED',
                   query_params=None,
+                  labels=None,
                   schema_update_options=(),
                   priority='INTERACTIVE',
-                  time_partitioning={}):
+                  time_partitioning=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -516,6 +533,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :param query_params a dictionary containing query parameter types and
             values, passed to BigQuery
         :type query_params: dict
+        :param labels a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the query job.
         :type schema_update_options: tuple
@@ -532,6 +552,8 @@ class BigQueryBaseCursor(LoggingMixin):
         """
 
         # TODO remove `bql` in Airflow 2.0 - Jira: [AIRFLOW-2513]
+        if time_partitioning is None:
+            time_partitioning = {}
         sql = bql if sql is None else sql
 
         if bql:
@@ -576,9 +598,11 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         if destination_dataset_table:
-            assert '.' in destination_dataset_table, (
-                'Expected destination_dataset_table in the format of '
-                '<dataset>.<table>. Got: {}').format(destination_dataset_table)
+            if '.' not in destination_dataset_table:
+                raise ValueError(
+                    'Expected destination_dataset_table name in the format of '
+                    '<dataset>.<table>. Got: {}'.format(
+                        destination_dataset_table))
             destination_project, destination_dataset, destination_table = \
                 _split_tablename(table_input=destination_dataset_table,
                                  default_project_id=self.project_id)
@@ -594,17 +618,22 @@ class BigQueryBaseCursor(LoggingMixin):
                 }
             })
         if udf_config:
-            assert isinstance(udf_config, list)
+            if not isinstance(udf_config, list):
+                raise TypeError("udf_config argument must have a type 'list'"
+                                " not {}".format(type(udf_config)))
             configuration['query'].update({
                 'userDefinedFunctionResources': udf_config
             })
 
         if query_params:
             if self.use_legacy_sql:
-                raise ValueError("Query paramaters are not allowed when using "
+                raise ValueError("Query parameters are not allowed when using "
                                  "legacy SQL")
             else:
                 configuration['query']['queryParameters'] = query_params
+
+        if labels:
+            configuration['labels'] = labels
 
         time_partitioning = _cleanse_time_partitioning(
             destination_dataset_table,
@@ -636,7 +665,8 @@ class BigQueryBaseCursor(LoggingMixin):
             compression='NONE',
             export_format='CSV',
             field_delimiter=',',
-            print_header=True):
+            print_header=True,
+            labels=None):
         """
         Executes a BigQuery extract command to copy data from BigQuery to
         Google Cloud Storage. See here:
@@ -661,6 +691,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :type field_delimiter: string
         :param print_header: Whether to print a header for a CSV file extract.
         :type print_header: boolean
+        :param labels: a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
         """
 
         source_project, source_dataset, source_table = \
@@ -681,6 +714,9 @@ class BigQueryBaseCursor(LoggingMixin):
             }
         }
 
+        if labels:
+            configuration['labels'] = labels
+
         if export_format == 'CSV':
             # Only set fieldDelimiter and printHeader fields if using CSV.
             # Google does not like it if you set these fields for other export
@@ -694,7 +730,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  source_project_dataset_tables,
                  destination_project_dataset_table,
                  write_disposition='WRITE_EMPTY',
-                 create_disposition='CREATE_IF_NEEDED'):
+                 create_disposition='CREATE_IF_NEEDED',
+                 labels=None):
         """
         Executes a BigQuery copy command to copy data from one BigQuery table
         to another. See here:
@@ -717,6 +754,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :type write_disposition: string
         :param create_disposition: The create disposition if the table doesn't exist.
         :type create_disposition: string
+        :param labels a dictionary containing labels for the job/query,
+            passed to BigQuery
+        :type labels: dict
         """
         source_project_dataset_tables = ([
             source_project_dataset_tables
@@ -754,6 +794,9 @@ class BigQueryBaseCursor(LoggingMixin):
             }
         }
 
+        if labels:
+            configuration['labels'] = labels
+
         return self.run_with_configuration(configuration)
 
     def run_load(self,
@@ -771,8 +814,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  schema_update_options=(),
-                 src_fmt_configs={},
-                 time_partitioning={}):
+                 src_fmt_configs=None,
+                 time_partitioning=None):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -843,6 +886,10 @@ class BigQueryBaseCursor(LoggingMixin):
         # if it's not, we raise a ValueError
         # Refer to this link for more details:
         #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
+        if time_partitioning is None:
+            time_partitioning = {}
         source_format = source_format.upper()
         allowed_formats = [
             "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
@@ -974,12 +1021,12 @@ class BigQueryBaseCursor(LoggingMixin):
 
         # Wait for query to finish.
         keep_polling_job = True
-        while (keep_polling_job):
+        while keep_polling_job:
             try:
                 job = jobs.get(
                     projectId=self.project_id,
                     jobId=self.running_job_id).execute()
-                if (job['status']['state'] == 'DONE'):
+                if job['status']['state'] == 'DONE':
                     keep_polling_job = False
                     # Check if job had errors.
                     if 'errorResult' in job['status']:
@@ -1008,7 +1055,7 @@ class BigQueryBaseCursor(LoggingMixin):
         jobs = self.service.jobs()
         try:
             job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
-            if (job['status']['state'] == 'DONE'):
+            if job['status']['state'] == 'DONE':
                 return True
         except HttpError as err:
             if err.resp.status in [500, 503]:
@@ -1042,13 +1089,13 @@ class BigQueryBaseCursor(LoggingMixin):
         polling_attempts = 0
 
         job_complete = False
-        while (polling_attempts < max_polling_attempts and not job_complete):
+        while polling_attempts < max_polling_attempts and not job_complete:
             polling_attempts = polling_attempts + 1
             job_complete = self.poll_job_complete(self.running_job_id)
-            if (job_complete):
+            if job_complete:
                 self.log.info('Job successfully canceled: %s, %s',
                               self.project_id, self.running_job_id)
-            elif (polling_attempts == max_polling_attempts):
+            elif polling_attempts == max_polling_attempts:
                 self.log.info(
                     "Stopping polling due to timeout. Job with id %s "
                     "has not completed cancel and may or may not finish.",
@@ -1120,10 +1167,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :type ignore_if_missing: boolean
         :return:
         """
-
-        assert '.' in deletion_dataset_table, (
-            'Expected deletion_dataset_table in the format of '
-            '<dataset>.<table>. Got: {}').format(deletion_dataset_table)
+        if '.' not in deletion_dataset_table:
+            raise ValueError(
+                'Expected deletion_dataset_table name in the format of '
+                '<dataset>.<table>. Got: {}'.format(deletion_dataset_table))
         deletion_project, deletion_dataset, deletion_table = \
             _split_tablename(table_input=deletion_dataset_table,
                              default_project_id=self.project_id)
@@ -1251,9 +1298,33 @@ class BigQueryBaseCursor(LoggingMixin):
             # if view is already in access, do nothing.
             self.log.info(
                 'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
-                view_project, view_dataset, view_table, source_project,
-                source_dataset)
+                view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
+
+    def delete_dataset(self, project_id, dataset_id):
+        """
+        Delete a dataset of Big query in your project.
+        :param project_id: The name of the project where we have the dataset .
+        :type project_id: str
+        :param dataset_id: The dataset to be delete.
+        :type dataset_id: str
+        :return:
+        """
+        project_id = project_id if project_id is not None else self.project_id
+        self.log.info('Deleting from project: %s  Dataset:%s',
+                      project_id, dataset_id)
+
+        try:
+            self.service.datasets().delete(
+                projectId=project_id,
+                datasetId=dataset_id).execute()
+            self.log.info('Dataset deleted successfully: In project %s '
+                          'Dataset %s', project_id, dataset_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
 
 
 class BigQueryCursor(BigQueryBaseCursor):
@@ -1456,14 +1527,17 @@ def _bq_cast(string_field, bq_type):
     elif bq_type == 'FLOAT' or bq_type == 'TIMESTAMP':
         return float(string_field)
     elif bq_type == 'BOOLEAN':
-        assert string_field in set(['true', 'false'])
+        if string_field not in ['true', 'false']:
+            raise ValueError("{} must have value 'true' or 'false'".format(
+                string_field))
         return string_field == 'true'
     else:
         return string_field
 
 
 def _split_tablename(table_input, default_project_id, var_name=None):
-    assert default_project_id is not None, "INTERNAL: No default project is specified"
+    if not default_project_id:
+        raise ValueError("INTERNAL: No default project is specified")
 
     def var_print(var_name):
         if var_name is None:
@@ -1475,7 +1549,6 @@ def _split_tablename(table_input, default_project_id, var_name=None):
         raise Exception(('{var}Use either : or . to specify project '
                          'got {input}').format(
                              var=var_print(var_name), input=table_input))
-
     cmpt = table_input.rsplit(':', 1)
     project_id = None
     rest = table_input
@@ -1493,8 +1566,10 @@ def _split_tablename(table_input, default_project_id, var_name=None):
 
     cmpt = rest.split('.')
     if len(cmpt) == 3:
-        assert project_id is None, ("{var}Use either : or . to specify project"
-                                    ).format(var=var_print(var_name))
+        if project_id:
+            raise ValueError(
+                "{var}Use either : or . to specify project".format(
+                    var=var_print(var_name)))
         project_id = cmpt[0]
         dataset_id = cmpt[1]
         table_id = cmpt[2]
@@ -1524,10 +1599,10 @@ def _cleanse_time_partitioning(destination_dataset_table, time_partitioning_in):
     # if it is a partitioned table ($ is in the table name) add partition load option
     time_partitioning_out = {}
     if destination_dataset_table and '$' in destination_dataset_table:
-        assert not time_partitioning_in.get('field'), (
-            "Cannot specify field partition and partition name "
-            "(dataset.table$partition) at the same time"
-        )
+        if time_partitioning_in.get('field'):
+            raise ValueError(
+                "Cannot specify field partition and partition name"
+                "(dataset.table$partition) at the same time")
         time_partitioning_out['type'] = 'DAY'
 
     time_partitioning_out.update(time_partitioning_in)

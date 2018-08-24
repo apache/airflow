@@ -56,7 +56,7 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from mock import patch, ANY
 from parameterized import parameterized
-from tempfile import NamedTemporaryFile
+from tempfile import mkdtemp, NamedTemporaryFile
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -97,7 +97,7 @@ class DagTest(unittest.TestCase):
         """
         Test DAG as a context manager.
         When used as a context manager, Operators are automatically added to
-        the DAG (unless they specifiy a different DAG)
+        the DAG (unless they specify a different DAG)
         """
         dag = DAG(
             'dag',
@@ -274,7 +274,7 @@ class DagTest(unittest.TestCase):
                 match = pattern.match(task.task_id)
                 task_depth = int(match.group(1))
                 # the sum of each stages after this task + itself
-                correct_weight = ((task_depth) * width + 1) * weight
+                correct_weight = (task_depth * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
                 self.assertEquals(calculated_weight, correct_weight)
@@ -946,11 +946,20 @@ class DagRunTest(unittest.TestCase):
 
     def test_is_backfill(self):
         dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
+
         dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
         dagrun.run_id = BackfillJob.ID_PREFIX + '_sfddsffds'
-        dagrun2 = self.create_dag_run(dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+
+        dagrun2 = self.create_dag_run(
+            dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+
+        dagrun3 = self.create_dag_run(
+            dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=2))
+        dagrun3.run_id = None
+
         self.assertTrue(dagrun.is_backfill)
         self.assertFalse(dagrun2.is_backfill)
+        self.assertFalse(dagrun3.is_backfill)
 
     def test_removed_task_instances_can_be_restored(self):
         def with_all_tasks_removed(dag):
@@ -968,7 +977,7 @@ class DagRunTest(unittest.TestCase):
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.REMOVED, flaky_ti.state)
+        self.assertEquals(State.NONE, flaky_ti.state)
 
         dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
 
@@ -1038,6 +1047,19 @@ class DagBagTest(unittest.TestCase):
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
 
+    def test_process_file_cron_validity_check(self):
+        """
+        test if an invalid cron expression
+        as schedule interval can be identified
+        """
+        invalid_dag_files = ["test_invalid_cron.py", "test_zip_invalid_cron.zip"]
+        dagbag = models.DagBag(dag_folder=mkdtemp())
+
+        self.assertEqual(len(dagbag.import_errors), 0)
+        for d in invalid_dag_files:
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, d))
+        self.assertEqual(len(dagbag.import_errors), len(invalid_dag_files))
+
     @patch.object(DagModel,'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):
         """
@@ -1096,7 +1118,7 @@ class DagBagTest(unittest.TestCase):
 
         dagbag = models.DagBag(include_examples=False)
         found_dags = dagbag.process_file(f.name)
-        return (dagbag, found_dags, f.name)
+        return dagbag, found_dags, f.name
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag,
                       should_be_found=True):
@@ -2402,7 +2424,7 @@ class ClearTasksTest(unittest.TestCase):
     def test_xcom_disable_pickle_type_fail_on_non_json(self):
         class PickleRce(object):
             def __reduce__(self):
-                return (os.system, ("ls -alt",))
+                return os.system, ("ls -alt",)
 
         configuration.set("core", "xcom_enable_pickling", "False")
 

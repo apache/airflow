@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import os
+import unittest
 from datetime import datetime, timedelta
 
 from airflow import DAG
@@ -59,7 +59,11 @@ class BashOperatorTestCase(unittest.TestCase):
                 task_id='echo_env_vars',
                 dag=self.dag,
                 bash_command='echo $AIRFLOW_HOME>> {0};'
-                             'echo $PYTHONPATH>> {0};'.format(fname)
+                             'echo $PYTHONPATH>> {0};'
+                             'echo $AIRFLOW_CTX_DAG_ID >> {0};'
+                             'echo $AIRFLOW_CTX_TASK_ID>> {0};'
+                             'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
+                             'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(fname)
             )
             os.environ['AIRFLOW_HOME'] = 'MY_PATH_TO_AIRFLOW_HOME'
             t.run(DEFAULT_DATE, DEFAULT_DATE,
@@ -70,3 +74,7 @@ class BashOperatorTestCase(unittest.TestCase):
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
                 # exported in run_unit_tests.sh as part of PYTHONPATH
                 self.assertIn('tests/test_utils', output)
+                self.assertIn('bash_op_test', output)
+                self.assertIn('echo_env_vars', output)
+                self.assertIn(DEFAULT_DATE.isoformat(), output)
+                self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)

@@ -164,6 +164,25 @@ class TestAwsHook(unittest.TestCase):
                          'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
                          'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
 
+    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
+    @mock.patch.object(AwsHook, 'get_connection')
+    @mock_sts
+    def test_get_credentials_from_role_arn_with_external_id(self, mock_get_connection):
+        mock_connection = Connection(
+            extra='{"role_arn":"arn:aws:iam::123456:role/role_arn",'
+                  ' "external_id":"external_id"}')
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'AKIAIOSFODNN7EXAMPLE')
+        self.assertEqual(credentials_from_hook.secret_key,
+                         'aJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY')
+        self.assertEqual(credentials_from_hook.token,
+                         'BQoEXAMPLEH4aoAH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh'
+                         '3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4I'
+                         'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
+                         'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -24,7 +24,7 @@ from time import sleep
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 
@@ -139,7 +139,7 @@ class AWSBatchOperator(BaseOperator):
                 if response['jobs'][-1]['status'] in ['SUCCEEDED', 'FAILED']:
                     retry = False
 
-                sleep( 1 + pow(retries * 0.1, 2))
+                sleep(1 + pow(retries * 0.1, 2))
                 retries += 1
 
     def _check_success_task(self):
@@ -152,17 +152,19 @@ class AWSBatchOperator(BaseOperator):
             raise AirflowException('No job found for {}'.format(response))
 
         for job in response['jobs']:
-            if 'attempts' in job:
-                containers = job['attempts']
-                for container in containers:
-                    if (job['status'] == 'FAILED' or
-                            container['container']['exitCode'] != 0):
-                        raise AirflowException(
-                            'This containers encounter an error during '
-                            'execution {}'.format(job))
-            elif job['status'] is not 'SUCCEEDED':
+            job_status = job['status']
+            if job_status == 'FAILED':
+                reason = job['statusReason']
+                raise AirflowException('Job failed with status {}'.format(reason))
+            elif job_status in [
+                'SUBMITTED',
+                'PENDING',
+                'RUNNABLE',
+                'STARTING',
+                'RUNNING'
+            ]:
                 raise AirflowException(
-                    'This task is still pending {}'.format(job['status']))
+                    'This task is still pending {}'.format(job_status))
 
     def get_hook(self):
         return AwsHook(

@@ -117,7 +117,7 @@ class CgroupTaskRunner(BaseTaskRunner):
                 "creating another one",
                 cgroups.get("cpu"), cgroups.get("memory")
             )
-            self.process = self.run_command(['bash', '-c'], join_args=True)
+            self.process = self.run_command()
             return
 
         # Create a unique cgroup name
@@ -193,7 +193,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         if self._created_cpu_cgroup:
             self._delete_cgroup(self.cpu_cgroup_name)
 
-    def _get_cgroup_names(self):
+    @staticmethod
+    def _get_cgroup_names():
         """
         :return: a mapping between the subsystem name to the cgroup name
         :rtype: dict[str, str]

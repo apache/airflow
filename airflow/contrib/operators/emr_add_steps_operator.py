@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.emr_hook import EmrHook
 

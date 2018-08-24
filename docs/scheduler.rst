@@ -13,7 +13,7 @@ execute ``airflow scheduler``. It will use the configuration specified in
 ``airflow.cfg``.
 
 Note that if you run a DAG on a ``schedule_interval`` of one day,
-the run stamped ``2016-01-01`` will be trigger soon after ``2016-01-01T23:59``.
+the run stamped ``2016-01-01`` will be triggered soon after ``2016-01-01T23:59``.
 In other words, the job instance is started once the period it covers
 has ended.
 
@@ -133,6 +133,8 @@ running an ``airflow trigger_dag`` command, where you can define a
 specific ``run_id``. The ``DAG Runs`` created externally to the
 scheduler get associated to the trigger's timestamp, and will be displayed
 in the UI alongside scheduled ``DAG runs``.
+
+In addition, you can also manually trigger a ``DAG Run`` using the web UI (tab "DAGs" -> column "Links" -> button "Trigger Dag").
 
 
 To Keep in Mind

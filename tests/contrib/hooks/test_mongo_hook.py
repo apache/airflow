@@ -23,10 +23,10 @@ from airflow.contrib.hooks.mongo_hook import MongoHook
 
 
 class MongoHookTest(MongoHook):
-    '''
+    """
     Extending hook so that a mockmongo collection object can be passed in
     to get_collection()
-    '''
+    """
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
         super(MongoHookTest, self).__init__(conn_id=conn_id, *args, **kwargs)
 
@@ -117,6 +117,15 @@ class TestMongoHook(unittest.TestCase):
         results = self.hook.aggregate(collection, aggregate_query)
         results = [result for result in results]
         self.assertEqual(len(results), 2)
+
+    def test_context_manager(self):
+        with MongoHook(conn_id='mongo_default', mongo_db='default') as ctxHook:
+            ctxHook.get_conn()
+
+            self.assertIsInstance(ctxHook, MongoHook)
+            self.assertIsNotNone(ctxHook.client)
+
+        self.assertIsNone(ctxHook.client)
 
 
 if __name__ == '__main__':

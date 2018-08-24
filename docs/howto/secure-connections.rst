@@ -16,7 +16,7 @@ connections by following steps below:
 
     from cryptography.fernet import Fernet
     fernet_key= Fernet.generate_key()
-    print(fernet_key) # your fernet_key, keep it in secured place!
+    print(fernet_key.decode()) # your fernet_key, keep it in secured place!
 
 3. Replace ``airflow.cfg`` fernet_key value with the one from step 2.
 Alternatively, you can store your fernet_key in OS environment variable. You

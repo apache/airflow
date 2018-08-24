@@ -76,6 +76,9 @@ class DbTest(unittest.TestCase):
                        t[1].name == 'ab_user'),
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'ab_view_menu'),
+            # from test_security unit test
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'some_model'),
         ]
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
