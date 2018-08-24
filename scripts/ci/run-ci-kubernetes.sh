@@ -24,7 +24,7 @@ DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../.."
 
 # Fix file permissions
-sudo chown -R airflow.airflow . $HOME/.wheelhouse/ $HOME/.cache/pip
+sudo chown -R travis.travis . $HOME/.wheelhouse/ $HOME/.cache/pip
 
 if [[ $PYTHON_VERSION == '3' ]]; then
   PIP=pip3
