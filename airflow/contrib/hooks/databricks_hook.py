@@ -134,16 +134,12 @@ class DatabricksHook(BaseHook, LoggingMixin):
                     timeout=self.timeout_seconds)
                 response.raise_for_status()
                 return response.json()
-            except (requests_exceptions.ConnectionError,
-                    requests_exceptions.Timeout) as e:
-                self._log_request_error(attempt_num, e)
-            except requests_exceptions.HTTPError as e:
-                response = e.response
-                if not self._retriable_error(response):
+            except requests_exceptions.RequestException as e:
+                if not _retryable_error(e):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise AirflowException('Response: {0}, Status Code: {1}'.format(
-                        response.content, response.status_code))
+                        e.response.content, e.response.status_code))
 
                 self._log_request_error(attempt_num, e)
 
@@ -159,15 +155,6 @@ class DatabricksHook(BaseHook, LoggingMixin):
             'Attempt %s API Request to Databricks failed with reason: %s',
             attempt_num, error
         )
-
-    @staticmethod
-    def _retriable_error(response):
-        try:
-            error_code = response.json().get('error_code')
-            return error_code == 'TEMPORARILY_UNAVAILABLE'
-        except ValueError:
-            # not a valid JSON
-            return False
 
     def submit_run(self, json):
         """
@@ -199,6 +186,12 @@ class DatabricksHook(BaseHook, LoggingMixin):
     def cancel_run(self, run_id):
         json = {'run_id': run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
+
+
+def _retryable_error(exception):
+    return type(exception) == requests_exceptions.ConnectionError \
+        or type(exception) == requests_exceptions.Timeout \
+        or exception.response is not None and exception.response.status_code >= 500
 
 
 RUN_LIFE_CYCLE_STATES = [
