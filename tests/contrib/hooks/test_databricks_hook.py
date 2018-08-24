@@ -25,7 +25,11 @@ import unittest
 from requests import exceptions as requests_exceptions
 
 from airflow import __version__
-from airflow.contrib.hooks.databricks_hook import DatabricksHook, RunState, SUBMIT_RUN_ENDPOINT
+from airflow.contrib.hooks.databricks_hook import (
+    DatabricksHook,
+    RunState,
+    SUBMIT_RUN_ENDPOINT
+)
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
@@ -106,7 +110,13 @@ def create_post_side_effect(exception, status_code=500):
         return response
 
 
-def setup_mock_requests(mock_requests, exception, status_code=500, error_count=None, response_content=None):
+def setup_mock_requests(
+        mock_requests,
+        exception,
+        status_code=500,
+        error_count=None,
+        response_content=None):
+
     side_effect = create_post_side_effect(exception, status_code)
 
     if error_count is None:
@@ -151,7 +161,8 @@ class DatabricksHookTest(unittest.TestCase):
                 requests_exceptions.ConnectionError,
                 requests_exceptions.Timeout,
                 requests_exceptions.HTTPError]:
-            with mock.patch('airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
+            with mock.patch(
+                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
                     mock.patch.object(self.hook.log, 'error') as mock_errors:
                 setup_mock_requests(mock_requests, exception)
 
@@ -162,7 +173,9 @@ class DatabricksHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
-        setup_mock_requests(mock_requests, requests_exceptions.HTTPError, status_code=400)
+        setup_mock_requests(
+            mock_requests, requests_exceptions.HTTPError, status_code=400
+        )
 
         with mock.patch.object(self.hook.log, 'error') as mock_errors:
             with self.assertRaises(AirflowException):
@@ -175,9 +188,15 @@ class DatabricksHookTest(unittest.TestCase):
                 requests_exceptions.ConnectionError,
                 requests_exceptions.Timeout,
                 requests_exceptions.HTTPError]:
-            with mock.patch('airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
+            with mock.patch(
+                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
                     mock.patch.object(self.hook.log, 'error') as mock_errors:
-                setup_mock_requests(mock_requests, exception, error_count=2, response_content={'run_id': '1'})
+                setup_mock_requests(
+                    mock_requests,
+                    exception,
+                    error_count=2,
+                    response_content={'run_id': '1'}
+                )
 
                 response = self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
@@ -193,7 +212,8 @@ class DatabricksHookTest(unittest.TestCase):
                 requests_exceptions.ConnectionError,
                 requests_exceptions.Timeout,
                 requests_exceptions.HTTPError]:
-            with mock.patch('airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
+            with mock.patch(
+                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
                     mock.patch.object(self.hook.log, 'error'):
                 mock_sleep.reset_mock()
                 setup_mock_requests(mock_requests, exception)
