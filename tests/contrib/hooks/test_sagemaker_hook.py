@@ -419,10 +419,8 @@ class TestSageMakerHook(unittest.TestCase):
             assert_called_once_with(**updated_config)
         self.assertEqual(response, test_arn_return)
 
-    @mock.patch.object(SageMakerHook, 'check_valid_transform_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_transform_job(self, mock_client, mock_check_transform):
-        mock_check_transform.return_value = True
+    def test_create_transform_job(self, mock_client):
         mock_session = mock.Mock()
         attrs = {'create_transform_job.return_value':
                  test_arn_return}
@@ -435,10 +433,8 @@ class TestSageMakerHook(unittest.TestCase):
             **create_transform_params)
         self.assertEqual(response, test_arn_return)
 
-    @mock.patch.object(SageMakerHook, 'check_valid_transform_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_transform_job_db_config(self, mock_client, mock_check_transform):
-        mock_check_transform.return_value = True
+    def test_create_transform_job_db_config(self, mock_client):
         mock_session = mock.Mock()
         attrs = {'create_transform_job.return_value':
                  test_arn_return}
