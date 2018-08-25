@@ -70,11 +70,17 @@ services:
       - SLUGIFY_USES_TEXT_UNIDECODE=yes
       - TOX_ENV
       - PYTHON_VERSION
+      - CI
       - TRAVIS
       - TRAVIS_BRANCH
       - TRAVIS_BUILD_DIR
       - TRAVIS_JOB_ID
+      - TRAVIS_JOB_NUMBER
       - TRAVIS_PULL_REQUEST
+      - TRAVIS_COMMIT
+      - TRAVIS_REPO_SLUG
+      - TRAVIS_OS_NAME
+      - TRAVIS_TAG
     depends_on:
       - postgres
       - mysql
