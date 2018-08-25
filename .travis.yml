@@ -25,15 +25,15 @@ env:
     - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
-    - TOX_ENV=flake8
-    - TOX_ENV=py27-backend_mysql
-    - TOX_ENV=py27-backend_sqlite
-    - TOX_ENV=py27-backend_postgres
-    - TOX_ENV=py35-backend_mysql PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_sqlite PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres PYTHON_VERSION=3
-    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
-    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
+    - PYTHON=python3 TASK=flake8
+    - PYTHON=python2 AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
+    - PYTHON=python2 AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////home/airflow/airflow.db AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+    - PYTHON=python2 AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+    - PYTHON=python3 AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
+    - PYTHON=python3 AIRFLOW__CORE__SQL_ALCHEMY_CONN=sqlite:////home/airflow/airflow.db AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+    - PYTHON=python3 AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+    - PYTHON=python2 AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow KUBERNETES_VERSION=v1.9.0
+    - PYTHON=python3 AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow KUBERNETES_VERSION=v1.10.0
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -49,6 +49,8 @@ install:
   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
-  - pip install --upgrade pip
 script:
-  - docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+  - docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run --rm airflow-testing /app/scripts/ci/run-ci.sh
+after_success:
+  - sudo chown -R travis.travis .
+  - codecov

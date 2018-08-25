@@ -62,12 +62,11 @@ services:
     domainname: example.com
 
   airflow-testing:
-    image: airflowci/incubator-airflow-ci:latest
+    image: fokkodriesprong/incubator-airflow-ci
     init: true
     environment:
       - USER=airflow
       - SLUGIFY_USES_TEXT_UNIDECODE=yes
-      - TOX_ENV
       - PYTHON_VERSION
       - CI
       - TRAVIS
@@ -80,6 +79,24 @@ services:
       - TRAVIS_REPO_SLUG
       - TRAVIS_OS_NAME
       - TRAVIS_TAG
+
+      - PYTHON
+      - AIRFLOW__CORE__EXECUTOR
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN
+
+      - HADOOP_DISTRO=cdh
+      - HADOOP_HOME=/tmp/hadoop-cdh
+      - HADOOP_OPTS=-D/tmp/krb5.conf
+      - HIVE_HOME=/tmp/hive
+      - MINICLUSTER_HOME=/tmp/minicluster-1.1-SNAPSHOT
+      - KRB5_CONFIG=/etc/krb5.conf
+      - KRB5_KTNAME=/etc/airflow.keytab
+      - AIRFLOW_HOME=/home/airflow/
+      - AIRFLOW_USE_NEW_IMPORTS=1
+      - AIRFLOW_ROOT=/app/
+      - AIRFLOW__CORE__UNIT_TEST_MODE=True
+      - AIRFLOW__TESTSECTION__TESTKEY=testvalue
+      - AIRFLOW__CORE__DAGS_FOLDER=/app/tests/dags
     depends_on:
       - postgres
       - mysql
@@ -90,6 +107,6 @@ services:
       - krb5-kdc-server
     volumes:
       - ../../:/app
-      - ~/.cache/pip:/home/airflow/.cache/pip
+      - ~/.cache/pip:/home/airflow/.cache/pip/
       - ~/.wheelhouse/:/home/airflow/.wheelhouse/
     working_dir: /app

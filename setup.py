@@ -54,25 +54,6 @@ def verify_gpl_dependency():
                            "version set AIRFLOW_GPL_UNIDECODE")
 
 
-class Tox(TestCommand):
-    user_options = [('tox-args=', None, "Arguments to pass to tox")]
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-        self.tox_args = ''
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import tox
-        errno = tox.cmdline(args=self.tox_args.split())
-        sys.exit(errno)
-
-
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
     user_options = []
@@ -325,7 +306,7 @@ def do_setup():
             'tabulate>=0.7.5, <=0.8.2',
             'tenacity==4.8.0',
             'thrift>=0.9.2',
-            'tzlocal>=1.4',
+            'tzlocal>=1.4, <2.0.0.0',
             'unicodecsv>=0.14.1',
             'werkzeug>=0.14.1, <0.15.0',
             'zope.deprecation>=4.0, <5.0',
@@ -406,7 +387,6 @@ def do_setup():
         download_url=(
             'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
         cmdclass={
-            'test': Tox,
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
