@@ -110,6 +110,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.resources = self.resources
             pod.affinity = self.affinity
             pod.node_selectors = self.node_selectors
+            pod.hostnetwork = self.hostnetwork
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.xcom_push)
@@ -156,6 +157,7 @@ class KubernetesPodOperator(BaseOperator):
                  image_pull_secrets=None,
                  service_account_name="default",
                  is_delete_operator_pod=False,
+                 hostnetwork=False,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -183,3 +185,4 @@ class KubernetesPodOperator(BaseOperator):
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
+        self.hostnetwork = hostnetwork
