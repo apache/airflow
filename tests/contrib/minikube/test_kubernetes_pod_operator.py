@@ -215,10 +215,8 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             task_id="task",
             startup_timeout_seconds=5
         )
-        with self.assertRaises(AirflowException) as cm:
-            k.execute(None),
-
-        print("exception: {}".format(cm))
+        with self.assertRaises(AirflowException):
+            k.execute(None)
 
     def test_faulty_service_account(self):
         bad_service_account_name = "foobar"
@@ -233,10 +231,8 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             startup_timeout_seconds=5,
             service_account_name=bad_service_account_name
         )
-        with self.assertRaises(ApiException) as cm:
-            k.execute(None),
-
-        print("exception: {}".format(cm))
+        with self.assertRaises(ApiException):
+            k.execute(None)
 
     def test_pod_failure(self):
         """
