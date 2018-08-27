@@ -191,8 +191,8 @@ class DatabricksHook(BaseHook, LoggingMixin):
 
 
 def _retryable_error(exception):
-    return type(exception) == requests_exceptions.ConnectionError \
-        or type(exception) == requests_exceptions.Timeout \
+    return isinstance(exception, requests_exceptions.ConnectionError) \
+        or isinstance(exception, requests_exceptions.Timeout) \
         or exception.response is not None and exception.response.status_code >= 500
 
 

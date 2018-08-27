@@ -100,10 +100,9 @@ def create_valid_response_mock(content):
 
 
 def create_post_side_effect(exception, status_code=500):
-    if exception in [requests_exceptions.ConnectionError,
-                     requests_exceptions.Timeout]:
+    if exception != requests_exceptions.HTTPError:
         return exception()
-    elif exception == requests_exceptions.HTTPError:
+    else:
         response = mock.MagicMock()
         response.status_code = status_code
         response.raise_for_status.side_effect = exception(response=response)
@@ -159,7 +158,9 @@ class DatabricksHookTest(unittest.TestCase):
     def test_do_api_call_retries_with_retryable_error(self):
         for exception in [
                 requests_exceptions.ConnectionError,
+                requests_exceptions.SSLError,
                 requests_exceptions.Timeout,
+                requests_exceptions.ConnectTimeout,
                 requests_exceptions.HTTPError]:
             with mock.patch(
                 'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
@@ -186,7 +187,9 @@ class DatabricksHookTest(unittest.TestCase):
     def test_do_api_call_succeeds_after_retrying(self):
         for exception in [
                 requests_exceptions.ConnectionError,
+                requests_exceptions.SSLError,
                 requests_exceptions.Timeout,
+                requests_exceptions.ConnectTimeout,
                 requests_exceptions.HTTPError]:
             with mock.patch(
                 'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
@@ -210,7 +213,9 @@ class DatabricksHookTest(unittest.TestCase):
 
         for exception in [
                 requests_exceptions.ConnectionError,
+                requests_exceptions.SSLError,
                 requests_exceptions.Timeout,
+                requests_exceptions.ConnectTimeout,
                 requests_exceptions.HTTPError]:
             with mock.patch(
                 'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
