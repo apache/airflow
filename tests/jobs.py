@@ -61,6 +61,7 @@ from tests.core import TEST_DAG_FOLDER
 from airflow import configuration
 configuration.load_test_config()
 
+logger = logging.getLogger(__name__)
 
 try:
     from unittest import mock
@@ -194,29 +195,32 @@ class BackfillJobTest(unittest.TestCase):
     def test_backfill_examples(self):
         """
         Test backfilling example dags
+
+        Try to backfill some of the example dags. Be carefull, not all dags are suitable
+        for doing this. For example, a dag that sleeps forever, or does not have a
+        schedule won't work here since you simply can't backfill them.
         """
+        include_dags = {
+            'example_branch_operator',
+            'example_bash_operator',
+            'example_skip_dag',
+            'latest_only'
+        }
 
-        # some DAGs really are just examples... but try to make them work!
-        skip_dags = [
-            'example_http_operator',
-            'example_twitter_dag',
-            'example_trigger_target_dag',
-            'example_trigger_controller_dag',  # tested above
-            'test_utils',  # sleeps forever
-            'example_kubernetes_executor',  # requires kubernetes cluster
-            'example_kubernetes_operator'  # requires kubernetes cluster
-        ]
-
-        logger = logging.getLogger('BackfillJobTest.test_backfill_examples')
         dags = [
             dag for dag in self.dagbag.dags.values()
-            if 'example_dags' in dag.full_filepath and dag.dag_id not in skip_dags
+            if 'example_dags' in dag.full_filepath and dag.dag_id in include_dags
         ]
 
         for dag in dags:
             dag.clear(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
+
+        # Make sure that we have the dags that we want to test available
+        # in the example_dags folder, if this assertion fails, one of the
+        # dags in the include_dags array isn't available anymore
+        self.assertEqual(len(include_dags), len(dags))
 
         for i, dag in enumerate(sorted(dags, key=lambda d: d.dag_id)):
             logger.info('*** Running example DAG #{}: {}'.format(i, dag.dag_id))
