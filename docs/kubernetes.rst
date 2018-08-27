@@ -92,7 +92,8 @@ Kubernetes Operator
                               name="test",
                               task_id="task",
                               affinity=affinity,
-                              is_delete_operator_pod=True
+                              is_delete_operator_pod=True,
+                              hostnetwork=False
                               )
 
 
