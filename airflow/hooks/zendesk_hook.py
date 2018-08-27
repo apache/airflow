@@ -78,7 +78,7 @@ class ZendeskHook(BaseHook):
         next_page = results['next_page']
         if side_loading:
             keys += query['include'].split(',')
-        results = {key: results[key] for key in keys}
+            results = {key: results[key] for key in keys}
 
         if get_all_pages:
             while next_page is not None:
