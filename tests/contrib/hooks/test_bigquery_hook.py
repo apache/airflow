@@ -455,6 +455,94 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
             )
 
 
+class TestClusteringInRunJob(unittest.TestCase):
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_default(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['load'].get('clustering'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+        )
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['load']['clustering'],
+                {
+                    'fields': ['field1', 'field2']
+                }
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+            cluster_fields=['field1', 'field2'],
+            time_partitioning={'type': 'DAY'}
+        )
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_default(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['query'].get('clustering'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(sql='select 1')
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['query']['clustering'],
+                {
+                    'fields': ['field1', 'field2']
+                }
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(
+            sql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            cluster_fields=['field1', 'field2'],
+            time_partitioning={'type': 'DAY'}
+        )
+
+        mocked_rwc.assert_called_once()
+
+
 class TestBigQueryHookLegacySql(unittest.TestCase):
     """Ensure `use_legacy_sql` param in `BigQueryHook` propagates properly."""
 
