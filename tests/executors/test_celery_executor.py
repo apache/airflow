@@ -34,8 +34,8 @@ class CeleryExecutorTest(unittest.TestCase):
         executor.start()
         with start_worker(app=app, logfile=sys.stdout, loglevel='debug'):
 
-            success_command = ['true', ]
-            fail_command = ['false', ]
+            success_command = ['true', 'some_parameter']
+            fail_command = ['false', 'some_parameter']
 
             executor.execute_async(key='success', command=success_command)
             # errors are propagated for some reason
