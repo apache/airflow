@@ -85,7 +85,7 @@ spec:
         - name: xcom
           mountPath: {xcomMountPath}
     - name: {sidecarContainerName}
-      image: python:3.5-alpine
+      image: python:3.6-alpine
       command: ["python", "-m", "http.server"]
       volumeMounts:
         - name: xcom
