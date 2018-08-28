@@ -19,6 +19,9 @@ You can also install Airflow with support for extra features like ``s3`` or ``po
 .. note:: GPL dependency
 
     One of the dependencies of Apache Airflow by default pulls in a GPL library ('unidecode').
+    
+    If you are not concerned about the GPL dependency, export the following environment variable prior to installing airflow: ``export AIRFLOW_GPL_UNIDECODE=yes``.
+    
     In case this is a concern you can force a non GPL library by issuing
     ``export SLUGIFY_USES_TEXT_UNIDECODE=yes`` and then proceed with the normal installation.
     Please note that this needs to be specified at every upgrade. Also note that if `unidecode`
@@ -68,7 +71,7 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 | jdbc          | ``pip install apache-airflow[jdbc]``         | JDBC hooks and operators                        |
 +---------------+----------------------------------------------+-------------------------------------------------+
-| kerbero s     | ``pip install apache-airflow[kerberos]``     | Kerberos integration for Kerberized Hadoop      |
+| kerberos      | ``pip install apache-airflow[kerberos]``     | Kerberos integration for Kerberized Hadoop      |
 +---------------+----------------------------------------------+-------------------------------------------------+
 | ldap          | ``pip install apache-airflow[ldap]``         | LDAP authentication for users                   |
 +---------------+----------------------------------------------+-------------------------------------------------+

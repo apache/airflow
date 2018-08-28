@@ -72,7 +72,7 @@ from pendulum import utcnow
 
 import six
 
-NUM_EXAMPLE_DAGS = 21
+NUM_EXAMPLE_DAGS = 18
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -97,7 +97,8 @@ def reset(dag_id=TEST_DAG_ID):
 
 
 configuration.conf.load_test_config()
-reset()
+if os.environ.get('KUBERNETES_VERSION') is None:
+    reset()
 
 
 class OperatorSubclass(BaseOperator):
@@ -434,7 +435,7 @@ class CoreTest(unittest.TestCase):
         Tests that Operators reject illegal arguments
         """
         with warnings.catch_warnings(record=True) as w:
-            t = BashOperator(
+            BashOperator(
                 task_id='test_illegal_args',
                 bash_command='echo success',
                 dag=self.dag,
@@ -625,6 +626,35 @@ class CoreTest(unittest.TestCase):
             some_templated_field=NonBoolObject(),
             dag=self.dag)
         t.resolve_template_files()
+
+    def test_task_get_template(self):
+        TI = models.TaskInstance
+        ti = TI(
+            task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti.dag = self.dag_bash
+        ti.run(ignore_ti_state=True)
+        context = ti.get_template_context()
+
+        # DEFAULT DATE is 2015-01-01
+        self.assertEquals(context['ds'], '2015-01-01')
+        self.assertEquals(context['ds_nodash'], '20150101')
+
+        # next_ds is 2015-01-02 as the dag interval is daily
+        self.assertEquals(context['next_ds'], '2015-01-02')
+        self.assertEquals(context['next_ds_nodash'], '20150102')
+
+        # prev_ds is 2014-12-31 as the dag interval is daily
+        self.assertEquals(context['prev_ds'], '2014-12-31')
+        self.assertEquals(context['prev_ds_nodash'], '20141231')
+
+        self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
+        self.assertEquals(context['ts_nodash'], '20150101T000000+0000')
+
+        self.assertEquals(context['yesterday_ds'], '2014-12-31')
+        self.assertEquals(context['yesterday_ds_nodash'], '20141231')
+
+        self.assertEquals(context['tomorrow_ds'], '2015-01-02')
+        self.assertEquals(context['tomorrow_ds_nodash'], '20150102')
 
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
@@ -917,7 +947,7 @@ class CoreTest(unittest.TestCase):
 
         models.DagStat.update([], session=session)
 
-        run1 = self.dag_bash.create_dagrun(
+        self.dag_bash.create_dagrun(
             run_id="run1",
             execution_date=DEFAULT_DATE,
             state=State.RUNNING)
@@ -935,7 +965,7 @@ class CoreTest(unittest.TestCase):
                 self.assertEqual(stats.count, 0)
             self.assertFalse(stats.dirty)
 
-        run2 = self.dag_bash.create_dagrun(
+        self.dag_bash.create_dagrun(
             run_id="run2",
             execution_date=DEFAULT_DATE + timedelta(days=1),
             state=State.RUNNING)
@@ -1059,40 +1089,44 @@ class CliTests(unittest.TestCase):
 
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args([
-            'create_user', '-u', 'test1', '-l', 'doe', '-f', 'jon',
-            '-e', 'jdoe@foo.com', '-r', 'Viewer', '--use_random_password'
+            'users', '-c', '--username', 'test1', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', 'jdoe@foo.com', '--role', 'Viewer', '--use_random_password'
         ])
-        cli.create_user(args)
+        cli.users(args)
 
     def test_cli_create_user_supplied_password(self):
         args = self.parser.parse_args([
-            'create_user', '-u', 'test2', '-l', 'doe', '-f', 'jon',
-            '-e', 'jdoe@apache.org', '-r', 'Viewer', '-p', 'test'
+            'users', '-c', '--username', 'test2', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', 'jdoe@apache.org', '--role', 'Viewer', '--password', 'test'
         ])
-        cli.create_user(args)
+        cli.users(args)
 
     def test_cli_delete_user(self):
         args = self.parser.parse_args([
-            'create_user', '-u', 'test3', '-l', 'doe', '-f', 'jon',
-            '-e', 'jdoe@example.com', '-r', 'Viewer', '--use_random_password'
+            'users', '-c', '--username', 'test3', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', 'jdoe@example.com', '--role', 'Viewer', '--use_random_password'
         ])
-        cli.create_user(args)
+        cli.users(args)
         args = self.parser.parse_args([
-            'delete_user', '-u', 'test3',
+            'users', '-d', '--username', 'test3',
         ])
-        cli.delete_user(args)
+        cli.users(args)
 
     def test_cli_list_users(self):
         for i in range(0, 3):
             args = self.parser.parse_args([
-                'create_user', '-u', 'user{}'.format(i), '-l', 'doe', '-f', 'jon',
-                '-e', 'jdoe+{}@gmail.com'.format(i), '-r', 'Viewer',
+                'users', '-c', '--username', 'user{}'.format(i), '--lastname',
+                'doe', '--firstname', 'jon',
+                '--email', 'jdoe+{}@gmail.com'.format(i), '--role', 'Viewer',
                 '--use_random_password'
             ])
-            cli.create_user(args)
+            cli.users(args)
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
-            cli.list_users(self.parser.parse_args(['list_users']))
+            cli.users(self.parser.parse_args(['users', '-l']))
             stdout = mock_stdout.getvalue()
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
@@ -1400,8 +1434,18 @@ class CliTests(unittest.TestCase):
             'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
         cli.clear(args)
 
+    def test_parentdag_downstream_clear(self):
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator.section-1', '--no_confirm'])
+        cli.clear(args)
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator.section-1', '--no_confirm',
+            '--exclude_parentdag'])
+        cli.clear(args)
+
     def test_get_dags(self):
-        dags = cli.get_dags(self.parser.parse_args(['clear', 'example_subdag_operator', '-c']))
+        dags = cli.get_dags(self.parser.parse_args(['clear', 'example_subdag_operator',
+                                                    '-c']))
         self.assertEqual(len(dags), 1)
 
         dags = cli.get_dags(self.parser.parse_args(['clear', 'subdag', '-dx', '-c']))
@@ -1482,6 +1526,42 @@ class CliTests(unittest.TestCase):
             cli.pool(self.parser.parse_args(['pool']))
         except Exception as e:
             self.fail("The 'pool' command raised unexpectedly: %s" % e)
+
+    def test_pool_import_export(self):
+        # Create two pools first
+        pool_config_input = {
+            "foo": {
+                "description": "foo_test",
+                "slots": 1
+            },
+            "baz": {
+                "description": "baz_test",
+                "slots": 2
+            }
+        }
+        with open('pools_import.json', mode='w') as f:
+            json.dump(pool_config_input, f)
+
+        # Import json
+        try:
+            cli.pool(self.parser.parse_args(['pool', '-i', 'pools_import.json']))
+        except Exception as e:
+            self.fail("The 'pool -i pools_import.json' failed: %s" % e)
+
+        # Export json
+        try:
+            cli.pool(self.parser.parse_args(['pool', '-e', 'pools_export.json']))
+        except Exception as e:
+            self.fail("The 'pool -e pools_export.json' failed: %s" % e)
+
+        with open('pools_export.json', mode='r') as f:
+            pool_config_output = json.load(f)
+            self.assertEqual(
+                pool_config_input,
+                pool_config_output,
+                "Input and output pool files are not same")
+        os.remove('pools_import.json')
+        os.remove('pools_export.json')
 
     def test_variables(self):
         # Checks if all subcommands are properly received
@@ -1877,6 +1957,34 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
+        url = (
+            "/admin/airflow/clear?task_id=section-1-task-1&"
+            "dag_id=example_subdag_operator.section-1&future=false&past=false&"
+            "upstream=false&downstream=true&recursive=true&"
+            "execution_date={}&"
+            "origin=/admin".format(DEFAULT_DATE_DS))
+        response = self.app.get(url)
+        self.assertIn("Wait a minute", response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.end",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-1.section-1-task-1",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-1",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-1",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-2",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-3",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-4",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-5",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.some-other-task",
+                      response.data.decode('utf-8'))
         url = (
             "/admin/airflow/run?task_id=runme_0&"
             "dag_id=example_bash_operator&ignore_all_deps=false&ignore_ti_state=true&"

@@ -55,8 +55,8 @@ class BaseDaskTest(unittest.TestCase):
         # start the executor
         executor.start()
 
-        success_command = ['true', ]
-        fail_command = ['false', ]
+        success_command = ['true', 'some_parameter']
+        fail_command = ['false', 'some_parameter']
 
         executor.execute_async(key='success', command=success_command)
         executor.execute_async(key='fail', command=fail_command)

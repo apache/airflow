@@ -98,11 +98,6 @@ def initdb(rbac=False):
             schema='airflow'))
     merge_conn(
         models.Connection(
-            conn_id='airflow_ci', conn_type='mysql',
-            host='mysql', login='root', extra="{\"local_infile\": true}",
-            schema='airflow_ci'))
-    merge_conn(
-        models.Connection(
             conn_id='beeline_default', conn_type='beeline', port="10000",
             host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
             schema='default'))
@@ -146,6 +141,7 @@ def initdb(rbac=False):
         models.Connection(
             conn_id='mysql_default', conn_type='mysql',
             login='root',
+            schema='airflow',
             host='mysql'))
     merge_conn(
         models.Connection(
@@ -342,8 +338,8 @@ def upgradedb():
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
-    config.set_main_option('script_location', directory)
-    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
+    config.set_main_option('script_location', directory.replace('%', '%%'))
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
 
 

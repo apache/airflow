@@ -108,16 +108,16 @@ def create_evaluate_ops(task_prefix,
     :param task_prefix: a prefix for the tasks. Only alphanumeric characters and
         hyphen are allowed (no underscores), since this will be used as dataflow
         job name, which doesn't allow other characters.
-    :type task_prefix: string
+    :type task_prefix: str
 
     :param data_format: either of 'TEXT', 'TF_RECORD', 'TF_RECORD_GZIP'
-    :type data_format: string
+    :type data_format: str
 
     :param input_paths: a list of input paths to be sent to BatchPrediction.
     :type input_paths: list of strings
 
     :param prediction_path: GCS path to put the prediction results in.
-    :type prediction_path: string
+    :type prediction_path: str
 
     :param metric_fn_and_keys: a tuple of metric_fn and metric_keys:
         - metric_fn is a function that accepts a dictionary (for an instance),
@@ -132,17 +132,17 @@ def create_evaluate_ops(task_prefix,
     :param batch_prediction_job_id: the id to use for the Cloud ML Batch
         prediction job. Passed directly to the MLEngineBatchPredictionOperator as
         the job_id argument.
-    :type batch_prediction_job_id: string
+    :type batch_prediction_job_id: str
 
     :param project_id: the Google Cloud Platform project id in which to execute
         Cloud ML Batch Prediction and Dataflow jobs. If None, then the `dag`'s
         `default_args['project_id']` will be used.
-    :type project_id: string
+    :type project_id: str
 
     :param region: the Google Cloud Platform region in which to execute Cloud ML
         Batch Prediction and Dataflow jobs. If None, then the `dag`'s
         `default_args['region']` will be used.
-    :type region: string
+    :type region: str
 
     :param dataflow_options: options to run Dataflow jobs. If None, then the
         `dag`'s `default_args['dataflow_default_options']` will be used.
@@ -152,19 +152,19 @@ def create_evaluate_ops(task_prefix,
         tensorflow.estimator.export_savedmodel(). It cannot be used with
         model_name or version_name below. See MLEngineBatchPredictionOperator for
         more detail.
-    :type model_uri: string
+    :type model_uri: str
 
     :param model_name: Used to indicate a model to use for prediction. Can be
         used in combination with version_name, but cannot be used together with
         model_uri. See MLEngineBatchPredictionOperator for more detail. If None,
         then the `dag`'s `default_args['model_name']` will be used.
-    :type model_name: string
+    :type model_name: str
 
     :param version_name: Used to indicate a model version to use for prediction,
         in combination with model_name. Cannot be used together with model_uri.
         See MLEngineBatchPredictionOperator for more detail. If None, then the
         `dag`'s `default_args['version_name']` will be used.
-    :type version_name: string
+    :type version_name: str
 
     :param dag: The `DAG` to use for all Operators.
     :type dag: airflow.DAG

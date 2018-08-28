@@ -28,7 +28,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     If it fails the sensor errors, failing the task.
 
     :param job_name: job_name of the training instance to check the state of
-    :type job_name: string
+    :type job_name: str
     """
 
     template_fields = ['job_name']
@@ -45,10 +45,10 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.region_name = region_name
 
     def non_terminal_states(self):
-        return ['InProgress', 'Stopping', 'Stopped']
+        return SageMakerHook.non_terminal_states
 
     def failed_states(self):
-        return ['Failed']
+        return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
         sagemaker = SageMakerHook(

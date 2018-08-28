@@ -320,7 +320,7 @@ Connections
 ===========
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``)
+metadata database and managed in the UI (``Menu -> Admin -> Connections``).
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
@@ -353,7 +353,7 @@ See :doc:`howto/manage-connections` for how to create and manage connections.
 Queues
 ======
 
-When using the CeleryExecutor, the celery queues that tasks are sent to
+When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any
 task can be assigned to any queue. The default queue for the environment
 is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
@@ -361,7 +361,7 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma delimited
+started (using the command ``airflow worker``), a set of comma-delimited
 queue names can be specified (e.g. ``airflow worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
@@ -862,4 +862,33 @@ do the same, but then it is more to use a virtualenv and pip.
 .. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
+
+
+.airflowignore
+''''''''''''''
+
+A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+that Airflow should intentionally ignore. Each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names
+(not DAG id) match any of the patterns would be ignored (under the hood,
+``re.findall()`` is used to match the pattern). Overall it works like a
+``.gitignore`` file.
+
+``.airflowignore`` file should be put in your ``DAG_FOLDER``.
+For example, you can prepare a ``.airflowignore`` file with contents
+
+.. code::
+
+    project_a
+    tenant_[\d]
+
+
+Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
+"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+(If a directory's name matches any of the patterns, this directory and all its subfolders
+would not be scanned by Airflow at all. This improves efficiency of DAG finding).
+
+The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
+You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
+would only be applicable for that subfolder.
 

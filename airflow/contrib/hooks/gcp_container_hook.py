@@ -48,6 +48,7 @@ class GKEClusterHook(BaseHook):
     def _dict_to_proto(py_dict, proto):
         """
         Converts a python dictionary to the proto supplied
+
         :param py_dict: The dictionary to convert
         :type py_dict: dict
         :param proto: The proto object to merge with dictionary
@@ -63,6 +64,7 @@ class GKEClusterHook(BaseHook):
         """
         Given an operation, continuously fetches the status from Google Cloud until either
         completion or an error occurring
+
         :param operation: The Operation to wait for
         :type operation: A google.cloud.container_V1.gapic.enums.Operator
         :return: A new, updated operation fetched from Google Cloud
@@ -83,6 +85,7 @@ class GKEClusterHook(BaseHook):
     def get_operation(self, operation_name):
         """
         Fetches the operation from Google Cloud
+
         :param operation_name: Name of operation to fetch
         :type operation_name: str
         :return: The new, updated operation from Google Cloud
@@ -98,6 +101,7 @@ class GKEClusterHook(BaseHook):
 
         Labels must fit the regex [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version
         string follows semantic versioning spec: x.y.z).
+
         :param cluster_proto: The proto to append resource_label airflow version to
         :type cluster_proto: google.cloud.container_v1.types.Cluster
         :param key: The key label
@@ -196,6 +200,7 @@ class GKEClusterHook(BaseHook):
     def get_cluster(self, name, retry=DEFAULT, timeout=DEFAULT):
         """
         Gets details of specified cluster
+
         :param name: The name of the cluster to retrieve
         :type name: str
         :param retry: A retry object used to retry requests. If None is specified,

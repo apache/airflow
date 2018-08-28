@@ -29,9 +29,9 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     containing the failure reason.
 
     :param job_name: job_name of the tuning instance to check the state of
-    :type job_name: string
+    :type job_name: str
     :param region_name: The AWS region_name
-    :type region_name: string
+    :type region_name: str
     """
 
     template_fields = ['job_name']
@@ -48,10 +48,10 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
         self.region_name = region_name
 
     def non_terminal_states(self):
-        return ['InProgress', 'Stopping', 'Stopped']
+        return SageMakerHook.non_terminal_states
 
     def failed_states(self):
-        return ['Failed']
+        return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
         sagemaker = SageMakerHook(

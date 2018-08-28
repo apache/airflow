@@ -88,7 +88,7 @@ There are three ways to setup an Apache Airflow development environment.
 1. Using tools and libraries installed directly on your system.
 
   Install Python (2.7.x or 3.4.x), MySQL, and libxml by using system-level package
-  managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/incubator-airflow-ci/blob/master/Dockerfile.base) for
+  managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/incubator-airflow-ci/blob/master/Dockerfile) for
   a comprehensive list of required packages.
 
   Then install python development requirements. It is usually best to work in a virtualenv:
@@ -146,8 +146,17 @@ There are three ways to setup an Apache Airflow development environment.
   # From the container
   pip install -e .[devel]
   # Run all the tests with python and mysql through tox
+  pip install tox
   tox -e py35-backend_mysql
   ```
+
+  If you wish to run individual tests inside of docker enviroment you can do as follows:
+
+  ```bash
+    # From the container (with your desired enviroment) with druid hook
+    tox -e py35-backend_mysql -- tests/hooks/test_druid_hook.py
+ ```
+
 
 ### Running unit tests
 

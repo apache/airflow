@@ -31,12 +31,12 @@ class HivePartitionSensor(BaseSensorOperator):
 
     :param table: The name of the table to wait for, supports the dot
         notation (my_database.my_table)
-    :type table: string
+    :type table: str
     :param partition: The partition clause to wait for. This is passed as
         is to the metastore Thrift client ``get_partitions_by_filter`` method,
         and apparently supports SQL like notation as in ``ds='2015-01-01'
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
-    :type partition: string
+    :type partition: str
     :param metastore_conn_id: reference to the metastore thrift service
         connection id
     :type metastore_conn_id: str

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,37 +17,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM ubuntu:xenial
+import unittest
+from airflow.utils.email import get_email_address_list
 
-# environment variables
-ENV DEBIAN_FRONTEND noninteractive
+EMAILS = ['test1@example.com', 'test2@example.com']
 
-# Kerberos server
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    ntp \
-    python-dev \
-    python-pip \
-    python-wheel \
-    python-setuptools \
-    python-pkg-resources \
-    krb5-admin-server \
-    krb5-kdc
 
-RUN mkdir /app/
+class EmailTest(unittest.TestCase):
 
-# Supervisord
-RUN pip install supervisor==3.3.4
-RUN mkdir -p /var/log/supervisord/
+    def test_get_email_address_comma_sep_string(self):
+        emails_string = 'test1@example.com, test2@example.com'
 
-COPY ./krb-conf/server/kdc.conf /etc/krb5kdc/kdc.conf
-COPY ./krb-conf/server/kadm5.acl /etc/krb5kdc/kadm5.acl
-COPY ./krb-conf/client/krb5.conf /etc/krb5.conf
-COPY ./start_kdc.sh /app/start_kdc.sh
+        self.assertEquals(
+            get_email_address_list(emails_string), EMAILS)
 
-# supervisord
-COPY ./supervisord.conf /etc/supervisord.conf
+    def test_get_email_address_colon_sep_string(self):
+        emails_string = 'test1@example.com; test2@example.com'
 
-WORKDIR /app
+        self.assertEquals(
+            get_email_address_list(emails_string), EMAILS)
 
-# when container is starting
-CMD ["/bin/bash", "/app/start_kdc.sh"]
+    def test_get_email_address_list(self):
+        emails_list = ['test1@example.com', 'test2@example.com']
+
+        self.assertEquals(
+            get_email_address_list(emails_list), EMAILS)

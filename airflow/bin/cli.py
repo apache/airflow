@@ -80,6 +80,11 @@ api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
 
 log = LoggingMixin().log
 
+DAGS_FOLDER = settings.DAGS_FOLDER
+
+if "BUILDING_AIRFLOW_DOCS" in os.environ:
+    DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
+
 
 def sigint_handler(sig, frame):
     sys.exit(0)
@@ -133,7 +138,7 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 def process_subdir(subdir):
     if subdir:
-        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = subdir.replace('DAGS_FOLDER', DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
         return subdir
 
@@ -267,6 +272,7 @@ def pool(args):
                                  tablefmt="fancy_grid")
 
     try:
+        imp = getattr(args, 'import')
         if args.get is not None:
             pools = [api_client.get_pool(name=args.get)]
         elif args.set:
@@ -275,12 +281,57 @@ def pool(args):
                                             description=args.set[2])]
         elif args.delete:
             pools = [api_client.delete_pool(name=args.delete)]
+        elif imp:
+            if os.path.exists(imp):
+                pools = pool_import_helper(imp)
+            else:
+                print("Missing pools file.")
+                pools = api_client.get_pools()
+        elif args.export:
+            pools = pool_export_helper(args.export)
         else:
             pools = api_client.get_pools()
     except (AirflowException, IOError) as err:
         log.error(err)
     else:
         log.info(_tabulate(pools=pools))
+
+
+def pool_import_helper(filepath):
+    with open(filepath, 'r') as poolfile:
+        pl = poolfile.read()
+    try:
+        d = json.loads(pl)
+    except Exception as e:
+        print("Please check the validity of the json file: " + str(e))
+    else:
+        try:
+            pools = []
+            n = 0
+            for k, v in d.items():
+                if isinstance(v, dict) and len(v) == 2:
+                    pools.append(api_client.create_pool(name=k,
+                                                        slots=v["slots"],
+                                                        description=v["description"]))
+                    n += 1
+                else:
+                    pass
+        except Exception:
+            pass
+        finally:
+            print("{} of {} pool(s) successfully updated.".format(n, len(d)))
+            return pools
+
+
+def pool_export_helper(filepath):
+    pool_dict = {}
+    pools = api_client.get_pools()
+    for pool in pools:
+        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
+    with open(filepath, 'w') as poolfile:
+        poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
+    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
+    return pools
 
 
 @cli_utils.action_logging
@@ -437,6 +488,24 @@ def _run(args, dag, ti):
 
 @cli_utils.action_logging
 def run(args, dag=None):
+    # Optional sections won't log an error if they're missing in airflow.cfg.
+    OPTIONAL_AIRFLOW_CFG_SECTIONS = [
+        'atlas',
+        'celery',
+        'celery_broker_transport_options',
+        'dask',
+        'elasticsearch',
+        'github_enterprise',
+        'hive',
+        'kerberos',
+        'kubernetes',
+        'kubernetes_node_selectors',
+        'kubernetes_secrets',
+        'ldap',
+        'lineage',
+        'mesos',
+    ]
+
     if dag:
         args.dag_id = dag.dag_id
 
@@ -459,9 +528,15 @@ def run(args, dag=None):
                 try:
                     conf.set(section, option, value)
                 except NoSectionError:
-                    log.error('Section {section} Option {option} '
-                              'does not exist in the config!'.format(section=section,
-                                                                     option=option))
+                    no_section_msg = (
+                        'Section {section} Option {option} '
+                        'does not exist in the config!'
+                    ).format(section=section, option=option)
+
+                    if section in OPTIONAL_AIRFLOW_CFG_SECTIONS:
+                        log.debug(no_section_msg)
+                    else:
+                        log.error(no_section_msg)
 
         settings.configure_vars()
 
@@ -552,6 +627,31 @@ def dag_state(args):
 
 
 @cli_utils.action_logging
+def next_execution(args):
+    """
+    Returns the next execution datetime of a DAG at the command line.
+    >>> airflow next_execution tutorial
+    2018-08-31 10:38:00
+    """
+    dag = get_dag(args)
+
+    if dag.is_paused:
+        print("[INFO] Please be reminded this DAG is PAUSED now.")
+
+    if dag.latest_execution_date:
+        next_execution_dttm = dag.following_schedule(dag.latest_execution_date)
+
+        if next_execution_dttm is None:
+            print("[WARN] No following schedule can be found. " +
+                  "This DAG may have schedule interval '@once' or `None`.")
+
+        print(next_execution_dttm)
+    else:
+        print("[WARN] Only applicable when there is execution record found for the DAG.")
+        print(None)
+
+
+@cli_utils.action_logging
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     s = textwrap.dedent("""\n
@@ -629,7 +729,9 @@ def clear(args):
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.no_confirm,
-        include_subdags=not args.exclude_subdags)
+        include_subdags=not args.exclude_subdags,
+        include_parentdag=not args.exclude_parentdag,
+    )
 
 
 def get_num_ready_workers_running(gunicorn_master_proc):
@@ -783,8 +885,12 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app = create_app_rbac(conf) if settings.RBAC else create_app(conf)
-        app.run(debug=True, port=args.port, host=args.hostname,
+        if settings.RBAC:
+            app, _ = create_app_rbac(conf, testing=conf.get('core', 'unit_test_mode'))
+        else:
+            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
+                port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
@@ -1260,74 +1366,75 @@ def kerberos(args):  # noqa
 
 
 @cli_utils.action_logging
-def create_user(args):
-    fields = {
-        'role': args.role,
-        'username': args.username,
-        'email': args.email,
-        'firstname': args.firstname,
-        'lastname': args.lastname,
-    }
-    empty_fields = [k for k, v in fields.items() if not v]
-    if empty_fields:
-        raise SystemExit('Required arguments are missing: {}.'.format(
-            ', '.join(empty_fields)))
+def users(args):
+    if args.list:
 
-    appbuilder = cached_appbuilder()
-    role = appbuilder.sm.find_role(args.role)
-    if not role:
-        raise SystemExit('{} is not a valid role.'.format(args.role))
+        appbuilder = cached_appbuilder()
+        users = appbuilder.sm.get_all_users()
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+        users = [[user.__getattribute__(field) for field in fields] for user in users]
+        msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
 
-    if args.use_random_password:
-        password = ''.join(random.choice(string.printable) for _ in range(16))
-    elif args.password:
-        password = args.password
-    else:
-        password = getpass.getpass('Password:')
-        password_confirmation = getpass.getpass('Repeat for confirmation:')
-        if password != password_confirmation:
-            raise SystemExit('Passwords did not match!')
-
-    if appbuilder.sm.find_user(args.username):
-        print('{} already exist in the db'.format(args.username))
         return
-    user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
-                                  args.email, role, password)
-    if user:
-        print('{} user {} created.'.format(args.role, args.username))
-    else:
-        raise SystemExit('Failed to create user.')
 
+    if args.create:
+        fields = {
+            'role': args.role,
+            'username': args.username,
+            'email': args.email,
+            'firstname': args.firstname,
+            'lastname': args.lastname,
+        }
+        empty_fields = [k for k, v in fields.items() if not v]
+        if empty_fields:
+            raise SystemExit('Required arguments are missing: {}.'.format(
+                ', '.join(empty_fields)))
 
-@cli_utils.action_logging
-def delete_user(args):
-    if not args.username:
-        raise SystemExit('Required arguments are missing: username')
+        appbuilder = cached_appbuilder()
+        role = appbuilder.sm.find_role(args.role)
+        if not role:
+            raise SystemExit('{} is not a valid role.'.format(args.role))
 
-    appbuilder = cached_appbuilder()
+        if args.use_random_password:
+            password = ''.join(random.choice(string.printable) for _ in range(16))
+        elif args.password:
+            password = args.password
+        else:
+            password = getpass.getpass('Password:')
+            password_confirmation = getpass.getpass('Repeat for confirmation:')
+            if password != password_confirmation:
+                raise SystemExit('Passwords did not match!')
 
-    try:
-        u = next(u for u in appbuilder.sm.get_all_users() if u.username == args.username)
-    except StopIteration:
-        raise SystemExit('{} is not a valid user.'.format(args.username))
+        if appbuilder.sm.find_user(args.username):
+            print('{} already exist in the db'.format(args.username))
+            return
+        user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
+                                      args.email, role, password)
+        if user:
+            print('{} user {} created.'.format(args.role, args.username))
+        else:
+            raise SystemExit('Failed to create user.')
 
-    if appbuilder.sm.del_register_user(u):
-        print('User {} deleted.'.format(args.username))
-    else:
-        raise SystemExit('Failed to delete user.')
+    if args.delete:
+        if not args.username:
+            raise SystemExit('Required arguments are missing: username')
 
+        appbuilder = cached_appbuilder()
 
-@cli_utils.action_logging
-def list_users(args):
-    appbuilder = cached_appbuilder()
-    users = appbuilder.sm.get_all_users()
-    fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
-    users = [[user.__getattribute__(field) for field in fields] for user in users]
-    msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
-                   tablefmt="fancy_grid")
-    if sys.version_info[0] < 3:
-        msg = msg.encode('utf-8')
-    print(msg)
+        try:
+            u = next(u for u in appbuilder.sm.get_all_users()
+                     if u.username == args.username)
+        except StopIteration:
+            raise SystemExit('{} is not a valid user.'.format(args.username))
+
+        if appbuilder.sm.del_register_user(u):
+            print('User {} deleted.'.format(args.username))
+        else:
+            raise SystemExit('Failed to delete user.')
 
 
 @cli_utils.action_logging
@@ -1410,8 +1517,10 @@ class CLIFactory(object):
             "The regex to filter specific task_ids to backfill (optional)"),
         'subdir': Arg(
             ("-sd", "--subdir"),
-            "File location or directory from which to look for the dag",
-            default=settings.DAGS_FOLDER),
+            "File location or directory from which to look for the dag. "
+            "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
+            "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' ",
+            default=DAGS_FOLDER),
         'start_date': Arg(
             ("-s", "--start_date"), "Override start_date YYYY-MM-DD",
             type=parsedate),
@@ -1438,10 +1547,6 @@ class CLIFactory(object):
             "Do not prompt to confirm reset. Use with care!",
             "store_true",
             default=False),
-        'username': Arg(
-            ('-u', '--username',),
-            help='Username of the user',
-            type=str),
 
         # list_dag_runs
         'no_backfill': Arg(
@@ -1526,6 +1631,10 @@ class CLIFactory(object):
         'exclude_subdags': Arg(
             ("-x", "--exclude_subdags"),
             "Exclude subdags", "store_true"),
+        'exclude_parentdag': Arg(
+            ("-xp", "--exclude_parentdag"),
+            "Exclude ParentDAGS if the task cleared is a part of a SubDAG",
+            "store_true"),
         'dag_regex': Arg(
             ("-dx", "--dag_regex"),
             "Search dag_id as regex instead of exact string", "store_true"),
@@ -1551,6 +1660,14 @@ class CLIFactory(object):
             ("-x", "--delete"),
             metavar="NAME",
             help="Delete a pool"),
+        'pool_import': Arg(
+            ("-i", "--import"),
+            metavar="FILEPATH",
+            help="Import pool from JSON file"),
+        'pool_export': Arg(
+            ("-e", "--export"),
+            metavar="FILEPATH",
+            help="Export pool to JSON file"),
         # variables
         'set': Arg(
             ("-s", "--set"),
@@ -1785,33 +1902,52 @@ class CLIFactory(object):
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
-        # create_user
-        'role': Arg(
-            ('-r', '--role',),
-            help='Role of the user. Existing roles include Admin, '
-                 'User, Op, Viewer, and Public',
+        # users
+        'username': Arg(
+            ('--username',),
+            help='Username of the user, required to create/delete a user',
             type=str),
         'firstname': Arg(
-            ('-f', '--firstname',),
-            help='First name of the user',
+            ('--firstname',),
+            help='First name of the user, required to create a user',
             type=str),
         'lastname': Arg(
-            ('-l', '--lastname',),
-            help='Last name of the user',
+            ('--lastname',),
+            help='Last name of the user, required to create a user',
+            type=str),
+        'role': Arg(
+            ('--role',),
+            help='Role of the user. Existing roles include Admin, '
+                 'User, Op, Viewer, and Public. Required to create a user',
             type=str),
         'email': Arg(
-            ('-e', '--email',),
-            help='Email of the user',
+            ('--email',),
+            help='Email of the user, required to create a user',
             type=str),
         'password': Arg(
-            ('-p', '--password',),
-            help='Password of the user',
+            ('--password',),
+            help='Password of the user, required to create a user '
+                 'without --use_random_password',
             type=str),
         'use_random_password': Arg(
             ('--use_random_password',),
-            help='Do not prompt for password.  Use random string instead',
+            help='Do not prompt for password. Use random string instead.'
+                 ' Required to create a user without --password ',
             default=False,
             action='store_true'),
+        'list_users': Arg(
+            ('-l', '--list'),
+            help='List all users',
+            action='store_true'),
+        'create_user': Arg(
+            ('-c', '--create'),
+            help='Create a user',
+            action='store_true'),
+        'delete_user': Arg(
+            ('-d', '--delete'),
+            help='Delete a user',
+            action='store_true'),
+
     }
     subparsers = (
         {
@@ -1820,7 +1956,7 @@ class CLIFactory(object):
                     "If reset_dag_run option is used,"
                     " backfill will first prompt users whether airflow "
                     "should clear all the previous dag_run and task_instances "
-                    "within the backfill date range."
+                    "within the backfill date range. "
                     "If rerun_failed_tasks is used, backfill "
                     "will auto re-run the previous failed task instances"
                     " within the backfill date range.",
@@ -1850,7 +1986,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running', 'exclude_subdags', 'dag_regex'),
+                'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
@@ -1870,7 +2006,7 @@ class CLIFactory(object):
         }, {
             'func': pool,
             'help': "CRUD operations on pools",
-            "args": ('pool_set', 'pool_get', 'pool_delete'),
+            "args": ('pool_set', 'pool_get', 'pool_delete', 'pool_import', 'pool_export'),
         }, {
             'func': variables,
             'help': "CRUD operations on variables",
@@ -1969,23 +2105,21 @@ class CLIFactory(object):
             'args': ('list_connections', 'add_connection', 'delete_connection',
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
-            'func': create_user,
-            'help': "Create an account for the Web UI",
-            'args': ('role', 'username', 'email', 'firstname', 'lastname',
+            'func': users,
+            'help': "List/Create/Delete users",
+            'args': ('list_users', 'create_user', 'delete_user',
+                     'username', 'email', 'firstname', 'lastname', 'role',
                      'password', 'use_random_password'),
-        }, {
-            'func': delete_user,
-            'help': "Delete an account for the Web UI",
-            'args': ('username',),
-        }, {
-            'func': list_users,
-            'help': "List accounts for the Web UI",
-            'args': tuple(),
         },
         {
             'func': sync_perm,
             'help': "Update existing role's permissions.",
             'args': tuple(),
+        },
+        {
+            'func': next_execution,
+            'help': "Get the next execution datetime of a DAG.",
+            'args': ('dag_id', 'subdir')
         }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
