@@ -141,7 +141,7 @@ class CeleryExecutor(BaseExecutor):
         self.log.info("[celery] queuing {key} through celery, "
                       "queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
-            args=command, queue=queue)
+            args=[command], queue=queue)
         self.last_state[key] = celery_states.PENDING
 
     def _num_tasks_per_process(self):
