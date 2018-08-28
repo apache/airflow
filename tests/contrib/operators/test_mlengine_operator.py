@@ -327,7 +327,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
     def testSuccessCreateTrainingJobWithOptionalArgs(self):
         training_input = copy.deepcopy(self.TRAINING_INPUT)
         training_input['trainingInput']['runtimeVersion'] = '1.6'
-        training_input['trainingInput']['pythonVersion'] = '3.5'
+        training_input['trainingInput']['pythonVersion'] = '3.6'
         training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
 
         with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
@@ -339,7 +339,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
 
             training_op = MLEngineTrainingOperator(
                 runtime_version='1.6',
-                python_version='3.5',
+                python_version='3.6',
                 job_dir='gs://some-bucket/jobs/test_training',
                 **self.TRAINING_DEFAULT_ARGS)
             training_op.execute(None)
