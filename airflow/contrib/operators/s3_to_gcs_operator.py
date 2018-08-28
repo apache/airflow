@@ -41,6 +41,16 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :type delimiter: string
     :param aws_conn_id: The source S3 connection
     :type aws_conn_id: string
+    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+        - False: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type verify: bool or str
     :param dest_gcs_conn_id: The destination connection ID to use
         when connecting to Google Cloud Storage.
     :type dest_gcs_conn_id: string
@@ -80,6 +90,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  prefix='',
                  delimiter='',
                  aws_conn_id='aws_default',
+                 verify=None,
                  dest_gcs_conn_id=None,
                  dest_gcs=None,
                  delegate_to=None,
@@ -98,6 +109,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
         self.replace = replace
+        self.verify = verify
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
             self.log.info(
@@ -146,7 +158,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                     'There are no new files to sync. Have a nice day!')
 
         if files:
-            hook = S3Hook(aws_conn_id=self.aws_conn_id)
+            hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
             for file in files:
                 # GCS hook builds its own in-memory file so we have to create
