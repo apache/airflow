@@ -38,6 +38,18 @@ class S3PrefixSensor(BaseSensorOperator):
     :param delimiter: The delimiter intended to show hierarchy.
         Defaults to '/'.
     :type delimiter: str
+    :param aws_conn_id: a reference to the s3 connection
+    :type aws_conn_id: str
+    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+        - False: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type verify: bool or str
     """
     template_fields = ('prefix', 'bucket_name')
 
@@ -47,6 +59,7 @@ class S3PrefixSensor(BaseSensorOperator):
                  prefix,
                  delimiter='/',
                  aws_conn_id='aws_default',
+                 verify=None,
                  *args,
                  **kwargs):
         super(S3PrefixSensor, self).__init__(*args, **kwargs)
@@ -56,12 +69,13 @@ class S3PrefixSensor(BaseSensorOperator):
         self.delimiter = delimiter
         self.full_url = "s3://" + bucket_name + '/' + prefix
         self.aws_conn_id = aws_conn_id
+        self.verify = verify
 
     def poke(self, context):
         self.log.info('Poking for prefix : {self.prefix}\n'
                       'in bucket s3://{self.bucket_name}'.format(**locals()))
         from airflow.hooks.S3_hook import S3Hook
-        hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return hook.check_for_prefix(
             prefix=self.prefix,
             delimiter=self.delimiter,

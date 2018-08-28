@@ -88,8 +88,8 @@ class S3ToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         uploaded_files = operator.execute(None)
 
-        s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID)
-        s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID)
+        s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
+        s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
             google_cloud_storage_conn_id=GCS_CONN_ID, delegate_to=None)
 
