@@ -120,7 +120,9 @@ Variable                            Description
 =================================   ====================================
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD`` if exists, else ``None`
+``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None`
 ``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD`` if exists, else ``None`
+``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
 ``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
