@@ -43,7 +43,7 @@ spec:
     spec:
       initContainers:
       - name: "init"
-        image: airflow
+        image: {REG_IP}:5000/airflow
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: airflow-configmap
@@ -65,8 +65,8 @@ spec:
           - "-cx"
           - "./tmp/airflow-test-env-init.sh"
       containers:
-      - name: webserver
-        image: airflow
+      - name: webserv
+        image: {REG_IP}:5000/airflow
         imagePullPolicy: IfNotPresent
         ports:
         - name: webserver
@@ -105,7 +105,7 @@ spec:
 #            path: /login
 #            port: 8080
       - name: scheduler
-        image: airflow
+        image: {REG_IP}:5000/airflow
         imagePullPolicy: IfNotPresent
         args: ["scheduler"]
         env:

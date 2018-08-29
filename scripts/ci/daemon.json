@@ -1,0 +1,3 @@
+{
+  "insecure-registries" : ["10.192.0.1:5000"]
+}

@@ -35,7 +35,7 @@ metadata:
   name: airflow-dags
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 2Gi
@@ -81,7 +81,7 @@ metadata:
   name: test-volume
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 2Gi
