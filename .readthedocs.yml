@@ -19,7 +19,14 @@
 python:
     pip_install: true
     extra_requirements:
+        - all_dbs
+        - databricks
         - doc
         - docker
-        - gcp_api
         - emr
+        - gcp_api
+        - s3
+        - salesforce
+        - sendgrid
+        - ssh
+        - slack
