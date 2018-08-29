@@ -48,7 +48,8 @@ try:
         in_cluster=False,
         task_id="task",
         get_logs=True,
-        dag=dag)
+        dag=dag,
+        is_delete_operator_pod=False)
 
 except ImportError as e:
     log.warn("Could not import KubernetesPodOperator: " + str(e))
