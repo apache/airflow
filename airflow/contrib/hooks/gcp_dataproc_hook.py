@@ -81,7 +81,7 @@ class _DataProcJob(LoggingMixin):
 
 class _DataProcJobBuilder:
     def __init__(self, project_id, task_id, cluster_name, job_type, properties):
-        name = task_id + "_" + str(uuid.uuid1())[:8]
+        name = task_id + "_" + str(uuid.uuid4())[:8]
         self.job_type = job_type
         self.job = {
             "job": {
@@ -141,7 +141,7 @@ class _DataProcJobBuilder:
         self.job["job"][self.job_type]["mainPythonFileUri"] = main
 
     def set_job_name(self, name):
-        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid1())[:8]
+        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid4())[:8]
 
     def build(self):
         return self.job

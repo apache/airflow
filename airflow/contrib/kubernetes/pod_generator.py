@@ -149,7 +149,7 @@ class PodGenerator:
 
         return Pod(
             namespace=namespace,
-            name=pod_id + "-" + str(uuid.uuid1())[:8],
+            name=pod_id + "-" + str(uuid.uuid4())[:8],
             image=image,
             cmds=cmds,
             args=arguments,
