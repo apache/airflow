@@ -33,11 +33,15 @@ class SFTPOperator(BaseOperator):
     This operator uses ssh_hook to open sftp trasport channel that serve as basis
     for file transfer.
 
-    :param ssh_hook: predefined ssh_hook to use for remote execution
+    :param ssh_hook: predefined ssh_hook to use for remote execution.
+        Either `ssh_hook` or `ssh_conn_id` needs to be provided.
     :type ssh_hook: :class:`SSHHook`
-    :param ssh_conn_id: connection id from airflow Connections
+    :param ssh_conn_id: connection id from airflow Connections.
+        `ssh_conn_id` will be ingored if `ssh_hook` is provided.
     :type ssh_conn_id: str
     :param remote_host: remote host to connect (templated)
+        Nullable. If provided, it will replace the `remote_host` which was
+        defined in `ssh_hook` or predefined in the connection of `ssh_conn_id`.
     :type remote_host: str
     :param local_filepath: local file path to get or put. (templated)
     :type local_filepath: str
@@ -77,13 +81,21 @@ class SFTPOperator(BaseOperator):
     def execute(self, context):
         file_msg = None
         try:
-            if self.ssh_conn_id and not self.ssh_hook:
-                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
+            if self.ssh_conn_id:
+                if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
+                    self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
+                else:
+                    self.log.info("ssh_hook is not provided or invalid. " +
+                                  "Trying ssh_conn_id to create SSHHook.")
+                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
 
             if not self.ssh_hook:
-                raise AirflowException("can not operate without ssh_hook or ssh_conn_id")
+                raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
 
             if self.remote_host is not None:
+                self.log.info("remote_host is provided explicitly. " +
+                              "It will replace the remote_host which was defined " +
+                              "in ssh_hook or predefined in connection of ssh_conn_id.")
                 self.ssh_hook.remote_host = self.remote_host
 
             with self.ssh_hook.get_conn() as ssh_client:
