@@ -215,11 +215,11 @@ def get_sql_from_qbol_cmd(params):
 def handle_airflow_exception(airflow_exception, hook):
     cmd = hook.cmd
     if cmd is not None:
-        if cmd.is_success:
+        if cmd.is_success(cmd.status):
             qubole_command_results = hook.get_query_results()
             qubole_command_id = cmd.id
             exception_message = '\nQubole Command Id: {qubole_command_id}' \
                                 '\nQubole Command Results:' \
                                 '\n{qubole_command_results}'.format(**locals())
             raise AirflowException(str(airflow_exception) + exception_message)
-    raise AirflowException(airflow_exception.message)
+    raise AirflowException(str(airflow_exception))
