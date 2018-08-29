@@ -22,7 +22,7 @@ from airflow.utils.state import State
 from datetime import datetime as dt
 from airflow.contrib.kubernetes.kubernetes_request_factory import \
     pod_request_factory as pod_factory
-from kubernetes import watch
+from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from airflow import AirflowException
@@ -58,6 +58,15 @@ class PodLauncher(LoggingMixin):
             self.log.exception('Exception when attempting to create Namespaced Pod.')
             raise
         return resp
+
+    def delete_pod(self, pod):
+        try:
+            self._client.delete_namespaced_pod(
+                pod.name, pod.namespace, body=client.V1DeleteOptions())
+        except ApiException as e:
+            # If the pod is already deleted
+            if e.status != 404:
+                raise
 
     def run_pod(self, pod, startup_timeout=120, get_logs=True):
         # type: (Pod) -> (State, result)
