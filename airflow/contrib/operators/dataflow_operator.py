@@ -363,7 +363,7 @@ class GoogleCloudBucketHelper(object):
 
         bucket_id = path_components[0]
         object_id = '/'.join(path_components[1:])
-        local_file = '/tmp/dataflow{}-{}'.format(str(uuid.uuid1())[:8],
+        local_file = '/tmp/dataflow{}-{}'.format(str(uuid.uuid4())[:8],
                                                  path_components[-1])
         self._gcs_hook.download(bucket_id, object_id, local_file)
 

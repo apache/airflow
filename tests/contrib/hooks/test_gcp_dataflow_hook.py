@@ -78,7 +78,7 @@ class DataFlowHookTest(unittest.TestCase):
                         new=mock_init):
             self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
 
-    @mock.patch(DATAFLOW_STRING.format('uuid.uuid1'))
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
@@ -102,7 +102,7 @@ class DataFlowHookTest(unittest.TestCase):
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
 
-    @mock.patch(DATAFLOW_STRING.format('uuid.uuid1'))
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
@@ -126,7 +126,7 @@ class DataFlowHookTest(unittest.TestCase):
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
 
-    @mock.patch(DATAFLOW_STRING.format('uuid.uuid1'))
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'))
     @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
     @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
