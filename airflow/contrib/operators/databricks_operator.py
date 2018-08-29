@@ -146,6 +146,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
+    :param databricks_retry_delay: Number of seconds to wait between retries (it
+            might be a floating point number).
+    :type databricks_retry_delay: float
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :type do_xcom_push: boolean
     """
@@ -168,6 +171,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             databricks_conn_id='databricks_default',
             polling_period_seconds=30,
             databricks_retry_limit=3,
+            databricks_retry_delay=1,
             do_xcom_push=False,
             **kwargs):
         """
@@ -178,6 +182,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
         if spark_jar_task is not None:
             self.json['spark_jar_task'] = spark_jar_task
         if notebook_task is not None:
@@ -232,7 +237,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def get_hook(self):
         return DatabricksHook(
             self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit)
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay)
 
     def execute(self, context):
         hook = self.get_hook()

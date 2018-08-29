@@ -18,15 +18,21 @@
 # under the License.
 #
 
+import itertools
 import json
 import unittest
 
+from requests import exceptions as requests_exceptions
+
 from airflow import __version__
-from airflow.contrib.hooks.databricks_hook import DatabricksHook, RunState, SUBMIT_RUN_ENDPOINT, _TokenAuth
+from airflow.contrib.hooks.databricks_hook import (
+    DatabricksHook,
+    RunState,
+    SUBMIT_RUN_ENDPOINT
+)
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-from requests import exceptions as requests_exceptions
 
 try:
     from unittest import mock
@@ -79,11 +85,47 @@ def get_run_endpoint(host):
     """
     return 'https://{}/api/2.0/jobs/runs/get'.format(host)
 
+
 def cancel_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
     return 'https://{}/api/2.0/jobs/runs/cancel'.format(host)
+
+
+def create_valid_response_mock(content):
+    response = mock.MagicMock()
+    response.json.return_value = content
+    return response
+
+
+def create_post_side_effect(exception, status_code=500):
+    if exception != requests_exceptions.HTTPError:
+        return exception()
+    else:
+        response = mock.MagicMock()
+        response.status_code = status_code
+        response.raise_for_status.side_effect = exception(response=response)
+        return response
+
+
+def setup_mock_requests(
+        mock_requests,
+        exception,
+        status_code=500,
+        error_count=None,
+        response_content=None):
+
+    side_effect = create_post_side_effect(exception, status_code)
+
+    if error_count is None:
+        # POST requests will fail indefinitely
+        mock_requests.post.side_effect = itertools.repeat(side_effect)
+    else:
+        # POST requests will fail 'error_count' times, and then they will succeed (once)
+        mock_requests.post.side_effect = \
+            [side_effect] * error_count + [create_valid_response_mock(response_content)]
+
 
 class DatabricksHookTest(unittest.TestCase):
     """
@@ -99,7 +141,7 @@ class DatabricksHookTest(unittest.TestCase):
         conn.password = PASSWORD
         session.commit()
 
-        self.hook = DatabricksHook()
+        self.hook = DatabricksHook(retry_delay=0)
 
     def test_parse_host_with_proper_host(self):
         host = self.hook._parse_host(HOST)
@@ -111,34 +153,85 @@ class DatabricksHookTest(unittest.TestCase):
 
     def test_init_bad_retry_limit(self):
         with self.assertRaises(ValueError):
-            DatabricksHook(retry_limit = 0)
+            DatabricksHook(retry_limit=0)
 
-    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
-    def test_do_api_call_with_error_retry(self, mock_requests):
-        for exception in [requests_exceptions.ConnectionError, requests_exceptions.Timeout]:
-            with mock.patch.object(self.hook.log, 'error') as mock_errors:
-                mock_requests.reset_mock()
-                mock_requests.post.side_effect = exception()
+    def test_do_api_call_retries_with_retryable_error(self):
+        for exception in [
+                requests_exceptions.ConnectionError,
+                requests_exceptions.SSLError,
+                requests_exceptions.Timeout,
+                requests_exceptions.ConnectTimeout,
+                requests_exceptions.HTTPError]:
+            with mock.patch(
+                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
+                    mock.patch.object(self.hook.log, 'error') as mock_errors:
+                setup_mock_requests(mock_requests, exception)
 
                 with self.assertRaises(AirflowException):
                     self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                self.assertEquals(len(mock_errors.mock_calls), self.hook.retry_limit)
+                self.assertEquals(mock_errors.call_count, self.hook.retry_limit)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
-    def test_do_api_call_with_bad_status_code(self, mock_requests):
-        mock_requests.codes.ok = 200
-        status_code_mock = mock.PropertyMock(return_value=500)
-        type(mock_requests.post.return_value).status_code = status_code_mock
-        with self.assertRaises(AirflowException):
-            self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+    def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
+        setup_mock_requests(
+            mock_requests, requests_exceptions.HTTPError, status_code=400
+        )
+
+        with mock.patch.object(self.hook.log, 'error') as mock_errors:
+            with self.assertRaises(AirflowException):
+                self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+            mock_errors.assert_not_called()
+
+    def test_do_api_call_succeeds_after_retrying(self):
+        for exception in [
+                requests_exceptions.ConnectionError,
+                requests_exceptions.SSLError,
+                requests_exceptions.Timeout,
+                requests_exceptions.ConnectTimeout,
+                requests_exceptions.HTTPError]:
+            with mock.patch(
+                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
+                    mock.patch.object(self.hook.log, 'error') as mock_errors:
+                setup_mock_requests(
+                    mock_requests,
+                    exception,
+                    error_count=2,
+                    response_content={'run_id': '1'}
+                )
+
+                response = self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+                self.assertEquals(mock_errors.call_count, 2)
+                self.assertEquals(response, {'run_id': '1'})
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.sleep')
+    def test_do_api_call_waits_between_retries(self, mock_sleep):
+        retry_delay = 5
+        self.hook = DatabricksHook(retry_delay=retry_delay)
+
+        for exception in [
+                requests_exceptions.ConnectionError,
+                requests_exceptions.SSLError,
+                requests_exceptions.Timeout,
+                requests_exceptions.ConnectTimeout,
+                requests_exceptions.HTTPError]:
+            with mock.patch(
+                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
+                    mock.patch.object(self.hook.log, 'error'):
+                mock_sleep.reset_mock()
+                setup_mock_requests(mock_requests, exception)
+
+                with self.assertRaises(AirflowException):
+                    self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+                self.assertEquals(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
+                mock_sleep.assert_called_with(retry_delay)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_submit_run(self, mock_requests):
-        mock_requests.codes.ok = 200
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
-        status_code_mock = mock.PropertyMock(return_value=200)
-        type(mock_requests.post.return_value).status_code = status_code_mock
         json = {
           'notebook_task': NOTEBOOK_TASK,
           'new_cluster': NEW_CLUSTER
@@ -158,10 +251,7 @@ class DatabricksHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_get_run_page_url(self, mock_requests):
-        mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
-        status_code_mock = mock.PropertyMock(return_value=200)
-        type(mock_requests.get.return_value).status_code = status_code_mock
 
         run_page_url = self.hook.get_run_page_url(RUN_ID)
 
@@ -175,10 +265,7 @@ class DatabricksHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_get_run_state(self, mock_requests):
-        mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
-        status_code_mock = mock.PropertyMock(return_value=200)
-        type(mock_requests.get.return_value).status_code = status_code_mock
 
         run_state = self.hook.get_run_state(RUN_ID)
 
@@ -195,10 +282,7 @@ class DatabricksHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_cancel_run(self, mock_requests):
-        mock_requests.codes.ok = 200
         mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
-        status_code_mock = mock.PropertyMock(return_value=200)
-        type(mock_requests.post.return_value).status_code = status_code_mock
 
         self.hook.cancel_run(RUN_ID)
 
