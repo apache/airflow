@@ -412,14 +412,14 @@ class DataprocClusterScaleOperator(BaseOperator):
 
     **Example**: ::
 
-    t1 = DataprocClusterScaleOperator(
-            task_id='dataproc_scale',
-            project_id='my-project',
-            cluster_name='cluster-1',
-            num_workers=10,
-            num_preemptible_workers=10,
-            graceful_decommission_timeout='1h',
-            dag=dag)
+        t1 = DataprocClusterScaleOperator(
+                task_id='dataproc_scale',
+                project_id='my-project',
+                cluster_name='cluster-1',
+                num_workers=10,
+                num_preemptible_workers=10,
+                graceful_decommission_timeout='1h',
+                dag=dag)
 
     .. seealso::
         For more detail on about scaling clusters have a look at the reference:
