@@ -1521,6 +1521,16 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(task=op1, execution_date=execution_date)
         self.assertEquals(ti.execution_date, utc_date)
 
+    def test_task_naive_datetime(self):
+        NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
+
+        op_no_dag = DummyOperator(task_id='test_task_naive_datetime',
+                                  start_date=NAIVE_DATETIME,
+                                  end_date=NAIVE_DATETIME)
+
+        self.assertTrue(op_no_dag.start_date.tzinfo)
+        self.assertTrue(op_no_dag.end_date.tzinfo)
+
     def test_set_dag(self):
         """
         Test assigning Operators to Dags, including deferred assignment

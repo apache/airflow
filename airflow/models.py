@@ -337,7 +337,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             return found_dags
 
         mods = []
-        if not zipfile.is_zipfile(filepath):
+        is_zipfile = zipfile.is_zipfile(filepath)
+        if not is_zipfile:
             if safe_mode and os.path.isfile(filepath):
                 with open(filepath, 'rb') as f:
                     content = f.read()
@@ -409,7 +410,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 if isinstance(dag, DAG):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
-                        if dag.fileloc != filepath:
+                        if dag.fileloc != filepath and not is_zipfile:
                             dag.fileloc = filepath
                     try:
                         dag.is_subdag = False
@@ -2413,10 +2414,17 @@ class BaseOperator(LoggingMixin):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
             self.log.warning("start_date for %s isn't datetime.datetime", self)
+        elif start_date:
+            self.start_date = timezone.convert_to_utc(start_date)
+
         self.end_date = end_date
+        if end_date:
+            self.end_date = timezone.convert_to_utc(end_date)
+
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
                 "The trigger_rule must be one of {all_triggers},"

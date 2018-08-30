@@ -400,7 +400,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
         title = dag_id
         try:
-            with open(dag.fileloc, 'r') as f:
+            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
@@ -1921,6 +1921,11 @@ class ConnectionModelView(AirflowModelView):
             d = json.loads(form.data.get('extra', '{}'))
         except Exception:
             d = {}
+
+        if not hasattr(d, 'get'):
+            logging.warning('extra field for {} is not iterable'.format(
+                form.data.get('conn_id', '<unknown>')))
+            return
 
         for field in self.extra_fields:
             value = d.get(field, '')
