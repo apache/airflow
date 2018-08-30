@@ -20,17 +20,21 @@
 # flake8: noqa: E402
 import inspect
 from future import standard_library
-standard_library.install_aliases()
+standard_library.install_aliases()  # noqa: E402
 from builtins import str, object
 
 from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
+import io
 import json
+import os
+import re
 import time
 import wtforms
 from wtforms.compat import text_type
+import zipfile
 
 from flask import after_this_request, request, Response
 from flask_admin.model import filters
@@ -370,6 +374,22 @@ def gzipped(f):
         return f(*args, **kwargs)
 
     return view_func
+
+
+def open_maybe_zipped(f, mode='r'):
+    """
+    Opens the given file. If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive, opening the file inside the archive.
+
+    :return: a file object, as in `open`, or as in `ZipFile.open`.
+    """
+
+    _, archive, filename = re.search(
+        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return zipfile.ZipFile(archive, mode=mode).open(filename)
+    else:
+        return io.open(f, mode=mode)
 
 
 def make_cache_key(*args, **kwargs):

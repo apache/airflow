@@ -400,7 +400,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
         title = dag_id
         try:
-            with open(dag.fileloc, 'r') as f:
+            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
