@@ -148,7 +148,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
         """
         Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
 
-        :param json: The data used in the body of the request to the ``submit`` endpoint.
+        :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :type json: dict
         :return: the run_id as a string
         :rtype: string
