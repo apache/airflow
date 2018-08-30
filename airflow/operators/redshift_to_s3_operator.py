@@ -39,6 +39,16 @@ class RedshiftToS3Transfer(BaseOperator):
     :type redshift_conn_id: string
     :param aws_conn_id: reference to a specific S3 connection
     :type aws_conn_id: string
+    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+        - False: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type verify: bool or str
     :param unload_options: reference to a list of UNLOAD options
     :type unload_options: list
     """
@@ -56,6 +66,7 @@ class RedshiftToS3Transfer(BaseOperator):
             s3_key,
             redshift_conn_id='redshift_default',
             aws_conn_id='aws_default',
+            verify=None,
             unload_options=tuple(),
             autocommit=False,
             parameters=None,
@@ -68,6 +79,7 @@ class RedshiftToS3Transfer(BaseOperator):
         self.s3_key = s3_key
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
+        self.verify = verify
         self.unload_options = unload_options
         self.autocommit = autocommit
         self.parameters = parameters
@@ -79,7 +91,7 @@ class RedshiftToS3Transfer(BaseOperator):
 
     def execute(self, context):
         self.hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
-        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id)
+        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         credentials = self.s3.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
 

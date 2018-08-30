@@ -1158,7 +1158,7 @@ class DataProcPySparkOperator(BaseOperator):
     @staticmethod
     def _generate_temp_filename(filename):
         dt = time.strftime('%Y%m%d%H%M%S')
-        return "{}_{}_{}".format(dt, str(uuid.uuid1())[:8], ntpath.basename(filename))
+        return "{}_{}_{}".format(dt, str(uuid.uuid4())[:8], ntpath.basename(filename))
 
     """
     Upload a local file to a Google Cloud Storage bucket
@@ -1312,7 +1312,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
             .instantiate(
                 name=('projects/%s/regions/%s/workflowTemplates/%s' %
                       (self.project_id, self.region, self.template_id)),
-                body={'instanceId': str(uuid.uuid1())})
+                body={'instanceId': str(uuid.uuid4())})
             .execute())
 
 
@@ -1355,6 +1355,6 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
             self.hook.get_conn().projects().regions().workflowTemplates()
             .instantiateInline(
                 parent='projects/%s/regions/%s' % (self.project_id, self.region),
-                instanceId=str(uuid.uuid1()),
+                instanceId=str(uuid.uuid4()),
                 body=self.template)
             .execute())

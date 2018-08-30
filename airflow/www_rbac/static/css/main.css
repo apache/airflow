@@ -265,3 +265,4 @@ div.square {
 .sc { color: #BA2121 } /* Literal.String.Char */
 .sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
 .s2 { color: #BA2121 } /* Literal.String.Double */
+.s1 { color: #BA2121 } /* Literal.String.Single */

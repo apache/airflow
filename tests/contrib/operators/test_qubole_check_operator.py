@@ -24,6 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOperator
 from airflow.contrib.hooks.qubole_check_hook import QuboleCheckHook
 from airflow.contrib.hooks.qubole_hook import QuboleHook
+from qds_sdk.commands import HiveCommand
 
 try:
     from unittest import mock
@@ -80,11 +81,13 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
         mock_hook.get_first.assert_called_with(query)
 
     @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
-    def test_execute_fail(self, mock_get_hook):
+    def test_execute_assertion_fail(self, mock_get_hook):
 
         mock_cmd = mock.Mock()
         mock_cmd.status = 'done'
         mock_cmd.id = 123
+        mock_cmd.is_success = mock.Mock(
+            return_value=HiveCommand.is_success(mock_cmd.status))
 
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = [11]
@@ -96,6 +99,30 @@ class QuboleValueCheckOperatorTest(unittest.TestCase):
         with self.assertRaisesRegexp(AirflowException,
                                      'Qubole Command Id: ' + str(mock_cmd.id)):
             operator.execute()
+
+        mock_cmd.is_success.assert_called_with(mock_cmd.status)
+
+    @mock.patch.object(QuboleValueCheckOperator, 'get_hook')
+    def test_execute_assert_query_fail(self, mock_get_hook):
+
+        mock_cmd = mock.Mock()
+        mock_cmd.status = 'error'
+        mock_cmd.id = 123
+        mock_cmd.is_success = mock.Mock(
+            return_value=HiveCommand.is_success(mock_cmd.status))
+
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = [11]
+        mock_hook.cmd = mock_cmd
+        mock_get_hook.return_value = mock_hook
+
+        operator = self.__construct_operator('select value from tab1 limit 1;', 5, 1)
+
+        with self.assertRaises(AirflowException) as cm:
+            operator.execute()
+
+        self.assertNotIn('Qubole Command Id: ', str(cm.exception))
+        mock_cmd.is_success.assert_called_with(mock_cmd.status)
 
     @mock.patch.object(QuboleCheckHook, 'get_query_results')
     @mock.patch.object(QuboleHook, 'execute')

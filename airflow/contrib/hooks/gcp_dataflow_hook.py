@@ -250,7 +250,7 @@ class DataFlowHook(GoogleCloudBaseHook):
                 'letter and ending with a letter or number '.format(task_id))
 
         if append_job_name:
-            job_name = task_id + "-" + str(uuid.uuid1())[:8]
+            job_name = task_id + "-" + str(uuid.uuid4())[:8]
         else:
             job_name = task_id
 

@@ -77,7 +77,8 @@ class Pod:
             service_account_name=None,
             resources=None,
             annotations=None,
-            affinity=None
+            affinity=None,
+            hostnetwork=False
     ):
         self.image = image
         self.envs = envs or {}
@@ -98,3 +99,4 @@ class Pod:
         self.resources = resources or Resources()
         self.annotations = annotations or {}
         self.affinity = affinity or {}
+        self.hostnetwork = hostnetwork or False

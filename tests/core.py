@@ -2078,7 +2078,7 @@ class WebLdapAuthTest(unittest.TestCase):
             configuration.conf.add_section("ldap")
         except:
             pass
-        configuration.conf.set("ldap", "uri", "ldap://localhost:3890")
+        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
         configuration.conf.set("ldap", "user_name_attr", "uid")
         configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
@@ -2165,7 +2165,7 @@ class LdapGroupTest(unittest.TestCase):
             configuration.conf.add_section("ldap")
         except:
             pass
-        configuration.conf.set("ldap", "uri", "ldap://localhost:3890")
+        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
         configuration.conf.set("ldap", "user_name_attr", "uid")
         configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
