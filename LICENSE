@@ -220,6 +220,7 @@ at licenses/LICENSE-[project].txt.
     (ALv2 License) hue (https://github.com/cloudera/hue/)
     (ALv2 License) jqclock (https://github.com/JohnRDOrazio/jQuery-Clock-Plugin)
     (ALv2 License) bootstrap3-typeahead (https://github.com/bassjobsen/Bootstrap-3-Typeahead)
+    (ALv2 License) airflow.contrib.auth.backends.github_enterprise_auth
 
 ========================================================================
 MIT licenses
