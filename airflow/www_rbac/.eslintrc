@@ -1,5 +1,17 @@
 {
+  "env": {
+    "browser": true,
+    "es6": false, // TODO: remove once all JS is in .js files processed by babel
+    "jquery": true
+  },
   "extends": "airbnb-base",
   "parser": "babel-eslint",
-  "plugins": [ "html" ]
+  "parserOptions": {
+    "ecmaVersion": 5,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@jupyterlab/eslint-plugin-jinja",
+    "html"
+  ]
 }

@@ -359,3 +359,11 @@ npm run lint
 # Check JS code in .js and .html files, report any errors/warnings and fix them if possible
 npm run lint:fix
 ```
+
+Note that running `eslint --fix` is "not supported on plugins with processors
+(i.e., plugins which transform files to be ready for linting in JS)" (see
+[eslint/eslint#7456](https://github.com/eslint/eslint/issues/7456)). This
+applies to our included `eslint-plugin-jinja` plugin. As a workaround, you can
+temporarily disable the plugin, run the fix command, then re-enable it, but note
+that this may break or cause auto fix to make erroneous "fixes" where eslint
+gets confused by Jinja syntax.

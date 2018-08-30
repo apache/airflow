@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,12 +18,13 @@
 # under the License.
 #
 #}
+
 {% extends "airflow/dag.html" %}
 
 {% block head_css %}
-{{ super() }}
-<link rel="stylesheet" type="text/css"
-    href="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
+  {{ super() }}
+  <link rel="stylesheet" type="text/css"
+        href="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 {% endblock %}
 
 {% block content %}
@@ -58,23 +59,26 @@
   </ul>
   <hr>
 {% endblock %}
+
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js')}}"></script>
   <script>
-    $( document ).ready(function() {
-      function date_change(){
-          execution_date = $("input#execution_date").val().replace(' ', 'T');
-          loc = decodeURIComponent(window.location.href);
-          loc = loc.replace('{{ execution_date }}', execution_date);
-          window.location = loc;
-      }
-      $("input#execution_date").on("change.daterangepicker", function(){
-          date_change();
-      });
-      $("input#execution_date").on("apply.daterangepicker", function(){
-          date_change();
-      });
+  $(document).ready(() => {
+    // eslint-disable-next-line camelcase
+    function date_change() {
+      const executionDate = $('input#execution_date').val().replace(' ', 'T');
+      let loc = decodeURIComponent(window.location.href);
+      loc = loc.replace('{{ execution_date }}', executionDate);
+      window.location = loc;
+    }
+
+    $('input#execution_date').on('change.daterangepicker', () => {
+      date_change();
     });
+    $('input#execution_date').on('apply.daterangepicker', () => {
+      date_change();
+    });
+  });
   </script>
 {% endblock %}

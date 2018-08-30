@@ -13,8 +13,8 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
 #}
+
 {% extends "airflow/master.html" %}
 
 {% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
@@ -275,214 +275,172 @@
     </div>
   </div>
 {% endblock %}
+
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
-function updateQueryStringParameter(uri, key, value) {
-  var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
-  var separator = uri.indexOf('?') !== -1 ? "&" : "?";
-  if (uri.match(re)) {
-    return uri.replace(re, '$1' + key + "=" + value + '$2');
+  function updateQueryStringParameter(uri, key, value) {
+    const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
+    const separator = uri.indexOf('?') !== -1 ? '&' : '?';
+    if (uri.match(re)) {
+      return uri.replace(re, `$1${key}=${value}$2`);
+    }
+
+    return `${uri + separator + key}=${value}`;
   }
-  else {
-    return uri + separator + key + "=" + value;
+
+  // Pills highlighting
+  $(document).ready(() => {
+    $(`a[href*="${this.location.pathname}"]`).parent().addClass('active');
+    $('.never_active').removeClass('active');
+  });
+
+  const dagId = '{{ dag.dag_id }}';
+  // eslint-disable-next-line no-unused-vars, prefer-const
+  let dagTZ = '{{ dag.timezone.name }}'; // dagTZ is used and reassigned in datetime-utils.js
+  let taskId = '';
+  let executionDate = '';
+  let subDagId = '';
+
+  // call_modal is called from gantt-chart-d3v2.js
+  // eslint-disable-next-line camelcase, no-unused-vars
+  function call_modal(t, d, sd) {
+    taskId = t;
+    const loc = String(window.location);
+    $('#btn_filter').on('click', () => {
+      window.location = updateQueryStringParameter(loc, 'root', taskId);
+    });
+    subDagId = sd;
+    executionDate = d;
+    $('#task_id').html(t);
+    $('#execution_date').html(d);
+    $('#myModal').modal({});
+    $('#myModal').css('margin-top', '0px');
+    if (subDagId === undefined) $('#div_btn_subdag').hide();
+    else {
+      $('#div_btn_subdag').show();
+      subDagId = `{{ dag.dag_id }}.${t}`;
+    }
   }
-}
 
-    // Pills highlighting
-    $(document).ready(function () {
-      $('a[href*="' + this.location.pathname + '"]').parent().addClass('active');
-      $('.never_active').removeClass('active');
-    });
+  // call_modal_dag is called from tree.html
+  // eslint-disable-next-line camelcase, no-unused-vars
+  function call_modal_dag(dag) {
+    executionDate = dag && dag.execution_date;
+    $('#dag_id').html(dagId);
+    $('#dagModal').modal({});
+    $('#dagModal').css('margin-top', '0px');
+  }
 
-    var id = '';
-    var dag_id = '{{ dag.dag_id }}';
-    var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime-utils.js
-    var task_id = '';
-    var exection_date = '';
-    var subdag_id = '';
-    function call_modal(t, d, sd) {
-      task_id = t;
-      loc = String(window.location);
-      $("#btn_filter").on("click", function(){
-        window.location = updateQueryStringParameter(loc, "root", task_id);
-      });
-      subdag_id = sd;
-      execution_date = d;
-      $('#task_id').html(t);
-      $('#execution_date').html(d);
-      $('#myModal').modal({});
-      $("#myModal").css("margin-top","0px")
-        if (subdag_id===undefined)
-            $("#div_btn_subdag").hide();
-        else {
-            $("#div_btn_subdag").show();
-            subdag_id = "{{ dag.dag_id }}."+t;
-        }
+  // confirmDeleteDag is called from dag.html
+  // eslint-disable-next-line no-unused-vars
+  function confirmDeleteDag(deleteDagId) {
+    // eslint-disable-next-line no-alert, no-restricted-globals
+    return confirm(`Are you sure you want to delete '${deleteDagId}' now?\n\
+            This option will delete ALL metadata, DAG runs, etc.\n\
+            This cannot be undone.`);
+  }
+
+  $('#btn_rendered').click(() => {
+    const url = `{{ url_for('Airflow.rendered') }}?task_id=${encodeURIComponent(taskId)}&dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`;
+    window.location = url;
+  });
+
+  $('#btn_subdag').click(() => {
+    const url = `{{ url_for( 'Airflow.' + dag.default_view ) }}?dag_id=${encodeURIComponent(subDagId)}&execution_date=${encodeURIComponent(executionDate)}`;
+    window.location = url;
+  });
+
+  $('#btn_log').click(() => {
+    const url = `{{ url_for('Airflow.log') }}?task_id=${encodeURIComponent(taskId)}&dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`;
+    window.location = url;
+  });
+
+  $('#btn_task').click(() => {
+    const url = `{{ url_for('Airflow.task') }}?task_id=${encodeURIComponent(taskId)}&dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`;
+    window.location = url;
+  });
+
+  $('#btn_ti').click(() => {
+    const url = `{{ url_for('TaskInstanceModelView.list') }}?flt1_dag_id_equals=${dagId}&_flt_3_task_id=${taskId}&_oc_TaskInstanceModelView=execution_date`;
+    window.location = url;
+  });
+
+  $('#btn_run').click(() => {
+    const url = `{{ url_for('Airflow.run') }}?task_id=${encodeURIComponent(taskId)}&dag_id=${encodeURIComponent(dagId)}&ignore_all_deps=${$('#btn_ignore_all_deps').hasClass('active')}&ignore_task_deps=${$('#btn_ignore_task_deps').hasClass('active')}&ignore_ti_state=${$('#btn_ignore_ti_state').hasClass('active')}&execution_date=${encodeURIComponent(executionDate)}&origin=${encodeURIComponent(window.location)}`;
+    window.location = url;
+  });
+
+  $('#btn_clear').click(() => {
+    const params = {
+      task_id: taskId,
+      dag_id: dagId,
+      future: $('#btn_future').hasClass('active'),
+      past: $('#btn_past').hasClass('active'),
+      upstream: $('#btn_upstream').hasClass('active'),
+      downstream: $('#btn_downstream').hasClass('active'),
+      recursive: $('#btn_recursive').hasClass('active'),
+      execution_date: executionDate,
+      origin: window.location,
+    };
+    const queryString = Object.keys(params)
+      .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
+      .join('&');
+    const url = `{{ url_for('Airflow.clear') }}?${queryString}`;
+    window.location = url;
+  });
+
+  $('#btn_dagrun_clear').click(() => {
+    const url = `{{ url_for('Airflow.dagrun_clear') }}?task_id=${encodeURIComponent(taskId)}&dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}&origin=${encodeURIComponent(window.location)}`;
+    window.location = url;
+  });
+
+  $('#btn_failed').click(() => {
+    const url = `{{ url_for('Airflow.failed') }}?task_id=${encodeURIComponent(taskId)}&dag_id=${encodeURIComponent(dagId)}&upstream=${$('#btn_failed_upstream').hasClass('active')}&downstream=${$('#btn_failed_downstream').hasClass('active')}&future=${$('#btn_failed_future').hasClass('active')}&past=${$('#btn_failed_past').hasClass('active')}&execution_date=${encodeURIComponent(executionDate)}&origin=${encodeURIComponent(window.location)}`;
+    window.location = url;
+  });
+
+  $('#btn_success').click(() => {
+    const url = `{{ url_for('Airflow.success') }}?task_id=${encodeURIComponent(taskId)}&dag_id=${encodeURIComponent(dagId)}&upstream=${$('#btn_success_upstream').hasClass('active')}&downstream=${$('#btn_success_downstream').hasClass('active')}&future=${$('#btn_success_future').hasClass('active')}&past=${$('#btn_success_past').hasClass('active')}&execution_date=${encodeURIComponent(executionDate)}&origin=${encodeURIComponent(window.location)}`;
+    window.location = url;
+  });
+
+  $('#btn_dagrun_failed').click(() => {
+    const url = `{{ url_for('Airflow.dagrun_failed') }}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}&origin=${encodeURIComponent(window.location)}`;
+    window.location = url;
+  });
+
+  $('#btn_dagrun_success').click(() => {
+    const url = `{{ url_for('Airflow.dagrun_success') }}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}&origin=${encodeURIComponent(window.location)}`;
+    window.location = url;
+  });
+
+  $('#btn_gantt').click(() => {
+    const url = `{{ url_for('Airflow.gantt') }}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`;
+    window.location = url;
+  });
+
+  $('#btn_graph').click(() => {
+    const url = `{{ url_for('Airflow.graph') }}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`;
+    window.location = url;
+  });
+
+  $('#pause_resume').change(() => {
+    const pauseDagId = $(this).attr('dag_id');
+    let isPaused;
+    if ($(this).prop('checked')) {
+      isPaused = 'true';
+    } else {
+      isPaused = 'false';
     }
 
-    function call_modal_dag(dag) {
-      id = dag && dag.id;
-      execution_date = dag && dag.execution_date;
-      $('#dag_id').html(dag_id);
-      $('#dagModal').modal({});
-      $("#dagModal").css("margin-top","0px");
-    }
+    const url = `{{ url_for('Airflow.paused') }}?is_paused=${isPaused}&dag_id=${encodeURIComponent(pauseDagId)}`;
+    $.post(url);
+  });
 
-    function confirmDeleteDag(dag_id){
-        return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
-          This option will delete ALL metadata, DAG runs, etc.\n\
-          This cannot be undone.");
-    }
-
-    $("#btn_rendered").click(function(){
-      url = "{{ url_for('Airflow.rendered') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
-
-    $("#btn_subdag").click(function(){
-      url = "{{ url_for( 'Airflow.' + dag.default_view ) }}" +
-        "?dag_id=" + encodeURIComponent(subdag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
-
-    $("#btn_log").click(function(){
-      url = "{{ url_for('Airflow.log') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
-
-    $("#btn_task").click(function(){
-      url = "{{ url_for('Airflow.task') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
-
-    $("#btn_ti").click(function(){
-      url = "{{ url_for('TaskInstanceModelView.list') }}" +
-        "?flt1_dag_id_equals=" + dag_id +
-        "&_flt_3_task_id=" + task_id +
-        "&_oc_TaskInstanceModelView=execution_date";
-      window.location = url;
-    });
-
-    $("#btn_run").click(function(){
-      url = "{{ url_for('Airflow.run') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&ignore_all_deps=" + $('#btn_ignore_all_deps').hasClass('active') +
-        "&ignore_task_deps=" + $('#btn_ignore_task_deps').hasClass('active') +
-        "&ignore_ti_state=" + $('#btn_ignore_ti_state').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $("#btn_clear").click(function(){
-      url = "{{ url_for('Airflow.clear') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&future=" + $('#btn_future').hasClass('active') +
-        "&past=" + $('#btn_past').hasClass('active') +
-        "&upstream=" + $('#btn_upstream').hasClass('active') +
-        "&downstream=" + $('#btn_downstream').hasClass('active') +
-        "&recursive=" + $('#btn_recursive').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $("#btn_dagrun_clear").click(function(){
-      url = "{{ url_for('Airflow.dagrun_clear') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $("#btn_failed").click(function(){
-      url = "{{ url_for('Airflow.failed') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&upstream=" + $('#btn_failed_upstream').hasClass('active') +
-        "&downstream=" + $('#btn_failed_downstream').hasClass('active') +
-        "&future=" + $('#btn_failed_future').hasClass('active') +
-        "&past=" + $('#btn_failed_past').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-
-      window.location = url;
-    });
-
-    $("#btn_success").click(function(){
-      url = "{{ url_for('Airflow.success') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&upstream=" + $('#btn_success_upstream').hasClass('active') +
-        "&downstream=" + $('#btn_success_downstream').hasClass('active') +
-        "&future=" + $('#btn_success_future').hasClass('active') +
-        "&past=" + $('#btn_success_past').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-
-      window.location = url;
-    });
-
-    $('#btn_dagrun_failed').click(function(){
-      url = "{{ url_for('Airflow.dagrun_failed') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $('#btn_dagrun_success').click(function(){
-      url = "{{ url_for('Airflow.dagrun_success') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $("#btn_gantt").click(function(){
-      url = "{{ url_for('Airflow.gantt') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
-
-    $("#btn_graph").click(function(){
-      url = "{{ url_for('Airflow.graph') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
-
-    $("#pause_resume").change(function() {
-      var dag_id =  $(this).attr('dag_id');
-      if ($(this).prop('checked')) {
-        is_paused = 'true'
-      } else {
-        is_paused = 'false'
-      }
-      url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
-      $.post(url);
-    });
-
-    $('#btn_edit_dagrun').click(function(){
-      window.location = "{{ url_for('DagModelView.show', pk=id) }}";
-
-    });
-
+  $('#btn_edit_dagrun').click(() => {
+    window.location = '{{ url_for("DagModelView.show", pk=id) }}';
+  });
   </script>
 {% endblock %}

@@ -21,11 +21,11 @@
  * Created by janomar on 23/07/15.
  */
 
-$(document).ready(function () {
-  var config = {
+$(document).ready(() => {
+  const config = {
     jdbc: {
       hidden_fields: ['port', 'schema', 'extra'],
-      relabeling: {'host': 'Connection URL'},
+      relabeling: { host: 'Connection URL' },
     },
     google_cloud_platform: {
       hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -34,46 +34,46 @@ $(document).ready(function () {
     cloudant: {
       hidden_fields: ['port', 'extra'],
       relabeling: {
-        'host': 'Account',
-        'login': 'Username (or API Key)',
-        'schema': 'Database'
-      }
+        host: 'Account',
+        login: 'Username (or API Key)',
+        schema: 'Database',
+      },
     },
     docker: {
       hidden_fields: ['port', 'schema'],
       relabeling: {
-        'host': 'Registry URL',
-        'login': 'Username',
+        host: 'Registry URL',
+        login: 'Username',
       },
     },
   };
 
   function connTypeChange(connectionType) {
-    $(".hide").removeClass("hide");
-    $.each($("[id^='extra__']"), function () {
-      $(this).parent().parent().addClass('hide')
+    $('.hide').removeClass('hide');
+    $.each($("[id^='extra__']"), () => {
+      $(this).parent().parent().addClass('hide');
     });
-    $.each($("[id^='extra__" + connectionType + "']"), function () {
-      $(this).parent().parent().removeClass('hide')
+    $.each($(`[id^='extra__${connectionType}']`), () => {
+      $(this).parent().parent().removeClass('hide');
     });
-    $("label[orig_text]").each(function () {
-      $(this).text($(this).attr("orig_text"));
+    $('label[orig_text]').each(() => {
+      $(this).text($(this).attr('orig_text'));
     });
-    if (config[connectionType] != undefined) {
-      $.each(config[connectionType].hidden_fields, function (i, field) {
-        $("#" + field).parent().parent().addClass('hide')
+    if (config[connectionType] !== undefined) {
+      $.each(config[connectionType].hidden_fields, (i, field) => {
+        $(`#${field}`).parent().parent().addClass('hide');
       });
-      $.each(config[connectionType].relabeling, function (k, v) {
-        lbl = $("label[for='" + k + "']");
-        lbl.attr("orig_text", lbl.text());
-        $("label[for='" + k + "']").text(v);
+      $.each(config[connectionType].relabeling, (k, v) => {
+        const lbl = $(`label[for='${k}']`);
+        lbl.attr('orig_text', lbl.text());
+        $(`label[for='${k}']`).text(v);
       });
     }
   }
 
-  var connectionType = $("#conn_type").val();
-  $("#conn_type").on('change', function (e) {
-    connectionType = $("#conn_type").val();
+  let connectionType = $('#conn_type').val();
+  $('#conn_type').on('change', () => {
+    connectionType = $('#conn_type').val();
     connTypeChange(connectionType);
   });
   connTypeChange(connectionType);

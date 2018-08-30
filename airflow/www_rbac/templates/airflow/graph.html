@@ -96,260 +96,265 @@
     <script src="{{ url_for_asset('d3.min.js') }}"></script>
     <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
     <script>
+    /* global call_modal, d3, dagreD3 */
 
-    var highlight_color = "#000000";
-    var upstream_color = "#2020A0";
-    var downstream_color = "#0000FF";
-    var initialStrokeWidth = '3px';
-    var highlightStrokeWidth = '5px';
+    const highlightColor = '#000000';
+    const upstreamColor = '#2020A0';
+    const downstreamColor = '#0000FF';
+    const initialStrokeWidth = '3px';
+    const highlightStrokeWidth = '5px';
 
-    var nodes = {{ nodes|safe }};
-    var edges = {{ edges|safe }};
-    var execution_date = "{{ execution_date }}";
-    var arrange = "{{ arrange }}";
+    const nodes = '{{ nodes|safe }}';
+    const edges = '{{ edges|safe }}';
+    const executionDate = '{{ execution_date }}';
+    const arrange = '{{ arrange }}';
 
-    // Below variables are being used in dag.js
-    var tasks = {{ tasks|safe }};
-    var task_instances = {{ task_instances|safe }};
-    var getTaskInstanceURL = '{{ url_for("Airflow.task_instances", dag_id='+
-      dag.dag_id + ', execution_date=' + execution_date + ') }}';
+    // tasks, taskInstances, getTaskInstanceURL are used in graph.js
+    /* eslint-disable no-unused-vars */
+    const tasks = '{{ tasks|safe }}';
+    const taskInstances = '{{ task_instances|safe }}';
+    const getTaskInstanceURL = `{{ url_for("Airflow.task_instances", dag_id="dag.dag_id", execution_date=${executionDate}) }}`;
+    /* eslint-enable no-unused-vars */
 
-    var duration = 500;
-    var stateFocusMap = {
-        'no status':false, 'failed':false, 'running':false,
-        'queued': false, 'success': false};
+    const duration = 500;
+    const stateFocusMap = {
+      'no status': false,
+      failed: false,
+      running: false,
+      queued: false,
+      success: false,
+    };
 
     // Preparation of DagreD3 data structures
-    var g = new dagreD3.graphlib.Graph().setGraph({
-        nodesep: 15,
-        ranksep: 15,
-        rankdir: arrange,
-      })
-      .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
+    const g = new dagreD3.graphlib.Graph().setGraph({
+      nodesep: 15,
+      ranksep: 15,
+      rankdir: arrange,
+    })
+      .setDefaultEdgeLabel(() => ({ lineInterpolate: 'basis' }));
 
     // Set all nodes and styles
-    nodes.forEach(function(node) {
-      g.setNode(node.id, node.value)
-    });
+    nodes.forEach((node) => {
+  g.setNode(node.id, node.value);
+});
 
     // Set edges
-    edges.forEach(function(edge) {
-      g.setEdge(edge.u, edge.v)
-    });
+    edges.forEach((edge) => {
+  g.setEdge(edge.u, edge.v);
+});
 
-    var render = dagreD3.render(),
-      svg = d3.select("svg"),
-      innerSvg = d3.select("svg g");
+    const render = dagreD3.render();
+    const svg = d3.select('svg');
+    const innerSvg = d3.select('svg g');
 
     innerSvg.call(render, g);
 
     function setUpZoomSupport() {
       // Set up zoom support for Graph
-      var zoom = d3.behavior.zoom().on("zoom", function() {
-            innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
-                                        "scale(" + d3.event.scale + ")");
-          });
+      const zoom = d3.behavior.zoom().on('zoom', () => {
+        innerSvg.attr('transform', `translate(${d3.event.translate})`
+                            + `scale(${d3.event.scale})`);
+      });
       svg.call(zoom);
+    }
+
+    // Injecting ids to be used for parent/child highlighting
+    // Separated from update_node_states since it must work even
+    // when there is no valid task instance available
+    // eslint-disable-next-line no-shadow
+    function injectNodeIds(tasks) {
+      $.each(tasks, (taskId) => {
+        $('tspan').filter(() => $(this).text() === taskId)
+          .parent().parent()
+          .parent()
+          .attr('id', taskId);
+      });
     }
 
     // Centering the DAG on load (Not implemented yet)
     // https://github.com/dagrejs/dagre-d3/issues/245
 
     setUpZoomSupport();
-    inject_node_ids(tasks);
+    injectNodeIds(tasks);
 
-    d3.selectAll("g.node").on("click", function(d){
-        task = tasks[d];
-        if (task.task_type == "SubDagOperator")
-            call_modal(d, execution_date, true);
-        else
-            call_modal(d, execution_date);
+    d3.selectAll('g.node').on('click', (d) => {
+      const task = tasks[d];
+      if (task.task_type === 'SubDagOperator') call_modal(d, executionDate, true);
+      else call_modal(d, executionDate);
     });
 
-
-    function highlight_nodes(nodes, color) {
-        nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid).node().parentNode;
-            d3.select(my_node).selectAll("rect").style("stroke", color) ;
-        })
+    // eslint-disable-next-line no-shadow
+    function highlightNodes(nodes, color) {
+      nodes.forEach((nodeid) => {
+        const myNode = d3.select(`#${nodeid}`).node().parentNode;
+        d3.select(myNode).selectAll('rect').style('stroke', color);
+      });
     }
 
-    d3.selectAll("g.node").on("mouseover", function(d){
-        d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
-        highlight_nodes(g.predecessors(d), upstream_color);
-        highlight_nodes(g.successors(d), downstream_color)
-
+    d3.selectAll('g.node').on('mouseover', (d) => {
+      d3.select(this).selectAll('rect').style('stroke', highlightColor);
+      highlightNodes(g.predecessors(d), upstreamColor);
+      highlightNodes(g.successors(d), downstreamColor);
     });
 
-    d3.selectAll("g.node").on("mouseout", function(d){
-        d3.select(this).selectAll("rect").style("stroke", null) ;
-        highlight_nodes(g.predecessors(d), null)
-        highlight_nodes(g.successors(d), null)
+    d3.selectAll('g.node').on('mouseout', (d) => {
+      d3.select(this).selectAll('rect').style('stroke', null);
+      highlightNodes(g.predecessors(d), null);
+      highlightNodes(g.successors(d), null);
     });
 
+    // FIXME: why does this make eslint error out?
+    // {% if blur %}
+    // d3.selectAll("text").attr("class", "blur");
+    // {% endif %}
 
-    {% if blur %}
-    d3.selectAll("text").attr("class", "blur");
-    {% endif %}
-
-    $("g.node").tooltip({
+    $('g.node').tooltip({
       html: true,
-      container: "body",
+      container: 'body',
     });
 
-    d3.selectAll("div.legend_item.state")
-        .style("cursor", "pointer")
-        .on("mouseover", function(){
-            if(!stateIsSet()){
-                state = d3.select(this).text();
-                focusState(state);
-            }
-        })
-        .on("mouseout", function(){
-            if(!stateIsSet()){
-                clearFocus();
-            }
-        });
-
-    d3.selectAll("div.legend_item.state")
-        .on("click", function(){
-            state = d3.select(this).text();
-            color = d3.select(this).style("border-color");
-
-            if (!stateFocusMap[state]){
-                clearFocus();
-                focusState(state, this, color);
-                setFocusMap(state);
-
-            } else {
-                clearFocus();
-                setFocusMap();
-            }
-        });
-
-    d3.select("#searchbox").on("keyup", function(){
-        var s = document.getElementById("searchbox").value;
-        var match = null;
-
-        if (stateIsSet){
-            clearFocus();
-            setFocusMap();
+    function stateIsSet() {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const key in stateFocusMap) {
+        if (Object.prototype.hasOwnProperty.call(stateFocusMap, key)) {
+          if (stateFocusMap[key]) {
+            return true;
+          }
         }
+      }
+      return false;
+    }
 
-        d3.selectAll("g.nodes g.node").filter(function(d, i){
-            if (s==""){
-                d3.select("g.edgePaths")
-                    .transition().duration(duration)
-                    .style("opacity", 1);
-                d3.select(this)
-                    .transition().duration(duration)
-                    .style("opacity", 1)
-                    .selectAll("rect")
-                    .style("stroke-width", initialStrokeWidth);
-            }
-            else{
-                d3.select("g.edgePaths")
-                    .transition().duration(duration)
-                    .style("opacity", 0.2);
-                if (d.indexOf(s) > -1) {
-                    if (!match)
-                        match = this;
-                    d3.select(this)
-                        .transition().duration(duration)
-                        .style("opacity", 1)
-                        .selectAll("rect")
-                        .style("stroke-width", highlightStrokeWidth);
-                }
-                else {
-                    d3.select(this)
-                        .transition()
-                        .style("opacity", 0.2).duration(duration)
-                        .selectAll("rect")
-                        .style("stroke-width", initialStrokeWidth);
-                }
-            }
-        });
+    function focusState(state, node, color) {
+      d3.selectAll('g.node')
+        .transition(duration)
+        .style('opacity', 0.2);
+      d3.selectAll(`g.node.${state}`)
+        .transition(duration)
+        .style('opacity', 1);
+      d3.selectAll(`g.node.${state} rect`)
+        .transition(duration)
+        .style('stroke-width', highlightStrokeWidth)
+        .style('opacity', 1);
+      d3.select('g.edgePaths')
+        .transition().duration(duration)
+        .style('opacity', 0.2);
+      d3.select(node)
+        .style('background-color', color);
+    }
 
-        // This moves the matched node in the center of the graph area
-        // ToDo: Should we keep this here as it has no added value
-        // and does not fit the graph on small screens, and has to scroll
-        if(match) {
-            var transform = d3.transform(d3.select(match).attr("transform"));
-            transform.translate = [
-                -transform.translate[0] + 520,
-                -(transform.translate[1] - 400)
-            ];
-            transform.scale = [1, 1];
+    function clearFocus() {
+      d3.selectAll('g.node')
+        .transition(duration)
+        .style('opacity', 1);
+      d3.selectAll('g.node rect')
+        .transition(duration)
+        .style('stroke-width', initialStrokeWidth);
+      d3.select('g.edgePaths')
+        .transition().duration(duration)
+        .style('opacity', 1);
+      d3.selectAll('div.legend_item.state')
+        .style('background-color', null);
+    }
 
-            d3.select("g.zoom")
-                .transition()
-                .attr("transform", transform.toString());
-            innerSvg.attr("transform", "translate(" + transform.translate + ")" +
-                                        "scale(1)");
+    function setFocusMap(state) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const key in stateFocusMap) {
+        if (Object.prototype.hasOwnProperty.call(stateFocusMap, key)) {
+          stateFocusMap[key] = false;
         }
+      }
+      if (state != null) {
+        stateFocusMap[state] = true;
+      }
+    }
+
+    d3.selectAll('div.legend_item.state')
+      .style('cursor', 'pointer')
+      .on('mouseover', () => {
+        if (!stateIsSet()) {
+          const state = d3.select(this).text();
+          focusState(state);
+        }
+      })
+      .on('mouseout', () => {
+        if (!stateIsSet()) {
+          clearFocus();
+        }
+      });
+
+    d3.selectAll('div.legend_item.state')
+      .on('click', () => {
+        const state = d3.select(this).text();
+        const color = d3.select(this).style('border-color');
+
+        if (!stateFocusMap[state]) {
+          clearFocus();
+          focusState(state, this, color);
+          setFocusMap(state);
+        } else {
+          clearFocus();
+          setFocusMap();
+        }
+      });
+
+    d3.select('#searchbox').on('keyup', () => {
+      const s = document.getElementById('searchbox').value;
+      let match = null;
+
+      if (stateIsSet) {
+        clearFocus();
+        setFocusMap();
+      }
+
+      d3.selectAll('g.nodes g.node').forEach((d) => {
+        if (s === '') {
+          d3.select('g.edgePaths')
+            .transition().duration(duration)
+            .style('opacity', 1);
+          d3.select(this)
+            .transition().duration(duration)
+            .style('opacity', 1)
+            .selectAll('rect')
+            .style('stroke-width', initialStrokeWidth);
+        } else {
+          d3.select('g.edgePaths')
+            .transition().duration(duration)
+            .style('opacity', 0.2);
+          if (d.indexOf(s) > -1) {
+            if (!match) match = this;
+            d3.select(this)
+              .transition().duration(duration)
+              .style('opacity', 1)
+              .selectAll('rect')
+              .style('stroke-width', highlightStrokeWidth);
+          } else {
+            d3.select(this)
+              .transition()
+              .style('opacity', 0.2).duration(duration)
+              .selectAll('rect')
+              .style('stroke-width', initialStrokeWidth);
+          }
+        }
+      });
+
+      // This moves the matched node in the center of the graph area
+      // ToDo: Should we keep this here as it has no added value
+      // and does not fit the graph on small screens, and has to scroll
+      if (match) {
+        const transform = d3.transform(d3.select(match).attr('transform'));
+        transform.translate = [
+          -transform.translate[0] + 520,
+          -(transform.translate[1] - 400),
+        ];
+        transform.scale = [1, 1];
+
+        d3.select('g.zoom')
+          .transition()
+          .attr('transform', transform.toString());
+        innerSvg.attr('transform', `translate(${transform.translate})scale(1)`);
+      }
     });
-
-
-    // Injecting ids to be used for parent/child highlighting
-    // Separated from update_node_states since it must work even
-    // when there is no valid task instance available
-    function inject_node_ids(tasks) {
-        $.each(tasks, function(task_id, task) {
-            $('tspan').filter(function(index) { return $(this).text() === task_id; })
-                    .parent().parent().parent()
-                    .attr("id", task_id);
-        });
-    }
-
-    function clearFocus(){
-        d3.selectAll("g.node")
-            .transition(duration)
-            .style("opacity", 1);
-        d3.selectAll("g.node rect")
-            .transition(duration)
-            .style("stroke-width", initialStrokeWidth);
-        d3.select("g.edgePaths")
-            .transition().duration(duration)
-            .style("opacity", 1);
-        d3.selectAll("div.legend_item.state")
-            .style("background-color", null);
-    }
-
-    function focusState(state, node, color){
-        d3.selectAll("g.node")
-            .transition(duration)
-            .style("opacity", 0.2);
-        d3.selectAll("g.node."+state)
-            .transition(duration)
-            .style("opacity", 1);
-        d3.selectAll("g.node." + state + " rect")
-            .transition(duration)
-            .style("stroke-width", highlightStrokeWidth)
-            .style("opacity", 1);
-        d3.select("g.edgePaths")
-            .transition().duration(duration)
-            .style("opacity", 0.2);
-        d3.select(node)
-            .style("background-color", color);
-    }
-
-    function setFocusMap(state){
-        for (var key in stateFocusMap){
-                stateFocusMap[key] = false;
-        }
-        if(state != null){
-            stateFocusMap[state] = true;
-        }
-    }
-
-    function stateIsSet(){
-        for (var key in stateFocusMap){
-            if (stateFocusMap[key]){
-                return true
-            }
-        }
-        return false
-    }
     </script>
     <script src="{{ url_for_asset('graph.js') }}"></script>
 

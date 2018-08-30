@@ -19,56 +19,61 @@
 
 import { generateTooltipDateTime, converAndFormatUTC } from './datetime-utils';
 
+/* global d3 */
+
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
-function update_nodes_states(task_instances) {
-  $.each(task_instances, function (task_id, ti) {
-    $('tspan').filter(function (index) {
-      return $(this).text() === task_id;
-    })
-      .parent().parent().parent().parent()
-      .attr("class", "node enter " + ti.state)
-      .attr("data-toggle", "tooltip")
-      .attr("data-original-title", function (d) {
+function updateNodesStates(taskInstances) {
+  $.each(taskInstances, (taskId, ti) => {
+    $('tspan').filter(() => ($(this).text() === taskId))
+      .parent()
+      .parent()
+      .parent()
+      .parent()
+      .attr('class', `node enter ${ti.state}`)
+      .attr('data-toggle', 'tooltip')
+      .attr('data-original-title', () => {
         // Tooltip
-        const task = tasks[task_id];
-        let tt = "Task_id: " + ti.task_id + "<br>";
-        tt += "Run: " + converAndFormatUTC(ti.execution_date) + "<br>";
-        if (ti.run_id != undefined) {
-          tt += "run_id: <nobr>" + ti.run_id + "</nobr><br>";
+        // eslint-disable-next-line no-undef
+        const task = tasks[taskId]; // tasks is defined in graph.html
+        let tt = `taskId: ${ti.taskId}<br>`;
+        tt += `Run: ${converAndFormatUTC(ti.execution_date)}<br>`;
+        if (ti.run_id !== undefined) {
+          tt += `run_id: <nobr>${ti.run_id}</nobr><br>`;
         }
-        tt += "Operator: " + task.task_type + "<br>";
-        tt += "Duration: " + ti.duration + "<br>";
-        tt += "State: " + ti.state + "<br>";
-        tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
+        tt += `Operator: ${task.task_type}<br>`;
+        tt += `Duration: ${ti.duration}<br>`;
+        tt += `State: ${ti.state}<br>`;
+        // dagTZ is defined in dag.html
+        // eslint-disable-next-line no-undef
+        tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ);
         return tt;
       });
   });
 }
 
 function initRefreshButton() {
-  d3.select("#refresh_button").on("click",
-    function () {
-      $("#loading").css("display", "block");
-      $("div#svg_container").css("opacity", "0.2");
-      $.get(getTaskInstanceURL)
-        .done(
-          function (task_instances) {
-            update_nodes_states(JSON.parse(task_instances));
-            $("#loading").hide();
-            $("div#svg_container").css("opacity", "1");
-            $('#error').hide();
-          }
-        ).fail(function (jqxhr, textStatus, err) {
-        $('#error_msg').html(textStatus + ': ' + err);
+  d3.select('#refresh_button').on('click', () => {
+    $('#loading').css('display', 'block');
+    $('div#svg_container').css('opacity', '0.2');
+    // eslint-disable-next-line no-undef
+    $.get(getTaskInstanceURL) // getTaskInstanceURL is defined in graph.html
+      .done((taskInstances) => {
+        updateNodesStates(JSON.parse(taskInstances));
+        $('#loading').hide();
+        $('div#svg_container').css('opacity', '1');
+        $('#error').hide();
+      })
+      .fail((jqxhr, textStatus, err) => {
+        $('#error_msg').html(`${textStatus}: ${err}`);
         $('#error').show();
         $('#loading').hide();
         $('#chart_section').hide(1000);
         $('#datatable_section').hide(1000);
       });
-    }
-  );
+  });
 }
 
 initRefreshButton();
-update_nodes_states(task_instances);
+// eslint-disable-next-line no-undef
+updateNodesStates(taskInstances); // taskInstances is defined in graph.html

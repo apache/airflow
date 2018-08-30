@@ -5,8 +5,8 @@
     "dev": "NODE_ENV=dev webpack --watch --colors --progress --debug --output-pathinfo --devtool eval-cheap-source-map --mode development",
     "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js -p --colors --progress",
     "build": "NODE_ENV=production webpack --colors --progress",
-    "lint": "eslint --ignore-path=.eslintignore --ext .js,.html .",
-    "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.html ."
+    "lint": "eslint --ext .js,.html .",
+    "lint:fix": "eslint --fix --ext .js,.html ."
   },
   "author": "Apache",
   "license": "Apache-2.0",
@@ -26,6 +26,7 @@
     "flask"
   ],
   "devDependencies": {
+    "@jupyterlab/eslint-plugin-jinja": "^0.2.0",
     "babel": "^6.23.0",
     "babel-core": "^6.26.3",
     "babel-eslint": "^8.2.6",

@@ -13,16 +13,16 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
 #}
+
 {% extends "airflow/master.html" %}
 
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block head_css %}
-{{ super() }}
-<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
-<link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
+  {{ super() }}
+  <link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
+  <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block content %}
@@ -230,251 +230,274 @@
   <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
   <script>
+  /* global d3 */
 
-      const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
-      const ENTER_KEY_CODE = 13;
+  const DAGS_INDEX = '{{ url_for("Airflow.index") }}';
+  const ENTER_KEY_CODE = 13;
 
-      $('#dag_query').on('keypress', function (e) {
-        // check for key press on ENTER (key code 13) to trigger the search
-        if (e.which === ENTER_KEY_CODE) {
-          search_query = $('#dag_query').val();
-          window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
-          e.preventDefault();
-        }
-      });
+  let searchQuery;
 
-      $('#page_size').on('change', function() {
-        p_size = $(this).val();
-        window.location = DAGS_INDEX + "?page_size=" + p_size;
-      });
+  $('#dag_query').on('keypress', (e) => {
+    // check for key press on ENTER (key code 13) to trigger the search
+    if (e.which === ENTER_KEY_CODE) {
+      searchQuery = $('#dag_query').val();
+      window.location = `${DAGS_INDEX}?search=${encodeURI(searchQuery)}`;
+      e.preventDefault();
+    }
+  });
 
-      function confirmDeleteDag(dag_id){
-          return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
-          This option will delete ALL metadata, DAG runs, etc.\n\
-          This cannot be undone.");
+  $('#page_size').on('change', () => {
+    const pSize = $(this).val();
+    window.location = `${DAGS_INDEX}?page_size=${pSize}`;
+  });
+
+  // eslint-disable-next-line no-unused-vars
+  function confirmDeleteDag(dagId) {
+    // eslint-disable-next-line no-alert, no-restricted-globals
+    return confirm(`Are you sure you want to delete "${dagId}" now?
+      This option will delete ALL metadata, DAG runs, etc.
+      This cannot be undone.`);
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  function confirmTriggerDag(dagId) {
+    // eslint-disable-next-line no-alert, no-restricted-globals
+    return confirm(`Are you sure you want to run "${dagId}" now?`);
+  }
+
+  const allDags = $('[id^=toggle]');
+  $.each(allDags, (i, v) => {
+    $(v).change(() => {
+      const dagId = $(v).attr('dag_id');
+      let isPaused;
+      if ($(v).prop('checked')) {
+        isPaused = 'true';
+      } else {
+        isPaused = 'false';
       }
+      const url = `paused?is_paused=${isPaused}&dag_id=${dagId}`;
+      $.post(url);
+    });
+  });
 
-      function confirmTriggerDag(dag_id){
-          return confirm("Are you sure you want to run '"+dag_id+"' now?");
+  const $input = $('.typeahead');
+  // eslint-disable-next-line no-undef
+  const uniqueOptionsSearch = new Set([
+    {% for token in auto_complete_data %}
+    '{{token}}',
+    {% endfor %}
+  ]);
+
+  $input.typeahead({
+    source: [...uniqueOptionsSearch],
+    autoSelect: false,
+    afterSelect: (value) => {
+      searchQuery = value.trim();
+      if (searchQuery) {
+        window.location = `${DAGS_INDEX}?search=${encodeURI(searchQuery)}`;
       }
-      all_dags = $("[id^=toggle]");
-      $.each(all_dags, function(i,v) {
-        $(v).change (function() {
-          var dag_id =  $(v).attr('dag_id');
-          if ($(v).prop('checked')) {
-            is_paused = 'true'
-          } else {
-            is_paused = 'false'
-          }
-          url = 'paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-          $.post(url);
-        });
-      });
+    },
+  });
 
-      var $input = $(".typeahead");
-      unique_options_search = new Set([
-          {% for token in auto_complete_data %}
-            "{{token}}",
-          {% endfor %}
-        ]);
+  $('#dags').dataTable({
+    iDisplayLength: 500,
+    bSort: false,
+    searching: false,
+    ordering: false,
+    paging: false,
+    info: false,
+  });
+  $('#main_content').show(250);
+  const diameter = 25;
+  const circleMargin = 4;
+  const strokeWidth = 2;
+  const strokeWidthHover = 6;
+  d3.json('{{ url_for("Airflow.blocked") }}', (error, json) => {
+    $.each(json, () => {
+      $(`.label.schedule.${this.dagId}`)
+        .attr('title', `${this.active_dag_run}/${this.max_active_runs} active dag runs`)
+        .tooltip();
+      if (this.active_dag_run >= this.max_active_runs) {
+        $(`.label.schedule.${this.dagId}`)
+          .css('background-color', 'red');
+      }
+    });
+  });
 
-      $input.typeahead({
-        source: [...unique_options_search],
-        autoSelect: false,
-        afterSelect: function(value) {
-          search_query = value.trim()
-          if (search_query) {
-            window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
-          }
-        }
-      });
+  function dagStatsMouseover(d) {
+    if (d.count > 0) {
+      d3.select(this).transition().duration(400)
+        .attr('fill-opacity', 0.3)
+        .style('stroke-width', strokeWidthHover);
+    }
+  }
 
-      $input.change(function() {
-        var current = $input.typeahead("getActive");
+  function dagStatsMouseout(d) {
+    if (d.count > 0) {
+      d3.select(this).transition().duration(400)
+        .attr('fill-opacity', 0)
+        .style('stroke-width', strokeWidth);
+    }
+  }
 
-      });
+  function taskStatsMouseover(d) {
+    if (d.count > 0) {
+      d3.select(this).transition().duration(400)
+        .attr('fill-opacity', 0.3)
+        .style('stroke-width', strokeWidthHover);
+    }
+  }
 
-      $('#dags').dataTable({
-        "iDisplayLength": 500,
-        "bSort": false,
-        "searching": false,
-        "ordering": false,
-        "paging": false,
-        "info": false
-      });
-      $("#main_content").show(250);
-      diameter = 25;
-      circle_margin = 4;
-      stroke_width = 2;
-      stroke_width_hover = 6;
-      d3.json("{{ url_for('Airflow.blocked') }}", function(error, json) {
-        $.each(json, function() {
-          $('.label.schedule.' + this.dag_id)
-          .attr('title', this.active_dag_run + '/' + this.max_active_runs + ' active dag runs')
-          .tooltip();
-          if(this.active_dag_run >= this.max_active_runs) {
-            $('.label.schedule.' + this.dag_id)
-            .css('background-color', 'red');
-          }
-        });
-      });
-      d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
-        for(var dag_id in json) {
-            states = json[dag_id];
-            g = d3.select('svg#dag-run-' + dag_id)
-              .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '110px')
-              .selectAll("g")
-              .data(states)
-              .enter()
-              .append('g')
-              .attr('transform', function(d, i) {
-                x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
-                y = (diameter/2) + stroke_width_hover;
-                return 'translate(' + x + ',' + y + ')';
-              });
+  function taskStatsMouseout(d) {
+    if (d.count > 0) {
+      d3.select(this).transition().duration(400)
+        .attr('fill-opacity', 0)
+        .style('stroke-width', strokeWidth);
+    }
+  }
 
-            g.append('text')
-              .attr('fill', 'black')
-              .attr('text-anchor', 'middle')
-              .attr('vertical-align', 'middle')
-              .attr('font-size', 8)
-              .attr('y', 3)
-              .text(function(d){ return d.count > 0 ? d.count : ''; });
+  d3.json('{{ url_for("Airflow.dag_stats") }}', (error, json) => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const dagId in json) {
+      if (Object.prototype.hasOwnProperty.call(json, dagId)) {
+        const states = json[dagId];
+        const g = d3.select(`svg#dag-run-${dagId}`)
+          .attr('height', diameter + (strokeWidthHover * 2))
+          .attr('width', '110px')
+          .selectAll('g')
+          .data(states)
+          .enter()
+          .append('g')
+          .attr('transform', (d, i) => {
+            const x = (i * (diameter + circleMargin)) + (diameter / 2 + circleMargin);
+            const y = (diameter / 2) + strokeWidthHover;
+            return `translate(${x},${y})`;
+          });
 
-            g.append('circle')
-              .attr('stroke-width', function(d) {
-                  if (d.count > 0)
-                    return stroke_width;
-                  else {
-                    return 1;
-                  }
-              })
-              .attr('stroke', function(d) {
-                  if (d.count > 0)
-                    return d.color;
-                  else {
-                    return 'gainsboro';
-                  }
-              })
-              .attr('fill-opacity', 0)
-              .attr('r', diameter/2)
-              .attr('title', function(d) {return d.state})
-              .attr('style', function(d) {
-                if (d.count > 0)
-                    return"cursor:pointer;"
-              })
-              .on('click', function(d, i) {
-                  if (d.count > 0)
-                    window.location = "{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
-              })
-              .on('mouseover', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0.3)
-                      .style("stroke-width", stroke_width_hover);
-                }
-              })
-              .on('mouseout', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0)
-                      .style("stroke-width", stroke_width);
-                }
-              })
-              .style("opacity", 0)
-              .transition()
-              .duration(500)
-              .delay(function(d, i){return i*50;})
-              .style("opacity", 1);
-            d3.select("#loading").remove();
-        }
-        $("#pause_header").tooltip();
-        $("#statuses_info").tooltip();
+        g.append('text')
+          .attr('fill', 'black')
+          .attr('text-anchor', 'middle')
+          .attr('vertical-align', 'middle')
+          .attr('font-size', 8)
+          .attr('y', 3)
+          .text(d => (d.count > 0 ? d.count : ''));
 
-        $("circle").tooltip({
-          html: true,
-          container: "body",
-        });
-      });
-      d3.json("{{ url_for('Airflow.task_stats') }}", function(error, json) {
-        for(var dag_id in json) {
-            states = json[dag_id];
-            g = d3.select('svg#task-run-' + dag_id)
-              .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '240px')
-              .selectAll("g")
-              .data(states)
-              .enter()
-              .append('g')
-              .attr('transform', function(d, i) {
-                x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
-                y = (diameter/2) + stroke_width_hover;
-                return 'translate(' + x + ',' + y + ')';
-              });
+        g.append('circle')
+          .attr('stroke-width', (d) => {
+            if (d.count > 0) {
+              return strokeWidth;
+            }
+            return 1;
+          })
+          .attr('stroke', (d) => {
+            if (d.count > 0) {
+              return d.color;
+            }
+            return 'gainsboro';
+          })
+          .attr('fill-opacity', 0)
+          .attr('r', diameter / 2)
+          .attr('title', d => d.state)
+          .attr('style', (d) => {
+            if (d.count > 0) {
+              return 'cursor: pointer;';
+            }
+            return '';
+          })
+          .on('click', (d) => {
+            if (d.count > 0) {
+              window.location = `{{ url_for("DagRunModelView.list") }}?_flt_3_dag_id=${d.dagId}&_flt_3_state=${d.state}`;
+            }
+          })
+          .on('mouseover', d => dagStatsMouseover(d))
+          .on('mouseout', d => dagStatsMouseout(d))
+          .style('opacity', 0)
+          .transition()
+          .duration(500)
+          .delay((d, i) => i * 50)
+          .style('opacity', 1);
+        d3.select('#loading').remove();
+      }
+    }
+    $('#pause_header').tooltip();
+    $('#statuses_info').tooltip();
 
-            g.append('text')
-              .attr('fill', 'black')
-              .attr('text-anchor', 'middle')
-              .attr('vertical-align', 'middle')
-              .attr('font-size', 8)
-              .attr('y', 3)
-              .text(function(d){ return d.count > 0 ? d.count : ''; });
+    $('circle').tooltip({
+      html: true,
+      container: 'body',
+    });
+  });
 
-            g.append('circle')
-              .attr('stroke-width', function(d) {
-                  if (d.count > 0)
-                    return stroke_width;
-                  else {
-                    return 1;
-                  }
-              })
-              .attr('stroke', function(d) {
-                  if (d.count > 0)
-                    return d.color;
-                  else {
-                    return 'gainsboro';
-                  }
-              })
-              .attr('fill-opacity', 0)
-              .attr('r', diameter/2)
-              .attr('title', function(d) {return d.state})
-              .attr('style', function(d) {
-                if (d.count > 0)
-                    return"cursor:pointer;"
-              })
-              .on('click', function(d, i) {
-                  if (d.count > 0)
-                    window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
-              })
-              .on('mouseover', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0.3)
-                      .style("stroke-width", stroke_width_hover);
-                }
-              })
-              .on('mouseout', function(d, i) {
-                if (d.count > 0) {
-                    d3.select(this).transition().duration(400)
-                      .attr('fill-opacity', 0)
-                      .style("stroke-width", stroke_width);
-                }
-              })
-              .style("opacity", 0)
-              .transition()
-              .duration(500)
-              .delay(function(d, i){return i*50;})
-              .style("opacity", 1);
-            d3.select("#loading").remove();
-        }
-        $("#pause_header").tooltip();
-        $("#statuses_info").tooltip();
+  d3.json('{{ url_for("Airflow.task_stats") }}', (error, json) => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const dagId in json) {
+      if (Object.prototype.hasOwnProperty.call(json, dagId)) {
+        const states = json[dagId];
+        const g = d3.select(`svg#task-run-${dagId}`)
+          .attr('height', diameter + (strokeWidthHover * 2))
+          .attr('width', '240px')
+          .selectAll('g')
+          .data(states)
+          .enter()
+          .append('g')
+          .attr('transform', (d, i) => {
+            const x = (i * (diameter + circleMargin)) + (diameter / 2 + circleMargin);
+            const y = (diameter / 2) + strokeWidthHover;
+            return `translate(${x},${y})`;
+          });
 
-        $("circle").tooltip({
-          html: true,
-          container: "body",
-        });
-      });
+        g.append('text')
+          .attr('fill', 'black')
+          .attr('text-anchor', 'middle')
+          .attr('vertical-align', 'middle')
+          .attr('font-size', 8)
+          .attr('y', 3)
+          .text(d => (d.count > 0 ? d.count : ''));
+
+        g.append('circle')
+          .attr('stroke-width', (d) => {
+            if (d.count > 0) {
+              return strokeWidth;
+            }
+            return 1;
+          })
+          .attr('stroke', (d) => {
+            if (d.count > 0) {
+              return d.color;
+            }
+            return 'gainsboro';
+          })
+          .attr('fill-opacity', 0)
+          .attr('r', diameter / 2)
+          .attr('title', d => d.state)
+          .attr('style', (d) => {
+            if (d.count > 0) {
+              return 'cursor:pointer;';
+            }
+            return '';
+          })
+          .on('click', (d) => {
+            if (d.count > 0) {
+              window.location = `{{ url_for("TaskInstanceModelView.list") }}?_flt_3_dag_id=${d.dagId}&_flt_3_state=${d.state}`;
+            }
+          })
+          .on('mouseover', d => taskStatsMouseover(d))
+          .on('mouseout', d => taskStatsMouseout(d))
+          .style('opacity', 0)
+          .transition()
+          .duration(500)
+          .delay((d, i) => i * 50)
+          .style('opacity', 1);
+        d3.select('#loading').remove();
+      }
+    }
+    $('#pause_header').tooltip();
+    $('#statuses_info').tooltip();
+
+    $('circle').tooltip({
+      html: true,
+      container: 'body',
+    });
+  });
   </script>
 {% endblock %}

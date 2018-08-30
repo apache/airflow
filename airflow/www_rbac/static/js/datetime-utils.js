@@ -17,23 +17,20 @@
  * under the License.
  */
 
-export const moment = require('moment-timezone');
+export const moment = require('moment-timezone'); // eslint-disable-line global-require
+
 export const defaultFormat = 'YYYY-MM-DD, HH:mm:ss';
 export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 
 
-const makeDateTimeHTML = (start, end) => {
-  return (
-    `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`
-  )
-};
+const makeDateTimeHTML = (start, end) => `Started: ${start.format(defaultFormat)} <br> Ended: ${end.format(defaultFormat)} <br>`;
 
 export const generateTooltipDateTime = (startDate, endDate, dagTZ) => {
   const tzFormat = 'z (Z)';
   const localTZ = moment.tz.guess();
-  startDate = moment.utc(startDate);
-  endDate = moment.utc(endDate);
-  dagTZ = dagTZ.toUpperCase();
+  startDate = moment.utc(startDate); // eslint-disable-line no-param-reassign
+  endDate = moment.utc(endDate); // eslint-disable-line no-param-reassign
+  dagTZ = dagTZ.toUpperCase(); // eslint-disable-line no-param-reassign
 
   // Generate UTC Start and End Date
   let tooltipHTML = '<br><strong>UTC</strong><br>';
@@ -49,12 +46,12 @@ export const generateTooltipDateTime = (startDate, endDate, dagTZ) => {
     tooltipHTML += makeDateTimeHTML(startDate.tz(dagTZ), endDate.tz(dagTZ));
   }
 
-  return tooltipHTML
+  return tooltipHTML;
 };
 
 
 export const converAndFormatUTC = (datetime, tz) => {
   let dateTimeObj = moment.utc(datetime);
   if (tz) dateTimeObj = dateTimeObj.tz(tz);
-  return dateTimeObj.format(defaultFormatWithTZ)
-}
+  return dateTimeObj.format(defaultFormatWithTZ);
+};
