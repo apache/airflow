@@ -46,7 +46,7 @@ from airflow import configuration
 from airflow.executors import SequentialExecutor
 from airflow.models import Variable
 
-configuration.conf.load_test_config()
+configuration.conf.load_test_config()  # NOQA: E402
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.operators.bash_operator import BashOperator
