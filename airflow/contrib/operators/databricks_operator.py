@@ -57,54 +57,6 @@ def _deep_string_coerce(content, json_path='json'):
         raise AirflowException(msg)
 
 
-def _handle_databricks_operator_execution(operator, context):
-    """
-    Handles the Airflow + Databricks lifecycle logic for a data bricks operator
-    :param operator: databricks operator being handled
-    :param context: airflow context
-    """
-    hook = operator.get_hook()
-    operator.call_hook(hook)
-    # hook.submit_run(operator.json)
-    if operator.do_xcom_push:
-        context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
-    operator.log.info('Run submitted with run_id: %s', operator.run_id)
-    run_page_url = hook.get_run_page_url(operator.run_id)
-    if operator.do_xcom_push:
-        context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
-    operator.log_run_page_url(run_page_url)
-    while True:
-        run_state = hook.get_run_state(operator.run_id)
-        if run_state.is_terminal:
-            if run_state.is_successful:
-                operator.log.info('%s completed successfully.', operator.task_id)
-                operator.log_run_page_url(run_page_url)
-                return
-            else:
-                error_message = '{t} failed with terminal state: {s}'.format(
-                    t=operator.task_id,
-                    s=run_state)
-                raise AirflowException(error_message)
-        else:
-            operator.log.info('%s in run state: %s', operator.task_id, run_state)
-            operator.log_run_page_url(run_page_url)
-            operator.log.info('Sleeping for %s seconds.', operator.polling_period_seconds)
-            time.sleep(operator.polling_period_seconds)
-
-
-def _handle_databricks_operator_on_kill(operator):
-    """
-    Handles the killing of a databricks operator
-    :param operator: the operator in question to be killed
-    """
-    hook = operator.get_hook()
-    hook.cancel_run(operator.run_id)
-    operator.log.info(
-        'Task: %s with run_id: %s was requested to be cancelled.',
-        operator.task_id, operator.run_id
-    )
-
-
 class DatabricksSubmitRunOperator(BaseOperator):
     """
     Submits an Spark job run to Databricks using the
@@ -275,7 +227,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def log_run_page_url(self, url):
+    def _log_run_page_url(self, url):
         self.log.info('View run status, Spark UI, and logs at %s', url)
 
     def get_hook(self):
@@ -284,13 +236,40 @@ class DatabricksSubmitRunOperator(BaseOperator):
             retry_limit=self.databricks_retry_limit)
 
     def execute(self, context):
-        _handle_databricks_operator_execution(self, context)
+        hook = self.get_hook()
+        self.run_id = hook.submit_run(self.json)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
+        self.log.info('Run submitted with run_id: %s', self.run_id)
+        run_page_url = hook.get_run_page_url(self.run_id)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
+        self._log_run_page_url(run_page_url)
+        while True:
+            run_state = hook.get_run_state(self.run_id)
+            if run_state.is_terminal:
+                if run_state.is_successful:
+                    self.log.info('%s completed successfully.', self.task_id)
+                    self._log_run_page_url(run_page_url)
+                    return
+                else:
+                    error_message = '{t} failed with terminal state: {s}'.format(
+                        t=self.task_id,
+                        s=run_state)
+                    raise AirflowException(error_message)
+            else:
+                self.log.info('%s in run state: %s', self.task_id, run_state)
+                self._log_run_page_url(run_page_url)
+                self.log.info('Sleeping for %s seconds.', self.polling_period_seconds)
+                time.sleep(self.polling_period_seconds)
 
     def on_kill(self):
-        _handle_databricks_operator_on_kill(self)
-
-    def call_hook(self, hook):
-        self.run_id = hook.submit_run(self.json)
+        hook = self.get_hook()
+        hook.cancel_run(self.run_id)
+        self.log.info(
+            'Task: %s with run_id: %s was requested to be cancelled.',
+            self.task_id, self.run_id
+        )
 
 
 class DatabricksRunNowOperator(BaseOperator):
@@ -462,7 +441,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.run_id = None
         self.do_xcom_push = do_xcom_push
 
-    def log_run_page_url(self, url):
+    def _log_run_page_url(self, url):
         self.log.info('View run status, Spark UI, and logs at %s', url)
 
     def get_hook(self):
@@ -471,10 +450,37 @@ class DatabricksRunNowOperator(BaseOperator):
             retry_limit=self.databricks_retry_limit)
 
     def execute(self, context):
-        _handle_databricks_operator_execution(self, context)
+        hook = self.get_hook()
+        self.run_id = hook.submit_run(self.json)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
+        self.log.info('Run submitted with run_id: %s', self.run_id)
+        run_page_url = hook.get_run_page_url(self.run_id)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
+        self._log_run_page_url(run_page_url)
+        while True:
+            run_state = hook.get_run_state(self.run_id)
+            if run_state.is_terminal:
+                if run_state.is_successful:
+                    self.log.info('%s completed successfully.', self.task_id)
+                    self._log_run_page_url(run_page_url)
+                    return
+                else:
+                    error_message = '{t} failed with terminal state: {s}'.format(
+                        t=self.task_id,
+                        s=run_state)
+                    raise AirflowException(error_message)
+            else:
+                self.log.info('%s in run state: %s', self.task_id, run_state)
+                self._log_run_page_url(run_page_url)
+                self.log.info('Sleeping for %s seconds.', self.polling_period_seconds)
+                time.sleep(self.polling_period_seconds)
 
     def on_kill(self):
-        _handle_databricks_operator_on_kill(self)
-
-    def call_hook(self, hook):
-        self.run_id = hook.run_now(self.json)
+        hook = self.get_hook()
+        hook.cancel_run(self.run_id)
+        self.log.info(
+            'Task: %s with run_id: %s was requested to be cancelled.',
+            self.task_id, self.run_id
+        )
