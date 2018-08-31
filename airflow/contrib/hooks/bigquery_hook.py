@@ -476,7 +476,7 @@ class BigQueryBaseCursor(LoggingMixin):
                   destination_dataset_table=False,
                   write_disposition='WRITE_EMPTY',
                   allow_large_results=False,
-                  flatten_results=False,
+                  flatten_results=None,
                   udf_config=False,
                   use_legacy_sql=None,
                   maximum_billing_tier=None,

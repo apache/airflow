@@ -106,7 +106,7 @@ class BigQueryOperator(BaseOperator):
                  destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
-                 flatten_results=False,
+                 flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  udf_config=False,
