@@ -626,6 +626,35 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.resolve_template_files()
 
+    def test_task_get_template(self):
+        TI = models.TaskInstance
+        ti = TI(
+            task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti.dag = self.dag_bash
+        ti.run(ignore_ti_state=True)
+        context = ti.get_template_context()
+
+        # DEFAULT DATE is 2015-01-01
+        self.assertEquals(context['ds'], '2015-01-01')
+        self.assertEquals(context['ds_nodash'], '20150101')
+
+        # next_ds is 2015-01-02 as the dag interval is daily
+        self.assertEquals(context['next_ds'], '2015-01-02')
+        self.assertEquals(context['next_ds_nodash'], '20150102')
+
+        # prev_ds is 2014-12-31 as the dag interval is daily
+        self.assertEquals(context['prev_ds'], '2014-12-31')
+        self.assertEquals(context['prev_ds_nodash'], '20141231')
+
+        self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
+        self.assertEquals(context['ts_nodash'], '20150101T000000+0000')
+
+        self.assertEquals(context['yesterday_ds'], '2014-12-31')
+        self.assertEquals(context['yesterday_ds_nodash'], '20141231')
+
+        self.assertEquals(context['tomorrow_ds'], '2015-01-02')
+        self.assertEquals(context['tomorrow_ds_nodash'], '20150102')
+
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
 
