@@ -76,7 +76,7 @@ class TestImapHook(unittest.TestCase):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_attachment_in_inbox = imap_hook.has_mail_attachments('test1.csv')
+            has_attachment_in_inbox = imap_hook.has_mail_attachment('test1.csv')
 
         self.assertTrue(has_attachment_in_inbox)
 
@@ -85,7 +85,7 @@ class TestImapHook(unittest.TestCase):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_attachment_in_inbox = imap_hook.has_mail_attachments('test1.txt')
+            has_attachment_in_inbox = imap_hook.has_mail_attachment('test1.txt')
 
         self.assertFalse(has_attachment_in_inbox)
 
@@ -94,7 +94,7 @@ class TestImapHook(unittest.TestCase):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_attachment_in_inbox = imap_hook.has_mail_attachments(
+            has_attachment_in_inbox = imap_hook.has_mail_attachment(
                 name='test(\d+).csv',
                 check_regex=True
             )
@@ -106,7 +106,7 @@ class TestImapHook(unittest.TestCase):
         _create_fake_imap(mock_imaplib, with_mail=True)
 
         with ImapHook() as imap_hook:
-            has_attachment_in_inbox = imap_hook.has_mail_attachments(
+            has_attachment_in_inbox = imap_hook.has_mail_attachment(
                 name='test_(\d+).csv',
                 check_regex=True
             )
@@ -154,6 +154,18 @@ class TestImapHook(unittest.TestCase):
             )
 
         self.assertEquals(attachments_in_inbox, [])
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_latest_only(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            attachments_in_inbox = imap_hook.retrieve_mail_attachments(
+                name='test1.csv',
+                latest_only=True
+            )
+
+        self.assertEquals(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
@@ -208,6 +220,22 @@ class TestImapHook(unittest.TestCase):
 
         mock_open_method.assert_not_called()
         mock_open_method().write.assert_not_called()
+
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_with_latest_only(self, mock_imaplib,
+                                                        mock_open_method):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments(
+                name='test1.csv',
+                local_output_directory='test_directory',
+                latest_only=True
+            )
+
+        mock_open_method.assert_called_once_with('test_directory/test1.csv', 'wb')
+        mock_open_method().write.assert_called_once_with(b'SWQsTmFtZQoxLEZlbGl4')
 
 
 if __name__ == '__main__':

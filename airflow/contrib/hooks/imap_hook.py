@@ -42,7 +42,7 @@ class ImapHook(BaseHook):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.mail_client.logout()
 
-    def has_mail_attachments(self, name, mail_folder='INBOX', check_regex=False):
+    def has_mail_attachment(self, name, mail_folder='INBOX', check_regex=False):
         """
         Checks the mail folder for mails containing attachments with the given name.
 
@@ -58,10 +58,12 @@ class ImapHook(BaseHook):
         :rtype: bool
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder,
-                                                                    check_regex)
+                                                                    check_regex,
+                                                                    latest_only=True)
         return len(mail_attachments) > 0
 
-    def retrieve_mail_attachments(self, name, mail_folder='INBOX', check_regex=False):
+    def retrieve_mail_attachments(self, name, mail_folder='INBOX', check_regex=False,
+                                  latest_only=False):
         """
         Retrieves mail's attachments in the mail folder by its name.
 
@@ -73,15 +75,20 @@ class ImapHook(BaseHook):
         :param check_regex: Checks the name for a regular expression.
                             The default value is False.
         :type check_regex: bool
+        :param latest_only: If set to True it will only retrieve
+                            the first matched attachment.
+                            The default value is False.
+        :type latest_only: bool
         :returns: a list of tuple each containing the attachment filename and its payload.
         :rtype: a list of tuple
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder,
-                                                                    check_regex)
+                                                                    check_regex,
+                                                                    latest_only)
         return mail_attachments
 
     def download_mail_attachments(self, name, local_output_directory, mail_folder='INBOX',
-                                  check_regex=False):
+                                  check_regex=False, latest_only=False):
         """
         Downloads mail's attachments in the mail folder by its name
         to the local directory.
@@ -97,22 +104,30 @@ class ImapHook(BaseHook):
         :param check_regex: Checks the name for a regular expression.
                             The default value is False.
         :type check_regex: bool
+        :param latest_only: If set to True it will only download
+                            the first matched attachment.
+                            The default value is False.
+        :type latest_only: bool
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder,
-                                                                    check_regex)
+                                                                    check_regex,
+                                                                    latest_only)
         self._download_files(mail_attachments, local_output_directory)
 
-    def _retrieve_mails_attachments_by_name(self, name, mail_folder, check_regex):
+    def _retrieve_mails_attachments_by_name(self, name, mail_folder, check_regex,
+                                            latest_only):
         all_matching_attachments = []
 
         self.mail_client.select(mail_folder)
 
         for mail_id in self._list_mail_ids_desc():
             response_mail_body = self._fetch_mail_body(mail_id)
-            mail = Mail(response_mail_body)
-            if mail.has_attachments():
-                matching_attachments = mail.get_attachments_by_name(name, check_regex)
+            matching_attachments = self._check_mail_body(response_mail_body, name,
+                                                         check_regex, latest_only)
+            if matching_attachments:
                 all_matching_attachments.extend(matching_attachments)
+                if latest_only:
+                    break
 
         self.mail_client.close()
 
@@ -129,12 +144,18 @@ class ImapHook(BaseHook):
         mail_body_str = mail_body.decode('utf-8')
         return mail_body_str
 
+    def _check_mail_body(self, response_mail_body, name, check_regex, latest_only):
+        mail = Mail(response_mail_body)
+        if mail.has_attachments():
+            return mail.get_attachments_by_name(name, check_regex, find_first=latest_only)
+
     def _download_files(self, mail_attachments, local_output_directory):
         for name, payload in mail_attachments:
             with open(local_output_directory + '/' + name, 'wb') as file:
                 file.write(payload)
 
 
+# TODO: Check if it isn't possible to use iter_attachments
 class Mail(LoggingMixin):
     """
     This class simplifies working with mails returned by the imaplib client.
@@ -156,7 +177,7 @@ class Mail(LoggingMixin):
         """
         return self.mail.get_content_maintype() == 'multipart'
 
-    def get_attachments_by_name(self, name, check_regex):
+    def get_attachments_by_name(self, name, check_regex, find_first=False):
         """
         Gets all attachments by name for the mail.
 
@@ -164,6 +185,9 @@ class Mail(LoggingMixin):
         :type name: str
         :param check_regex: Checks the name for a regular expression.
         :type check_regex: bool
+        :param find_first: If set to True it will only find the first match and then quit.
+                           The default value is False.
+        :type find_first: bool
         :returns: a list of tuples each containing name and payload
                   where the attachments name matches the given name.
         :rtype: list of tuple
@@ -179,6 +203,8 @@ class Mail(LoggingMixin):
                     file_name, file_payload = mail_part.get_file()
                     self.log.info('Found attachment: {}'.format(file_name))
                     attachments.append((file_name, file_payload))
+                    if find_first:
+                        break
 
         return attachments
 
