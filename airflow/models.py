@@ -4857,6 +4857,8 @@ class DagRun(Base, LoggingMixin):
     def set_state(self, state):
         if self._state != state:
             self._state = state
+            self.end_date = timezone.utcnow() if self._state in State.finished() else None
+
             if self.dag_id is not None:
                 # FIXME: Due to the scoped_session factor we we don't get a clean
                 # session here, so something really weird goes on:
@@ -5080,7 +5082,7 @@ class DagRun(Base, LoggingMixin):
             if (not unfinished_tasks and
                     any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
                 self.log.info('Marking run %s failed', self)
-                self.state = State.FAILED
+                self.set_state(State.FAILED)
                 dag.handle_callback(self, success=False, reason='task_failure',
                                     session=session)
 
@@ -5088,20 +5090,20 @@ class DagRun(Base, LoggingMixin):
             elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
                                               for r in roots):
                 self.log.info('Marking run %s successful', self)
-                self.state = State.SUCCESS
+                self.set_state(State.SUCCESS)
                 dag.handle_callback(self, success=True, reason='success', session=session)
 
             # if *all tasks* are deadlocked, the run failed
             elif (unfinished_tasks and none_depends_on_past and
                   none_task_concurrency and no_dependencies_met):
                 self.log.info('Deadlock; marking run %s failed', self)
-                self.state = State.FAILED
+                self.set_state(State.FAILED)
                 dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
                                     session=session)
 
             # finally, if the roots aren't done, the dag is still running
             else:
-                self.state = State.RUNNING
+                self.set_state(State.RUNNING)
 
         # todo: determine we want to use with_for_update to make sure to lock the run
         session.merge(self)

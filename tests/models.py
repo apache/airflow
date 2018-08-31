@@ -896,6 +896,124 @@ class DagRunTest(unittest.TestCase):
         updated_dag_state = dag_run.update_state()
         self.assertEqual(State.FAILED, updated_dag_state)
 
+    def test_dagrun_set_state_end_date(self):
+        session = settings.Session()
+
+        dag = DAG(
+            'test_dagrun_set_state_end_date',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        dag.clear()
+
+        now = timezone.utcnow()
+        dr = dag.create_dagrun(run_id='test_dagrun_set_state_end_date',
+                               state=State.RUNNING,
+                               execution_date=now,
+                               start_date=now)
+
+        # Initial end_date should be NULL
+        # State.SUCCESS and State.FAILED are all ending state and should set end_date
+        # State.RUNNING set end_date back to NULL
+        session.add(dr)
+        session.commit()
+        self.assertIsNone(dr.end_date)
+
+        dr.set_state(State.SUCCESS)
+        session.merge(dr)
+        session.commit()
+
+        dr_database = session.query(DagRun).filter(
+            DagRun.run_id == 'test_dagrun_set_state_end_date'
+        ).one()
+        self.assertIsNotNone(dr_database.end_date)
+        self.assertEqual(dr.end_date, dr_database.end_date)
+
+        dr.set_state(State.RUNNING)
+        session.merge(dr)
+        session.commit()
+
+        dr_database = session.query(DagRun).filter(
+            DagRun.run_id == 'test_dagrun_set_state_end_date'
+        ).one()
+
+        self.assertIsNone(dr_database.end_date)
+
+        dr.set_state(State.FAILED)
+        session.merge(dr)
+        session.commit()
+        dr_database = session.query(DagRun).filter(
+            DagRun.run_id == 'test_dagrun_set_state_end_date'
+        ).one()
+
+        self.assertIsNotNone(dr_database.end_date)
+        self.assertEqual(dr.end_date, dr_database.end_date)
+
+    def test_dagrun_update_state_end_date(self):
+        session = settings.Session()
+
+        dag = DAG(
+            'test_dagrun_update_state_end_date',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> B
+        with dag:
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op1.set_upstream(op2)
+
+        dag.clear()
+
+        now = timezone.utcnow()
+        dr = dag.create_dagrun(run_id='test_dagrun_update_state_end_date',
+                               state=State.RUNNING,
+                               execution_date=now,
+                               start_date=now)
+
+        # Initial end_date should be NULL
+        # State.SUCCESS and State.FAILED are all ending state and should set end_date
+        # State.RUNNING set end_date back to NULL
+        session.merge(dr)
+        session.commit()
+        self.assertIsNone(dr.end_date)
+
+        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1.set_state(state=State.SUCCESS, session=session)
+        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
+        ti_op2.set_state(state=State.SUCCESS, session=session)
+
+        dr.update_state()
+
+        dr_database = session.query(DagRun).filter(
+            DagRun.run_id == 'test_dagrun_update_state_end_date'
+        ).one()
+        self.assertIsNotNone(dr_database.end_date)
+        self.assertEqual(dr.end_date, dr_database.end_date)
+
+        ti_op1.set_state(state=State.RUNNING, session=session)
+        ti_op2.set_state(state=State.RUNNING, session=session)
+        dr.update_state()
+
+        dr_database = session.query(DagRun).filter(
+            DagRun.run_id == 'test_dagrun_update_state_end_date'
+        ).one()
+
+        self.assertEqual(dr._state, State.RUNNING)
+        self.assertIsNone(dr.end_date)
+        self.assertIsNone(dr_database.end_date)
+
+        ti_op1.set_state(state=State.FAILED, session=session)
+        ti_op2.set_state(state=State.FAILED, session=session)
+        dr.update_state()
+
+        dr_database = session.query(DagRun).filter(
+            DagRun.run_id == 'test_dagrun_update_state_end_date'
+        ).one()
+
+        self.assertIsNotNone(dr_database.end_date)
+        self.assertEqual(dr.end_date, dr_database.end_date)
+
     def test_get_task_instance_on_empty_dagrun(self):
         """
         Make sure that a proper value is returned when a dagrun has no task instances
