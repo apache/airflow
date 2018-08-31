@@ -252,6 +252,38 @@ class DataflowTemplateOperator(BaseOperator):
 
 
 class DataFlowPythonOperator(BaseOperator):
+    """
+    Create a new DataFlowPythonOperator. Note that both
+    dataflow_default_options and options will be merged to specify pipeline
+    execution parameter, and dataflow_default_options is expected to save
+    high-level options, for instances, project and zone information, which
+    apply to all dataflow operators in the DAG.
+
+    .. seealso::
+        For more detail on job submission have a look at the reference:
+        https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+
+    :param py_file: Reference to the python dataflow pipleline file.py, e.g.,
+        /some/local/file/path/to/your/python/pipeline/file.
+    :type py_file: string
+    :param py_options: Additional python options.
+    :type pyt_options: list of strings, e.g., ["-m", "-v"].
+    :param dataflow_default_options: Map of default job options.
+    :type dataflow_default_options: dict
+    :param options: Map of job specific options.
+    :type options: dict
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
+        Platform.
+    :type gcp_conn_id: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide  delegation enabled.
+    :type delegate_to: string
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status while the job is in the
+        JOB_STATE_RUNNING state.
+    :type poll_sleep: int
+    """
 
     template_fields = ['options', 'dataflow_default_options']
 
@@ -267,38 +299,7 @@ class DataFlowPythonOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-        """
-        Create a new DataFlowPythonOperator. Note that both
-        dataflow_default_options and options will be merged to specify pipeline
-        execution parameter, and dataflow_default_options is expected to save
-        high-level options, for instances, project and zone information, which
-        apply to all dataflow operators in the DAG.
 
-        .. seealso::
-            For more detail on job submission have a look at the reference:
-            https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-
-        :param py_file: Reference to the python dataflow pipleline file.py, e.g.,
-            /some/local/file/path/to/your/python/pipeline/file.
-        :type py_file: string
-        :param py_options: Additional python options.
-        :type pyt_options: list of strings, e.g., ["-m", "-v"].
-        :param dataflow_default_options: Map of default job options.
-        :type dataflow_default_options: dict
-        :param options: Map of job specific options.
-        :type options: dict
-        :param gcp_conn_id: The connection ID to use connecting to Google Cloud
-            Platform.
-        :type gcp_conn_id: string
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have
-            domain-wide  delegation enabled.
-        :type delegate_to: string
-        :param poll_sleep: The time in seconds to sleep between polling Google
-            Cloud Platform for the dataflow job status while the job is in the
-            JOB_STATE_RUNNING state.
-        :type poll_sleep: int
-        """
         super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
 
         self.py_file = py_file

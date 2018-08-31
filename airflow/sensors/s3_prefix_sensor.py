@@ -38,6 +38,8 @@ class S3PrefixSensor(BaseSensorOperator):
     :param delimiter: The delimiter intended to show hierarchy.
         Defaults to '/'.
     :type delimiter: str
+    :param aws_conn_id: a reference to the s3 connection
+    :type aws_conn_id: str
     """
     template_fields = ('prefix', 'bucket_name')
 
