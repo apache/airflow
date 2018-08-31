@@ -33,6 +33,9 @@ try:
 except ImportError:
     import urlparse
 
+RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
@@ -188,6 +191,15 @@ class DatabricksHook(BaseHook, LoggingMixin):
     def cancel_run(self, run_id):
         json = {'run_id': run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
+
+    def restart_cluster(self, json):
+        self._do_api_call(RESTART_CLUSTER_ENDPOINT, json)
+
+    def start_cluster(self, json):
+        self._do_api_call(START_CLUSTER_ENDPOINT, json)
+
+    def terminate_cluster(self, json):
+        self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
 
 
 def _retryable_error(exception):
