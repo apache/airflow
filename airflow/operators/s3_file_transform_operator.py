@@ -47,15 +47,16 @@ class S3FileTransformOperator(BaseOperator):
     :type source_s3_key: str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
-    :parame source_verify: Whether or not to verify SSL certificates for S3 connetion.
+    :param source_verify: Whether or not to verify SSL certificates for S3 connetion.
         By default SSL certificates are verified.
         You can provide the following values:
-        - False: do not validate SSL certificates. SSL will still be used
-                 (unless use_ssl is False), but SSL certificates will not be
-                 verified.
-        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
-                 You can specify this argument if you want to use a different
-                 CA cert bundle than the one used by botocore.
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+             (unless use_ssl is False), but SSL certificates will not be
+             verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+             You can specify this argument if you want to use a different
+             CA cert bundle than the one used by botocore.
         This is also applicable to ``dest_verify``.
     :type source_verify: bool or str
     :param dest_s3_key: The key to be written from S3. (templated)

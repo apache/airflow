@@ -234,48 +234,48 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: string
-    :param labels a dictionary containing labels for the table, passed to BigQuery
+    :param labels: a dictionary containing labels for the table, passed to BigQuery
+
+        **Example (with schema JSON in GCS)**: ::
+
+            CreateTable = BigQueryCreateEmptyTableOperator(
+                task_id='BigQueryCreateEmptyTableOperator_task',
+                dataset_id='ODS',
+                table_id='Employees',
+                project_id='internal-gcp-project',
+                gcs_schema_object='gs://schema-bucket/employee_schema.json',
+                bigquery_conn_id='airflow-service-account',
+                google_cloud_storage_conn_id='airflow-service-account'
+            )
+
+        **Corresponding Schema file** (``employee_schema.json``): ::
+
+            [
+              {
+                "mode": "NULLABLE",
+                "name": "emp_name",
+                "type": "STRING"
+              },
+              {
+                "mode": "REQUIRED",
+                "name": "salary",
+                "type": "INTEGER"
+              }
+            ]
+
+        **Example (with schema in the DAG)**: ::
+
+            CreateTable = BigQueryCreateEmptyTableOperator(
+                task_id='BigQueryCreateEmptyTableOperator_task',
+                dataset_id='ODS',
+                table_id='Employees',
+                project_id='internal-gcp-project',
+                schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                               {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}],
+                bigquery_conn_id='airflow-service-account',
+                google_cloud_storage_conn_id='airflow-service-account'
+            )
     :type labels: dict
-
-    **Example (with schema JSON in GCS)**: ::
-
-        CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id='BigQueryCreateEmptyTableOperator_task',
-            dataset_id='ODS',
-            table_id='Employees',
-            project_id='internal-gcp-project',
-            gcs_schema_object='gs://schema-bucket/employee_schema.json',
-            bigquery_conn_id='airflow-service-account',
-            google_cloud_storage_conn_id='airflow-service-account'
-        )
-
-    **Corresponding Schema file** (``employee_schema.json``): ::
-
-        [
-          {
-            "mode": "NULLABLE",
-            "name": "emp_name",
-            "type": "STRING"
-          },
-          {
-            "mode": "REQUIRED",
-            "name": "salary",
-            "type": "INTEGER"
-          }
-        ]
-
-    **Example (with schema in the DAG)**: ::
-
-        CreateTable = BigQueryCreateEmptyTableOperator(
-            task_id='BigQueryCreateEmptyTableOperator_task',
-            dataset_id='ODS',
-            table_id='Employees',
-            project_id='internal-gcp-project',
-            schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}],
-            bigquery_conn_id='airflow-service-account',
-            google_cloud_storage_conn_id='airflow-service-account'
-        )
 
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',

@@ -42,18 +42,20 @@ class AWSBatchOperator(BaseOperator):
     :type job_definition: str
     :param job_queue: the queue name on AWS Batch
     :type job_queue: str
-    :param: overrides: the same parameter that boto3 will receive on
-            containerOverrides (templated):
-            http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
-    :type: overrides: dict
-    :param max_retries: exponential backoff retries while waiter is not merged, 4200 = 48 hours
+    :param overrides: the same parameter that boto3 will receive on
+        containerOverrides (templated).
+        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
+    :type overrides: dict
+    :param max_retries: exponential backoff retries while waiter is not merged,
+        4200 = 48 hours
     :type max_retries: int
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
-            credential boto3 strategy will be used
-            (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+        credential boto3 strategy will be used
+        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :type aws_conn_id: str
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
+    :type region_name: str
     """
 
     ui_color = '#c3dae0'
