@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,14 +27,15 @@ from airflow.utils.state import State
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks
 
+
 class CeleryExecutorTest(unittest.TestCase):
     def test_celery_integration(self):
         executor = CeleryExecutor()
         executor.start()
         with start_worker(app=app, logfile=sys.stdout, loglevel='debug'):
 
-            success_command = 'echo 1'
-            fail_command = 'exit 1'
+            success_command = ['true', 'some_parameter']
+            fail_command = ['false', 'some_parameter']
 
             executor.execute_async(key='success', command=success_command)
             # errors are propagated for some reason
@@ -53,6 +54,8 @@ class CeleryExecutorTest(unittest.TestCase):
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
 
+        self.assertNotIn('success', executor.last_state)
+        self.assertNotIn('fail', executor.last_state)
 
 if __name__ == '__main__':
     unittest.main()

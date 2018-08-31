@@ -28,7 +28,8 @@ except ImportError:
 
 
 class TestAirflowKubernetesScheduler(unittest.TestCase):
-    def _gen_random_string(self, str_len):
+    @staticmethod
+    def _gen_random_string(str_len):
         return ''.join([random.choice(string.printable) for _ in range(str_len)])
 
     def _cases(self):
@@ -47,7 +48,8 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
 
         return cases
 
-    def _is_valid_name(self, name):
+    @staticmethod
+    def _is_valid_name(name):
         regex = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
         return (
             len(name) <= 253 and
@@ -132,6 +134,22 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                     'subPath', volume_mount,
                     "subPath should've been passed to volumeMount configuration"
                 )
+
+    def test_worker_environment_no_dags_folder(self):
+        self.kube_config.worker_dags_folder = ''
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+
+        self.assertNotIn('AIRFLOW__CORE__DAGS_FOLDER', env)
+
+    def test_worker_environment_when_dags_folder_specified(self):
+        dags_folder = '/workers/path/to/dags'
+        self.kube_config.worker_dags_folder = dags_folder
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+
+        self.assertEqual(dags_folder, env['AIRFLOW__CORE__DAGS_FOLDER'])
 
 
 if __name__ == '__main__':

@@ -1,3 +1,4 @@
+# flake8: noqa
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -6,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,24 +25,39 @@ Create Date: 2017-06-19 16:53:12.851141
 
 """
 
+from alembic import op
+import sqlalchemy as sa
+from airflow import settings
+from airflow.models import DagBag
+from airflow.utils.sqlalchemy import UtcDateTime
+
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.ext.declarative import declarative_base
+
 # revision identifiers, used by Alembic.
 revision = 'cc1e65623dc7'
 down_revision = '127d2bf2dfa7'
 branch_labels = None
 depends_on = None
 
-from alembic import op
-import sqlalchemy as sa
-from airflow import settings
-from airflow.models import DagBag, TaskInstance
-from sqlalchemy.engine.reflection import Inspector
-
+Base = declarative_base()
 BATCH_SIZE = 5000
+ID_LEN = 250
+
+
+class TaskInstance(Base):
+    __tablename__ = "task_instance"
+
+    task_id = Column(String(ID_LEN), primary_key=True)
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    execution_date = Column(UtcDateTime, primary_key=True)
+    max_tries = Column(Integer)
+    try_number = Column(Integer, default=0)
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('max_tries', sa.Integer,
-        server_default="-1"))
+    op.add_column('task_instance', sa.Column('max_tries', sa.Integer, server_default="-1"))
     # Check if table task_instance exist before data migration. This check is
     # needed for database that does not create table until migration finishes.
     # Checking task_instance table exists prevent the error of querying
@@ -111,7 +127,7 @@ def downgrade():
                     # max number of self retry (task.retries) minus number of
                     # times left for task instance to try the task.
                     ti.try_number = max(0, task.retries - (ti.max_tries -
-                        ti.try_number))
+                                                           ti.try_number))
                 ti.max_tries = -1
                 session.merge(ti)
             session.commit()

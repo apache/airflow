@@ -61,6 +61,7 @@ from tests.core import TEST_DAG_FOLDER
 from airflow import configuration
 configuration.load_test_config()
 
+logger = logging.getLogger(__name__)
 
 try:
     from unittest import mock
@@ -194,29 +195,32 @@ class BackfillJobTest(unittest.TestCase):
     def test_backfill_examples(self):
         """
         Test backfilling example dags
+
+        Try to backfill some of the example dags. Be carefull, not all dags are suitable
+        for doing this. For example, a dag that sleeps forever, or does not have a
+        schedule won't work here since you simply can't backfill them.
         """
+        include_dags = {
+            'example_branch_operator',
+            'example_bash_operator',
+            'example_skip_dag',
+            'latest_only'
+        }
 
-        # some DAGs really are just examples... but try to make them work!
-        skip_dags = [
-            'example_http_operator',
-            'example_twitter_dag',
-            'example_trigger_target_dag',
-            'example_trigger_controller_dag',  # tested above
-            'test_utils',  # sleeps forever
-            'example_kubernetes_executor',  # requires kubernetes cluster
-            'example_kubernetes_operator'  # requires kubernetes cluster
-        ]
-
-        logger = logging.getLogger('BackfillJobTest.test_backfill_examples')
         dags = [
             dag for dag in self.dagbag.dags.values()
-            if 'example_dags' in dag.full_filepath and dag.dag_id not in skip_dags
+            if 'example_dags' in dag.full_filepath and dag.dag_id in include_dags
         ]
 
         for dag in dags:
             dag.clear(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
+
+        # Make sure that we have the dags that we want to test available
+        # in the example_dags folder, if this assertion fails, one of the
+        # dags in the include_dags array isn't available anymore
+        self.assertEqual(len(include_dags), len(dags))
 
         for i, dag in enumerate(sorted(dags, key=lambda d: d.dag_id)):
             logger.info('*** Running example DAG #{}: {}'.format(i, dag.dag_id))
@@ -1046,6 +1050,39 @@ class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
         pass
 
+    def test_localtaskjob_essential_attr(self):
+        """
+        Check whether essential attributes
+        of LocalTaskJob can be assigned with
+        proper values without intervention
+        """
+        dag = DAG(
+            'test_localtaskjob_essential_attr',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id="test",
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task_id=op1.task_id)
+
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+
+        essential_attr = ["dag_id", "job_type", "start_date", "hostname"]
+
+        check_result_1 = [hasattr(job1, attr) for attr in essential_attr]
+        self.assertTrue(all(check_result_1))
+
+        check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
+        self.assertTrue(all(check_result_2))
+
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
         session = settings.Session()
@@ -1492,6 +1529,39 @@ class SchedulerJobTest(unittest.TestCase):
             session=session)
 
         self.assertEqual(0, len(res))
+
+    def test_find_executable_task_instances_concurrency_queued(self):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_concurrency_queued'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=3)
+        task1 = DummyOperator(dag=dag, task_id='dummy1')
+        task2 = DummyOperator(dag=dag, task_id='dummy2')
+        task3 = DummyOperator(dag=dag, task_id='dummy3')
+        dagbag = self._make_simple_dag_bag([dag])
+
+        scheduler = SchedulerJob()
+        session = settings.Session()
+        dag_run = scheduler.create_dag_run(dag)
+
+        ti1 = TI(task1, dag_run.execution_date)
+        ti2 = TI(task2, dag_run.execution_date)
+        ti3 = TI(task3, dag_run.execution_date)
+        ti1.state = State.RUNNING
+        ti2.state = State.QUEUED
+        ti3.state = State.SCHEDULED
+
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+
+        session.commit()
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)
+
+        self.assertEqual(1, len(res))
+        self.assertEqual(res[0].key, ti3.key)
 
     def test_find_executable_task_instances_task_concurrency(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_task_concurrency'

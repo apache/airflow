@@ -31,11 +31,15 @@ class SSHOperator(BaseOperator):
     """
     SSHOperator to execute commands on given remote host using the ssh_hook.
 
-    :param ssh_hook: predefined ssh_hook to use for remote execution
+    :param ssh_hook: predefined ssh_hook to use for remote execution.
+        Either `ssh_hook` or `ssh_conn_id` needs to be provided.
     :type ssh_hook: :class:`SSHHook`
-    :param ssh_conn_id: connection id from airflow Connections
+    :param ssh_conn_id: connection id from airflow Connections.
+        `ssh_conn_id` will be ingored if `ssh_hook` is provided.
     :type ssh_conn_id: str
-    :param remote_host: remote host to connect
+    :param remote_host: remote host to connect (templated)
+        Nullable. If provided, it will replace the `remote_host` which was
+        defined in `ssh_hook` or predefined in the connection of `ssh_conn_id`.
     :type remote_host: str
     :param command: command to execute on remote host. (templated)
     :type command: str
@@ -45,7 +49,7 @@ class SSHOperator(BaseOperator):
     :type do_xcom_push: bool
     """
 
-    template_fields = ('command',)
+    template_fields = ('command', 'remote_host')
     template_ext = ('.sh',)
 
     @apply_defaults
@@ -68,17 +72,26 @@ class SSHOperator(BaseOperator):
 
     def execute(self, context):
         try:
-            if self.ssh_conn_id and not self.ssh_hook:
-                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
+            if self.ssh_conn_id:
+                if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
+                    self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
+                else:
+                    self.log.info("ssh_hook is not provided or invalid. " +
+                                  "Trying ssh_conn_id to create SSHHook.")
+                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id,
+                                            timeout=self.timeout)
 
             if not self.ssh_hook:
-                raise AirflowException("can not operate without ssh_hook or ssh_conn_id")
+                raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
 
             if self.remote_host is not None:
+                self.log.info("remote_host is provided explicitly. " +
+                              "It will replace the remote_host which was defined " +
+                              "in ssh_hook or predefined in connection of ssh_conn_id.")
                 self.ssh_hook.remote_host = self.remote_host
 
             if not self.command:
-                raise AirflowException("no command specified so nothing to execute here.")
+                raise AirflowException("SSH command not specified. Aborting.")
 
             with self.ssh_hook.get_conn() as ssh_client:
                 # Auto apply tty when its required in case of sudo

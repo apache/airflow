@@ -153,6 +153,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEPodOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
 .. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
@@ -172,6 +173,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.mongo_to_s3.MongoToS3Operator
 .. autoclass:: airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransfer
+.. autoclass:: airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer
 .. autoclass:: airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator
@@ -240,12 +242,14 @@ Variable                            Description
 =================================   ====================================
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
-``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``.
+``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``
                                     if ``{{ ds }}`` is ``2016-01-08`` and ``schedule_interval`` is ``@weekly``,
-                                    ``{{ prev_ds }}`` will be ``2016-01-01``.
-``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``.
+                                    ``{{ prev_ds }}`` will be ``2016-01-01``
+``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None`
+``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``
                                     if ``{{ ds }}`` is ``2016-01-01`` and ``schedule_interval`` is ``@weekly``,
-                                    ``{{ prev_ds }}`` will be ``2016-01-08``.
+                                    ``{{ prev_ds }}`` will be ``2016-01-08``
+``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
 ``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``               tomorrow's date as ``YYYY-MM-DD``

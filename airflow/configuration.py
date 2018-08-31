@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from base64 import b64encode
 from builtins import str
 from collections import OrderedDict
 import copy
@@ -36,7 +37,7 @@ import sys
 import warnings
 
 from backports.configparser import ConfigParser
-from zope.deprecation import deprecated as _deprecated
+from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -478,6 +479,8 @@ if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
 else:
     FERNET_KEY = ''
 
+SECRET_KEY = b64encode(os.urandom(16)).decode('utf-8')
+
 TEMPLATE_START = (
     '# ----------------------- TEMPLATE BEGINS HERE -----------------------')
 if not os.path.isfile(TEST_CONFIG_FILE):
@@ -534,7 +537,7 @@ set = conf.set # noqa
 
 for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
              remove_option, as_dict, set]:
-    _deprecated(
+    deprecated(
         func,
         "Accessing configuration method '{f.__name__}' directly from "
         "the configuration module is deprecated. Please access the "

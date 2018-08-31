@@ -75,7 +75,7 @@ class BaseExecutor(LoggingMixin):
         # cfg_path is needed to propagate the config values if using impersonation
         # (run_as_user), given that there are different code paths running tasks.
         # For a long term solution we need to address AIRFLOW-1986
-        command = task_instance.command(
+        command = task_instance.command_as_list(
             local=True,
             mark_success=mark_success,
             ignore_all_deps=ignore_all_deps,
@@ -193,7 +193,7 @@ class BaseExecutor(LoggingMixin):
 
     def end(self):  # pragma: no cover
         """
-        This method is called when the caller is done submitting job and is
+        This method is called when the caller is done submitting job and
         wants to wait synchronously for the job submitted previously to be
         all done.
         """

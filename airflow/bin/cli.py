@@ -955,6 +955,11 @@ def worker(args):
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
 
+    if not settings.validate_session():
+        log = LoggingMixin().log
+        log.error("Worker exiting... database connection precheck failed! ")
+        sys.exit(1)
+
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
     from celery.bin import worker
@@ -1007,7 +1012,6 @@ def initdb(args):  # noqa
     print("Done.")
 
 
-@cli_utils.action_logging
 def resetdb(args):
     print("DB: " + repr(settings.engine.url))
     if args.yes or input("This will drop existing tables "

@@ -26,7 +26,7 @@ from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, Hashable
 from datetime import timedelta
 
 import dill
@@ -60,9 +60,10 @@ from sqlalchemy import (
 from sqlalchemy import func, or_, and_, true as sqltrue
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
-from sqlalchemy_utc import UtcDateTime
 
-from croniter import croniter
+from croniter import (
+    croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
+)
 import six
 
 from airflow import settings, utils
@@ -88,6 +89,7 @@ from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
+from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -335,7 +337,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             return found_dags
 
         mods = []
-        if not zipfile.is_zipfile(filepath):
+        is_zipfile = zipfile.is_zipfile(filepath)
+        if not is_zipfile:
             if safe_mode and os.path.isfile(filepath):
                 with open(filepath, 'rb') as f:
                     content = f.read()
@@ -407,13 +410,23 @@ class DagBag(BaseDagBag, LoggingMixin):
                 if isinstance(dag, DAG):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
-                        if dag.fileloc != filepath:
+                        if dag.fileloc != filepath and not is_zipfile:
                             dag.fileloc = filepath
                     try:
                         dag.is_subdag = False
                         self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                        if isinstance(dag._schedule_interval, six.string_types):
+                            croniter(dag._schedule_interval)
                         found_dags.append(dag)
                         found_dags += dag.subdags
+                    except (CroniterBadCronError,
+                            CroniterBadDateError,
+                            CroniterNotAlphaError) as cron_e:
+                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                        self.import_errors[dag.full_filepath] = \
+                            "Invalid Cron expression: " + str(cron_e)
+                        self.file_last_changed[dag.full_filepath] = \
+                            file_last_changed_on_disk
                     except AirflowDagCycleException as cycle_exception:
                         self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                         self.import_errors[dag.full_filepath] = str(cycle_exception)
@@ -930,7 +943,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def try_number(self):
         """
-        Return the try number that this task number will be when it is acutally
+        Return the try number that this task number will be when it is actually
         run.
 
         If the TI is currently running, this will match the column in the
@@ -1803,12 +1816,16 @@ class TaskInstance(Base, LoggingMixin):
         next_execution_date = task.dag.following_schedule(self.execution_date)
 
         next_ds = None
+        next_ds_nodash = None
         if next_execution_date:
             next_ds = next_execution_date.strftime('%Y-%m-%d')
+            next_ds_nodash = next_ds.replace('-', '')
 
         prev_ds = None
+        prev_ds_nodash = None
         if prev_execution_date:
             prev_ds = prev_execution_date.strftime('%Y-%m-%d')
+            prev_ds_nodash = prev_ds.replace('-', '')
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = ts.replace('-', '').replace(':', '')
@@ -1875,7 +1892,9 @@ class TaskInstance(Base, LoggingMixin):
             'dag': task.dag,
             'ds': ds,
             'next_ds': next_ds,
+            'next_ds_nodash': next_ds_nodash,
             'prev_ds': prev_ds,
+            'prev_ds_nodash': prev_ds_nodash,
             'ds_nodash': ds_nodash,
             'ts': ts,
             'ts_nodash': ts_nodash,
@@ -2098,6 +2117,10 @@ class Log(Base):
     owner = Column(String(500))
     extra = Column(Text)
 
+    __table_args__ = (
+        Index('idx_log_dag', dag_id),
+    )
+
     def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
         self.dttm = timezone.utcnow()
         self.event = event
@@ -2238,7 +2261,8 @@ class BaseOperator(LoggingMixin):
     :type dag: DAG
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
-        others when things get backed up.
+        others when things get backed up. Set priority_weight as a higher
+        number for more important tasks.
     :type priority_weight: int
     :param weight_rule: weighting method used for the effective total
         priority weight of the task. Options are:
@@ -2311,14 +2335,17 @@ class BaseOperator(LoggingMixin):
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
-        ``example: to run this task in a specific docker container through
-        the KubernetesExecutor
-        MyOperator(...,
-            executor_config={
-            "KubernetesExecutor":
-                {"image": "myCustomDockerImage"}
-                }
-        )``
+
+        **Example**: to run this task in a specific docker container through
+        the KubernetesExecutor ::
+
+            MyOperator(...,
+                executor_config={
+                "KubernetesExecutor":
+                    {"image": "myCustomDockerImage"}
+                    }
+            )
+
     :type executor_config: dict
     """
 
@@ -2396,10 +2423,17 @@ class BaseOperator(LoggingMixin):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
             self.log.warning("start_date for %s isn't datetime.datetime", self)
+        elif start_date:
+            self.start_date = timezone.convert_to_utc(start_date)
+
         self.end_date = end_date
+        if end_date:
+            self.end_date = timezone.convert_to_utc(end_date)
+
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
                 "The trigger_rule must be one of {all_triggers},"
@@ -3233,7 +3267,7 @@ class DAG(BaseDag, LoggingMixin):
             )
 
         self.schedule_interval = schedule_interval
-        if schedule_interval in cron_presets:
+        if isinstance(schedule_interval, Hashable) and schedule_interval in cron_presets:
             self._schedule_interval = cron_presets.get(schedule_interval)
         elif schedule_interval == '@once':
             self._schedule_interval = None
@@ -3333,7 +3367,7 @@ class DAG(BaseDag, LoggingMixin):
             cron = croniter(self._schedule_interval, dttm)
             following = timezone.make_aware(cron.get_next(datetime), self.timezone)
             return timezone.convert_to_utc(following)
-        elif isinstance(self._schedule_interval, timedelta):
+        elif self._schedule_interval is not None:
             return dttm + self._schedule_interval
 
     def previous_schedule(self, dttm):
@@ -3348,7 +3382,7 @@ class DAG(BaseDag, LoggingMixin):
             cron = croniter(self._schedule_interval, dttm)
             prev = timezone.make_aware(cron.get_prev(datetime), self.timezone)
             return timezone.convert_to_utc(prev)
-        elif isinstance(self._schedule_interval, timedelta):
+        elif self._schedule_interval is not None:
             return dttm - self._schedule_interval
 
     def get_run_dates(self, start_date, end_date=None):
@@ -5141,7 +5175,10 @@ class DagRun(Base, LoggingMixin):
     @property
     def is_backfill(self):
         from airflow.jobs import BackfillJob
-        return self.run_id.startswith(BackfillJob.ID_PREFIX)
+        return (
+            self.run_id is not None and
+            self.run_id.startswith(BackfillJob.ID_PREFIX)
+        )
 
     @classmethod
     @provide_session

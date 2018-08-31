@@ -176,6 +176,11 @@ class KubernetesRequestFactory:
             req['spec']['serviceAccountName'] = pod.service_account_name
 
     @staticmethod
+    def extract_hostnetwork(pod, req):
+        if pod.hostnetwork:
+            req['spec']['hostNetwork'] = pod.hostnetwork
+
+    @staticmethod
     def extract_image_pull_secrets(pod, req):
         if pod.image_pull_secrets:
             req['spec']['imagePullSecrets'] = [{

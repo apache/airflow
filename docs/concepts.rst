@@ -115,13 +115,12 @@ Airflow provides operators for many common tasks, including:
 - ``BashOperator`` - executes a bash command
 - ``PythonOperator`` - calls an arbitrary Python function
 - ``EmailOperator`` - sends an email
-- ``HTTPOperator`` - sends an HTTP request
+- ``SimpleHttpOperator`` - sends an HTTP request
 - ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
-
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransferOperator``,
+operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransformOperator``,
 ``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
@@ -332,6 +331,17 @@ is the case, and when the **hooks** uses the ``get_connection`` method
 from ``BaseHook``, Airflow will choose one connection randomly, allowing
 for some basic load balancing and fault tolerance when used in conjunction
 with retries.
+
+Airflow also has the ability to reference connections via environment
+variables from the operating system. But it only supports URI format. If you
+need to specify ``extra`` for your connection, please use web UI.
+
+If connections with the same ``conn_id`` are defined in both Airflow metadata
+database and environment variables, only the one in environment variables
+will be referenced by Airflow (for example, given ``conn_id`` ``postgres_master``,
+Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+in environment variables first and directly reference it if found,
+before it starts to search in metadata database).
 
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default

@@ -17,24 +17,29 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# flake8: noqa: E402
+import inspect
 from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
+standard_library.install_aliases()  # noqa: E402
+from builtins import str, object
 
 from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
+import io
 import json
+import os
+import re
 import time
-
-from flask import after_this_request, request, Response
-from flask_admin.contrib.sqla.filters import FilterConverter
-from flask_admin.model import filters
-from flask_login import current_user
 import wtforms
 from wtforms.compat import text_type
+import zipfile
+
+from flask import after_this_request, request, Response
+from flask_admin.model import filters
+from flask_admin.contrib.sqla.filters import FilterConverter
+from flask_login import current_user
 
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
@@ -55,8 +60,13 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 
 
 def should_hide_value_for_key(key_name):
-    return any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS) \
-        and configuration.conf.getboolean('admin', 'hide_sensitive_variable_fields')
+    # It is possible via importing variables from file that a key is empty.
+    if key_name:
+        config_set = configuration.conf.getboolean('admin',
+                                                   'hide_sensitive_variable_fields')
+        field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
+        return config_set and field_comp
+    return False
 
 
 class LoginMixin(object):
@@ -366,6 +376,22 @@ def gzipped(f):
     return view_func
 
 
+def open_maybe_zipped(f, mode='r'):
+    """
+    Opens the given file. If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive, opening the file inside the archive.
+
+    :return: a file object, as in `open`, or as in `ZipFile.open`.
+    """
+
+    _, archive, filename = re.search(
+        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return zipfile.ZipFile(archive, mode=mode).open(filename)
+    else:
+        return io.open(f, mode=mode)
+
+
 def make_cache_key(*args, **kwargs):
     """
     Used by cache to get a unique key per URL
@@ -373,6 +399,33 @@ def make_cache_key(*args, **kwargs):
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')
+
+
+def get_python_source(x):
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+
+    return source_code
 
 
 class AceEditorWidget(wtforms.widgets.TextArea):

@@ -21,6 +21,7 @@ import time
 import uuid
 
 from apiclient.discovery import build
+from zope.deprecation import deprecation
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -80,7 +81,7 @@ class _DataProcJob(LoggingMixin):
 
 class _DataProcJobBuilder:
     def __init__(self, project_id, task_id, cluster_name, job_type, properties):
-        name = task_id + "_" + str(uuid.uuid1())[:8]
+        name = task_id + "_" + str(uuid.uuid4())[:8]
         self.job_type = job_type
         self.job = {
             "job": {
@@ -140,7 +141,7 @@ class _DataProcJobBuilder:
         self.job["job"][self.job_type]["mainPythonFileUri"] = main
 
     def set_job_name(self, name):
-        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid1())[:8]
+        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid4())[:8]
 
     def build(self):
         return self.job
@@ -224,7 +225,16 @@ class DataProcHook(GoogleCloudBaseHook):
         return _DataProcJobBuilder(self.project_id, task_id, cluster_name,
                                    job_type, properties)
 
-    def await(self, operation):
+    def wait(self, operation):
         """Awaits for Google Cloud Dataproc Operation to complete."""
         submitted = _DataProcOperation(self.get_conn(), operation)
         submitted.wait_for_done()
+
+
+setattr(
+    DataProcHook,
+    "await",
+    deprecation.deprecated(
+        DataProcHook.wait, "renamed to 'wait' for Python3.7 compatibility"
+    ),
+)

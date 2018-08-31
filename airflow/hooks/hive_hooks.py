@@ -34,10 +34,10 @@ from past.builtins import basestring
 from past.builtins import unicode
 from six.moves import zip
 
-import airflow.security.utils as utils
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.security import utils
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -148,7 +148,8 @@ class HiveCliHook(BaseHook):
 
         return [hive_bin] + cmd_extra + hive_params_list
 
-    def _prepare_hiveconf(self, d):
+    @staticmethod
+    def _prepare_hiveconf(d):
         """
         This function prepares a list of hiveconf params
         from a dictionary of key value pairs.

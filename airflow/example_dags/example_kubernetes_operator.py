@@ -25,7 +25,7 @@ log = LoggingMixin().log
 
 try:
     # Kubernetes is optional, so not available in vanilla Airflow
-    # pip install airflow[kubernetes]
+    # pip install apache-airflow[kubernetes]
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
     args = {
@@ -48,9 +48,10 @@ try:
         in_cluster=False,
         task_id="task",
         get_logs=True,
-        dag=dag)
+        dag=dag,
+        is_delete_operator_pod=False)
 
 except ImportError as e:
     log.warn("Could not import KubernetesPodOperator: " + str(e))
     log.warn("Install kubernetes dependencies with: "
-             "    pip install airflow['kubernetes']")
+             "    pip install apache-airflow[kubernetes]")

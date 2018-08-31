@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,7 +32,6 @@ import imp
 import os
 import re
 import signal
-import subprocess
 import sys
 import warnings
 
@@ -127,7 +126,7 @@ def chunks(items, chunk_size):
     """
     Yield successive chunks of a given size from a list of items
     """
-    if (chunk_size <= 0):
+    if chunk_size <= 0:
         raise ValueError('Chunk size must be a positive integer')
     for i in range(0, len(items), chunk_size):
         yield items[i:i + chunk_size]
@@ -226,6 +225,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
+
     def on_terminate(p):
         log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
 

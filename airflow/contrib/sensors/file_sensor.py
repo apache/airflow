@@ -46,7 +46,7 @@ class FileSensor(BaseSensorOperator):
     @apply_defaults
     def __init__(self,
                  filepath,
-                 fs_conn_id='fs_default2',
+                 fs_conn_id='fs_default',
                  *args,
                  **kwargs):
         super(FileSensor, self).__init__(*args, **kwargs)
@@ -56,7 +56,7 @@ class FileSensor(BaseSensorOperator):
     def poke(self, context):
         hook = FSHook(self.fs_conn_id)
         basepath = hook.get_path()
-        full_path = "/".join([basepath, self.filepath])
+        full_path = os.path.join(basepath, self.filepath)
         self.log.info('Poking for file {full_path}'.format(**locals()))
         try:
             if stat.S_ISDIR(os.stat(full_path).st_mode):

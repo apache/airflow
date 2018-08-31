@@ -66,13 +66,15 @@ class OracleToAzureDataLakeTransfer(BaseOperator):
             azure_data_lake_path,
             oracle_conn_id,
             sql,
-            sql_params={},
+            sql_params=None,
             delimiter=",",
             encoding="utf-8",
             quotechar='"',
             quoting=csv.QUOTE_MINIMAL,
             *args, **kwargs):
         super(OracleToAzureDataLakeTransfer, self).__init__(*args, **kwargs)
+        if sql_params is None:
+            sql_params = {}
         self.filename = filename
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql

@@ -22,7 +22,6 @@ import ast
 import codecs
 import copy
 import datetime as dt
-import inspect
 import itertools
 import json
 import logging
@@ -199,7 +198,7 @@ def nobr_f(v, c, m, p):
 def label_link(v, c, m, p):
     try:
         default_params = ast.literal_eval(m.default_params)
-    except:
+    except Exception:
         default_params = {}
     url = url_for(
         'airflow.chart', chart_id=m.id, iteration_no=m.iteration_no,
@@ -249,7 +248,9 @@ attr_renderer = {
     'doc_yaml': lambda x: render(x, lexers.YamlLexer),
     'doc_md': wrapped_markdown,
     'python_callable': lambda x: render(
-        inspect.getsource(x), lexers.PythonLexer),
+        wwwutils.get_python_source(x),
+        lexers.PythonLexer,
+    ),
 }
 
 
@@ -363,6 +364,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
         'dr_state': dr_state,
     }
 
+
 class Airflow(BaseView):
     def is_visible(self):
         return False
@@ -397,9 +399,9 @@ class Airflow(BaseView):
         # Processing templated fields
         try:
             args = ast.literal_eval(chart.default_params)
-            if type(args) is not type(dict()):
+            if not isinstance(args, dict):
                 raise AirflowException('Not a dict')
-        except:
+        except Exception:
             args = {}
             payload['error'] += (
                 "Default params is not valid, string has to evaluate as "
@@ -441,15 +443,15 @@ class Airflow(BaseView):
         if not payload['error'] and len(df) == 0:
             payload['error'] += "Empty result set. "
         elif (
-                        not payload['error'] and
-                            chart.sql_layout == 'series' and
-                        chart.chart_type != "datatable" and
-                    len(df.columns) < 3):
+                not payload['error'] and
+                chart.sql_layout == 'series' and
+                chart.chart_type != "datatable" and
+                len(df.columns) < 3):
             payload['error'] += "SQL needs to return at least 3 columns. "
         elif (
-                    not payload['error'] and
-                        chart.sql_layout == 'columns' and
-                    len(df.columns) < 2):
+                not payload['error'] and
+                chart.sql_layout == 'columns' and
+                len(df.columns) < 2):
             payload['error'] += "SQL needs to return at least 2 columns. "
         elif not payload['error']:
             import numpy as np
@@ -479,8 +481,6 @@ class Airflow(BaseView):
             else:
                 if chart.sql_layout == 'series':
                     # User provides columns (series, x, y)
-                    xaxis_label = df.columns[1]
-                    yaxis_label = df.columns[2]
                     df[df.columns[2]] = df[df.columns[2]].astype(np.float)
                     df = df.pivot_table(
                         index=df.columns[1],
@@ -488,8 +488,6 @@ class Airflow(BaseView):
                         values=df.columns[2], aggfunc=np.sum)
                 else:
                     # User provides columns (x, y, metric1, metric2, ...)
-                    xaxis_label = df.columns[0]
-                    yaxis_label = 'y'
                     df.index = df[df.columns[0]]
                     df = df.sort(df.columns[0])
                     del df[df.columns[0]]
@@ -597,8 +595,8 @@ class Airflow(BaseView):
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state != State.RUNNING)
-                .filter(Dag.is_active == True)
-                .filter(Dag.is_subdag == False)
+                .filter(Dag.is_active == True)  # noqa: E712
+                .filter(Dag.is_subdag == False)  # noqa: E712
                 .group_by(DagRun.dag_id)
                 .subquery('last_dag_run')
         )
@@ -606,8 +604,8 @@ class Airflow(BaseView):
             session.query(DagRun.dag_id, DagRun.execution_date)
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state == State.RUNNING)
-                .filter(Dag.is_active == True)
-                .filter(Dag.is_subdag == False)
+                .filter(Dag.is_active == True)  # noqa: E712
+                .filter(Dag.is_subdag == False)  # noqa: E712
                 .subquery('running_dag_run')
         )
 
@@ -615,13 +613,13 @@ class Airflow(BaseView):
         # If no dag_run is active, return task instances from most recent dag_run.
         LastTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                .join(LastDagRun, and_(
+            .join(LastDagRun, and_(
                 LastDagRun.c.dag_id == TI.dag_id,
                 LastDagRun.c.execution_date == TI.execution_date))
         )
         RunningTI = (
             session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
-                .join(RunningDagRun, and_(
+            .join(RunningDagRun, and_(
                 RunningDagRun.c.dag_id == TI.dag_id,
                 RunningDagRun.c.execution_date == TI.execution_date))
         )
@@ -629,7 +627,7 @@ class Airflow(BaseView):
         UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
         qry = (
             session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
-                .group_by(UnionTI.c.dag_id, UnionTI.c.state)
+            .group_by(UnionTI.c.dag_id, UnionTI.c.state)
         )
 
         data = {}
@@ -645,7 +643,7 @@ class Airflow(BaseView):
             for state in State.task_states:
                 try:
                     count = data[dag.dag_id][state]
-                except:
+                except Exception:
                     count = 0
                 d = {
                     'state': state,
@@ -663,7 +661,7 @@ class Airflow(BaseView):
         dag = dagbag.get_dag(dag_id)
         title = dag_id
         try:
-            with open(dag.fileloc, 'r') as f:
+            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
@@ -881,7 +879,7 @@ class Airflow(BaseView):
         for attr_name in dir(ti):
             if not attr_name.startswith('_'):
                 attr = getattr(ti, attr_name)
-                if type(attr) != type(self.task):
+                if type(attr) != type(self.task):  # noqa: E721
                     ti_attrs.append((attr_name, str(attr)))
 
         task_attrs = []
@@ -889,7 +887,7 @@ class Airflow(BaseView):
             if not attr_name.startswith('_'):
                 attr = getattr(task, attr_name)
                 if type(attr) != type(self.task) and \
-                        attr_name not in attr_renderer:
+                        attr_name not in attr_renderer:  # noqa: E721
                     task_attrs.append((attr_name, str(attr)))
 
         # Color coding the special attributes that are code
@@ -994,16 +992,25 @@ class Airflow(BaseView):
         ignore_task_deps = request.args.get('ignore_task_deps') == "true"
         ignore_ti_state = request.args.get('ignore_ti_state') == "true"
 
+        from airflow.executors import GetDefaultExecutor
+        executor = GetDefaultExecutor()
+        valid_celery_config = False
+        valid_kubernetes_config = False
+
         try:
-            from airflow.executors import GetDefaultExecutor
             from airflow.executors.celery_executor import CeleryExecutor
-            executor = GetDefaultExecutor()
-            if not isinstance(executor, CeleryExecutor):
-                flash("Only works with the CeleryExecutor, sorry", "error")
-                return redirect(origin)
+            valid_celery_config = isinstance(executor, CeleryExecutor)
         except ImportError:
-            # in case CeleryExecutor cannot be imported it is not active either
-            flash("Only works with the CeleryExecutor, sorry", "error")
+            pass
+
+        try:
+            from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+            valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
+        except ImportError:
+            pass
+
+        if not valid_celery_config and not valid_kubernetes_config:
+            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
         ti = models.TaskInstance(task=task, execution_date=execution_date)
@@ -1164,7 +1171,6 @@ class Airflow(BaseView):
     @wwwutils.notify_owner
     def dagrun_clear(self):
         dag_id = request.args.get('dag_id')
-        task_id = request.args.get('task_id')
         origin = request.args.get('origin')
         execution_date = request.args.get('execution_date')
         confirmed = request.args.get('confirmed') == "true"
@@ -1632,13 +1638,13 @@ class Airflow(BaseView):
         TF = models.TaskFail
         ti_fails = (
             session
-                .query(TF)
-                .filter(
+            .query(TF)
+            .filter(
                 TF.dag_id == dag.dag_id,
                 TF.execution_date >= min_date,
                 TF.execution_date <= base_date,
                 TF.task_id.in_([t.task_id for t in dag.tasks]))
-                .all()
+            .all()
         )
 
         fails_totals = defaultdict(int)
@@ -1970,7 +1976,7 @@ class Airflow(BaseView):
         if dttm:
             dttm = pendulum.parse(dttm)
         else:
-            return ("Error: Invalid execution_date")
+            return "Error: Invalid execution_date"
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
@@ -1995,7 +2001,7 @@ class Airflow(BaseView):
                 return self.render(
                     'airflow/variables/{}.html'.format(form)
                 )
-        except:
+        except Exception:
             # prevent XSS
             form = escape(form)
             return ("Error: form airflow/variables/{}.html "
@@ -2010,9 +2016,20 @@ class Airflow(BaseView):
         except Exception as e:
             flash("Missing file or syntax error: {}.".format(e))
         else:
+            suc_count = fail_count = 0
             for k, v in d.items():
-                models.Variable.set(k, v, serialize_json=isinstance(v, dict))
-            flash("{} variable(s) successfully updated.".format(len(d)))
+                try:
+                    models.Variable.set(k, v, serialize_json=isinstance(v, dict))
+                except Exception as e:
+                    logging.info('Variable import failed: {}'.format(repr(e)))
+                    fail_count += 1
+                else:
+                    suc_count += 1
+            flash("{} variable(s) successfully updated.".format(suc_count), 'info')
+            if fail_count:
+                flash(
+                    "{} variables(s) failed to be updated.".format(fail_count), 'error')
+
         return redirect('/admin/variable')
 
 
@@ -2555,7 +2572,7 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
             val = None
             try:
                 val = d.decode(var.val)
-            except:
+            except Exception:
                 val = var.val
             var_dict[var.key] = val
 
@@ -2742,7 +2759,8 @@ class DagRunModelView(ModelViewOnly):
             altered_tis = set_dag_run_state_to_success(
                 dagbag.get_dag(dagrun.dag_id),
                 dagrun.execution_date,
-                commit=True)
+                commit=True,
+                session=session)
         elif dagrun.state == State.FAILED:
             altered_tis = set_dag_run_state_to_failed(
                 dagbag.get_dag(dagrun.dag_id),
@@ -2961,7 +2979,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         fk = None
         try:
             fk = conf.get('core', 'fernet_key')
-        except:
+        except Exception:
             pass
         return fk is None
 
@@ -2973,10 +2991,10 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         """
         is_secure = False
         try:
-            import cryptography
+            import cryptography  # noqa F401
             conf.get('core', 'fernet_key')
             is_secure = True
-        except:
+        except Exception:
             pass
         return is_secure
 
