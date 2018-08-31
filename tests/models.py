@@ -801,7 +801,26 @@ class DagRunTest(unittest.TestCase):
         dr.update_state()
         self.assertEqual(dr.state, State.FAILED)
 
-    def test_dagrun_no_deadlock(self):
+    def test_dagrun_no_deadlock_with_shutdown(self):
+        session = settings.Session()
+        dag = DAG('test_dagrun_no_deadlock_with_shutdown',
+                  start_date=DEFAULT_DATE)
+        with dag:
+            op1 = DummyOperator(task_id='upstream_task')
+            op2 = DummyOperator(task_id='downstream_task')
+            op2.set_upstream(op1)
+
+        dr = dag.create_dagrun(run_id='test_dagrun_no_deadlock_with_shutdown',
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE)
+        upstream_ti = dr.get_task_instance(task_id='upstream_task')
+        upstream_ti.set_state(State.SHUTDOWN, session=session)
+
+        dr.update_state()
+        self.assertEqual(dr.state, State.RUNNING)
+
+    def test_dagrun_no_deadlock_with_depends_on_past(self):
         session = settings.Session()
         dag = DAG('test_dagrun_no_deadlock',
                   start_date=DEFAULT_DATE)

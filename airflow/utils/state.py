@@ -101,7 +101,6 @@ class State(object):
         """
         return [
             cls.SUCCESS,
-            cls.SHUTDOWN,
             cls.FAILED,
             cls.SKIPPED,
         ]
@@ -117,5 +116,6 @@ class State(object):
             cls.SCHEDULED,
             cls.QUEUED,
             cls.RUNNING,
+            cls.SHUTDOWN,
             cls.UP_FOR_RETRY
         ]
