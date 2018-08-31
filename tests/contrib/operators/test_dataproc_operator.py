@@ -61,8 +61,10 @@ STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
+MASTER_DISK_TYPE = 'pd-standard'
 WORKER_MACHINE_TYPE = 'n1-standard-2'
 WORKER_DISK_SIZE = 100
+WORKER_DISK_TYPE = 'pd-standard'
 NUM_PREEMPTIBLE_WORKERS = 2
 GET_INIT_ACTION_TIMEOUT = "600s"  # 10m
 LABEL1 = {}
@@ -125,8 +127,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     storage_bucket=STORAGE_BUCKET,
                     image_version=IMAGE_VERSION,
                     master_machine_type=MASTER_MACHINE_TYPE,
+                    master_disk_type=MASTER_DISK_TYPE,
                     master_disk_size=MASTER_DISK_SIZE,
                     worker_machine_type=WORKER_MACHINE_TYPE,
+                    worker_disk_type=WORKER_DISK_TYPE,
                     worker_disk_size=WORKER_DISK_SIZE,
                     num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
                     labels=deepcopy(labels),
@@ -159,8 +163,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.image_version, IMAGE_VERSION)
             self.assertEqual(dataproc_operator.master_machine_type, MASTER_MACHINE_TYPE)
             self.assertEqual(dataproc_operator.master_disk_size, MASTER_DISK_SIZE)
+            self.assertEqual(dataproc_operator.master_disk_type, MASTER_DISK_TYPE)
             self.assertEqual(dataproc_operator.worker_machine_type, WORKER_MACHINE_TYPE)
             self.assertEqual(dataproc_operator.worker_disk_size, WORKER_DISK_SIZE)
+            self.assertEqual(dataproc_operator.worker_disk_type, WORKER_DISK_TYPE)
             self.assertEqual(dataproc_operator.num_preemptible_workers,
                              NUM_PREEMPTIBLE_WORKERS)
             self.assertEqual(dataproc_operator.labels, self.labels[suffix])

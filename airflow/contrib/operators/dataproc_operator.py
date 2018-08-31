@@ -75,10 +75,20 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type properties: dict
     :param master_machine_type: Compute engine machine type to use for the master node
     :type master_machine_type: string
+    :param master_disk_type: Type of the boot disk for the master node
+        (default is ``pd-standard``).
+        Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
+        ``pd-standard`` (Persistent Disk Hard Disk Drive).
+    :type master_disk_type: string
     :param master_disk_size: Disk size for the master node
     :type master_disk_size: int
     :param worker_machine_type: Compute engine machine type to use for the worker nodes
     :type worker_machine_type: string
+    :param worker_disk_type: Type of the boot disk for the worker node
+        (default is ``pd-standard``).
+        Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
+        ``pd-standard`` (Persistent Disk Hard Disk Drive).
+    :type worker_disk_type: string
     :param worker_disk_size: Disk size for the worker nodes
     :type worker_disk_size: int
     :param num_preemptible_workers: The # of preemptible worker nodes to spin up
@@ -141,8 +151,10 @@ class DataprocClusterCreateOperator(BaseOperator):
                  image_version=None,
                  properties=None,
                  master_machine_type='n1-standard-4',
+                 master_disk_type='pd-standard',
                  master_disk_size=500,
                  worker_machine_type='n1-standard-4',
+                 worker_disk_type='pd-standard',
                  worker_disk_size=500,
                  num_preemptible_workers=0,
                  labels=None,
@@ -171,8 +183,10 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.image_version = image_version
         self.properties = properties
         self.master_machine_type = master_machine_type
+        self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
         self.worker_machine_type = worker_machine_type
+        self.worker_disk_type = worker_disk_type
         self.worker_disk_size = worker_disk_size
         self.labels = labels
         self.zone = zone
@@ -272,6 +286,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                     'numInstances': 1,
                     'machineTypeUri': master_type_uri,
                     'diskConfig': {
+                        'bootDiskType': self.master_disk_type,
                         'bootDiskSizeGb': self.master_disk_size
                     }
                 },
@@ -279,6 +294,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                     'numInstances': self.num_workers,
                     'machineTypeUri': worker_type_uri,
                     'diskConfig': {
+                        'bootDiskType': self.worker_disk_type,
                         'bootDiskSizeGb': self.worker_disk_size
                     }
                 },
@@ -292,6 +308,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                 'numInstances': self.num_preemptible_workers,
                 'machineTypeUri': worker_type_uri,
                 'diskConfig': {
+                    'bootDiskType': self.worker_disk_type,
                     'bootDiskSizeGb': self.worker_disk_size
                 },
                 'isPreemptible': True
@@ -401,7 +418,7 @@ class DataprocClusterScaleOperator(BaseOperator):
             cluster_name='cluster-1',
             num_workers=10,
             num_preemptible_workers=10,
-            graceful_decommission_timeout='1h'
+            graceful_decommission_timeout='1h',
             dag=dag)
 
     .. seealso::
