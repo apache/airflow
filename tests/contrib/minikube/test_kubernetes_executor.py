@@ -34,11 +34,8 @@ except Exception as e:
 
 
 def get_minikube_host():
-    host_ip = check_output(['minikube', 'ip'])
-    if six.PY3:
-        host_ip = host_ip.decode('UTF-8')
-    host = '{}:30809'.format(host_ip.strip())
-    return host
+    host_ip = "10.192.0.1:30809"
+    return host_ip
 
 
 class KubernetesExecutorTest(unittest.TestCase):
