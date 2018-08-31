@@ -1816,12 +1816,16 @@ class TaskInstance(Base, LoggingMixin):
         next_execution_date = task.dag.following_schedule(self.execution_date)
 
         next_ds = None
+        next_ds_nodash = None
         if next_execution_date:
             next_ds = next_execution_date.strftime('%Y-%m-%d')
+            next_ds_nodash = next_ds.replace('-', '')
 
         prev_ds = None
+        prev_ds_nodash = None
         if prev_execution_date:
             prev_ds = prev_execution_date.strftime('%Y-%m-%d')
+            prev_ds_nodash = prev_ds.replace('-', '')
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = ts.replace('-', '').replace(':', '')
@@ -1888,7 +1892,9 @@ class TaskInstance(Base, LoggingMixin):
             'dag': task.dag,
             'ds': ds,
             'next_ds': next_ds,
+            'next_ds_nodash': next_ds_nodash,
             'prev_ds': prev_ds,
+            'prev_ds_nodash': prev_ds_nodash,
             'ds_nodash': ds_nodash,
             'ts': ts,
             'ts_nodash': ts_nodash,
