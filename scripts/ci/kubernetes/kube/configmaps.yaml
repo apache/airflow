@@ -256,6 +256,10 @@ data:
     # Default queue that tasks get assigned to and that worker listen on.
     default_queue = default
 
+    # How many processes CeleryExecutor uses to sync task state.
+    # 0 means to use max(1, number of cores - 1) processes.
+    sync_parallelism = 0
+
     # Import path for celery configuration options
     celery_config_options = airflow.config_templates.default_celery.DEFAULT_CELERY_CONFIG
 
