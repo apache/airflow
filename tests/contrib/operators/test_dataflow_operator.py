@@ -20,9 +20,10 @@
 
 import unittest
 
-from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator, \
-    DataFlowJavaOperator, DataflowTemplateOperator
-from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
+from airflow.contrib.operators.dataflow_operator import \
+    DataFlowPythonOperator, DataFlowJavaOperator, \
+    DataflowTemplateOperator, GoogleCloudBucketHelper
+
 from airflow.version import version
 
 try:
@@ -186,3 +187,25 @@ class DataFlowTemplateOperatorTest(unittest.TestCase):
         }
         start_template_hook.assert_called_once_with(TASK_ID, expected_options,
                                                     PARAMETERS, TEMPLATE)
+
+
+class GoogleCloudBucketHelperTest(unittest.TestCase):
+
+    @mock.patch(
+        'airflow.contrib.operators.dataflow_operator.GoogleCloudBucketHelper.__init__'
+    )
+    def test_invalid_object_path(self, mock_parent_init):
+
+        # This is just the path of a bucket hence invalid filename
+        file_name = 'gs://test-bucket'
+        mock_parent_init.return_value = None
+
+        gcs_bucket_helper = GoogleCloudBucketHelper()
+        gcs_bucket_helper._gcs_hook = mock.Mock()
+
+        with self.assertRaises(Exception) as context:
+            gcs_bucket_helper.google_cloud_to_local(file_name)
+
+        self.assertEquals(
+            'Invalid Google Cloud Storage (GCS) object path: {}.'.format(file_name),
+            str(context.exception))
