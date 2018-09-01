@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 import re
 import uuid
 import copy
@@ -359,7 +359,7 @@ class GoogleCloudBucketHelper(object):
         # Extracts bucket_id and object_id by first removing 'gs://' prefix and
         # then split the remaining by path delimiter '/'.
         path_components = file_name[self.GCS_PREFIX_LENGTH:].split('/')
-        if path_components < 2:
+        if len(path_components) < 2:
             raise Exception(
                 'Invalid Google Cloud Storage (GCS) object path: {}.'
                 .format(file_name))
@@ -370,7 +370,7 @@ class GoogleCloudBucketHelper(object):
                                                  path_components[-1])
         file_size = self._gcs_hook.download(bucket_id, object_id, local_file)
 
-        if file_size > 0:
+        if os.stat(file_size).st_size > 0:
             return local_file
         raise Exception(
             'Failed to download Google Cloud Storage GCS object: {}'
