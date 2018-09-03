@@ -75,6 +75,13 @@ class BigQueryOperator(BaseOperator):
         (without incurring a charge). If unspecified, this will be
         set to your project default.
     :type maximum_bytes_billed: float
+    :param api_resource_configs: a dictionary that contain params
+        'configuration' applied for Google BigQuery Jobs API:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
+        for example, {'query': {'useQueryCache': False}}. You could use it
+        if you need to provide some params that are not supported by BigQueryOperator
+        like args.
+    :type api_resource_configs: dict
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :type schema_update_options: tuple
@@ -118,7 +125,8 @@ class BigQueryOperator(BaseOperator):
                  query_params=None,
                  labels=None,
                  priority='INTERACTIVE',
-                 time_partitioning={},
+                 time_partitioning=None,
+                 api_resource_configs=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -140,7 +148,10 @@ class BigQueryOperator(BaseOperator):
         self.labels = labels
         self.bq_cursor = None
         self.priority = priority
-        self.time_partitioning = time_partitioning
+        if time_partitioning is None:
+            self.time_partitioning = {}
+        if api_resource_configs is None:
+            self.api_resource_configs = {}
 
         # TODO remove `bql` in Airflow 2.0
         if self.bql:
@@ -179,7 +190,8 @@ class BigQueryOperator(BaseOperator):
             labels=self.labels,
             schema_update_options=self.schema_update_options,
             priority=self.priority,
-            time_partitioning=self.time_partitioning
+            time_partitioning=self.time_partitioning,
+            api_resource_configs=self.api_resource_configs,
         )
 
     def on_kill(self):
