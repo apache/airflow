@@ -35,7 +35,7 @@ const BUILD_DIR = path.resolve(__dirname, './static/dist');
 const config = {
   entry: {
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
-    clock: `${STATIC_DIR}/js/clock.js`,
+    base: `${STATIC_DIR}/js/base.js`,
     graph: `${STATIC_DIR}/js/graph.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
     main: `${STATIC_DIR}/css/main.css`,
