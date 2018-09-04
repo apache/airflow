@@ -241,7 +241,8 @@ class SageMakerHook(AwsHook):
             transform_job_config.update(config)
 
         self.check_for_url(transform_job_config
-                           ['TransformInput']['DataSource']['S3Uri'])
+                           ['TransformInput']['DataSource']
+                           ['S3DataSource']['S3Uri'])
 
         response = self.conn.create_transform_job(
             **transform_job_config)

@@ -47,11 +47,13 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
         self.job_name = job_name
         self.region_name = region_name
 
+    @staticmethod
     def non_terminal_states(self):
-        return ['InProgress', 'Stopping', 'Stopped']
+        return set(['InProgress', 'Stopping', 'Stopped'])
 
+    @staticmethod
     def failed_states(self):
-        return ['Failed']
+        return set(['Failed'])
 
     def get_sagemaker_response(self):
         sagemaker = SageMakerHook(
