@@ -207,8 +207,10 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
         JSON/Google Cloud Storage/BigQuery. Dates are converted to UTC seconds.
         Decimals are converted to floats. Times are converted to seconds.
         """
-        if type(value) in (datetime.datetime, datetime.date):
+        if type(value) == datetime.datetime:
             return time.mktime(value.timetuple())
+        elif type(value) == datetime.date:
+            return value.strftime('%Y-%m-%d')
         elif type(value) == datetime.time:
             formated_time = time.strptime(str(value), "%H:%M:%S")
             return datetime.timedelta(
@@ -229,8 +231,8 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
         d = {
             1114: 'TIMESTAMP',
             1184: 'TIMESTAMP',
-            1082: 'TIMESTAMP',
             1083: 'TIMESTAMP',
+            1082: 'DATE',
             1005: 'INTEGER',
             1007: 'INTEGER',
             1016: 'INTEGER',
