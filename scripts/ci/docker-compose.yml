@@ -57,8 +57,7 @@ services:
       - ./openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
 
   krb5-kdc-server:
-    build: ./krb5
-    image: krb5-kdc-server
+    image: godatadriven/krb5-kdc-server
     hostname: krb5-kdc-server
     domainname: example.com
 
