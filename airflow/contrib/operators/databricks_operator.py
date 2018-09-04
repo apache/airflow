@@ -420,18 +420,18 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_fgcolor = '#fff'
 
     def __init__(
-        self,
-        job_id,
-        json=None,
-        notebook_params=None,
-        python_params=None,
-        spark_submit_params=None,
-        databricks_conn_id='databricks_default',
-        polling_period_seconds=30,
-        databricks_retry_limit=3,
-        databricks_retry_delay=1,
-        do_xcom_push=False,
-        **kwargs):
+            self,
+            job_id,
+            json=None,
+            notebook_params=None,
+            python_params=None,
+            spark_submit_params=None,
+            databricks_conn_id='databricks_default',
+            polling_period_seconds=30,
+            databricks_retry_limit=3,
+            databricks_retry_delay=1,
+            do_xcom_push=False,
+            **kwargs):
 
         """
         Creates a new ``DatabricksRunNowOperator``.

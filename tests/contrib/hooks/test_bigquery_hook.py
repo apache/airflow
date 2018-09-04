@@ -25,7 +25,8 @@ from google.auth.exceptions import GoogleAuthError
 import mock
 
 from airflow.contrib.hooks import bigquery_hook as hook
-from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning
+from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
+    _validate_value, _api_resource_configs_duplication_check
 
 bq_available = True
 
@@ -206,6 +207,16 @@ def mock_job_cancel(projectId, jobId):
 
 
 class TestBigQueryBaseCursor(unittest.TestCase):
+    def test_bql_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            hook.BigQueryBaseCursor("test", "test").run_query(
+                bql='select * from test_table'
+            )
+            yield
+        self.assertIn(
+            'Deprecated parameter `bql`',
+            w[0].message.args[0])
+
     def test_invalid_schema_update_options(self):
         with self.assertRaises(Exception) as context:
             hook.BigQueryBaseCursor("test", "test").run_load(
@@ -215,16 +226,6 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 schema_update_options=["THIS IS NOT VALID"]
             )
         self.assertIn("THIS IS NOT VALID", str(context.exception))
-
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_bql_deprecation_warning(self, mock_rwc):
-        with warnings.catch_warnings(record=True) as w:
-            hook.BigQueryBaseCursor("test", "test").run_query(
-                bql='select * from test_table'
-            )
-        self.assertIn(
-            'Deprecated parameter `bql`',
-            w[0].message.args[0])
 
     def test_nobql_nosql_param_error(self):
         with self.assertRaises(TypeError) as context:
@@ -280,6 +281,39 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             cursor.run_query('query', use_legacy_sql=bool_val)
             args, kwargs = run_with_config.call_args
             self.assertIs(args[0]['query']['useLegacySql'], bool_val)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_api_resource_configs(self, run_with_config):
+        for bool_val in [True, False]:
+            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+            cursor.run_query('query',
+                             api_resource_configs={
+                                 'query': {'useQueryCache': bool_val}})
+            args, kwargs = run_with_config.call_args
+            self.assertIs(args[0]['query']['useQueryCache'], bool_val)
+            self.assertIs(args[0]['query']['useLegacySql'], True)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_api_resource_configs_duplication_warning(self, run_with_config):
+        with self.assertRaises(ValueError):
+            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+            cursor.run_query('query',
+                             use_legacy_sql=True,
+                             api_resource_configs={
+                                 'query': {'useLegacySql': False}})
+
+    def test_validate_value(self):
+        with self.assertRaises(TypeError):
+            _validate_value("case_1", "a", dict)
+        self.assertIsNone(_validate_value("case_2", 0, int))
+
+    def test_duplication_check(self):
+        with self.assertRaises(ValueError):
+            key_one = True
+            _api_resource_configs_duplication_check(
+                "key_one", key_one, {"key_one": False})
+        self.assertIsNone(_api_resource_configs_duplication_check(
+            "key_one", key_one, {"key_one": True}))
 
 
 class TestLabelsInRunJob(unittest.TestCase):

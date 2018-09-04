@@ -56,7 +56,7 @@ class BigQueryCheckOperator(CheckOperator):
     :param bigquery_conn_id: reference to the BigQuery database
     :type bigquery_conn_id: string
     :param use_legacy_sql: Whether to use legacy SQL (true)
-    or standard SQL (false).
+        or standard SQL (false).
     :type use_legacy_sql: boolean
     """
 
@@ -83,7 +83,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     :param sql: the sql to be executed
     :type sql: string
     :param use_legacy_sql: Whether to use legacy SQL (true)
-    or standard SQL (false).
+        or standard SQL (false).
     :type use_legacy_sql: boolean
     """
 
@@ -125,7 +125,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         between the current day, and the prior days_back.
     :type metrics_threshold: dict
     :param use_legacy_sql: Whether to use legacy SQL (true)
-    or standard SQL (false).
+        or standard SQL (false).
     :type use_legacy_sql: boolean
     """
 
