@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -177,6 +177,12 @@ def upgrade():
             unique=False
         )
         op.create_index(
+            'ti_dag_date',
+            'task_instance',
+            ['dag_id', 'execution_date'],
+            unique=False
+        )
+        op.create_index(
             'ti_pool',
             'task_instance',
             ['pool', 'state', 'priority_weight'],
@@ -269,6 +275,7 @@ def downgrade():
     op.drop_index('ti_state_lkp', table_name='task_instance')
     op.drop_index('ti_pool', table_name='task_instance')
     op.drop_index('ti_dag_state', table_name='task_instance')
+    op.drop_index('ti_dag_date', table_name='task_instance')
     op.drop_table('task_instance')
     op.drop_table('slot_pool')
     op.drop_table('sla_miss')
