@@ -65,7 +65,7 @@ TEST_DAGS_FOLDER = os.path.join(
 
 class DagTest(unittest.TestCase):
 
-    def test_parms_not_passed_is_empty_dict(self):
+    def test_params_not_passed_is_empty_dict(self):
         """
         Test that when 'params' is _not_ passed to a new Dag, that the params
         attribute is set to an empty dictionary.
@@ -310,7 +310,6 @@ class DagTest(unittest.TestCase):
                  default_args={'owner': 'owner1'}) as dag:
             with self.assertRaises(AirflowException):
                 DummyOperator(task_id='should_fail', weight_rule='no rule')
-
 
     def test_get_num_task_instances(self):
         test_dag_id = 'test_get_num_task_instances_dag'
@@ -594,6 +593,7 @@ class DagStatTest(unittest.TestCase):
         res = qry2.all()
         for stat in res:
             self.assertFalse(stat.dirty)
+
 
 class DagRunTest(unittest.TestCase):
 
@@ -1122,6 +1122,7 @@ class DagRunTest(unittest.TestCase):
         flaky_ti.refresh_from_db()
         self.assertEquals(State.NONE, flaky_ti.state)
 
+
 class DagBagTest(unittest.TestCase):
 
     def test_get_existing_dag(self):
@@ -1593,6 +1594,7 @@ class DagBagTest(unittest.TestCase):
         mock_ti.assert_called_with(ANY,
                                    configuration.getboolean('core', 'unit_test_mode'),
                                    ANY)
+
 
 class TaskInstanceTest(unittest.TestCase):
 
@@ -2610,6 +2612,7 @@ class ClearTasksTest(unittest.TestCase):
 
         for result in results:
             self.assertEqual(result.value, json_obj)
+
 
 class ConnectionTest(unittest.TestCase):
     @patch.object(configuration, 'get')

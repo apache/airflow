@@ -2313,6 +2313,7 @@ class BaseOperator(LoggingMixin):
     :type on_failure_callback: callable
     :param on_retry_callback: much like the ``on_failure_callback`` except
         that it is executed when retries occur.
+    :type on_retry_callback: callable
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
     :type on_success_callback: callable
