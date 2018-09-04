@@ -627,6 +627,7 @@ def clear(args):
         start_date=args.start_date,
         end_date=args.end_date,
         only_failed=args.only_failed,
+        only_failed_or_upstream_failed=args.only_failed_or_upstream_failed,
         only_running=args.only_running,
         confirm_prompt=not args.no_confirm,
         include_subdags=not args.exclude_subdags)
@@ -1398,6 +1399,9 @@ class CLIFactory(object):
             ("-u", "--upstream"), "Include upstream tasks", "store_true"),
         'only_failed': Arg(
             ("-f", "--only_failed"), "Only failed jobs", "store_true"),
+        'only_failed_or_upstream_failed': Arg(
+            ("-p", "--only_failed_or_upstream_failed"),
+            "Only failed or upstream_failed jobs", "store_true"),
         'only_running': Arg(
             ("-r", "--only_running"), "Only running jobs", "store_true"),
         'downstream': Arg(
@@ -1727,6 +1731,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
+                'only_failed_or_upstream_failed',
                 'only_running', 'exclude_subdags', 'dag_regex'),
         }, {
             'func': pause,
