@@ -214,7 +214,9 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         })
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit)
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay)
+
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
@@ -244,7 +246,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         })
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit)
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay)
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
@@ -271,7 +274,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         """
         Test the initializer with the named parameters.
         """
-        op = DatabricksRunNowOperator(job_id=42, task_id=TASK_ID)
+        op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID)
         expected = databricks_operator._deep_string_coerce({
             'job_id': 42
         })
@@ -381,7 +384,8 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
 
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit)
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay)
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
@@ -413,7 +417,8 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         })
         db_mock_class.assert_called_once_with(
             DEFAULT_CONN_ID,
-            retry_limit=op.databricks_retry_limit)
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay)
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
@@ -426,10 +431,9 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
             'notebook_task': NOTEBOOK_TASK,
             'jar_params': JAR_PARAMS
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
         db_mock = db_mock_class.return_value
         op.run_id = RUN_ID
 
         op.on_kill()
-
         db_mock.cancel_run.assert_called_once_with(RUN_ID)

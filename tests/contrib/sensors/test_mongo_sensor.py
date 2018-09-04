@@ -38,7 +38,7 @@ class TestMongoSensor(unittest.TestCase):
         db.merge_conn(
             Connection(
                 conn_id='mongo_test', conn_type='mongo',
-                host='localhost', port='27017', schema='test'))
+                host='mongo', port='27017', schema='test'))
 
         args = {
             'owner': 'airflow',
