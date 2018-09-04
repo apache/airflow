@@ -361,17 +361,17 @@ class GoogleCloudBucketHelper(object):
         path_components = file_name[self.GCS_PREFIX_LENGTH:].split('/')
         if len(path_components) < 2:
             raise Exception(
-                'Invalid Google Cloud Storage (GCS) object path: {}.'
+                'Invalid Google Cloud Storage (GCS) object path: {}'
                 .format(file_name))
 
         bucket_id = path_components[0]
         object_id = '/'.join(path_components[1:])
         local_file = '/tmp/dataflow{}-{}'.format(str(uuid.uuid4())[:8],
                                                  path_components[-1])
-        file_size = self._gcs_hook.download(bucket_id, object_id, local_file)
+        self._gcs_hook.download(bucket_id, object_id, local_file)
 
-        if os.stat(file_size).st_size > 0:
+        if os.stat(local_file).st_size > 0:
             return local_file
         raise Exception(
-            'Failed to download Google Cloud Storage GCS object: {}'
+            'Failed to download Google Cloud Storage (GCS) object: {}'
             .format(file_name))
