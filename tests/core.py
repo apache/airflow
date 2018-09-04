@@ -73,7 +73,7 @@ from pendulum import utcnow
 
 import six
 
-NUM_EXAMPLE_DAGS = 20
+NUM_EXAMPLE_DAGS = 18
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
