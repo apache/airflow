@@ -63,6 +63,8 @@ use one of these cron "preset":
 | ``@yearly``  | Run once a year at midnight of January 1                       | ``0 0 1 1 *`` |
 +--------------+----------------------------------------------------------------+---------------+
 
+**Note**: Use ``schedule_interval=None`` and not ``schedule_interval='None'`` when
+you don't want to schedule your DAG.
 
 Your DAG will be instantiated
 for each schedule, while creating a ``DAG Run`` entry for each schedule.
