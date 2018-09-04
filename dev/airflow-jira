@@ -39,10 +39,6 @@ TMP_CREDENTIALS = {}
 PROJECT = "AIRFLOW"
 
 # Python 3 compatibility
-try:
-    import urllib2 as urllib
-except ImportError:
-    import urllib.request as urllib
 if sys.version_info[0] == 3:
     raw_input = input
 
@@ -50,12 +46,6 @@ try:
     import click
 except ImportError:
     print("Could not find the click library. Run 'sudo pip install click' to install.")
-    sys.exit(-1)
-
-try:
-    import keyring
-except ImportError:
-    print("Could not find the keyring library. Run 'sudo pip install keyring' to install.")
     sys.exit(-1)
 
 try:
@@ -73,11 +63,11 @@ GIT_LOG_FORMAT = '%x1f'.join(GIT_LOG_FORMAT) + '%x1e'
 
 
 def get_jiras_for_version(version):
-    asf_jira = jira.client.JIRA(
-            {'server': JIRA_API_BASE})
+    asf_jira = jira.client.JIRA({'server': JIRA_API_BASE})
 
-    issues = asf_jira.search_issues('PROJECT={} and fixVersion={}'.format(PROJECT, version))
-    return issues
+    return asf_jira.search_issues(
+        'PROJECT={} and fixVersion={}'.format(PROJECT, version)
+    )
 
 
 def get_merged_issues(version):
@@ -97,7 +87,7 @@ def get_merged_issues(version):
         match = issue_re.match(log_item['subject'])
         if match:
             issue_id = match.group(1)
-        if log_item.has_key('body'):
+        if 'body' in log_item:
             match = pr_re.match(log_item['body'])
             if match:
                 log_item['pull_request'] = match.group(2)
@@ -110,6 +100,7 @@ def get_merged_issues(version):
             merges[issue_id] = log_item
 
     return merges
+
 
 @click.group()
 def cli():
@@ -127,22 +118,34 @@ def compare(target_version):
     merges = get_merged_issues(target_version)
     issues = get_jiras_for_version(target_version)
 
-    print("{:<18}|{:<12}||{:<10}||{:<10}|{:<50}|{:<6}|{:<6}|{:<40}"
-          .format("ISSUE ID", "TYPE", "PRIORITY",
-                  "STATUS", "DESCRIPTION", "MERGED",
-                  "PR", "COMMIT"))
+    # :<18 says left align, pad to 18
+    # :<50.50 truncates after 50 chars
+    # !s forces as string - some of the Jira objects have a string method, but
+    #    Py3 doesn't call by default
+    formatstr = "{id:<18}|{typ!s:<12}||{priority!s:<10}||{status!s:<10}|" \
+                "{description:<50.50}|{merged:<6}|{pr:<6}|{commit:<40}"
+
+    print(formatstr.format(
+        id="ISSUE ID",
+        typ="TYPE",
+        priority="PRIORITY",
+        status="STATUS",
+        description="DESCRIPTION",
+        merged="MERGED",
+        pr="PR",
+        commit="COMMIT"))
 
     for issue in issues:
         is_merged = issue.key in merges
-        print("{:<18}|{:<12}||{:<10}||{:<10}|{:<50}|{:<6}|{:<6}|{:<40}"
-              .format(issue.key,
-                      issue.fields.issuetype,
-                      issue.fields.priority,
-                      issue.fields.status,
-                      issue.fields.summary[:50],
-                      is_merged,
-                      merges[issue.key]['pull_request'] if is_merged else "-",
-                      merges[issue.key]['id'] if is_merged else "-"))
+        print(formatstr.format(
+            id=issue.key,
+            typ=issue.fields.issuetype,
+            priority=issue.fields.priority,
+            status=issue.fields.status,
+            description=issue.fields.summary,
+            merged=is_merged,
+            pr=merges[issue.key]['pull_request'] if is_merged else "-",
+            commit=merges[issue.key]['id'] if is_merged else "-"))
 
 
 if __name__ == "__main__":
@@ -154,5 +157,3 @@ if __name__ == "__main__":
         cli()
     except:
         raise
-
-
