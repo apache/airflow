@@ -43,7 +43,7 @@ class S3KeySensor(BaseSensorOperator):
     :type wildcard_match: bool
     :param aws_conn_id: a reference to the s3 connection
     :type aws_conn_id: str
-    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
         - False: do not validate SSL certificates. SSL will still be used
