@@ -51,6 +51,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
+from airflow.utils.dag_processing import SimpleTaskInstance
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -1590,7 +1591,8 @@ class DagBagTest(unittest.TestCase):
         session.add(ti)
         session.commit()
 
-        dagbag.kill_zombies()
+        zombies = [SimpleTaskInstance(ti)]
+        dagbag.kill_zombies(zombies)
         mock_ti.assert_called_with(ANY,
                                    configuration.getboolean('core', 'unit_test_mode'),
                                    ANY)
