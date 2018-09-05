@@ -53,6 +53,8 @@ class _DataProcJob(LoggingMixin):
                 self.log.error('DataProc job %s has errors', self.job_id)
                 self.log.error(self.job['status']['details'])
                 self.log.debug(str(self.job))
+                self.log.info('Driver output location: %s',
+                              self.job['driverOutputResourceUri'])
                 return False
             if 'CANCELLED' == self.job['status']['state']:
                 print(str(self.job))
@@ -60,8 +62,12 @@ class _DataProcJob(LoggingMixin):
                 if 'details' in self.job['status']:
                     self.log.warning(self.job['status']['details'])
                 self.log.debug(str(self.job))
+                self.log.info('Driver output location: %s',
+                              self.job['driverOutputResourceUri'])
                 return False
             if 'DONE' == self.job['status']['state']:
+                self.log.info('Driver output location: %s',
+                              self.job['driverOutputResourceUri'])
                 return True
             self.log.debug(
                 'DataProc job %s is %s',
