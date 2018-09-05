@@ -32,7 +32,7 @@ XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits an Spark job run to Databricks using the
+    Submits a Spark job run to Databricks using the
     `api/2.0/jobs/runs/submit
     <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
     API endpoint.

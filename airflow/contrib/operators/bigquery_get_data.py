@@ -51,7 +51,7 @@ class BigQueryGetDataOperator(BaseOperator):
         )
 
     :param dataset_id: The dataset ID of the requested table. (templated)
-    :type destination_dataset_table: string
+    :type dataset_id: string
     :param table_id: The table ID of the requested table. (templated)
     :type table_id: string
     :param max_results: The maximum number of records (rows) to be fetched
