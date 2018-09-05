@@ -115,8 +115,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
                  text='No message has been set.\n'
                       'Here is a cat video instead\n'
                       'https://www.youtube.com/watch?v=J---aiyznGQ',
-                 icon_url='https://raw.githubusercontent.com'
-                          '/airbnb/airflow/master/airflow/www/static/pin_100.png',
+                 icon_url='https://raw.githubusercontent.com/apache/'
+                          'incubator-airflow/master/airflow/www/static/pin_100.jpg',
                  attachments=None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
