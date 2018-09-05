@@ -26,7 +26,13 @@ from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
-from collections import namedtuple, defaultdict, Hashable
+from collections import namedtuple, defaultdict
+try:
+    # Fix Python > 3.7 deprecation
+    from collections.abc import Hashable
+except ImportError:
+    # Preserve Python < 3.3 compatibility
+    from collections import Hashable
 from datetime import timedelta
 
 import dill
