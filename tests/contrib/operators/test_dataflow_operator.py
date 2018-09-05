@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -207,5 +207,53 @@ class GoogleCloudBucketHelperTest(unittest.TestCase):
             gcs_bucket_helper.google_cloud_to_local(file_name)
 
         self.assertEquals(
-            'Invalid Google Cloud Storage (GCS) object path: {}.'.format(file_name),
+            'Invalid Google Cloud Storage (GCS) object path: {}'.format(file_name),
+            str(context.exception))
+
+    @mock.patch(
+        'airflow.contrib.operators.dataflow_operator.GoogleCloudBucketHelper.__init__'
+    )
+    def test_valid_object(self, mock_parent_init):
+
+        file_name = 'gs://test-bucket/path/to/obj.jar'
+        mock_parent_init.return_value = None
+
+        gcs_bucket_helper = GoogleCloudBucketHelper()
+        gcs_bucket_helper._gcs_hook = mock.Mock()
+
+        def _mock_download(bucket, object, filename=None):
+            text_file_contents = 'text file contents'
+            with open(filename, 'w') as text_file:
+                text_file.write(text_file_contents)
+            return text_file_contents
+
+        gcs_bucket_helper._gcs_hook.download.side_effect = _mock_download
+
+        local_file = gcs_bucket_helper.google_cloud_to_local(file_name)
+        self.assertIn('obj.jar', local_file)
+
+    @mock.patch(
+        'airflow.contrib.operators.dataflow_operator.GoogleCloudBucketHelper.__init__'
+    )
+    def test_empty_object(self, mock_parent_init):
+
+        file_name = 'gs://test-bucket/path/to/obj.jar'
+        mock_parent_init.return_value = None
+
+        gcs_bucket_helper = GoogleCloudBucketHelper()
+        gcs_bucket_helper._gcs_hook = mock.Mock()
+
+        def _mock_download(bucket, object, filename=None):
+            text_file_contents = ''
+            with open(filename, 'w') as text_file:
+                text_file.write(text_file_contents)
+            return text_file_contents
+
+        gcs_bucket_helper._gcs_hook.download.side_effect = _mock_download
+
+        with self.assertRaises(Exception) as context:
+            gcs_bucket_helper.google_cloud_to_local(file_name)
+
+        self.assertEquals(
+            'Failed to download Google Cloud Storage (GCS) object: {}'.format(file_name),
             str(context.exception))
