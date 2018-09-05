@@ -2981,6 +2981,7 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+        session.close()
 
     def test_dag_get_active_runs(self):
         """
@@ -3126,6 +3127,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         session = settings.Session()
         import_errors = session.query(models.ImportError).all()
+        session.close()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3135,8 +3137,9 @@ class SchedulerJobTest(unittest.TestCase):
                          "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
 
     def test_add_unparseable_file_after_sched_start_creates_import_error(self):
+        dags_folder = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), 'dags')
         try:
-            dags_folder = mkdtemp()
             unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
             self.run_single_scheduler_loop_with_no_dags(dags_folder)
 
@@ -3144,7 +3147,8 @@ class SchedulerJobTest(unittest.TestCase):
                 unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
             self.run_single_scheduler_loop_with_no_dags(dags_folder)
         finally:
-            shutil.rmtree(dags_folder)
+            # shutil.rmtree(dags_folder)
+            pass
 
         session = settings.Session()
         import_errors = session.query(models.ImportError).all()
@@ -3170,6 +3174,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         session = settings.Session()
         import_errors = session.query(models.ImportError).all()
+        session.close()
 
         self.assertEqual(len(import_errors), 0)
 

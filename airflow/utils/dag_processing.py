@@ -838,7 +838,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.last_dag_dir_refresh_time = timezone.utcnow()
             self.log.info("There are {} files in {}"
                           .format(len(self._file_paths),
-                                     self._dag_directory))
+                                  self._dag_directory))
             self.set_file_paths(self._file_paths)
 
             self.log.debug("Removing old import errors")
