@@ -92,7 +92,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context):
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits an Spark job run to Databricks using the
+    Submits a Spark job run to Databricks using the
     `api/2.0/jobs/runs/submit
     <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
     API endpoint.

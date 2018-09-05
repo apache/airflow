@@ -56,7 +56,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.exists()` takes.
         :type kwargs: object
         :return: True if the file exists, False otherwise.
-        :rtype bool
+        :rtype: bool
         """
         return self.connection.exists(share_name, directory_name,
                                       **kwargs)
@@ -75,7 +75,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.exists()` takes.
         :type kwargs: object
         :return: True if the file exists, False otherwise.
-        :rtype bool
+        :rtype: bool
         """
         return self.connection.exists(share_name, directory_name,
                                       file_name, **kwargs)
@@ -92,7 +92,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.list_directories_and_files()` takes.
         :type kwargs: object
         :return: A list of files and directories
-        :rtype list
+        :rtype: list
         """
         return self.connection.list_directories_and_files(share_name,
                                                           directory_name,
@@ -110,7 +110,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.create_directory()` takes.
         :type kwargs: object
         :return: A list of files and directories
-        :rtype list
+        :rtype: list
         """
         return self.connection.create_directory(share_name, directory_name, **kwargs)
 

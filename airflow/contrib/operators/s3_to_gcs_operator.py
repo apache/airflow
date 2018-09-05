@@ -67,7 +67,9 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
 
 
     **Example**:
+
     .. code-block:: python
+
        s3_to_gcs_op = S3ToGoogleCloudStorageOperator(
             task_id='s3_to_gcs_example',
             bucket='my-s3-bucket',

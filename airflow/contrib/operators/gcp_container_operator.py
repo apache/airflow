@@ -29,6 +29,36 @@ from airflow.utils.decorators import apply_defaults
 
 
 class GKEClusterDeleteOperator(BaseOperator):
+    """
+    Deletes the cluster, including the Kubernetes endpoint and all worker nodes.
+
+    To delete a certain cluster, you must specify the ``project_id``, the ``name``
+    of the cluster, the ``location`` that the cluster is in, and the ``task_id``.
+
+    **Operator Creation**: ::
+
+        operator = GKEClusterDeleteOperator(
+                    task_id='cluster_delete',
+                    project_id='my-project',
+                    location='cluster-location'
+                    name='cluster-name')
+
+    .. seealso::
+        For more detail about deleting clusters have a look at the reference:
+        https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/api.html#google.cloud.container_v1.ClusterManagerClient.delete_cluster
+
+    :param project_id: The Google Developers Console [project ID or project number]
+    :type project_id: str
+    :param name: The name of the resource to delete, in this case cluster name
+    :type name: str
+    :param location: The name of the Google Compute Engine zone in which the cluster
+        resides.
+    :type location: str
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param api_version: The api version to use
+    :type api_version: str
+    """
     template_fields = ['project_id', 'gcp_conn_id', 'name', 'location', 'api_version']
 
     @apply_defaults
@@ -40,37 +70,6 @@ class GKEClusterDeleteOperator(BaseOperator):
                  api_version='v2',
                  *args,
                  **kwargs):
-        """
-        Deletes the cluster, including the Kubernetes endpoint and all worker nodes.
-
-
-        To delete a certain cluster, you must specify the ``project_id``, the ``name``
-        of the cluster, the ``location`` that the cluster is in, and the ``task_id``.
-
-        **Operator Creation**: ::
-
-            operator = GKEClusterDeleteOperator(
-                        task_id='cluster_delete',
-                        project_id='my-project',
-                        location='cluster-location'
-                        name='cluster-name')
-
-        .. seealso::
-            For more detail about deleting clusters have a look at the reference:
-            https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/api.html#google.cloud.container_v1.ClusterManagerClient.delete_cluster
-
-        :param project_id: The Google Developers Console [project ID or project number]
-        :type project_id: str
-        :param name: The name of the resource to delete, in this case cluster name
-        :type name: str
-        :param location: The name of the Google Compute Engine zone in which the cluster
-            resides.
-        :type location: str
-        :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: str
-        :param api_version: The api version to use
-        :type api_version: str
-        """
         super(GKEClusterDeleteOperator, self).__init__(*args, **kwargs)
 
         self.project_id = project_id
@@ -93,6 +92,48 @@ class GKEClusterDeleteOperator(BaseOperator):
 
 
 class GKEClusterCreateOperator(BaseOperator):
+    """
+    Create a Google Kubernetes Engine Cluster of specified dimensions
+    The operator will wait until the cluster is created.
+
+    The **minimum** required to define a cluster to create is:
+
+    ``dict()`` ::
+        cluster_def = {'name': 'my-cluster-name',
+                       'initial_node_count': 1}
+
+    or
+
+    ``Cluster`` proto ::
+        from google.cloud.container_v1.types import Cluster
+
+        cluster_def = Cluster(name='my-cluster-name', initial_node_count=1)
+
+    **Operator Creation**: ::
+
+        operator = GKEClusterCreateOperator(
+                    task_id='cluster_create',
+                    project_id='my-project',
+                    location='my-location'
+                    body=cluster_def)
+
+    .. seealso::
+        For more detail on about creating clusters have a look at the reference:
+        https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/types.html#google.cloud.container_v1.types.Cluster
+
+    :param project_id: The Google Developers Console [project ID or project number]
+    :type project_id: str
+    :param location: The name of the Google Compute Engine zone in which the cluster
+        resides.
+    :type location: str
+    :param body: The Cluster definition to create, can be protobuf or python dict, if
+        dict it must match protobuf message Cluster
+    :type body: dict or google.cloud.container_v1.types.Cluster
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param api_version: The api version to use
+    :type api_version: str
+    """
     template_fields = ['project_id', 'gcp_conn_id', 'location', 'api_version', 'body']
 
     @apply_defaults
@@ -104,48 +145,6 @@ class GKEClusterCreateOperator(BaseOperator):
                  api_version='v2',
                  *args,
                  **kwargs):
-        """
-        Create a Google Kubernetes Engine Cluster of specified dimensions
-        The operator will wait until the cluster is created.
-
-        The **minimum** required to define a cluster to create is:
-
-        ``dict()`` ::
-            cluster_def = {'name': 'my-cluster-name',
-                           'initial_node_count': 1}
-
-        or
-
-        ``Cluster`` proto ::
-            from google.cloud.container_v1.types import Cluster
-
-            cluster_def = Cluster(name='my-cluster-name', initial_node_count=1)
-
-        **Operator Creation**: ::
-
-            operator = GKEClusterCreateOperator(
-                        task_id='cluster_create',
-                        project_id='my-project',
-                        location='my-location'
-                        body=cluster_def)
-
-        .. seealso::
-            For more detail on about creating clusters have a look at the reference:
-            https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/types.html#google.cloud.container_v1.types.Cluster
-
-        :param project_id: The Google Developers Console [project ID or project number]
-        :type project_id: str
-        :param location: The name of the Google Compute Engine zone in which the cluster
-            resides.
-        :type location: str
-        :param body: The Cluster definition to create, can be protobuf or python dict, if
-            dict it must match protobuf message Cluster
-        :type body: dict or google.cloud.container_v1.types.Cluster
-        :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: str
-        :param api_version: The api version to use
-        :type api_version: str
-        """
         super(GKEClusterCreateOperator, self).__init__(*args, **kwargs)
 
         if body is None:
@@ -184,6 +183,44 @@ G_APP_CRED = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
 class GKEPodOperator(KubernetesPodOperator):
+    """
+    Executes a task in a Kubernetes pod in the specified Google Kubernetes
+    Engine cluster
+
+    This Operator assumes that the system has gcloud installed and either
+    has working default application credentials or has configured a
+    connection id with a service account.
+
+    The **minimum** required to define a cluster to create are the variables
+    ``task_id``, ``project_id``, ``location``, ``cluster_name``, ``name``,
+    ``namespace``, and ``image``
+
+    **Operator Creation**: ::
+
+        operator = GKEPodOperator(task_id='pod_op',
+                                  project_id='my-project',
+                                  location='us-central1-a',
+                                  cluster_name='my-cluster-name',
+                                  name='task-name',
+                                  namespace='default',
+                                  image='perl')
+
+    .. seealso::
+        For more detail about application authentication have a look at the reference:
+        https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application
+
+    :param project_id: The Google Developers Console project id
+    :type project_id: str
+    :param location: The name of the Google Kubernetes Engine zone in which the
+        cluster resides, e.g. 'us-central1-a'
+    :type location: str
+    :param cluster_name: The name of the Google Kubernetes Engine cluster the pod
+        should be spawned in
+    :type cluster_name: str
+    :param gcp_conn_id: The google cloud connection id to use. This allows for
+        users to specify a service account.
+    :type gcp_conn_id: str
+    """
     template_fields = ('project_id', 'location',
                        'cluster_name') + KubernetesPodOperator.template_fields
 
@@ -195,44 +232,6 @@ class GKEPodOperator(KubernetesPodOperator):
                  gcp_conn_id='google_cloud_default',
                  *args,
                  **kwargs):
-        """
-        Executes a task in a Kubernetes pod in the specified Google Kubernetes
-        Engine cluster
-
-        This Operator assumes that the system has gcloud installed and either
-        has working default application credentials or has configured a
-        connection id with a service account.
-
-        The **minimum** required to define a cluster to create are the variables
-        ``task_id``, ``project_id``, ``location``, ``cluster_name``, ``name``,
-        ``namespace``, and ``image``
-
-        **Operator Creation**: ::
-
-            operator = GKEPodOperator(task_id='pod_op',
-                                      project_id='my-project',
-                                      location='us-central1-a',
-                                      cluster_name='my-cluster-name',
-                                      name='task-name',
-                                      namespace='default',
-                                      image='perl')
-
-        .. seealso::
-            For more detail about application authentication have a look at the reference:
-            https://cloud.google.com/docs/authentication/production#providing_credentials_to_your_application
-
-        :param project_id: The Google Developers Console project id
-        :type project_id: str
-        :param location: The name of the Google Kubernetes Engine zone in which the
-            cluster resides, e.g. 'us-central1-a'
-        :type location: str
-        :param cluster_name: The name of the Google Kubernetes Engine cluster the pod
-            should be spawned in
-        :type cluster_name: str
-        :param gcp_conn_id: The google cloud connection id to use. This allows for
-            users to specify a service account.
-        :type gcp_conn_id: str
-        """
         super(GKEPodOperator, self).__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location

@@ -43,11 +43,11 @@ class AWSBatchOperator(BaseOperator):
     :param job_queue: the queue name on AWS Batch
     :type job_queue: str
     :param overrides: the same parameter that boto3 will receive on
-        containerOverrides (templated).
+        containerOverrides (templated):
         http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
     :type overrides: dict
-    :param max_retries: exponential backoff retries while waiter is not merged,
-        4200 = 48 hours
+    :param max_retries: exponential backoff retries while waiter is not
+        merged, 4200 = 48 hours
     :type max_retries: int
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used

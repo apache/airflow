@@ -366,7 +366,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :param source_objects: List of Google cloud storage URIs to point
         table to. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :type object: list
+    :type source_objects: list
     :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
         BigQuery table to load data into (templated). If <project> is not included,
         project will be the project defined in the connection json.
@@ -383,7 +383,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
-    :param schema_object: string
+    :type schema_object: string
     :param source_format: File format of the data.
     :type source_format: string
     :param compression: [Optional] The compression type of the data source.
