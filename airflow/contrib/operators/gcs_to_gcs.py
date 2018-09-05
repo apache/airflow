@@ -38,7 +38,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             unsupported.
     :type source_object: string
     :param destination_bucket: The destination Google cloud storage bucket
-    where the object should be. (templated)
+        where the object should be. (templated)
     :type destination_bucket: string
     :param destination_object: The destination name of the object in the
         destination Google cloud storage bucket. (templated)
@@ -46,15 +46,14 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         prefix that will be prepended to the final destination objects' paths.
         Note that the source path's part before the wildcard will be removed;
         if it needs to be retained it should be appended to destination_object.
-        For example, with prefix ``foo/*`` and destination_object `'blah/``, the
+        For example, with prefix ``foo/*`` and destination_object ``blah/``, the
         file ``foo/baz`` will be copied to ``blah/baz``; to retain the prefix write
         the destination_object as e.g. ``blah/foo``, in which case the copied file
         will be named ``blah/foo/baz``.
     :type destination_object: string
     :param move_object: When move object is True, the object is moved instead
-    of copied to the new location.
-                        This is the equivalent of a mv command as opposed to a
-                        cp command.
+        of copied to the new location. This is the equivalent of a mv command
+        as opposed to a cp command.
     :type move_object: bool
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
