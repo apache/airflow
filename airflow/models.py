@@ -3647,8 +3647,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         Returns a list of the subdag objects associated to this DAG
         """
-        # Check SubDag for class but don't check class directly, see
-        # https://github.com/airbnb/airflow/issues/1168
+        # Check SubDag for class but don't check class directly
         from airflow.operators.subdag_operator import SubDagOperator
         subdag_lst = []
         for task in self.tasks:

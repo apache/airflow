@@ -425,8 +425,6 @@ class BackfillJobTest(unittest.TestCase):
     def test_backfill_pooled_tasks(self):
         """
         Test that queued tasks are executed by BackfillJob
-
-        Test for https://github.com/airbnb/airflow/pull/1225
         """
         session = settings.Session()
         pool = Pool(pool='test_backfill_pooled_task_pool', slots=1)
