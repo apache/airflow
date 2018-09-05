@@ -70,8 +70,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type image_version: string
     :param properties: dict of properties to set on
         config files (e.g. spark-defaults.conf), see
-        https://cloud.google.com/dataproc/docs/reference/rest/v1/ \
-        projects.regions.clusters#SoftwareConfig
+        https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
     :type properties: dict
     :param master_machine_type: Compute engine machine type to use for the master node
     :type master_machine_type: string

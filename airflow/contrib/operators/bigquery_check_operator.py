@@ -113,7 +113,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     This method constructs a query like so ::
 
         SELECT {metrics_threshold_dict_key} FROM {table}
-            WHERE {date_filter_column}=<date>
+        WHERE {date_filter_column}=<date>
 
     :param table: the table name
     :type table: str

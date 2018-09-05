@@ -101,6 +101,7 @@ class GKEClusterHook(BaseHook):
 
         Labels must fit the regex [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version
         string follows semantic versioning spec: x.y.z).
+
         :param cluster_proto: The proto to append resource_label airflow version to
         :type cluster_proto: google.cloud.container_v1.types.Cluster
         :param key: The key label

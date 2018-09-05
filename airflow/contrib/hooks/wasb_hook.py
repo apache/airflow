@@ -58,7 +58,7 @@ class WasbHook(BaseHook):
             `BlockBlobService.exists()` takes.
         :type kwargs: object
         :return: True if the blob exists, False otherwise.
-        :rtype bool
+        :rtype: bool
         """
         return self.connection.exists(container_name, blob_name, **kwargs)
 
@@ -74,7 +74,7 @@ class WasbHook(BaseHook):
             `BlockBlobService.list_blobs()` takes.
         :type kwargs: object
         :return: True if blobs matching the prefix exist, False otherwise.
-        :rtype bool
+        :rtype: bool
         """
         matches = self.connection.list_blobs(container_name, prefix,
                                              num_results=1, **kwargs)

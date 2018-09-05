@@ -33,6 +33,39 @@ class DataFlowJavaOperator(BaseOperator):
     Start a Java Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
 
+    .. seealso::
+        For more detail on job submission have a look at the reference:
+        https://cloud.google.com/dataflow/pipelines/specifying-exec-params
+
+    :param jar: The reference to a self executing DataFlow jar.
+    :type jar: string
+    :param dataflow_default_options: Map of default job options.
+    :type dataflow_default_options: dict
+    :param options: Map of job specific options.
+    :type options: dict
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
+        Platform.
+    :type gcp_conn_id: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: string
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status while the job is in the
+        JOB_STATE_RUNNING state.
+    :type poll_sleep: int
+    :param job_class: The name of the dataflow job class to be executued, it
+        is often not the main class configured in the dataflow jar file.
+    :type job_class: string
+
+    Both ``jar`` and ``options`` are templated so you can use variables in them.
+
+    Note that both
+    ``dataflow_default_options`` and ``options`` will be merged to specify pipeline
+    execution parameter, and ``dataflow_default_options`` is expected to save
+    high-level options, for instances, project and zone information, which
+    apply to all dataflow operators in the DAG.
+
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
 
@@ -66,7 +99,6 @@ class DataFlowJavaOperator(BaseOperator):
            gcp_conn_id='gcp-airflow-service-account',
            dag=my-dag)
 
-    Both ``jar`` and ``options`` are templated so you can use variables in them.
     """
     template_fields = ['options', 'jar']
     ui_color = '#0273d4'
@@ -83,39 +115,6 @@ class DataFlowJavaOperator(BaseOperator):
             job_class=None,
             *args,
             **kwargs):
-        """
-        Create a new DataFlowJavaOperator. Note that both
-        dataflow_default_options and options will be merged to specify pipeline
-        execution parameter, and dataflow_default_options is expected to save
-        high-level options, for instances, project and zone information, which
-        apply to all dataflow operators in the DAG.
-
-
-        .. seealso::
-            For more detail on job submission have a look at the reference:
-            https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-
-        :param jar: The reference to a self executing DataFlow jar.
-        :type jar: string
-        :param dataflow_default_options: Map of default job options.
-        :type dataflow_default_options: dict
-        :param options: Map of job specific options.
-        :type options: dict
-        :param gcp_conn_id: The connection ID to use connecting to Google Cloud
-        Platform.
-        :type gcp_conn_id: string
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have
-            domain-wide delegation enabled.
-        :type delegate_to: string
-        :param poll_sleep: The time in seconds to sleep between polling Google
-            Cloud Platform for the dataflow job status while the job is in the
-            JOB_STATE_RUNNING state.
-        :type poll_sleep: int
-        :param job_class: The name of the dataflow job class to be executued, it
-        is often not the main class configured in the dataflow jar file.
-        :type job_class: string
-        """
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -149,6 +148,25 @@ class DataflowTemplateOperator(BaseOperator):
     """
     Start a Templated Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
+
+    :param template: The reference to the DataFlow template.
+    :type template: string
+    :param dataflow_default_options: Map of default job environment options.
+    :type dataflow_default_options: dict
+    :param parameters: Map of job specific parameters for the template.
+    :type parameters: dict
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud
+        Platform.
+    :type gcp_conn_id: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: string
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status while the job is in the
+        JOB_STATE_RUNNING state.
+    :type poll_sleep: int
+
     It's a good practice to define dataflow_* parameters in the default_args of the dag
     like the project, zone and staging location.
 
@@ -185,6 +203,16 @@ class DataflowTemplateOperator(BaseOperator):
 
     ``template``, ``dataflow_default_options`` and ``parameters`` are templated so you can
     use variables in them.
+
+    Note that ``dataflow_default_options`` is expected to save high-level options
+    for project information, which apply to all dataflow operators in the DAG.
+
+        .. seealso::
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3
+            /LaunchTemplateParameters
+            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+            For more detail on job template execution have a look at the reference:
+            https://cloud.google.com/dataflow/docs/templates/executing-templates
     """
     template_fields = ['parameters', 'dataflow_default_options', 'template']
     ui_color = '#0273d4'
@@ -200,36 +228,6 @@ class DataflowTemplateOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-        """
-        Create a new DataflowTemplateOperator. Note that
-        dataflow_default_options is expected to save high-level options
-        for project information, which apply to all dataflow operators in the DAG.
-
-        .. seealso::
-            https://cloud.google.com/dataflow/docs/reference/rest/v1b3
-            /LaunchTemplateParameters
-            https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
-            For more detail on job template execution have a look at the reference:
-            https://cloud.google.com/dataflow/docs/templates/executing-templates
-
-        :param template: The reference to the DataFlow template.
-        :type template: string
-        :param dataflow_default_options: Map of default job environment options.
-        :type dataflow_default_options: dict
-        :param parameters: Map of job specific parameters for the template.
-        :type parameters: dict
-        :param gcp_conn_id: The connection ID to use connecting to Google Cloud
-        Platform.
-        :type gcp_conn_id: string
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have
-            domain-wide delegation enabled.
-        :type delegate_to: string
-        :param poll_sleep: The time in seconds to sleep between polling Google
-            Cloud Platform for the dataflow job status while the job is in the
-            JOB_STATE_RUNNING state.
-        :type poll_sleep: int
-        """
         super(DataflowTemplateOperator, self).__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -253,7 +251,7 @@ class DataflowTemplateOperator(BaseOperator):
 
 class DataFlowPythonOperator(BaseOperator):
     """
-    Create a new DataFlowPythonOperator. Note that both
+    Launching Cloud Dataflow jobs written in python. Note that both
     dataflow_default_options and options will be merged to specify pipeline
     execution parameter, and dataflow_default_options is expected to save
     high-level options, for instances, project and zone information, which
@@ -284,7 +282,6 @@ class DataFlowPythonOperator(BaseOperator):
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     """
-
     template_fields = ['options', 'dataflow_default_options']
 
     @apply_defaults
