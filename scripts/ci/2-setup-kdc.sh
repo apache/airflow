@@ -30,7 +30,7 @@ KRB5_KTNAME=/etc/airflow.keytab
 cat /etc/hosts
 echo "hostname: ${FQDN}"
 
-sudo cp $DIRNAME/krb5/krb-conf/client/krb5.conf /etc/krb5.conf
+sudo cp $DIRNAME/krb5/krb5.conf /etc/krb5.conf
 
 echo -e "${PASS}\n${PASS}" | sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "addprinc -randkey airflow/${FQDN}"
 sudo kadmin -p ${ADMIN}/admin -w ${PASS} -q "ktadd -k ${KRB5_KTNAME} airflow"
