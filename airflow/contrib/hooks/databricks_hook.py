@@ -37,6 +37,7 @@ RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
+RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
@@ -160,6 +161,18 @@ class DatabricksHook(BaseHook, LoggingMixin):
             'Attempt %s API Request to Databricks failed with reason: %s',
             attempt_num, error
         )
+
+    def run_now(self, json):
+        """
+        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+
+        :param json: The data used in the body of the request to the ``run-now`` endpoint.
+        :type json: dict
+        :return: the run_id as a string
+        :rtype: string
+        """
+        response = self._do_api_call(RUN_NOW_ENDPOINT, json)
+        return response['run_id']
 
     def submit_run(self, json):
         """
