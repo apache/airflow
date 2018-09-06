@@ -142,34 +142,37 @@ There are three ways to setup an Apache Airflow development environment.
   Start a docker container through Compose for development to avoid installing the packages directly on your system. The following will give you a shell inside a container, run all required service containers (MySQL, PostgresSQL, krb5 and so on) and install all the dependencies:
 
   ```bash
+  export PYTHON=python3 
+  export AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow
+  
   docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
-  # From the container
-  pip install -e .[devel]
-  # Run all the tests with python and mysql through tox
-  tox -e py35-backend_mysql
+  
+  # Run all the tests with python and mysql
+  scripts/ci/run-ci.sh
   ```
 
 ### Running unit tests
 
-To run tests locally, once your unit test environment is setup (directly on your
-system or through our Docker setup) you should be able to simply run
-``./run_unit_tests.sh`` at will.
+We're moving from a venv based test environment, to a Docker based environment. Docker allows us to set up the same environment up on different systems, for example having the same environment on your local machine and the CI. Since Airflow by its nature relies on a lot of external dependencies, it also start up these dependencies using docker-compose.
+
+To run tests locally, once your unit test environment is setup (directly on your system or through our Docker setup) you should be able to simply run `docker-compose -f scripts/ci/docker-compose.yml run airflowci/incubator-airflow-ci /app/scripts/ci/run-ci.sh` at will.
 
 For example, in order to just execute the "core" unit tests, run the following:
 
-```
+```bash
 ./run_unit_tests.sh tests.core:CoreTest -s --logging-level=DEBUG
 ```
 
 or a single test method:
 
-```
+```bash
+docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh tests.core:CoreTest.test_check_operators
 ./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
 ```
 
 To run the whole test suite with Docker Compose, do:
 
-```
+```bash
 # Install Docker Compose first, then this will run the tests
 docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
 ```
