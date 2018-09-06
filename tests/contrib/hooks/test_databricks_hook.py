@@ -54,6 +54,7 @@ NEW_CLUSTER = {
 }
 CLUSTER_ID = 'cluster_id'
 RUN_ID = 1
+JOB_ID = 42
 HOST = 'xx.cloud.databricks.com'
 HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
@@ -70,7 +71,19 @@ GET_RUN_RESPONSE = {
         'state_message': STATE_MESSAGE
     }
 }
+NOTEBOOK_PARAMS = {
+    "dry-run": "true",
+    "oldest-time-to-consider": "1457570074236"
+}
+JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = None
+
+
+def run_now_endpoint(host):
+    """
+    Utility function to generate the run now endpoint given the host.
+    """
+    return 'https://{}/api/2.0/jobs/run-now'.format(host)
 
 
 def submit_run_endpoint(host):
@@ -160,6 +173,7 @@ class DatabricksHookTest(unittest.TestCase):
         conn.host = HOST
         conn.login = LOGIN
         conn.password = PASSWORD
+        conn.extra = None
         session.commit()
 
         self.hook = DatabricksHook(retry_delay=0)
@@ -265,6 +279,32 @@ class DatabricksHookTest(unittest.TestCase):
             json={
                 'notebook_task': NOTEBOOK_TASK,
                 'new_cluster': NEW_CLUSTER,
+            },
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_run_now(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {
+            'notebook_params': NOTEBOOK_PARAMS,
+            'jar_params': JAR_PARAMS,
+            'job_id': JOB_ID
+        }
+        run_id = self.hook.run_now(json)
+
+        self.assertEquals(run_id, '1')
+
+        mock_requests.post.assert_called_once_with(
+            run_now_endpoint(HOST),
+            json={
+                'notebook_params': NOTEBOOK_PARAMS,
+                'jar_params': JAR_PARAMS,
+                'job_id': JOB_ID
             },
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
