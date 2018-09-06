@@ -1068,15 +1068,15 @@ class TaskInstance(Base, LoggingMixin):
         :type mark_success: bool
         :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
-        :type ignore_all_deps: boolean
+        :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
             (e.g. for Backfills)
-        :type ignore_depends_on_past: boolean
+        :type ignore_depends_on_past: bool
         :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
             and trigger rule
-        :type ignore_task_deps: boolean
+        :type ignore_task_deps: bool
         :param ignore_ti_state: Ignore the task instance's previous failure/success
-        :type ignore_ti_state: boolean
+        :type ignore_ti_state: bool
         :param local: Whether to run the task locally
         :type local: bool
         :param pickle_id: If the DAG was serialized to the DB, the ID
@@ -1327,7 +1327,7 @@ class TaskInstance(Base, LoggingMixin):
         :type session: Session
         :param verbose: whether log details on failed dependencies on
             info or debug log level
-        :type verbose: boolean
+        :type verbose: bool
         """
         dep_context = dep_context or DepContext()
         failed = False
@@ -1467,19 +1467,19 @@ class TaskInstance(Base, LoggingMixin):
         executed, in preparation for _run_raw_task
 
         :param verbose: whether to turn on more verbose logging
-        :type verbose: boolean
+        :type verbose: bool
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
-        :type ignore_all_deps: boolean
+        :type ignore_all_deps: bool
         :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
-        :type ignore_depends_on_past: boolean
+        :type ignore_depends_on_past: bool
         :param ignore_task_deps: Don't check the dependencies of this TI's task
-        :type ignore_task_deps: boolean
+        :type ignore_task_deps: bool
         :param ignore_ti_state: Disregards previous task instance state
-        :type ignore_ti_state: boolean
+        :type ignore_ti_state: bool
         :param mark_success: Don't run the task, mark its state as success
-        :type mark_success: boolean
+        :type mark_success: bool
         :param test_mode: Doesn't record success or failure in the DB
-        :type test_mode: boolean
+        :type test_mode: bool
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
         :return: whether the state was changed to running or not
@@ -1597,9 +1597,9 @@ class TaskInstance(Base, LoggingMixin):
         only after another function changes the state to running.
 
         :param mark_success: Don't run the task, mark its state as success
-        :type mark_success: boolean
+        :type mark_success: bool
         :param test_mode: Doesn't record success or failure in the DB
-        :type test_mode: boolean
+        :type test_mode: bool
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
         """
@@ -1978,7 +1978,7 @@ class TaskInstance(Base, LoggingMixin):
         Make an XCom available for tasks to pull.
 
         :param key: A key for the XCom
-        :type key: string
+        :type key: str
         :param value: A value for the XCom. The value is pickled and stored
             in the database.
         :type value: any pickleable object
@@ -2024,13 +2024,13 @@ class TaskInstance(Base, LoggingMixin):
             available as a constant XCOM_RETURN_KEY. This key is automatically
             given to XComs returned by tasks (as opposed to being pushed
             manually). To remove the filter, pass key=None.
-        :type key: string
+        :type key: str
         :param task_ids: Only XComs from tasks with matching ids will be
             pulled. Can pass None to remove the filter.
-        :type task_ids: string or iterable of strings (representing task_ids)
+        :type task_ids: str or iterable of strings (representing task_ids)
         :param dag_id: If provided, only pulls XComs from this DAG.
             If None (default), the DAG of the calling task is used.
-        :type dag_id: string
+        :type dag_id: str
         :param include_prior_dates: If False, only XComs from the current
             execution_date are returned. If True, XComs from previous dates
             are returned as well.
@@ -2209,9 +2209,9 @@ class BaseOperator(LoggingMixin):
     be set by using the set_upstream and/or set_downstream methods.
 
     :param task_id: a unique, meaningful id for the task
-    :type task_id: string
+    :type task_id: str
     :param owner: the owner of the task, using the unix username is recommended
-    :type owner: string
+    :type owner: str
     :param retries: the number of retries that should be performed before
         failing the task
     :type retries: int
@@ -3127,9 +3127,9 @@ class DAG(BaseDag, LoggingMixin):
     added once to a DAG.
 
     :param dag_id: The id of the DAG
-    :type dag_id: string
+    :type dag_id: str
     :param description: The description for the DAG to e.g. be shown on the webserver
-    :type description: string
+    :type description: str
     :param schedule_interval: Defines how often that DAG runs, this
         timedelta object gets added to your latest task instance's
         execution_date to figure out the next schedule
@@ -3146,7 +3146,7 @@ class DAG(BaseDag, LoggingMixin):
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
         default
-    :type template_searchpath: string or list of stings
+    :type template_searchpath: str or list of stings
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
@@ -3185,9 +3185,9 @@ class DAG(BaseDag, LoggingMixin):
     :type sla_miss_callback: types.FunctionType
     :param default_view: Specify DAG default view (tree, graph, duration,
                                                    gantt, landing_times)
-    :type default_view: string
+    :type default_view: str
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
-    :type orientation: string
+    :type orientation: str
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :type catchup: bool
     :param on_failure_callback: A function to be called when a DagRun of this dag fails.
@@ -4120,12 +4120,12 @@ class DAG(BaseDag, LoggingMixin):
             dependencies for the first set of tasks only
         :type ignore_first_depends_on_past: bool
         :param pool: Resource pool to use
-        :type pool: string
+        :type pool: str
         :param delay_on_limit_secs: Time in seconds to wait before next attempt to run
             dag run when max_active_runs limit has been reached
         :type delay_on_limit_secs: float
         :param verbose: Make logging output more verbose
-        :type verbose: boolean
+        :type verbose: bool
         :param conf: user defined dictionary passed from CLI
         :type conf: dict
         """
@@ -4174,7 +4174,7 @@ class DAG(BaseDag, LoggingMixin):
         Returns the dag run.
 
         :param run_id: defines the the run id for this dag run
-        :type run_id: string
+        :type run_id: str
         :param execution_date: the execution date of this dag run
         :type execution_date: datetime
         :param state: the state of the dag run
@@ -4903,9 +4903,9 @@ class DagRun(Base, LoggingMixin):
         Returns a set of dag runs for the given search criteria.
 
         :param dag_id: the dag_id to find dag runs for
-        :type dag_id: integer, list
+        :type dag_id: int, list
         :param run_id: defines the the run id for this dag run
-        :type run_id: string
+        :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime
         :param state: the state of the dag run

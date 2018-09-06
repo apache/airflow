@@ -65,7 +65,7 @@ class KubernetesPodOperator(BaseOperator):
     :type in_cluster: bool
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used.
-    :type cluster_context: string
+    :type cluster_context: str
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
     :param affinity: A dict containing a group of affinity scheduling rules

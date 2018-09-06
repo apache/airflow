@@ -60,10 +60,10 @@ class PubSubHook(GoogleCloudBaseHook):
         """Publishes messages to a Pub/Sub topic.
 
         :param project: the GCP project ID in which to publish
-        :type project: string
+        :type project: str
         :param topic: the Pub/Sub topic to which to publish; do not
             include the ``projects/{project}/topics/`` prefix.
-        :type topic: string
+        :type topic: str
         :param messages: messages to publish; if the data field in a
             message is set, it should already be base64 encoded.
         :type messages: list of PubSub messages; see
@@ -84,10 +84,10 @@ class PubSubHook(GoogleCloudBaseHook):
 
         :param project: the GCP project ID in which to create
             the topic
-        :type project: string
+        :type project: str
         :param topic: the Pub/Sub topic name to create; do not
             include the ``projects/{project}/topics/`` prefix.
-        :type topic: string
+        :type topic: str
         :param fail_if_exists: if set, raise an exception if the topic
             already exists
         :type fail_if_exists: bool
@@ -112,10 +112,10 @@ class PubSubHook(GoogleCloudBaseHook):
         """Deletes a Pub/Sub topic if it exists.
 
         :param project: the GCP project ID in which to delete the topic
-        :type project: string
+        :type project: str
         :param topic: the Pub/Sub topic name to delete; do not
             include the ``projects/{project}/topics/`` prefix.
-        :type topic: string
+        :type topic: str
         :param fail_if_not_exists: if set, raise an exception if the topic
             does not exist
         :type fail_if_not_exists: bool
@@ -142,17 +142,17 @@ class PubSubHook(GoogleCloudBaseHook):
 
         :param topic_project: the GCP project ID of the topic that the
             subscription will be bound to.
-        :type topic_project: string
+        :type topic_project: str
         :param topic: the Pub/Sub topic name that the subscription will be bound
             to create; do not include the ``projects/{project}/subscriptions/``
             prefix.
-        :type topic: string
+        :type topic: str
         :param subscription: the Pub/Sub subscription name. If empty, a random
             name will be generated using the uuid module
-        :type subscription: string
+        :type subscription: str
         :param subscription_project: the GCP project ID where the subscription
             will be created. If unspecified, ``topic_project`` will be used.
-        :type subscription_project: string
+        :type subscription_project: str
         :param ack_deadline_secs: Number of seconds that a subscriber has to
             acknowledge each message pulled from the subscription
         :type ack_deadline_secs: int
@@ -161,7 +161,7 @@ class PubSubHook(GoogleCloudBaseHook):
         :type fail_if_exists: bool
         :return: subscription name which will be the system-generated value if
             the ``subscription`` parameter is not supplied
-        :rtype: string
+        :rtype: str
         """
         service = self.get_conn()
         full_topic = _format_topic(topic_project, topic)
@@ -197,10 +197,10 @@ class PubSubHook(GoogleCloudBaseHook):
         """Deletes a Pub/Sub subscription, if it exists.
 
         :param project: the GCP project ID where the subscription exists
-        :type project: string
+        :type project: str
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the ``projects/{project}/subscriptions/`` prefix.
-        :type subscription: string
+        :type subscription: str
         :param fail_if_not_exists: if set, raise an exception if the topic
             does not exist
         :type fail_if_not_exists: bool
@@ -228,10 +228,10 @@ class PubSubHook(GoogleCloudBaseHook):
         """Pulls up to ``max_messages`` messages from Pub/Sub subscription.
 
         :param project: the GCP project ID where the subscription exists
-        :type project: string
+        :type project: str
         :param subscription: the Pub/Sub subscription name to pull from; do not
             include the 'projects/{project}/topics/' prefix.
-        :type subscription: string
+        :type subscription: str
         :param max_messages: The maximum number of messages to return from
             the Pub/Sub API.
         :type max_messages: int
@@ -265,10 +265,10 @@ class PubSubHook(GoogleCloudBaseHook):
 
         :param project: the GCP project name or ID in which to create
             the topic
-        :type project: string
+        :type project: str
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the 'projects/{project}/topics/' prefix.
-        :type subscription: string
+        :type subscription: str
         :param ack_ids: List of ReceivedMessage ackIds from a previous pull
             response
         :type ack_ids: list

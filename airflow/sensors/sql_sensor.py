@@ -30,7 +30,7 @@ class SqlSensor(BaseSensorOperator):
     sql returns no row, or if the first cell in (0, '0', '').
 
     :param conn_id: The connection to run the sensor against
-    :type conn_id: string
+    :type conn_id: str
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
     """

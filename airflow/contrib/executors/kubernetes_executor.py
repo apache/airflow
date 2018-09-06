@@ -433,7 +433,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         "_", let's
         replace ":" with "_"
 
-        :param string: string
+        :param string: str
         :return: datetime.datetime object
         """
         return parser.parse(string.replace('_plus_', '+').replace("_", ":"))

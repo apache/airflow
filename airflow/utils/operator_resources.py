@@ -33,10 +33,10 @@ class Resource(object):
     Represents a resource requirement in an execution environment for an operator.
 
     :param name: Name of the resource
-    :type name: string
+    :type name: str
     :param units_str: The string representing the units of a resource (e.g. MB for a CPU
         resource) to be used for display purposes
-    :type units_str: string
+    :type units_str: str
     :param qty: The number of units of the specified resource that are required for
         execution of the operator.
     :type qty: long

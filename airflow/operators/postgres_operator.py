@@ -26,13 +26,13 @@ class PostgresOperator(BaseOperator):
     Executes sql code in a specific Postgres database
 
     :param postgres_conn_id: reference to a specific postgres database
-    :type postgres_conn_id: string
+    :type postgres_conn_id: str
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
     :param database: name of database which overwrite defined one in connection
-    :type database: string
+    :type database: str
     """
 
     template_fields = ('sql',)

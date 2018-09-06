@@ -94,16 +94,16 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param project_id: The Google Cloud project name where the
         prediction job is submitted. (templated)
-    :type project_id: string
+    :type project_id: str
 
     :param job_id: A unique id for the prediction job on Google Cloud
         ML Engine. (templated)
-    :type job_id: string
+    :type job_id: str
 
     :param data_format: The format of the input data.
         It will default to 'DATA_FORMAT_UNSPECIFIED' if is not provided
         or is not one of ["TEXT", "TF_RECORD", "TF_RECORD_GZIP"].
-    :type data_format: string
+    :type data_format: str
 
     :param input_paths: A list of GCS paths of input data for batch
         prediction. Accepting wildcard operator *, but only at the end. (templated)
@@ -111,28 +111,28 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param output_path: The GCS path where the prediction results are
         written to. (templated)
-    :type output_path: string
+    :type output_path: str
 
     :param region: The Google Compute Engine region to run the
         prediction job in. (templated)
-    :type region: string
+    :type region: str
 
     :param model_name: The Google Cloud ML Engine model to use for prediction.
         If version_name is not provided, the default version of this
         model will be used.
         Should not be None if version_name is provided.
         Should be None if uri is provided. (templated)
-    :type model_name: string
+    :type model_name: str
 
     :param version_name: The Google Cloud ML Engine model version to use for
         prediction.
         Should be None if uri is provided. (templated)
-    :type version_name: string
+    :type version_name: str
 
     :param uri: The GCS path of the saved model to use for prediction.
         Should be None if model_name is provided.
         It should be a GCS path pointing to a tensorflow SavedModel. (templated)
-    :type uri: string
+    :type uri: str
 
     :param max_worker_count: The maximum number of workers to be used
         for parallel processing. Defaults to 10 if not specified.
@@ -140,16 +140,16 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
-    :type runtime_version: string
+    :type runtime_version: str
 
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must
         have doamin-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
 
     Raises:
         ``ValueError``: if a unique model/version origin cannot be determined.
@@ -281,7 +281,7 @@ class MLEngineModelOperator(BaseOperator):
 
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs. (templated)
-    :type project_id: string
+    :type project_id: str
     :param model: A dictionary containing the information about the model.
         If the `operation` is `create`, then the `model` parameter should
         contain all the information about this model such as `name`.
@@ -293,13 +293,13 @@ class MLEngineModelOperator(BaseOperator):
 
         * ``create``: Creates a new model as provided by the `model` parameter.
         * ``get``: Gets a particular model where the name is specified in `model`.
-    :type operation: string
+    :type operation: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     """
 
     template_fields = [
@@ -339,17 +339,17 @@ class MLEngineVersionOperator(BaseOperator):
 
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs.
-    :type project_id: string
+    :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
         belongs to. (templated)
-    :type model_name: string
+    :type model_name: str
 
     :param version_name: A name to use for the version being operated upon.
         If not None and the `version` argument is None or does not have a value for
         the `name` key, then this will be populated in the payload for the
         `name` key. (templated)
-    :type version_name: string
+    :type version_name: str
 
     :param version: A dictionary containing the information about the version.
         If the `operation` is `create`, `version` should contain all the
@@ -378,15 +378,15 @@ class MLEngineVersionOperator(BaseOperator):
             model specified by `model_name`).
             The name of the version should be specified in the `version`
             parameter.
-    :type operation: string
+    :type operation: str
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     """
 
     template_fields = [
@@ -447,56 +447,56 @@ class MLEngineTrainingOperator(BaseOperator):
 
     :param project_id: The Google Cloud project name within which MLEngine
         training job should run (templated).
-    :type project_id: string
+    :type project_id: str
 
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)
-    :type job_id: string
+    :type job_id: str
 
     :param package_uris: A list of package locations for MLEngine training job,
         which should include the main training program + any additional
         dependencies. (templated)
-    :type package_uris: string
+    :type package_uris: str
 
     :param training_python_module: The Python module name to run within MLEngine
         training job after installing 'package_uris' packages. (templated)
-    :type training_python_module: string
+    :type training_python_module: str
 
     :param training_args: A list of templated command line arguments to pass to
         the MLEngine training program. (templated)
-    :type training_args: string
+    :type training_args: str
 
     :param region: The Google Compute Engine region to run the MLEngine training
         job in (templated).
-    :type region: string
+    :type region: str
 
     :param scale_tier: Resource tier for MLEngine training job. (templated)
-    :type scale_tier: string
+    :type scale_tier: str
 
     :param runtime_version: The Google Cloud ML runtime version to use for
         training. (templated)
-    :type runtime_version: string
+    :type runtime_version: str
 
     :param python_version: The version of Python used in training. (templated)
-    :type python_version: string
+    :type python_version: str
 
     :param job_dir: A Google Cloud Storage path in which to store training
         outputs and other data needed for training. (templated)
-    :type job_dir: string
+    :type job_dir: str
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
 
     :param mode: Can be one of 'DRY_RUN'/'CLOUD'. In 'DRY_RUN' mode, no real
         training job will be launched, but the MLEngine training job request
         will be printed out. In 'CLOUD' mode, a real MLEngine training job
         creation request will be issued.
-    :type mode: string
+    :type mode: str
     """
 
     template_fields = [

@@ -31,7 +31,7 @@ class QuboleSensor(BaseSensorOperator):
     Base class for all Qubole Sensors
 
     :param qubole_conn_id: The qubole connection to run the sensor against
-    :type qubole_conn_id: string
+    :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked
     :type data: a JSON object
 

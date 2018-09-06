@@ -28,7 +28,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
 
     :param source_bucket: The source Google cloud storage bucket where the
          object is. (templated)
-    :type source_bucket: string
+    :type source_bucket: str
     :param source_object: The source name of the object to copy in the Google cloud
         storage bucket. (templated)
         If wildcards are used in this argument:
@@ -36,10 +36,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             bucket. The wildcard can appear inside the object name or at the
             end of the object name. Appending a wildcard to the bucket name is
             unsupported.
-    :type source_object: string
+    :type source_object: str
     :param destination_bucket: The destination Google cloud storage bucket
         where the object should be. (templated)
-    :type destination_bucket: string
+    :type destination_bucket: str
     :param destination_object: The destination name of the object in the
         destination Google cloud storage bucket. (templated)
         If a wildcard is supplied in the source_object argument, this is the
@@ -50,18 +50,18 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         file ``foo/baz`` will be copied to ``blah/baz``; to retain the prefix write
         the destination_object as e.g. ``blah/foo``, in which case the copied file
         will be named ``blah/foo/baz``.
-    :type destination_object: string
+    :type destination_object: str
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
-    :type google_cloud_storage_conn_id: string
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
 
     **Examples**:
         The following Operator would copy a single file named

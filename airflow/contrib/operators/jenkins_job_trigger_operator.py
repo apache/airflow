@@ -95,11 +95,11 @@ class JenkinsJobTriggerOperator(BaseOperator):
     version >= 0.4.15 to communicate with jenkins server.
     You'll also need to configure a Jenkins connection in the connections screen.
     :param jenkins_connection_id: The jenkins connection to use for this job
-    :type jenkins_connection_id: string
+    :type jenkins_connection_id: str
     :param job_name: The name of the job to trigger
-    :type job_name: string
+    :type job_name: str
     :param parameters: The parameters block to provide to jenkins. (templated)
-    :type parameters: string
+    :type parameters: str
     :param sleep_time: How long will the operator sleep between each status
     request for the job (min 1, default 10)
     :type sleep_time: int
