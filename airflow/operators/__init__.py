@@ -90,19 +90,3 @@ def _integrate_plugins():
     for operators_module in operators_modules:
         sys.modules[operators_module.__name__] = operators_module
         globals()[operators_module._name] = operators_module
-
-        ##########################################################
-        # TODO FIXME Remove in Airflow 2.0
-
-        if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
-            from zope.deprecation import deprecated
-            for _operator in operators_module._objects:
-                operator_name = _operator.__name__
-                globals()[operator_name] = _operator
-                deprecated(
-                    operator_name,
-                    "Importing plugin operator '{i}' directly from "
-                    "'airflow.operators' has been deprecated. Please "
-                    "import from 'airflow.operators.[plugin_module]' "
-                    "instead. Support for direct imports will be dropped "
-                    "entirely in Airflow 2.0.".format(i=operator_name))
