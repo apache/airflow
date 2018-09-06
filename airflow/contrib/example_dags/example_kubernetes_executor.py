@@ -66,4 +66,25 @@ three_task = PythonOperator(
         "KubernetesExecutor": {"request_memory": "128Mi", "limit_memory": "128Mi"}}
 )
 
-start_task.set_downstream([one_task, two_task, three_task])
+# Mount volume or secret to the worker pod
+four_task = PythonOperator(
+    task_id="four_task", python_callable=print_stuff, dag=dag,
+    executor_config={
+        "KubernetesExecutor": {
+            "volumes": [
+                {
+                    "name": "test-volume",
+                    "hostPath": {"path": "/data"},
+                },
+            ],
+            "volume_mounts": [
+                {
+                    "mountPath": "/test-pd",
+                    "name": "test-volume",
+                },
+            ]
+        }
+    }
+)
+
+start_task.set_downstream([one_task, two_task, three_task, four_task])
