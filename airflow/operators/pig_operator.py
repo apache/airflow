@@ -29,15 +29,15 @@ class PigOperator(BaseOperator):
     Executes pig script.
 
     :param pig: the pig latin script to be executed. (templated)
-    :type pig: string
+    :type pig: str
     :param pig_cli_conn_id: reference to the Hive database
-    :type pig_cli_conn_id: string
+    :type pig_cli_conn_id: str
     :param pigparams_jinja_translate: when True, pig params-type templating
         ${var} gets translated into jinja-type templating {{ var }}. Note that
         you may want to use this along with the
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
-    :type pigparams_jinja_translate: boolean
+    :type pigparams_jinja_translate: bool
     """
 
     template_fields = ('pig',)

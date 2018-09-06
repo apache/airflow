@@ -34,9 +34,9 @@ class RedisKeySensor(BaseSensorOperator):
         Create a new RedisKeySensor
 
         :param key: The key to be monitored
-        :type key: string
+        :type key: str
         :param redis_conn_id: The connection ID to use when connecting to Redis DB.
-        :type redis_conn_id: string
+        :type redis_conn_id: str
         """
         super(RedisKeySensor, self).__init__(*args, **kwargs)
         self.redis_conn_id = redis_conn_id

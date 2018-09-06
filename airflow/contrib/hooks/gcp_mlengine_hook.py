@@ -63,7 +63,7 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         :param project_id: The Google Cloud project id within which MLEngine
             job will be launched.
-        :type project_id: string
+        :type project_id: str
 
         :param job: MLEngine Job object that should be provided to the MLEngine
             API, such as: ::

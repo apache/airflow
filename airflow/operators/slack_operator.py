@@ -32,11 +32,11 @@ class SlackAPIOperator(BaseOperator):
     In the future additional Slack API Operators will be derived from this class as well
 
     :param slack_conn_id: Slack connection ID which its password is Slack API token
-    :type slack_conn_id: string
+    :type slack_conn_id: str
     :param token: Slack API token (https://api.slack.com/web)
-    :type token: string
+    :type token: str
     :param method: The Slack API Method to Call (https://api.slack.com/methods)
-    :type method: string
+    :type method: str
     :param api_params: API Method call parameters (https://api.slack.com/methods)
     :type api_params: dict
     """
@@ -93,13 +93,13 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
     :param channel: channel in which to post message on slack name (#general) or
         ID (C12318391). (templated)
-    :type channel: string
+    :type channel: str
     :param username: Username that airflow will be posting to Slack as. (templated)
-    :type username: string
+    :type username: str
     :param text: message to send to slack. (templated)
-    :type text: string
+    :type text: str
     :param icon_url: url to icon used for this message
-    :type icon_url: string
+    :type icon_url: str
     :param attachments: extra formatting details. (templated)
         - see https://api.slack.com/docs/attachments.
     :type attachments: array of hashes

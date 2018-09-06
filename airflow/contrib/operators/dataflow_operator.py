@@ -38,25 +38,25 @@ class DataFlowJavaOperator(BaseOperator):
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
     :param jar: The reference to a self executing DataFlow jar.
-    :type jar: string
+    :type jar: str
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
     :param options: Map of job specific options.
     :type options: dict
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
     :param job_class: The name of the dataflow job class to be executued, it
         is often not the main class configured in the dataflow jar file.
-    :type job_class: string
+    :type job_class: str
 
     Both ``jar`` and ``options`` are templated so you can use variables in them.
 
@@ -150,18 +150,18 @@ class DataflowTemplateOperator(BaseOperator):
     will be passed to the job.
 
     :param template: The reference to the DataFlow template.
-    :type template: string
+    :type template: str
     :param dataflow_default_options: Map of default job environment options.
     :type dataflow_default_options: dict
     :param parameters: Map of job specific parameters for the template.
     :type parameters: dict
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
@@ -263,7 +263,7 @@ class DataFlowPythonOperator(BaseOperator):
 
     :param py_file: Reference to the python dataflow pipleline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file.
-    :type py_file: string
+    :type py_file: str
     :param py_options: Additional python options.
     :type pyt_options: list of strings, e.g., ["-m", "-v"].
     :param dataflow_default_options: Map of default job options.
@@ -272,11 +272,11 @@ class DataFlowPythonOperator(BaseOperator):
     :type options: dict
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide  delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param poll_sleep: The time in seconds to sleep between polling Google
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
@@ -346,9 +346,9 @@ class GoogleCloudBucketHelper(object):
         will be returned immediately.
 
         :param file_name: The full path of input file.
-        :type file_name: string
+        :type file_name: str
         :return: The full path of local file.
-        :type: string
+        :type: str
         """
         if not file_name.startswith('gs://'):
             return file_name
