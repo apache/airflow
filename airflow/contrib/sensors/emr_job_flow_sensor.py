@@ -27,7 +27,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     If it fails the sensor errors, failing the task.
 
     :param job_flow_id: job_flow_id to check the state of
-    :type job_flow_id: string
+    :type job_flow_id: str
     """
 
     NON_TERMINAL_STATES = ['STARTING', 'BOOTSTRAPPING', 'RUNNING',

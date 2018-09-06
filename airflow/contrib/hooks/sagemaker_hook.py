@@ -101,7 +101,7 @@ class SageMakerHook(AwsHook):
         :type failed_state: dict
         :param key: the key of the response dict
         that points to the state
-        :type key: string
+        :type key: str
         :param describe_function: the function used to retrieve the status
         :type describe_function: python callable
         :param args: the arguments for the function
@@ -236,7 +236,7 @@ class SageMakerHook(AwsHook):
     def describe_training_job(self, training_job_name):
         """
         :param training_job_name: the name of the training job
-        :type training_job_name: string
+        :type training_job_name: str
         Return the training job info associated with the current job_name
         :return: A dict contains all the training job info
         """
@@ -246,7 +246,7 @@ class SageMakerHook(AwsHook):
     def describe_tuning_job(self, tuning_job_name):
         """
         :param tuning_job_name: the name of the training job
-        :type tuning_job_name: string
+        :type tuning_job_name: str
         Return the tuning job info associated with the current job_name
         :return: A dict contains all the tuning job info
         """

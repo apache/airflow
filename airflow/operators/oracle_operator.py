@@ -27,7 +27,7 @@ class OracleOperator(BaseOperator):
     Executes sql code in a specific Oracle database
 
     :param oracle_conn_id: reference to a specific Oracle database
-    :type oracle_conn_id: string
+    :type oracle_conn_id: str
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.

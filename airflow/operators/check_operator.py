@@ -59,7 +59,7 @@ class CheckOperator(BaseOperator):
     single record from an external source.
 
     :param sql: the sql to be executed. (templated)
-    :type sql: string
+    :type sql: str
     """
 
     template_fields = ('sql',)
@@ -114,7 +114,7 @@ class ValueCheckOperator(BaseOperator):
     single record from an external source.
 
     :param sql: the sql to be executed. (templated)
-    :type sql: string
+    :type sql: str
     """
 
     __mapper_args__ = {

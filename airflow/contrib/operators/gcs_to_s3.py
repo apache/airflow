@@ -28,21 +28,21 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :type bucket: string
+    :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
-    :type prefix: string
+    :type prefix: str
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
-    :type delimiter: string
+    :type delimiter: str
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.
-    :type google_cloud_storage_conn_id: string
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param dest_aws_conn_id: The destination S3 connection
     :type dest_aws_conn_id: str
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)

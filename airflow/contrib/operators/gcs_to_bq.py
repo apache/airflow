@@ -35,42 +35,42 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     Google cloud storage must be a JSON file with the schema fields in it.
 
     :param bucket: The bucket to load from. (templated)
-    :type bucket: string
+    :type bucket: str
     :param source_objects: List of Google cloud storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list of str
     :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
         BigQuery table to load data into. If <project> is not included,
         project will be the project defined in the connection json. (templated)
-    :type destination_project_dataset_table: string
+    :type destination_project_dataset_table: str
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         Should not be set when source_format is 'DATASTORE_BACKUP'.
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
-    :type schema_object: string
+    :type schema_object: str
     :param source_format: File format to export.
-    :type source_format: string
+    :type source_format: str
     :param compression: [Optional] The compression type of the data source.
         Possible values include GZIP and NONE.
         The default value is NONE.
         This setting is ignored for Google Cloud Bigtable,
         Google Cloud Datastore backups and Avro formats.
-    :type compression: string
+    :type compression: str
     :param create_disposition: The create disposition if the table doesn't exist.
-    :type create_disposition: string
+    :type create_disposition: str
     :param skip_leading_rows: Number of rows to skip when loading from a CSV.
     :type skip_leading_rows: int
     :param write_disposition: The write disposition if the table already exists.
-    :type write_disposition: string
+    :type write_disposition: str
     :param field_delimiter: The delimiter to use when loading from a CSV.
-    :type field_delimiter: string
+    :type field_delimiter: str
     :param max_bad_records: The maximum number of bad records that BigQuery can
         ignore when running the job.
     :type max_bad_records: int
     :param quote_character: The value that is used to quote data sections in a CSV file.
-    :type quote_character: string
+    :type quote_character: str
     :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
         extra values that are not represented in the table schema.
         If true, the extra values are ignored. If false, records with extra columns
@@ -91,16 +91,16 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
-    :type max_id_key: string
+    :type max_id_key: str
     :param bigquery_conn_id: Reference to a specific BigQuery hook.
-    :type bigquery_conn_id: string
+    :type bigquery_conn_id: str
     :param google_cloud_storage_conn_id: Reference to a specific Google
         cloud storage hook.
-    :type google_cloud_storage_conn_id: string
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any. For this to
         work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :type schema_update_options: list

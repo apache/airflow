@@ -94,13 +94,13 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         https://github.com/pydata/pandas/issues/6900
 
         :param sql: The BigQuery SQL to execute.
-        :type sql: string
+        :type sql: str
         :param parameters: The parameters to render the SQL query with (not
             used, leave to override superclass method)
         :type parameters: mapping or iterable
         :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
             defaults to use `self.use_legacy_sql` if not specified
-        :type dialect: string in {'legacy', 'standard'}
+        :type dialect: str in {'legacy', 'standard'}
         """
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
@@ -117,12 +117,12 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         :param project_id: The Google cloud project in which to look for the
             table. The connection supplied to the hook must provide access to
             the specified project.
-        :type project_id: string
+        :type project_id: str
         :param dataset_id: The name of the dataset in which to look for the
             table.
-        :type dataset_id: string
+        :type dataset_id: str
         :param table_id: The name of the table to check the existence of.
-        :type table_id: string
+        :type table_id: str
         """
         service = self.get_service()
         try:
@@ -313,7 +313,7 @@ class BigQueryBaseCursor(LoggingMixin):
             table name to create external table.
             If <project> is not included, project will be the
             project defined in the connection json.
-        :type external_project_dataset_table: string
+        :type external_project_dataset_table: str
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
         :type schema_fields: list
@@ -322,7 +322,7 @@ class BigQueryBaseCursor(LoggingMixin):
             per-object name can be used.
         :type source_uris: list
         :param source_format: File format to export.
-        :type source_format: string
+        :type source_format: str
         :param autodetect: Try to detect schema and format options automatically.
             Any option specified explicitly will be honored.
         :type autodetect: bool
@@ -331,7 +331,7 @@ class BigQueryBaseCursor(LoggingMixin):
             The default value is NONE.
             This setting is ignored for Google Cloud Bigtable,
                 Google Cloud Datastore backups and Avro formats.
-        :type compression: string
+        :type compression: str
         :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
             extra values that are not represented in the table schema.
             If true, the extra values are ignored. If false, records with extra columns
@@ -344,13 +344,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :param skip_leading_rows: Number of rows to skip when loading from a CSV.
         :type skip_leading_rows: int
         :param field_delimiter: The delimiter to use when loading from a CSV.
-        :type field_delimiter: string
+        :type field_delimiter: str
         :param quote_character: The value that is used to quote data sections in a CSV
             file.
-        :type quote_character: string
+        :type quote_character: str
         :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not
             (false).
-        :type allow_quoted_newlines: boolean
+        :type allow_quoted_newlines: bool
         :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
@@ -507,27 +507,27 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param bql: (Deprecated. Use `sql` parameter instead) The BigQuery SQL
             to execute.
-        :type bql: string
+        :type bql: str
         :param sql: The BigQuery SQL to execute.
-        :type sql: string
+        :type sql: str
         :param destination_dataset_table: The dotted <dataset>.<table>
             BigQuery table to save the query results.
-        :type destination_dataset_table: string
+        :type destination_dataset_table: str
         :param write_disposition: What to do if the table already exists in
             BigQuery.
-        :type write_disposition: string
+        :type write_disposition: str
         :param allow_large_results: Whether to allow large results.
-        :type allow_large_results: boolean
+        :type allow_large_results: bool
         :param flatten_results: If true and query uses legacy SQL dialect, flattens
             all nested and repeated fields in the query results. ``allowLargeResults``
             must be true if this is set to false. For standard SQL queries, this
             flag is ignored and results are never flattened.
-        :type flatten_results: boolean
+        :type flatten_results: bool
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
         :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
             If `None`, defaults to `self.use_legacy_sql`.
-        :type use_legacy_sql: boolean
+        :type use_legacy_sql: bool
         :param api_resource_configs: a dictionary that contain params
             'configuration' applied for Google BigQuery Jobs API:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
@@ -538,7 +538,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type udf_config: list
         :param maximum_billing_tier: Positive integer that serves as a
             multiplier of the basic price.
-        :type maximum_billing_tier: integer
+        :type maximum_billing_tier: int
         :param maximum_bytes_billed: Limits the bytes billed for this job.
             Queries that will have bytes billed beyond this limit will fail
             (without incurring a charge). If unspecified, this will be
@@ -546,7 +546,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type maximum_bytes_billed: float
         :param create_disposition: Specifies whether the job is allowed to
             create new tables.
-        :type create_disposition: string
+        :type create_disposition: str
         :param query_params a dictionary containing query parameter types and
             values, passed to BigQuery
         :type query_params: dict
@@ -559,7 +559,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param priority: Specifies a priority for the query.
             Possible values include INTERACTIVE and BATCH.
             The default value is INTERACTIVE.
-        :type priority: string
+        :type priority: str
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and
             expiration as per API specifications. Note that 'field' is not available in
@@ -718,20 +718,20 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param source_project_dataset_table: The dotted <dataset>.<table>
             BigQuery table to use as the source data.
-        :type source_project_dataset_table: string
+        :type source_project_dataset_table: str
         :param destination_cloud_storage_uris: The destination Google Cloud
             Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
             convention defined here:
             https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
         :type destination_cloud_storage_uris: list
         :param compression: Type of compression to use.
-        :type compression: string
+        :type compression: str
         :param export_format: File format to export.
-        :type export_format: string
+        :type export_format: str
         :param field_delimiter: The delimiter to use when extracting to a CSV.
-        :type field_delimiter: string
+        :type field_delimiter: str
         :param print_header: Whether to print a header for a CSV file extract.
-        :type print_header: boolean
+        :type print_header: bool
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
@@ -790,11 +790,11 @@ class BigQueryBaseCursor(LoggingMixin):
         :type source_project_dataset_tables: list|string
         :param destination_project_dataset_table: The destination BigQuery
             table. Format is: (project:|project.)<dataset>.<table>
-        :type destination_project_dataset_table: string
+        :type destination_project_dataset_table: str
         :param write_disposition: The write disposition if the table already exists.
-        :type write_disposition: string
+        :type write_disposition: str
         :param create_disposition: The create disposition if the table doesn't exist.
-        :type create_disposition: string
+        :type create_disposition: str
         :param labels a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
@@ -871,7 +871,7 @@ class BigQueryBaseCursor(LoggingMixin):
             project defined in the connection json. If a partition is specified the
             operator will automatically append the data, create a new partition or create
             a new DAY partitioned table.
-        :type destination_project_dataset_table: string
+        :type destination_project_dataset_table: str
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         :type schema_fields: list
@@ -880,21 +880,21 @@ class BigQueryBaseCursor(LoggingMixin):
             per-object name can be used.
         :type source_uris: list
         :param source_format: File format to export.
-        :type source_format: string
+        :type source_format: str
         :param create_disposition: The create disposition if the table doesn't exist.
-        :type create_disposition: string
+        :type create_disposition: str
         :param skip_leading_rows: Number of rows to skip when loading from a CSV.
         :type skip_leading_rows: int
         :param write_disposition: The write disposition if the table already exists.
-        :type write_disposition: string
+        :type write_disposition: str
         :param field_delimiter: The delimiter to use when loading from a CSV.
-        :type field_delimiter: string
+        :type field_delimiter: str
         :param max_bad_records: The maximum number of bad records that BigQuery can
             ignore when running the job.
         :type max_bad_records: int
         :param quote_character: The value that is used to quote data sections in a CSV
             file.
-        :type quote_character: string
+        :type quote_character: str
         :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
             extra values that are not represented in the table schema.
             If true, the extra values are ignored. If false, records with extra columns
@@ -903,7 +903,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type ignore_unknown_values: bool
         :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not
             (false).
-        :type allow_quoted_newlines: boolean
+        :type allow_quoted_newlines: bool
         :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
             The missing values are treated as nulls. If false, records with missing
             trailing columns are treated as bad records, and if there are too many bad
@@ -1204,7 +1204,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type deletion_dataset_table: str
         :param ignore_if_missing: if True, then return success even if the
         requested table does not exist.
-        :type ignore_if_missing: boolean
+        :type ignore_if_missing: bool
         :return:
         """
         deletion_project, deletion_dataset, deletion_table = \
@@ -1402,7 +1402,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         Executes a BigQuery query, and returns the job ID.
 
         :param operation: The query to execute.
-        :type operation: string
+        :type operation: str
         :param parameters: Parameters to substitute into the query.
         :type parameters: dict
         """
@@ -1415,7 +1415,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         Execute a BigQuery query multiple times with different parameters.
 
         :param operation: The query to execute.
-        :type operation: string
+        :type operation: str
         :param seq_of_parameters: List of dictionary parameters to substitute into the
             query.
         :type seq_of_parameters: list
