@@ -70,7 +70,8 @@ from airflow import settings, utils
 from airflow.executors import GetDefaultExecutor, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import (
-    AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout
+    AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout,
+    AirflowBadRequest, PoolNotFound
 )
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -5259,6 +5260,60 @@ class Pool(Base):
         used_slots = self.used_slots(session=session)
         queued_slots = self.queued_slots(session=session)
         return self.slots - used_slots - queued_slots
+
+    @classmethod
+    @provide_session
+    def get_pool(cls, name, session):
+        """Get pool by a given name."""
+        if not (name and name.strip()):
+            raise AirflowBadRequest("Pool name shouldn't be empty")
+        pool = session.query(cls).filter(cls.pool == name).first()
+        if pool is None:
+            raise PoolNotFound("Pool '%s' doesn't exist" % name)
+        return pool
+
+    @classmethod
+    @provide_session
+    def get_pools(cls, session):
+        """Get all pools."""
+        return [pool for pool in session.query(cls).all()]
+
+    @classmethod
+    @provide_session
+    def create_pool(cls, name, slots, description, session):
+        """Create a pool with a given parameters."""
+        if not (name and name.strip()):
+            raise AirflowBadRequest("Pool name shouldn't be empty")
+        try:
+            slots = int(slots)
+        except ValueError:
+            raise AirflowBadRequest("Bad value for `slots`: %s" % slots)
+
+        session.expire_on_commit = False
+        pool = session.query(cls).filter_by(pool=name).first()
+        if pool is None:
+            pool = Pool(pool=name, slots=slots, description=description)
+            session.add(pool)
+        else:
+            pool.slots = slots
+            pool.description = description
+        session.commit()
+        return pool
+
+    @classmethod
+    @provide_session
+    def delete_pool(cls, name, session):
+        """Delete pool by a given name."""
+        if not (name and name.strip()):
+            raise AirflowBadRequest("Pool name shouldn't be empty")
+
+        pool = session.query(cls).filter_by(pool=name).first()
+        if pool is None:
+            raise PoolNotFound("Pool '%s' doesn't exist" % name)
+
+        session.delete(pool)
+        session.commit()
+        return pool
 
 
 class SlaMiss(Base):

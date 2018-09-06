@@ -57,7 +57,7 @@ from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import GetDefaultExecutor
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
-                            Connection, DAG)
+                            Connection, DAG, Pool)
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli as cli_utils
@@ -263,29 +263,32 @@ def pool(args):
     log = LoggingMixin().log
 
     def _tabulate(pools):
-        return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
+        return "\n%s" % tabulate([(pool.pool,
+                                   pool.slots,
+                                   pool.description) for pool in pools],
+                                 ['Pool', 'Slots', 'Description'],
                                  tablefmt="fancy_grid")
 
     try:
         imp = getattr(args, 'import')
         if args.get is not None:
-            pools = [api_client.get_pool(name=args.get)]
+            pools = [Pool.get_pool(name=args.get)]
         elif args.set:
-            pools = [api_client.create_pool(name=args.set[0],
-                                            slots=args.set[1],
-                                            description=args.set[2])]
+            pools = [Pool.create_pool(name=args.set[0],
+                                      slots=args.set[1],
+                                      description=args.set[2])]
         elif args.delete:
-            pools = [api_client.delete_pool(name=args.delete)]
+            pools = [Pool.delete_pool(name=args.delete)]
         elif imp:
             if os.path.exists(imp):
                 pools = pool_import_helper(imp)
             else:
                 print("Missing pools file.")
-                pools = api_client.get_pools()
+                pools = Pool.get_pools()
         elif args.export:
             pools = pool_export_helper(args.export)
         else:
-            pools = api_client.get_pools()
+            pools = Pool.get_pools()
     except (AirflowException, IOError) as err:
         log.error(err)
     else:
@@ -305,9 +308,9 @@ def pool_import_helper(filepath):
             n = 0
             for k, v in d.items():
                 if isinstance(v, dict) and len(v) == 2:
-                    pools.append(api_client.create_pool(name=k,
-                                                        slots=v["slots"],
-                                                        description=v["description"]))
+                    pools.append(Pool.create_pool(name=k,
+                                                  slots=v["slots"],
+                                                  description=v["description"]))
                     n += 1
                 else:
                     pass
@@ -320,9 +323,9 @@ def pool_import_helper(filepath):
 
 def pool_export_helper(filepath):
     pool_dict = {}
-    pools = api_client.get_pools()
+    pools = Pool.get_pools()
     for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
+        pool_dict[pool.pool] = {"slots": pool.slots, "description": pool.description}
     with open(filepath, 'w') as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
