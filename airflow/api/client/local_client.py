@@ -18,7 +18,7 @@
 # under the License.
 
 from airflow.api.client import api_client
-from airflow.api.common.experimental import pool
+from airflow.models import Pool
 from airflow.api.common.experimental import trigger_dag
 from airflow.api.common.experimental import delete_dag
 
@@ -38,16 +38,16 @@ class Client(api_client.Client):
         return "Removed {} record(s)".format(count)
 
     def get_pool(self, name):
-        p = pool.get_pool(name=name)
+        p = Pool.get_pool(name=name)
         return p.pool, p.slots, p.description
 
     def get_pools(self):
-        return [(p.pool, p.slots, p.description) for p in pool.get_pools()]
+        return [(p.pool, p.slots, p.description) for p in Pool.get_pools()]
 
     def create_pool(self, name, slots, description):
-        p = pool.create_pool(name=name, slots=slots, description=description)
+        p = Pool.create_pool(name=name, slots=slots, description=description)
         return p.pool, p.slots, p.description
 
     def delete_pool(self, name):
-        p = pool.delete_pool(name=name)
+        p = Pool.delete_pool(name=name)
         return p.pool, p.slots, p.description
