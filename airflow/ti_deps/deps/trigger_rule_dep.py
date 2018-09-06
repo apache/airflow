@@ -105,20 +105,20 @@ class TriggerRuleDep(BaseTIDep):
         :param ti: the task instance to evaluate the trigger rule of
         :type ti: TaskInstance
         :param successes: Number of successful upstream tasks
-        :type successes: boolean
+        :type successes: bool
         :param skipped: Number of skipped upstream tasks
-        :type skipped: boolean
+        :type skipped: bool
         :param failed: Number of failed upstream tasks
-        :type failed: boolean
+        :type failed: bool
         :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: boolean
+        :type upstream_failed: bool
         :param done: Number of completed upstream tasks
-        :type done: boolean
+        :type done: bool
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
             path to add the feature
-        :type flag_upstream_failed: boolean
+        :type flag_upstream_failed: bool
         :param session: database session
         :type session: Session
         """

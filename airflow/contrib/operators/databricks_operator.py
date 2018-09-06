@@ -179,7 +179,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param existing_cluster_id: ID for existing cluster on which to run this task.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
         This field will be templated.
-    :type existing_cluster_id: string
+    :type existing_cluster_id: str
     :param libraries: Libraries which this run will use.
         This field will be templated.
 
@@ -190,7 +190,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
         required parameter of the superclass ``BaseOperator``.
         This field will be templated.
-    :type run_name: string
+    :type run_name: str
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
         This field will be templated.
@@ -199,7 +199,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
         connection.
-    :type databricks_conn_id: string
+    :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
     :type polling_period_seconds: int
@@ -210,7 +210,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             might be a floating point number).
     :type databricks_retry_delay: float
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
-    :type do_xcom_push: boolean
+    :type do_xcom_push: bool
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
@@ -347,7 +347,7 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type job_id: string
+    :type job_id: str
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
@@ -403,7 +403,7 @@ class DatabricksRunNowOperator(BaseOperator):
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
         connection.
-    :type databricks_conn_id: string
+    :type databricks_conn_id: str
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
     :type polling_period_seconds: int
@@ -411,7 +411,7 @@ class DatabricksRunNowOperator(BaseOperator):
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
-    :type do_xcom_push: boolean
+    :type do_xcom_push: bool
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)

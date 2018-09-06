@@ -30,21 +30,21 @@ class GoogleCloudStorageListOperator(BaseOperator):
      `xcom` in the downstream task.
 
     :param bucket: The Google cloud storage bucket to find the objects. (templated)
-    :type bucket: string
+    :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
            this prefix. (templated)
-    :type prefix: string
+    :type prefix: str
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
-    :type delimiter: string
+    :type delimiter: str
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
-    :type google_cloud_storage_conn_id: string
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``

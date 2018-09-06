@@ -29,9 +29,9 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
     containing the failure reason.
 
     :param job_name: job_name of the tuning instance to check the state of
-    :type job_name: string
+    :type job_name: str
     :param region_name: The AWS region_name
-    :type region_name: string
+    :type region_name: str
     """
 
     template_fields = ['job_name']

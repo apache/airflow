@@ -31,9 +31,9 @@ class SageMakerCreateTuningJobOperator(BaseOperator):
        This operator returns The ARN of the model created in Amazon SageMaker
 
        :param sagemaker_conn_id: The SageMaker connection ID to use.
-       :type sagemaker_conn_id: string
+       :type sagemaker_conn_id: str
        :param region_name: The AWS region_name
-       :type region_name: string
+       :type region_name: str
        :param tuning_job_config:
        The configuration necessary to start a tuning job (templated)
        :type tuning_job_config: dict
@@ -55,7 +55,7 @@ class SageMakerCreateTuningJobOperator(BaseOperator):
        (Caution: be careful to set this parameters because tuning can take very long)
        :type max_ingestion_time: int
        :param aws_conn_id: The AWS connection ID to use.
-       :type aws_conn_id: string
+       :type aws_conn_id: str
 
        **Example**:
            The following operator would start a tuning job when executed

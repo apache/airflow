@@ -30,14 +30,14 @@ class S3ListOperator(BaseOperator):
     used by `xcom` in the downstream task.
 
     :param bucket: The S3 bucket where to find the objects. (templated)
-    :type bucket: string
+    :type bucket: str
     :param prefix: Prefix string to filters the objects whose name begin with
         such prefix. (templated)
-    :type prefix: string
+    :type prefix: str
     :param delimiter: the delimiter marks key hierarchy. (templated)
-    :type delimiter: string
+    :type delimiter: str
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
-    :type aws_conn_id: string
+    :type aws_conn_id: str
     :parame verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
