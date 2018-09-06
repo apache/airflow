@@ -59,9 +59,9 @@ def _deep_string_coerce(content, json_path='json'):
 
 def _handle_databricks_operator_execution(operator, hook, log, context):
     """
-    Handles the Airflow + Databricks lifecycle logic for a data bricks operator
-    :param operator: databricks operator being handled
-    :param context: airflow context
+    Handles the Airflow + Databricks lifecycle logic for a Databricks operator
+    :param operator: Databricks operator being handled
+    :param context: Airflow context
     """
     if operator.do_xcom_push:
         context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
