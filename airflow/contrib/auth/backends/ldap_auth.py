@@ -74,7 +74,8 @@ def get_ldap_connection(dn=None, password=None):
     return conn
 
 
-def user_groups_contain_target_group(conn, search_base, group_filter, user_name_attr, group_names_of_user):
+def user_groups_contain_target_group(conn, search_base, group_filter, user_name_attr,
+                                     group_names_of_user):
     search_filter = '(&({0}))'.format(group_filter)
 
     if not conn.search(native(search_base), native(search_filter),
@@ -82,10 +83,10 @@ def user_groups_contain_target_group(conn, search_base, group_filter, user_name_
         log.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for entry in conn.entries:
-        	for name in group_names_of_user:
-            	if name.lower() in map(lambda attr: attr.lower(),
-                                       	getattr(entry, user_name_attr).values):
-                	return True
+            for name in group_names_of_user:
+                if name.lower() in map(lambda attr: attr.lower(),
+                                       getattr(entry, user_name_attr).values):
+                    return True
 
     return False
 
@@ -182,7 +183,7 @@ class LdapUser(models.User):
                 self.ldap_groups
             )
 
-        
+
 
     @staticmethod
     def try_login(username, password):
