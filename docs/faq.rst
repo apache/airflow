@@ -66,13 +66,13 @@ How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
 Check out the ``Trigger Rule`` section in the Concepts section of the
-documentation
+documentation.
 
 Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]?
 ------------------------------------------------------------------------------------------------------
 
-Check out the ``Connections`` section in the Configuration section of the
-documentation
+Check out the ``Securing Connections`` section in the How-to Guides section of the
+documentation.
 
 What's the deal with ``start_date``?
 ------------------------------------
