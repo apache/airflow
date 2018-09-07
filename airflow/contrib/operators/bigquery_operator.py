@@ -100,6 +100,10 @@ class BigQueryOperator(BaseOperator):
         expiration as per API specifications. Note that 'field' is not available in
         conjunction with dataset.table$partition.
     :type time_partitioning: dict
+    :param cluster_fields: Request that the result of this query be stored sorted
+        by one or more columns. This is only available in conjunction with
+        time_partitioning. The order of columns given determines the sort order.
+    :type cluster_fields: list of str
     """
 
     template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
@@ -127,6 +131,7 @@ class BigQueryOperator(BaseOperator):
                  priority='INTERACTIVE',
                  time_partitioning=None,
                  api_resource_configs=None,
+                 cluster_fields=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -152,6 +157,7 @@ class BigQueryOperator(BaseOperator):
             self.time_partitioning = {}
         if api_resource_configs is None:
             self.api_resource_configs = {}
+        self.cluster_fields = cluster_fields
 
         # TODO remove `bql` in Airflow 2.0
         if self.bql:
@@ -192,6 +198,7 @@ class BigQueryOperator(BaseOperator):
             priority=self.priority,
             time_partitioning=self.time_partitioning,
             api_resource_configs=self.api_resource_configs,
+            cluster_fields=self.cluster_fields,
         )
 
     def on_kill(self):

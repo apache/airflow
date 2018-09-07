@@ -114,6 +114,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         Note that 'field' is not available in concurrency with
         dataset.table$partition.
     :type time_partitioning: dict
+    :param cluster_fields: Request that the result of this load be stored sorted
+        by one or more columns. This is only available in conjunction with
+        time_partitioning. The order of columns given determines the sort order.
+        Not applicable for external tables.
+    :type cluster_fields: list of str
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table')
@@ -146,6 +151,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  src_fmt_configs=None,
                  external_table=False,
                  time_partitioning=None,
+                 cluster_fields=None,
                  *args, **kwargs):
 
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
@@ -183,6 +189,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
         self.time_partitioning = time_partitioning
+        self.cluster_fields = cluster_fields
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
@@ -238,7 +245,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 allow_jagged_rows=self.allow_jagged_rows,
                 schema_update_options=self.schema_update_options,
                 src_fmt_configs=self.src_fmt_configs,
-                time_partitioning=self.time_partitioning)
+                time_partitioning=self.time_partitioning,
+                cluster_fields=self.cluster_fields)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
