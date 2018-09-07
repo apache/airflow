@@ -116,7 +116,7 @@ Airflow provides operators for many common tasks, including:
 - ``PythonOperator`` - calls an arbitrary Python function
 - ``EmailOperator`` - sends an email
 - ``SimpleHttpOperator`` - sends an HTTP request
-- ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
+- ``SqlOperator``, ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
