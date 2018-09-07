@@ -1457,7 +1457,7 @@ class CLIFactory(object):
         'subdir': Arg(
             ("-sd", "--subdir"),
             "File location or directory from which to look for the dag",
-            default=settings.DAGS_FOLDER),
+            default="[AIRFLOW_HOME]/dags"),
         'start_date': Arg(
             ("-s", "--start_date"), "Override start_date YYYY-MM-DD",
             type=parsedate),
@@ -1874,7 +1874,7 @@ class CLIFactory(object):
                     "If reset_dag_run option is used,"
                     " backfill will first prompt users whether airflow "
                     "should clear all the previous dag_run and task_instances "
-                    "within the backfill date range."
+                    "within the backfill date range. "
                     "If rerun_failed_tasks is used, backfill "
                     "will auto re-run the previous failed task instances"
                     " within the backfill date range.",
