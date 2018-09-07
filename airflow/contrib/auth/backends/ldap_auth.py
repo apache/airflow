@@ -156,7 +156,7 @@ class LdapUser(models.User):
             self.superuser = True
             log.debug("Missing configuration for superuser settings or empty. Skipping.")
         else:
-            self.superuser = group_contains_user(conn,
+            self.superuser = user_groups_contain_target_group(conn,
                                                  configuration.conf.get("ldap", "basedn"),
                                                  superuser_filter,
                                                  configuration.conf.get("ldap",
@@ -173,7 +173,7 @@ class LdapUser(models.User):
             log.debug("Missing configuration for data profiler settings or empty. "
                       "Skipping.")
         else:
-            self.data_profiler = group_contains_user(
+            self.data_profiler = user_groups_contain_target_group(
                 conn,
                 configuration.conf.get("ldap", "basedn"),
                 data_profiler_filter,
