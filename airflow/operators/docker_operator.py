@@ -54,9 +54,9 @@ class DockerOperator(BaseOperator):
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
     :param dns: Docker custom DNS servers
-    :type dns: str
+    :type dns: list of strings
     :param dns_search: Docker custom DNS search domain
-    :type dns_search: str
+    :type dns_search: list of strings
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
