@@ -496,7 +496,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   schema_update_options=(),
                   priority='INTERACTIVE',
                   time_partitioning=None,
-                  api_resource_configs=None):
+                  api_resource_configs=None,
+                  cluster_fields=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -563,8 +564,12 @@ class BigQueryBaseCursor(LoggingMixin):
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
         :type time_partitioning: dict
-
+        :param cluster_fields: Request that the result of this query be stored sorted
+            by one or more columns. This is only available in combination with
+            time_partitioning. The order of columns given determines the sort order.
+        :type cluster_fields: list of str
         """
+
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
         else:
@@ -629,6 +634,9 @@ class BigQueryBaseCursor(LoggingMixin):
                 'tableId': destination_table,
             }
 
+        if cluster_fields:
+            cluster_fields = {'fields': cluster_fields}
+
         query_param_list = [
             (sql, 'query', None, str),
             (priority, 'priority', 'INTERACTIVE', str),
@@ -639,7 +647,8 @@ class BigQueryBaseCursor(LoggingMixin):
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
             (time_partitioning, 'timePartitioning', {}, dict),
             (schema_update_options, 'schemaUpdateOptions', None, tuple),
-            (destination_dataset_table, 'destinationTable', None, dict)
+            (destination_dataset_table, 'destinationTable', None, dict),
+            (cluster_fields, 'clustering', None, dict),
         ]
 
         for param_tuple in query_param_list:
@@ -854,7 +863,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  allow_jagged_rows=False,
                  schema_update_options=(),
                  src_fmt_configs=None,
-                 time_partitioning=None):
+                 time_partitioning=None,
+                 cluster_fields=None):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -916,6 +926,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and  expiration as per API specifications.
         :type time_partitioning: dict
+        :param cluster_fields: Request that the result of this load be stored sorted
+            by one or more columns. This is only available in combination with
+            time_partitioning. The order of columns given determines the sort order.
+        :type cluster_fields: list of str
         """
 
         # bigquery only allows certain source formats
@@ -978,6 +992,9 @@ class BigQueryBaseCursor(LoggingMixin):
             configuration['load'].update({
                 'timePartitioning': time_partitioning
             })
+
+        if cluster_fields:
+            configuration['load'].update({'clustering': {'fields': cluster_fields}})
 
         if schema_fields:
             configuration['load']['schema'] = {'fields': schema_fields}
