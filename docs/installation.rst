@@ -68,7 +68,7 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 | jdbc          | ``pip install apache-airflow[jdbc]``         | JDBC hooks and operators                        |
 +---------------+----------------------------------------------+-------------------------------------------------+
-| kerbero s     | ``pip install apache-airflow[kerberos]``     | Kerberos integration for Kerberized Hadoop      |
+| kerberos      | ``pip install apache-airflow[kerberos]``     | Kerberos integration for Kerberized Hadoop      |
 +---------------+----------------------------------------------+-------------------------------------------------+
 | ldap          | ``pip install apache-airflow[ldap]``         | LDAP authentication for users                   |
 +---------------+----------------------------------------------+-------------------------------------------------+
