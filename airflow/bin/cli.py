@@ -1443,6 +1443,19 @@ Arg = namedtuple(
 Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
 
 
+@cli_utils.action_logging
+def config(args):
+    """
+    Prints config file contents to STDOUT.
+    :param args:
+    :return:
+    """
+    config_file_path = os.path.join(settings.AIRFLOW_HOME, "airflow.cfg")
+    log.info("Config file location: {}".format(config_file_path))
+    with open(config_file_path, 'r') as config_file:
+        print(config_file.read())
+
+
 class CLIFactory(object):
     args = {
         # Shared
@@ -2039,6 +2052,11 @@ class CLIFactory(object):
         {
             'func': sync_perm,
             'help': "Update existing role's permissions.",
+            'args': tuple(),
+        },
+        {
+            'func': config,
+            'help': "Displaying config file",
             'args': tuple(),
         }
     )
