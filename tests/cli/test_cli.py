@@ -20,9 +20,12 @@
 
 import unittest
 
+from datetime import datetime, timedelta, time
 from mock import patch, Mock, MagicMock
 from time import sleep
 import psutil
+import pytz
+import subprocess
 from argparse import Namespace
 from airflow import settings
 from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
@@ -165,3 +168,80 @@ class TestCLI(unittest.TestCase):
             ti.refresh_from_db()
             state = ti.current_state()
             self.assertEqual(state, State.SUCCESS)
+
+    def test_next_execution(self):
+        # A scaffolding function
+        def reset_dr_db(dag_id):
+            session = Session()
+            dr = session.query(models.DagRun).filter_by(dag_id=dag_id)
+            dr.delete()
+            session.commit()
+            session.close()
+
+        EXAMPLE_DAGS_FOLDER = os.path.join(
+            os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.realpath(__file__))
+                )
+            ),
+            "airflow/example_dags"
+        )
+
+        dagbag = models.DagBag(dag_folder=EXAMPLE_DAGS_FOLDER,
+                               include_examples=False)
+        dag_ids = ['example_bash_operator',  # schedule_interval is '0 0 * * *'
+                   'latest_only',  # schedule_interval is timedelta(hours=4)
+                   'example_python_operator',  # schedule_interval=None
+                   'example_xcom']  # schedule_interval="@once"
+
+        # The details below is determined by the schedule_interval of example DAGs
+        now = timezone.utcnow()
+        next_execution_time_for_dag1 = pytz.utc.localize(
+            datetime.combine(
+                now.date() + timedelta(days=1),
+                time(0)
+            )
+        )
+        next_execution_time_for_dag2 = now + timedelta(hours=4)
+        expected_output = [str(next_execution_time_for_dag1),
+                           str(next_execution_time_for_dag2),
+                           "None",
+                           "None"]
+
+        for i in range(len(dag_ids)):
+            dag_id = dag_ids[i]
+
+            # Clear dag run so no execution history fo each DAG
+            reset_dr_db(dag_id)
+
+            p = subprocess.Popen(["airflow", "next_execution", dag_id,
+                                  "--subdir", EXAMPLE_DAGS_FOLDER],
+                                 stdout=subprocess.PIPE)
+            p.wait()
+            stdout = []
+            for line in p.stdout:
+                stdout.append(str(line.decode("utf-8").rstrip()))
+
+            # `next_execution` function is inapplicable if no execution record found
+            # It prints `None` in such cases
+            self.assertEqual(stdout[-1], "None")
+
+            dag = dagbag.dags[dag_id]
+            # Create a DagRun for each DAG, to prepare for next step
+            dag.create_dagrun(
+                run_id='manual__' + now.isoformat(),
+                execution_date=now,
+                start_date=now,
+                state=State.FAILED
+            )
+
+            p = subprocess.Popen(["airflow", "next_execution", dag_id,
+                                  "--subdir", EXAMPLE_DAGS_FOLDER],
+                                 stdout=subprocess.PIPE)
+            p.wait()
+            stdout = []
+            for line in p.stdout:
+                stdout.append(str(line.decode("utf-8").rstrip()))
+            self.assertEqual(stdout[-1], expected_output[i])
+
+            reset_dr_db(dag_id)
