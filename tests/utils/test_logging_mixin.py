@@ -86,8 +86,8 @@ class TestStreamLogWriter(unittest.TestCase):
 
         self.assertEqual(log._buffer, msg)
 
-        log.write("\n")
-        logger.log.assert_called_once_with(1, msg + "\n")
+        log.write(" \n")
+        logger.log.assert_called_once_with(1, msg)
 
         self.assertEqual(log._buffer, "")
 
