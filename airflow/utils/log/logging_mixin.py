@@ -92,7 +92,7 @@ class StreamLogWriter(object):
             self._buffer += message
         else:
             self._buffer += message
-            self.logger.log(self.level, self._buffer)
+            self.logger.log(self.level, self._buffer.rstrip())
             self._buffer = str()
 
     def flush(self):
