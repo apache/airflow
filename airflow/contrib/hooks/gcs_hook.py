@@ -24,7 +24,7 @@ from googleapiclient import errors
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
 
-import gzip
+import gzip as gz
 import shutil
 import re
 import os
@@ -196,7 +196,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             filename_gz = filename + '.gz'
 
             with open(filename, 'rb') as f_in:
-                with gzip.open(filename_gz, 'wb') as f_out:
+                with gz.open(filename_gz, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
                     filename = filename_gz
 
