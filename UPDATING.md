@@ -5,13 +5,6 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-### Rename of BashTaskRunner to StandardTaskRunner
-
-BashTaskRunner has been renamed to StandardTaskRunner. It is the default task runner
-so you might need to update your config.
-
-`task_runner = StandardTaskRunner`
-
 ### min_file_parsing_loop_time config option temporarily disabled
 
 The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
