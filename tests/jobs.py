@@ -3235,7 +3235,7 @@ class SchedulerJobTest(unittest.TestCase):
         detected_files = []
         expected_files = []
         for file_name in os.listdir(TEST_DAGS_FOLDER):
-            if file_name.endswith('.py') or file_name.endswith('.zip'):
+            if file_name.lower().endswith('.py') or file_name.lower().endswith('.zip'):
                 if file_name not in ['no_dags.py']:
                     expected_files.append(
                         '{}/{}'.format(TEST_DAGS_FOLDER, file_name))

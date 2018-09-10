@@ -208,7 +208,7 @@ def list_py_file_paths(directory, safe_mode=True):
                         continue
                     mod_name, file_ext = os.path.splitext(
                         os.path.split(file_path)[-1])
-                    if file_ext != '.py' and not zipfile.is_zipfile(file_path):
+                    if file_ext.lower() != '.py' and not zipfile.is_zipfile(file_path):
                         continue
                     if any([re.findall(p, file_path) for p in patterns]):
                         continue
