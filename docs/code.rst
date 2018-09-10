@@ -183,6 +183,8 @@ Operators
 .. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator
 .. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator
 .. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
+.. autoclass:: airflow.contrib.operators.s3_copy_object_operator.S3CopyObjectOperator
+.. autoclass:: airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.segment_track_event_operator.SegmentTrackEventOperator
