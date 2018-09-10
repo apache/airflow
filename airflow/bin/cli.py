@@ -80,6 +80,11 @@ api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
 
 log = LoggingMixin().log
 
+DAGS_FOLDER = settings.DAGS_FOLDER
+
+if "BUILDING_AIRFLOW_DOCS" in os.environ:
+    DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
+
 
 def sigint_handler(sig, frame):
     sys.exit(0)
@@ -133,7 +138,7 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 def process_subdir(subdir):
     if subdir:
-        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = subdir.replace('DAGS_FOLDER', DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
         return subdir
 
@@ -1456,8 +1461,10 @@ class CLIFactory(object):
             "The regex to filter specific task_ids to backfill (optional)"),
         'subdir': Arg(
             ("-sd", "--subdir"),
-            "File location or directory from which to look for the dag",
-            default=settings.DAGS_FOLDER),
+            "File location or directory from which to look for the dag. "
+            "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
+            "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' ",
+            default=DAGS_FOLDER),
         'start_date': Arg(
             ("-s", "--start_date"), "Override start_date YYYY-MM-DD",
             type=parsedate),
@@ -1874,7 +1881,7 @@ class CLIFactory(object):
                     "If reset_dag_run option is used,"
                     " backfill will first prompt users whether airflow "
                     "should clear all the previous dag_run and task_instances "
-                    "within the backfill date range."
+                    "within the backfill date range. "
                     "If rerun_failed_tasks is used, backfill "
                     "will auto re-run the previous failed task instances"
                     " within the backfill date range.",
