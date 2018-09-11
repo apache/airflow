@@ -38,6 +38,11 @@ It is no longer required to set one of the environment variables to avoid
 a GPL dependency. Airflow will now always use text-unidecode if unidecode
 was not installed before.
 
+### new `sync_parallelism` config option in celery section
+
+The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
+fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+
 ## Airflow 1.10.2
 
 ### Modification to `ts_nodash` macro
@@ -91,11 +96,6 @@ then you need to change it like this
 
 The DAG parsing manager log now by default will be log into a file, where its location is
 controlled by the new `dag_processor_manager_log_location` config option in core section.
-
-### new `sync_parallelism` config option in celery section
-
-The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
-fetch celery task state in parallel. Default value is max(1, number of cores - 1)
 
 ### StatsD Metrics
 
