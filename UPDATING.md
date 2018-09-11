@@ -17,6 +17,11 @@ so you might need to update your config.
 The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
 some bugs.
 
+### new `sync_parallelism` config option in celery section
+
+The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
+fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+
 ## Airflow 1.10
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
