@@ -350,6 +350,7 @@ BigQuery Operators
 - :ref:`BigQueryCreateEmptyTableOperator` : Creates a new, empty table in the specified BigQuery dataset optionally with schema.
 - :ref:`BigQueryCreateExternalTableOperator` : Creates a new, external table in the dataset with the data in Google Cloud Storage.
 - :ref:`BigQueryDeleteDatasetOperator` : Deletes an existing BigQuery dataset.
+- :ref:`BigQueryCreateEmptyDatasetOperator` : Creates an empty BigQuery dataset.
 - :ref:`BigQueryOperator` : Executes BigQuery SQL queries in a specific BigQuery database.
 - :ref:`BigQueryToBigQueryOperator` : Copy a BigQuery table to another BigQuery table.
 - :ref:`BigQueryToCloudStorageOperator` : Transfers a BigQuery table to a Google Cloud Storage bucket
@@ -403,6 +404,13 @@ BigQueryDeleteDatasetOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
+
+.. _BigQueryCreateEmptyDatasetOperator:
+
+BigQueryCreateEmptyDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator
 
 .. _BigQueryOperator:
 
