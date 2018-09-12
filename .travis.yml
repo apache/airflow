@@ -56,8 +56,6 @@ install:
   - pip install --upgrade pip
   - pip install tox
   - pip install codecov
-  - pip install boto3
-  - pip install moto
 script:
   - ./scripts/ci/run-ci.sh
 after_success:
