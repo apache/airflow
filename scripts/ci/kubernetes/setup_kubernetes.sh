@@ -22,8 +22,6 @@ echo "This script downloads minikube, starts a driver=None minikube cluster, bui
 echo "For development, start minikube yourself (ie: minikube start) then run this script as you probably do not want a driver=None minikube cluster"
 
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
-#rm  /etc/docker/daemon.json
-#sudo cp $DIRNAME/daemon.json /etc/docker/
 $DIRNAME/minikube/start_kubeadm.sh
 $DIRNAME/docker/build.sh
 $DIRNAME/kube/deploy.sh
