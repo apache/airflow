@@ -18,7 +18,7 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -x
+set -x -e
 
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../.."
