@@ -19,6 +19,7 @@
 #
 
 import unittest
+from airflow.contrib.hooks.gcp_dataproc_hook import _DataProcJob
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
 
 try:
@@ -48,6 +49,48 @@ class DataProcHookTest(unittest.TestCase):
 
     @mock.patch(DATAPROC_STRING.format('_DataProcJob'))
     def test_submit(self, job_mock):
-      with mock.patch(DATAPROC_STRING.format('DataProcHook.get_conn', return_value=None)):
-        self.dataproc_hook.submit(PROJECT_ID, JOB)
-        job_mock.assert_called_once_with(mock.ANY, PROJECT_ID, JOB, REGION)
+        with mock.patch(DATAPROC_STRING.format('DataProcHook.get_conn',
+                                               return_value=None)):
+            self.dataproc_hook.submit(PROJECT_ID, JOB)
+            job_mock.assert_called_once_with(mock.ANY, PROJECT_ID, JOB, REGION,
+                                             job_error_states=mock.ANY)
+
+
+class DataProcJobTest(unittest.TestCase):
+    @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
+    def test_raise_error_default_job_error_states(self, mock_init):
+        job = _DataProcJob()
+        job.job = {'status': {'state': 'ERROR'}}
+        job.job_error_states = None
+        with self.assertRaises(Exception) as cm:
+            job.raise_error()
+        self.assertIn('ERROR', str(cm.exception))
+
+    @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
+    def test_raise_error_custom_job_error_states(self, mock_init):
+        job = _DataProcJob()
+        job.job = {'status': {'state': 'CANCELLED'}}
+        job.job_error_states = ['ERROR', 'CANCELLED']
+        with self.assertRaises(Exception) as cm:
+            job.raise_error()
+        self.assertIn('CANCELLED', str(cm.exception))
+
+    @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
+    def test_raise_error_fallback_job_error_states(self, mock_init):
+        job = _DataProcJob()
+        job.job = {'status': {'state': 'ERROR'}}
+        job.job_error_states = ['CANCELLED']
+        with self.assertRaises(Exception) as cm:
+            job.raise_error()
+        self.assertIn('ERROR', str(cm.exception))
+
+    @mock.patch(DATAPROC_STRING.format('_DataProcJob.__init__'), return_value=None)
+    def test_raise_error_with_state_done(self, mock_init):
+        job = _DataProcJob()
+        job.job = {'status': {'state': 'DONE'}}
+        job.job_error_states = None
+        try:
+            job.raise_error()
+            # Pass test
+        except Exception:
+            self.fail("raise_error() should not raise Exception when job=%s" % job.job)
