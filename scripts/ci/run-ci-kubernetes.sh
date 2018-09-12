@@ -25,7 +25,7 @@ AIRFLOW_ROOT="$DIRNAME/../.."
 
 # Fix file permissions
 sudo chown -R travis.travis . $HOME/.wheelhouse/ $HOME/.cache/pip
-
+sudo apt-get install python3-pip
 
 if [[ $PYTHON_VERSION == '3' ]]; then
   PIP=pip3
