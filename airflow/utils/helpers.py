@@ -32,7 +32,6 @@ import imp
 import os
 import re
 import signal
-import subprocess
 import sys
 import warnings
 
@@ -226,6 +225,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
+
     def on_terminate(p):
         log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
 
@@ -281,10 +281,10 @@ class AirflowImporter(object):
         """
         :param parent_module: The string package name of the parent module. For
             example, 'airflow.operators'
-        :type parent_module: string
+        :type parent_module: str
         :param module_attributes: The file to class mappings for all importable
             classes.
-        :type module_attributes: string
+        :type module_attributes: str
         """
         self._parent_module = parent_module
         self._attribute_modules = self._build_attribute_modules(module_attributes)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -17,24 +16,14 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
-AIRFLOW_ROOT="$DIRNAME/../.."
-cd $AIRFLOW_ROOT && pip --version && ls -l $HOME/.wheelhouse && tox --version
+set -exuo pipefail
 
-if [ -z "$KUBERNETES_VERSION" ];
-then
-  tox -e $TOX_ENV
-else
-  KUBERNETES_VERSION=${KUBERNETES_VERSION} $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.minikube \
-                     --with-coverage \
-                     --cover-erase \
-                     --cover-html \
-                     --cover-package=airflow \
-                     --cover-html-dir=airflow/www/static/coverage \
-                     --with-ignore-docstrings \
-                     --rednose \
-                     --with-timer \
-                     -v \
-                     --logging-level=DEBUG
-fi
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DATA_DIR="${DIR}/data"
+DATA_FILE="${DATA_DIR}/baby_names.csv"
+DATABASE=airflow_ci
+HOST=mysql
+
+mysqladmin -h ${HOST} -u root create ${DATABASE}
+mysql -h ${HOST} -u root < ${DATA_DIR}/mysql_schema.sql
+mysqlimport --local -h ${HOST} -u root --fields-optionally-enclosed-by="\"" --fields-terminated-by=, --ignore-lines=1 ${DATABASE} ${DATA_FILE}

@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -8,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,19 +17,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -o verbose
+import unittest
+from airflow.utils.email import get_email_address_list
 
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-LDAP_DB=/tmp/ldap_db
+EMAILS = ['test1@example.com', 'test2@example.com']
 
-echo "Creating database directory"
 
-rm -rf ${LDAP_DB} && mkdir ${LDAP_DB} && cp  /usr/share/doc/slapd/examples/DB_CONFIG ${LDAP_DB}
+class EmailTest(unittest.TestCase):
 
-echo "Launching OpenLDAP ..."
+    def test_get_email_address_comma_sep_string(self):
+        emails_string = 'test1@example.com, test2@example.com'
 
-# Start slapd with non root privileges
-slapd -h "ldap://127.0.0.1:3890/" -f ${DIR}/slapd.conf
+        self.assertEquals(
+            get_email_address_list(emails_string), EMAILS)
 
-# Wait for LDAP to start
-sleep 1
+    def test_get_email_address_colon_sep_string(self):
+        emails_string = 'test1@example.com; test2@example.com'
+
+        self.assertEquals(
+            get_email_address_list(emails_string), EMAILS)
+
+    def test_get_email_address_list(self):
+        emails_list = ['test1@example.com', 'test2@example.com']
+
+        self.assertEquals(
+            get_email_address_list(emails_list), EMAILS)

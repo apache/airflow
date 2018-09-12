@@ -28,7 +28,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     If it fails the sensor errors, failing the task.
 
     :param job_name: job_name of the training instance to check the state of
-    :type job_name: string
+    :type job_name: str
     """
 
     template_fields = ['job_name']

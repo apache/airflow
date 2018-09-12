@@ -18,10 +18,12 @@
 # under the License.
 import sys
 import unittest
+import mock
 from celery.contrib.testing.worker import start_worker
 
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.celery_executor import app
+from airflow.executors.celery_executor import CELERY_FETCH_ERR_MSG_HEADER
 from airflow.utils.state import State
 
 # leave this it is used by the test worker
@@ -34,8 +36,8 @@ class CeleryExecutorTest(unittest.TestCase):
         executor.start()
         with start_worker(app=app, logfile=sys.stdout, loglevel='debug'):
 
-            success_command = ['true', ]
-            fail_command = ['false', ]
+            success_command = ['true', 'some_parameter']
+            fail_command = ['false', 'some_parameter']
 
             executor.execute_async(key='success', command=success_command)
             # errors are propagated for some reason
@@ -53,6 +55,29 @@ class CeleryExecutorTest(unittest.TestCase):
 
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
+
+        self.assertNotIn('success', executor.last_state)
+        self.assertNotIn('fail', executor.last_state)
+
+    def test_exception_propagation(self):
+        @app.task
+        def fake_celery_task():
+            return {}
+
+        mock_log = mock.MagicMock()
+        executor = CeleryExecutor()
+        executor._log = mock_log
+
+        executor.tasks = {'key': fake_celery_task()}
+        executor.sync()
+        mock_log.error.assert_called_once()
+        args, kwargs = mock_log.error.call_args_list[0]
+        log = args[0]
+        # Result of queuing is not a celery task but a dict,
+        # and it should raise AttributeError and then get propagated
+        # to the error log.
+        self.assertIn(CELERY_FETCH_ERR_MSG_HEADER, log)
+        self.assertIn('AttributeError', log)
 
 
 if __name__ == '__main__':

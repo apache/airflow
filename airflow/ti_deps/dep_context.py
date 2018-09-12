@@ -49,20 +49,20 @@ class DepContext(object):
         creation while checking to see whether the task instance is runnable. It was the
         shortest path to add the feature. This is bad since this class should be pure (no
         side effects).
-    :type flag_upstream_failed: boolean
+    :type flag_upstream_failed: bool
     :param ignore_all_deps: Whether or not the context should ignore all ignoreable
         dependencies. Overrides the other ignore_* parameters
-    :type ignore_all_deps: boolean
+    :type ignore_all_deps: bool
     :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
         Backfills)
-    :type ignore_depends_on_past: boolean
+    :type ignore_depends_on_past: bool
     :param ignore_in_retry_period: Ignore the retry period for task instances
-    :type ignore_in_retry_period: boolean
+    :type ignore_in_retry_period: bool
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
-    :type ignore_task_deps: boolean
+    :type ignore_task_deps: bool
     :param ignore_ti_state: Ignore the task instance's previous failure/success
-    :type ignore_ti_state: boolean
+    :type ignore_ti_state: bool
     """
     def __init__(
             self,

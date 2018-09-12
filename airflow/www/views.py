@@ -22,7 +22,6 @@ import ast
 import codecs
 import copy
 import datetime as dt
-import inspect
 import itertools
 import json
 import logging
@@ -365,6 +364,7 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
         'dr_state': dr_state,
     }
 
+
 class Airflow(BaseView):
     def is_visible(self):
         return False
@@ -481,8 +481,6 @@ class Airflow(BaseView):
             else:
                 if chart.sql_layout == 'series':
                     # User provides columns (series, x, y)
-                    xaxis_label = df.columns[1]
-                    yaxis_label = df.columns[2]
                     df[df.columns[2]] = df[df.columns[2]].astype(np.float)
                     df = df.pivot_table(
                         index=df.columns[1],
@@ -490,8 +488,6 @@ class Airflow(BaseView):
                         values=df.columns[2], aggfunc=np.sum)
                 else:
                     # User provides columns (x, y, metric1, metric2, ...)
-                    xaxis_label = df.columns[0]
-                    yaxis_label = 'y'
                     df.index = df[df.columns[0]]
                     df = df.sort(df.columns[0])
                     del df[df.columns[0]]
@@ -599,8 +595,8 @@ class Airflow(BaseView):
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state != State.RUNNING)
-                .filter(Dag.is_active == True)
-                .filter(Dag.is_subdag == False)
+                .filter(Dag.is_active == True)  # noqa: E712
+                .filter(Dag.is_subdag == False)  # noqa: E712
                 .group_by(DagRun.dag_id)
                 .subquery('last_dag_run')
         )
@@ -608,8 +604,8 @@ class Airflow(BaseView):
             session.query(DagRun.dag_id, DagRun.execution_date)
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state == State.RUNNING)
-                .filter(Dag.is_active == True)
-                .filter(Dag.is_subdag == False)
+                .filter(Dag.is_active == True)  # noqa: E712
+                .filter(Dag.is_subdag == False)  # noqa: E712
                 .subquery('running_dag_run')
         )
 
@@ -665,7 +661,7 @@ class Airflow(BaseView):
         dag = dagbag.get_dag(dag_id)
         title = dag_id
         try:
-            with open(dag.fileloc, 'r') as f:
+            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
@@ -883,7 +879,7 @@ class Airflow(BaseView):
         for attr_name in dir(ti):
             if not attr_name.startswith('_'):
                 attr = getattr(ti, attr_name)
-                if type(attr) != type(self.task):
+                if type(attr) != type(self.task):  # noqa: E721
                     ti_attrs.append((attr_name, str(attr)))
 
         task_attrs = []
@@ -891,7 +887,7 @@ class Airflow(BaseView):
             if not attr_name.startswith('_'):
                 attr = getattr(task, attr_name)
                 if type(attr) != type(self.task) and \
-                        attr_name not in attr_renderer:
+                        attr_name not in attr_renderer:  # noqa: E721
                     task_attrs.append((attr_name, str(attr)))
 
         # Color coding the special attributes that are code
@@ -996,16 +992,25 @@ class Airflow(BaseView):
         ignore_task_deps = request.args.get('ignore_task_deps') == "true"
         ignore_ti_state = request.args.get('ignore_ti_state') == "true"
 
+        from airflow.executors import GetDefaultExecutor
+        executor = GetDefaultExecutor()
+        valid_celery_config = False
+        valid_kubernetes_config = False
+
         try:
-            from airflow.executors import GetDefaultExecutor
             from airflow.executors.celery_executor import CeleryExecutor
-            executor = GetDefaultExecutor()
-            if not isinstance(executor, CeleryExecutor):
-                flash("Only works with the CeleryExecutor, sorry", "error")
-                return redirect(origin)
+            valid_celery_config = isinstance(executor, CeleryExecutor)
         except ImportError:
-            # in case CeleryExecutor cannot be imported it is not active either
-            flash("Only works with the CeleryExecutor, sorry", "error")
+            pass
+
+        try:
+            from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+            valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
+        except ImportError:
+            pass
+
+        if not valid_celery_config and not valid_kubernetes_config:
+            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
         ti = models.TaskInstance(task=task, execution_date=execution_date)
@@ -1166,7 +1171,6 @@ class Airflow(BaseView):
     @wwwutils.notify_owner
     def dagrun_clear(self):
         dag_id = request.args.get('dag_id')
-        task_id = request.args.get('task_id')
         origin = request.args.get('origin')
         execution_date = request.args.get('execution_date')
         confirmed = request.args.get('confirmed') == "true"

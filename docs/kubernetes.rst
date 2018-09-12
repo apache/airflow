@@ -87,11 +87,13 @@ Kubernetes Operator
                               arguments=["echo", "10"],
                               labels={"foo": "bar"},
                               secrets=[secret_file,secret_env]
-                              volume=[volume],
+                              volumes=[volume],
                               volume_mounts=[volume_mount]
                               name="test",
                               task_id="task",
-                              affinity=affinity
+                              affinity=affinity,
+                              is_delete_operator_pod=True,
+                              hostnetwork=False
                               )
 
 

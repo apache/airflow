@@ -72,7 +72,7 @@ from pendulum import utcnow
 
 import six
 
-NUM_EXAMPLE_DAGS = 21
+NUM_EXAMPLE_DAGS = 18
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -625,6 +625,35 @@ class CoreTest(unittest.TestCase):
             some_templated_field=NonBoolObject(),
             dag=self.dag)
         t.resolve_template_files()
+
+    def test_task_get_template(self):
+        TI = models.TaskInstance
+        ti = TI(
+            task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti.dag = self.dag_bash
+        ti.run(ignore_ti_state=True)
+        context = ti.get_template_context()
+
+        # DEFAULT DATE is 2015-01-01
+        self.assertEquals(context['ds'], '2015-01-01')
+        self.assertEquals(context['ds_nodash'], '20150101')
+
+        # next_ds is 2015-01-02 as the dag interval is daily
+        self.assertEquals(context['next_ds'], '2015-01-02')
+        self.assertEquals(context['next_ds_nodash'], '20150102')
+
+        # prev_ds is 2014-12-31 as the dag interval is daily
+        self.assertEquals(context['prev_ds'], '2014-12-31')
+        self.assertEquals(context['prev_ds_nodash'], '20141231')
+
+        self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
+        self.assertEquals(context['ts_nodash'], '20150101T000000+0000')
+
+        self.assertEquals(context['yesterday_ds'], '2014-12-31')
+        self.assertEquals(context['yesterday_ds_nodash'], '20141231')
+
+        self.assertEquals(context['tomorrow_ds'], '2015-01-02')
+        self.assertEquals(context['tomorrow_ds_nodash'], '20150102')
 
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
@@ -1483,6 +1512,42 @@ class CliTests(unittest.TestCase):
         except Exception as e:
             self.fail("The 'pool' command raised unexpectedly: %s" % e)
 
+    def test_pool_import_export(self):
+        # Create two pools first
+        pool_config_input = {
+            "foo": {
+                "description": "foo_test",
+                "slots": 1
+            },
+            "baz": {
+                "description": "baz_test",
+                "slots": 2
+            }
+        }
+        with open('pools_import.json', mode='w') as f:
+            json.dump(pool_config_input, f)
+
+        # Import json
+        try:
+            cli.pool(self.parser.parse_args(['pool', '-i', 'pools_import.json']))
+        except Exception as e:
+            self.fail("The 'pool -i pools_import.json' failed: %s" % e)
+
+        # Export json
+        try:
+            cli.pool(self.parser.parse_args(['pool', '-e', 'pools_export.json']))
+        except Exception as e:
+            self.fail("The 'pool -e pools_export.json' failed: %s" % e)
+
+        with open('pools_export.json', mode='r') as f:
+            pool_config_output = json.load(f)
+            self.assertEqual(
+                pool_config_input,
+                pool_config_output,
+                "Input and output pool files are not same")
+        os.remove('pools_import.json')
+        os.remove('pools_export.json')
+
     def test_variables(self):
         # Checks if all subcommands are properly received
         cli.variables(self.parser.parse_args([
@@ -2078,7 +2143,7 @@ class WebLdapAuthTest(unittest.TestCase):
             configuration.conf.add_section("ldap")
         except:
             pass
-        configuration.conf.set("ldap", "uri", "ldap://localhost:3890")
+        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
         configuration.conf.set("ldap", "user_name_attr", "uid")
         configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
@@ -2165,7 +2230,7 @@ class LdapGroupTest(unittest.TestCase):
             configuration.conf.add_section("ldap")
         except:
             pass
-        configuration.conf.set("ldap", "uri", "ldap://localhost:3890")
+        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
         configuration.conf.set("ldap", "user_name_attr", "uid")
         configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")

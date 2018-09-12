@@ -34,9 +34,9 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
        The configuration necessary to start a training job (templated)
        :type training_job_config: dict
        :param region_name: The AWS region_name
-       :type region_name: string
+       :type region_name: str
        :param sagemaker_conn_id: The SageMaker connection ID to use.
-       :type sagemaker_conn_id: string
+       :type sagemaker_conn_id: str
        :param use_db_config: Whether or not to use db config
        associated with sagemaker_conn_id.
        If set to true, will automatically update the training config
@@ -45,7 +45,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
        in the training_job_config, so be careful
        :type use_db_config: bool
        :param aws_conn_id: The AWS connection ID to use.
-       :type aws_conn_id: string
+       :type aws_conn_id: str
        :param wait_for_completion: if the operator should block
        until training job finishes
        :type wait_for_completion: bool

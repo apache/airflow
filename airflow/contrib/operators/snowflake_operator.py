@@ -26,16 +26,16 @@ class SnowflakeOperator(BaseOperator):
     Executes sql code in a Snowflake database
 
     :param snowflake_conn_id: reference to specific snowflake connection id
-    :type snowflake_conn_id: string
+    :type snowflake_conn_id: str
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
     :param warehouse: name of warehouse which overwrite defined
         one in connection
-    :type warehouse: string
+    :type warehouse: str
     :param database: name of database which overwrite defined one in connection
-    :type database: string
+    :type database: str
     """
 
     template_fields = ('sql',)

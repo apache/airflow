@@ -63,6 +63,8 @@ use one of these cron "preset":
 | ``@yearly``  | Run once a year at midnight of January 1                       | ``0 0 1 1 *`` |
 +--------------+----------------------------------------------------------------+---------------+
 
+**Note**: Use ``schedule_interval=None`` and not ``schedule_interval='None'`` when
+you don't want to schedule your DAG.
 
 Your DAG will be instantiated
 for each schedule, while creating a ``DAG Run`` entry for each schedule.
@@ -94,7 +96,7 @@ interval series.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -109,11 +111,15 @@ interval series.
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        'schedule_interval': '@hourly',
+        'retry_delay': timedelta(minutes=5)
     }
 
-    dag = DAG('tutorial', catchup=False, default_args=default_args)
+    dag = DAG(
+        'tutorial',
+        default_args=default_args,
+        description='A simple tutorial DAG',
+        schedule_interval='@hourly',
+        catchup=False)
 
 In the example above, if the DAG is picked up by the scheduler daemon on 2016-01-02 at 6 AM, (or from the
 command line), a single DAG Run will be created, with an ``execution_date`` of 2016-01-01, and the next
