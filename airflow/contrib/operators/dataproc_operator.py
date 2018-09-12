@@ -68,6 +68,9 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type metadata: dict
     :param image_version: the version of software inside the Dataproc cluster
     :type image_version: str
+    :param custom_image: custom Dataproc image for more info see
+        https://cloud.google.com/dataproc/docs/guides/dataproc-images
+    :type: custom_image: str
     :param properties: dict of properties to set on
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
@@ -148,6 +151,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  init_actions_uris=None,
                  init_action_timeout="10m",
                  metadata=None,
+                 custom_image=None,
                  image_version=None,
                  properties=None,
                  master_machine_type='n1-standard-4',
@@ -180,6 +184,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
         self.metadata = metadata
+        self.custom_image = custom_image
         self.image_version = image_version
         self.properties = properties
         self.master_machine_type = master_machine_type
@@ -200,6 +205,9 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.idle_delete_ttl = idle_delete_ttl
         self.auto_delete_time = auto_delete_time
         self.auto_delete_ttl = auto_delete_ttl
+
+        assert not (self.custom_image and self.image_version), \
+            "custom_image and image_version can't be both set"
 
     def _get_cluster_list_for_project(self, service):
         result = service.projects().regions().clusters().list(
@@ -338,6 +346,12 @@ class DataprocClusterCreateOperator(BaseOperator):
             cluster_data['config']['gceClusterConfig']['tags'] = self.tags
         if self.image_version:
             cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
+        elif self.custom_image:
+            custom_image_url = 'https://www.googleapis.com/compute/beta/projects/' \
+                               '{}/global/images/{}'.format(self.project_id,
+                                                            self.custom_image)
+            cluster_data['config']['masterConfig']['imageUri'] = custom_image_url
+            cluster_data['config']['workerConfig']['imageUri'] = custom_image_url
         if self.properties:
             cluster_data['config']['softwareConfig']['properties'] = self.properties
         if self.idle_delete_ttl:

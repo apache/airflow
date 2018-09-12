@@ -59,6 +59,7 @@ INTERNAL_IP_ONLY = True
 TAGS = ['tag1', 'tag2']
 STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
+CUSTOM_IMAGE = 'test-custom-image'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
 MASTER_DISK_TYPE = 'pd-standard'
@@ -263,6 +264,39 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                       "only `auto_delete_time` is used")
         self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
                          "2017-06-07T00:00:00.000000Z")
+
+    def test_init_with_image_version_and_custom_image_both_set(self):
+        with self.assertRaises(AssertionError):
+            DataprocClusterCreateOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                project_id=PROJECT_ID,
+                num_workers=NUM_WORKERS,
+                zone=ZONE,
+                dag=self.dag,
+                image_version=IMAGE_VERSION,
+                custom_image=CUSTOM_IMAGE
+            )
+
+    def test_init_with_custom_image(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=ZONE,
+            dag=self.dag,
+            custom_image=CUSTOM_IMAGE
+        )
+
+        cluster_data = dataproc_operator._build_cluster_data()
+        expected_custom_image_url = \
+            'https://www.googleapis.com/compute/beta/projects/' \
+            '{}/global/images/{}'.format(PROJECT_ID, CUSTOM_IMAGE)
+        self.assertEqual(cluster_data['config']['masterConfig']['imageUri'],
+                         expected_custom_image_url)
+        self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
+                         expected_custom_image_url)
 
     def test_cluster_name_log_no_sub(self):
         with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') \
