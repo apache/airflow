@@ -94,7 +94,7 @@ class DataFlowHookTest(unittest.TestCase):
         self.dataflow_hook.start_python_dataflow(
             task_id=TASK_ID, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
-        EXPECTED_CMD = ['python', '-m', PY_FILE,
+        EXPECTED_CMD = ['python2', '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',

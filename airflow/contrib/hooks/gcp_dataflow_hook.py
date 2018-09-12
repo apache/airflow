@@ -235,8 +235,10 @@ class DataFlowHook(GoogleCloudBaseHook):
         def label_formatter(labels_dict):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
+        # TODO: Change python2 to python when Beam supports both python 2 and 3
+        # Remember to change the test case too
         self._start_dataflow(task_id, variables, name,
-                             ["python"] + py_options + [dataflow],
+                             ["python2"] + py_options + [dataflow],
                              label_formatter)
 
     @staticmethod
