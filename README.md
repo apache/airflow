@@ -1,4 +1,4 @@
-# Airflow
+# Apache Airflow (Incubating)
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 [![Build Status](https://travis-ci.org/apache/incubator-airflow.svg?branch=master)](https://travis-ci.org/apache/incubator-airflow)
@@ -6,22 +6,16 @@
 [![Documentation Status](https://readthedocs.org/projects/airflow/badge/?version=latest)](https://airflow.readthedocs.io/en/latest/?badge=latest)
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
-[![Join the chat at https://gitter.im/apache/incubator-airflow](https://badges.gitter.im/apache/incubator-airflow.svg)](https://gitter.im/apache/incubator-airflow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 
-_NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
+_NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Apache Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
 
-Airflow is a platform to programmatically author, schedule, and monitor
-workflows.
+Apache Airflow (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
 
-Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks.
-The Airflow scheduler executes your tasks on an array of workers while
-following the specified dependencies. Rich command line utilities make
-performing complex surgeries on DAGs a snap. The rich user interface
-makes it easy to visualize pipelines running in production,
-monitor progress, and troubleshoot issues when needed.
+Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
 ## Getting started
 
@@ -51,7 +45,7 @@ unit of work and continuity.
 - **Dynamic**:  Airflow pipelines are configuration as code (Python), allowing for dynamic pipeline generation. This allows for writing code that instantiates pipelines dynamically.
 - **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
-- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers. Airflow is ready to scale to infinity.
+- **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
 ## User Interface
 
@@ -85,9 +79,9 @@ unit of work and continuity.
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/incubator-airflow/blob/master/CONTRIBUTING.md).
 
 
-## Who uses Airflow?
+## Who uses Apache Airflow?
 
-As the Airflow community grows, we'd like to keep track of who is using
+As the Apache Airflow community grows, we'd like to keep track of who is using
 the platform. Please send a PR with your company name and @githubhandle
 if you may.
 
@@ -122,11 +116,13 @@ Currently **officially** using Airflow:
 1. [Bluecore](https://www.bluecore.com) [[@JLDLaughlin](https://github.com/JLDLaughlin)]
 1. [Boda Telecom Suite - CE](https://github.com/bodastage/bts-ce) [[@erssebaggala](https://github.com/erssebaggala), [@bodastage](https://github.com/bodastage)]
 1. [Bodastage Solutions](http://bodastage.com) [[@erssebaggala](https://github.com/erssebaggala), [@bodastage](https://github.com/bodastage)]
+1. [Bombora Inc](https://bombora.com/) [[@jeffkpayne](https://github.com/jeffkpayne), [@TheOriginalAlex](https://github.com/TheOriginalAlex)]
 1. [Bonnier Broadcasting](http://www.bonnierbroadcasting.com) [[@wileeam](https://github.com/wileeam)]
 1. [BounceX](http://www.bouncex.com) [[@JoshFerge](https://github.com/JoshFerge), [@hudsonrio](https://github.com/hudsonrio), [@ronniekritou](https://github.com/ronniekritou)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
 1. [California Data Collaborative](https://github.com/California-Data-Collaborative) powered by [ARGO Labs](http://www.argolabs.org)
 1. [Carbonite](https://www.carbonite.com) [[@ajbosco](https://github.com/ajbosco)]
+1. [CAVA](https://www.cava.com) [[@minh5](http://github.com/minh5)]
 1. [Celect](http://www.celect.com) [[@superdosh](https://github.com/superdosh) & [@chadcelect](https://github.com/chadcelect)]
 1. [Censys](https://censys.io) [[@zakird](https://github.com/zakird), [@dadrian](https://github.com/dadrian), & [@andrewsardone](https://github.com/andrewsardone)]
 1. [Change.org](https://www.change.org) [[@change](https://github.com/change), [@vijaykramesh](https://github.com/vijaykramesh)]
@@ -153,6 +149,7 @@ Currently **officially** using Airflow:
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@WesleyBatista](https://github.com/WesleyBatista) & [@diraol](https://github.com/diraol)]
+1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
 1. [eRevalue](https://www.datamaran.com) [[@hamedhsn](https://github.com/hamedhsn)]
 1. [evo.company](https://evo.company/) [[@orhideous](https://github.com/orhideous)]
 1. [Flipp](https://www.flipp.com) [[@sethwilsonwishabi](https://github.com/sethwilsonwishabi)]
@@ -289,10 +286,9 @@ Currently **officially** using Airflow:
 1. [Zymergen](https://www.zymergen.com/)
 1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
 
-## Who Maintains Airflow?
+## Who Maintains Apache Airflow?
 
-Airflow is the work of the
-[community](https://github.com/apache/incubator-airflow/graphs/contributors),
+Airflow is the work of the [community](https://github.com/apache/incubator-airflow/graphs/contributors),
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
 If you would like to become a maintainer, please review the Apache Airflow
@@ -301,6 +297,6 @@ If you would like to become a maintainer, please review the Apache Airflow
 ## Links
 
 - [Documentation](https://airflow.incubator.apache.org/)
-- [Chat](https://gitter.im/apache/incubator-airflow)
+- [Chat](https://apache-airflow-slack.herokuapp.com/)
 - [Apache Airflow Incubation Status](http://incubator.apache.org/projects/airflow.html)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
