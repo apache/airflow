@@ -1379,6 +1379,8 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
+        if dag is None:
+            abort(404)
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect('/admin/')
