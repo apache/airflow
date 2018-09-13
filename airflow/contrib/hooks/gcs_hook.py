@@ -175,7 +175,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         return downloaded_file_bytes
 
     # pylint:disable=redefined-builtin
-    def upload(self, bucket, object, filename, gzip=False, mime_type='application/octet-stream'):
+    def upload(self, bucket, object, filename,
+               gzip=False, mime_type='application/octet-stream'):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -209,7 +210,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 .execute()
 
             # Clean up gzip file
-            if gzip: os.remove(filename)
+            if gzip:
+                os.remove(filename)
             return True
         except errors.HttpError as ex:
             if ex.resp['status'] == '404':
