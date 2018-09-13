@@ -80,6 +80,11 @@ api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
 
 log = LoggingMixin().log
 
+DAGS_FOLDER = settings.DAGS_FOLDER
+
+if "BUILDING_AIRFLOW_DOCS" in os.environ:
+    DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
+
 
 def sigint_handler(sig, frame):
     sys.exit(0)
@@ -133,7 +138,7 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 def process_subdir(subdir):
     if subdir:
-        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = subdir.replace('DAGS_FOLDER', DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
         return subdir
 
@@ -595,6 +600,31 @@ def dag_state(args):
     dag = get_dag(args)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
     print(dr[0].state if len(dr) > 0 else None)
+
+
+@cli_utils.action_logging
+def next_execution(args):
+    """
+    Returns the next execution datetime of a DAG at the command line.
+    >>> airflow next_execution tutorial
+    2018-08-31 10:38:00
+    """
+    dag = get_dag(args)
+
+    if dag.is_paused:
+        print("[INFO] Please be reminded this DAG is PAUSED now.")
+
+    if dag.latest_execution_date:
+        next_execution_dttm = dag.following_schedule(dag.latest_execution_date)
+
+        if next_execution_dttm is None:
+            print("[WARN] No following schedule can be found. " +
+                  "This DAG may have schedule interval '@once' or `None`.")
+
+        print(next_execution_dttm)
+    else:
+        print("[WARN] Only applicable when there is execution record found for the DAG.")
+        print(None)
 
 
 @cli_utils.action_logging
@@ -1456,8 +1486,10 @@ class CLIFactory(object):
             "The regex to filter specific task_ids to backfill (optional)"),
         'subdir': Arg(
             ("-sd", "--subdir"),
-            "File location or directory from which to look for the dag",
-            default=settings.DAGS_FOLDER),
+            "File location or directory from which to look for the dag. "
+            "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
+            "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' ",
+            default=DAGS_FOLDER),
         'start_date': Arg(
             ("-s", "--start_date"), "Override start_date YYYY-MM-DD",
             type=parsedate),
@@ -1874,7 +1906,7 @@ class CLIFactory(object):
                     "If reset_dag_run option is used,"
                     " backfill will first prompt users whether airflow "
                     "should clear all the previous dag_run and task_instances "
-                    "within the backfill date range."
+                    "within the backfill date range. "
                     "If rerun_failed_tasks is used, backfill "
                     "will auto re-run the previous failed task instances"
                     " within the backfill date range.",
@@ -2040,6 +2072,11 @@ class CLIFactory(object):
             'func': sync_perm,
             'help': "Update existing role's permissions.",
             'args': tuple(),
+        },
+        {
+            'func': next_execution,
+            'help': "Get the next execution datetime of a DAG.",
+            'args': ('dag_id', 'subdir')
         }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
