@@ -37,6 +37,8 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     :type google_cloud_storage_conn_id: str
     :param mime_type: The mime-type string
     :type mime_type: str
+    :type gzip: Allows for file to upload as gzip
+    :param gzip: boolean
     :param delegate_to: The account to impersonate, if any
     :type delegate_to: str
     """
@@ -49,6 +51,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
                  bucket,
                  google_cloud_storage_conn_id='google_cloud_default',
                  mime_type='application/octet-stream',
+                 gzip=False,
                  delegate_to=None,
                  *args,
                  **kwargs):
@@ -58,6 +61,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
         self.bucket = bucket
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.mime_type = mime_type
+        self.gzip = gzip
         self.delegate_to = delegate_to
 
     def execute(self, context):
@@ -72,4 +76,5 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
             bucket=self.bucket,
             object=self.dst,
             mime_type=self.mime_type,
+            gzip=self.gzip,
             filename=self.src)
