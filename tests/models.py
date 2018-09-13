@@ -139,6 +139,15 @@ class DagTest(unittest.TestCase):
         self.assertEqual(dag.dag_id, 'creating_dag_in_cm')
         self.assertEqual(dag.tasks[0].task_id, 'op6')
 
+        with dag:
+            with dag:
+                op7 = DummyOperator(task_id='op7')
+        op8 = DummyOperator(task_id='op8')
+        op8.dag = dag2
+
+        self.assertEqual(op7.dag, dag)
+        self.assertEqual(op8.dag, dag2)
+
     def test_dag_topological_sort(self):
         dag = DAG(
             'dag',
