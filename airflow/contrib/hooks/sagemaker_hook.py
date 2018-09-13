@@ -31,6 +31,8 @@ class SageMakerHook(AwsHook):
     sagemaker_conn_id is required for using
     the config stored in db for training/tuning
     """
+    non_terminal_states = {'InProgress', 'Stopping', 'Stopped'}
+    failed_states = {'Failed'}
 
     def __init__(self,
                  sagemaker_conn_id=None,
@@ -96,9 +98,9 @@ class SageMakerHook(AwsHook):
                      describe_function, *args):
         """
         :param non_terminal_states: the set of non_terminal states
-        :type non_terminal_states: dict
+        :type non_terminal_states: set
         :param failed_state: the set of failed states
-        :type failed_state: dict
+        :type failed_state: set
         :param key: the key of the response dict
         that points to the state
         :type key: str
@@ -194,8 +196,8 @@ class SageMakerHook(AwsHook):
         response = self.conn.create_training_job(
             **training_job_config)
         if wait_for_completion:
-            self.check_status(['InProgress', 'Stopping', 'Stopped'],
-                              ['Failed'],
+            self.check_status(SageMakerHook.non_terminal_states,
+                              SageMakerHook.failed_states,
                               'TrainingJobStatus',
                               self.describe_training_job,
                               training_job_config['TrainingJobName'])
@@ -226,8 +228,8 @@ class SageMakerHook(AwsHook):
         response = self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
         if wait_for_completion:
-            self.check_status(['InProgress', 'Stopping', 'Stopped'],
-                              ['Failed'],
+            self.check_status(SageMakerHook.non_terminal_states,
+                              SageMakerHook.failed_states,
                               'HyperParameterTuningJobStatus',
                               self.describe_tuning_job,
                               tuning_job_config['HyperParameterTuningJobName'])
@@ -261,8 +263,8 @@ class SageMakerHook(AwsHook):
         response = self.conn.create_transform_job(
             **transform_job_config)
         if wait_for_completion:
-            self.check_status(['InProgress', 'Stopping', 'Stopped'],
-                              ['Failed'],
+            self.check_status(SageMakerHook.non_terminal_states,
+                              SageMakerHook.failed_states,
                               'TransformJobStatus',
                               self.describe_transform_job,
                               transform_job_config['TransformJobName'])

@@ -51,7 +51,7 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
        :param wait_for_completion: if the program should keep running until job finishes
        :type wait_for_completion: bool
        :param check_interval: if wait is set to be true, this is the time interval
-       which the operator will check the status of the transform job
+       in seconds which the operator will check the status of the transform job
        :type check_interval: int
        :param max_ingestion_time: if wait is set to be true, the operator will fail
        if the transform job hasn't finish within the max_ingestion_time
