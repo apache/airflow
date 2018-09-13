@@ -131,6 +131,17 @@ dag_perms = {
 }
 
 ###########################################################################
+#         VIEW-PERMISSION COMBINATION FOR USER-SELF-MANAGEMENT
+###########################################################################
+
+user_self_manage_perms = {'can_userinfo'}
+user_self_manage_view_perms = {
+    'UserDBModelView': {'resetmypassword', 'userinfoedit'},
+    'UserInfoEditView': {'can_this_form_post', 'can_this_form_get'},
+    'ResetMyPasswordView': {'can_this_form_post', 'can_this_form_get'}
+}
+
+###########################################################################
 #                     DEFAULT ROLE CONFIGURATIONS
 ###########################################################################
 
@@ -183,6 +194,11 @@ class AirflowSecurityManager(SecurityManager):
         for pvm in pvms:
             if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
                 role_pvms.append(pvm)
+            if pvm.permission.name in user_self_manage_perms:
+                role_pvms.append(pvm)
+            for view, perms in user_self_manage_view_perms.items():
+                if pvm.view_menu.name == view and pvm.permission.name in perms:
+                    role_pvms.append(pvm)
         role.permissions = list(set(role_pvms))
         self.get_session.merge(role)
         self.get_session.commit()
