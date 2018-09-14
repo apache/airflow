@@ -70,6 +70,9 @@ class MongoHook(BaseHook):
         if options.get('ssl', False):
             options.update({'ssl_cert_reqs': CERT_NONE})
 
+        if not options.get('unicode_decode_error_handler', False):
+            options.update({'unicode_decode_error_handler': 'ignore'})
+
         self.client = MongoClient(uri, **options)
 
         return self.client
