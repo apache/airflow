@@ -47,6 +47,8 @@ data_url = 's3://{}/{}'.format(bucket, key)
 
 job_name = 'test-job-name'
 
+model_name = 'test-model-name'
+
 image = 'test-image'
 
 test_arn_return = {'TrainingJobArn': 'testarn'}
@@ -150,6 +152,38 @@ create_tuning_params = \
             'ResourceConfig': create_training_params['ResourceConfig'],
             'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
         }
+    }
+
+create_transform_params = \
+    {
+        'TransformJobName': job_name,
+        'ModelName': model_name,
+        'BatchStrategy': 'MultiRecord',
+        'TransformInput': {
+            'DataSource': {
+                'S3DataSource': {
+                    'S3DataType': 'S3Prefix',
+                    'S3Uri': data_url
+                }
+            }
+        },
+        'TransformOutput': {
+            'S3OutputPath': output_url,
+        },
+        'TransformResources': {
+            'InstanceType': 'ml.m4.xlarge',
+            'InstanceCount': 123
+        }
+    }
+
+create_model_params = \
+    {
+        'ModelName': model_name,
+        'PrimaryContainer': {
+            'Image': image,
+            'ModelDataUrl': output_url,
+        },
+        'ExecutionRoleArn': role
     }
 
 db_config = {
@@ -393,6 +427,52 @@ class TestSageMakerHook(unittest.TestCase):
             assert_called_once_with(**updated_config)
         self.assertEqual(response, test_arn_return)
 
+    @mock.patch.object(SageMakerHook, 'check_for_url')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_create_transform_job(self, mock_client, mock_check_url):
+        mock_check_url.return_value = True
+        mock_session = mock.Mock()
+        attrs = {'create_transform_job.return_value':
+                 test_arn_return}
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.create_transform_job(create_transform_params,
+                                             wait_for_completion=False)
+        mock_session.create_transform_job.assert_called_once_with(
+            **create_transform_params)
+        self.assertEqual(response, test_arn_return)
+
+    @mock.patch.object(SageMakerHook, 'check_for_url')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_create_transform_job_db_config(self, mock_client, mock_check_url):
+        mock_check_url.return_value = True
+        mock_session = mock.Mock()
+        attrs = {'create_transform_job.return_value':
+                 test_arn_return}
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
+                                           use_db_config=True)
+        response = hook_use_db_config.create_transform_job(
+            create_transform_params, wait_for_completion=False)
+        updated_config = copy.deepcopy(create_transform_params)
+        updated_config.update(db_config)
+        mock_session.create_transform_job.assert_called_once_with(**updated_config)
+        self.assertEqual(response, test_arn_return)
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_create_model(self, mock_client):
+        mock_session = mock.Mock()
+        attrs = {'create_model.return_value':
+                 test_arn_return}
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.create_model(create_model_params)
+        mock_session.create_model.assert_called_once_with(**create_model_params)
+        self.assertEqual(response, test_arn_return)
+
     @mock.patch.object(SageMakerHook, 'get_conn')
     def test_describe_training_job(self, mock_client):
         mock_session = mock.Mock()
@@ -416,6 +496,19 @@ class TestSageMakerHook(unittest.TestCase):
         response = hook.describe_tuning_job(job_name)
         mock_session.describe_hyper_parameter_tuning_job.\
             assert_called_once_with(HyperParameterTuningJobName=job_name)
+        self.assertEqual(response, 'InProgress')
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_describe_transform_job(self, mock_client):
+        mock_session = mock.Mock()
+        attrs = {'describe_transform_job.return_value':
+                 'InProgress'}
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.describe_transform_job(job_name)
+        mock_session.describe_transform_job.\
+            assert_called_once_with(TransformJobName=job_name)
         self.assertEqual(response, 'InProgress')
 
 

@@ -22,13 +22,16 @@ from airflow.contrib.sensors.sagemaker_base_sensor import SageMakerBaseSensor
 from airflow.utils.decorators import apply_defaults
 
 
-class SageMakerTrainingSensor(SageMakerBaseSensor):
+class SageMakerTransformSensor(SageMakerBaseSensor):
     """
-    Asks for the state of the training state until it reaches a terminal state.
-    If it fails the sensor errors, failing the task.
+    Asks for the state of the transform state until it reaches a terminal state.
+    The sensor will error if the job errors, throwing a AirflowException
+    containing the failure reason.
 
-    :param job_name: job_name of the training instance to check the state of
-    :type job_name: str
+    :param job_name: job_name of the transform job instance to check the state of
+    :type job_name: string
+    :param region_name: The AWS region_name
+    :type region_name: string
     """
 
     template_fields = ['job_name']
@@ -40,7 +43,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
                  region_name=None,
                  *args,
                  **kwargs):
-        super(SageMakerTrainingSensor, self).__init__(*args, **kwargs)
+        super(SageMakerTransformSensor, self).__init__(*args, **kwargs)
         self.job_name = job_name
         self.region_name = region_name
 
@@ -56,11 +59,11 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
             region_name=self.region_name
         )
 
-        self.log.info('Poking Sagemaker Training Job %s', self.job_name)
-        return sagemaker.describe_training_job(self.job_name)
+        self.log.info('Poking Sagemaker Transform Job %s', self.job_name)
+        return sagemaker.describe_transform_job(self.job_name)
 
     def get_failed_reason_from_response(self, response):
         return response['FailureReason']
 
     def state_from_response(self, response):
-        return response['TrainingJobStatus']
+        return response['TransformJobStatus']
