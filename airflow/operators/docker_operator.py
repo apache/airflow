@@ -114,8 +114,6 @@ class DockerOperator(BaseOperator):
             api_version=None,
             command=None,
             cpus=1.0,
-            dns=None,
-            dns_search=None,
             docker_url='unix://var/run/docker.sock',
             environment=None,
             force_pull=False,
@@ -133,6 +131,8 @@ class DockerOperator(BaseOperator):
             xcom_push=False,
             xcom_all=False,
             docker_conn_id=None,
+            dns=None,
+            dns_search=None,
             *args,
             **kwargs):
 
