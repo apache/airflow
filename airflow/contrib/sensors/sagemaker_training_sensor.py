@@ -45,10 +45,10 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.region_name = region_name
 
     def non_terminal_states(self):
-        return ['InProgress', 'Stopping', 'Stopped']
+        return SageMakerHook.non_terminal_states
 
     def failed_states(self):
-        return ['Failed']
+        return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
         sagemaker = SageMakerHook(
