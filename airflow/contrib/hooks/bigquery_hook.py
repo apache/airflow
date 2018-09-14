@@ -540,9 +540,7 @@ class BigQueryBaseCursor(LoggingMixin):
             The default value is INTERACTIVE.
         :type priority: string
         :param time_partitioning: configure optional time partitioning fields i.e.
-            partition by field, type and
-            expiration as per API specifications. Note that 'field' is not available in
-            conjunction with dataset.table$partition.
+            partition by field, type and expiration as per API specifications.
         :type time_partitioning: dict
 
         """
@@ -869,9 +867,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
         :param time_partitioning: configure optional time partitioning fields i.e.
-            partition by field, type and
-            expiration as per API specifications. Note that 'field' is not available in
-            conjunction with dataset.table$partition.
+            partition by field, type and  expiration as per API specifications.
         :type time_partitioning: dict
         """
 
@@ -1589,11 +1585,6 @@ def _cleanse_time_partitioning(destination_dataset_table, time_partitioning_in):
     # if it is a partitioned table ($ is in the table name) add partition load option
     time_partitioning_out = {}
     if destination_dataset_table and '$' in destination_dataset_table:
-        if time_partitioning_in.get('field'):
-            raise ValueError(
-                "Cannot specify field partition and partition name"
-                "(dataset.table$partition) at the same time")
         time_partitioning_out['type'] = 'DAY'
-
     time_partitioning_out.update(time_partitioning_in)
     return time_partitioning_out

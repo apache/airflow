@@ -89,9 +89,7 @@ class BigQueryOperator(BaseOperator):
         The default value is INTERACTIVE.
     :type priority: string
     :param time_partitioning: configure optional time partitioning fields i.e.
-        partition by field, type and
-        expiration as per API specifications. Note that 'field' is not available in
-        conjunction with dataset.table$partition.
+        partition by field, type and expiration as per API specifications.
     :type time_partitioning: dict
     """
 
