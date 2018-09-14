@@ -3292,6 +3292,8 @@ class DAG(BaseDag, LoggingMixin):
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
 
+        self._context_manager_set = False
+
         self._comps = {
             'dag_id',
             'task_ids',
@@ -3339,13 +3341,16 @@ class DAG(BaseDag, LoggingMixin):
 
     def __enter__(self):
         global _CONTEXT_MANAGER_DAG
-        self._old_context_manager_dag = _CONTEXT_MANAGER_DAG
-        _CONTEXT_MANAGER_DAG = self
+        if not self._context_manager_set:
+            self._old_context_manager_dag = _CONTEXT_MANAGER_DAG
+            _CONTEXT_MANAGER_DAG = self
+            self._context_manager_set = True
         return self
 
     def __exit__(self, _type, _value, _tb):
         global _CONTEXT_MANAGER_DAG
         _CONTEXT_MANAGER_DAG = self._old_context_manager_dag
+        self._context_manager_set = False
 
     # /Context Manager ----------------------------------------------
 
