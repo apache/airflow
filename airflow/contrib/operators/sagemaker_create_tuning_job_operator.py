@@ -48,7 +48,7 @@ class SageMakerCreateTuningJobOperator(BaseOperator):
        until tuning job finishes
        :type wait_for_completion: bool
        :param check_interval: if wait is set to be true, this is the time interval
-       which the operator will check the status of the tuning job
+       in seconds which the operator will check the status of the tuning job
        :type check_interval: int
        :param max_ingestion_time: if wait is set to be true, the operator will fail
        if the tuning job hasn't finish within the max_ingestion_time
