@@ -18,6 +18,7 @@
 # under the License.
 #
 import logging
+import warnings
 from logging.config import dictConfig
 
 from airflow import configuration as conf
@@ -70,4 +71,36 @@ def configure_logging():
         # otherwise Airflow would silently fall back on the default config
         raise e
 
+    validate_logging_config(logging_config)
+
     return logging_config
+
+
+def validate_logging_config(logging_config):
+    # Now lets validate the other logging-related settings
+    task_log_reader = conf.get('core', 'task_log_reader')
+
+    logger = logging.getLogger('airflow.task')
+
+    def _get_handler(name):
+        return next((h for h in logger.handlers if h.name == name), None)
+
+    if _get_handler(task_log_reader) is None:
+        # Check for pre 1.10 setting that might be in deployed airflow.cfg files
+        if task_log_reader == "file.task" and _get_handler("task"):
+            warnings.warn(
+                "task_log_reader setting in [core] has a deprecated value of "
+                "{!r}, but no handler with this name was found. Please update "
+                "your config to use {!r}. Running config has been adjusted to "
+                "match".format(
+                    task_log_reader,
+                    "task",
+                ),
+                DeprecationWarning,
+            )
+            conf.set('core', 'task_log_reader', 'task')
+        else:
+            raise AirflowConfigException(
+                "Configured task_log_reader {!r} was not a handler of the 'airflow.task' "
+                "logger.".format(task_log_reader)
+            )

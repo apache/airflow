@@ -17,15 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import shutil
+import six
 import sys
 import tempfile
-import unittest
 from mock import patch, mock
 
 from airflow import configuration as conf
 from airflow.configuration import mkdir_p
 from airflow.exceptions import AirflowConfigException
+
+
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 SETTINGS_FILE_VALID = """
 LOGGING_CONFIG = {
@@ -41,14 +47,24 @@ LOGGING_CONFIG = {
             'class': 'logging.StreamHandler',
             'formatter': 'airflow.task',
             'stream': 'ext://sys.stdout'
-        }
+        },
+        'task': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'airflow.task',
+            'stream': 'ext://sys.stdout'
+        },
     },
     'loggers': {
         'airflow': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False
-        }
+        },
+        'airflow.task': {
+            'handlers': ['task'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     }
 }
 """
@@ -200,18 +216,21 @@ class TestLoggingSettings(unittest.TestCase):
     # When the key is not available in the configuration
     def test_when_the_config_key_does_not_exists(self):
         from airflow import logging_config
+        conf_get = conf.get
 
         def side_effect(*args):
             if args[1] == 'logging_config_class':
                 raise AirflowConfigException
             else:
-                return "bla_bla_from_test"
+                return conf_get(*args)
 
         logging_config.conf.get = mock.Mock(side_effect=side_effect)
 
         with patch.object(logging_config.log, 'debug') as mock_debug:
             logging_config.configure_logging()
-            mock_debug.assert_any_call('Could not find key logging_config_class in config')
+            mock_debug.assert_any_call(
+                'Could not find key logging_config_class in config'
+            )
 
     # Just default
     def test_loading_local_settings_without_logging_config(self):
@@ -221,6 +240,16 @@ class TestLoggingSettings(unittest.TestCase):
             mock_info.assert_called_with(
                 'Unable to load custom logging, using default config instead'
             )
+
+    def test_1_9_config(self):
+        from airflow.logging_config import configure_logging
+        conf.set('core', 'task_log_reader', 'file.task')
+        try:
+            with self.assertWarnsRegex(DeprecationWarning, r'file.task'):
+                configure_logging()
+                self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
+        finally:
+            conf.remove_option('core', 'task_log_reader', remove_default=False)
 
 
 if __name__ == '__main__':
