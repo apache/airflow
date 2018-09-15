@@ -77,7 +77,9 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_host_config.assert_called_with(binds=['/host/path:/container/path',
                                                                  '/mkdtemp:/tmp/airflow'],
                                                           network_mode='bridge',
-                                                          shm_size=1000)
+                                                          shm_size=1000,
+                                                          dns=None,
+                                                          dns_search=None)
         client_mock.images.assert_called_with(name='ubuntu:latest')
         client_mock.logs.assert_called_with(container='some_id', stream=True)
         client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
