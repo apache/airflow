@@ -35,6 +35,7 @@ except ImportError:
 
 
 TASK_ID = 'test-dataflow-operator'
+JOB_NAME = 'test-dataflow-pipeline'
 TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
 PARAMETERS = {
     'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
@@ -92,14 +93,14 @@ class DataFlowHookTest(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(
-            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_PY,
+            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
         EXPECTED_CMD = ['python2', '-m', PY_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
                         '--staging_location=gs://test/staging',
-                        '--job_name={}-{}'.format(TASK_ID, MOCK_UUID)]
+                        '--job_name={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
 
@@ -116,14 +117,14 @@ class DataFlowHookTest(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_java_dataflow(
-            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
+            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE)
         EXPECTED_CMD = ['java', '-jar', JAR_FILE,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
-                        '--jobName={}-{}'.format(TASK_ID, MOCK_UUID)]
+                        '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
 
@@ -140,17 +141,16 @@ class DataFlowHookTest(unittest.TestCase):
         dataflowjob_instance = mock_dataflowjob.return_value
         dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_java_dataflow(
-            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
+            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE, job_class=JOB_CLASS)
         EXPECTED_CMD = ['java', '-cp', JAR_FILE, JOB_CLASS,
                         '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
-                        '--jobName={}-{}'.format(TASK_ID, MOCK_UUID)]
+                        '--jobName={}-{}'.format(JOB_NAME, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
-
 
     @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
     @mock.patch('subprocess.Popen')
@@ -178,18 +178,18 @@ class DataFlowHookTest(unittest.TestCase):
 
     def test_valid_dataflow_job_name(self):
         job_name = self.dataflow_hook._build_dataflow_job_name(
-            task_id=TASK_ID, append_job_name=False
+            job_name=JOB_NAME, append_job_name=False
         )
 
-        self.assertEquals(job_name, TASK_ID)
+        self.assertEquals(job_name, JOB_NAME)
 
-    def test_fix_underscore_in_task_id(self):
-        task_id_with_underscore = 'test_example'
-        fixed_job_name = task_id_with_underscore.replace(
+    def test_fix_underscore_in_job_name(self):
+        job_name_with_underscore = 'test_example'
+        fixed_job_name = job_name_with_underscore.replace(
             '_', '-'
         )
         job_name = self.dataflow_hook._build_dataflow_job_name(
-            task_id=task_id_with_underscore, append_job_name=False
+            job_name=job_name_with_underscore, append_job_name=False
         )
 
         self.assertEquals(job_name, fixed_job_name)
@@ -201,7 +201,7 @@ class DataFlowHookTest(unittest.TestCase):
 
         with self.assertRaises(ValueError) as e:
             self.dataflow_hook._build_dataflow_job_name(
-                task_id=invalid_job_name, append_job_name=False
+                job_name=invalid_job_name, append_job_name=False
             )
         #   Test whether the job_name is present in the Error msg
         self.assertIn('Invalid job_name ({})'.format(fixed_name),
@@ -210,37 +210,37 @@ class DataFlowHookTest(unittest.TestCase):
     def test_dataflow_job_regex_check(self):
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            task_id='df-job-1', append_job_name=False
+            job_name='df-job-1', append_job_name=False
         ), 'df-job-1')
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            task_id='df-job', append_job_name=False
+            job_name='df-job', append_job_name=False
         ), 'df-job')
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            task_id='dfjob', append_job_name=False
+            job_name='dfjob', append_job_name=False
         ), 'dfjob')
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            task_id='dfjob1', append_job_name=False
+            job_name='dfjob1', append_job_name=False
         ), 'dfjob1')
 
         self.assertRaises(
             ValueError,
             self.dataflow_hook._build_dataflow_job_name,
-            task_id='1dfjob', append_job_name=False
+            job_name='1dfjob', append_job_name=False
         )
 
         self.assertRaises(
             ValueError,
             self.dataflow_hook._build_dataflow_job_name,
-            task_id='dfjob@', append_job_name=False
+            job_name='dfjob@', append_job_name=False
         )
 
         self.assertRaises(
             ValueError,
             self.dataflow_hook._build_dataflow_job_name,
-            task_id='df^jo', append_job_name=False
+            job_name='df^jo', append_job_name=False
         )
 
 
@@ -254,7 +254,7 @@ class DataFlowTemplateHookTest(unittest.TestCase):
     @mock.patch(DATAFLOW_STRING.format('DataFlowHook._start_template_dataflow'))
     def test_start_template_dataflow(self, internal_dataflow_mock):
         self.dataflow_hook.start_template_dataflow(
-            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_TEMPLATE, parameters=PARAMETERS,
+            job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_TEMPLATE, parameters=PARAMETERS,
             dataflow_template=TEMPLATE)
         internal_dataflow_mock.assert_called_once_with(
             mock.ANY, DATAFLOW_OPTIONS_TEMPLATE, PARAMETERS, TEMPLATE)
