@@ -27,9 +27,6 @@ export AIRFLOW__CORE__UNIT_TEST_MODE=True
 # configuration test
 export AIRFLOW__TESTSECTION__TESTKEY=testvalue
 
-# use Airflow 2.0-style imports
-export AIRFLOW_USE_NEW_IMPORTS=1
-
 # add test/contrib to PYTHONPATH
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export PYTHONPATH=$PYTHONPATH:${DIR}/tests/test_utils
@@ -75,4 +72,3 @@ nosetests $nose_args
 
 # To run individual tests:
 # nosetests tests.core:CoreTest.test_scheduler_job
-
