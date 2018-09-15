@@ -114,7 +114,7 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             mock_dataflow_hook.assert_called_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None, poll_sleep=10)
             hook_instance.start_python_dataflow.assert_called_once_with(
-                'eval-test-summary',
+                '{{task.task_id}}',
                 {
                     'prediction_path': 'gs://legal-bucket/fake-output-path',
                     'labels': {'airflow-version': TEST_VERSION},
