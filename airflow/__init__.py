@@ -79,16 +79,3 @@ class AirflowViewPlugin(BaseView):
 class AirflowMacroPlugin(object):
     def __init__(self, namespace):
         self.namespace = namespace
-
-
-from airflow import operators  # noqa: E402
-from airflow import sensors  # noqa: E402
-from airflow import hooks  # noqa: E402
-from airflow import executors  # noqa: E402
-from airflow import macros  # noqa: E402
-
-operators._integrate_plugins()
-sensors._integrate_plugins()  # noqa: E402
-hooks._integrate_plugins()
-executors._integrate_plugins()
-macros._integrate_plugins()
