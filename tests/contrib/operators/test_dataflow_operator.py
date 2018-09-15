@@ -36,6 +36,7 @@ except ImportError:
 
 
 TASK_ID = 'test-dataflow-operator'
+JOB_NAME = 'test-dataflow-pipeline'
 TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
 PARAMETERS = {
     'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
@@ -74,6 +75,7 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
         self.dataflow = DataFlowPythonOperator(
             task_id=TASK_ID,
             py_file=PY_FILE,
+            job_name=JOB_NAME,
             py_options=PY_OPTIONS,
             dataflow_default_options=DEFAULT_OPTIONS_PYTHON,
             options=ADDITIONAL_OPTIONS,
@@ -82,6 +84,7 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
     def test_init(self):
         """Test DataFlowPythonOperator instance is properly initialized."""
         self.assertEqual(self.dataflow.task_id, TASK_ID)
+        self.assertEqual(self.dataflow.job_name, JOB_NAME)
         self.assertEqual(self.dataflow.py_file, PY_FILE)
         self.assertEqual(self.dataflow.py_options, PY_OPTIONS)
         self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
@@ -108,8 +111,8 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
             'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION}
         }
         gcs_download_hook.assert_called_once_with(PY_FILE)
-        start_python_hook.assert_called_once_with(TASK_ID, expected_options,
-                                                  mock.ANY, PY_OPTIONS)
+        start_python_hook.assert_called_once_with(JOB_NAME, expected_options, mock.ANY,
+                                                  PY_OPTIONS)
         self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
 
 
@@ -119,6 +122,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         self.dataflow = DataFlowJavaOperator(
             task_id=TASK_ID,
             jar=JAR_FILE,
+            job_name=JOB_NAME,
             job_class=JOB_CLASS,
             dataflow_default_options=DEFAULT_OPTIONS_JAVA,
             options=ADDITIONAL_OPTIONS,
@@ -127,6 +131,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
     def test_init(self):
         """Test DataflowTemplateOperator instance is properly initialized."""
         self.assertEqual(self.dataflow.task_id, TASK_ID)
+        self.assertEqual(self.dataflow.job_name, JOB_NAME)
         self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
         self.assertEqual(self.dataflow.dataflow_default_options,
                          DEFAULT_OPTIONS_JAVA)
@@ -147,7 +152,7 @@ class DataFlowJavaOperatorTest(unittest.TestCase):
         self.dataflow.execute(None)
         self.assertTrue(dataflow_mock.called)
         gcs_download_hook.assert_called_once_with(JAR_FILE)
-        start_java_hook.assert_called_once_with(TASK_ID, mock.ANY,
+        start_java_hook.assert_called_once_with(JOB_NAME, mock.ANY,
                                                 mock.ANY, JOB_CLASS)
 
 
@@ -157,6 +162,7 @@ class DataFlowTemplateOperatorTest(unittest.TestCase):
         self.dataflow = DataflowTemplateOperator(
             task_id=TASK_ID,
             template=TEMPLATE,
+            job_name=JOB_NAME,
             parameters=PARAMETERS,
             dataflow_default_options=DEFAULT_OPTIONS_TEMPLATE,
             poll_sleep=POLL_SLEEP)
@@ -164,6 +170,7 @@ class DataFlowTemplateOperatorTest(unittest.TestCase):
     def test_init(self):
         """Test DataflowTemplateOperator instance is properly initialized."""
         self.assertEqual(self.dataflow.task_id, TASK_ID)
+        self.assertEqual(self.dataflow.job_name, JOB_NAME)
         self.assertEqual(self.dataflow.template, TEMPLATE)
         self.assertEqual(self.dataflow.parameters, PARAMETERS)
         self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
@@ -185,7 +192,7 @@ class DataFlowTemplateOperatorTest(unittest.TestCase):
             'tempLocation': 'gs://test/temp',
             'zone': 'us-central1-f'
         }
-        start_template_hook.assert_called_once_with(TASK_ID, expected_options,
+        start_template_hook.assert_called_once_with(JOB_NAME, expected_options,
                                                     PARAMETERS, TEMPLATE)
 
 
