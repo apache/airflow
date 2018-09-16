@@ -179,8 +179,9 @@ class MongoHook(BaseHook):
         Replaces a single document in a mongo collection.
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
 
-        If no filter document is given, it is assumed that the replacement
-        document contains the _id field which is then used as filter.
+        .. note::
+            If no ``filter_doc`` is given, it is assumed that the replacement
+            document contain the ``_id`` field which is then used as filters.
 
         :param mongo_collection: The name of the collection to update.
         :type mongo_collection: str
@@ -202,15 +203,17 @@ class MongoHook(BaseHook):
 
     def replace_many(self, mongo_collection, docs,
                      filter_docs=None, mongo_db=None, upsert=False, collation=None,
-                     **bulk_kwargs):
+                     **kwargs):
         """
         Replaces many documents in a mongo collection.
 
         Uses bulk_write with multiple ReplaceOne operations
         https://api.mongodb.com/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
 
-        If no filter documents are given, it is assumed that all replacement
-        documents contain the _id field which are then used as filters.
+        .. note::
+            If no ``filter_docs``are given, it is assumed that all
+            replacement documents contain the ``_id`` field which are then
+            used as filters.
 
         :param mongo_collection: The name of the collection to update.
         :type mongo_collection: str
@@ -222,6 +225,14 @@ class MongoHook(BaseHook):
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
         :type mongo_db: str
+        :param upsert: If ``True``, perform an insert if no documents
+            match the filters for the replace operation.
+        :type upsert: bool
+        :param collation: An instance of
+            :class:`~pymongo.collation.Collation`. This option is only
+            supported on MongoDB 3.4 and above.
+        :type collation: :class:`~pymongo.collation.Collation`
+
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)
 
@@ -237,7 +248,7 @@ class MongoHook(BaseHook):
             for i in range(len(docs))
         ]
 
-        return collection.bulk_write(requests, **bulk_kwargs)
+        return collection.bulk_write(requests, **kwargs)
 
     def delete_one(self, mongo_collection, filter_doc, mongo_db=None, **kwargs):
         """
