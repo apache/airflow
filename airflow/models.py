@@ -3798,9 +3798,11 @@ class DAG(BaseDag, LoggingMixin):
             only_running=False,
             confirm_prompt=False,
             include_subdags=True,
+            include_parentdag=True,
             reset_dag_runs=True,
             dry_run=False,
             session=None,
+            get_tis=False,
     ):
         """
         Clears a set of task instances associated with the current dag for
@@ -3821,6 +3823,25 @@ class DAG(BaseDag, LoggingMixin):
             tis = session.query(TI).filter(TI.dag_id == self.dag_id)
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
+        if include_parentdag and self.is_subdag:
+
+            p_dag = self.parent_dag.sub_dag(
+                task_regex=self.dag_id.split('.')[1],
+                include_upstream=False,
+                include_downstream=True)
+
+            tis = tis.union(p_dag.clear(
+                start_date=start_date, end_date=end_date,
+                only_failed=only_failed,
+                only_running=only_running,
+                confirm_prompt=confirm_prompt,
+                include_subdags=include_subdags,
+                include_parentdag=False,
+                reset_dag_runs=reset_dag_runs,
+                get_tis=True,
+                session=session,
+            ))
+
         if start_date:
             tis = tis.filter(TI.execution_date >= start_date)
         if end_date:
@@ -3831,6 +3852,9 @@ class DAG(BaseDag, LoggingMixin):
                 TI.state == State.UPSTREAM_FAILED))
         if only_running:
             tis = tis.filter(TI.state == State.RUNNING)
+
+        if get_tis:
+            return tis
 
         if dry_run:
             tis = tis.all()
@@ -3875,6 +3899,7 @@ class DAG(BaseDag, LoggingMixin):
             only_running=False,
             confirm_prompt=False,
             include_subdags=True,
+            include_parentdag=False,
             reset_dag_runs=True,
             dry_run=False,
     ):
@@ -3887,6 +3912,7 @@ class DAG(BaseDag, LoggingMixin):
                 only_running=only_running,
                 confirm_prompt=False,
                 include_subdags=include_subdags,
+                include_parentdag=include_parentdag,
                 reset_dag_runs=reset_dag_runs,
                 dry_run=True)
             all_tis.extend(tis)
