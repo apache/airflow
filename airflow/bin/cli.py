@@ -2056,7 +2056,7 @@ class CLIFactory(object):
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': create_user,
-            'help': "Create an account for the Web UI",
+            'help': "Create an account for the Web UI (FAB-based)",
             'args': ('role', 'username', 'email', 'firstname', 'lastname',
                      'password', 'use_random_password'),
         }, {
