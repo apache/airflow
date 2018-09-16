@@ -133,28 +133,38 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
             contain the data for the GCS objects.
         """
         schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
-        file_no = 0
-        tmp_file_handle = NamedTemporaryFile(delete=True)
-        tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
+        tmp_file_handles = {}
+        row_no = 0
 
-        for row in cursor:
-            # Convert datetime objects to utc seconds, and decimals to floats
-            row = map(self.convert_types, row)
-            row_dict = dict(zip(schema, row))
+        def _create_new_file():
+            handle = NamedTemporaryFile(delete=True)
+            filename = self.filename.format(len(tmp_file_handles))
+            tmp_file_handles[filename] = handle
+            return handle
 
-            s = json.dumps(row_dict, sort_keys=True)
-            if PY3:
-                s = s.encode('utf-8')
-            tmp_file_handle.write(s)
+        # Don't create a file if there is nothing to write
+        if cursor.rowcount > 0:
+            tmp_file_handle = _create_new_file()
 
-            # Append newline to make dumps BigQuery compatible.
-            tmp_file_handle.write(b'\n')
+            for row in cursor:
+                # Convert datetime objects to utc seconds, and decimals to floats
+                row = map(self.convert_types, row)
+                row_dict = dict(zip(schema, row))
 
-            # Stop if the file exceeds the file size limit.
-            if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
-                file_no += 1
-                tmp_file_handle = NamedTemporaryFile(delete=True)
-                tmp_file_handles[self.filename.format(file_no)] = tmp_file_handle
+                s = json.dumps(row_dict, sort_keys=True)
+                if PY3:
+                    s = s.encode('utf-8')
+                tmp_file_handle.write(s)
+
+                # Append newline to make dumps BigQuery compatible.
+                tmp_file_handle.write(b'\n')
+
+                # Stop if the file exceeds the file size limit.
+                if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
+                    tmp_file_handle = _create_new_file()
+                row_no += 1
+
+        self.log.info('Received %s rows over %s files', row_no, len(tmp_file_handles))
 
         return tmp_file_handles
 
