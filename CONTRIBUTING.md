@@ -200,20 +200,23 @@ To run DAGs as integration tests locally directly from the CLI, once your develo
 environment is setup 
 (directly on your system or through a Docker setup) you can simply run `./run_int_tests.sh`.
 
-It expects 2 parameters:
-- a comma-separated list of key-value pairs (`KEY1=VALUE1,KEY2=VALUE2,...`) - these are
- Airflow variables, through which you can inject the necessary config values to 
- the tested DAGs
-- a path expression specifying which DAGs to run, e.g. 
+It accepts 2 parameters:
+
+`-v / --vars`: a comma-separated list of key-value pairs (`[KEY1=VALUE1,KEY2=VALUE2,..
+.]`) - 
+these are Airflow variables, through which you can inject the necessary config values 
+to the tested DAGs
+
+`-d / --dags`: a path expression specifying which DAGs to run, e.g. 
 `$AIRFLOW_HOME/incubator-airflow/airflow/contrib/example_dags/example_gcf*` will run all 
-DAGs from 
-`example_dags` with names beginning with `example_gcf`.
+DAGs from `example_dags` with names beginning with `example_gcf`.
 
 Full example running tests for Google Cloud Functions operators:
-```
-vars=PROJECT_ID=<gcp_project_id>,REGION=<gcp_region>,SOURCE_REPOSITORY="https://source.developers.google.com/projects/<gcp_project_id>/repos/<your_repo>/moveable-aliases/master",ENTRYPOINT=helloWorld
-path=$AIRFLOW_HOME/incubator-airflow/airflow/contrib/example_dags/example_gcf_*
-./run_int_tests.sh $vars $path 
+``` 
+./run_int_tests.sh --vars=[PROJECT_ID=<gcp_project_id>,REGION=<gcp_region>,
+SOURCE_REPOSITORY="https://source.developers.google
+.com/projects/<gcp_project_id>/repos/<your_repo>/moveable-aliases/master",
+ENTRYPOINT=helloWorld] --dags=$AIRFLOW_HOME/incubator-airflow/airflow/contrib/example_dags/example_gcf_*
 ```
 
 

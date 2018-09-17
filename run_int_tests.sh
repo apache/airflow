@@ -18,22 +18,46 @@
 # specific language governing permissions and limitations
 # under the License.
 
+for i in "$@"
+do
+case ${i} in
+    -v=*|--vars=*)
+    VARIABLES="${i#*=}"
+    shift # past argument=value
+    ;;
+    -d=*|--dags=*)
+    DAG_PATH="${i#*=}"
+    shift # past argument=value
+    ;;
+    *)
+          # unknown option
+    ;;
+esac
+done
+echo "VARIABLES  = ${VARIABLES}"
+echo "DAG_PATH   = ${DAG_PATH}"
+if [[ -n $1 ]]; then
+    echo "Last line of file specified as non-opt/last argument:"
+    tail -1 $1
+fi
+
+# Remove square brackets if they exist
+TEMP=${VARIABLES//[}
+SANITIZED_VARIABLES=${TEMP//]}
 echo ""
 echo "========= AIRFLOW VARIABLES =========="
-echo $1
+echo ${SANITIZED_VARIABLES}
 echo ""
 
-IFS=',' read -ra ENVS <<< "$1"
+IFS=',' read -ra ENVS <<< "${SANITIZED_VARIABLES}"
 for item in "${ENVS[@]}"; do
     IFS='=' read -ra ENV <<< "$item"
     airflow variables -s "${ENV[0]}" "${ENV[1]}"
     echo "Set Airflow variable:"" ${ENV[0]}"" ${ENV[1]}"
 done
 
-shift
-
-echo "Running test DAGs from: $@"
-cp $@ /home/airflow/dags/
+echo "Running test DAGs from: ${DAG_PATH}"
+cp ${DAG_PATH} /home/airflow/dags/
 
 airflow initdb
 tmux new-session -d -s webserver 'airflow webserver'
@@ -95,6 +119,8 @@ do
         done
     fi
 done
+
+echo "NUMBER OF TESTS RUN: ${#results[@]}"
 
 for item in "${results[@]}"
 do
