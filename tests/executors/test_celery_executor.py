@@ -21,6 +21,7 @@ import unittest
 import mock
 from celery.contrib.testing.worker import start_worker
 
+from airflow.executors import celery_executor
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.celery_executor import app
 from airflow.executors.celery_executor import CELERY_FETCH_ERR_MSG_HEADER
@@ -58,6 +59,21 @@ class CeleryExecutorTest(unittest.TestCase):
 
         self.assertNotIn('success', executor.last_state)
         self.assertNotIn('fail', executor.last_state)
+
+    def test_error_sending_task(self):
+        @app.task
+        def fake_execute_command():
+            pass
+
+        # fake_execute_command takes no arguments while execute_command takes 1,
+        # which will cause TypeError when calling task.apply_async()
+        celery_executor.execute_command = fake_execute_command
+        executor = CeleryExecutor()
+        value_tuple = 'command', '_', 'queue', 'should_be_a_simple_ti'
+        executor.queued_tasks['key'] = value_tuple
+        executor.heartbeat()
+        self.assertEquals(1, len(executor.queued_tasks))
+        self.assertEquals(executor.queued_tasks['key'], value_tuple)
 
     def test_exception_propagation(self):
         @app.task
