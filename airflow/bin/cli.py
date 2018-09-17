@@ -634,7 +634,9 @@ def clear(args):
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.no_confirm,
-        include_subdags=not args.exclude_subdags)
+        include_subdags=not args.exclude_subdags,
+        include_parentdag=not args.exclude_parentdag,
+    )
 
 
 def get_num_ready_workers_running(gunicorn_master_proc):
@@ -1420,6 +1422,10 @@ class CLIFactory(object):
         'exclude_subdags': Arg(
             ("-x", "--exclude_subdags"),
             "Exclude subdags", "store_true"),
+        'exclude_parentdag': Arg(
+            ("-xp", "--exclude_parentdag"),
+            "Exclude ParentDAGS if the task cleared is a part of a SubDAG",
+            "store_true"),
         'dag_regex': Arg(
             ("-dx", "--dag_regex"),
             "Search dag_id as regex instead of exact string", "store_true"),
@@ -1739,7 +1745,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running', 'exclude_subdags', 'dag_regex'),
+                'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
