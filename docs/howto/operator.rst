@@ -101,3 +101,123 @@ to execute a BigQuery load job.
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_bq]
     :end-before: [END howto_operator_gcs_to_bq]
+
+GcfFunctionDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the ``default_args`` dict to pass arguments to the operator.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_delete.py
+    :language: python
+    :start-after: [START howto_operator_gcf_delete_args]
+    :end-before: [END howto_operator_gcf_delete_args]
+
+
+Use the :class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator`
+to delete a function from Google Cloud Functions.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_delete.py
+    :language: python
+    :start-after: [START howto_operator_gcf_delete]
+    :end-before: [END howto_operator_gcf_delete]
+
+Troubleshooting
+"""""""""""""""
+
+In case you want to run deploy operator using a service account and get "forbidden 403"
+errors, it means that your service account has not enough permissions set via IAM.
+
+* First you need to Assign your Service Account "Cloud Functions Developer" role
+* Make sure you grant the user the IAM Service Account User role on the Cloud Functions
+Runtime service account. Typical way of doing it with gcloud is shown below - just
+replace PROJECT_ID with ID of your project and SERVICE_ACCOUNT_EMAIL with the email id
+of your service account.
+
+.. code-block:: bash
+
+  gcloud iam service-accounts add-iam-policy-binding \
+    PROJECT_ID@appspot.gserviceaccount.com \
+    --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
+    --role="roles/iam.serviceAccountUser"
+
+
+See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details
+
+GcfFunctionDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`
+to deploy a function from Google Cloud Functions.
+
+The examples below use Airflow variables defined in order to show various variants and
+combinations of default_args you can use. The variables are defined as follows:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+    :language: python
+    :start-after: [START howto_operator_gcf_deploy_variables]
+    :end-before: [END howto_operator_gcf_deploy_variables]
+
+With those variables one can define body of the request:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+    :language: python
+    :start-after: [START howto_operator_gcf_deploy_body]
+    :end-before: [END howto_operator_gcf_deploy_body]
+
+The default_args dictionary when you create DAG can be used to pass body and other
+arguments:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+    :language: python
+    :start-after: [START howto_operator_gcf_deploy_args]
+    :end-before: [END howto_operator_gcf_deploy_args]
+
+Note that the neither the body nor default args are complete in the above examples.
+Depending on the variables set there might be different variants on how to pass
+source code related fields. Currently you can pass either
+`sourceArchiveUrl`, `sourceRepository` or `sourceUploadUrl` as described in
+`CloudFunction API specification <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#CloudFunction>`_.
+Additionally default_args might contain `zip_path` parameter to run extra step
+of uploading the source code before deploying it. In the last case you also need to
+provide an empty `sourceUploadUrl` parameter in the body.
+
+Example logic of setting the source code related fields based on variables defined above
+is shown here:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+    :language: python
+    :start-after: [START howto_operator_gcf_deploy_variants]
+    :end-before: [END howto_operator_gcf_deploy_variants]
+
+The code to create the operator:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+    :language: python
+    :start-after: [START howto_operator_gcf_deploy]
+    :end-before: [END howto_operator_gcf_deploy]
+
+Troubleshooting
+"""""""""""""""
+
+In case you want to run deploy operator using a service account and get "forbidden 403"
+errors, it means that your service account has not enough permissions set via IAM.
+
+* First you need to Assign your Service Account "Cloud Functions Developer" role
+* Make sure you grant the user the IAM Service Account User role on the Cloud Functions
+Runtime service account. Typical way of doing it with gcloud is shown below - just
+replace PROJECT_ID with ID of your project and SERVICE_ACCOUNT_EMAIL with the email id
+of your service account.
+
+.. code-block:: bash
+
+  gcloud iam service-accounts add-iam-policy-binding \
+    PROJECT_ID@appspot.gserviceaccount.com \
+    --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
+    --role="roles/iam.serviceAccountUser"
+
+
+See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details
+
+Also make sure that your service account has access to the source code of function
+in case it should be downloaded. It might mean that you add Source Repository Viewer
+role to the service account in case the source code is in Google Source Repository.
