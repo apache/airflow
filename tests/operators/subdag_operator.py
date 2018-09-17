@@ -19,12 +19,12 @@
 
 import unittest
 
-from mock import Mock
+from mock import Mock, MagicMock
 
 import airflow
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.models import DAG, DagBag
+from airflow.models import DAG, DagBag, DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils.timezone import datetime
@@ -150,3 +150,25 @@ class SubDagOperatorTests(unittest.TestCase):
         subdag_good = DAG('parent.test', default_args=default_args)
         subdag = SubDagOperator(task_id='test', dag=dag, subdag=subdag_good)
         self.assertEqual(type(subdag.executor), SequentialExecutor)
+
+    def test_forwards_dag_run_conf(self):
+        """
+        Tests that the parent's dag run conf is forwarded to the subdag
+        """
+        dag = DAG('parent', default_args=default_args)
+        subdag = DAG('parent.test', default_args=default_args)
+        subdag.run = MagicMock()
+
+        subdag_op = SubDagOperator(task_id='test', dag=dag, subdag=subdag)
+        ed = DEFAULT_DATE
+        dr = DagRun()
+        dr.conf = {'a': 'foo', 'b': 1, 'c': True, 'd': [1, 2, 3]}
+        context = dict(
+            execution_date=ed,
+            dag_run=dr
+        )
+        subdag_op.execute(context)
+
+        # expect sudgag.run was called with the parent's conf
+        subdag.run.assert_called_once_with(start_date=ed, end_date=ed, donot_pickle=True,
+                                           executor=subdag_op.executor, conf=dr.conf)
