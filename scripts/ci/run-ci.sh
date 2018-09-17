@@ -18,7 +18,7 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -x
+set +x
 
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../.."
@@ -26,16 +26,34 @@ AIRFLOW_ROOT="$DIRNAME/../.."
 # Fix file permissions
 sudo chown -R airflow.airflow . $HOME/.cache $HOME/.wheelhouse/ $HOME/.cache/pip $HOME/.kube $HOME/.minikube
 
-if [[ $PYTHON_VERSION == '3' ]]; then
+mkdir -pv ${AIRFLOW_ROOT}/dags
+
+if [[ ${PYTHON_VERSION} == '3' ]]; then
   PIP=pip3
 else
   PIP=pip2
 fi
 
-sudo -H $PIP install --upgrade pip
-sudo -H $PIP install tox
+sudo -H ${PIP} install --upgrade pip
+sudo -H ${PIP} install tox
 
-cd $AIRFLOW_ROOT && $PIP --version && tox --version
+cd ${AIRFLOW_ROOT} && $PIP --version && tox --version
+
+if [ -z "${TOX_ENV}" ]; then
+    echo "################################################################################################"
+    echo
+    echo "You need to specify TOX_ENV environment variable to run tox-based tests automatically"
+    echo
+    echo "################################################################################################"
+    echo
+    echo "For now we drop you directly in bash shell (in case you use docker-compose to run it manually)"
+    echo "You can run tests yourself: 'tox -e integration'"
+    echo
+    echo "################################################################################################"
+    echo
+    bash
+    exit
+fi
 
 if [ -z "$KUBERNETES_VERSION" ];
 then

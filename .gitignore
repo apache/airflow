@@ -14,7 +14,9 @@ unittests.db
 airflow/git_version
 airflow/www/static/coverage/
 logs/
-airflow-webserver.pid
+airflow-webserver.*
+airflow-scheduler.*
+airflow-webserver-monitor.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
