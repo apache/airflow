@@ -45,6 +45,15 @@ class ECSOperator(BaseOperator):
     :type region_name: str
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
     :type launch_type: str
+    :param group: the name of the task group associated with the task
+    :type group: str
+    :param placement_constraints: an array of placement constraint objects to use for
+        the task
+    :type placement_constraints: list
+    :param platform_version: the platform version on which your task is running
+    :type platform_version: str
+    :param network_configuration: the network configuration for the task
+    :type network_configuration: dict
     """
 
     ui_color = '#f0ede4'
@@ -54,7 +63,9 @@ class ECSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, task_definition, cluster, overrides,
-                 aws_conn_id=None, region_name=None, launch_type='EC2', **kwargs):
+                 aws_conn_id=None, region_name=None, launch_type='EC2',
+                 group=None, placement_constraints=None, platform_version='LATEST',
+                 network_configuration=None, **kwargs):
         super(ECSOperator, self).__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
@@ -63,6 +74,10 @@ class ECSOperator(BaseOperator):
         self.cluster = cluster
         self.overrides = overrides
         self.launch_type = launch_type
+        self.group = group
+        self.placement_constraints = placement_constraints
+        self.platform_version = platform_version
+        self.network_configuration = network_configuration
 
         self.hook = self.get_hook()
 
@@ -78,13 +93,21 @@ class ECSOperator(BaseOperator):
             region_name=self.region_name
         )
 
-        response = self.client.run_task(
-            cluster=self.cluster,
-            taskDefinition=self.task_definition,
-            overrides=self.overrides,
-            startedBy=self.owner,
-            launchType=self.launch_type
-        )
+        run_opts = {
+            'cluster': self.cluster,
+            'taskDefinition': self.task_definition,
+            'overrides': self.overrides,
+            'startedBy': self.owner,
+            'launchType': self.launch_type,
+            'platformVersion': self.platform_version,
+        }
+        if self.group is not None:
+            run_opts['group'] = self.group
+        if self.placement_constraints is not None:
+            run_opts['placementConstraints'] = self.placement_constraints
+        if self.network_configuration is not None:
+            run_opts['networkConfiguration'] = self.network_configuration
+        response = self.client.run_task(**run_opts)
 
         failures = response['failures']
         if len(failures) > 0:
