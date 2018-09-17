@@ -15,6 +15,7 @@ little bit helps, and credit will always be given.
   * [Development and Testing](#development-and-testing)
       - [Setting up a development environment](#setting-up-a-development-environment)
       - [Running unit tests](#running-unit-tests)
+      - [Running integration tests](#running-integration-tests)
   * [Pull requests guidelines](#pull-request-guidelines)
   * [Changing the Metadata Database](#changing-the-metadata-database)
 
@@ -192,6 +193,29 @@ nosetests docs.
 See also the list of test classes and methods in `tests/core.py`.
 
 Feel free to customize based on the extras available in [setup.py](./setup.py)
+
+### Running integration tests
+
+To run DAGs as integration tests locally directly from the CLI, once your development 
+environment is setup 
+(directly on your system or through a Docker setup) you can simply run `./run_int_tests.sh`.
+
+It expects 2 parameters:
+- a comma-separated list of key-value pairs (`KEY1=VALUE1,KEY2=VALUE2,...`) - these are
+ Airflow variables, through which you can inject the necessary config values to 
+ the tested DAGs
+- a path expression specifying which DAGs to run, e.g. 
+`$AIRFLOW_HOME/incubator-airflow/airflow/contrib/example_dags/example_gcf*` will run all 
+DAGs from 
+`example_dags` with names beginning with `example_gcf`.
+
+Full example running tests for Google Cloud Functions operators:
+```
+vars=PROJECT_ID=<gcp_project_id>,REGION=<gcp_region>,SOURCE_REPOSITORY="https://source.developers.google.com/projects/<gcp_project_id>/repos/<your_repo>/moveable-aliases/master",ENTRYPOINT=helloWorld
+path=$AIRFLOW_HOME/incubator-airflow/airflow/contrib/example_dags/example_gcf_*
+./run_int_tests.sh $vars $path 
+```
+
 
 ## Pull Request Guidelines
 
