@@ -33,8 +33,6 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.settings import Session
-from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 # Make it constant for unit test.

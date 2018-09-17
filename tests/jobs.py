@@ -1988,6 +1988,54 @@ class SchedulerJobTest(unittest.TestCase):
         ti2.refresh_from_db(session=session)
         self.assertEqual(ti2.state, State.SCHEDULED)
 
+    def test_change_state_for_tasks_failed_to_execute(self):
+        dag = DAG(
+            dag_id='dag_id',
+            start_date=DEFAULT_DATE)
+
+        task = DummyOperator(
+            task_id='task_id',
+            dag=dag,
+            owner='airflow')
+
+        # If there's no left over task in executor.queued_tasks, nothing happens
+        session = settings.Session()
+        scheduler_job = SchedulerJob()
+        mock_logger = mock.MagicMock()
+        test_executor = TestExecutor()
+        scheduler_job.executor = test_executor
+        scheduler_job._logger = mock_logger
+        scheduler_job._change_state_for_tasks_failed_to_execute()
+        mock_logger.info.assert_not_called()
+
+        # Tasks failed to execute with QUEUED state will be set to SCHEDULED state.
+        session.query(TI).delete()
+        session.commit()
+        key = 'dag_id', 'task_id', DEFAULT_DATE
+        test_executor.queued_tasks[key] = 'value'
+        ti = TI(task, DEFAULT_DATE)
+        ti.state = State.QUEUED
+        session.merge(ti)
+        session.commit()
+
+        scheduler_job._change_state_for_tasks_failed_to_execute()
+
+        ti.refresh_from_db()
+        self.assertEquals(State.SCHEDULED, ti.state)
+
+        # Tasks failed to execute with RUNNING state will not be set to SCHEDULED state.
+        session.query(TI).delete()
+        session.commit()
+        ti.state = State.RUNNING
+
+        session.merge(ti)
+        session.commit()
+
+        scheduler_job._change_state_for_tasks_failed_to_execute()
+
+        ti.refresh_from_db()
+        self.assertEquals(State.RUNNING, ti.state)
+
     def test_execute_helper_reset_orphaned_tasks(self):
         session = settings.Session()
         dag = DAG(
