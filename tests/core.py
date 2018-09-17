@@ -1429,8 +1429,18 @@ class CliTests(unittest.TestCase):
             'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
         cli.clear(args)
 
+    def test_parentdag_downstream_clear(self):
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator.section-1', '--no_confirm'])
+        cli.clear(args)
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator.section-1', '--no_confirm',
+            '--exclude_parentdag'])
+        cli.clear(args)
+
     def test_get_dags(self):
-        dags = cli.get_dags(self.parser.parse_args(['clear', 'example_subdag_operator', '-c']))
+        dags = cli.get_dags(self.parser.parse_args(['clear', 'example_subdag_operator',
+                                                    '-c']))
         self.assertEqual(len(dags), 1)
 
         dags = cli.get_dags(self.parser.parse_args(['clear', 'subdag', '-dx', '-c']))
@@ -1942,6 +1952,34 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
+        url = (
+            "/admin/airflow/clear?task_id=section-1-task-1&"
+            "dag_id=example_subdag_operator.section-1&future=false&past=false&"
+            "upstream=false&downstream=true&recursive=true&"
+            "execution_date={}&"
+            "origin=/admin".format(DEFAULT_DATE_DS))
+        response = self.app.get(url)
+        self.assertIn("Wait a minute", response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.end",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-1.section-1-task-1",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-1",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-1",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-2",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-3",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-4",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.section-2.section-2-task-5",
+                      response.data.decode('utf-8'))
+        self.assertIn("example_subdag_operator.some-other-task",
+                      response.data.decode('utf-8'))
         url = (
             "/admin/airflow/run?task_id=runme_0&"
             "dag_id=example_bash_operator&ignore_all_deps=false&ignore_ti_state=true&"
