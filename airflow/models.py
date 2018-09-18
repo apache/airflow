@@ -53,11 +53,11 @@ import hashlib
 import uuid
 from datetime import datetime
 from urllib.parse import urlparse, quote, parse_qsl
-
 from sqlalchemy import (
-    Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
-    Index, Float, LargeBinary, UniqueConstraint, ForeignKeyConstraint)
-from sqlalchemy import func, or_, and_, true as sqltrue, asc
+    Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
+    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint,
+    and_, asc, func, or_, true as sqltrue
+)
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
 
