@@ -124,4 +124,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
     @property
     def deps(self):
+        """
+        Adds one additional dependency for all sensor operators that
+        checks if a sensor task instance can be rescheduled.
+        """
         return BaseOperator.deps.fget(self) | {ReadyToRescheduleDep()}
