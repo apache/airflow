@@ -1956,7 +1956,6 @@ class Airflow(BaseView):
 
         tasks = []
         for gantt_bar_item in gantt_bar_items:
-            print(gantt_bar_item)
             task_id = gantt_bar_item[0]
             start_date = gantt_bar_item[1]
             end_date = gantt_bar_item[2]
