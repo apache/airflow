@@ -30,6 +30,13 @@ class ReadyToRescheduleDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
+        """
+        Determines whether a task is ready to be rescheduled. Only tasks in
+        NONE state with at least one row in task_reschedule table are
+        handled by this dependency class, otherwise this dependency is
+        considered as passed. This dependency fails if the latest reschedule
+        request's reschedule date is still in future.
+        """
         if dep_context.ignore_in_reschedule_period:
             yield self._passing_status(
                 reason="The context specified that being in a reschedule period was "
