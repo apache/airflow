@@ -1676,7 +1676,7 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
-            self.handle_reschedule(reschedule_exception, test_mode, context)
+            self._handle_reschedule(reschedule_exception, test_mode, context)
             return
         except AirflowException as e:
             self.refresh_from_db()
@@ -1750,8 +1750,8 @@ class TaskInstance(Base, LoggingMixin):
         task_copy.dry_run()
 
     @provide_session
-    def handle_reschedule(self, reschedule_exception, test_mode=False, context=None,
-                          session=None):
+    def _handle_reschedule(self, reschedule_exception, test_mode=False, context=None,
+                           session=None):
         self.end_date = timezone.utcnow()
         self.set_duration()
 
