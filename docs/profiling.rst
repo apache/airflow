@@ -1,5 +1,11 @@
+.. TODO: This section would be removed after we migrate to www_rbac completely.
+
 Data Profiling
 ==============
+
+.. note::
+   ``Adhoc Queries`` and ``Charts`` are no longer supported in the new FAB-based webserver
+   and UI, due to security concerns.
 
 Part of being productive with data is having the right weapons to
 profile the data you are working with. Airflow provides a simple query
