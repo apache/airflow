@@ -96,6 +96,7 @@ viewer_perms = {
     'can_rendered',
     'can_pickle_info',
     'can_version',
+    'can_get_logs_with_metadata',
 }
 
 user_perms = {
