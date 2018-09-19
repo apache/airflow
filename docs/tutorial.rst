@@ -37,7 +37,7 @@ complicated, a line by line explanation follows below.
         # 'end_date': datetime(2016, 1, 1),
     }
 
-    dag = DAG('tutorial', default_args=default_args)
+    dag = DAG('tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
@@ -147,7 +147,7 @@ define a ``schedule_interval`` of 1 day for the DAG.
 .. code:: python
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
 Tasks
 -----
@@ -277,8 +277,8 @@ something like this:
 .. code:: python
 
     """
-    Code that goes along with the Airflow located at:
-    http://airflow.readthedocs.org/en/latest/tutorial.html
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -301,7 +301,7 @@ something like this:
     }
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
