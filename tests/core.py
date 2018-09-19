@@ -97,7 +97,8 @@ def reset(dag_id=TEST_DAG_ID):
 
 
 configuration.conf.load_test_config()
-reset()
+if os.environ.get('KUBERNETES_VERSION') is None:
+    reset()
 
 
 class OperatorSubclass(BaseOperator):
