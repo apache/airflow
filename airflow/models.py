@@ -272,6 +272,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 'example_dags')
             self.collect_dags(example_dag_folder)
         self.collect_dags(dag_folder)
+        self.deactivate_inactive_dags()
 
     def size(self):
         """
