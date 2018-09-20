@@ -1752,6 +1752,10 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def _handle_reschedule(self, reschedule_exception, test_mode=False, context=None,
                            session=None):
+        # Don't record reschedule request in test mode
+        if test_mode:
+            return
+
         self.end_date = timezone.utcnow()
         self.set_duration()
 
@@ -1767,8 +1771,7 @@ class TaskInstance(Base, LoggingMixin):
         # to same log file.
         self._try_number -= 1
 
-        if not test_mode:
-            session.merge(self)
+        session.merge(self)
         session.commit()
         self.log.info('Rescheduling task, marking task as NONE')
 

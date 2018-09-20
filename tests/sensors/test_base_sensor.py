@@ -429,3 +429,31 @@ class BaseSensorTest(unittest.TestCase):
                 self.assertEquals(ti.state, State.SUCCESS)
             if ti.task_id == DUMMY_OP:
                 self.assertEquals(ti.state, State.NONE)
+
+    def test_reschedule_with_test_mode(self):
+        sensor = self._make_sensor(
+            return_value=None,
+            poke_interval=10,
+            timeout=25,
+            mode='reschedule')
+        sensor.poke = Mock(side_effect=[False])
+        dr = self._make_dag_run()
+
+        # poke returns False and AirflowRescheduleException is raised
+        date1 = timezone.utcnow()
+        with freeze_time(date1):
+            for dt in self.dag.date_range(DEFAULT_DATE, end_date=DEFAULT_DATE):
+                TaskInstance(sensor, dt).run(
+                    ignore_ti_state=True,
+                    test_mode=True)
+        tis = dr.get_task_instances()
+        self.assertEquals(len(tis), 2)
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                # in test mode state is not modified
+                self.assertEquals(ti.state, State.NONE)
+                # in test mode no reschedule request is recorded
+                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                self.assertEquals(len(task_reschedules), 0)
+            if ti.task_id == DUMMY_OP:
+                self.assertEquals(ti.state, State.NONE)
