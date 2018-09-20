@@ -34,7 +34,11 @@ except Exception as e:
 
 
 def get_minikube_host():
-    host_ip = check_output(['minikube', 'ip'])
+    host_ip = check_output(['docker',
+                            'inspect',
+                            '-f',
+                            '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',
+                            'kube-node-1'])
     if six.PY3:
         host_ip = host_ip.decode('UTF-8')
     host = '{}:30809'.format(host_ip.strip())
@@ -64,10 +68,10 @@ class KubernetesExecutorTest(unittest.TestCase):
                 result = requests.get(
                     'http://{host}/api/experimental/dags/{dag_id}/'
                     'dag_runs/{execution_date}/tasks/{task_id}'
-                    .format(host=host,
-                            dag_id=dag_id,
-                            execution_date=execution_date,
-                            task_id=task_id)
+                        .format(host=host,
+                                dag_id=dag_id,
+                                execution_date=execution_date,
+                                task_id=task_id)
                 )
                 self.assertEqual(result.status_code, 200, "Could not get the status")
                 result_json = result.json()
@@ -99,9 +103,9 @@ class KubernetesExecutorTest(unittest.TestCase):
             result = requests.get(
                 'http://{host}/api/experimental/dags/{dag_id}/'
                 'dag_runs/{execution_date}'
-                .format(host=host,
-                        dag_id=dag_id,
-                        execution_date=execution_date)
+                    .format(host=host,
+                            dag_id=dag_id,
+                            execution_date=execution_date)
             )
             print(result)
             self.assertEqual(result.status_code, 200, "Could not get the status")

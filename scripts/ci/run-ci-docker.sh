@@ -18,12 +18,23 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -x
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
+set -x -e
 
-if [ -z "$KUBERNETES_VERSION" ];
-then
-  docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci-docker.sh
+DIRNAME=$(cd "$(dirname "$0")"; pwd)
+AIRFLOW_ROOT="$DIRNAME/../.."
+
+# Fix file permissions
+sudo chown -R airflow.airflow . $HOME/.wheelhouse/ $HOME/.cache/pip
+
+if [[ $PYTHON_VERSION == '3' ]]; then
+  PIP=pip3
 else
-  $DIRNAME/run-ci-kubernetes.sh
+  PIP=pip
 fi
+
+sudo $PIP install --upgrade pip
+sudo $PIP install tox
+
+cd $AIRFLOW_ROOT && $PIP --version && tox --version
+
+tox -e $TOX_ENV

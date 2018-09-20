@@ -19,6 +19,8 @@
 sudo: true
 dist: trusty
 language: python
+services:
+  - postgresql
 env:
   global:
     - DOCKER_COMPOSE_VERSION=1.20.0
@@ -26,14 +28,14 @@ env:
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
     - TOX_ENV=flake8
-    - TOX_ENV=py27-backend_mysql
-    - TOX_ENV=py27-backend_sqlite
-    - TOX_ENV=py27-backend_postgres
-    - TOX_ENV=py35-backend_mysql PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_sqlite PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres PYTHON_VERSION=3
-    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.9.0
-    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
+    - TOX_ENV=py27-backend_mysql-env_docker
+    - TOX_ENV=py27-backend_sqlite-env_docker
+    - TOX_ENV=py27-backend_postgres-env_docker
+    - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
+    - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
+    - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
+    - TOX_ENV=py27-backend_postgres_k8s-env_kubernetes KUBERNETES_VERSION=v1.9.0
+    - TOX_ENV=py35-backend_postgres_k8s-env_kubernetes KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -43,12 +45,19 @@ before_install:
   - sudo ls -lh $HOME/.cache/pip/
   - sudo rm -rf $HOME/.cache/pip/* $HOME/.wheelhouse/*
   - sudo chown -R travis:travis $HOME/.cache/pip
+  - ./scripts/ci/docker-registry.sh
 install:
   # Use recent docker-compose version
   - sudo rm /usr/local/bin/docker-compose
   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
+  - psql -c 'create database airflow;' -U postgres
   - pip install --upgrade pip
+  - pip install tox
+  - pip install codecov
 script:
-  - docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+  - ./scripts/ci/run-ci.sh
+after_success:
+  - sudo chown -R travis.travis .
+  - codecov

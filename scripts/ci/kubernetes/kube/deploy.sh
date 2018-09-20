@@ -16,10 +16,27 @@
 #  KIND, either express or implied.  See the License for the    *
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
+_UNAME_OUT=$(uname -s)
+case "${_UNAME_OUT}" in
+    Linux*)     _MY_OS=linux;;
+    Darwin*)    _MY_OS=darwin;;
+    *)          echo "${_UNAME_OUT} is not unsupported."
+                exit 1;;
+esac
+echo "Local OS is ${_MY_OS}"
+
+if [ "$_MY_OS" = "linux" ]; then
+    export _REGISTRY_IP=10.192.0.1
+else
+    export _REGISTRY_IP=`ipconfig getifaddr en0`
+fi
 
 IMAGE=${1:-airflow/ci}
 TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
+rm $DIRNAME/airflow.yaml
+sed -e s/{REG_IP}/$_REGISTRY_IP/g $DIRNAME/airflow.yaml.template > $DIRNAME/airflow.yaml
+cat $DIRNAME/airflow.yaml
 
 kubectl delete -f $DIRNAME/postgres.yaml
 kubectl delete -f $DIRNAME/airflow.yaml
