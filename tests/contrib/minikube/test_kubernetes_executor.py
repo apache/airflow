@@ -38,7 +38,7 @@ except Exception as e:
 
 
 def get_minikube_host():
-    if os.environ['MINIKUBE_IP']:
+    if "MINIKUBE_IP" in os.environ:
         host_ip = os.environ['MINIKUBE_IP']
     else:
         host_ip = check_output(['/usr/local/bin/minikube', 'ip'])
