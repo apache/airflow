@@ -487,7 +487,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file_path, processor in self._processors.items():
             if processor.done:
-                self.log.info("Processor for %s finished", file_path)
+                self.log.debug("Processor for %s finished", file_path)
                 now = timezone.utcnow()
                 finished_processors[file_path] = processor
                 self._last_runtime[file_path] = (now -
@@ -560,7 +560,7 @@ class DagFileProcessorManager(LoggingMixin):
             processor = self._processor_factory(file_path)
 
             processor.start()
-            self.log.info(
+            self.log.debug(
                 "Started a process (PID: %s) to generate tasks for %s",
                 processor.pid, file_path
             )
