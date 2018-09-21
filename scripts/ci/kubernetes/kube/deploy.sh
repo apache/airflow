@@ -17,6 +17,8 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
+set -x
+
 IMAGE=${1:-airflow/ci}
 TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)

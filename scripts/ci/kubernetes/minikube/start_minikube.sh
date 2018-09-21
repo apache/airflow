@@ -19,12 +19,13 @@
 
 #!/usr/bin/env bash
 
+set -x
 
 _MY_SCRIPT="${BASH_SOURCE[0]}"
 _MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
 # Avoids 1.7.x because of https://github.com/kubernetes/minikube/issues/2240
 _KUBERNETES_VERSION="${KUBERNETES_VERSION}"
-_MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.26.0}"
+_MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.28.2}"
 
 echo "setting up kubernetes ${_KUBERNETES_VERSION}, using minikube ${_MINIKUBE_VERSION}"
 
@@ -116,7 +117,7 @@ echo Showing kube-system pods
 kubectl get -n kube-system pods
 
 (k8s_single_pod_ready -n kube-system -l component=kube-addon-manager) ||
-  (_ADDON=$(kubectl get pod -n kube-system -l component=kube-addon-manager
+  (_ADDON=$(kubectl get pod -n kube-system -l component=kube-addon-manager \
       --no-headers -o name| cut -d/ -f2);
    echo Addon-manager describe:;
    kubectl describe pod -n kube-system $_ADDON;
