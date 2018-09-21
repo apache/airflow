@@ -67,7 +67,7 @@ class TestChartModelView(unittest.TestCase):
         self.chart = {
             'label': 'chart',
             'owner': 'airflow',
-            'conn_id': 'airflow_ci',
+            'conn_id': 'airflow_db',
         }
 
     def tearDown(self):
