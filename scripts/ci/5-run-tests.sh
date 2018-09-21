@@ -58,9 +58,11 @@ which airflow > /dev/null || python setup.py develop
 # (which contains /usr/local/bin)
 sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
 
-echo "Initializing the DB"
-yes | airflow initdb
-yes | airflow resetdb
+if [ -z "$KUBERNETES_VERSION" ]; then
+  echo "Initializing the DB"
+  yes | airflow initdb
+  yes | airflow resetdb
+fi
 
 if [ -z "$nose_args" ]; then
   nose_args="--with-coverage \
@@ -75,8 +77,10 @@ if [ -z "$nose_args" ]; then
   --logging-level=DEBUG"
 fi
 
-# kdc init happens in setup_kdc.sh
-kinit -kt ${KRB5_KTNAME} airflow
+if [ -z "$KUBERNETES_VERSION" ]; then
+  # kdc init happens in setup_kdc.sh
+  kinit -kt ${KRB5_KTNAME} airflow
+fi
 
 # For impersonation tests running on SQLite on Travis, make the database world readable so other
 # users can update it
