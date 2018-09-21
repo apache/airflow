@@ -435,7 +435,7 @@ class CoreTest(unittest.TestCase):
         Tests that Operators reject illegal arguments
         """
         with warnings.catch_warnings(record=True) as w:
-            t = BashOperator(
+            BashOperator(
                 task_id='test_illegal_args',
                 bash_command='echo success',
                 dag=self.dag,
@@ -947,7 +947,7 @@ class CoreTest(unittest.TestCase):
 
         models.DagStat.update([], session=session)
 
-        run1 = self.dag_bash.create_dagrun(
+        self.dag_bash.create_dagrun(
             run_id="run1",
             execution_date=DEFAULT_DATE,
             state=State.RUNNING)
@@ -965,7 +965,7 @@ class CoreTest(unittest.TestCase):
                 self.assertEqual(stats.count, 0)
             self.assertFalse(stats.dirty)
 
-        run2 = self.dag_bash.create_dagrun(
+        self.dag_bash.create_dagrun(
             run_id="run2",
             execution_date=DEFAULT_DATE + timedelta(days=1),
             state=State.RUNNING)

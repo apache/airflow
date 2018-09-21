@@ -26,7 +26,6 @@ from collections import OrderedDict
 
 import os
 import mock
-import six
 import unittest
 
 configuration.load_test_config()

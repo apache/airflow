@@ -27,7 +27,7 @@ from airflow.executors.celery_executor import CELERY_FETCH_ERR_MSG_HEADER
 from airflow.utils.state import State
 
 # leave this it is used by the test worker
-import celery.contrib.testing.tasks
+import celery.contrib.testing.tasks  # noqa: F401
 
 
 class CeleryExecutorTest(unittest.TestCase):

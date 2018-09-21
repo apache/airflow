@@ -24,7 +24,6 @@ from mock import Mock
 from airflow.models import DAG, BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
-from airflow.utils.state import State
 
 
 class TaskConcurrencyDepTest(unittest.TestCase):

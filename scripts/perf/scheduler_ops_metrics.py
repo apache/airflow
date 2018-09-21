@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -129,8 +129,7 @@ class SchedulerMetricsJob(SchedulerJob):
             if len(successful_tis) == num_task_instances:
                 self.log.info("All tasks processed! Printing stats.")
             else:
-                self.log.info("Test timeout reached. "
-                                 "Printing available stats.")
+                self.log.info("Test timeout reached. Printing available stats.")
             self.print_stats()
             set_dags_paused_state(True)
             sys.exit()

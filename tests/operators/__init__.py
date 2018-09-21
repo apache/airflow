@@ -17,11 +17,3 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from .docker_operator import *
-from .subdag_operator import *
-from .operators import *
-from .hive_operator import *
-from .s3_to_hive_operator import *
-from .python_operator import *
-from .latest_only_operator import *
-
