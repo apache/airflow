@@ -1931,21 +1931,48 @@ class Airflow(BaseView):
                     TF.execution_date == ti.execution_date)
             .all()
         ) for ti in tis]))
-        tis_with_fails = sorted(tis + ti_fails, key=lambda ti: ti.start_date)
+        TR = models.TaskReschedule
+        ti_reschedules = list(itertools.chain(*[(
+            session
+            .query(TR)
+            .filter(TR.dag_id == ti.dag_id,
+                    TR.task_id == ti.task_id,
+                    TR.execution_date == ti.execution_date)
+            .all()
+        ) for ti in tis]))
+        # determine bars to show in the gantt chart
+        # all reschedules of one attempt are combinded into one bar
+        gantt_bar_items = []
+        for task_id, items in itertools.groupby(
+                sorted(tis + ti_fails + ti_reschedules, key=lambda ti: ti.task_id),
+                key=lambda ti: ti.task_id):
+            start_date = None
+            for i in sorted(items, key=lambda ti: ti.start_date):
+                start_date = start_date or i.start_date
+                end_date = i.end_date or timezone.utcnow()
+                if type(i) == models.TaskInstance:
+                    gantt_bar_items.append((task_id, start_date, end_date, i.state))
+                    start_date = None
+                elif type(i) == TF and (len(gantt_bar_items) == 0 or
+                                        end_date != gantt_bar_items[-1][2]):
+                    gantt_bar_items.append((task_id, start_date, end_date, State.FAILED))
+                    start_date = None
 
         tasks = []
-        for ti in tis_with_fails:
-            end_date = ti.end_date if ti.end_date else timezone.utcnow()
-            state = ti.state if type(ti) == models.TaskInstance else State.FAILED
+        for gantt_bar_item in gantt_bar_items:
+            task_id = gantt_bar_item[0]
+            start_date = gantt_bar_item[1]
+            end_date = gantt_bar_item[2]
+            state = gantt_bar_item[3]
             tasks.append({
-                'startDate': wwwutils.epoch(ti.start_date),
+                'startDate': wwwutils.epoch(start_date),
                 'endDate': wwwutils.epoch(end_date),
-                'isoStart': ti.start_date.isoformat()[:-4],
+                'isoStart': start_date.isoformat()[:-4],
                 'isoEnd': end_date.isoformat()[:-4],
-                'taskName': ti.task_id,
-                'duration': "{}".format(end_date - ti.start_date)[:-4],
+                'taskName': task_id,
+                'duration': "{}".format(end_date - start_date)[:-4],
                 'status': state,
-                'executionDate': ti.execution_date.isoformat(),
+                'executionDate': dttm.isoformat(),
             })
         states = {task['status']: task['status'] for task in tasks}
         data = {
