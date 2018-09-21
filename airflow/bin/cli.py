@@ -510,9 +510,18 @@ def run(args, dag=None):
                 try:
                     conf.set(section, option, value)
                 except NoSectionError:
-                    log.error('Section {section} Option {option} '
-                              'does not exist in the config!'.format(section=section,
-                                                                     option=option))
+                    optional_sections = [
+                        'atlas', 'mesos', 'elasticsearch', 'kubernetes',
+                        'lineage', 'hive'
+                    ]
+                    if section in optional_sections:
+                        log.debug('Section {section} Option {option} '
+                                  'does not exist in the config!'.format(section=section,
+                                                                         option=option))
+                    else:
+                        log.error('Section {section} Option {option} '
+                                  'does not exist in the config!'.format(section=section,
+                                                                         option=option))
 
         settings.configure_vars()
 
