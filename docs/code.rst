@@ -120,6 +120,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
 .. autoclass:: airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
