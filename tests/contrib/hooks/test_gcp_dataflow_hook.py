@@ -19,7 +19,6 @@
 #
 
 import unittest
-from mock import call
 from mock import MagicMock
 
 from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\

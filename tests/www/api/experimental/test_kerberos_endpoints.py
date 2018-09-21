@@ -20,7 +20,6 @@
 import json
 import mock
 import os
-import socket
 import unittest
 
 from datetime import datetime

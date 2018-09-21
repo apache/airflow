@@ -22,12 +22,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import inspect
-import logging
 import unittest
 
 from flask.blueprints import Blueprint
-from flask_admin import BaseView
 from flask_admin.menu import MenuLink, MenuView
 
 from airflow.hooks.base_hook import BaseHook

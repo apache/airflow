@@ -28,12 +28,9 @@ from builtins import input
 from past.builtins import basestring
 from datetime import datetime
 from functools import reduce
-import imp
 import os
 import re
 import signal
-import sys
-import warnings
 
 from jinja2 import Template
 

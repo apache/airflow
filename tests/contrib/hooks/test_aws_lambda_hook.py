@@ -23,7 +23,6 @@ import io
 import json
 import textwrap
 import zipfile
-import base64
 
 from airflow.contrib.hooks.aws_lambda_hook import AwsLambdaHook
 

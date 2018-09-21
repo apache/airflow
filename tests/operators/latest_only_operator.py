@@ -20,11 +20,9 @@
 from __future__ import print_function, unicode_literals
 
 import datetime
-import logging
 import unittest
 
 from airflow import configuration, DAG, settings
-from airflow.jobs import BackfillJob
 from airflow.models import TaskInstance
 from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
