@@ -18,7 +18,6 @@
 # under the License.
 #
 
-import jinja2
 import unittest
 from datetime import datetime
 

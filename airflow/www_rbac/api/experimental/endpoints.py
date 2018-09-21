@@ -237,6 +237,7 @@ def dag_run_status(dag_id, execution_date):
 
     return jsonify(info)
 
+
 @api_experimental.route('/latest_runs', methods=['GET'])
 @requires_authentication
 def latest_dag_runs():
