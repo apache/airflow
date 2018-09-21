@@ -31,7 +31,7 @@ import json
 from urllib.parse import quote_plus
 from werkzeug.test import Client
 
-from airflow import models, configuration, settings
+from airflow import models, configuration
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
