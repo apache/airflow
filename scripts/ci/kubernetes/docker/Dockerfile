@@ -36,6 +36,8 @@ RUN apt-get update -y && apt-get install -y \
     && apt-get clean
 
 RUN pip install --upgrade pip
+RUN pip install wheel
+RUN pip install tox
 
 # Since we install vanilla Airflow, we also want to have support for Postgres and Kubernetes
 RUN pip install -U setuptools && \
