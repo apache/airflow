@@ -22,9 +22,13 @@ TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../../../.."
 
-ENVCONFIG=$(minikube docker-env)
-if [ $? -eq 0 ]; then
-  eval $ENVCONFIG
+set -e
+
+if [ "${VM_DRIVER:-none}" != "none" ]; then
+    ENVCONFIG=$(minikube docker-env)
+    if [ $? -eq 0 ]; then
+      eval $ENVCONFIG
+    fi
 fi
 
 echo "Airflow directory $AIRFLOW_ROOT"

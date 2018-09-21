@@ -16,6 +16,7 @@
 # under the License.
 
 
+import os
 import unittest
 from subprocess import check_call, check_output
 import requests.exceptions
@@ -25,18 +26,25 @@ import six
 import re
 
 try:
-    check_call(["kubectl", "get", "pods"])
+    check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:
-    raise unittest.SkipTest(
-        "Kubernetes integration tests require a minikube cluster;"
-        "Skipping tests {}".format(e)
-    )
+    if os.environ.get('KUBERNETES_VERSION'):
+        raise e
+    else:
+        raise unittest.SkipTest(
+            "Kubernetes integration tests require a minikube cluster;"
+            "Skipping tests {}".format(e)
+        )
 
 
 def get_minikube_host():
-    host_ip = check_output(['minikube', 'ip'])
-    if six.PY3:
-        host_ip = host_ip.decode('UTF-8')
+    if "MINIKUBE_IP" in os.environ:
+        host_ip = os.environ['MINIKUBE_IP']
+    else:
+        host_ip = check_output(['/usr/local/bin/minikube', 'ip'])
+        if six.PY3:
+            host_ip = host_ip.decode('UTF-8')
+
     host = '{}:30809'.format(host_ip.strip())
     return host
 
