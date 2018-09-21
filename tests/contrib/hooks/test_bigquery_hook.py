@@ -337,8 +337,31 @@ class TestLabelsInRunJob(unittest.TestCase):
         mocked_rwc.assert_called_once()
 
 
-class TestTimePartitioningInRunJob(unittest.TestCase):
+class TestDatasetsOperations(unittest.TestCase):
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_empty_dataset_no_dataset_id_err(self,
+                                                    run_with_configuration):
+
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="")
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_empty_dataset_duplicates_call_err(self,
+                                                      run_with_configuration):
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="project_test",
+                dataset_reference={
+                    "datasetReference":
+                        {"datasetId": "test_dataset",
+                         "projectId": "project_test2"}})
+
+
+class TestTimePartitioningInRunJob(unittest.TestCase):
     @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
     @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
