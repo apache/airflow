@@ -26,7 +26,7 @@ variable over the value in ``airflow.cfg``:
 .. code-block:: bash
 
   # Note the double underscores
-  EXPORT AIRFLOW__CORE__FERNET_KEY = your_fernet_key
+  export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
 
 4. Restart Airflow webserver.
 5. For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it.

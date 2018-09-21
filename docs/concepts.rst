@@ -320,7 +320,7 @@ Connections
 ===========
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``)
+metadata database and managed in the UI (``Menu -> Admin -> Connections``).
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
@@ -353,7 +353,7 @@ See :doc:`howto/manage-connections` for how to create and manage connections.
 Queues
 ======
 
-When using the CeleryExecutor, the celery queues that tasks are sent to
+When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any
 task can be assigned to any queue. The default queue for the environment
 is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
@@ -361,7 +361,7 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma delimited
+started (using the command ``airflow worker``), a set of comma-delimited
 queue names can be specified (e.g. ``airflow worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 

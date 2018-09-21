@@ -3,7 +3,7 @@ Managing Connections
 
 Airflow needs to know how to connect to your environment. Information
 such as hostname, port, login and passwords to other systems and services is
-handled in the ``Admin->Connection`` section of the UI. The pipeline code you
+handled in the ``Admin->Connections`` section of the UI. The pipeline code you
 will author will reference the 'conn_id' of the Connection objects.
 
 .. image:: ../img/connections.png
@@ -17,7 +17,7 @@ more information.
 Creating a Connection with the UI
 ---------------------------------
 
-Open the ``Admin->Connection`` section of the UI. Click the ``Create`` link
+Open the ``Admin->Connections`` section of the UI. Click the ``Create`` link
 to create a new connection.
 
 .. image:: ../img/connection_create.png
@@ -34,7 +34,7 @@ to create a new connection.
 Editing a Connection with the UI
 --------------------------------
 
-Open the ``Admin->Connection`` section of the UI. Click the pencil icon next
+Open the ``Admin->Connections`` section of the UI. Click the pencil icon next
 to the connection you wish to edit in the connection list.
 
 .. image:: ../img/connection_edit.png
