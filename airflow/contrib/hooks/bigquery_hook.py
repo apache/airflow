@@ -960,7 +960,7 @@ class BigQueryBaseCursor(LoggingMixin):
         if not set(allowed_schema_update_options).issuperset(
                 set(schema_update_options)):
             raise ValueError(
-                "{0} contains invalid schema update options. "
+                "{0} contains invalid schema update options."
                 "Please only use one or more of the following options: {1}"
                 .format(schema_update_options, allowed_schema_update_options))
 
@@ -1350,6 +1350,72 @@ class BigQueryBaseCursor(LoggingMixin):
                 view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
 
+    def create_empty_dataset(self, dataset_id="", project_id="",
+                             dataset_reference=None):
+        """
+        Create a new empty dataset:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
+
+        :param project_id: The name of the project where we want to create
+            an empty a dataset. Don't need to provide, if projectId in dataset_reference.
+        :type project_id: str
+        :param dataset_id: The id of dataset. Don't need to provide,
+            if datasetId in dataset_reference.
+        :type dataset_id: str
+        :param dataset_reference: Dataset reference that could be provided
+            with request body. More info:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_reference: dict
+        """
+
+        if dataset_reference:
+            _validate_value('dataset_reference', dataset_reference, dict)
+        else:
+            dataset_reference = {}
+
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
+
+        if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
+            raise ValueError(
+                "{} not provided datasetId. Impossible to create dataset")
+
+        dataset_required_params = [(dataset_id, "datasetId", ""),
+                                   (project_id, "projectId", self.project_id)]
+        for param_tuple in dataset_required_params:
+            param, param_name, param_default = param_tuple
+            if param_name not in dataset_reference['datasetReference']:
+                if param_default and not param:
+                    self.log.info("{} was not specified. Will be used default "
+                                  "value {}.".format(param_name,
+                                                     param_default))
+                    param = param_default
+                dataset_reference['datasetReference'].update(
+                    {param_name: param})
+            elif param:
+                _api_resource_configs_duplication_check(
+                    param_name, param,
+                    dataset_reference['datasetReference'], 'dataset_reference')
+
+        dataset_id = dataset_reference.get("datasetReference").get("datasetId")
+        dataset_project_id = dataset_reference.get("datasetReference").get(
+            "projectId")
+
+        self.log.info('Creating Dataset: %s in project: %s ', dataset_id,
+                      dataset_project_id)
+
+        try:
+            self.service.datasets().insert(
+                projectId=dataset_project_id,
+                body=dataset_reference).execute()
+            self.log.info('Dataset created successfully: In project %s '
+                          'Dataset %s', dataset_project_id, dataset_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
     def delete_dataset(self, project_id, dataset_id):
         """
         Delete a dataset of Big query in your project.
@@ -1671,10 +1737,11 @@ def _validate_value(key, value, expected_type):
             key, expected_type, type(value)))
 
 
-def _api_resource_configs_duplication_check(key, value, config_dict):
+def _api_resource_configs_duplication_check(key, value, config_dict,
+                                            config_dict_name='api_resource_configs'):
     if key in config_dict and value != config_dict[key]:
         raise ValueError("Values of {param_name} param are duplicated. "
-                         "`api_resource_configs` contained {param_name} param "
+                         "{dict_name} contained {param_name} param "
                          "in `query` config and {param_name} was also provided "
                          "with arg to run_query() method. Please remove duplicates."
-                         .format(param_name=key))
+                         .format(param_name=key, dict_name=config_dict_name))
