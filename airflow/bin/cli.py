@@ -3861,10 +3861,6 @@ class CLIFactory(object):
             "Do not prompt to confirm reset. Use with care!",
             "store_true",
             default=False),
-        'username': Arg(
-            ('-u', '--username',),
-            help='Username of the user',
-            type=str),
 
         # list_dag_runs
         'no_backfill': Arg(
@@ -4261,11 +4257,10 @@ class CLIFactory(object):
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
-        # create_user
-        'role': Arg(
-            ('-r', '--role',),
-            help='Role of the user. Existing roles include Admin, '
-                 'User, Op, Viewer, and Public',
+        # users
+        'username': Arg(
+            ('--username',),
+            help='Username of the user, required to create/delete a user',
             type=str),
         'yaml_filepath': Arg(
             ("-f", "--filepath"),
@@ -4276,24 +4271,31 @@ class CLIFactory(object):
             help='Username of the user, required to create/delete a user',
             type=str),
         'firstname': Arg(
-            ('-f', '--firstname',),
-            help='First name of the user',
+            ('--firstname',),
+            help='First name of the user, required to create a user',
             type=str),
         'lastname': Arg(
             ('--lastname',),
             help='Last name of the user',
+            type=str),
+        'role': Arg(
+            ('--role',),
+            help='Role of the user. Existing roles include Admin, '
+                 'User, Op, Viewer, and Public. Required to create a user',
             type=str),
         'email': Arg(
             ('--email',),
             help='Email of the user',
             type=str),
         'password': Arg(
-            ('-p', '--password',),
-            help='Password of the user',
+            ('--password',),
+            help='Password of the user, required to create a user '
+                 'without --use_random_password',
             type=str),
         'use_random_password': Arg(
             ('--use_random_password',),
-            help='Do not prompt for password.  Use random string instead',
+            help='Do not prompt for password. Use random string instead.'
+                 ' Required to create a user without --password ',
             default=False,
             action='store_true'),
         'autoscale': Arg(
