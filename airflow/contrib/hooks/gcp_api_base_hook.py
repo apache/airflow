@@ -87,7 +87,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         elif key_path:
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
-                self.log.info('Getting connection using a JSON key file.')
+                self.log.debug('Getting connection using JSON key file %s' % key_path)
                 credentials = (
                     google.oauth2.service_account.Credentials.from_service_account_file(
                         key_path, scopes=scopes)
