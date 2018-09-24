@@ -4949,6 +4949,28 @@ a.thumbnail.active {
 .alert-danger .alert-link {
   color: #843534;
 }
+.alert-message {
+  background-color: #d9edf7;
+  border-color: #bce8f1;
+  color: #31708f;
+}
+.alert-message hr {
+  border-top-color: #a6e1ec;
+}
+.alert-message .alert-link {
+  color: #245269;
+}
+.alert-error {
+  background-color: #f2dede;
+  border-color: #ebccd1;
+  color: #a94442;
+}
+.alert-error hr {
+  border-top-color: #e4b9c0;
+}
+.alert-error .alert-link {
+  color: #843534;
+}
 @-webkit-keyframes progress-bar-stripes {
   from {
     background-position: 40px 0;
