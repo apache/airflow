@@ -810,6 +810,7 @@ class HiveServer2Hook(BaseHook):
                 lowered_statement = statement.lower().strip()
                 if (lowered_statement.startswith('select') or
                     lowered_statement.startswith('with') or
+                    lowered_statement.startswith('show') or
                     (lowered_statement.startswith('set') and
                      '=' not in lowered_statement)):
                     description = [c for c in cur.description]
