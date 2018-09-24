@@ -732,11 +732,12 @@ class Airflow(AirflowBaseView):
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
-            flash("DAG with id {} not found. Cannot delete".format(dag_id))
+            flash("DAG with id {} not found. Cannot delete".format(dag_id), 'error')
             return redirect(request.referrer)
         except DagFileExists:
             flash("Dag id {} is still in DagBag. "
-                  "Remove the DAG file first.".format(dag_id))
+                  "Remove the DAG file first.".format(dag_id),
+                  'error')
             return redirect(request.referrer)
 
         flash("Deleting DAG with id {}. May take a couple minutes to fully"
@@ -1895,7 +1896,7 @@ class VariableModelView(AirflowModelView):
             else:
                 d = json.loads(out)
         except Exception:
-            flash("Missing file or syntax error.")
+            flash("Missing file or syntax error.", 'error')
         else:
             suc_count = fail_count = 0
             for k, v in d.items():
@@ -1906,7 +1907,7 @@ class VariableModelView(AirflowModelView):
                     fail_count += 1
                 else:
                     suc_count += 1
-            flash("{} variable(s) successfully updated.".format(suc_count), 'info')
+            flash("{} variable(s) successfully updated.".format(suc_count))
             if fail_count:
                 flash("{} variables(s) failed to be updated.".format(fail_count), 'error')
             self.update_redirect()
