@@ -3005,6 +3005,20 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
                 for key in self.form_extra_fields.keys() if key in formdata}
             model.extra = json.dumps(extra)
 
+    def after_model_change(self, form, model, is_created):
+        hook = model.get_hook()
+        if hasattr(hook, "validate_conn"):
+            succes, msg = hook.validate_conn()
+            if not succes:
+                flash(
+                    message=(
+                        "Could not validate connection \"{0}\"."
+                        " Check connection details."
+                        " Error: {1}".format(form.data["conn_id"], msg)
+                    ),
+                    category="error",
+                )
+
     @classmethod
     def alert_fernet_key(cls):
         fk = None

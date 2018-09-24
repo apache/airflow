@@ -60,6 +60,15 @@ class PostgresHook(DbApiHook):
         self.conn = psycopg2.connect(**conn_args)
         return self.conn
 
+    def validate_conn(self):
+        try:
+            conn = self.get_conn()
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                return True, None
+        except psycopg2.DatabaseError as e:
+            return False, "An error occured connecting to the database: {}".format(e)
+
     def copy_expert(self, sql, filename, open=open):
         """
         Executes SQL using psycopg2 copy_expert method.
