@@ -39,7 +39,7 @@ class TimeRangeExternalTaskSensor(ExternalTaskSensor):
     :type execution_date_tolerance_before: datetime.timedelta
     :param execution_date_tolerance_after: time difference with an execution to
         look at in the future, the default is the same execution_date as the current task.
-        For yesterday, use [positive!] datetime.timedelta(days=1).
+        For tomorrow, use [positive!] datetime.timedelta(days=1).
     :type execution_date_tolerance_after: datetime.timedelta
     """
     template_fields = ['external_dag_id', 'external_task_id']
