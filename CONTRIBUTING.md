@@ -197,7 +197,7 @@ Feel free to customize based on the extras available in [setup.py](./setup.py)
 ### Running integration tests
 
 To run DAGs as integration tests locally directly from the CLI, once your development 
-environment is setup 
+  environment is setup 
 (directly on your system or through a Docker setup) you can simply run `./run_int_tests.sh`.
 
 It accepts 2 parameters:
@@ -213,10 +213,10 @@ DAGs from `example_dags` with names beginning with `example_gcf`.
 
 Full example running tests for Google Cloud Functions operators:
 ``` 
-./run_int_tests.sh --vars=[PROJECT_ID=<gcp_project_id>,REGION=<gcp_region>,
+./run_int_tests.sh --vars=[PROJECT_ID=<gcp_project_id>,LOCATION=<gcp_region>,
 SOURCE_REPOSITORY="https://source.developers.google
 .com/projects/<gcp_project_id>/repos/<your_repo>/moveable-aliases/master",
-ENTRYPOINT=helloWorld] --dags=$AIRFLOW_HOME/incubator-airflow/airflow/contrib/example_dags/example_gcf_*
+ENTRYPOINT=helloWorld] --dags=$AIRFLOW_HOME/incubator-airflow/airflow/contrib/example_dags/example_gcf*
 ```
 
 

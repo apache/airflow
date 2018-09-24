@@ -81,6 +81,9 @@ services:
       - TRAVIS_REPO_SLUG
       - TRAVIS_OS_NAME
       - TRAVIS_TAG
+      - INT_TEST_DAGS
+      - INT_TEST_VARS
+      - GCLOUD_SERVICE_KEY
     depends_on:
       - postgres
       - mysql

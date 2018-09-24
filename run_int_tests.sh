@@ -22,11 +22,11 @@ for i in "$@"
 do
 case ${i} in
     -v=*|--vars=*)
-    VARIABLES="${i#*=}"
+    INT_TEST_VARS="${i#*=}"
     shift # past argument=value
     ;;
     -d=*|--dags=*)
-    DAG_PATH="${i#*=}"
+    INT_TEST_DAGS="${i#*=}"
     shift # past argument=value
     ;;
     *)
@@ -34,15 +34,15 @@ case ${i} in
     ;;
 esac
 done
-echo "VARIABLES  = ${VARIABLES}"
-echo "DAG_PATH   = ${DAG_PATH}"
+echo "VARIABLES  = ${INT_TEST_VARS}"
+echo "DAGS       = ${INT_TEST_DAGS}"
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
     tail -1 $1
 fi
 
 # Remove square brackets if they exist
-TEMP=${VARIABLES//[}
+TEMP=${INT_TEST_VARS//[}
 SANITIZED_VARIABLES=${TEMP//]}
 echo ""
 echo "========= AIRFLOW VARIABLES =========="
@@ -56,8 +56,13 @@ for item in "${ENVS[@]}"; do
     echo "Set Airflow variable:"" ${ENV[0]}"" ${ENV[1]}"
 done
 
-echo "Running test DAGs from: ${DAG_PATH}"
-cp ${DAG_PATH} /home/airflow/dags/
+AIRFLOW_HOME=${AIRFLOW_HOME:-/home/airflow}
+INT_TEST_DAGS=${INT_TEST_DAGS:-${AIRFLOW_HOME}/incubator-airflow/airflow/contrib/example_dags/*.py}
+INT_TEST_VARS=${INT_TEST_VARS:-"[PROJECT_ID=project,LOCATION=europe-west1,SOURCE_REPOSITORY=https://example.com,ENTRYPOINT=helloWorld]"}
+
+echo "Running test DAGs from: ${INT_TEST_DAGS}"
+rm -vf ${AIRFLOW_HOME}/dags/*
+cp -v ${INT_TEST_DAGS} ${AIRFLOW_HOME}/dags/
 
 airflow initdb
 tmux new-session -d -s webserver 'airflow webserver'
@@ -89,7 +94,7 @@ while read -r name ; do
     results+=("$name:"${res})
 done < <(ls /home/airflow/dags | grep '.*py$' | grep -Po '.*(?=\.)')
 # `ls ...` -> Get all .py files and remove the file extension from the names
-# ^ Process substitution to avoid the subshell and interact with array outside of the loop
+# ^ Process substitution to avoid the sub-shell and interact with array outside of the loop
 # https://unix.stackexchange.com/a/407794/78408
 
 echo ""
