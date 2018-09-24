@@ -2231,10 +2231,9 @@ class DagRunModelView(AirflowModelView):
                 dr.state = State.RUNNING
             models.DagStat.update(dirty_ids, session=session)
             session.commit()
-            flash(
-                "{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
-            flash(str(ex))
+            flash(str(ex), 'error')
             flash('Failed to set state', 'error')
         return redirect(self.route_base + '/list')
 
