@@ -20,277 +20,23 @@ import re
 
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException, LoggingMixin
+from airflow import AirflowException
+from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator, \
+    GcpFieldValidationException
 from airflow.version import version
 from airflow.models import BaseOperator
 from airflow.contrib.hooks.gcp_function_hook import GcfHook
 from airflow.utils.decorators import apply_defaults
 
-# TODO: This whole section should be extracted later to contrib/tools/field_validator.py
-
-COMPOSITE_FIELD_TYPES = ['union', 'dict']
-
-
-class FieldValidationException(AirflowException):
-    """
-    Thrown when validation finds dictionary field not valid according to specification.
-    """
-
-    def __init__(self, message):
-        super(FieldValidationException, self).__init__(message)
-
-
-class ValidationSpecificationException(AirflowException):
-    """
-    Thrown when validation specification is wrong
-    (rather than dictionary being validated).
-    This should only happen during development as ideally
-     specification itself should not be invalid ;) .
-    """
-
-    def __init__(self, message):
-        super(ValidationSpecificationException, self).__init__(message)
-
-
-# TODO: make better description, add some examples
-# TODO: move to contrib/utils folder when we reuse it.
-class BodyFieldValidator(LoggingMixin):
-    """
-    Validates correctness of request body according to specification.
-    The specification can describe various type of
-    fields including custom validation, and union of fields. This validator is meant
-    to be reusable by various operators
-    in the near future, but for now it is left as part of the Google Cloud Function,
-    so documentation about the
-    validator is not yet complete. To see what kind of specification can be used,
-    please take a look at
-    gcp_function_operator.CLOUD_FUNCTION_VALIDATION which specifies validation
-    for GCF deploy operator.
-
-    :param validation_specs: dictionary describing validation specification
-    :type validation_specs: [dict]
-    :param api_version: Version of the api used (for example v1)
-    :type api_version: str
-
-    """
-    def __init__(self, validation_specs, api_version):
-        # type: ([dict], str) -> None
-        super(BodyFieldValidator, self).__init__()
-        self._validation_specs = validation_specs
-        self._api_version = api_version
-
-    @staticmethod
-    def _get_field_name_with_parent(field_name, parent):
-        if parent:
-            return parent + '.' + field_name
-        return field_name
-
-    @staticmethod
-    def _sanity_checks(children_validation_specs, field_type, full_field_path,
-                       regexp, custom_validation, value):
-        # type: (dict, str, str, str, function, object) -> None
-        if value is None and field_type != 'union':
-            raise FieldValidationException(
-                "The required body field '{}' is missing. Please add it.".
-                format(full_field_path))
-        if regexp and field_type:
-            raise ValidationSpecificationException(
-                "The validation specification entry '{}' has both type and regexp. "
-                "The regexp is only allowed without type (i.e. assume type is 'str' "
-                "that can be validated with regexp)".format(full_field_path))
-        if children_validation_specs and field_type not in COMPOSITE_FIELD_TYPES:
-            raise ValidationSpecificationException(
-                "Nested fields are specified in field '{}' of type '{}'. "
-                "Nested fields are only allowed for fields of those types: ('{}').".
-                format(full_field_path, field_type, COMPOSITE_FIELD_TYPES))
-        if custom_validation and field_type:
-            raise ValidationSpecificationException(
-                "The validation specification field '{}' has both type and "
-                "custom_validation. Custom validation is only allowed without type.".
-                format(full_field_path))
-
-    @staticmethod
-    def _validate_regexp(full_field_path, regexp, value):
-        # type: (str, str, str) -> None
-        if not re.match(regexp, value):
-            # Note matching of only the beginning as we assume the regexps all-or-nothing
-            raise FieldValidationException(
-                "The body field '{}' of value '{}' does not match the field "
-                "specification regexp: '{}'.".
-                format(full_field_path, value, regexp))
-
-    def _validate_dict(self, children_validation_specs, full_field_path, value):
-        # type: (dict, str, dict) -> None
-        for child_validation_spec in children_validation_specs:
-            self._validate_field(validation_spec=child_validation_spec,
-                                 dictionary_to_validate=value,
-                                 parent=full_field_path)
-        for field_name in value.keys():
-            if field_name not in [spec['name'] for spec in children_validation_specs]:
-                self.log.warning(
-                    "The field '{}' is in the body, but is not specified in the "
-                    "validation specification '{}'. "
-                    "This might be because you are using newer API version and "
-                    "new field names defined for that version. Then the warning "
-                    "can be safely ignored, or you might want to upgrade the operator"
-                    "to the version that supports the new API version.".format(
-                        self._get_field_name_with_parent(field_name, full_field_path),
-                        children_validation_specs))
-
-    def _validate_union(self, children_validation_specs, full_field_path,
-                        dictionary_to_validate):
-        # type: (dict, str, dict) -> None
-        field_found = False
-        found_field_name = None
-        for child_validation_spec in children_validation_specs:
-            # Forcing optional so that we do not have to type optional = True
-            # in specification for all union fields
-            new_field_found = self._validate_field(
-                validation_spec=child_validation_spec,
-                dictionary_to_validate=dictionary_to_validate,
-                parent=full_field_path,
-                force_optional=True)
-            field_name = child_validation_spec['name']
-            if new_field_found and field_found:
-                raise FieldValidationException(
-                    "The mutually exclusive fields '{}' and '{}' belonging to the "
-                    "union '{}' are both present. Please remove one".
-                    format(field_name, found_field_name, full_field_path))
-            if new_field_found:
-                field_found = True
-                found_field_name = field_name
-        if not field_found:
-            self.log.warning(
-                "There is no '{}' union defined in the body {}. "
-                "Validation expected one of '{}' but could not find any. It's possible "
-                "that you are using newer API version and there is another union variant "
-                "defined for that version. Then the warning can be safely ignored, "
-                "or you might want to upgrade the operator to the version that "
-                "supports the new API version.".format(
-                    full_field_path,
-                    dictionary_to_validate,
-                    [field['name'] for field in children_validation_specs]))
-
-    def _validate_field(self, validation_spec, dictionary_to_validate, parent=None,
-                        force_optional=False):
-        """
-        Validates if field is OK.
-        :param validation_spec: specification of the field
-        :type validation_spec: dict
-        :param dictionary_to_validate: dictionary where the field should be present
-        :type dictionary_to_validate: dict
-        :param parent: full path of parent field
-        :type parent: str
-        :param force_optional: forces the field to be optional
-          (all union fields have force_optional set to True)
-        :type force_optional: bool
-        :return: True if the field is present
-        """
-        field_name = validation_spec['name']
-        field_type = validation_spec.get('type')
-        optional = validation_spec.get('optional')
-        regexp = validation_spec.get('regexp')
-        children_validation_specs = validation_spec.get('fields')
-        required_api_version = validation_spec.get('api_version')
-        custom_validation = validation_spec.get('custom_validation')
-
-        full_field_path = self._get_field_name_with_parent(field_name=field_name,
-                                                           parent=parent)
-        if required_api_version and required_api_version != self._api_version:
-            self.log.debug(
-                "Skipping validation of the field '{}' for API version '{}' "
-                "as it is only valid for API version '{}'".
-                format(field_name, self._api_version, required_api_version))
-            return False
-        value = dictionary_to_validate.get(field_name)
-
-        if (optional or force_optional) and value is None:
-            self.log.debug("The optional field '{}' is missing. That's perfectly OK.".
-                           format(full_field_path))
-            return False
-
-        # Certainly down from here the field is present (value is not None)
-        # so we should only return True from now on
-
-        self._sanity_checks(children_validation_specs=children_validation_specs,
-                            field_type=field_type,
-                            full_field_path=full_field_path,
-                            regexp=regexp,
-                            custom_validation=custom_validation,
-                            value=value)
-
-        if regexp:
-            self._validate_regexp(full_field_path, regexp, value)
-        elif field_type == 'dict':
-            if not isinstance(value, dict):
-                raise FieldValidationException(
-                    "The field '{}' should be dictionary type according to "
-                    "specification '{}' but it is '{}'".
-                    format(full_field_path, validation_spec, value))
-            if children_validation_specs is None:
-                self.log.debug(
-                    "The dict field '{}' has no nested fields defined in the "
-                    "specification '{}'. That's perfectly ok - it's content will "
-                    "not be validated."
-                        .format(full_field_path, validation_spec))
-            else:
-                self._validate_dict(children_validation_specs, full_field_path, value)
-        elif field_type == 'union':
-            if not children_validation_specs:
-                raise ValidationSpecificationException(
-                    "The union field '{}' has no nested fields "
-                    "defined in specification '{}'. Unions should have at least one "
-                    "nested field defined.".format(full_field_path, validation_spec))
-            self._validate_union(children_validation_specs, full_field_path,
-                                 dictionary_to_validate)
-        elif custom_validation:
-            try:
-                custom_validation(value)
-            except Exception as e:
-                raise FieldValidationException(
-                    "Error while validating custom field '{}' specified by '{}': '{}'".
-                    format(full_field_path, validation_spec, e))
-        elif field_type is None:
-            self.log.debug("The type of field '{}' is not specified in '{}'. "
-                           "Not validating its content.".
-                           format(full_field_path, validation_spec))
-        else:
-            raise ValidationSpecificationException(
-                "The field '{}' is of type '{}' in specification '{}'."
-                "This type is unknown to validation!".format(
-                    full_field_path, field_type, validation_spec))
-        return True
-
-    def validate(self, body_to_validate):
-        """
-        Validates if the body (dictionary) follows specification that the validator was
-        instantiated with. Raises ValidationSpecificationException or
-        ValidationFieldException in case of problems with specification or the
-        body not conforming to the specification respectively.
-        :param body_to_validate: body that must follow the specification
-        :type body_to_validate: dict
-        :return: None
-        """
-        try:
-            for validation_spec in self._validation_specs:
-                self._validate_field(validation_spec=validation_spec,
-                                     dictionary_to_validate=body_to_validate)
-        except FieldValidationException as e:
-            raise FieldValidationException(
-                "There was an error when validating: field '{}': '{}'".
-                format(body_to_validate, e))
-
-# TODO End of field validator to be extracted
-
 
 def _validate_available_memory_in_mb(value):
     if int(value) <= 0:
-        raise FieldValidationException("The available memory has to be greater than 0")
+        raise GcpFieldValidationException("The available memory has to be greater than 0")
 
 
 def _validate_max_instances(value):
     if int(value) <= 0:
-        raise FieldValidationException(
+        raise GcpFieldValidationException(
             "The max instances parameter has to be greater than 0")
 
 
@@ -378,9 +124,10 @@ class GcfFunctionDeployOperator(BaseOperator):
         self.api_version = api_version
         self.zip_path = zip_path
         self.zip_path_preprocessor = ZipPathPreprocessor(body, zip_path)
-        self.validate_body = validate_body
-        self._field_validator = BodyFieldValidator(CLOUD_FUNCTION_VALIDATION,
-                                                   api_version=api_version)
+        self._field_validator = None
+        if validate_body:
+            self._field_validator = GcpBodyFieldValidator(CLOUD_FUNCTION_VALIDATION,
+                                                          api_version=api_version)
         self._hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_inputs()
         super(GcfFunctionDeployOperator, self).__init__(*args, **kwargs)
@@ -395,7 +142,8 @@ class GcfFunctionDeployOperator(BaseOperator):
         self.zip_path_preprocessor.preprocess_body()
 
     def _validate_all_body_fields(self):
-        self._field_validator.validate(self.body)
+        if self._field_validator:
+            self._field_validator.validate(self.body)
 
     def _create_new_function(self):
         self._hook.create_new_function(self.full_location, self.body)
@@ -406,8 +154,8 @@ class GcfFunctionDeployOperator(BaseOperator):
     def _check_if_function_exists(self):
         name = self.body.get('name')
         if not name:
-            raise FieldValidationException("The 'name' field should be present in "
-                                           "body: '{}'.".format(self.body))
+            raise GcpFieldValidationException("The 'name' field should be present in "
+                                              "body: '{}'.".format(self.body))
         try:
             self._hook.get_function(name)
         except HttpError as e:
@@ -430,8 +178,7 @@ class GcfFunctionDeployOperator(BaseOperator):
     def execute(self, context):
         if self.zip_path_preprocessor.should_upload_function():
             self.body[SOURCE_UPLOAD_URL] = self._upload_source_code()
-        if self.validate_body:
-            self._validate_all_body_fields()
+        self._validate_all_body_fields()
         self._set_airflow_version_label()
         if not self._check_if_function_exists():
             self._create_new_function()
