@@ -134,11 +134,11 @@ With Airflow 1.9 or lower, `FILENAME_TEMPLATE`, `PROCESSOR_FILENAME_TEMPLATE`, `
 ```
 [core]
 fab_logging_level = WARN
-log_filename_template = {{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log
-log_processor_filename_template = {{{{ filename }}}}.log
+log_filename_template = {{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log
+log_processor_filename_template = {{ filename }}.log
 
 [elasticsearch]
-elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
+elasticsearch_log_id_template = {dag_id}-{task_id}-{execution_date}-{try_number}
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
