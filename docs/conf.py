@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# Airflow documentation build configuration file, created by
+# flake8: noqa
+# Disable Flake8 because of all the sphinx imports
+#
+#  Airflow documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct  9 20:50:01 2014.
 #
 # This file is execfile()d with the current directory set to its

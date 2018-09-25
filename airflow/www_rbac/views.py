@@ -782,11 +782,12 @@ class Airflow(AirflowBaseView):
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
-            flash("DAG with id {} not found. Cannot delete".format(dag_id))
+            flash("DAG with id {} not found. Cannot delete".format(dag_id), 'error')
             return redirect(request.referrer)
         except DagFileExists:
             flash("Dag id {} is still in DagBag. "
-                  "Remove the DAG file first.".format(dag_id))
+                  "Remove the DAG file first.".format(dag_id),
+                  'error')
             return redirect(request.referrer)
 
         flash("Deleting DAG with id {}. May take a couple minutes to fully"
@@ -837,7 +838,9 @@ class Airflow(AirflowBaseView):
             count = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
-                include_subdags=recursive)
+                include_subdags=recursive,
+                include_parentdag=recursive,
+            )
 
             flash("{0} task instances have been cleared".format(count))
             return redirect(origin)
@@ -846,7 +849,9 @@ class Airflow(AirflowBaseView):
             start_date=start_date,
             end_date=end_date,
             include_subdags=recursive,
-            dry_run=True)
+            include_parentdag=recursive,
+            dry_run=True,
+        )
         if not tis:
             flash("No task instances to clear", 'error')
             response = redirect(origin)
@@ -1677,21 +1682,49 @@ class Airflow(AirflowBaseView):
                     TF.execution_date == ti.execution_date)
             .all()
         ) for ti in tis]))
-        tis_with_fails = sorted(tis + ti_fails, key=lambda ti: ti.start_date)
+        TR = models.TaskReschedule
+        ti_reschedules = list(itertools.chain(*[(
+            session
+            .query(TR)
+            .filter(TR.dag_id == ti.dag_id,
+                    TR.task_id == ti.task_id,
+                    TR.execution_date == ti.execution_date)
+            .all()
+        ) for ti in tis]))
+
+        # determine bars to show in the gantt chart
+        # all reschedules of one attempt are combinded into one bar
+        gantt_bar_items = []
+        for task_id, items in itertools.groupby(
+                sorted(tis + ti_fails + ti_reschedules, key=lambda ti: ti.task_id),
+                key=lambda ti: ti.task_id):
+            start_date = None
+            for i in sorted(items, key=lambda ti: ti.start_date):
+                start_date = start_date or i.start_date
+                end_date = i.end_date or timezone.utcnow()
+                if type(i) == models.TaskInstance:
+                    gantt_bar_items.append((task_id, start_date, end_date, i.state))
+                    start_date = None
+                elif type(i) == TF and (len(gantt_bar_items) == 0 or
+                                        end_date != gantt_bar_items[-1][2]):
+                    gantt_bar_items.append((task_id, start_date, end_date, State.FAILED))
+                    start_date = None
 
         tasks = []
-        for ti in tis_with_fails:
-            end_date = ti.end_date if ti.end_date else timezone.utcnow()
-            state = ti.state if type(ti) == models.TaskInstance else State.FAILED
+        for gantt_bar_item in gantt_bar_items:
+            task_id = gantt_bar_item[0]
+            start_date = gantt_bar_item[1]
+            end_date = gantt_bar_item[2]
+            state = gantt_bar_item[3]
             tasks.append({
-                'startDate': wwwutils.epoch(ti.start_date),
+                'startDate': wwwutils.epoch(start_date),
                 'endDate': wwwutils.epoch(end_date),
-                'isoStart': ti.start_date.isoformat()[:-4],
+                'isoStart': start_date.isoformat()[:-4],
                 'isoEnd': end_date.isoformat()[:-4],
-                'taskName': ti.task_id,
-                'duration': "{}".format(end_date - ti.start_date)[:-4],
+                'taskName': task_id,
+                'duration': "{}".format(end_date - start_date)[:-4],
                 'status': state,
-                'executionDate': ti.execution_date.isoformat(),
+                'executionDate': dttm.isoformat(),
             })
         states = {task['status']: task['status'] for task in tasks}
         data = {
@@ -2065,7 +2098,7 @@ class VariableModelView(AirflowModelView):
             else:
                 d = json.loads(out)
         except Exception:
-            flash("Missing file or syntax error.")
+            flash("Missing file or syntax error.", 'error')
         else:
             suc_count = fail_count = 0
             for k, v in d.items():
@@ -2076,7 +2109,7 @@ class VariableModelView(AirflowModelView):
                     fail_count += 1
                 else:
                     suc_count += 1
-            flash("{} variable(s) successfully updated.".format(suc_count), 'info')
+            flash("{} variable(s) successfully updated.".format(suc_count))
             if fail_count:
                 flash("{} variables(s) failed to be updated.".format(fail_count), 'error')
             self.update_redirect()
@@ -2166,10 +2199,9 @@ class DagRunModelView(AirflowModelView):
                 dr.state = State.RUNNING
             models.DagStat.update(dirty_ids, session=session)
             session.commit()
-            flash(
-                "{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
-            flash(str(ex))
+            flash(str(ex), 'error')
             flash('Failed to set state', 'error')
         return redirect(self.route_base + '/list')
 

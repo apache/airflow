@@ -1,6 +1,6 @@
 UI / Screenshots
 =================
-The Airflow UI make it easy to monitor and troubleshoot your data pipelines.
+The Airflow UI makes it easy to monitor and troubleshoot your data pipelines.
 Here's a quick overview of some of the features and visualizations you
 can find in the Airflow UI.
 

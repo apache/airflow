@@ -17,33 +17,3 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import sys
-import os
-
-_sensors = {
-    'base_sensor_operator': ['BaseSensorOperator'],
-    'external_task_sensor': ['ExternalTaskSensor'],
-    'hdfs_sensor': ['HdfsSensor'],
-    'hive_partition_sensor': ['HivePartitionSensor'],
-    'http_sensor': ['HttpSensor'],
-    'metastore_partition_sensor': ['MetastorePartitionSensor'],
-    'named_hive_partition_sensor': ['NamedHivePartitionSensor'],
-    's3_key_sensor': ['S3KeySensor'],
-    's3_prefix_sensor': ['S3PrefixSensor'],
-    'sql_sensor': ['SqlSensor'],
-    'time_delta_sensor': ['TimeDeltaSensor'],
-    'time_sensor': ['TimeSensor'],
-    'web_hdfs_sensor': ['WebHdfsSensor']
-}
-
-if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
-    from airflow.utils.helpers import AirflowImporter
-    airflow_importer = AirflowImporter(sys.modules[__name__], _sensors)
-
-
-def _integrate_plugins():
-    """Integrate plugins to the context"""
-    from airflow.plugins_manager import sensors_modules
-    for sensors_module in sensors_modules:
-        sys.modules[sensors_module.__name__] = sensors_module
-        globals()[sensors_module._name] = sensors_module

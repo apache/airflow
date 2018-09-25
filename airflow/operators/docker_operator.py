@@ -53,6 +53,10 @@ class DockerOperator(BaseOperator):
         This value gets multiplied with 1024. See
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
+    :param dns: Docker custom DNS servers
+    :type dns: list of strings
+    :param dns_search: Docker custom DNS search domain
+    :type dns_search: list of strings
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
@@ -127,6 +131,8 @@ class DockerOperator(BaseOperator):
             xcom_push=False,
             xcom_all=False,
             docker_conn_id=None,
+            dns=None,
+            dns_search=None,
             *args,
             **kwargs):
 
@@ -134,6 +140,8 @@ class DockerOperator(BaseOperator):
         self.api_version = api_version
         self.command = command
         self.cpus = cpus
+        self.dns = dns
+        self.dns_search = dns_search
         self.docker_url = docker_url
         self.environment = environment or {}
         self.force_pull = force_pull
@@ -203,7 +211,9 @@ class DockerOperator(BaseOperator):
                 host_config=self.cli.create_host_config(
                     binds=self.volumes,
                     network_mode=self.network_mode,
-                    shm_size=self.shm_size),
+                    shm_size=self.shm_size,
+                    dns=self.dns,
+                    dns_search=self.dns_search),
                 image=image,
                 mem_limit=self.mem_limit,
                 user=self.user,

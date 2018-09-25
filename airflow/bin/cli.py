@@ -510,9 +510,18 @@ def run(args, dag=None):
                 try:
                     conf.set(section, option, value)
                 except NoSectionError:
-                    log.error('Section {section} Option {option} '
-                              'does not exist in the config!'.format(section=section,
-                                                                     option=option))
+                    optional_sections = [
+                        'atlas', 'mesos', 'elasticsearch', 'kubernetes',
+                        'lineage', 'hive'
+                    ]
+                    if section in optional_sections:
+                        log.debug('Section {section} Option {option} '
+                                  'does not exist in the config!'.format(section=section,
+                                                                         option=option))
+                    else:
+                        log.error('Section {section} Option {option} '
+                                  'does not exist in the config!'.format(section=section,
+                                                                         option=option))
 
         settings.configure_vars()
 
@@ -705,7 +714,9 @@ def clear(args):
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.no_confirm,
-        include_subdags=not args.exclude_subdags)
+        include_subdags=not args.exclude_subdags,
+        include_parentdag=not args.exclude_parentdag,
+    )
 
 
 def get_num_ready_workers_running(gunicorn_master_proc):
@@ -1604,6 +1615,10 @@ class CLIFactory(object):
         'exclude_subdags': Arg(
             ("-x", "--exclude_subdags"),
             "Exclude subdags", "store_true"),
+        'exclude_parentdag': Arg(
+            ("-xp", "--exclude_parentdag"),
+            "Exclude ParentDAGS if the task cleared is a part of a SubDAG",
+            "store_true"),
         'dag_regex': Arg(
             ("-dx", "--dag_regex"),
             "Search dag_id as regex instead of exact string", "store_true"),
@@ -1936,7 +1951,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running', 'exclude_subdags', 'dag_regex'),
+                'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
@@ -2056,7 +2071,7 @@ class CLIFactory(object):
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': create_user,
-            'help': "Create an account for the Web UI",
+            'help': "Create an account for the Web UI (FAB-based)",
             'args': ('role', 'username', 'email', 'firstname', 'lastname',
                      'password', 'use_random_password'),
         }, {

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -69,7 +69,20 @@ class TestECSOperator(unittest.TestCase):
             cluster='c',
             overrides={},
             aws_conn_id=None,
-            region_name='eu-west-1')
+            region_name='eu-west-1',
+            group='group',
+            placement_constraints=[
+                {
+                    'expression': 'attribute:ecs.instance-type =~ t2.*',
+                    'type': 'memberOf'
+                }
+            ],
+            network_configuration={
+                'awsvpcConfiguration': {
+                    'securityGroups': ['sg-123abc']
+                }
+            }
+        )
 
     def test_init(self):
 
@@ -100,7 +113,20 @@ class TestECSOperator(unittest.TestCase):
             launchType='EC2',
             overrides={},
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
-            taskDefinition='t'
+            taskDefinition='t',
+            group='group',
+            placementConstraints=[
+                {
+                    'expression': 'attribute:ecs.instance-type =~ t2.*',
+                    'type': 'memberOf'
+                }
+            ],
+            platformVersion='LATEST',
+            networkConfiguration={
+                'awsvpcConfiguration': {
+                    'securityGroups': ['sg-123abc']
+                }
+            }
         )
 
         wait_mock.assert_called_once_with()
@@ -123,7 +149,20 @@ class TestECSOperator(unittest.TestCase):
             launchType='EC2',
             overrides={},
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
-            taskDefinition='t'
+            taskDefinition='t',
+            group='group',
+            placementConstraints=[
+                {
+                    'expression': 'attribute:ecs.instance-type =~ t2.*',
+                    'type': 'memberOf'
+                }
+            ],
+            platformVersion='LATEST',
+            networkConfiguration={
+                'awsvpcConfiguration': {
+                    'securityGroups': ['sg-123abc']
+                }
+            }
         )
 
     def test_wait_end_tasks(self):

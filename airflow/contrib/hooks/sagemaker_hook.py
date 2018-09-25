@@ -31,6 +31,8 @@ class SageMakerHook(AwsHook):
     sagemaker_conn_id is required for using
     the config stored in db for training/tuning
     """
+    non_terminal_states = {'InProgress', 'Stopping', 'Stopped'}
+    failed_states = {'Failed'}
 
     def __init__(self,
                  sagemaker_conn_id=None,
@@ -96,9 +98,9 @@ class SageMakerHook(AwsHook):
                      describe_function, *args):
         """
         :param non_terminal_states: the set of non_terminal states
-        :type non_terminal_states: dict
+        :type non_terminal_states: set
         :param failed_state: the set of failed states
-        :type failed_state: dict
+        :type failed_state: set
         :param key: the key of the response dict
         that points to the state
         :type key: str
@@ -177,7 +179,7 @@ class SageMakerHook(AwsHook):
         :param training_job_config: the config for training
         :type training_job_config: dict
         :param wait_for_completion: if the program should keep running until job finishes
-        :param wait_for_completion: bool
+        :type wait_for_completion: bool
         :return: A dict that contains ARN of the training job.
         """
         if self.use_db_config:
@@ -194,8 +196,8 @@ class SageMakerHook(AwsHook):
         response = self.conn.create_training_job(
             **training_job_config)
         if wait_for_completion:
-            self.check_status(['InProgress', 'Stopping', 'Stopped'],
-                              ['Failed'],
+            self.check_status(SageMakerHook.non_terminal_states,
+                              SageMakerHook.failed_states,
                               'TrainingJobStatus',
                               self.describe_training_job,
                               training_job_config['TrainingJobName'])
@@ -213,8 +215,8 @@ class SageMakerHook(AwsHook):
         if self.use_db_config:
             if not self.sagemaker_conn_id:
                 raise AirflowException(
-                    "sagemaker connection id must be present to \
-                    read sagemaker tunning job configuration.")
+                    "SageMaker connection id must be present to \
+                    read SageMaker tunning job configuration.")
 
             sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
 
@@ -226,12 +228,58 @@ class SageMakerHook(AwsHook):
         response = self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
         if wait_for_completion:
-            self.check_status(['InProgress', 'Stopping', 'Stopped'],
-                              ['Failed'],
+            self.check_status(SageMakerHook.non_terminal_states,
+                              SageMakerHook.failed_states,
                               'HyperParameterTuningJobStatus',
                               self.describe_tuning_job,
                               tuning_job_config['HyperParameterTuningJobName'])
         return response
+
+    def create_transform_job(self, transform_job_config, wait_for_completion=True):
+        """
+        Create a transform job
+        :param transform_job_config: the config for transform job
+        :type transform_job_config: dict
+        :param wait_for_completion:
+        if the program should keep running until job finishes
+        :type wait_for_completion: bool
+        :return: A dict that contains ARN of the transform job.
+        """
+        if self.use_db_config:
+            if not self.sagemaker_conn_id:
+                raise AirflowException(
+                    "SageMaker connection id must be present to \
+                    read SageMaker transform job configuration.")
+
+            sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
+
+            config = sagemaker_conn.extra_dejson.copy()
+            transform_job_config.update(config)
+
+        self.check_for_url(transform_job_config
+                           ['TransformInput']['DataSource']
+                           ['S3DataSource']['S3Uri'])
+
+        response = self.conn.create_transform_job(
+            **transform_job_config)
+        if wait_for_completion:
+            self.check_status(SageMakerHook.non_terminal_states,
+                              SageMakerHook.failed_states,
+                              'TransformJobStatus',
+                              self.describe_transform_job,
+                              transform_job_config['TransformJobName'])
+        return response
+
+    def create_model(self, model_config):
+        """
+        Create a model job
+        :param model_config: the config for model
+        :type model_config: dict
+        :return: A dict that contains ARN of the model.
+        """
+
+        return self.conn.create_model(
+            **model_config)
 
     def describe_training_job(self, training_job_name):
         """
@@ -245,11 +293,22 @@ class SageMakerHook(AwsHook):
 
     def describe_tuning_job(self, tuning_job_name):
         """
-        :param tuning_job_name: the name of the training job
-        :type tuning_job_name: str
+        :param tuning_job_name: the name of the tuning job
+        :type tuning_job_name: string
         Return the tuning job info associated with the current job_name
         :return: A dict contains all the tuning job info
         """
         return self.conn\
             .describe_hyper_parameter_tuning_job(
                 HyperParameterTuningJobName=tuning_job_name)
+
+    def describe_transform_job(self, transform_job_name):
+        """
+        :param transform_job_name: the name of the transform job
+        :type transform_job_name: string
+        Return the transform job info associated with the current job_name
+        :return: A dict contains all the transform job info
+        """
+        return self.conn\
+            .describe_transform_job(
+                TransformJobName=transform_job_name)
