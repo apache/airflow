@@ -2022,11 +2022,10 @@ class Airflow(BaseView):
         try:
             if request.method == 'POST':
                 data = request.json
-                if data:
-                    with create_session() as session:
-                        var = models.Variable(key=form, val=json.dumps(data))
-                        session.add(var)
-                        session.commit()
+                with create_session() as session:
+                    var = models.Variable(key=form, val=json.dumps(data))
+                    session.add(var)
+                    session.commit()
                 return ""
             else:
                 return self.render(
