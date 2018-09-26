@@ -20,22 +20,22 @@
 
 import datetime
 import itertools
-import pandas as pd
+import os
 import random
+import unittest
+from collections import OrderedDict
 
 import mock
-import unittest
-
-from collections import OrderedDict
+import pandas as pd
 from hmsclient import HMSClient
 
+from airflow import DAG, configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
-from airflow import DAG, configuration
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-
 
 configuration.load_test_config()
 
@@ -94,6 +94,39 @@ class TestHiveCliHook(unittest.TestCase):
     def test_run_cli(self):
         hook = HiveCliHook()
         hook.run_cli("SHOW DATABASES")
+
+    def test_run_cli_with_hive_conf(self):
+        hql = "set key;\n" \
+              "set airflow.ctx.dag_id;\nset airflow.ctx.dag_run_id;\n" \
+              "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
+
+        dag_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
+        task_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
+        execution_date_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
+                'env_var_format']
+        dag_run_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
+                'env_var_format']
+        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
+        os.environ[task_id_ctx_var_name] = 'test_task_id'
+        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
+        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
+
+        hook = HiveCliHook()
+        output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
+        self.assertIn('value', output)
+        self.assertIn('test_dag_id', output)
+        self.assertIn('test_task_id', output)
+        self.assertIn('test_execution_date', output)
+        self.assertIn('test_dag_run_id', output)
+
+        del os.environ[dag_id_ctx_var_name]
+        del os.environ[task_id_ctx_var_name]
+        del os.environ[execution_date_ctx_var_name]
+        del os.environ[dag_run_id_ctx_var_name]
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
     def test_load_file(self, mock_run_cli):
@@ -320,6 +353,138 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
 
 
 class TestHiveServer2Hook(unittest.TestCase):
+
+    def _upload_dataframe(self):
+        df = pd.DataFrame({'a': [1, 2], 'b': [1, 2]})
+        self.local_path = '/tmp/TestHiveServer2Hook.csv'
+        df.to_csv(self.local_path, header=False, index=False)
+
+    def setUp(self):
+        configuration.load_test_config()
+        self._upload_dataframe()
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.dag = DAG('test_dag_id', default_args=args)
+        self.database = 'airflow'
+        self.table = 'hive_server_hook'
+        self.hql = """
+        CREATE DATABASE IF NOT EXISTS {{ params.database }};
+        USE {{ params.database }};
+        DROP TABLE IF EXISTS {{ params.table }};
+        CREATE TABLE IF NOT EXISTS {{ params.table }} (
+            a int,
+            b int)
+        ROW FORMAT DELIMITED
+        FIELDS TERMINATED BY ',';
+        LOAD DATA LOCAL INPATH '{{ params.csv_path }}'
+        OVERWRITE INTO TABLE {{ params.table }};
+        """
+        self.columns = ['{}.a'.format(self.table),
+                        '{}.b'.format(self.table)]
+        self.hook = HiveMetastoreHook()
+        t = HiveOperator(
+            task_id='HiveHook_' + str(random.randint(1, 10000)),
+            params={
+                'database': self.database,
+                'table': self.table,
+                'csv_path': self.local_path
+            },
+            hive_cli_conn_id='beeline_default',
+            hql=self.hql, dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+              ignore_ti_state=True)
+
+    def tearDown(self):
+        hook = HiveMetastoreHook()
+        with hook.get_conn() as metastore:
+            metastore.drop_table(self.database, self.table, deleteData=True)
+        os.remove(self.local_path)
+
     def test_get_conn(self):
         hook = HiveServer2Hook()
         hook.get_conn()
+
+    def test_get_records(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        results = hook.get_records(query, schema=self.database)
+        self.assertListEqual(results, [(1, 1), (2, 2)])
+
+    def test_get_pandas_df(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        df = hook.get_pandas_df(query, schema=self.database)
+        self.assertEqual(len(df), 2)
+        self.assertListEqual(df.columns.tolist(), self.columns)
+        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
+
+    def test_get_results_header(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        results = hook.get_results(query, schema=self.database)
+        self.assertListEqual([col[0] for col in results['header']],
+                             self.columns)
+
+    def test_get_results_data(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        results = hook.get_results(query, schema=self.database)
+        self.assertListEqual(results['data'], [(1, 1), (2, 2)])
+
+    def test_to_csv(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        csv_filepath = 'query_results.csv'
+        hook.to_csv(query, csv_filepath, schema=self.database,
+                    delimiter=',', lineterminator='\n', output_header=True)
+        df = pd.read_csv(csv_filepath, sep=',')
+        self.assertListEqual(df.columns.tolist(), self.columns)
+        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
+        self.assertEqual(len(df), 2)
+
+    def test_multi_statements(self):
+        sqls = [
+            "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
+            "SELECT * FROM {}".format(self.table),
+            "DROP TABLE test_multi_statements",
+        ]
+        hook = HiveServer2Hook()
+        results = hook.get_records(sqls, schema=self.database)
+        self.assertListEqual(results, [(1, 1), (2, 2)])
+
+    def test_get_results_with_hive_conf(self):
+        hql = ["set key",
+               "set airflow.ctx.dag_id",
+               "set airflow.ctx.dag_run_id",
+               "set airflow.ctx.task_id",
+               "set airflow.ctx.execution_date"]
+
+        dag_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
+        task_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
+        execution_date_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
+                'env_var_format']
+        dag_run_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
+                'env_var_format']
+        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
+        os.environ[task_id_ctx_var_name] = 'test_task_id'
+        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
+        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
+
+        hook = HiveServer2Hook()
+        output = '\n'.join(res_tuple[0]
+                           for res_tuple
+                           in hook.get_results(hql=hql,
+                                               hive_conf={'key': 'value'})['data'])
+        self.assertIn('value', output)
+        self.assertIn('test_dag_id', output)
+        self.assertIn('test_task_id', output)
+        self.assertIn('test_execution_date', output)
+        self.assertIn('test_dag_run_id', output)
+
+        del os.environ[dag_id_ctx_var_name]
+        del os.environ[task_id_ctx_var_name]
+        del os.environ[execution_date_ctx_var_name]
+        del os.environ[dag_run_id_ctx_var_name]

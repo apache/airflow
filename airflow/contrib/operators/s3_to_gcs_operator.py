@@ -33,31 +33,43 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     destination path.
 
     :param bucket: The S3 bucket where to find the objects. (templated)
-    :type bucket: string
+    :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix. (templated)
-    :type prefix: string
+    :type prefix: str
     :param delimiter: the delimiter marks key hierarchy. (templated)
-    :type delimiter: string
+    :type delimiter: str
     :param aws_conn_id: The source S3 connection
-    :type aws_conn_id: string
+    :type aws_conn_id: str
+    :parame verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+        - False: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type verify: bool or str
     :param dest_gcs_conn_id: The destination connection ID to use
         when connecting to Google Cloud Storage.
-    :type dest_gcs_conn_id: string
+    :type dest_gcs_conn_id: str
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
-    :type dest_gcs: string
+    :type dest_gcs: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param replace: Whether you want to replace existing destination files
         or not.
     :type replace: bool
 
 
     **Example**:
+
     .. code-block:: python
+
        s3_to_gcs_op = S3ToGoogleCloudStorageOperator(
             task_id='s3_to_gcs_example',
             bucket='my-s3-bucket',
@@ -80,6 +92,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  prefix='',
                  delimiter='',
                  aws_conn_id='aws_default',
+                 verify=None,
                  dest_gcs_conn_id=None,
                  dest_gcs=None,
                  delegate_to=None,
@@ -98,6 +111,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
         self.replace = replace
+        self.verify = verify
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
             self.log.info(
@@ -146,7 +160,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                     'There are no new files to sync. Have a nice day!')
 
         if files:
-            hook = S3Hook(aws_conn_id=self.aws_conn_id)
+            hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
             for file in files:
                 # GCS hook builds its own in-memory file so we have to create
@@ -184,7 +198,8 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
 
     # Following functionality may be better suited in
     # airflow/contrib/hooks/gcs_hook.py
-    def _gcs_object_is_directory(self, object):
+    @staticmethod
+    def _gcs_object_is_directory(object):
         bucket, blob = _parse_gcs_url(object)
 
         return len(blob) == 0 or blob.endswith('/')

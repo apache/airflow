@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,19 +19,22 @@
 #
 
 import unittest
+import warnings
+
+from google.auth.exceptions import GoogleAuthError
 import mock
 
 from airflow.contrib.hooks import bigquery_hook as hook
-from oauth2client.contrib.gce import HttpAccessTokenRefreshError
-
-from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning
+from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
+    _validate_value, _api_resource_configs_duplication_check
 
 bq_available = True
 
 try:
     hook.BigQueryHook().get_service()
-except HttpAccessTokenRefreshError:
+except GoogleAuthError:
     bq_available = False
+
 
 class TestBigQueryDataframeResults(unittest.TestCase):
     def setUp(self):
@@ -47,25 +50,26 @@ class TestBigQueryDataframeResults(unittest.TestCase):
     def test_throws_exception_with_invalid_query(self):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df('from `1`')
-        self.assertIn('pandas_gbq.gbq.GenericGBQException: Reason: invalidQuery',
-                      str(context.exception), "")
+        self.assertIn('Reason: ', str(context.exception), "")
 
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_suceeds_with_explicit_legacy_query(self):
+    def test_succeeds_with_explicit_legacy_query(self):
         df = self.instance.get_pandas_df('select 1', dialect='legacy')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_suceeds_with_explicit_std_query(self):
-        df = self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='standard')
+    def test_succeeds_with_explicit_std_query(self):
+        df = self.instance.get_pandas_df(
+            'select * except(b) from (select 1 a, 2 b)', dialect='standard')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
     def test_throws_exception_with_incompatible_syntax(self):
         with self.assertRaises(Exception) as context:
-            self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='legacy')
-        self.assertIn('pandas_gbq.gbq.GenericGBQException: Reason: invalidQuery',
-                      str(context.exception), "")
+            self.instance.get_pandas_df(
+                'select * except(b) from (select 1 a, 2 b)', dialect='legacy')
+        self.assertIn('Reason: ', str(context.exception), "")
+
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
@@ -104,15 +108,13 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertEqual("dataset", dataset)
         self.assertEqual("table", table)
 
-
     def test_valid_double_column(self):
         project, dataset, table = hook._split_tablename('alt1:alt:dataset.table',
-                                  'project')
+                                                        'project')
 
         self.assertEqual('alt1:alt', project)
         self.assertEqual("dataset", dataset)
         self.assertEqual("table", table)
-
 
     def test_invalid_syntax_triple_colon(self):
         with self.assertRaises(Exception) as context:
@@ -122,7 +124,6 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertIn('Use either : or . to specify project',
                       str(context.exception), "")
         self.assertFalse('Format exception for' in str(context.exception))
-
 
     def test_invalid_syntax_triple_dot(self):
         with self.assertRaises(Exception) as context:
@@ -206,6 +207,16 @@ def mock_job_cancel(projectId, jobId):
 
 
 class TestBigQueryBaseCursor(unittest.TestCase):
+    def test_bql_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            hook.BigQueryBaseCursor("test", "test").run_query(
+                bql='select * from test_table'
+            )
+            yield
+        self.assertIn(
+            'Deprecated parameter `bql`',
+            w[0].message.args[0])
+
     def test_invalid_schema_update_options(self):
         with self.assertRaises(Exception) as context:
             hook.BigQueryBaseCursor("test", "test").run_load(
@@ -213,8 +224,18 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 "test_schema.json",
                 ["test_data.json"],
                 schema_update_options=["THIS IS NOT VALID"]
-                )
+            )
         self.assertIn("THIS IS NOT VALID", str(context.exception))
+
+    def test_nobql_nosql_param_error(self):
+        with self.assertRaises(TypeError) as context:
+            hook.BigQueryBaseCursor("test", "test").run_query(
+                sql=None,
+                bql=None
+            )
+        self.assertIn(
+            'missing 1 required positional',
+            str(context.exception))
 
     def test_invalid_schema_update_and_write_disposition(self):
         with self.assertRaises(Exception) as context:
@@ -261,9 +282,86 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             args, kwargs = run_with_config.call_args
             self.assertIs(args[0]['query']['useLegacySql'], bool_val)
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_api_resource_configs(self, run_with_config):
+        for bool_val in [True, False]:
+            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+            cursor.run_query('query',
+                             api_resource_configs={
+                                 'query': {'useQueryCache': bool_val}})
+            args, kwargs = run_with_config.call_args
+            self.assertIs(args[0]['query']['useQueryCache'], bool_val)
+            self.assertIs(args[0]['query']['useLegacySql'], True)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_api_resource_configs_duplication_warning(self, run_with_config):
+        with self.assertRaises(ValueError):
+            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+            cursor.run_query('query',
+                             use_legacy_sql=True,
+                             api_resource_configs={
+                                 'query': {'useLegacySql': False}})
+
+    def test_validate_value(self):
+        with self.assertRaises(TypeError):
+            _validate_value("case_1", "a", dict)
+        self.assertIsNone(_validate_value("case_2", 0, int))
+
+    def test_duplication_check(self):
+        with self.assertRaises(ValueError):
+            key_one = True
+            _api_resource_configs_duplication_check(
+                "key_one", key_one, {"key_one": False})
+        self.assertIsNone(_api_resource_configs_duplication_check(
+            "key_one", key_one, {"key_one": True}))
+
+
+class TestLabelsInRunJob(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['labels'], {'label1': 'test1', 'label2': 'test2'}
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(
+            sql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            labels={'label1': 'test1', 'label2': 'test2'}
+        )
+
+        mocked_rwc.assert_called_once()
+
+
+class TestDatasetsOperations(unittest.TestCase):
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_empty_dataset_no_dataset_id_err(self,
+                                                    run_with_configuration):
+
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="")
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_empty_dataset_duplicates_call_err(self,
+                                                      run_with_configuration):
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="project_test",
+                dataset_reference={
+                    "datasetReference":
+                        {"datasetId": "test_dataset",
+                         "projectId": "project_test2"}})
+
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
-
     @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
     @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
@@ -321,7 +419,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
-        bq_hook.run_query(bql='select 1')
+        bq_hook.run_query(sql='select 1')
 
         mocked_rwc.assert_called_once()
 
@@ -344,9 +442,10 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
         bq_hook.run_query(
-            bql='select 1',
+            sql='select 1',
             destination_dataset_table='my_dataset.my_table',
-            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+            time_partitioning={'type': 'DAY',
+                               'field': 'test_field', 'expirationMs': 1000}
         )
 
         mocked_rwc.assert_called_once()
@@ -371,12 +470,93 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         }
         self.assertEqual(tp_out, expect)
 
-    def test_cant_add_dollar_and_field_name(self):
-        with self.assertRaises(AssertionError):
-            _cleanse_time_partitioning(
-                'test.teast$20170101',
-                {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+
+class TestClusteringInRunJob(unittest.TestCase):
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_default(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['load'].get('clustering'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+        )
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['load']['clustering'],
+                {
+                    'fields': ['field1', 'field2']
+                }
             )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+            cluster_fields=['field1', 'field2'],
+            time_partitioning={'type': 'DAY'}
+        )
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_default(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['query'].get('clustering'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(sql='select 1')
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['query']['clustering'],
+                {
+                    'fields': ['field1', 'field2']
+                }
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(
+            sql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            cluster_fields=['field1', 'field2'],
+            time_partitioning={'type': 'DAY'}
+        )
+
+        mocked_rwc.assert_called_once()
 
 
 class TestBigQueryHookLegacySql(unittest.TestCase):

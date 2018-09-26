@@ -115,6 +115,19 @@ WasbHook
 
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 
+Azure File Share
+''''''''''''''''
+
+Cloud variant of a SMB file share. Make sure that a Airflow connection of
+type `wasb` exists. Authorization can be done by supplying a login (=Storage account name)
+and password (=Storage account key), or login and SAS token in the extra field
+(see connection `wasb_default` for an example).
+
+AzureFileShareHook
+""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
+
 Logging
 '''''''
 
@@ -336,6 +349,8 @@ BigQuery Operators
 - :ref:`BigQueryIntervalCheckOperator` : Checks that the values of metrics given as SQL expressions are within a certain tolerance of the ones from days_back before.
 - :ref:`BigQueryCreateEmptyTableOperator` : Creates a new, empty table in the specified BigQuery dataset optionally with schema.
 - :ref:`BigQueryCreateExternalTableOperator` : Creates a new, external table in the dataset with the data in Google Cloud Storage.
+- :ref:`BigQueryDeleteDatasetOperator` : Deletes an existing BigQuery dataset.
+- :ref:`BigQueryCreateEmptyDatasetOperator` : Creates an empty BigQuery dataset.
 - :ref:`BigQueryOperator` : Executes BigQuery SQL queries in a specific BigQuery database.
 - :ref:`BigQueryToBigQueryOperator` : Copy a BigQuery table to another BigQuery table.
 - :ref:`BigQueryToCloudStorageOperator` : Transfers a BigQuery table to a Google Cloud Storage bucket
@@ -382,6 +397,20 @@ BigQueryCreateExternalTableOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator
+
+.. _BigQueryDeleteDatasetOperator:
+
+BigQueryDeleteDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
+
+.. _BigQueryCreateEmptyDatasetOperator:
+
+BigQueryCreateEmptyDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator
 
 .. _BigQueryOperator:
 
@@ -732,4 +761,37 @@ GoogleCloudStorageHook
 """"""""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+    :members:
+
+Google Kubernetes Engine
+''''''''''''''''''''''''
+
+Google Kubernetes Engine Cluster Operators
+""""""""""""""""""""""""""""""""""""""""""
+
+- :ref:`GKEClusterCreateOperator` : Creates a Kubernetes Cluster in Google Cloud Platform
+- :ref:`GKEClusterDeleteOperator` : Deletes a Kubernetes Cluster in Google Cloud Platform
+
+GKEClusterCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
+.. _GKEClusterCreateOperator:
+
+GKEClusterDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
+.. _GKEClusterDeleteOperator:
+
+GKEPodOperator
+^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEPodOperator
+.. _GKEPodOperator:
+
+Google Kubernetes Engine Hook
+"""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
     :members:

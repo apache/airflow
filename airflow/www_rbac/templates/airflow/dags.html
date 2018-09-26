@@ -21,8 +21,8 @@
 
 {% block head_css %}
 {{ super() }}
-<link href="{{ url_for("static", filename="dataTables.bootstrap.css") }}" rel="stylesheet" type="text/css" >
-<link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
+<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
+<link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block content %}
@@ -120,7 +120,7 @@
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
                   {% if dag %}
-                    {% set last_run = dag.get_last_dagrun() %}
+                    {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
                     {% if last_run and last_run.execution_date %}
                       <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
                         {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
@@ -191,6 +191,11 @@
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
                 </a>
 
+                <!-- Delete -->
+                <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
+                   onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
+                  <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
+                </a>
                 </td>
             </tr>
         {% endfor %}
@@ -219,14 +224,15 @@
 
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
+  <script src="{{ url_for_asset('jquery.dataTables.min.js') }}"></script>
+  <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = "{{ url_for('Airflow.index') }}"
-      const ENTER_KEY_CODE = 13
+      const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
+      const ENTER_KEY_CODE = 13;
 
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
@@ -241,6 +247,12 @@
         p_size = $(this).val();
         window.location = DAGS_INDEX + "?page_size=" + p_size;
       });
+
+      function confirmDeleteDag(dag_id){
+          return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+          This option will delete ALL metadata, DAG runs, etc.\n\
+          This cannot be undone.");
+      }
 
       function confirmTriggerDag(dag_id){
           return confirm("Are you sure you want to run '"+dag_id+"' now?");

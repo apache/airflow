@@ -56,18 +56,18 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
                  **kwargs):
         """
         :param sql: The SQL to execute on the Postgres table.
-        :type sql: string
+        :type sql: str
         :param bucket: The bucket to upload to.
-        :type bucket: string
+        :type bucket: str
         :param filename: The filename to use as the object name when uploading
             to Google Cloud Storage. A {} should be specified in the filename
             to allow the operator to inject file numbers in cases where the
             file is split due to size.
-        :type filename: string
+        :type filename: str
         :param schema_filename: If set, the filename to use as the object name
             when uploading a .json file containing the BigQuery schema fields
             for the table that was dumped from Postgres.
-        :type schema_filename: string
+        :type schema_filename: str
         :param approx_max_file_size_bytes: This operator supports the ability
             to split large table dumps into multiple files (see notes in the
             filenamed param docs above). Google Cloud Storage allows for files
@@ -75,10 +75,10 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
             file size of the splits.
         :type approx_max_file_size_bytes: long
         :param postgres_conn_id: Reference to a specific Postgres hook.
-        :type postgres_conn_id: string
+        :type postgres_conn_id: str
         :param google_cloud_storage_conn_id: Reference to a specific Google
             cloud storage hook.
-        :type google_cloud_storage_conn_id: string
+        :type google_cloud_storage_conn_id: str
         :param delegate_to: The account to impersonate, if any. For this to
             work, the service account making the request must have domain-wide
             delegation enabled.
@@ -133,28 +133,38 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
             contain the data for the GCS objects.
         """
         schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
-        file_no = 0
-        tmp_file_handle = NamedTemporaryFile(delete=True)
-        tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
+        tmp_file_handles = {}
+        row_no = 0
 
-        for row in cursor:
-            # Convert datetime objects to utc seconds, and decimals to floats
-            row = map(self.convert_types, row)
-            row_dict = dict(zip(schema, row))
+        def _create_new_file():
+            handle = NamedTemporaryFile(delete=True)
+            filename = self.filename.format(len(tmp_file_handles))
+            tmp_file_handles[filename] = handle
+            return handle
 
-            s = json.dumps(row_dict, sort_keys=True)
-            if PY3:
-                s = s.encode('utf-8')
-            tmp_file_handle.write(s)
+        # Don't create a file if there is nothing to write
+        if cursor.rowcount > 0:
+            tmp_file_handle = _create_new_file()
 
-            # Append newline to make dumps BigQuery compatible.
-            tmp_file_handle.write(b'\n')
+            for row in cursor:
+                # Convert datetime objects to utc seconds, and decimals to floats
+                row = map(self.convert_types, row)
+                row_dict = dict(zip(schema, row))
 
-            # Stop if the file exceeds the file size limit.
-            if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
-                file_no += 1
-                tmp_file_handle = NamedTemporaryFile(delete=True)
-                tmp_file_handles[self.filename.format(file_no)] = tmp_file_handle
+                s = json.dumps(row_dict, sort_keys=True)
+                if PY3:
+                    s = s.encode('utf-8')
+                tmp_file_handle.write(s)
+
+                # Append newline to make dumps BigQuery compatible.
+                tmp_file_handle.write(b'\n')
+
+                # Stop if the file exceeds the file size limit.
+                if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
+                    tmp_file_handle = _create_new_file()
+                row_no += 1
+
+        self.log.info('Received %s rows over %s files', row_no, len(tmp_file_handles))
 
         return tmp_file_handles
 

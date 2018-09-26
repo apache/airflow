@@ -35,6 +35,9 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
+.. note:: When searching for DAGs, Airflow will only consider files where the string
+   "airflow" and "DAG" both appear in the contents of the ``.py`` file.
+
 Scope
 -----
 
@@ -87,6 +90,8 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
+.. _concepts-operators:
+
 Operators
 =========
 
@@ -110,13 +115,12 @@ Airflow provides operators for many common tasks, including:
 - ``BashOperator`` - executes a bash command
 - ``PythonOperator`` - calls an arbitrary Python function
 - ``EmailOperator`` - sends an email
-- ``HTTPOperator`` - sends an HTTP request
+- ``SimpleHttpOperator`` - sends an HTTP request
 - ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
-
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransferOperator``,
+operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransformOperator``,
 ``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
@@ -125,6 +129,8 @@ the main distribution, but allow users to more easily add new functionality to
 the platform.
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
+
+See :doc:`howto/operator` for how to use Airflow operators.
 
 DAG Assignment
 --------------
@@ -314,7 +320,7 @@ Connections
 ===========
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``)
+metadata database and managed in the UI (``Menu -> Admin -> Connections``).
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
@@ -326,6 +332,17 @@ from ``BaseHook``, Airflow will choose one connection randomly, allowing
 for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
+Airflow also has the ability to reference connections via environment
+variables from the operating system. But it only supports URI format. If you
+need to specify ``extra`` for your connection, please use web UI.
+
+If connections with the same ``conn_id`` are defined in both Airflow metadata
+database and environment variables, only the one in environment variables
+will be referenced by Airflow (for example, given ``conn_id`` ``postgres_master``,
+Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+in environment variables first and directly reference it if found,
+before it starts to search in metadata database).
+
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default
 ``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
@@ -336,7 +353,7 @@ See :doc:`howto/manage-connections` for how to create and manage connections.
 Queues
 ======
 
-When using the CeleryExecutor, the celery queues that tasks are sent to
+When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any
 task can be assigned to any queue. The default queue for the environment
 is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
@@ -344,7 +361,7 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma delimited
+started (using the command ``airflow worker``), a set of comma-delimited
 queue names can be specified (e.g. ``airflow worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 

@@ -18,26 +18,18 @@
 # under the License.
 
 
-from builtins import bytes
 import os
 import signal
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
 
-from airflow import configuration as conf
+from builtins import bytes
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-
-
-# These variables are required in cases when BashOperator tasks use airflow specific code,
-# e.g. they import packages in the airflow context and the possibility of impersonation
-# gives not guarantee that these variables are available in the impersonated environment.
-# Hence, we need to propagate them in the Bash script used as a wrapper of commands in
-# this BashOperator.
-PYTHONPATH_VAR = 'PYTHONPATH'
-AIRFLOW_HOME_VAR = 'AIRFLOW_HOME'
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class BashOperator(BaseOperator):
@@ -46,7 +38,7 @@ class BashOperator(BaseOperator):
 
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
-    :type bash_command: string
+    :type bash_command: str
     :param xcom_push: If xcom_push is True, the last line written to stdout
         will also be pushed to an XCom when the bash command completes.
     :type xcom_push: bool
@@ -83,18 +75,22 @@ class BashOperator(BaseOperator):
         """
         self.log.info("Tmp dir root location: \n %s", gettempdir())
 
-        airflow_home_value = conf.get('core', AIRFLOW_HOME_VAR)
-        pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
+        # Prepare env for child process.
+        if self.env is None:
+            self.env = os.environ.copy()
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        self.log.info("Exporting the following env vars:\n" +
+                      '\n'.join(["{}={}".format(k, v)
+                                 for k, v in
+                                 airflow_context_vars.items()]))
+        self.env.update(airflow_context_vars)
 
-        bash_command = ('export {}={}; '.format(AIRFLOW_HOME_VAR, airflow_home_value) +
-                        'export {}={}; '.format(PYTHONPATH_VAR, pythonpath_value) +
-                        self.bash_command)
-        self.lineage_data = bash_command
+        self.lineage_data = self.bash_command
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
 
-                f.write(bytes(bash_command, 'utf_8'))
+                f.write(bytes(self.bash_command, 'utf_8'))
                 f.flush()
                 fname = f.name
                 script_location = os.path.abspath(fname)
@@ -110,7 +106,7 @@ class BashOperator(BaseOperator):
                             signal.signal(getattr(signal, sig), signal.SIG_DFL)
                     os.setsid()
 
-                self.log.info("Running command: %s", bash_command)
+                self.log.info("Running command: %s", self.bash_command)
                 sp = Popen(
                     ['bash', fname],
                     stdout=PIPE, stderr=STDOUT,

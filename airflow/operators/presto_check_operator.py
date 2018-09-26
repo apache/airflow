@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,7 +18,8 @@
 # under the License.
 
 from airflow.hooks.presto_hook import PrestoHook
-from airflow.operators.check_operator import CheckOperator, ValueCheckOperator, IntervalCheckOperator
+from airflow.operators.check_operator import CheckOperator, \
+    ValueCheckOperator, IntervalCheckOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -51,9 +52,9 @@ class PrestoCheckOperator(CheckOperator):
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param presto_conn_id: reference to the Presto database
-    :type presto_conn_id: string
+    :type presto_conn_id: str
     """
 
     @apply_defaults
@@ -75,9 +76,9 @@ class PrestoValueCheckOperator(ValueCheckOperator):
     Performs a simple value check using sql code.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param presto_conn_id: reference to the Presto database
-    :type presto_conn_id: string
+    :type presto_conn_id: str
     """
 
     @apply_defaults
@@ -107,7 +108,7 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
     :param metrics_threshold: a dictionary of ratios indexed by metrics
     :type metrics_threshold: dict
     :param presto_conn_id: reference to the Presto database
-    :type presto_conn_id: string
+    :type presto_conn_id: str
     """
 
     @apply_defaults

@@ -7,20 +7,22 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import unicode_literals
 
 import re
 
 from airflow.hooks.hive_hooks import HiveCliHook
+from airflow import configuration
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -33,9 +35,9 @@ class HiveOperator(BaseOperator):
     :param hql: the hql to be executed. Note that you may also use
         a relative path from the dag file of a (template) hive
         script. (templated)
-    :type hql: string
+    :type hql: str
     :param hive_cli_conn_id: reference to the Hive database. (templated)
-    :type hive_cli_conn_id: string
+    :type hive_cli_conn_id: str
     :param hiveconfs: if defined, these key value pairs will be passed
         to hive as ``-hiveconf "key"="value"``
     :type hiveconfs: dict
@@ -45,18 +47,18 @@ class HiveOperator(BaseOperator):
         Note that you may want to use this along with the
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
-    :type hiveconf_jinja_translate: boolean
+    :type hiveconf_jinja_translate: bool
     :param script_begin_tag: If defined, the operator will get rid of the
         part of the script before the first occurrence of `script_begin_tag`
     :type script_begin_tag: str
     :param mapred_queue: queue used by the Hadoop CapacityScheduler. (templated)
-    :type  mapred_queue: string
+    :type  mapred_queue: str
     :param mapred_queue_priority: priority within CapacityScheduler queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
-    :type  mapred_queue_priority: string
+    :type  mapred_queue_priority: str
     :param mapred_job_name: This name will appear in the jobtracker.
         This can make monitoring easier.
-    :type  mapred_job_name: string
+    :type  mapred_job_name: str
     """
 
     template_fields = ('hql', 'schema', 'hive_cli_conn_id', 'mapred_queue',
@@ -91,6 +93,8 @@ class HiveOperator(BaseOperator):
         self.mapred_queue = mapred_queue
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
+        self.mapred_job_name_template = configuration.get('hive',
+                                                          'mapred_job_name_template')
 
         # assigned lazily - just for consistency we can create the attribute with a
         # `None` initial value, later it will be populated by the execute method.
@@ -120,9 +124,10 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context['ti']
-            self.hook.mapred_job_name = 'Airflow HiveOperator task for {}.{}.{}.{}'\
-                .format(ti.hostname.split('.')[0], ti.dag_id, ti.task_id,
-                        ti.execution_date.isoformat())
+            self.hook.mapred_job_name = self.mapred_job_name_template\
+                .format(dag_id=ti.dag_id, task_id=ti.task_id,
+                        execution_date=ti.execution_date.isoformat(),
+                        hostname=ti.hostname.split('.')[0])
 
         if self.hiveconf_jinja_translate:
             self.hiveconfs = context_to_airflow_vars(context)

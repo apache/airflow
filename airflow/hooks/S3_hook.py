@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -42,7 +43,7 @@ class S3Hook(AwsHook):
         else:
             bucket_name = parsed_url.netloc
             key = parsed_url.path.strip('/')
-            return (bucket_name, key)
+            return bucket_name, key
 
     def check_for_bucket(self, bucket_name):
         """
@@ -54,7 +55,8 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_bucket(self, bucket_name):
@@ -77,7 +79,8 @@ class S3Hook(AwsHook):
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
         return False if plist is None else prefix in plist
 
-    def list_prefixes(self, bucket_name, prefix='', delimiter=''):
+    def list_prefixes(self, bucket_name, prefix='', delimiter='',
+                      page_size=None, max_items=None):
         """
         Lists prefixes in a bucket under prefix
 
@@ -87,11 +90,21 @@ class S3Hook(AwsHook):
         :type prefix: str
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
+        :param page_size: pagination size
+        :type page_size: int
+        :param max_items: maximum items to return
+        :type max_items: int
         """
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
+
         paginator = self.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(Bucket=bucket_name,
                                       Prefix=prefix,
-                                      Delimiter=delimiter)
+                                      Delimiter=delimiter,
+                                      PaginationConfig=config)
 
         has_results = False
         prefixes = []
@@ -104,7 +117,8 @@ class S3Hook(AwsHook):
         if has_results:
             return prefixes
 
-    def list_keys(self, bucket_name, prefix='', delimiter=''):
+    def list_keys(self, bucket_name, prefix='', delimiter='',
+                  page_size=None, max_items=None):
         """
         Lists keys in a bucket under prefix and not containing delimiter
 
@@ -114,11 +128,21 @@ class S3Hook(AwsHook):
         :type prefix: str
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
+        :param page_size: pagination size
+        :type page_size: int
+        :param max_items: maximum items to return
+        :type max_items: int
         """
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
+
         paginator = self.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(Bucket=bucket_name,
                                       Prefix=prefix,
-                                      Delimiter=delimiter)
+                                      Delimiter=delimiter,
+                                      PaginationConfig=config)
 
         has_results = False
         keys = []
@@ -146,7 +170,8 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_key(self, key, bucket_name=None):
@@ -181,8 +206,8 @@ class S3Hook(AwsHook):
     def select_key(self, key, bucket_name=None,
                    expression='SELECT * FROM S3Object',
                    expression_type='SQL',
-                   input_serialization={'CSV': {}},
-                   output_serialization={'CSV': {}}):
+                   input_serialization=None,
+                   output_serialization=None):
         """
         Reads a key with S3 Select.
 
@@ -205,6 +230,10 @@ class S3Hook(AwsHook):
             For more details about S3 Select parameters:
             http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
         """
+        if input_serialization is None:
+            input_serialization = {'CSV': {}}
+        if output_serialization is None:
+            output_serialization = {'CSV': {}}
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
 
@@ -297,7 +326,7 @@ class S3Hook(AwsHook):
         This is provided as a convenience to drop a string in S3. It uses the
         boto infrastructure to ship a file to s3.
 
-        :param string_data: string to set as content for the key.
+        :param string_data: str to set as content for the key.
         :type string_data: str
         :param key: S3 key that will point to the file
         :type key: str
@@ -355,3 +384,89 @@ class S3Hook(AwsHook):
 
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)
+
+    def copy_object(self,
+                    source_bucket_key,
+                    dest_bucket_key,
+                    source_bucket_name=None,
+                    dest_bucket_name=None,
+                    source_version_id=None):
+        """
+        Creates a copy of an object that is already stored in S3.
+
+        Note: the S3 connection used here needs to have access to both
+        source and destination bucket/key.
+
+        :param source_bucket_key: The key of the source object.
+
+            It can be either full s3:// style url or relative path from root level.
+
+            When it's specified as a full s3:// url, please omit source_bucket_name.
+        :type source_bucket_key: str
+        :param dest_bucket_key: The key of the object to copy to.
+
+            The convention to specify `dest_bucket_key` is the same
+            as `source_bucket_key`.
+        :type dest_bucket_key: str
+        :param source_bucket_name: Name of the S3 bucket where the source object is in.
+
+            It should be omitted when `source_bucket_key` is provided as a full s3:// url.
+        :type source_bucket_name: str
+        :param dest_bucket_name: Name of the S3 bucket to where the object is copied.
+
+            It should be omitted when `dest_bucket_key` is provided as a full s3:// url.
+        :type dest_bucket_name: str
+        :param source_version_id: Version ID of the source object (OPTIONAL)
+        :type source_version_id: str
+        """
+
+        if dest_bucket_name is None:
+            dest_bucket_name, dest_bucket_key = self.parse_s3_url(dest_bucket_key)
+        else:
+            parsed_url = urlparse(dest_bucket_key)
+            if parsed_url.scheme != '' or parsed_url.netloc != '':
+                raise AirflowException('If dest_bucket_name is provided, ' +
+                                       'dest_bucket_key should be relative path ' +
+                                       'from root level, rather than a full s3:// url')
+
+        if source_bucket_name is None:
+            source_bucket_name, source_bucket_key = self.parse_s3_url(source_bucket_key)
+        else:
+            parsed_url = urlparse(source_bucket_key)
+            if parsed_url.scheme != '' or parsed_url.netloc != '':
+                raise AirflowException('If source_bucket_name is provided, ' +
+                                       'source_bucket_key should be relative path ' +
+                                       'from root level, rather than a full s3:// url')
+
+        CopySource = {'Bucket': source_bucket_name,
+                      'Key': source_bucket_key,
+                      'VersionId': source_version_id}
+        response = self.get_conn().copy_object(Bucket=dest_bucket_name,
+                                               Key=dest_bucket_key,
+                                               CopySource=CopySource)
+        return response
+
+    def delete_objects(self,
+                       bucket,
+                       keys):
+        """
+        :param bucket: Name of the bucket in which you are going to delete object(s)
+        :type bucket: str
+        :param keys: The key(s) to delete from S3 bucket.
+
+            When ``keys`` is a string, it's supposed to be the key name of
+            the single object to delete.
+
+            When ``keys`` is a list, it's supposed to be the list of the
+            keys to delete.
+        :type keys: str or list
+        """
+        if isinstance(keys, list):
+            keys = keys
+        else:
+            keys = [keys]
+
+        delete_dict = {"Objects": [{"Key": k} for k in keys]}
+        response = self.get_conn().delete_objects(Bucket=bucket,
+                                                  Delete=delete_dict)
+        return response

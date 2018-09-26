@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
-import mock
 import unittest
+from datetime import datetime
+
+import mock
 
 from airflow.utils import operator_helpers
 
@@ -31,16 +32,18 @@ class TestOperatorHelpers(unittest.TestCase):
         self.dag_id = 'dag_id'
         self.task_id = 'task_id'
         self.execution_date = '2017-05-21T00:00:00'
+        self.dag_run_id = 'dag_run_id'
         self.context = {
-            'dag': mock.MagicMock(name='dag', dag_id=self.dag_id),
             'dag_run': mock.MagicMock(
                 name='dag_run',
+                run_id=self.dag_run_id,
                 execution_date=datetime.strptime(self.execution_date,
                                                  '%Y-%m-%dT%H:%M:%S'),
             ),
-            'task': mock.MagicMock(name='task', task_id=self.task_id),
             'task_instance': mock.MagicMock(
                 name='task_instance',
+                task_id=self.task_id,
+                dag_id=self.dag_id,
                 execution_date=datetime.strptime(self.execution_date,
                                                  '%Y-%m-%dT%H:%M:%S'),
             ),
@@ -53,10 +56,21 @@ class TestOperatorHelpers(unittest.TestCase):
         self.assertDictEqual(
             operator_helpers.context_to_airflow_vars(self.context),
             {
-                'airflow.ctx.dag.dag_id': self.dag_id,
-                'airflow.ctx.dag_run.execution_date': self.execution_date,
-                'airflow.ctx.task.task_id': self.task_id,
-                'airflow.ctx.task_instance.execution_date': self.execution_date,
+                'airflow.ctx.dag_id': self.dag_id,
+                'airflow.ctx.execution_date': self.execution_date,
+                'airflow.ctx.task_id': self.task_id,
+                'airflow.ctx.dag_run_id': self.dag_run_id,
+            }
+        )
+
+        self.assertDictEqual(
+            operator_helpers.context_to_airflow_vars(self.context,
+                                                     in_env_var_format=True),
+            {
+                'AIRFLOW_CTX_DAG_ID': self.dag_id,
+                'AIRFLOW_CTX_EXECUTION_DATE': self.execution_date,
+                'AIRFLOW_CTX_TASK_ID': self.task_id,
+                'AIRFLOW_CTX_DAG_RUN_ID': self.dag_run_id,
             }
         )
 

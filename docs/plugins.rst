@@ -78,6 +78,26 @@ looks like:
         menu_links = []
 
 
+You can derive it by inheritance (please refer to the example below).
+Please note ``name`` inside this class must be specified.
+
+After the plugin is imported into Airflow,
+you can invoke it using statement like
+
+
+.. code:: python
+
+    from airflow.{type, like "operators", "sensors"}.{name specificed inside the plugin class} import *
+
+
+When you write your own plugins, make sure you understand them well.
+There are some essential properties for each type of plugin.
+For example,
+
+* For ``Operator`` plugin, an ``execute`` method is compulsory.
+* For ``Sensor`` plugin, a ``poke`` method returning a Boolean value is compulsory.
+
+
 Example
 -------
 
@@ -127,7 +147,7 @@ definitions in Airflow.
             return self.render("test_plugin/test.html", content="Hello galaxy!")
     v = TestView(category="Test Plugin", name="Test View")
 
-    # Creating a flask blueprint to intergrate the templates and static folder
+    # Creating a flask blueprint to integrate the templates and static folder
     bp = Blueprint(
         "test_plugin", __name__,
         template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder

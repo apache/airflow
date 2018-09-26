@@ -29,10 +29,10 @@ class EmailOperator(BaseOperator):
     :param to: list of emails to send the email to. (templated)
     :type to: list or string (comma or semicolon delimited)
     :param subject: subject line for the email. (templated)
-    :type subject: string
+    :type subject: str
     :param html_content: content of the email, html markup
         is allowed. (templated)
-    :type html_content: string
+    :type html_content: str
     :param files: file names to attach in email
     :type files: list
     :param cc: list of recipients to be added in CC field
@@ -40,10 +40,10 @@ class EmailOperator(BaseOperator):
     :param bcc: list of recipients to be added in BCC field
     :type bcc: list or string (comma or semicolon delimited)
     :param mime_subtype: MIME sub content type
-    :type mime_subtype: string
+    :type mime_subtype: str
     :param mime_charset: character set parameter added to the Content-Type
         header.
-    :type mime_charset: string
+    :type mime_charset: str
     """
 
     template_fields = ('to', 'subject', 'html_content')
@@ -60,7 +60,7 @@ class EmailOperator(BaseOperator):
             cc=None,
             bcc=None,
             mime_subtype='mixed',
-            mime_charset='us_ascii',
+            mime_charset='utf-8',
             *args, **kwargs):
         super(EmailOperator, self).__init__(*args, **kwargs)
         self.to = to
@@ -75,4 +75,4 @@ class EmailOperator(BaseOperator):
     def execute(self, context):
         send_email(self.to, self.subject, self.html_content,
                    files=self.files, cc=self.cc, bcc=self.bcc,
-                   mime_subtype=self.mime_subtype, mine_charset=self.mime_charset)
+                   mime_subtype=self.mime_subtype, mime_charset=self.mime_charset)

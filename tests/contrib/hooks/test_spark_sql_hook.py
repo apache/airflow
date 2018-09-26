@@ -19,9 +19,7 @@
 #
 
 import six
-import sys
 import unittest
-from io import StringIO
 from itertools import dropwhile
 
 from mock import patch, call

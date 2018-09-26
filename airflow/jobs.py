@@ -40,7 +40,6 @@ from sqlalchemy import (
     Column, Integer, String, func, Index, or_, and_, not_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
-from sqlalchemy_utc import UtcDateTime
 from tabulate import tabulate
 from time import sleep
 
@@ -52,17 +51,18 @@ from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import asciiart, helpers, timezone
+from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           DagFileProcessorManager,
                                           SimpleDag,
                                           SimpleDagBag,
                                           list_py_file_paths)
 from airflow.utils.db import create_session, provide_session
-from airflow.utils.email import send_email
+from airflow.utils.email import send_email, get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
-from airflow.utils.state import State
-from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.net import get_hostname
+from airflow.utils.state import State
+from airflow.utils.sqlalchemy import UtcDateTime
 
 Base = models.Base
 ID_LEN = models.ID_LEN
@@ -96,6 +96,7 @@ class BaseJob(Base, LoggingMixin):
 
     __table_args__ = (
         Index('job_type_heart', job_type, latest_heartbeat),
+        Index('idx_job_state_heartbeat', state, latest_heartbeat),
     )
 
     def __init__(
@@ -172,7 +173,8 @@ class BaseJob(Base, LoggingMixin):
         if job.latest_heartbeat:
             sleep_for = max(
                 0,
-                self.heartrate - (timezone.utcnow() - job.latest_heartbeat).total_seconds())
+                self.heartrate - (
+                    timezone.utcnow() - job.latest_heartbeat).total_seconds())
 
         sleep(sleep_for)
 
@@ -197,14 +199,20 @@ class BaseJob(Base, LoggingMixin):
             make_transient(self)
             self.id = id_
 
-            # Run
-            self._execute()
-
-            # Marking the success in the DB
-            self.end_date = timezone.utcnow()
-            self.state = State.SUCCESS
-            session.merge(self)
-            session.commit()
+            try:
+                self._execute()
+                # In case of max runs or max duration
+                self.state = State.SUCCESS
+            except SystemExit as e:
+                # In case of ^C or SIGTERM
+                self.state = State.SUCCESS
+            except Exception as e:
+                self.state = State.FAILED
+                raise
+            finally:
+                self.end_date = timezone.utcnow()
+                session.merge(self)
+                session.commit()
 
         Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
 
@@ -384,7 +392,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                 log.info(
                     "Processing %s took %.3f seconds", file_path, end_time - start_time
                 )
-            except:
+            except Exception:
                 # Log exceptions through the logging framework.
                 log.exception("Got an exception! Propagating...")
                 raise
@@ -525,8 +533,7 @@ class SchedulerJob(BaseJob):
             num_runs=-1,
             file_process_interval=conf.getint('scheduler',
                                               'min_file_process_interval'),
-            min_file_parsing_loop_time=conf.getint('scheduler',
-                                                   'min_file_parsing_loop_time'),
+            processor_poll_interval=1.0,
             run_duration=None,
             do_pickle=False,
             log=None,
@@ -541,6 +548,8 @@ class SchedulerJob(BaseJob):
         :type subdir: unicode
         :param num_runs: The number of times to try to schedule each DAG file.
         -1 for unlimited within the run_duration.
+        :param processor_poll_interval: The number of seconds to wait between
+        polls of running processors
         :param run_duration: how long to run (in seconds) before exiting
         :type run_duration: int
         :param do_pickle: once a DAG object is obtained by executing the Python
@@ -557,6 +566,7 @@ class SchedulerJob(BaseJob):
 
         self.num_runs = num_runs
         self.run_duration = run_duration
+        self._processor_poll_interval = processor_poll_interval
 
         self.do_pickle = do_pickle
         super(SchedulerJob, self).__init__(*args, **kwargs)
@@ -581,14 +591,10 @@ class SchedulerJob(BaseJob):
         # 30 seconds.
         self.print_stats_interval = conf.getint('scheduler',
                                                 'print_stats_interval')
-        # Parse and schedule each file no faster than this interval. Default
-        # to 3 minutes.
+
         self.file_process_interval = file_process_interval
 
-        # Wait until at least this many seconds have passed before parsing files once all
-        # files have finished parsing.
-        self.min_file_parsing_loop_time = min_file_parsing_loop_time
-
+        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         if run_duration is None:
             self.run_duration = conf.getint('scheduler',
                                             'run_duration')
@@ -651,7 +657,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)
+            .filter(SlaMiss.notification_sent == False)  # noqa: E712
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
@@ -701,16 +707,13 @@ class SchedulerJob(BaseJob):
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
             """.format(bug=asciiart.bug, **locals())
-            emails = []
-            for t in dag.tasks:
-                if t.email:
-                    if isinstance(t.email, basestring):
-                        l = [t.email]
-                    elif isinstance(t.email, (list, tuple)):
-                        l = t.email
-                    for email in l:
-                        if email not in emails:
-                            emails.append(email)
+            emails = set()
+            for task in dag.tasks:
+                if task.email:
+                    if isinstance(task.email, basestring):
+                        emails |= set(get_email_address_list(task.email))
+                    elif isinstance(task.email, (list, tuple)):
+                        emails |= set(task.email)
             if emails and len(slas):
                 try:
                     send_email(
@@ -811,7 +814,7 @@ class SchedulerJob(BaseJob):
                 session.query(func.max(DagRun.execution_date))
                 .filter_by(dag_id=dag.dag_id)
                 .filter(or_(
-                    DagRun.external_trigger == False,
+                    DagRun.external_trigger == False,  # noqa: E712
                     # add % as a wildcard for the like query
                     DagRun.run_id.like(DagRun.ID_PREFIX + '%')
                 ))
@@ -1066,9 +1069,6 @@ class SchedulerJob(BaseJob):
         :type states: Tuple[State]
         :return: List[TaskInstance]
         """
-        # TODO(saguziel): Change this to include QUEUED, for concurrency
-        # purposes we may want to count queued tasks
-        states_to_count_as_running = [State.RUNNING]
         executable_tis = []
 
         # Get all the queued task instances from associated with scheduled
@@ -1081,24 +1081,27 @@ class SchedulerJob(BaseJob):
             session
             .query(TI)
             .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
-            .outerjoin(DR,
-                and_(DR.dag_id == TI.dag_id,
-                     DR.execution_date == TI.execution_date))
-            .filter(or_(DR.run_id == None,
+            .outerjoin(
+                DR,
+                and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
+            )
+            .filter(or_(DR.run_id == None,  # noqa: E711
                     not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
-            .outerjoin(DM, DM.dag_id==TI.dag_id)
-            .filter(or_(DM.dag_id == None,
+            .outerjoin(DM, DM.dag_id == TI.dag_id)
+            .filter(or_(DM.dag_id == None,  # noqa: E711
                     not_(DM.is_paused)))
         )
         if None in states:
-            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(states)))
+            ti_query = ti_query.filter(
+                or_(TI.state == None, TI.state.in_(states))  # noqa: E711
+            )
         else:
             ti_query = ti_query.filter(TI.state.in_(states))
 
         task_instances_to_examine = ti_query.all()
 
         if len(task_instances_to_examine) == 0:
-            self.log.info("No tasks to consider for execution.")
+            self.log.debug("No tasks to consider for execution.")
             return executable_tis
 
         # Put one task instance on each line
@@ -1113,7 +1116,9 @@ class SchedulerJob(BaseJob):
         for task_instance in task_instances_to_examine:
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
-        task_concurrency_map = self.__get_task_concurrency_map(states=states_to_count_as_running, session=session)
+        states_to_count_as_running = [State.RUNNING, State.QUEUED]
+        task_concurrency_map = self.__get_task_concurrency_map(
+            states=states_to_count_as_running, session=session)
 
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
@@ -1162,7 +1167,6 @@ class SchedulerJob(BaseJob):
                 simple_dag = simple_dag_bag.get_dag(dag_id)
 
                 if dag_id not in dag_id_to_possibly_running_task_count:
-                    # TODO(saguziel): also check against QUEUED state, see AIRFLOW-1104
                     dag_id_to_possibly_running_task_count[dag_id] = \
                         DAG.get_num_task_instances(
                             dag_id,
@@ -1178,15 +1182,20 @@ class SchedulerJob(BaseJob):
                 )
                 if current_task_concurrency >= task_concurrency_limit:
                     self.log.info(
-                        "Not executing %s since the number of tasks running or queued from DAG %s"
-                        " is >= to the DAG's task concurrency limit of %s",
+                        "Not executing %s since the number of tasks running or queued "
+                        "from DAG %s is >= to the DAG's task concurrency limit of %s",
                         task_instance, dag_id, task_concurrency_limit
                     )
                     continue
 
-                task_concurrency = simple_dag.get_task_special_arg(task_instance.task_id, 'task_concurrency')
+                task_concurrency = simple_dag.get_task_special_arg(
+                    task_instance.task_id,
+                    'task_concurrency')
                 if task_concurrency is not None:
-                    num_running = task_concurrency_map[((task_instance.dag_id, task_instance.task_id))]
+                    num_running = task_concurrency_map[
+                        (task_instance.dag_id, task_instance.task_id)
+                    ]
+
                     if num_running >= task_concurrency:
                         self.log.info("Not executing %s since the task concurrency for"
                                       " this task has been reached.", task_instance)
@@ -1206,7 +1215,8 @@ class SchedulerJob(BaseJob):
 
         task_instance_str = "\n\t".join(
             ["{}".format(x) for x in executable_tis])
-        self.log.info("Setting the follow tasks to queued state:\n\t%s", task_instance_str)
+        self.log.info(
+            "Setting the follow tasks to queued state:\n\t%s", task_instance_str)
         # so these dont expire on commit
         for ti in executable_tis:
             copy_dag_id = ti.dag_id
@@ -1248,7 +1258,9 @@ class SchedulerJob(BaseJob):
             .filter(or_(*filter_for_ti_state_change)))
 
         if None in acceptable_states:
-            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(acceptable_states)))
+            ti_query = ti_query.filter(
+                or_(TI.state == None, TI.state.in_(acceptable_states))  # noqa: E711
+            )
         else:
             ti_query = ti_query.filter(TI.state.in_(acceptable_states))
 
@@ -1311,7 +1323,7 @@ class SchedulerJob(BaseJob):
         # actually enqueue them
         for task_instance in task_instances:
             simple_dag = simple_dag_bag.get_dag(task_instance.dag_id)
-            command = " ".join(TI.generate_command(
+            command = TI.generate_command(
                 task_instance.dag_id,
                 task_instance.task_id,
                 task_instance.execution_date,
@@ -1323,7 +1335,7 @@ class SchedulerJob(BaseJob):
                 ignore_ti_state=False,
                 pool=task_instance.pool,
                 file_path=simple_dag.full_filepath,
-                pickle_id=simple_dag.pickle_id))
+                pickle_id=simple_dag.pickle_id)
 
             priority = task_instance.priority_weight
             queue = task_instance.queue
@@ -1543,16 +1555,18 @@ class SchedulerJob(BaseJob):
         # DAGs in parallel. By processing them in separate processes,
         # we can get parallelism and isolation from potentially harmful
         # user code.
-        self.log.info("Processing files using up to %s processes at a time",
-                      self.max_threads)
+        self.log.info(
+            "Processing files using up to %s processes at a time",
+            self.max_threads)
         self.log.info("Running execute loop for %s seconds", self.run_duration)
         self.log.info("Processing each file at most %s times", self.num_runs)
-        self.log.info("Process each file at most once every %s seconds",
-                      self.file_process_interval)
-        self.log.info("Wait until at least %s seconds have passed between file parsing "
-                      "loops", self.min_file_parsing_loop_time)
-        self.log.info("Checking for new files in %s every %s seconds",
-                      self.subdir, self.dag_dir_list_interval)
+        self.log.info(
+            "Process each file at most once every %s seconds",
+            self.file_process_interval)
+        self.log.info(
+            "Checking for new files in %s every %s seconds",
+            self.subdir,
+            self.dag_dir_list_interval)
 
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s", self.subdir)
@@ -1568,7 +1582,6 @@ class SchedulerJob(BaseJob):
                                                     known_file_paths,
                                                     self.max_threads,
                                                     self.file_process_interval,
-                                                    self.min_file_parsing_loop_time,
                                                     self.num_runs,
                                                     processor_factory)
 
@@ -1593,7 +1606,8 @@ class SchedulerJob(BaseJob):
                     child.terminate()
                 # TODO: Remove magic number
                 timeout = 5
-                self.log.info("Waiting up to %s seconds for processes to exit...", timeout)
+                self.log.info(
+                    "Waiting up to %s seconds for processes to exit...", timeout)
                 try:
                     psutil.wait_procs(
                         child_processes, timeout=timeout,
@@ -1650,7 +1664,9 @@ class SchedulerJob(BaseJob):
                 self.log.info("Searching for files in %s", self.subdir)
                 known_file_paths = list_py_file_paths(self.subdir)
                 last_dag_dir_refresh_time = timezone.utcnow()
-                self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
+                self.log.info(
+                    "There are %s files in %s", len(known_file_paths), self.subdir)
+
                 processor_manager.set_file_paths(known_file_paths)
 
                 self.log.debug("Removing old import errors")
@@ -1663,7 +1679,9 @@ class SchedulerJob(BaseJob):
             if self.using_sqlite:
                 # For the sqlite case w/ 1 thread, wait until the processor
                 # is finished to avoid concurrent access to the DB.
-                self.log.debug("Waiting for processors to finish since we're using sqlite")
+                self.log.debug(
+                    "Waiting for processors to finish since we're using sqlite")
+
                 processor_manager.wait_until_finished()
 
             # Send tasks for execution if available
@@ -1715,13 +1733,17 @@ class SchedulerJob(BaseJob):
                 last_stat_print_time = timezone.utcnow()
 
             loop_end_time = time.time()
-            self.log.debug("Ran scheduling loop in %.2f seconds",
-                           loop_end_time - loop_start_time)
+            self.log.debug(
+                "Ran scheduling loop in %.2f seconds",
+                loop_end_time - loop_start_time)
+            self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
+            time.sleep(self._processor_poll_interval)
 
             # Exit early for a test mode
             if processor_manager.max_runs_reached():
-                self.log.info("Exiting loop as all files have been processed %s times",
-                              self.num_runs)
+                self.log.info(
+                    "Exiting loop as all files have been processed %s times",
+                    self.num_runs)
                 break
 
         # Stop any processors
@@ -1956,7 +1978,37 @@ class BackfillJob(BaseJob):
             pool=None,
             delay_on_limit_secs=1.0,
             verbose=False,
+            conf=None,
+            rerun_failed_tasks=False,
             *args, **kwargs):
+        """
+        :param dag: DAG object.
+        :type dag: `class DAG`.
+        :param start_date: start date for the backfill date range.
+        :type start_date: datetime.
+        :param end_date: end date for the backfill date range.
+        :type end_date: datetime
+        :param mark_success: flag whether to mark the task auto success.
+        :type mark_success: bool
+        :param donot_pickle: whether pickle
+        :type donot_pickle: bool
+        :param ignore_first_depends_on_past: whether to ignore depend on past
+        :type ignore_first_depends_on_past: bool
+        :param ignore_task_deps: whether to ignore the task dependency
+        :type ignore_task_deps: bool
+        :param pool:
+        :type pool: list
+        :param delay_on_limit_secs:
+        :param verbose:
+        :type verbose: flag to whether display verbose message to backfill console
+        :param conf: a dictionary which user could pass k-v pairs for backfill
+        :type conf: dictionary
+        :param rerun_failed_tasks: flag to whether to
+                                   auto rerun the failed task in backfill
+        :type rerun_failed_tasks: bool
+        :param args:
+        :param kwargs:
+        """
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
@@ -1968,6 +2020,8 @@ class BackfillJob(BaseJob):
         self.pool = pool
         self.delay_on_limit_secs = delay_on_limit_secs
         self.verbose = verbose
+        self.conf = conf
+        self.rerun_failed_tasks = rerun_failed_tasks
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
@@ -2090,7 +2144,8 @@ class BackfillJob(BaseJob):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
-            session=session
+            session=session,
+            conf=self.conf,
         )
 
         # set required transient field
@@ -2213,15 +2268,6 @@ class BackfillJob(BaseJob):
                     self.log.debug(
                         "Task instance to run %s state %s", ti, ti.state)
 
-                    # guard against externally modified tasks instances or
-                    # in case max concurrency has been reached at task runtime
-                    if ti.state == State.NONE:
-                        self.log.warning(
-                            "FIXME: task instance {} state was set to None "
-                            "externally. This should not happen"
-                        )
-                        ti.set_state(State.SCHEDULED, session=session)
-
                     # The task was already marked successful or skipped by a
                     # different Job. Don't rerun it.
                     if ti.state == State.SUCCESS:
@@ -2238,20 +2284,36 @@ class BackfillJob(BaseJob):
                         if key in ti_status.running:
                             ti_status.running.pop(key)
                         continue
-                    elif ti.state == State.FAILED:
-                        self.log.error("Task instance %s failed", ti)
-                        ti_status.failed.add(key)
-                        ti_status.to_run.pop(key)
-                        if key in ti_status.running:
-                            ti_status.running.pop(key)
-                        continue
-                    elif ti.state == State.UPSTREAM_FAILED:
-                        self.log.error("Task instance %s upstream failed", ti)
-                        ti_status.failed.add(key)
-                        ti_status.to_run.pop(key)
-                        if key in ti_status.running:
-                            ti_status.running.pop(key)
-                        continue
+
+                    # guard against externally modified tasks instances or
+                    # in case max concurrency has been reached at task runtime
+                    elif ti.state == State.NONE:
+                        self.log.warning(
+                            "FIXME: task instance {} state was set to None "
+                            "externally. This should not happen"
+                        )
+                        ti.set_state(State.SCHEDULED, session=session)
+                    if self.rerun_failed_tasks:
+                        # Rerun failed tasks or upstreamed failed tasks
+                        if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
+                            self.log.error("Task instance {ti} "
+                                           "with state {state}".format(ti=ti,
+                                                                       state=ti.state))
+                            if key in ti_status.running:
+                                ti_status.running.pop(key)
+                            # Reset the failed task in backfill to scheduled state
+                            ti.set_state(State.SCHEDULED, session=session)
+                    else:
+                        # Default behaviour which works for subdag.
+                        if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
+                            self.log.error("Task instance {ti} "
+                                           "with {state} state".format(ti=ti,
+                                                                       state=ti.state))
+                            ti_status.failed.add(key)
+                            ti_status.to_run.pop(key)
+                            if key in ti_status.running:
+                                ti_status.running.pop(key)
+                            continue
 
                     backfill_context = DepContext(
                         deps=RUN_DEPS,
@@ -2517,6 +2579,7 @@ class LocalTaskJob(BaseJob):
             pool=None,
             *args, **kwargs):
         self.task_instance = task_instance
+        self.dag_id = task_instance.dag_id
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
         self.ignore_task_deps = ignore_task_deps

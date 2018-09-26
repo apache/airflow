@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,11 +24,10 @@ from __future__ import unicode_literals
 
 from airflow.utils import timezone
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # for doctest
+from dateutil.relativedelta import relativedelta  # flake8: noqa: F401 for doctest
 import six
 
 from croniter import croniter
-
 
 cron_presets = {
     '@hourly': '0 * * * *',
@@ -39,16 +38,11 @@ cron_presets = {
 }
 
 
-def date_range(
-        start_date,
-        end_date=None,
-        num=None,
-        delta=None):
+def date_range(start_date, end_date=None, num=None, delta=None):
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to ``datetime.datetime``
     or a cron expression as a ``str``
-
     :param start_date: anchor date to start the series from
     :type start_date: datetime.datetime
     :param end_date: right boundary for the date range
@@ -57,13 +51,15 @@ def date_range(
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
     :type num: int
-
     >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0), datetime.datetime(2016, 1, 3, 0, 0)]
+    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+     datetime.datetime(2016, 1, 3, 0, 0)]
     >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta='0 0 * * *')
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0), datetime.datetime(2016, 1, 3, 0, 0)]
+    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+     datetime.datetime(2016, 1, 3, 0, 0)]
     >>> date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0), datetime.datetime(2016, 3, 1, 0, 0)]
+    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0),
+     datetime.datetime(2016, 3, 1, 0, 0)]
     """
     if not delta:
         return []
@@ -82,13 +78,15 @@ def date_range(
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
-    l = []
+    dates = []
     if end_date:
+        if timezone.is_naive(start_date):
+            end_date = timezone.make_naive(end_date, tz)
         while start_date <= end_date:
             if timezone.is_naive(start_date):
-                l.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, tz))
             else:
-                l.append(start_date)
+                dates.append(start_date)
 
             if delta_iscron:
                 start_date = cron.get_next(datetime)
@@ -97,9 +95,9 @@ def date_range(
     else:
         for _ in range(abs(num)):
             if timezone.is_naive(start_date):
-                l.append(timezone.make_aware(start_date, tz))
+                dates.append(timezone.make_aware(start_date, tz))
             else:
-                l.append(start_date)
+                dates.append(start_date)
 
             if delta_iscron:
                 if num > 0:
@@ -111,16 +109,14 @@ def date_range(
                     start_date += delta
                 else:
                     start_date -= delta
-    return sorted(l)
+    return sorted(dates)
 
 
 def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     """
     Returns the datetime of the form start_date + i * delta
     which is closest to dt for any non-negative integer i.
-
     Note that delta may be a datetime.timedelta or a dateutil.relativedelta
-
     >>> round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
     datetime.datetime(2015, 1, 1, 0, 0)
     >>> round_time(datetime(2015, 1, 2), relativedelta(months=1))
@@ -159,7 +155,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     # We first search an upper limit for i for which start_date + upper * delta
     # exceeds dt.
     upper = 1
-    while start_date + upper*delta < dt:
+    while start_date + upper * delta < dt:
         # To speed up finding an upper limit we grow this exponentially by a
         # factor of 2
         upper *= 2
@@ -176,20 +172,20 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
         # Invariant: start + lower * delta < dt <= start + upper * delta
         # If start_date + (lower + 1)*delta exceeds dt, then either lower or
         # lower+1 has to be the solution we are searching for
-        if start_date + (lower + 1)*delta >= dt:
+        if start_date + (lower + 1) * delta >= dt:
             # Check if start_date + (lower + 1)*delta or
             # start_date + lower*delta is closer to dt and return the solution
             if (
-                    (start_date + (lower + 1) * delta) - dt <=
-                    dt - (start_date + lower * delta)):
-                return start_date + (lower + 1)*delta
+                (start_date + (lower + 1) * delta) - dt <=
+                dt - (start_date + lower * delta)):
+                return start_date + (lower + 1) * delta
             else:
                 return start_date + lower * delta
 
         # We intersect the interval and either replace the lower or upper
         # limit with the candidate
         candidate = lower + (upper - lower) // 2
-        if start_date + candidate*delta >= dt:
+        if start_date + candidate * delta >= dt:
             upper = candidate
         else:
             lower = candidate
@@ -203,17 +199,16 @@ def infer_time_unit(time_seconds_arr):
     """
     Determine the most appropriate time unit for an array of time durations
     specified in seconds.
-
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
     if len(time_seconds_arr) == 0:
         return 'hours'
     max_time_seconds = max(time_seconds_arr)
-    if max_time_seconds <= 60*2:
+    if max_time_seconds <= 60 * 2:
         return 'seconds'
-    elif max_time_seconds <= 60*60*2:
+    elif max_time_seconds <= 60 * 60 * 2:
         return 'minutes'
-    elif max_time_seconds <= 24*60*60*2:
+    elif max_time_seconds <= 24 * 60 * 60 * 2:
         return 'hours'
     else:
         return 'days'
@@ -224,11 +219,11 @@ def scale_time_units(time_seconds_arr, unit):
     Convert an array of time durations in seconds to the specified time unit.
     """
     if unit == 'minutes':
-        return list(map(lambda x: x*1.0/60, time_seconds_arr))
+        return list(map(lambda x: x * 1.0 / 60, time_seconds_arr))
     elif unit == 'hours':
-        return list(map(lambda x: x*1.0/(60*60), time_seconds_arr))
+        return list(map(lambda x: x * 1.0 / (60 * 60), time_seconds_arr))
     elif unit == 'days':
-        return list(map(lambda x: x*1.0/(24*60*60), time_seconds_arr))
+        return list(map(lambda x: x * 1.0 / (24 * 60 * 60), time_seconds_arr))
     return time_seconds_arr
 
 

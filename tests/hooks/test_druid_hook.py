@@ -98,7 +98,7 @@ class TestDruidHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_submit_timeout(self, m):
-        self.db_hook.timeout = 0
+        self.db_hook.timeout = 1
         self.db_hook.max_ingestion_time = 5
         task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
@@ -131,7 +131,7 @@ class TestDruidHook(unittest.TestCase):
         get_conn_value.port = '1'
         get_conn_value.extra_dejson = {'endpoint': 'ingest'}
         mock_get_connection.return_value = get_conn_value
-        hook = DruidHook(timeout=0, max_ingestion_time=5)
+        hook = DruidHook(timeout=1, max_ingestion_time=5)
         self.assertEquals(hook.get_conn_url(), 'https://test_host:1/ingest')
 
 

@@ -7,15 +7,16 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from sqlalchemy import case, func
 
 import airflow
@@ -104,20 +105,20 @@ class TriggerRuleDep(BaseTIDep):
         :param ti: the task instance to evaluate the trigger rule of
         :type ti: TaskInstance
         :param successes: Number of successful upstream tasks
-        :type successes: boolean
+        :type successes: bool
         :param skipped: Number of skipped upstream tasks
-        :type skipped: boolean
+        :type skipped: bool
         :param failed: Number of failed upstream tasks
-        :type failed: boolean
+        :type failed: bool
         :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: boolean
+        :type upstream_failed: bool
         :param done: Number of completed upstream tasks
-        :type done: boolean
+        :type done: bool
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
             path to add the feature
-        :type flag_upstream_failed: boolean
+        :type flag_upstream_failed: bool
         :param session: database session
         :type session: Session
         """
@@ -191,7 +192,7 @@ class TriggerRuleDep(BaseTIDep):
                     "tasks to have completed, but found {1} task(s) that "
                     "weren't done. upstream_tasks_state={2}, "
                     "upstream_task_ids={3}"
-                    .format(tr, upstream-done, upstream_tasks_state,
+                    .format(tr, upstream_done, upstream_tasks_state,
                             task.upstream_task_ids))
         else:
             yield self._failing_status(

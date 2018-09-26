@@ -19,8 +19,7 @@
 
 import unittest
 
-import airflow.contrib.hooks.gcs_hook as gcs_hook
-
+from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
 from apiclient.errors import HttpError
 
@@ -66,14 +65,14 @@ class TestGCSBucket(unittest.TestCase):
     def test_bucket_name_value(self):
 
         bad_start_bucket_name = '/testing123'
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
 
             gcs_hook.GoogleCloudStorageHook().create_bucket(
                 bucket_name=bad_start_bucket_name
             )
 
         bad_end_bucket_name = 'testing123/'
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             gcs_hook.GoogleCloudStorageHook().create_bucket(
                 bucket_name=bad_end_bucket_name
             )

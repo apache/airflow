@@ -65,18 +65,27 @@ class KubernetesPodOperator(BaseOperator):
     :type in_cluster: bool
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used.
-    :type cluster_context: string
+    :type cluster_context: str
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
+    :param node_selectors: A dict containing a group of scheduling rules
+    :type node_selectors: dict
+    :param config_file: The path to the Kubernetes config file
+    :type config_file: str
+    :param xcom_push: If xcom_push is True, the content of the file
+        /airflow/xcom/return.json in the container will also be pushed to an
+        XCom when the container completes.
+    :type xcom_push: bool
     """
-    template_fields = ('cmds', 'arguments', 'env_vars')
+    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
     def execute(self, context):
         try:
             client = kube_client.get_kube_client(in_cluster=self.in_cluster,
-                                                 cluster_context=self.cluster_context)
+                                                 cluster_context=self.cluster_context,
+                                                 config_file=self.config_file)
             gen = pod_generator.PodGenerator()
 
             for mount in self.volume_mounts:
@@ -93,22 +102,32 @@ class KubernetesPodOperator(BaseOperator):
                 labels=self.labels,
             )
 
+            pod.service_account_name = self.service_account_name
             pod.secrets = self.secrets
             pod.envs = self.env_vars
             pod.image_pull_policy = self.image_pull_policy
             pod.annotations = self.annotations
             pod.resources = self.resources
             pod.affinity = self.affinity
+            pod.node_selectors = self.node_selectors
+            pod.hostnetwork = self.hostnetwork
 
-            launcher = pod_launcher.PodLauncher(kube_client=client)
-            final_state = launcher.run_pod(
+            launcher = pod_launcher.PodLauncher(kube_client=client,
+                                                extract_xcom=self.xcom_push)
+            (final_state, result) = launcher.run_pod(
                 pod,
                 startup_timeout=self.startup_timeout_seconds,
                 get_logs=self.get_logs)
+
+            if self.is_delete_operator_pod:
+                launcher.delete_pod(pod)
+
             if final_state != State.SUCCESS:
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state)
                 )
+            if self.xcom_push:
+                return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
@@ -132,6 +151,13 @@ class KubernetesPodOperator(BaseOperator):
                  annotations=None,
                  resources=None,
                  affinity=None,
+                 config_file=None,
+                 xcom_push=False,
+                 node_selectors=None,
+                 image_pull_secrets=None,
+                 service_account_name="default",
+                 is_delete_operator_pod=False,
+                 hostnetwork=False,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -150,6 +176,13 @@ class KubernetesPodOperator(BaseOperator):
         self.cluster_context = cluster_context
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
+        self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
+        self.xcom_push = xcom_push
         self.resources = resources or Resources()
+        self.config_file = config_file
+        self.image_pull_secrets = image_pull_secrets
+        self.service_account_name = service_account_name
+        self.is_delete_operator_pod = is_delete_operator_pod
+        self.hostnetwork = hostnetwork

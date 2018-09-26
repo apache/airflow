@@ -11,7 +11,7 @@ directory.
 In addition, users can supply a remote location for storing logs and log
 backups in cloud storage.
 
-In the Airflow Web UI, local logs take precedance over remote logs. If local logs
+In the Airflow Web UI, local logs take precedence over remote logs. If local logs
 can not be found or accessed, the remote logs will be displayed. Note that logs
 are only sent to remote storage once a task completes (including failure). In other
 words, remote logs for running tasks are unavailable. Logs are stored in the log
@@ -111,7 +111,7 @@ Follow the steps below to enable Google Cloud Storage logging.
             'filename_template': FILENAME_TEMPLATE,
         },
 
-        # Update the airflow.task and airflow.tas_runner blocks to be 'gcs.task' instead of 'file.task'.
+        # Update the airflow.task and airflow.task_runner blocks to be 'gcs.task' instead of 'file.task'.
         'loggers': {
             'airflow.task': {
                 'handlers': ['gcs.task'],

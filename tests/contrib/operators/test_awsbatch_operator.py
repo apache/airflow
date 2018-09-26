@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -50,7 +50,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.batch = AWSBatchOperator(
             task_id='task',
             job_name='51455483-c62c-48ac-9b88-53a6a725baa3',
-            queue='queue',
+            job_queue='queue',
             job_definition='hello-world',
             max_retries=5,
             overrides={},
@@ -60,7 +60,7 @@ class TestAWSBatchOperator(unittest.TestCase):
     def test_init(self):
 
         self.assertEqual(self.batch.job_name, '51455483-c62c-48ac-9b88-53a6a725baa3')
-        self.assertEqual(self.batch.queue, 'queue')
+        self.assertEqual(self.batch.job_queue, 'queue')
         self.assertEqual(self.batch.job_definition, 'hello-world')
         self.assertEqual(self.batch.max_retries, 5)
         self.assertEqual(self.batch.overrides, {})
@@ -71,7 +71,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
 
     def test_template_fields_overrides(self):
-        self.assertEqual(self.batch.template_fields, ('overrides',))
+        self.assertEqual(self.batch.template_fields, ('job_name', 'overrides',))
 
     @mock.patch.object(AWSBatchOperator, '_wait_for_task_ended')
     @mock.patch.object(AWSBatchOperator, '_check_success_task')
@@ -147,6 +147,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.describe_jobs.return_value = {
             'jobs': [{
                 'status': 'FAILED',
+                'statusReason': 'This is an error reason',
                 'attempts': [{
                     'exitCode': 1
                 }]
@@ -157,7 +158,7 @@ class TestAWSBatchOperator(unittest.TestCase):
             self.batch._check_success_task()
 
         # Ordering of str(dict) is not guaranteed.
-        self.assertIn('This containers encounter an error during execution ', str(e.exception))
+        self.assertIn('Job failed with status ', str(e.exception))
 
     def test_check_success_tasks_raises_pending(self):
         client_mock = mock.Mock()
@@ -176,7 +177,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         # Ordering of str(dict) is not guaranteed.
         self.assertIn('This task is still pending ', str(e.exception))
 
-    def test_check_success_tasks_raises_mutliple(self):
+    def test_check_success_tasks_raises_multiple(self):
         client_mock = mock.Mock()
         self.batch.jobId = '8ba9d676-4108-4474-9dca-8bbac1da9b19'
         self.batch.client = client_mock
@@ -184,6 +185,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.describe_jobs.return_value = {
             'jobs': [{
                 'status': 'FAILED',
+                'statusReason': 'This is an error reason',
                 'attempts': [{
                     'exitCode': 1
                 }, {
@@ -196,7 +198,7 @@ class TestAWSBatchOperator(unittest.TestCase):
             self.batch._check_success_task()
 
         # Ordering of str(dict) is not guaranteed.
-        self.assertIn('This containers encounter an error during execution ', str(e.exception))
+        self.assertIn('Job failed with status ', str(e.exception))
 
     def test_check_success_task_not_raises(self):
         client_mock = mock.Mock()

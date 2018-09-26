@@ -37,21 +37,29 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class KubernetesExecutorConfig:
-    def __init__(self, image=None, request_memory=None, request_cpu=None,
-                 limit_memory=None, limit_cpu=None, gcp_service_account_key=None):
+    def __init__(self, image=None, image_pull_policy=None, request_memory=None,
+                 request_cpu=None, limit_memory=None, limit_cpu=None,
+                 gcp_service_account_key=None, node_selectors=None, affinity=None,
+                 annotations=None):
         self.image = image
+        self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
         self.request_cpu = request_cpu
         self.limit_memory = limit_memory
         self.limit_cpu = limit_cpu
         self.gcp_service_account_key = gcp_service_account_key
+        self.node_selectors = node_selectors
+        self.affinity = affinity
+        self.annotations = annotations
 
     def __repr__(self):
-        return "{}(image={}, request_memory={} ,request_cpu={}, limit_memory={}, " \
-               "limit_cpu={}, gcp_service_account_key={})" \
-            .format(KubernetesExecutorConfig.__name__, self.image, self.request_memory,
-                    self.request_cpu, self.limit_memory, self.limit_cpu,
-                    self.gcp_service_account_key)
+        return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
+               "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
+               "node_selectors={}, affinity={}, annotations={})" \
+            .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
+                    self.request_memory, self.request_cpu, self.limit_memory,
+                    self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
+                    self.affinity, self.annotations)
 
     @staticmethod
     def from_dict(obj):
@@ -66,21 +74,29 @@ class KubernetesExecutorConfig:
 
         return KubernetesExecutorConfig(
             image=namespaced.get('image', None),
+            image_pull_policy=namespaced.get('image_pull_policy', None),
             request_memory=namespaced.get('request_memory', None),
             request_cpu=namespaced.get('request_cpu', None),
             limit_memory=namespaced.get('limit_memory', None),
             limit_cpu=namespaced.get('limit_cpu', None),
-            gcp_service_account_key=namespaced.get('gcp_service_account_key', None)
+            gcp_service_account_key=namespaced.get('gcp_service_account_key', None),
+            node_selectors=namespaced.get('node_selectors', None),
+            affinity=namespaced.get('affinity', None),
+            annotations=namespaced.get('annotations', {}),
         )
 
     def as_dict(self):
         return {
             'image': self.image,
+            'image_pull_policy': self.image_pull_policy,
             'request_memory': self.request_memory,
             'request_cpu': self.request_cpu,
             'limit_memory': self.limit_memory,
             'limit_cpu': self.limit_cpu,
-            'gcp_service_account_key': self.gcp_service_account_key
+            'gcp_service_account_key': self.gcp_service_account_key,
+            'node_selectors': self.node_selectors,
+            'affinity': self.affinity,
+            'annotations': self.annotations,
         }
 
 
@@ -99,8 +115,14 @@ class KubeConfig:
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = configuration.get(
             self.kubernetes_section, 'worker_container_tag')
+        self.worker_dags_folder = configuration.get(
+            self.kubernetes_section, 'worker_dags_folder')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
+        self.kube_image_pull_policy = configuration.get(
+            self.kubernetes_section, "worker_container_image_pull_policy"
+        )
+        self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
 
@@ -411,7 +433,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         "_", let's
         replace ":" with "_"
 
-        :param string: string
+        :param string: str
         :return: datetime.datetime object
         """
         return parser.parse(string.replace('_plus_', '+').replace("_", ":"))

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,12 +27,12 @@ class SimpleHttpOperator(BaseOperator):
     """
     Calls an endpoint on an HTTP system to execute an action
 
-    :param http_conn_id: The connection to run the sensor against
-    :type http_conn_id: string
+    :param http_conn_id: The connection to run the operator against
+    :type http_conn_id: str
     :param endpoint: The relative part of the full url. (templated)
-    :type endpoint: string
+    :type endpoint: str
     :param method: The HTTP method to use, default = "POST"
-    :type method: string
+    :type method: str
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
     :type data: For POST/PUT, depends on the content-type parameter,

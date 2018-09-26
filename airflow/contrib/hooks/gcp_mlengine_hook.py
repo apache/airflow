@@ -17,7 +17,6 @@ import random
 import time
 from apiclient import errors
 from apiclient.discovery import build
-from oauth2client.client import GoogleCredentials
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -55,8 +54,8 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Returns a Google MLEngine service object.
         """
-        credentials = GoogleCredentials.get_application_default()
-        return build('ml', 'v1', credentials=credentials)
+        authed_http = self._authorize()
+        return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
     def create_job(self, project_id, job, use_existing_job_fn=None):
         """
@@ -64,7 +63,7 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         :param project_id: The Google Cloud project id within which MLEngine
             job will be launched.
-        :type project_id: string
+        :type project_id: str
 
         :param job: MLEngine Job object that should be provided to the MLEngine
             API, such as: ::
@@ -153,7 +152,8 @@ class MLEngineHook(GoogleCloudBaseHook):
             apiclient.errors.HttpError: if HTTP error is returned when getting
             the job
         """
-        assert interval > 0
+        if interval <= 0:
+            raise ValueError("Interval must be > 0")
         while True:
             job = self._get_job(project_id, job_id)
             if job['state'] in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
@@ -243,7 +243,9 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Create a Model. Blocks until finished.
         """
-        assert model['name'] is not None and model['name'] is not ''
+        if not model['name']:
+            raise ValueError("Model name must be provided and "
+                             "could not be an empty string")
         project = 'projects/{}'.format(project_id)
 
         request = self._mlengine.projects().models().create(
@@ -254,7 +256,9 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Gets a Model. Blocks until finished.
         """
-        assert model_name is not None and model_name is not ''
+        if not model_name:
+            raise ValueError("Model name must be provided and "
+                             "it could not be an empty string")
         full_model_name = 'projects/{}/models/{}'.format(
             project_id, model_name)
         request = self._mlengine.projects().models().get(name=full_model_name)

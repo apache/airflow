@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -30,10 +30,10 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
-    :type external_dag_id: string
+    :type external_dag_id: str
     :param external_task_id: The task_id that contains the task you want to
         wait for
-    :type external_task_id: string
+    :type external_task_id: str
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to

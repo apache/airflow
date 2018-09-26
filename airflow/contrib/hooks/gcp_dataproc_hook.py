@@ -21,13 +21,15 @@ import time
 import uuid
 
 from apiclient.discovery import build
+from zope.deprecation import deprecation
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class _DataProcJob(LoggingMixin):
-    def __init__(self, dataproc_api, project_id, job, region='global'):
+    def __init__(self, dataproc_api, project_id, job, region='global',
+                 job_error_states=None):
         self.dataproc_api = dataproc_api
         self.project_id = project_id
         self.region = region
@@ -36,6 +38,7 @@ class _DataProcJob(LoggingMixin):
             region=self.region,
             body=job).execute()
         self.job_id = self.job['reference']['jobId']
+        self.job_error_states = job_error_states
         self.log.info(
             'DataProc job %s is %s',
             self.job_id, str(self.job['status']['state'])
@@ -48,19 +51,23 @@ class _DataProcJob(LoggingMixin):
                 region=self.region,
                 jobId=self.job_id).execute(num_retries=5)
             if 'ERROR' == self.job['status']['state']:
-                print(str(self.job))
                 self.log.error('DataProc job %s has errors', self.job_id)
                 self.log.error(self.job['status']['details'])
                 self.log.debug(str(self.job))
+                self.log.info('Driver output location: %s',
+                              self.job['driverOutputResourceUri'])
                 return False
             if 'CANCELLED' == self.job['status']['state']:
-                print(str(self.job))
                 self.log.warning('DataProc job %s is cancelled', self.job_id)
                 if 'details' in self.job['status']:
                     self.log.warning(self.job['status']['details'])
                 self.log.debug(str(self.job))
+                self.log.info('Driver output location: %s',
+                              self.job['driverOutputResourceUri'])
                 return False
             if 'DONE' == self.job['status']['state']:
+                self.log.info('Driver output location: %s',
+                              self.job['driverOutputResourceUri'])
                 return True
             self.log.debug(
                 'DataProc job %s is %s',
@@ -69,10 +76,15 @@ class _DataProcJob(LoggingMixin):
             time.sleep(5)
 
     def raise_error(self, message=None):
-        if 'ERROR' == self.job['status']['state']:
-            if message is None:
-                message = "Google DataProc job has error"
-            raise Exception(message + ": " + str(self.job['status']['details']))
+        job_state = self.job['status']['state']
+        # We always consider ERROR to be an error state.
+        if ((self.job_error_states and job_state in self.job_error_states)
+                or 'ERROR' == job_state):
+            ex_message = message or ("Google DataProc job has state: %s" % job_state)
+            ex_details = (str(self.job['status']['details'])
+                          if 'details' in self.job['status']
+                          else "No details available")
+            raise Exception(ex_message + ": " + ex_details)
 
     def get(self):
         return self.job
@@ -80,7 +92,7 @@ class _DataProcJob(LoggingMixin):
 
 class _DataProcJobBuilder:
     def __init__(self, project_id, task_id, cluster_name, job_type, properties):
-        name = task_id + "_" + str(uuid.uuid1())[:8]
+        name = task_id + "_" + str(uuid.uuid4())[:8]
         self.job_type = job_type
         self.job = {
             "job": {
@@ -140,7 +152,7 @@ class _DataProcJobBuilder:
         self.job["job"][self.job_type]["mainPythonFileUri"] = main
 
     def set_job_name(self, name):
-        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid1())[:8]
+        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid4())[:8]
 
     def build(self):
         return self.job
@@ -204,7 +216,9 @@ class DataProcHook(GoogleCloudBaseHook):
     def get_conn(self):
         """Returns a Google Cloud Dataproc service object."""
         http_authorized = self._authorize()
-        return build('dataproc', self.api_version, http=http_authorized)
+        return build(
+            'dataproc', self.api_version, http=http_authorized,
+            cache_discovery=False)
 
     def get_cluster(self, project_id, region, cluster_name):
         return self.get_conn().projects().regions().clusters().get(
@@ -213,16 +227,26 @@ class DataProcHook(GoogleCloudBaseHook):
             clusterName=cluster_name
         ).execute(num_retries=5)
 
-    def submit(self, project_id, job, region='global'):
-        submitted = _DataProcJob(self.get_conn(), project_id, job, region)
+    def submit(self, project_id, job, region='global', job_error_states=None):
+        submitted = _DataProcJob(self.get_conn(), project_id, job, region,
+                                 job_error_states=job_error_states)
         if not submitted.wait_for_done():
-            submitted.raise_error('DataProcTask has errors')
+            submitted.raise_error()
 
     def create_job_template(self, task_id, cluster_name, job_type, properties):
         return _DataProcJobBuilder(self.project_id, task_id, cluster_name,
                                    job_type, properties)
 
-    def await(self, operation):
+    def wait(self, operation):
         """Awaits for Google Cloud Dataproc Operation to complete."""
         submitted = _DataProcOperation(self.get_conn(), operation)
         submitted.wait_for_done()
+
+
+setattr(
+    DataProcHook,
+    "await",
+    deprecation.deprecated(
+        DataProcHook.wait, "renamed to 'wait' for Python3.7 compatibility"
+    ),
+)

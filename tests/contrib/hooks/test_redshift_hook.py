@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -31,10 +31,12 @@ except ImportError:
     mock_redshift = None
 
 
-@mock_redshift
 class TestRedshiftHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
+
+    @staticmethod
+    def _create_clusters():
         client = boto3.client('redshift', region_name='us-east-1')
         client.create_cluster(
             ClusterIdentifier='test_cluster',
@@ -52,7 +54,9 @@ class TestRedshiftHook(unittest.TestCase):
             raise ValueError('AWS not properly mocked')
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
+        self._create_clusters()
         hook = AwsHook(aws_conn_id='aws_default')
         client_from_hook = hook.get_client_type('redshift')
 
@@ -60,7 +64,9 @@ class TestRedshiftHook(unittest.TestCase):
         self.assertEqual(len(clusters), 2)
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
     def test_restore_from_cluster_snapshot_returns_dict_with_cluster_data(self):
+        self._create_clusters()
         hook = RedshiftHook(aws_conn_id='aws_default')
         hook.create_cluster_snapshot('test_snapshot', 'test_cluster')
         self.assertEqual(
@@ -70,27 +76,35 @@ class TestRedshiftHook(unittest.TestCase):
             'test_cluster_3')
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
     def test_delete_cluster_returns_a_dict_with_cluster_data(self):
+        self._create_clusters()
         hook = RedshiftHook(aws_conn_id='aws_default')
 
         cluster = hook.delete_cluster('test_cluster_2')
         self.assertNotEqual(cluster, None)
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
     def test_create_cluster_snapshot_returns_snapshot_data(self):
+        self._create_clusters()
         hook = RedshiftHook(aws_conn_id='aws_default')
 
         snapshot = hook.create_cluster_snapshot('test_snapshot_2', 'test_cluster')
         self.assertNotEqual(snapshot, None)
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
     def test_cluster_status_returns_cluster_not_found(self):
+        self._create_clusters()
         hook = RedshiftHook(aws_conn_id='aws_default')
         status = hook.cluster_status('test_cluster_not_here')
         self.assertEqual(status, 'cluster_not_found')
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    @mock_redshift
     def test_cluster_status_returns_available_cluster(self):
+        self._create_clusters()
         hook = RedshiftHook(aws_conn_id='aws_default')
         status = hook.cluster_status('test_cluster')
         self.assertEqual(status, 'available')
