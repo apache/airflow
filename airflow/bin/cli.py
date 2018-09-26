@@ -870,8 +870,12 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app = create_app_rbac(conf) if settings.RBAC else create_app(conf)
-        app.run(debug=True, port=args.port, host=args.hostname,
+        if settings.RBAC:
+            app, _ = create_app_rbac(conf, testing=conf.get('core', 'unit_test_mode'))
+        else:
+            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
+                port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
