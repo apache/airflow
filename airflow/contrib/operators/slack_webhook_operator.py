@@ -77,7 +77,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
 
     def execute(self, context):
         """
-        Call the SparkSqlHook to run the provided sql query
+        Call the SlackWebhookHook to post the provided Slack message
         """
         self.hook = SlackWebhookHook(
             self.http_conn_id,
