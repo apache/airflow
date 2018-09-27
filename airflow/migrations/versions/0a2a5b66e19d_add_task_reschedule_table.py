@@ -39,6 +39,12 @@ from sqlalchemy.dialects import mysql
 TABLE_NAME = 'task_reschedule'
 INDEX_NAME = 'idx_' + TABLE_NAME + '_dag_task_date'
 
+# For Microsoft SQL Server, TIMESTAMP is a row-id type,
+# having nothing to do with date-time.  DateTime() will
+# be sufficient.
+def mssql_timestamp():
+    return sa.DateTime()
+
 def mysql_timestamp():
     return mysql.TIMESTAMP(fsp=6)
 
@@ -50,6 +56,8 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == 'mysql':
         timestamp = mysql_timestamp
+    elif conn.dialect.name == 'mssql':
+        timestamp = mssql_timestamp
     else:
         timestamp = sa_timestamp
 
