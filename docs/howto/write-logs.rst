@@ -95,10 +95,11 @@ example:
 .. code-block:: bash
 
     [core]
-    # Airflow can store logs remotely in AWS S3. Users must supply a remote
-    # location URL (starting with either 's3://...') and an Airflow connection
-    # id that provides access to the storage location.
-    remote_logging_enabled = True
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
     remote_base_log_folder = gs://my-bucket/path/to/logs
     remote_log_conn_id = MyGCSConn
 
