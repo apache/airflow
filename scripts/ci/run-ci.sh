@@ -32,8 +32,8 @@ else
   PIP=pip
 fi
 
-sudo -H $PIP install --upgrade pip
-sudo -H $PIP install tox
+sudo $PIP install --upgrade pip
+sudo $PIP install tox
 
 cd $AIRFLOW_ROOT && $PIP --version && tox --version
 
