@@ -239,7 +239,7 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
     + cassandra + mongo
 
 devel = [
-    'click',
+    'click==6.7',
     'freezegun',
     'jira',
     'lxml>=4.0.0',
