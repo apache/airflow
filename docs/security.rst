@@ -342,10 +342,10 @@ certs and keys.
 .. code-block:: bash
 
     [celery]
-    CELERY_SSL_ACTIVE = True
-    CELERY_SSL_KEY = <path to key>
-    CELERY_SSL_CERT = <path to cert>
-    CELERY_SSL_CACERT = <path to cacert>
+    ssl_active = True
+    ssl_key = <path to key>
+    ssl_cert = <path to cert>
+    ssl_cacert = <path to cacert>
 
 Impersonation
 -------------
