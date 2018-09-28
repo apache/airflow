@@ -863,3 +863,32 @@ do the same, but then it is more to use a virtualenv and pip.
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
 
+
+.airflowignore
+''''''''''''''
+
+A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+that Airflow should intentionally ignore. Each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names
+(not DAG id) match any of the patterns would be ignored (under the hood,
+``re.findall()`` is used to match the pattern). Overall it works like a
+``.gitignore`` file.
+
+``.airflowignore`` file should be put in your ``DAG_FOLDER``.
+For example, you can prepare a ``.airflowignore`` file with contents
+
+.. code::
+
+    project_a
+    tenant_[\d]
+
+
+Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
+"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+(If a directory's name matches any of the patterns, this directory and all its subfolders
+would not be scanned by Airflow at all. This improves efficiency of DAG finding).
+
+The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
+You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
+would only be applicable for that subfolder.
+
