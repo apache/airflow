@@ -49,7 +49,7 @@ airflow users --list
 
 To delete a user:
 ```bash
-airflow users --username jondoe
+airflow users --delete --username jondoe
 ```
 
 ## Airflow 1.10
