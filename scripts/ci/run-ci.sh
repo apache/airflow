@@ -32,7 +32,7 @@ fi
 if [[ $PYTHON_VERSION == '3' ]]; then
   PIP=pip3
 else
-  PIP=pip
+  PIP=pip2
 fi
 
 sudo $PIP install --upgrade pip
