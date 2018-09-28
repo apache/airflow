@@ -5281,6 +5281,9 @@ class DagRun(Base, LoggingMixin):
                 continue
 
             if task.task_id not in task_ids:
+                Stats.incr(
+                    "task_instance_created-{}".format(task.__class__.__name__),
+                    1, 1)
                 ti = TaskInstance(task, self.execution_date)
                 session.add(ti)
 
