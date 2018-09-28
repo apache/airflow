@@ -141,11 +141,13 @@ class DagTest(unittest.TestCase):
         with dag:
             with dag:
                 op7 = DummyOperator(task_id='op7')
-        op8 = DummyOperator(task_id='op8')
-        op8.dag = dag2
+            op8 = DummyOperator(task_id='op8')
+        op9 = DummyOperator(task_id='op8')
+        op9.dag = dag2
 
         self.assertEqual(op7.dag, dag)
-        self.assertEqual(op8.dag, dag2)
+        self.assertEqual(op8.dag, dag)
+        self.assertEqual(op9.dag, dag2)
 
     def test_dag_topological_sort(self):
         dag = DAG(
