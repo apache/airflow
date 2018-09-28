@@ -139,7 +139,21 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
 
     def test_cli_webserver_debug(self):
-        p = psutil.Popen(["airflow", "webserver", "-d"])
+        env = os.environ.copy()
+        p = psutil.Popen(["airflow", "webserver", "-d"], env=env)
+        sleep(3)  # wait for webserver to start
+        return_code = p.poll()
+        self.assertEqual(
+            None,
+            return_code,
+            "webserver terminated with return code {} in debug mode".format(return_code))
+        p.terminate()
+        p.wait()
+
+    def test_cli_rbac_webserver_debug(self):
+        env = os.environ.copy()
+        env['AIRFLOW__WEBSERVER__RBAC'] = 'True'
+        p = psutil.Popen(["airflow", "webserver", "-d"], env=env)
         sleep(3)  # wait for webserver to start
         return_code = p.poll()
         self.assertEqual(
