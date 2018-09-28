@@ -31,6 +31,27 @@ some bugs.
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
 
+### CLI Changes
+
+The ability to manipulate users from the command line has been changed. 'airflow create_user' and 'airflow delete_user' and 'airflow list_users' has been grouped to a single command `airflow users` with optional flags `--create`, `--list` and `--delete`.
+
+Example Usage:
+
+To create a new user:
+```bash
+airflow users --create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
+```
+
+To list users:
+```bash
+airflow users --list
+```
+
+To delete a user:
+```bash
+airflow users --username jondoe
+```
+
 ## Airflow 1.10
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
