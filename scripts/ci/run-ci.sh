@@ -29,7 +29,7 @@ sudo chown -R airflow.airflow . $HOME/.cache $HOME/.wheelhouse/ $HOME/.cache/pip
 if [[ $PYTHON_VERSION == '3' ]]; then
   PIP=pip3
 else
-  PIP=pip
+  PIP=pip2
 fi
 
 sudo -H $PIP install --upgrade pip

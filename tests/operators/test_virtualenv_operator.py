@@ -52,9 +52,10 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             schedule_interval=INTERVAL)
         self.addCleanup(self.dag.clear)
 
-    def _run_as_operator(self, fn, **kwargs):
+    def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
         task = PythonVirtualenvOperator(
             python_callable=fn,
+            python_version=python_version,
             task_id='task',
             dag=self.dag,
             **kwargs)
