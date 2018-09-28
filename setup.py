@@ -226,7 +226,7 @@ segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0']
 slack = ['slackclient>=1.0.0']
 mongo = ['pymongo>=3.6.0']
-snowflake = ['snowflake-connector-python>=1.5.2',
+snowflake = ['snowflake-connector-python==1.6.9',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
 statsd = ['statsd>=3.0.1, <4.0']
