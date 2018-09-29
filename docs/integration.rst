@@ -448,6 +448,40 @@ BigQueryHook
     :members:
 
 
+Cloud Functions
+'''''''''''''''
+
+Cloud Functions Operators
+"""""""""""""""""""""""""
+
+- :ref:`GcfFunctionDeployOperator` : deploy Google Cloud Function to the cloud.
+- :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in the cloud.
+
+.. autoclass:: airflow.contrib.operators.gcp_operator.GCP
+
+.. _GcfFunctionDeployOperator:
+
+GcfFunctionDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator
+
+
+.. _GcfFunctionDeleteOperator:
+
+GcfFunctionDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
+
+
+Cloud Functions Hook
+""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_function_hook.GcfHook
+    :members:
+
+
 Cloud DataFlow
 ''''''''''''''
 
