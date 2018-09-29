@@ -72,6 +72,13 @@ class S3Hook(AwsHook):
     def check_for_prefix(self, bucket_name, prefix, delimiter):
         """
         Checks that a prefix exists in a bucket
+
+        :param bucket_name: the name of the bucket
+        :type bucket_name: str
+        :param prefix: a key prefix
+        :type prefix: str
+        :param delimiter: the delimiter marks key hierarchy.
+        :type delimiter: str
         """
         prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
         prefix_split = re.split(r'(\w+[{d}])$'.format(d=delimiter), prefix, 1)
@@ -253,6 +260,13 @@ class S3Hook(AwsHook):
                                wildcard_key, bucket_name=None, delimiter=''):
         """
         Checks that a key matching a wildcard expression exists in a bucket
+
+        :param wildcard_key: the path to the key
+        :type wildcard_key: str
+        :param bucket_name: the name of the bucket
+        :type bucket_name: str
+        :param delimiter: the delimiter marks key hierarchy
+        :type delimiter: str
         """
         return self.get_wildcard_key(wildcard_key=wildcard_key,
                                      bucket_name=bucket_name,
@@ -266,6 +280,8 @@ class S3Hook(AwsHook):
         :type wildcard_key: str
         :param bucket_name: the name of the bucket
         :type bucket_name: str
+        :param delimiter: the delimiter marks key hierarchy
+        :type delimiter: str
         """
         if not bucket_name:
             (bucket_name, wildcard_key) = self.parse_s3_url(wildcard_key)
