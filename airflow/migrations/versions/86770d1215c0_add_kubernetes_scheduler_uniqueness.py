@@ -38,12 +38,23 @@ RESOURCE_TABLE = "kube_worker_uuid"
 
 
 def upgrade():
+
+    columns_and_constraints = [
+        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
+        sa.Column("worker_uuid", sa.String(255))
+    ]
+
+    conn = op.get_bind()
+
+    # alembic creates an invalid SQL for mssql dialect
+    if conn.dialect.name not in ('mssql'):
+        columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id"))
+
     table = op.create_table(
         RESOURCE_TABLE,
-        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
-        sa.Column("worker_uuid", sa.String(255)),
-        sa.CheckConstraint("one_row_id", name="kube_worker_one_row_id")
+        *columns_and_constraints
     )
+
     op.bulk_insert(table, [
         {"worker_uuid": ""}
     ])

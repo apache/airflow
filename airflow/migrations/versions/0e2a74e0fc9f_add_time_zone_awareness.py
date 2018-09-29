@@ -86,8 +86,8 @@ def upgrade():
         op.alter_column(table_name='xcom', column_name='timestamp', type_=mysql.TIMESTAMP(fsp=6))
         op.alter_column(table_name='xcom', column_name='execution_date', type_=mysql.TIMESTAMP(fsp=6))
     else:
-        # sqlite datetime is fine as is not converting
-        if conn.dialect.name == 'sqlite':
+        # sqlite and mssql datetime are fine as is.  Therefore, not converting
+        if conn.dialect.name in ('sqlite', 'mssql'):
             return
 
         # we try to be database agnostic, but not every db (e.g. sqlserver)
@@ -182,7 +182,7 @@ def downgrade():
         op.alter_column(table_name='xcom', column_name='DATETIME', type_=mysql.DATETIME(fsp=6))
         op.alter_column(table_name='xcom', column_name='execution_date', type_=mysql.DATETIME(fsp=6))
     else:
-        if conn.dialect.name == 'sqlite':
+        if conn.dialect.name in ('sqlite', 'mssql'):
             return
 
         # we try to be database agnostic, but not every db (e.g. sqlserver)
