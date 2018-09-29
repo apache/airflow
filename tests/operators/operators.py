@@ -46,6 +46,13 @@ class MySqlTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
+    def tearDown(self):
+        from airflow.hooks.mysql_hook import MySqlHook
+        drop_tables = {'test_mysql_to_mysql', 'test_airflow'}
+        with MySqlHook().get_conn() as conn:
+            for table in drop_tables:
+                conn.execute("DROP TABLE IF EXISTS {}".format(table))
+
     def test_mysql_operator_test(self):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
