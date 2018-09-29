@@ -1159,12 +1159,19 @@ class DagRunTest(unittest.TestCase):
 
 
 class DagBagTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.empty_dir = mkdtemp()
+
+    @classmethod
+    def tearDownClass(cls):
+        os.rmdir(cls.empty_dir)
 
     def test_get_existing_dag(self):
         """
         test that were're able to parse some example DAGs and retrieve them
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
 
         some_expected_dag_ids = ["example_bash_operator",
                                  "example_branch_operator"]
@@ -1181,7 +1188,7 @@ class DagBagTest(unittest.TestCase):
         """
         test that retrieving a non existing dag id returns None without crashing
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         non_existing_dag_id = "non_existing_dag_id"
         self.assertIsNone(dagbag.get_dag(non_existing_dag_id))
@@ -1194,7 +1201,7 @@ class DagBagTest(unittest.TestCase):
         f.write('\u3042'.encode('utf8'))  # write multi-byte char (hiragana)
         f.flush()
 
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         self.assertEqual([], dagbag.process_file(f.name))
 
     def test_zip_skip_log(self):
@@ -1216,7 +1223,7 @@ class DagBagTest(unittest.TestCase):
         """
         test the loading of a DAG within a zip file that includes dependencies
         """
-        dagbag = models.DagBag()
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
 
@@ -1226,7 +1233,7 @@ class DagBagTest(unittest.TestCase):
         as schedule interval can be identified
         """
         invalid_dag_files = ["test_invalid_cron.py", "test_zip_invalid_cron.zip"]
-        dagbag = models.DagBag(dag_folder=mkdtemp())
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual(len(dagbag.import_errors), 0)
         for d in invalid_dag_files:
@@ -1290,7 +1297,7 @@ class DagBagTest(unittest.TestCase):
         f.write(source.encode('utf8'))
         f.flush()
 
-        dagbag = models.DagBag(include_examples=False)
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
         found_dags = dagbag.process_file(f.name)
         return dagbag, found_dags, f.name
 
@@ -1601,7 +1608,7 @@ class DagBagTest(unittest.TestCase):
         """
         test that process_file can handle Nones
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual([], dagbag.process_file(None))
 
