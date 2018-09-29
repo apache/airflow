@@ -4,7 +4,7 @@
 
 The `airflow-pr` tool interactively guides committers through the process of merging GitHub PRs into Airflow and closing associated JIRA issues.
 
-It is very important that PRs reference a JIRA issue. The preferred way to do that is for the PR title to begin with [AIRFLOW-XX]. However, the PR tool can recognize and parse many other JIRA issue formats in the title and will offer to correct them if possible.
+It is very important that PRs reference a JIRA issue. The preferred way to do that is for the PR title to begin with [AIRFLOW-XXX]. However, the PR tool can recognize and parse many other JIRA issue formats in the title and will offer to correct them if possible.
 
 __Please note:__ this tool will restore your current branch when it finishes, but you will lose any uncommitted changes. Make sure you commit any changes you wish to keep before proceeding.
 
@@ -61,14 +61,12 @@ pip install click jira
 
 tl;dr run `airflow-pr setup_git_remotes` before using the tool for the first time.
 
-Before using the merge tool, users need to make sure their git remotes are configured. By default, the tool assumes a setup like the one below, where the github repo remote is named `github` and the Apache repo remote is named `apache`. If users have other remote names, they can be supplied by setting environment variables `GITHUB_REMOTE_NAME` and `APACHE_REMOTE_NAME`, respectively.
+Before using the merge tool, users need to make sure their git remotes are configured. By default, the tool assumes a setup like the one below, where the github repo remote is named `github`. If users have other remote names, they can be supplied by setting environment variables `GITHUB_REMOTE_NAME`.
 
 Users can configure this automatically by running `airflow-pr setup_git_remotes`.
 
 ```bash
 $ git remote -v
-apache	https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)
-apache	https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)
 github	https://github.com/apache/incubator-airflow.git (fetch)
 github	https://github.com/apache/incubator-airflow.git (push)
 origin	https://github.com/<USER>/airflow (fetch)
