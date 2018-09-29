@@ -52,3 +52,19 @@ class GoogleCloudStorageListOperatorTest(unittest.TestCase):
             bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
         self.assertEqual(sorted(files), sorted(MOCK_FILES))
+
+    @mock.patch('airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageHook')
+    def test_execute_without_xcom_push(self, mock_hook):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+
+        operator = GoogleCloudStorageListOperator(task_id=TASK_ID,
+                                                  bucket=TEST_BUCKET,
+                                                  prefix=PREFIX,
+                                                  delimiter=DELIMITER,
+                                                  do_xcom_push=False)
+
+        files = operator.execute(None)
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
+        )
+        self.assertEqual(files, None)

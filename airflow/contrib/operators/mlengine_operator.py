@@ -151,6 +151,9 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         have doamin-wide delegation enabled.
     :type delegate_to: str
 
+    :param do_xcom_push: return the result which also get set in XCOM
+    :type do_xcom_push: bool
+
     Raises:
         ``ValueError``: if a unique model/version origin cannot be determined.
     """
@@ -181,6 +184,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                  runtime_version=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
+                 do_xcom_push=True,
                  *args,
                  **kwargs):
         super(MLEngineBatchPredictionOperator, self).__init__(*args, **kwargs)
@@ -198,6 +202,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         self._runtime_version = runtime_version
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self.do_xcom_push = do_xcom_push
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -259,7 +264,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         # same as the request we get here.
         def check_existing_job(existing_job):
             return existing_job.get('predictionInput', None) == \
-                prediction_request['predictionInput']
+                   prediction_request['predictionInput']
 
         try:
             finished_prediction_job = hook.create_job(
@@ -272,7 +277,8 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                 str(finished_prediction_job)))
             raise RuntimeError(finished_prediction_job['errorMessage'])
 
-        return finished_prediction_job['predictionOutput']
+        if self.do_xcom_push:
+            return finished_prediction_job['predictionOutput']
 
 
 class MLEngineModelOperator(BaseOperator):
@@ -300,6 +306,8 @@ class MLEngineModelOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param do_xcom_push: return the result which also get set in XCOM
+    :type do_xcom_push: bool
     """
 
     template_fields = [
@@ -313,6 +321,7 @@ class MLEngineModelOperator(BaseOperator):
                  operation='create',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
+                 do_xcom_push=True,
                  *args,
                  **kwargs):
         super(MLEngineModelOperator, self).__init__(*args, **kwargs)
@@ -321,16 +330,20 @@ class MLEngineModelOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
         if self._operation == 'create':
-            return hook.create_model(self._project_id, self._model)
+            result = hook.create_model(self._project_id, self._model)
         elif self._operation == 'get':
-            return hook.get_model(self._project_id, self._model['name'])
+            result = hook.get_model(self._project_id, self._model['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
+
+        if self.do_xcom_push:
+            return result
 
 
 class MLEngineVersionOperator(BaseOperator):
@@ -387,6 +400,9 @@ class MLEngineVersionOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+
+    :param do_xcom_push: return the result which also get set in XCOM
+    :type do_xcom_push: bool
     """
 
     template_fields = [
@@ -404,6 +420,7 @@ class MLEngineVersionOperator(BaseOperator):
                  operation='create',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
+                 do_xcom_push=True,
                  *args,
                  **kwargs):
 
@@ -415,6 +432,7 @@ class MLEngineVersionOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         if 'name' not in self._version:
@@ -427,18 +445,21 @@ class MLEngineVersionOperator(BaseOperator):
             if not self._version:
                 raise ValueError("version attribute of {} could not "
                                  "be empty".format(self.__class__.__name__))
-            return hook.create_version(self._project_id, self._model_name,
-                                       self._version)
+            result = hook.create_version(self._project_id, self._model_name,
+                                         self._version)
         elif self._operation == 'set_default':
-            return hook.set_default_version(self._project_id, self._model_name,
-                                            self._version['name'])
+            result = hook.set_default_version(self._project_id, self._model_name,
+                                              self._version['name'])
         elif self._operation == 'list':
-            return hook.list_versions(self._project_id, self._model_name)
+            result = hook.list_versions(self._project_id, self._model_name)
         elif self._operation == 'delete':
-            return hook.delete_version(self._project_id, self._model_name,
-                                       self._version['name'])
+            result = hook.delete_version(self._project_id, self._model_name,
+                                         self._version['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
+
+        if self.do_xcom_push:
+            return result
 
 
 class MLEngineTrainingOperator(BaseOperator):
@@ -596,7 +617,7 @@ class MLEngineTrainingOperator(BaseOperator):
         # same as the request we get here.
         def check_existing_job(existing_job):
             return existing_job.get('trainingInput', None) == \
-                training_request['trainingInput']
+                   training_request['trainingInput']
 
         try:
             finished_training_job = hook.create_job(

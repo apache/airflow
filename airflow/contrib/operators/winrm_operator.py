@@ -48,7 +48,7 @@ class WinRMOperator(BaseOperator):
     :type command: str
     :param timeout: timeout for executing the command.
     :type timeout: int
-    :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
+    :param do_xcom_push: return the stdout which also get set in XCOM
     :type do_xcom_push: bool
     """
     template_fields = ('command',)
@@ -145,5 +145,3 @@ class WinRMOperator(BaseOperator):
             raise AirflowException(error_msg)
 
         self.log.info("Finished!")
-
-        return True

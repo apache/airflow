@@ -32,6 +32,8 @@ class EmrAddStepsOperator(BaseOperator):
     :type aws_conn_id: str
     :param steps: boto3 style steps to be added to the jobflow. (templated)
     :type steps: list
+    :param do_xcom_push: return the Step IDs which also get set in XCOM
+    :type do_xcom_push: bool
     """
     template_fields = ['job_flow_id', 'steps']
     template_ext = ()
@@ -43,12 +45,14 @@ class EmrAddStepsOperator(BaseOperator):
             job_flow_id,
             aws_conn_id='s3_default',
             steps=None,
+            do_xcom_push=True,
             *args, **kwargs):
         super(EmrAddStepsOperator, self).__init__(*args, **kwargs)
         steps = steps or []
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
         self.steps = steps
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
@@ -60,4 +64,5 @@ class EmrAddStepsOperator(BaseOperator):
             raise AirflowException('Adding steps failed: %s' % response)
         else:
             self.log.info('Steps %s added to JobFlow', response['StepIds'])
-            return response['StepIds']
+            if self.do_xcom_push:
+                return response['StepIds']

@@ -72,3 +72,29 @@ class GoogleCloudStorageToS3OperatorTest(unittest.TestCase):
                          sorted(uploaded_files))
         self.assertEqual(sorted(MOCK_FILES),
                          sorted(hook.list_keys('bucket', delimiter='/')))
+
+    @mock_s3
+    @mock.patch('airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageHook')
+    def test_execute_without_xcom_push(self, mock_hook, mock_hook2):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        mock_hook.return_value.download.return_value = b"testing"
+        mock_hook2.return_value.list.return_value = MOCK_FILES
+
+        operator = GoogleCloudStorageToS3Operator(task_id=TASK_ID,
+                                                  bucket=GCS_BUCKET,
+                                                  prefix=PREFIX,
+                                                  delimiter=DELIMITER,
+                                                  dest_aws_conn_id=None,
+                                                  dest_s3_key=S3_BUCKET,
+                                                  do_xcom_push=False)
+        # create dest bucket
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key=MOCK_FILES[0], Body=b'testing')
+
+        uploaded_files = operator.execute(None)
+        self.assertEqual(uploaded_files, None)
+        self.assertEqual(sorted(MOCK_FILES),
+                         sorted(hook.list_keys('bucket', delimiter='/')))

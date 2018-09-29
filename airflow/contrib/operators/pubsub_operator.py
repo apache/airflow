@@ -159,6 +159,7 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
             fail_if_exists=False,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            do_xcom_push=True,
             *args,
             **kwargs):
         """
@@ -185,6 +186,8 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
             For this to work, the service account making the request
             must have domain-wide delegation enabled.
         :type delegate_to: str
+        :param do_xcom_push: return the result which also get set in XCOM
+        :type do_xcom_push: bool
         """
         super(PubSubSubscriptionCreateOperator, self).__init__(*args, **kwargs)
 
@@ -196,15 +199,19 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
                           delegate_to=self.delegate_to)
 
-        return hook.create_subscription(
+        result = hook.create_subscription(
             self.topic_project, self.topic, self.subscription,
             self.subscription_project, self.ack_deadline_secs,
             self.fail_if_exists)
+
+        if self.do_xcom_push:
+            return result
 
 
 class PubSubTopicDeleteOperator(BaseOperator):

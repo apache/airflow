@@ -94,8 +94,6 @@ class MongoToS3Operator(BaseOperator):
             replace=self.replace
         )
 
-        return True
-
     @staticmethod
     def _stringify(iterable, joinable='\n'):
         """

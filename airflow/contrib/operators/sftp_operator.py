@@ -117,4 +117,4 @@ class SFTPOperator(BaseOperator):
             raise AirflowException("Error while transferring {0}, error: {1}"
                                    .format(file_msg, str(e)))
 
-        return None
+        return
