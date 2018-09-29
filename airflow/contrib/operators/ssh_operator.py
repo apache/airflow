@@ -166,8 +166,6 @@ class SSHOperator(BaseOperator):
         except Exception as e:
             raise AirflowException("SSH operator error: {0}".format(str(e)))
 
-        return True
-
     def tunnel(self):
         ssh_client = self.ssh_hook.get_conn()
         ssh_client.get_transport()
