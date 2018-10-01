@@ -48,6 +48,8 @@ class S3ListOperator(BaseOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type verify: bool or str
+    :param do_xcom_push: return the key list which also get set in XCOM
+    :type do_xcom_push: bool
 
     **Example**:
         The following operator would list all the files
@@ -72,6 +74,7 @@ class S3ListOperator(BaseOperator):
                  delimiter='',
                  aws_conn_id='aws_default',
                  verify=None,
+                 do_xcom_push=True,
                  *args,
                  **kwargs):
         super(S3ListOperator, self).__init__(*args, **kwargs)
@@ -80,6 +83,7 @@ class S3ListOperator(BaseOperator):
         self.delimiter = delimiter
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
@@ -88,7 +92,10 @@ class S3ListOperator(BaseOperator):
             'Getting the list of files from bucket: {0} in prefix: {1} (Delimiter {2})'.
             format(self.bucket, self.prefix, self.delimiter))
 
-        return hook.list_keys(
+        list_keys = hook.list_keys(
             bucket_name=self.bucket,
             prefix=self.prefix,
             delimiter=self.delimiter)
+
+        if self.do_xcom_push:
+            return list_keys

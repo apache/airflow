@@ -41,6 +41,8 @@ class JiraOperator(BaseOperator):
     :param get_jira_resource_method: function or operator to get jira resource
                                     on which the provided jira_method will be executed
     :type get_jira_resource_method: function
+    :param do_xcom_push: return the result which also get set in XCOM
+    :type do_xcom_push: bool
     """
 
     template_fields = ("jira_method_args",)
@@ -52,6 +54,7 @@ class JiraOperator(BaseOperator):
                  jira_method_args=None,
                  result_processor=None,
                  get_jira_resource_method=None,
+                 do_xcom_push=True,
                  *args,
                  **kwargs):
         super(JiraOperator, self).__init__(*args, **kwargs)
@@ -60,6 +63,7 @@ class JiraOperator(BaseOperator):
         self.jira_method_args = jira_method_args
         self.result_processor = result_processor
         self.get_jira_resource_method = get_jira_resource_method
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         try:
@@ -82,10 +86,12 @@ class JiraOperator(BaseOperator):
             # ex: self.xcom_push(context, key='operator_response', value=jira_response)
             # This could potentially throw error if jira_result is not picklable
             jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
-            if self.result_processor:
-                return self.result_processor(context, jira_result)
 
-            return jira_result
+            if self.do_xcom_push:
+                if self.result_processor:
+                    return self.result_processor(context, jira_result)
+
+                return jira_result
 
         except JIRAError as jira_error:
             raise AirflowException("Failed to execute jiraOperator, error: %s"

@@ -57,6 +57,8 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :type dest_verify: bool or str
+    :param do_xcom_push: return the file list which also get set in XCOM
+    :type do_xcom_push: bool
     """
     template_fields = ('bucket', 'prefix', 'delimiter', 'dest_s3_key')
     ui_color = '#f0eee4'
@@ -72,6 +74,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
                  dest_s3_key=None,
                  dest_verify=None,
                  replace=False,
+                 do_xcom_push=True,
                  *args,
                  **kwargs):
 
@@ -88,11 +91,17 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
         self.dest_s3_key = dest_s3_key
         self.dest_verify = dest_verify
         self.replace = replace
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
+        # this operator calls super and uses the returned value, so we set do_xcom_push to
+        # True in order to make super return
+        do_xcom_push = self.do_xcom_push
+        self.do_xcom_push = True
         # use the super to list all files in an Google Cloud Storage bucket
         files = super(GoogleCloudStorageToS3Operator, self).execute(context)
         s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
+        self.do_xcom_push = do_xcom_push
 
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket
@@ -122,4 +131,5 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
         else:
             self.log.info("In sync, no files needed to be uploaded to S3")
 
-        return files
+        if self.do_xcom_push:
+            return files

@@ -45,7 +45,7 @@ class SSHOperator(BaseOperator):
     :type command: str
     :param timeout: timeout (in seconds) for executing the command.
     :type timeout: int
-    :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
+    :param do_xcom_push: return the stdout which also get set in XCOM
     :type do_xcom_push: bool
     """
 

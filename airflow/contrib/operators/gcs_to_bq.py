@@ -87,10 +87,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :type allow_jagged_rows: bool
     :param max_id_key: If set, the name of a column in the BigQuery table
         that's to be loaded. This will be used to select the MAX value from
-        BigQuery after the load occurs. The results will be returned by the
-        execute() command, which in turn gets stored in XCom for future
-        operators to use. This can be helpful with incremental loads--during
-        future executions, you can pick up from the max ID.
+        BigQuery after the load occurs. (used in combination with do_xcom_push)
     :type max_id_key: str
     :param bigquery_conn_id: Reference to a specific BigQuery hook.
     :type bigquery_conn_id: str
@@ -119,6 +116,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         time_partitioning. The order of columns given determines the sort order.
         Not applicable for external tables.
     :type cluster_fields: list of str
+    :param do_xcom_push: return the max id which also get set in XCOM.
+        (max_id_key must be set)
+        This can be helpful with incremental loads--during future executions, you can pick
+        up from the max ID.
+    :type do_xcom_push: bool
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table')
@@ -152,6 +154,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  external_table=False,
                  time_partitioning=None,
                  cluster_fields=None,
+                 do_xcom_push=True,
                  *args, **kwargs):
 
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
@@ -190,6 +193,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.src_fmt_configs = src_fmt_configs
         self.time_partitioning = time_partitioning
         self.cluster_fields = cluster_fields
+        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
@@ -248,7 +252,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 time_partitioning=self.time_partitioning,
                 cluster_fields=self.cluster_fields)
 
-        if self.max_id_key:
+        if self.do_xcom_push and self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
                 self.max_id_key,
                 self.destination_project_dataset_table))

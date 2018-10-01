@@ -394,7 +394,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                 self.cluster_name
             )
             self._wait_for_done(service)
-            return True
+            return None
 
         cluster_data = self._build_cluster_data()
         try:
@@ -412,7 +412,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                     self.cluster_name
                 )
                 self._wait_for_done(service)
-                return True
+                return None
             else:
                 raise e
 
