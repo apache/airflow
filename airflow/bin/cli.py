@@ -675,7 +675,7 @@ def webserver(args):
     num_workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'web_server_worker_timeout'))
-    keep_alive = (args.keep_alive or conf.get('webserver', 'web_server_keep_alive')
+    keep_alive = (args.keep_alive or conf.get('webserver', 'web_server_keep_alive'))
     ssl_cert = args.ssl_cert or conf.get('webserver', 'web_server_ssl_cert')
     ssl_key = args.ssl_key or conf.get('webserver', 'web_server_ssl_key')
     if not ssl_cert and ssl_key:
