@@ -47,7 +47,8 @@ def create_app(config=None, testing=False):
     log = LoggingMixin().log
 
     app = Flask(__name__)
-    app.wsgi_app = ProxyFix(app.wsgi_app)
+    if configuration.conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+        app.wsgi_app = ProxyFix(app.wsgi_app)
     app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not configuration.conf.getboolean(
         'webserver', 'AUTHENTICATE')
