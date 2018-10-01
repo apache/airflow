@@ -6,6 +6,7 @@ Integration
 - :ref:`AWS`
 - :ref:`Databricks`
 - :ref:`GCP`
+- :ref:`Qubole`
 
 .. _ReverseProxy:
 
@@ -829,3 +830,28 @@ Google Kubernetes Engine Hook
 
 .. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
     :members:
+
+
+.. _Qubole:
+
+Qubole
+------
+
+Apache Airflow has a native operator and hooks to talk to `Qubole <https://qubole.com/>`__,
+which lets you submit your big data jobs directly to Qubole from Apache Airflow.
+
+QuboleOperator
+''''''''''''''
+
+.. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
+
+QubolePartitionSensor
+'''''''''''''''''''''
+
+.. autoclass:: airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor
+
+
+QuboleFileSensor
+''''''''''''''''
+
+.. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleFileSensor
