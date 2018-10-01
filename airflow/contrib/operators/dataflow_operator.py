@@ -311,7 +311,6 @@ class DataFlowPythonOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-
         super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
 
         self.py_file = py_file
@@ -335,9 +334,11 @@ class DataFlowPythonOperator(BaseOperator):
                             poll_sleep=self.poll_sleep)
         dataflow_options = self.dataflow_default_options.copy()
         dataflow_options.update(self.options)
+
         # Convert argument names from lowerCamelCase to snake case.
-        camel_to_snake = lambda name: re.sub(
-            r'[A-Z]', lambda x: '_' + x.group(0).lower(), name)
+        def camel_to_snake(name):
+            return re.sub(r'[A-Z]', lambda x: '_' + x.group(0).lower(), name)
+
         formatted_options = {camel_to_snake(key): dataflow_options[key]
                              for key in dataflow_options}
         hook.start_python_dataflow(

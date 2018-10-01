@@ -70,7 +70,8 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
             schema='default',
             hiveserver2_conn_id='hiveserver2_default',
             aws_conn_id='aws_default',
-            *args, **kwargs):
+            *args,
+            **kwargs):
         super(HiveToDynamoDBTransferOperator, self).__init__(*args, **kwargs)
         self.sql = sql
         self.table_name = table_name
