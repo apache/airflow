@@ -1352,6 +1352,10 @@ class Airflow(AirflowBaseView):
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
 
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/')
+
         if base_date:
             base_date = pendulum.parse(base_date)
         else:
