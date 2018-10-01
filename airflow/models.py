@@ -590,21 +590,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             table=pprinttable(stats),
         )
 
-    @provide_session
-    def deactivate_inactive_dags(self, session=None):
-        active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
-        for dag in session.query(
-                DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
-            dag.is_active = False
-            session.merge(dag)
-        session.commit()
-
-    @provide_session
-    def paused_dags(self, session=None):
-        dag_ids = [dp.dag_id for dp in session.query(DagModel).filter(
-            DagModel.is_paused.__eq__(True))]
-        return dag_ids
-
 
 class User(Base):
     __tablename__ = "users"
@@ -4201,16 +4186,6 @@ class DAG(BaseDag, LoggingMixin):
         """
         for task in tasks:
             self.add_task(task)
-
-    @provide_session
-    def db_merge(self, session=None):
-        BO = BaseOperator
-        tasks = session.query(BO).filter(BO.dag_id == self.dag_id).all()
-        for t in tasks:
-            session.delete(t)
-        session.commit()
-        session.merge(self)
-        session.commit()
 
     def run(
             self,
