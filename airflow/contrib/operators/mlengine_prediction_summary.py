@@ -113,7 +113,7 @@ class JsonCoder(object):
 
 
 @beam.ptransform_fn
-def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
+def make_summary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
     return (
         pcoll |
         "ApplyMetricFnPerInstance" >> beam.Map(metric_fn) |
@@ -156,8 +156,7 @@ def run(argv=None):
         raise ValueError("--metric_fn_encoded must be an encoded callable.")
     metric_keys = known_args.metric_keys.split(",")
 
-    with beam.Pipeline(
-        options=beam.pipeline.PipelineOptions(pipeline_args)) as p:
+    with beam.Pipeline(options=beam.pipeline.PipelineOptions(pipeline_args)) as p:
         # This is apache-beam ptransform's convention
         # pylint: disable=no-value-for-parameter
         _ = (p
@@ -165,7 +164,7 @@ def run(argv=None):
                  os.path.join(known_args.prediction_path,
                               "prediction.results-*-of-*"),
                  coder=JsonCoder())
-             | "Summary" >> MakeSummary(metric_fn, metric_keys)
+             | "Summary" >> make_summary(metric_fn, metric_keys)
              | "Write" >> beam.io.WriteToText(
                  os.path.join(known_args.prediction_path,
                               "prediction.summary.json"),

@@ -264,7 +264,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         # same as the request we get here.
         def check_existing_job(existing_job):
             return existing_job.get('predictionInput', None) == \
-                   prediction_request['predictionInput']
+                prediction_request['predictionInput']
 
         try:
             finished_prediction_job = hook.create_job(
@@ -606,8 +606,7 @@ class MLEngineTrainingOperator(BaseOperator):
 
         if self._mode == 'DRY_RUN':
             self.log.info('In dry_run mode.')
-            self.log.info('MLEngine Training job request is: {}'.format(
-                training_request))
+            self.log.info('MLEngine Training job request is: {}'.format(training_request))
             return
 
         hook = MLEngineHook(
@@ -617,7 +616,7 @@ class MLEngineTrainingOperator(BaseOperator):
         # same as the request we get here.
         def check_existing_job(existing_job):
             return existing_job.get('trainingInput', None) == \
-                   training_request['trainingInput']
+                training_request['trainingInput']
 
         try:
             finished_training_job = hook.create_job(
