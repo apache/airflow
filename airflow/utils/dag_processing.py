@@ -1,35 +1,38 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import logging
 import os
 import re
 import time
 import zipfile
-
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from datetime import datetime
 
-from airflow.exceptions import AirflowException
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.utils.logging import LoggingMixin
+from airflow.exceptions import AirflowException
+from airflow.utils import timezone
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SimpleDag(BaseDag):
@@ -38,36 +41,26 @@ class SimpleDag(BaseDag):
     required for instantiating and scheduling its associated tasks.
     """
 
-    def __init__(self,
-                 dag_id,
-                 task_ids,
-                 full_filepath,
-                 concurrency,
-                 is_paused,
-                 pickle_id):
+    def __init__(self, dag, pickle_id=None):
         """
-        :param dag_id: ID of the DAG
-        :type dag_id: unicode
-        :param task_ids: task IDs associated with the DAG
-        :type task_ids: list[unicode]
-        :param full_filepath: path to the file containing the DAG e.g.
-        /a/b/c.py
-        :type full_filepath: unicode
-        :param concurrency: No more than these many tasks from the
-        dag should run concurrently
-        :type concurrency: int
-        :param is_paused: Whether or not this DAG is paused. Tasks from paused
-        DAGs are not scheduled
-        :type is_paused: bool
+        :param dag: the DAG
+        :type dag: DAG
         :param pickle_id: ID associated with the pickled version of this DAG.
         :type pickle_id: unicode
         """
-        self._dag_id = dag_id
-        self._task_ids = task_ids
-        self._full_filepath = full_filepath
-        self._is_paused = is_paused
-        self._concurrency = concurrency
+        self._dag_id = dag.dag_id
+        self._task_ids = [task.task_id for task in dag.tasks]
+        self._full_filepath = dag.full_filepath
+        self._is_paused = dag.is_paused
+        self._concurrency = dag.concurrency
         self._pickle_id = pickle_id
+        self._task_special_args = {}
+        for task in dag.tasks:
+            special_args = {}
+            if task.task_concurrency is not None:
+                special_args['task_concurrency'] = task.task_concurrency
+            if len(special_args) > 0:
+                self._task_special_args[task.task_id] = special_args
 
     @property
     def dag_id(self):
@@ -116,6 +109,16 @@ class SimpleDag(BaseDag):
         :rtype: unicode
         """
         return self._pickle_id
+
+    @property
+    def task_special_args(self):
+        return self._task_special_args
+
+    def get_task_special_arg(self, task_id, special_arg_name):
+        if task_id in self._task_special_args and special_arg_name in self._task_special_args[task_id]:
+            return self._task_special_args[task_id][special_arg_name]
+        else:
+            return None
 
 
 class SimpleDagBag(BaseDagBag):
@@ -174,13 +177,30 @@ def list_py_file_paths(directory, safe_mode=True):
     elif os.path.isfile(directory):
         return [directory]
     elif os.path.isdir(directory):
-        patterns = []
+        patterns_by_dir = {}
         for root, dirs, files in os.walk(directory, followlinks=True):
-            ignore_file = [f for f in files if f == '.airflowignore']
-            if ignore_file:
-                f = open(os.path.join(root, ignore_file[0]), 'r')
-                patterns += [p for p in f.read().split('\n') if p]
-                f.close()
+            patterns = patterns_by_dir.get(root, [])
+            ignore_file = os.path.join(root, '.airflowignore')
+            if os.path.isfile(ignore_file):
+                with open(ignore_file, 'r') as f:
+                    # If we have new patterns create a copy so we don't change
+                    # the previous list (which would affect other subdirs)
+                    patterns = patterns + [p for p in f.read().split('\n') if p]
+
+            # If we can ignore any subdirs entirely we should - fewer paths
+            # to walk is better. We have to modify the ``dirs`` array in
+            # place for this to affect os.walk
+            dirs[:] = [
+                d
+                for d in dirs
+                if not any(re.search(p, os.path.join(root, d)) for p in patterns)
+            ]
+
+            # We want patterns defined in a parent folder's .airflowignore to
+            # apply to subdirs too
+            for d in dirs:
+                patterns_by_dir[os.path.join(root, d)] = patterns
+
             for f in files:
                 try:
                     file_path = os.path.join(root, f)
@@ -207,7 +227,8 @@ def list_py_file_paths(directory, safe_mode=True):
 
                     file_paths.append(file_path)
                 except Exception:
-                    logging.exception("Error while examining %s", f)
+                    log = LoggingMixin().log
+                    log.exception("Error while examining %s", f)
     return file_paths
 
 
@@ -279,15 +300,6 @@ class AbstractDagFileProcessor(object):
 
     @property
     @abstractmethod
-    def log_file(self):
-        """
-        :return: the log file associated with this processor
-        :rtype: unicode
-        """
-        raise NotImplementedError()
-
-    @property
-    @abstractmethod
     def file_path(self):
         """
         :return: the path to the file that this is processing
@@ -314,7 +326,6 @@ class DagFileProcessorManager(LoggingMixin):
                  file_paths,
                  parallelism,
                  process_file_interval,
-                 child_process_log_directory,
                  max_runs,
                  processor_factory):
         """
@@ -331,12 +342,9 @@ class DagFileProcessorManager(LoggingMixin):
         :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
         :type max_runs: int
-        :param child_process_log_directory: Store logs for child processes in
-        this directory
-        :type child_process_log_directory: unicode
         :type process_file_interval: float
         :param processor_factory: function that creates processors for DAG
-        definition files. Arguments are (dag_definition_path, log_file_path)
+        definition files. Arguments are (dag_definition_path)
         :type processor_factory: (unicode, unicode) -> (AbstractDagFileProcessor)
 
         """
@@ -346,7 +354,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._dag_directory = dag_directory
         self._max_runs = max_runs
         self._process_file_interval = process_file_interval
-        self._child_process_log_directory = child_process_log_directory
         self._processor_factory = processor_factory
         # Map from file path to the processor
         self._processors = {}
@@ -391,7 +398,7 @@ class DagFileProcessorManager(LoggingMixin):
         being processed
         """
         if file_path in self._processors:
-            return (datetime.now() - self._processors[file_path].start_time)\
+            return (timezone.utcnow() - self._processors[file_path].start_time)\
                 .total_seconds()
         return None
 
@@ -444,87 +451,9 @@ class DagFileProcessorManager(LoggingMixin):
             if file_path in new_file_paths:
                 filtered_processors[file_path] = processor
             else:
-                self.logger.warning("Stopping processor for {}".format(file_path))
-                processor.stop()
+                self.log.warning("Stopping processor for %s", file_path)
+                processor.terminate()
         self._processors = filtered_processors
-
-    @staticmethod
-    def _split_path(file_path):
-        """
-        Return the path elements of a path as an array. E.g. /a/b/c ->
-        ['a', 'b', 'c']
-
-        :param file_path: the file path to split
-        :return: a list of the elements of the file path
-        :rtype: list[unicode]
-        """
-        results = []
-        while True:
-            head, tail = os.path.split(file_path)
-            if len(tail) != 0:
-                results.append(tail)
-            if file_path == head:
-                break
-            file_path = head
-        results.reverse()
-        return results
-
-    def _get_log_directory(self):
-        """
-        Log output from processing DAGs for the current day should go into
-        this directory.
-
-        :return: the path to the corresponding log directory
-        :rtype: unicode
-        """
-        now = datetime.now()
-        return os.path.join(self._child_process_log_directory,
-                            now.strftime("%Y-%m-%d"))
-
-    def _get_log_file_path(self, dag_file_path):
-        """
-        Log output from processing the specified file should go to this
-        location.
-
-        :param dag_file_path: file containing a DAG
-        :type dag_file_path: unicode
-        :return: the path to the corresponding log file
-        :rtype: unicode
-        """
-        log_directory = self._get_log_directory()
-        # General approach is to put the log file under the same relative path
-        # under the log directory as the DAG file in the DAG directory
-        relative_dag_file_path = os.path.relpath(dag_file_path, start=self._dag_directory)
-        path_elements = self._split_path(relative_dag_file_path)
-
-        # Add a .log suffix for the log file
-        path_elements[-1] += ".log"
-
-        return os.path.join(log_directory, *path_elements)
-
-    def symlink_latest_log_directory(self):
-        """
-        Create symbolic link to the current day's log directory to
-        allow easy access to the latest scheduler log files.
-
-        :return: None
-        """
-        log_directory = self._get_log_directory()
-        latest_log_directory_path = os.path.join(
-            self._child_process_log_directory, "latest")
-        if (os.path.isdir(log_directory)):
-            # if symlink exists but is stale, update it
-            if (os.path.islink(latest_log_directory_path)):
-                if(os.readlink(latest_log_directory_path) != log_directory):
-                    os.unlink(latest_log_directory_path)
-                    os.symlink(log_directory, latest_log_directory_path)
-            elif (os.path.isdir(latest_log_directory_path) or
-                    os.path.isfile(latest_log_directory_path)):
-                self.logger.warning("{} already exists as a dir/file. "
-                                    "Skip creating symlink."
-                                    .format(latest_log_directory_path))
-            else:
-                os.symlink(log_directory, latest_log_directory_path)
 
     def processing_count(self):
         """
@@ -544,7 +473,7 @@ class DagFileProcessorManager(LoggingMixin):
     def heartbeat(self):
         """
         This should be periodically called by the scheduler. This method will
-        kick of new processes to process DAG definition files and read the
+        kick off new processes to process DAG definition files and read the
         results from the finished processors.
 
         :return: a list of SimpleDags that were produced by processors that
@@ -558,8 +487,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         for file_path, processor in self._processors.items():
             if processor.done:
-                self.logger.info("Processor for {} finished".format(file_path))
-                now = datetime.now()
+                self.log.debug("Processor for %s finished", file_path)
+                now = timezone.utcnow()
                 finished_processors[file_path] = processor
                 self._last_runtime[file_path] = (now -
                                                  processor.start_time).total_seconds()
@@ -569,15 +498,20 @@ class DagFileProcessorManager(LoggingMixin):
                 running_processors[file_path] = processor
         self._processors = running_processors
 
+        self.log.debug("%s/%s scheduler processes running",
+                       len(self._processors), self._parallelism)
+
+        self.log.debug("%s file paths queued for processing",
+                       len(self._file_path_queue))
+
         # Collect all the DAGs that were found in the processed files
         simple_dags = []
         for file_path, processor in finished_processors.items():
             if processor.result is None:
-                self.logger.warning("Processor for {} exited with return code "
-                                    "{}. See {} for details."
-                                    .format(processor.file_path,
-                                            processor.exit_code,
-                                            processor.log_file))
+                self.log.warning(
+                    "Processor for %s exited with return code %s.",
+                    processor.file_path, processor.exit_code
+                )
             else:
                 for simple_dag in processor.result:
                     simple_dags.append(simple_dag)
@@ -588,7 +522,7 @@ class DagFileProcessorManager(LoggingMixin):
             # If the file path is already being processed, or if a file was
             # processed recently, wait until the next batch
             file_paths_in_progress = self._processors.keys()
-            now = datetime.now()
+            now = timezone.utcnow()
             file_paths_recently_processed = []
             for file_path in self._file_paths:
                 last_finish_time = self.get_last_finish_time(file_path)
@@ -607,12 +541,15 @@ class DagFileProcessorManager(LoggingMixin):
                                         set(files_paths_at_run_limit))
 
             for file_path, processor in self._processors.items():
-                self.logger.debug("File path {} is still being processed (started: {})"
-                                  .format(processor.file_path,
-                                          processor.start_time.isoformat()))
+                self.log.debug(
+                    "File path %s is still being processed (started: %s)",
+                    processor.file_path, processor.start_time.isoformat()
+                )
 
-            self.logger.debug("Queuing the following files for processing:\n\t{}"
-                              .format("\n\t".join(files_paths_to_queue)))
+            self.log.debug(
+                "Queuing the following files for processing:\n\t%s",
+                "\n\t".join(files_paths_to_queue)
+            )
 
             self._file_path_queue.extend(files_paths_to_queue)
 
@@ -620,17 +557,14 @@ class DagFileProcessorManager(LoggingMixin):
         while (self._parallelism - len(self._processors) > 0 and
                len(self._file_path_queue) > 0):
             file_path = self._file_path_queue.pop(0)
-            log_file_path = self._get_log_file_path(file_path)
-            processor = self._processor_factory(file_path, log_file_path)
+            processor = self._processor_factory(file_path)
 
             processor.start()
-            self.logger.info("Started a process (PID: {}) to generate "
-                             "tasks for {} - logging into {}"
-                             .format(processor.pid, file_path, log_file_path))
-
+            self.log.debug(
+                "Started a process (PID: %s) to generate tasks for %s",
+                processor.pid, file_path
+            )
             self._processors[file_path] = processor
-
-        self.symlink_latest_log_directory()
 
         # Update scheduler heartbeat count.
         self._run_count[self._heart_beat_key] += 1

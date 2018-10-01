@@ -15,7 +15,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -37,7 +37,7 @@ complicated, a line by line explanation follows below.
         # 'end_date': datetime(2016, 1, 1),
     }
 
-    dag = DAG('tutorial', default_args=default_args)
+    dag = DAG('tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
@@ -129,7 +129,7 @@ of default parameters that we can use when creating tasks.
     }
 
 For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:``airflow.models.BaseOperator`` documentation.
+refer to the :py:class:`airflow.models.BaseOperator` documentation.
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have
@@ -147,7 +147,7 @@ define a ``schedule_interval`` of 1 day for the DAG.
 .. code:: python
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
 Tasks
 -----
@@ -195,7 +195,8 @@ templates.
 This tutorial barely scratches the surface of what you can do with
 templating in Airflow, but the goal of this section is to let you know
 this feature exists, get you familiar with double curly brackets, and
-point to the most common template variable: ``{{ ds }}``.
+point to the most common template variable: ``{{ ds }}`` (today's "date
+stamp").
 
 .. code:: python
 
@@ -276,8 +277,8 @@ something like this:
 .. code:: python
 
     """
-    Code that goes along with the Airflow located at:
-    http://airflow.readthedocs.org/en/latest/tutorial.html
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -300,7 +301,7 @@ something like this:
     }
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(

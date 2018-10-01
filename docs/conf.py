@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# Airflow documentation build configuration file, created by
+# flake8: noqa
+# Disable Flake8 because of all the sphinx imports
+#
+#  Airflow documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct  9 20:50:01 2014.
 #
 # This file is execfile()d with the current directory set to its
@@ -22,8 +25,12 @@ MOCK_MODULES = [
     'mesos',
     'mesos.interface',
     'mesos.native',
-    'oauth2client.service_account',
+    'google.auth.default',
+    'google_auth_httplib2',
+    'google.oauth2.service_account',
     'pandas.io.gbq',
+    'vertica_python',
+    'pymssql'
 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
@@ -53,6 +60,9 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinxarg.ext',
 ]
+
+autodoc_default_flags = ['show-inheritance', 'members']
+
 viewcode_import = True
 
 # Add any paths that contain templates here, relative to this directory.

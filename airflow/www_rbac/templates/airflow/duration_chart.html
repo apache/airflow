@@ -1,0 +1,76 @@
+{#
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+#}
+{% extends "airflow/dag.html" %}
+{% block title %}Airflow - DAGs{% endblock %}
+
+{% block head_css %}
+{{ super() }}
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('static', filename='css/tree.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
+<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
+<link rel="stylesheet" type="text/css"
+      href="{{ url_for_asset('nv.d3.min.css') }}">
+<script src="{{ url_for_asset('d3.min.js') }}"></script>
+<script src="{{ url_for_asset('nv.d3.min.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+{{ super() }}
+<div>
+  <label for="isCumulative">Cumulative Duration</label>
+  <input id="isCumulative" type="checkbox" value="1">
+</div>
+<div style="float: left" class="form-inline">
+    <form method="get" style="float:left;">
+        Base date: {{ form.base_date(class_="form-control") }}
+        Number of runs: {{ form.num_runs(class_="form-control") }}
+        <input type="hidden" name="root" value="{{ root if root else '' }}">
+        <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+        <input type="submit" value="Go" class="btn btn-default"
+         action="" method="get">
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    </form>
+</div>
+<div id="dur_chart" style="clear: both;">{{ chart |safe }}</div>
+<div id="cum_dur_chart" style="clear: both;">{{ cum_chart | safe}}</div>
+<hr/>
+{% endblock %}
+
+{% block tail %}
+  <script>
+    function handleCheck() {
+      if ($('#isCumulative').is(':checked')) {
+        $('#dur_chart').hide();
+        $('#cum_dur_chart').show();
+      } else {
+        $('#dur_chart').show();
+        $('#cum_dur_chart').hide();
+      };
+    };
+    $( document ).on('chartload', function() {
+      handleCheck();
+    });
+    $('#isCumulative').click(function() {
+      handleCheck();
+    });
+  </script>
+  <script src="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js')}}"></script>
+  {{ super() }}
+{% endblock %}

@@ -1,24 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
-import logging
 import subprocess
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
-
-log = logging.getLogger(__name__)
 
 
 class SparkSqlHook(BaseHook):
@@ -31,9 +33,11 @@ class SparkSqlHook(BaseHook):
     :type conf: str (format: PROP=VALUE)
     :param conn_id: connection_id string
     :type conn_id: str
-    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
+    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
+        (Default: all the available cores on the worker)
     :type total_executor_cores: int
-    :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
+    :param executor_cores: (Standalone & YARN only) Number of cores per
+        executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -123,7 +127,7 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--queue", self._yarn_queue]
 
         connection_cmd += cmd
-        logging.debug("Spark-Sql cmd: {}".format(connection_cmd))
+        self.log.debug("Spark-Sql cmd: %s", connection_cmd)
 
         return connection_cmd
 
@@ -140,7 +144,8 @@ class SparkSqlHook(BaseHook):
                                     stderr=subprocess.STDOUT,
                                     **kwargs)
 
-        self._process_log(iter(self._sp.stdout.readline, b''))
+        for line in iter(self._sp.stdout.readline, ''):
+            self.log.info(line)
 
         returncode = self._sp.wait()
 
@@ -153,5 +158,5 @@ class SparkSqlHook(BaseHook):
 
     def kill(self):
         if self._sp and self._sp.poll() is None:
-            logging.info("Killing the Spark-Sql job")
+            self.log.info("Killing the Spark-Sql job")
             self._sp.kill()

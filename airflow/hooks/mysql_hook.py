@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import MySQLdb
 import MySQLdb.cursors
@@ -34,6 +39,22 @@ class MySqlHook(DbApiHook):
     def __init__(self, *args, **kwargs):
         super(MySqlHook, self).__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+
+    def set_autocommit(self, conn, autocommit):
+        """
+        MySql connection sets autocommit in a different way.
+        """
+        conn.autocommit(autocommit)
+
+    def get_autocommit(self, conn):
+        """
+        MySql connection gets autocommit in a different way.
+        :param conn: connection to get autocommit setting from.
+        :type conn: connection object.
+        :return: connection autocommit setting
+        :rtype bool
+        """
+        return conn.get_autocommit()
 
     def get_conn(self):
         """
@@ -64,7 +85,7 @@ class MySqlHook(DbApiHook):
                 conn_config["cursorclass"] = MySQLdb.cursors.DictCursor
             elif (conn.extra_dejson["cursor"]).lower() == 'ssdictcursor':
                 conn_config["cursorclass"] = MySQLdb.cursors.SSDictCursor
-        local_infile = conn.extra_dejson.get('local_infile',False)
+        local_infile = conn.extra_dejson.get('local_infile', False)
         if conn.extra_dejson.get('ssl', False):
             conn_config['ssl'] = conn.extra_dejson['ssl']
         if local_infile:
@@ -84,11 +105,23 @@ class MySqlHook(DbApiHook):
             """.format(**locals()))
         conn.commit()
 
+    def bulk_dump(self, table, tmp_file):
+        """
+        Dumps a database table into a tab-delimited file
+        """
+        conn = self.get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT * INTO OUTFILE '{tmp_file}'
+            FROM {table}
+            """.format(**locals()))
+        conn.commit()
+
     @staticmethod
     def _serialize_cell(cell, conn):
         """
-        MySQLdb converts an argument to a literal when passing those seperately to execute.
-        Hence, this method does nothing.
+        MySQLdb converts an argument to a literal
+        when passing those separately to execute. Hence, this method does nothing.
 
         :param cell: The cell to insert into the table
         :type cell: object

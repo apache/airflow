@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -28,10 +33,10 @@ class Resource(object):
     Represents a resource requirement in an execution environment for an operator.
 
     :param name: Name of the resource
-    :type name: string
+    :type name: str
     :param units_str: The string representing the units of a resource (e.g. MB for a CPU
         resource) to be used for display purposes
-    :type units_str: string
+    :type units_str: str
     :param qty: The number of units of the specified resource that are required for
         execution of the operator.
     :type qty: long
@@ -99,16 +104,12 @@ class Resources(object):
     :param gpus: The number of gpu units that are required
     :type gpus: long
     """
-    def __init__(self, cpus=None, ram=None, disk=None, gpus=None):
-        if cpus is None:
-            cpus = configuration.getint('operators', 'default_cpus')
-        if ram is None:
-            ram = configuration.getint('operators', 'default_ram')
-        if disk is None:
-            disk = configuration.getint('operators', 'default_disk')
-        if gpus is None:
-            gpus = configuration.getint('operators', 'default_gpus')
-
+    def __init__(self,
+                 cpus=configuration.conf.getint('operators', 'default_cpus'),
+                 ram=configuration.conf.getint('operators', 'default_ram'),
+                 disk=configuration.conf.getint('operators', 'default_disk'),
+                 gpus=configuration.conf.getint('operators', 'default_gpus')
+                 ):
         self.cpus = CpuResource(cpus)
         self.ram = RamResource(ram)
         self.disk = DiskResource(disk)

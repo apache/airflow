@@ -26,11 +26,13 @@ from airflow import configuration, DAG
 from airflow.contrib.operators import mlengine_operator_utils
 from airflow.contrib.operators.mlengine_operator_utils import create_evaluate_ops
 from airflow.exceptions import AirflowException
+from airflow.version import version
 
 from mock import ANY
 from mock import patch
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
+TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
 
 
 class CreateEvaluateOpsTest(unittest.TestCase):
@@ -110,11 +112,12 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             hook_instance.start_python_dataflow.return_value = None
             summary.execute(None)
             mock_dataflow_hook.assert_called_with(
-                gcp_conn_id='google_cloud_default', delegate_to=None)
+                gcp_conn_id='google_cloud_default', delegate_to=None, poll_sleep=10)
             hook_instance.start_python_dataflow.assert_called_once_with(
-                'eval-test-summary',
+                '{{task.task_id}}',
                 {
                     'prediction_path': 'gs://legal-bucket/fake-output-path',
+                    'labels': {'airflow-version': TEST_VERSION},
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
@@ -155,14 +158,14 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             'dag': dag,
         }
 
-        with self.assertRaisesRegexp(ValueError, 'Missing model origin'):
+        with self.assertRaisesRegexp(AirflowException, 'Missing model origin'):
             _ = create_evaluate_ops(**other_params_but_models)
 
-        with self.assertRaisesRegexp(ValueError, 'Ambiguous model origin'):
+        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
             _ = create_evaluate_ops(model_uri='abc', model_name='cde',
                                     **other_params_but_models)
 
-        with self.assertRaisesRegexp(ValueError, 'Ambiguous model origin'):
+        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
             _ = create_evaluate_ops(model_uri='abc', version_name='vvv',
                                     **other_params_but_models)
 

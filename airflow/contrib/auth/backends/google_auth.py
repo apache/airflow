@@ -1,40 +1,40 @@
-# Copyright 2016 Ananya Mishra (am747@cornell.edu)
+# -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-import logging
-
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import flask_login
 
 # Need to expose these downstream
-# pylint: disable=unused-import
-from flask_login import (current_user,
-                         logout_user,
-                         login_required,
-                         login_user)
-# pylint: enable=unused-import
+# flake8: noqa: F401
+from flask_login import current_user, logout_user, login_required, login_user
 
 from flask import url_for, redirect, request
 
 from flask_oauthlib.client import OAuth
 
-from airflow import models, configuration, settings
-from airflow.configuration import AirflowConfigException
+from airflow import models, configuration
+from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-_log = logging.getLogger(__name__)
+log = LoggingMixin().log
 
 
 def get_config_param(param):
-    return str(configuration.get('google', param))
+    return str(configuration.conf.get('google', param))
 
 
 class GoogleUser(models.User):
@@ -43,27 +43,27 @@ class GoogleUser(models.User):
         self.user = user
 
     def is_active(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_authenticated(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_anonymous(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return False
 
     def get_id(self):
-        '''Returns the current user id as required by flask_login'''
+        """Returns the current user id as required by flask_login"""
         return self.user.get_id()
 
     def data_profiling(self):
-        '''Provides access to data profiling tools'''
+        """Provides access to data profiling tools"""
         return True
 
     def is_superuser(self):
-        '''Access all the things'''
+        """Access all the things"""
         return True
 
 
@@ -106,15 +106,17 @@ class GoogleAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
-        _log.debug('Redirecting user to Google login')
+        log.debug('Redirecting user to Google login')
         return self.google_oauth.authorize(callback=url_for(
             'google_oauth_callback',
             _external=True,
-            next=request.args.get('next') or request.referrer or None))
+            _scheme='https'),
+            state=request.args.get('next') or request.referrer or None)
 
     def get_google_user_profile_info(self, google_token):
-        resp = self.google_oauth.get('https://www.googleapis.com/oauth2/v1/userinfo',
-                                    token=(google_token, ''))
+        resp = self.google_oauth.get(
+            'https://www.googleapis.com/oauth2/v1/userinfo',
+            token=(google_token, ''))
 
         if not resp or resp.status != 200:
             raise AuthenticationError(
@@ -125,26 +127,25 @@ class GoogleAuthBackend(object):
 
     def domain_check(self, email):
         domain = email.split('@')[1]
-        if domain == get_config_param('domain'):
+        domains = get_config_param('domain').split(',')
+        if domain in domains:
             return True
         return False
 
-    def load_user(self, userid):
+    @provide_session
+    def load_user(self, userid, session=None):
         if not userid or userid == 'None':
             return None
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.id == int(userid)).first()
-        session.expunge_all()
-        session.commit()
-        session.close()
         return GoogleUser(user)
 
-    def oauth_callback(self):
-        _log.debug('Google OAuth callback called')
+    @provide_session
+    def oauth_callback(self, session=None):
+        log.debug('Google OAuth callback called')
 
-        next_url = request.args.get('next') or url_for('admin.index')
+        next_url = request.args.get('state') or url_for('admin.index')
 
         resp = self.google_oauth.authorized_response()
 
@@ -162,10 +163,7 @@ class GoogleAuthBackend(object):
                 return redirect(url_for('airflow.noaccess'))
 
         except AuthenticationError:
-            _log.exception('')
             return redirect(url_for('airflow.noaccess'))
-
-        session = settings.Session()
 
         user = session.query(models.User).filter(
             models.User.username == username).first()
@@ -180,13 +178,12 @@ class GoogleAuthBackend(object):
         session.commit()
         login_user(GoogleUser(user))
         session.commit()
-        session.close()
 
         return redirect(next_url)
+
 
 login_manager = GoogleAuthBackend()
 
 
 def login(self, request):
     return login_manager.login(request)
-

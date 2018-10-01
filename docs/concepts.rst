@@ -35,6 +35,9 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
+.. note:: When searching for DAGs, Airflow will only consider files where the string
+   "airflow" and "DAG" both appear in the contents of the ``.py`` file.
+
 Scope
 -----
 
@@ -47,7 +50,7 @@ scope.
 
     dag_1 = DAG('this_dag_will_be_discovered')
 
-    def my_function()
+    def my_function():
         dag_2 = DAG('but_this_dag_will_not')
 
     my_function()
@@ -64,9 +67,10 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
 .. code:: python
 
-    default_args=dict(
-        start_date=datetime(2016, 1, 1),
-        owner='Airflow')
+    default_args = {
+        'start_date': datetime(2016, 1, 1),
+        'owner': 'Airflow'
+    }
 
     dag = DAG('my_dag', default_args=default_args)
     op = DummyOperator(task_id='dummy', dag=dag)
@@ -85,6 +89,8 @@ DAGs can be used as context managers to automatically assign new operators to th
         op = DummyOperator('op')
 
     op.dag is dag # True
+
+.. _concepts-operators:
 
 Operators
 =========
@@ -109,13 +115,12 @@ Airflow provides operators for many common tasks, including:
 - ``BashOperator`` - executes a bash command
 - ``PythonOperator`` - calls an arbitrary Python function
 - ``EmailOperator`` - sends an email
-- ``HTTPOperator`` - sends an HTTP request
+- ``SimpleHttpOperator`` - sends an HTTP request
 - ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
-
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransferOperator``,
+operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransformOperator``,
 ``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
@@ -124,6 +129,8 @@ the main distribution, but allow users to more easily add new functionality to
 the platform.
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
+
+See :doc:`howto/operator` for how to use Airflow operators.
 
 DAG Assignment
 --------------
@@ -307,11 +314,13 @@ UI. As slots free up, queued tasks start running based on the
 Note that by default tasks aren't assigned to any pool and their
 execution parallelism is only limited to the executor's setting.
 
+.. _concepts-connections:
+
 Connections
 ===========
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``)
+metadata database and managed in the UI (``Menu -> Admin -> Connections``).
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
@@ -324,20 +333,27 @@ for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
 Airflow also has the ability to reference connections via environment
-variables from the operating system. The environment variable needs to be
-prefixed with ``AIRFLOW_CONN_`` to be considered a connection. When
-referencing the connection in the Airflow pipeline, the ``conn_id`` should
-be the name of the variable without the prefix. For example, if the ``conn_id``
-is named ``postgres_master`` the environment variable should be named
-``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable must be
-all uppercase). Airflow assumes the value returned from the environment
-variable to be in a URI format (e.g.
-``postgres://user:password@localhost:5432/master`` or ``s3://accesskey:secretkey@S3``).
+variables from the operating system. But it only supports URI format. If you
+need to specify ``extra`` for your connection, please use web UI.
+
+If connections with the same ``conn_id`` are defined in both Airflow metadata
+database and environment variables, only the one in environment variables
+will be referenced by Airflow (for example, given ``conn_id`` ``postgres_master``,
+Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+in environment variables first and directly reference it if found,
+before it starts to search in metadata database).
+
+Many hooks have a default ``conn_id``, where operators using that hook do not
+need to supply an explicit connection ID. For example, the default
+``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
+``postgres_default``.
+
+See :doc:`howto/manage-connections` for how to create and manage connections.
 
 Queues
 ======
 
-When using the CeleryExecutor, the celery queues that tasks are sent to
+When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any
 task can be assigned to any queue. The default queue for the environment
 is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
@@ -345,7 +361,7 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma delimited
+started (using the command ``airflow worker``), a set of comma-delimited
 queue names can be specified (e.g. ``airflow worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
@@ -380,7 +396,7 @@ opposed to XComs that are pushed manually).
 
 If ``xcom_pull`` is passed a single string for ``task_ids``, then the most
 recent XCom value from that task is returned; if a list of ``task_ids`` is
-passed, then a correpsonding list of XCom values is returned.
+passed, then a corresponding list of XCom values is returned.
 
 .. code:: python
 
@@ -409,7 +425,8 @@ Variables
 Variables are a generic way to store and retrieve arbitrary content or
 settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
-code or CLI. While your pipeline code definition and most of your constants
+code or CLI. In addition, json settings files can be bulk uploaded through
+the UI. While your pipeline code definition and most of your constants
 and variables should be defined in code and stored in source control,
 it can be useful to have some variables or configuration items
 accessible and modifiable through the UI.
@@ -424,6 +441,18 @@ accessible and modifiable through the UI.
 The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
 as such.
+
+You can use a variable from a jinja template with the syntax :
+
+.. code:: bash
+
+    echo {{ var.value.<variable_name> }}
+
+or if you need to deserialize a json object from the variable :
+
+.. code:: bash
+
+    echo {{ var.json.<variable_name> }}
 
 
 Branching
@@ -731,7 +760,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, dag_md is the only attribute interpreted.
+Please note that for dags, doc_md is the only attribute interpreted.
 
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led
@@ -833,4 +862,33 @@ do the same, but then it is more to use a virtualenv and pip.
 .. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
+
+
+.airflowignore
+''''''''''''''
+
+A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+that Airflow should intentionally ignore. Each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names
+(not DAG id) match any of the patterns would be ignored (under the hood,
+``re.findall()`` is used to match the pattern). Overall it works like a
+``.gitignore`` file.
+
+``.airflowignore`` file should be put in your ``DAG_FOLDER``.
+For example, you can prepare a ``.airflowignore`` file with contents
+
+.. code::
+
+    project_a
+    tenant_[\d]
+
+
+Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
+"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+(If a directory's name matches any of the patterns, this directory and all its subfolders
+would not be scanned by Airflow at all. This improves efficiency of DAG finding).
+
+The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
+You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
+would only be applicable for that subfolder.
 

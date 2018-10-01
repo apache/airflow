@@ -4,13 +4,14 @@
 
 The `airflow-pr` tool interactively guides committers through the process of merging GitHub PRs into Airflow and closing associated JIRA issues.
 
-It is very important that PRs reference a JIRA issue. The preferred way to do that is for the PR title to begin with [AIRFLOW-XX]. However, the PR tool can recognize and parse many other JIRA issue formats in the title and will offer to correct them if possible.
+It is very important that PRs reference a JIRA issue. The preferred way to do that is for the PR title to begin with [AIRFLOW-XXX]. However, the PR tool can recognize and parse many other JIRA issue formats in the title and will offer to correct them if possible.
 
 __Please note:__ this tool will restore your current branch when it finishes, but you will lose any uncommitted changes. Make sure you commit any changes you wish to keep before proceeding.
 
-
 ### Execution
+
 Simply execute the `airflow-pr` tool:
+
 ```
 $ ./airflow-pr
 Usage: airflow-pr [OPTIONS] COMMAND [ARGS]...
@@ -49,22 +50,23 @@ Execute `airflow-pr setup_git_remotes` to configure the default (expected) git r
 ### Configuration
 
 #### Python Libraries
+
 The merge tool requires the `click` and `jira` libraries to be installed. If the libraries are not found, the user will be prompted to install them:
+
 ```bash
 pip install click jira
 ```
 
 #### git Remotes
+
 tl;dr run `airflow-pr setup_git_remotes` before using the tool for the first time.
 
-Before using the merge tool, users need to make sure their git remotes are configured. By default, the tool assumes a setup like the one below, where the github repo remote is named `github` and the Apache repo remote is named `apache`. If users have other remote names, they can be supplied by setting environment variables `GITHUB_REMOTE_NAME` and `APACHE_REMOTE_NAME`, respectively.
+Before using the merge tool, users need to make sure their git remotes are configured. By default, the tool assumes a setup like the one below, where the github repo remote is named `github`. If users have other remote names, they can be supplied by setting environment variables `GITHUB_REMOTE_NAME`.
 
 Users can configure this automatically by running `airflow-pr setup_git_remotes`.
 
 ```bash
 $ git remote -v
-apache	https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)
-apache	https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)
 github	https://github.com/apache/incubator-airflow.git (fetch)
 github	https://github.com/apache/incubator-airflow.git (push)
 origin	https://github.com/<USER>/airflow (fetch)
@@ -72,14 +74,33 @@ origin	https://github.com/<USER>/airflow (push)
 ```
 
 #### JIRA
+
 Users should set environment variables `JIRA_USERNAME` and `JIRA_PASSWORD` corresponding to their ASF JIRA login. This will allow the tool to automatically close issues. If they are not set, the user will be prompted every time.
 
 #### GitHub OAuth Token
+
 Unauthenticated users can only make 60 requests/hour to the Github API. If you get an error about exceeding the rate, you will need to set a `GITHUB_OAUTH_KEY` environment variable that contains a token value. Users can generate tokens from their GitHub profile.
 
 ## Airflow release signing tool
+
 The release signing tool can be used to create the SHA512/MD5 and ASC files that required for Apache releases.
 
 ### Execution
-To create a release tar ball execute `python setup.py sdist --formats=gztar` from Airflow's root. After that `cd dist` and
-execute `../dev/sign.sh <the_created_tar_ball.tar.gz`. Signing files will be created in the same directory.
+
+To create a release tarball execute following command from Airflow's root.
+
+```bash
+python setup.py compile_assets sdist --formats=gztar
+```
+
+*Note: `compile_assets` command build the frontend assets (JS and CSS) files for the
+Web UI using webpack and npm. Please make sure you have `npm` installed on your local machine globally.
+Details on how to install `npm` can be found in CONTRIBUTING.md file.*
+
+After that navigate to relative directory i.e., `cd dist` and sign the release files.
+
+```bash
+../dev/sign.sh <the_created_tar_ball.tar.gz
+```
+
+Signing files will be created in the same directory.

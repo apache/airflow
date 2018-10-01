@@ -1,26 +1,33 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import unittest
+from datetime import datetime
 
 from airflow import models
 from airflow.api.common.experimental.mark_tasks import (
-    set_state, _create_dagruns, set_dag_run_state)
+    set_state, _create_dagruns, set_dag_run_state_to_success, set_dag_run_state_to_failed,
+    set_dag_run_state_to_running)
 from airflow.settings import Session
+from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
-from datetime import datetime, timedelta
 
 DEV_NULL = "/dev/null"
 
@@ -218,77 +225,9 @@ class TestMarkDAGRun(unittest.TestCase):
 
         self.session = Session()
 
-    def verify_dag_run_states(self, dag, date, state=State.SUCCESS):
-        drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
-        dr = drs[0]
-        self.assertEqual(dr.get_state(), state)
-        tis = dr.get_task_instances(session=self.session)
-        for ti in tis:
-            self.assertEqual(ti.state, state)
-
-    def test_set_running_dag_run_state(self):
-        date = self.execution_dates[0]
-        dr = self.dag1.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
-            state=State.RUNNING,
-            execution_date=date,
-            session=self.session
-        )
-        for ti in dr.get_task_instances(session=self.session):
-            ti.set_state(State.RUNNING, self.session)
-
-        altered = set_dag_run_state(self.dag1, date, state=State.SUCCESS, commit=True)
-
-        # All of the task should be altered
-        self.assertEqual(len(altered), len(self.dag1.tasks))
-        self.verify_dag_run_states(self.dag1, date)
-
-    def test_set_success_dag_run_state(self):
-        date = self.execution_dates[0]
-
-        dr = self.dag1.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
-            state=State.SUCCESS,
-            execution_date=date,
-            session=self.session
-        )
-        for ti in dr.get_task_instances(session=self.session):
-            ti.set_state(State.SUCCESS, self.session)
-
-        altered = set_dag_run_state(self.dag1, date, state=State.SUCCESS, commit=True)
-
-        # None of the task should be altered
-        self.assertEqual(len(altered), 0)
-        self.verify_dag_run_states(self.dag1, date)
-
-    def test_set_failed_dag_run_state(self):
-        date = self.execution_dates[0]
-        dr = self.dag1.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
-            state=State.FAILED,
-            execution_date=date,
-            session=self.session
-        )
-        dr.get_task_instance('runme_0').set_state(State.FAILED, self.session)
-
-        altered = set_dag_run_state(self.dag1, date, state=State.SUCCESS, commit=True)
-
-        # All of the task should be altered
-        self.assertEqual(len(altered), len(self.dag1.tasks))
-        self.verify_dag_run_states(self.dag1, date)
-
-    def test_set_mixed_dag_run_state(self):
-        """
-        This test checks function set_dag_run_state with mixed task instance
-        state.
-        """
-        date = self.execution_dates[0]
-        dr = self.dag1.create_dagrun(
-            run_id='manual__' + datetime.now().isoformat(),
-            state=State.FAILED,
-            execution_date=date,
-            session=self.session
-        )
+    def _set_default_task_instance_states(self, dr):
+        if dr.dag_id != 'test_example_bash_operator':
+            return
         # success task
         dr.get_task_instance('runme_0').set_state(State.SUCCESS, self.session)
         # skipped task
@@ -302,31 +241,198 @@ class TestMarkDAGRun(unittest.TestCase):
         # failed task
         dr.get_task_instance('run_this_last').set_state(State.FAILED, self.session)
 
-        altered = set_dag_run_state(self.dag1, date, state=State.SUCCESS, commit=True)
+    def _verify_task_instance_states_remain_default(self, dr):
+        self.assertEqual(dr.get_task_instance('runme_0').state, State.SUCCESS)
+        self.assertEqual(dr.get_task_instance('runme_1').state, State.SKIPPED)
+        self.assertEqual(dr.get_task_instance('runme_2').state, State.UP_FOR_RETRY)
+        self.assertEqual(dr.get_task_instance('also_run_this').state, State.QUEUED, )
+        self.assertEqual(dr.get_task_instance('run_after_loop').state, State.RUNNING)
+        self.assertEqual(dr.get_task_instance('run_this_last').state, State.FAILED)
 
-        self.assertEqual(len(altered), len(self.dag1.tasks) - 1) # only 1 task succeeded
-        self.verify_dag_run_states(self.dag1, date)
+    def _verify_task_instance_states(self, dag, date, state):
+        TI = models.TaskInstance
+        tis = self.session.query(TI).filter(TI.dag_id == dag.dag_id,
+                                            TI.execution_date == date)
+        for ti in tis:
+            self.assertEqual(ti.state, state)
 
-    def test_set_state_without_commit(self):
-        date = self.execution_dates[0]
-
-        # Running dag run and task instances
-        dr = self.dag1.create_dagrun(
+    def _create_test_dag_run(self, state, date):
+        return self.dag1.create_dagrun(
             run_id='manual__' + datetime.now().isoformat(),
-            state=State.RUNNING,
+            state=state,
             execution_date=date,
             session=self.session
         )
-        for ti in dr.get_task_instances(session=self.session):
-            ti.set_state(State.RUNNING, self.session)
 
-        altered = set_dag_run_state(self.dag1, date, state=State.SUCCESS, commit=False)
+    def _verify_dag_run_state(self, dag, date, state):
+        drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
+        dr = drs[0]
 
-        # All of the task should be altered
-        self.assertEqual(len(altered), len(self.dag1.tasks))
+        self.assertEqual(dr.get_state(), state)
 
-        # Both dag run and task instances' states should remain the same
-        self.verify_dag_run_states(self.dag1, date, State.RUNNING)
+    def _verify_dag_run_dates(self, dag, date, state, middle_time):
+        # When target state is RUNNING, we should set start_date,
+        # otherwise we should set end_date.
+        drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
+        dr = drs[0]
+        if state == State.RUNNING:
+            self.assertGreater(dr.start_date, middle_time)
+            self.assertIsNone(dr.end_date)
+        else:
+            self.assertLess(dr.start_date, middle_time)
+            self.assertGreater(dr.end_date, middle_time)
+
+    def test_set_running_dag_run_to_success(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.RUNNING, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
+
+        # All except the SUCCESS task should be altered.
+        self.assertEqual(len(altered), 5)
+        self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
+        self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
+        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
+
+    def test_set_running_dag_run_to_failed(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.RUNNING, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
+
+        # Only running task should be altered.
+        self.assertEqual(len(altered), 1)
+        self._verify_dag_run_state(self.dag1, date, State.FAILED)
+        self.assertEqual(dr.get_task_instance('run_after_loop').state, State.FAILED)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
+
+    def test_set_running_dag_run_to_running(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.RUNNING, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_running(self.dag1, date, commit=True)
+
+        # None of the tasks should be altered.
+        self.assertEqual(len(altered), 0)
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
+        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
+
+    def test_set_success_dag_run_to_success(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
+
+        # All except the SUCCESS task should be altered.
+        self.assertEqual(len(altered), 5)
+        self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
+        self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
+        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
+
+    def test_set_success_dag_run_to_failed(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
+
+        # Only running task should be altered.
+        self.assertEqual(len(altered), 1)
+        self._verify_dag_run_state(self.dag1, date, State.FAILED)
+        self.assertEqual(dr.get_task_instance('run_after_loop').state, State.FAILED)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
+
+    def test_set_success_dag_run_to_running(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_running(self.dag1, date, commit=True)
+
+        # None of the tasks should be altered.
+        self.assertEqual(len(altered), 0)
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
+        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
+
+    def test_set_failed_dag_run_to_success(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
+
+        # All except the SUCCESS task should be altered.
+        self.assertEqual(len(altered), 5)
+        self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
+        self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
+        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
+
+    def test_set_failed_dag_run_to_failed(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
+
+        # Only running task should be altered.
+        self.assertEqual(len(altered), 1)
+        self._verify_dag_run_state(self.dag1, date, State.FAILED)
+        self.assertEqual(dr.get_task_instance('run_after_loop').state, State.FAILED)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
+
+    def test_set_failed_dag_run_to_running(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
+        self._set_default_task_instance_states(dr)
+
+        altered = set_dag_run_state_to_running(self.dag1, date, commit=True)
+
+        # None of the tasks should be altered.
+        self.assertEqual(len(altered), 0)
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
+        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
+
+    def test_set_state_without_commit(self):
+        date = self.execution_dates[0]
+        dr = self._create_test_dag_run(State.RUNNING, date)
+        self._set_default_task_instance_states(dr)
+
+        will_be_altered = set_dag_run_state_to_running(self.dag1, date, commit=False)
+
+        # None of the tasks will be altered.
+        self.assertEqual(len(will_be_altered), 0)
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
+
+        will_be_altered = set_dag_run_state_to_failed(self.dag1, date, commit=False)
+
+        # Only the running task will be altered.
+        self.assertEqual(len(will_be_altered), 1)
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
+
+        will_be_altered = set_dag_run_state_to_success(self.dag1, date, commit=False)
+
+        # All except the SUCCESS task should be altered.
+        self.assertEqual(len(will_be_altered), 5)
+        self._verify_dag_run_state(self.dag1, date, State.RUNNING)
+        self._verify_task_instance_states_remain_default(dr)
 
     def test_set_state_with_multiple_dagruns(self):
         dr1 = self.dag2.create_dagrun(
@@ -348,8 +454,8 @@ class TestMarkDAGRun(unittest.TestCase):
             session=self.session
         )
 
-        altered = set_dag_run_state(self.dag2, self.execution_dates[1],
-                                state=State.SUCCESS, commit=True)
+        altered = set_dag_run_state_to_success(self.dag2, self.execution_dates[1],
+                                               commit=True)
 
         # Recursively count number of tasks in the dag
         def count_dag_tasks(dag):
@@ -359,29 +465,45 @@ class TestMarkDAGRun(unittest.TestCase):
             return count
 
         self.assertEqual(len(altered), count_dag_tasks(self.dag2))
-        self.verify_dag_run_states(self.dag2, self.execution_dates[1])
+        self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed
-        dr1 = models.DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[0])
+        dr1 = models.DagRun.find(dag_id=self.dag2.dag_id,
+                                 execution_date=self.execution_dates[0])
         dr1 = dr1[0]
-        self.assertEqual(dr1.get_state(), State.FAILED)
-        dr3 = models.DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[2])
+        self._verify_dag_run_state(self.dag2, self.execution_dates[0], State.FAILED)
+        dr3 = models.DagRun.find(dag_id=self.dag2.dag_id,
+                                 execution_date=self.execution_dates[2])
         dr3 = dr3[0]
-        self.assertEqual(dr3.get_state(), State.RUNNING)
+        self._verify_dag_run_state(self.dag2, self.execution_dates[2], State.RUNNING)
 
     def test_set_dag_run_state_edge_cases(self):
         # Dag does not exist
-        altered = set_dag_run_state(None, self.execution_dates[0])
+        altered = set_dag_run_state_to_success(None, self.execution_dates[0])
+        self.assertEqual(len(altered), 0)
+        altered = set_dag_run_state_to_failed(None, self.execution_dates[0])
+        self.assertEqual(len(altered), 0)
+        altered = set_dag_run_state_to_running(None, self.execution_dates[0])
         self.assertEqual(len(altered), 0)
 
         # Invalid execution date
-        altered = set_dag_run_state(self.dag1, None)
+        altered = set_dag_run_state_to_success(self.dag1, None)
         self.assertEqual(len(altered), 0)
-        self.assertRaises(AssertionError, set_dag_run_state, self.dag1, timedelta(microseconds=-1))
+        altered = set_dag_run_state_to_failed(self.dag1, None)
+        self.assertEqual(len(altered), 0)
+        altered = set_dag_run_state_to_running(self.dag1, None)
+        self.assertEqual(len(altered), 0)
 
+        # This will throw AssertionError since dag.latest_execution_date
+        # need to be 0 does not exist.
+        self.assertRaises(AssertionError, set_dag_run_state_to_success, self.dag1,
+                          timezone.make_naive(self.execution_dates[0]))
+
+        # altered = set_dag_run_state_to_success(self.dag1, self.execution_dates[0])
         # DagRun does not exist
         # This will throw AssertionError since dag.latest_execution_date does not exist
-        self.assertRaises(AssertionError, set_dag_run_state, self.dag1, self.execution_dates[0])
+        self.assertRaises(AssertionError, set_dag_run_state_to_success,
+                          self.dag1, self.execution_dates[0])
 
     def tearDown(self):
         self.dag1.clear()
@@ -391,6 +513,7 @@ class TestMarkDAGRun(unittest.TestCase):
         self.session.query(models.TaskInstance).delete()
         self.session.query(models.DagStat).delete()
         self.session.commit()
+
 
 if __name__ == '__main__':
     unittest.main()

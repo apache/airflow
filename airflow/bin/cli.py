@@ -1,33 +1,40 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import print_function
+from backports.configparser import NoSectionError
 import logging
 
-import reprlib
-
 import os
-import socket
 import subprocess
 import textwrap
+import random
+import string
 from importlib import import_module
 
+import getpass
+import reprlib
 import argparse
 from builtins import input
 from collections import namedtuple
-from dateutil.parser import parse as parsedate
+from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
 
@@ -40,20 +47,28 @@ import traceback
 import time
 import psutil
 import re
+from urllib.parse import urlunparse
 
 import airflow
 from airflow import api
 from airflow import jobs, settings
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import GetDefaultExecutor
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
                             Connection, DAG)
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
+from airflow.utils import cli as cli_utils
 from airflow.utils import db as db_utils
-from airflow.www.app import cached_app
+from airflow.utils.net import get_hostname
+from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
+                                             redirect_stdout)
+from airflow.www.app import (cached_app, create_app)
+from airflow.www_rbac.app import cached_app as cached_app_rbac
+from airflow.www_rbac.app import create_app as create_app_rbac
+from airflow.www_rbac.app import cached_appbuilder
 
 from sqlalchemy import func
 from sqlalchemy.orm import exc
@@ -62,6 +77,13 @@ api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.api_auth.client_auth)
+
+log = LoggingMixin().log
+
+DAGS_FOLDER = settings.DAGS_FOLDER
+
+if "BUILDING_AIRFLOW_DOCS" in os.environ:
+    DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
 def sigint_handler(sig, frame):
@@ -99,20 +121,24 @@ def setup_logging(filename):
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     if not stderr:
-        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.err".format(process))
+        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                              'airflow-{}.err'.format(process))
     if not stdout:
-        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.out".format(process))
+        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                              'airflow-{}.out'.format(process))
     if not log:
-        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.log".format(process))
+        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                           'airflow-{}.log'.format(process))
     if not pid:
-        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.pid".format(process))
+        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                           'airflow-{}.pid'.format(process))
 
     return pid, stdout, stderr, log
 
 
 def process_subdir(subdir):
     if subdir:
-        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
+        subdir = subdir.replace('DAGS_FOLDER', DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
         return subdir
 
@@ -139,6 +165,7 @@ def get_dags(args):
     return matched_dags
 
 
+@cli_utils.action_logging
 def backfill(args, dag=None):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
@@ -158,6 +185,10 @@ def backfill(args, dag=None):
             task_regex=args.task_regex,
             include_upstream=not args.ignore_dependencies)
 
+    run_conf = None
+    if args.conf:
+        run_conf = json.loads(args.conf)
+
     if args.dry_run:
         print("Dry run of DAG {0} on {1}".format(args.dag_id,
                                                  args.start_date))
@@ -166,44 +197,82 @@ def backfill(args, dag=None):
             ti = TaskInstance(task, args.start_date)
             ti.dry_run()
     else:
+        if args.reset_dagruns:
+            DAG.clear_dags(
+                [dag],
+                start_date=args.start_date,
+                end_date=args.end_date,
+                confirm_prompt=True,
+                include_subdags=True,
+            )
+
         dag.run(
             start_date=args.start_date,
             end_date=args.end_date,
             mark_success=args.mark_success,
-            include_adhoc=args.include_adhoc,
             local=args.local,
             donot_pickle=(args.donot_pickle or
                           conf.getboolean('core', 'donot_pickle')),
             ignore_first_depends_on_past=args.ignore_first_depends_on_past,
             ignore_task_deps=args.ignore_dependencies,
             pool=args.pool,
-            delay_on_limit_secs=args.delay_on_limit)
+            delay_on_limit_secs=args.delay_on_limit,
+            verbose=args.verbose,
+            conf=run_conf,
+            rerun_failed_tasks=args.rerun_failed_tasks,
+        )
 
 
+@cli_utils.action_logging
 def trigger_dag(args):
     """
     Creates a dag run for the specified dag
     :param args:
     :return:
     """
+    log = LoggingMixin().log
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
                                          run_id=args.run_id,
                                          conf=args.conf,
                                          execution_date=args.exec_date)
     except IOError as err:
-        logging.error(err)
+        log.error(err)
         raise AirflowException(err)
+    log.info(message)
 
-    logging.info(message)
+
+@cli_utils.action_logging
+def delete_dag(args):
+    """
+    Deletes all DB records related to the specified dag
+    :param args:
+    :return:
+    """
+    log = LoggingMixin().log
+    if args.yes or input(
+            "This will drop all existing records related to the specified DAG. "
+            "Proceed? (y/n)").upper() == "Y":
+        try:
+            message = api_client.delete_dag(dag_id=args.dag_id)
+        except IOError as err:
+            log.error(err)
+            raise AirflowException(err)
+        log.info(message)
+    else:
+        print("Bail.")
 
 
+@cli_utils.action_logging
 def pool(args):
+    log = LoggingMixin().log
+
     def _tabulate(pools):
         return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
                                  tablefmt="fancy_grid")
 
     try:
+        imp = getattr(args, 'import')
         if args.get is not None:
             pools = [api_client.get_pool(name=args.get)]
         elif args.set:
@@ -212,14 +281,60 @@ def pool(args):
                                             description=args.set[2])]
         elif args.delete:
             pools = [api_client.delete_pool(name=args.delete)]
+        elif imp:
+            if os.path.exists(imp):
+                pools = pool_import_helper(imp)
+            else:
+                print("Missing pools file.")
+                pools = api_client.get_pools()
+        elif args.export:
+            pools = pool_export_helper(args.export)
         else:
             pools = api_client.get_pools()
     except (AirflowException, IOError) as err:
-        logging.error(err)
+        log.error(err)
     else:
-        logging.info(_tabulate(pools=pools))
+        log.info(_tabulate(pools=pools))
 
 
+def pool_import_helper(filepath):
+    with open(filepath, 'r') as poolfile:
+        pl = poolfile.read()
+    try:
+        d = json.loads(pl)
+    except Exception as e:
+        print("Please check the validity of the json file: " + str(e))
+    else:
+        try:
+            pools = []
+            n = 0
+            for k, v in d.items():
+                if isinstance(v, dict) and len(v) == 2:
+                    pools.append(api_client.create_pool(name=k,
+                                                        slots=v["slots"],
+                                                        description=v["description"]))
+                    n += 1
+                else:
+                    pass
+        except Exception:
+            pass
+        finally:
+            print("{} of {} pool(s) successfully updated.".format(n, len(d)))
+            return pools
+
+
+def pool_export_helper(filepath):
+    pool_dict = {}
+    pools = api_client.get_pools()
+    for pool in pools:
+        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
+    with open(filepath, 'w') as poolfile:
+        poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
+    print("{} pools successfully exported to {}".format(len(pool_dict), filepath))
+    return pools
+
+
+@cli_utils.action_logging
 def variables(args):
     if args.get:
         try:
@@ -296,10 +411,12 @@ def export_helper(filepath):
     print("{} variables successfully exported to {}".format(len(var_dict), filepath))
 
 
+@cli_utils.action_logging
 def pause(args, dag=None):
     set_is_paused(True, args, dag)
 
 
+@cli_utils.action_logging
 def unpause(args, dag=None):
     set_is_paused(False, args, dag)
 
@@ -317,58 +434,7 @@ def set_is_paused(is_paused, args, dag=None):
     print(msg)
 
 
-def run(args, dag=None):
-    # Disable connection pooling to reduce the # of connections on the DB
-    # while it's waiting for the task to finish.
-    settings.configure_orm(disable_connection_pool=True)
-    db_utils.pessimistic_connection_handling()
-    if dag:
-        args.dag_id = dag.dag_id
-
-    # Load custom airflow config
-    if args.cfg_path:
-        with open(args.cfg_path, 'r') as conf_file:
-            conf_dict = json.load(conf_file)
-
-        if os.path.exists(args.cfg_path):
-            os.remove(args.cfg_path)
-
-        for section, config in conf_dict.items():
-            for option, value in config.items():
-                conf.set(section, option, value)
-        settings.configure_vars()
-        settings.configure_orm()
-
-    if not args.pickle and not dag:
-        dag = get_dag(args)
-    elif not dag:
-        session = settings.Session()
-        logging.info('Loading pickle id {args.pickle}'.format(args=args))
-        dag_pickle = session.query(
-            DagPickle).filter(DagPickle.id == args.pickle).first()
-        if not dag_pickle:
-            raise AirflowException("Who hid the pickle!? [missing pickle]")
-        dag = dag_pickle.pickle
-
-    task = dag.get_task(task_id=args.task_id)
-    ti = TaskInstance(task, args.execution_date)
-    ti.refresh_from_db()
-
-    logger = logging.getLogger('airflow.task')
-    if args.raw:
-        logger = logging.getLogger('airflow.task.raw')
-
-    for handler in logger.handlers:
-        try:
-            handler.set_context(ti)
-        except AttributeError:
-            # Not all handlers need to have context passed in so we ignore
-            # the error when handlers do not have set_context defined.
-            pass
-
-    hostname = socket.getfqdn()
-    logging.info("Running on host {}".format(hostname))
-
+def _run(args, dag, ti):
     if args.local:
         run_job = jobs.LocalTaskJob(
             task_instance=ti,
@@ -396,9 +462,9 @@ def run(args, dag=None):
                 session.add(pickle)
                 session.commit()
                 pickle_id = pickle.id
-                print((
-                          'Pickled dag {dag} '
-                          'as pickle_id:{pickle_id}').format(**locals()))
+                # TODO: This should be written to a log
+                print('Pickled dag {dag} as pickle_id:{pickle_id}'
+                      .format(**locals()))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -419,29 +485,91 @@ def run(args, dag=None):
         executor.heartbeat()
         executor.end()
 
-    # Child processes should not flush or upload to remote
-    if args.raw:
-        return
 
-    # Force the log to flush. The flush is important because we
-    # might subsequently read from the log to insert into S3 or
-    # Google cloud storage. Explicitly close the handler is
-    # needed in order to upload to remote storage services.
-    for handler in logger.handlers:
-        handler.flush()
-        handler.close()
+@cli_utils.action_logging
+def run(args, dag=None):
+    if dag:
+        args.dag_id = dag.dag_id
+
+    log = LoggingMixin().log
+
+    # Load custom airflow config
+    if args.cfg_path:
+        with open(args.cfg_path, 'r') as conf_file:
+            conf_dict = json.load(conf_file)
+
+        if os.path.exists(args.cfg_path):
+            os.remove(args.cfg_path)
+
+        # Do not log these properties since some may contain passwords.
+        # This may also set default values for database properties like
+        # core.sql_alchemy_pool_size
+        # core.sql_alchemy_pool_recycle
+        for section, config in conf_dict.items():
+            for option, value in config.items():
+                try:
+                    conf.set(section, option, value)
+                except NoSectionError:
+                    optional_sections = [
+                        'atlas', 'mesos', 'elasticsearch', 'kubernetes',
+                        'lineage', 'hive'
+                    ]
+                    if section in optional_sections:
+                        log.debug('Section {section} Option {option} '
+                                  'does not exist in the config!'.format(section=section,
+                                                                         option=option))
+                    else:
+                        log.error('Section {section} Option {option} '
+                                  'does not exist in the config!'.format(section=section,
+                                                                         option=option))
+
+        settings.configure_vars()
+
+    # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
+    # behind multiple open sleeping connections while heartbeating, which could
+    # easily exceed the database connection limit when
+    # processing hundreds of simultaneous tasks.
+    settings.configure_orm(disable_connection_pool=True)
+
+    if not args.pickle and not dag:
+        dag = get_dag(args)
+    elif not dag:
+        session = settings.Session()
+        log.info('Loading pickle id {args.pickle}'.format(args=args))
+        dag_pickle = session.query(
+            DagPickle).filter(DagPickle.id == args.pickle).first()
+        if not dag_pickle:
+            raise AirflowException("Who hid the pickle!? [missing pickle]")
+        dag = dag_pickle.pickle
+
+    task = dag.get_task(task_id=args.task_id)
+    ti = TaskInstance(task, args.execution_date)
+    ti.refresh_from_db()
+
+    ti.init_run_context(raw=args.raw)
+
+    hostname = get_hostname()
+    log.info("Running %s on host %s", ti, hostname)
+
+    if args.interactive:
+        _run(args, dag, ti)
+    else:
+        with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+            _run(args, dag, ti)
+    logging.shutdown()
 
 
+@cli_utils.action_logging
 def task_failed_deps(args):
     """
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
-
     >>> airflow task_failed_deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
-    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks to have succeeded, but found 1 non-success(es).
+    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
+    to have succeeded, but found 1 non-success(es).
     """
     dag = get_dag(args)
     task = dag.get_task(task_id=args.task_id)
@@ -449,6 +577,7 @@ def task_failed_deps(args):
 
     dep_context = DepContext(deps=SCHEDULER_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
+    # TODO, Do we want to print or log this
     if failed_deps:
         print("Task instance dependencies not met:")
         for dep in failed_deps:
@@ -457,10 +586,10 @@ def task_failed_deps(args):
         print("Task instance dependencies are all met.")
 
 
+@cli_utils.action_logging
 def task_state(args):
     """
     Returns the state of a TaskInstance at the command line.
-
     >>> airflow task_state tutorial sleep 2015-01-01
     success
     """
@@ -470,10 +599,10 @@ def task_state(args):
     print(ti.current_state())
 
 
+@cli_utils.action_logging
 def dag_state(args):
     """
     Returns the state of a DagRun at the command line.
-
     >>> airflow dag_state tutorial 2015-01-01T00:00:00.000000
     running
     """
@@ -482,6 +611,32 @@ def dag_state(args):
     print(dr[0].state if len(dr) > 0 else None)
 
 
+@cli_utils.action_logging
+def next_execution(args):
+    """
+    Returns the next execution datetime of a DAG at the command line.
+    >>> airflow next_execution tutorial
+    2018-08-31 10:38:00
+    """
+    dag = get_dag(args)
+
+    if dag.is_paused:
+        print("[INFO] Please be reminded this DAG is PAUSED now.")
+
+    if dag.latest_execution_date:
+        next_execution_dttm = dag.following_schedule(dag.latest_execution_date)
+
+        if next_execution_dttm is None:
+            print("[WARN] No following schedule can be found. " +
+                  "This DAG may have schedule interval '@once' or `None`.")
+
+        print(next_execution_dttm)
+    else:
+        print("[WARN] Only applicable when there is execution record found for the DAG.")
+        print(None)
+
+
+@cli_utils.action_logging
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     s = textwrap.dedent("""\n
@@ -496,6 +651,7 @@ def list_dags(args):
         print(dagbag.dagbag_report())
 
 
+@cli_utils.action_logging
 def list_tasks(args, dag=None):
     dag = dag or get_dag(args)
     if args.tree:
@@ -505,6 +661,7 @@ def list_tasks(args, dag=None):
         print("\n".join(sorted(tasks)))
 
 
+@cli_utils.action_logging
 def test(args, dag=None):
     dag = dag or get_dag(args)
 
@@ -521,6 +678,7 @@ def test(args, dag=None):
         ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
 
 
+@cli_utils.action_logging
 def render(args):
     dag = get_dag(args)
     task = dag.get_task(task_id=args.task_id)
@@ -535,6 +693,7 @@ def render(args):
         """.format(attr, getattr(task, attr))))
 
 
+@cli_utils.action_logging
 def clear(args):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
@@ -555,58 +714,69 @@ def clear(args):
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.no_confirm,
-        include_subdags=not args.exclude_subdags)
+        include_subdags=not args.exclude_subdags,
+        include_parentdag=not args.exclude_parentdag,
+    )
 
 
-def restart_workers(gunicorn_master_proc, num_workers_expected):
+def get_num_ready_workers_running(gunicorn_master_proc):
+    workers = psutil.Process(gunicorn_master_proc.pid).children()
+
+    def ready_prefix_on_cmdline(proc):
+        try:
+            cmdline = proc.cmdline()
+            if len(cmdline) > 0:
+                return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
+        except psutil.NoSuchProcess:
+            pass
+        return False
+
+    ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
+    return len(ready_workers)
+
+
+def get_num_workers_running(gunicorn_master_proc):
+    workers = psutil.Process(gunicorn_master_proc.pid).children()
+    return len(workers)
+
+
+def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
     """
     Runs forever, monitoring the child processes of @gunicorn_master_proc and
     restarting workers occasionally.
-
     Each iteration of the loop traverses one edge of this state transition
     diagram, where each state (node) represents
     [ num_ready_workers_running / num_workers_running ]. We expect most time to
     be spent in [n / n]. `bs` is the setting webserver.worker_refresh_batch_size.
-
     The horizontal transition at ? happens after the new worker parses all the
     dags (so it could take a while!)
-
        V ────────────────────────────────────────────────────────────────────────┐
     [n / n] ──TTIN──> [ [n, n+bs) / n + bs ]  ────?───> [n + bs / n + bs] ──TTOU─┘
        ^                          ^───────────────┘
        │
        │      ┌────────────────v
        └──────┴────── [ [0, n) / n ] <─── start
-
     We change the number of workers by sending TTIN and TTOU to the gunicorn
     master process, which increases and decreases the number of child workers
     respectively. Gunicorn guarantees that on TTOU workers are terminated
     gracefully and that the oldest worker is terminated.
     """
 
-    def wait_until_true(fn):
+    def wait_until_true(fn, timeout=0):
         """
         Sleeps until fn is true
         """
+        t = time.time()
         while not fn():
+            if 0 < timeout and timeout <= time.time() - t:
+                raise AirflowWebServerTimeout(
+                    "No response from gunicorn master within {0} seconds"
+                    .format(timeout))
             time.sleep(0.1)
-
-    def get_num_workers_running(gunicorn_master_proc):
-        workers = psutil.Process(gunicorn_master_proc.pid).children()
-        return len(workers)
-
-    def get_num_ready_workers_running(gunicorn_master_proc):
-        workers = psutil.Process(gunicorn_master_proc.pid).children()
-        ready_workers = [
-            proc for proc in workers
-            if settings.GUNICORN_WORKER_READY_PREFIX in proc.cmdline()[0]
-        ]
-        return len(ready_workers)
 
     def start_refresh(gunicorn_master_proc):
         batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
-        logging.debug('%s doing a refresh of %s workers',
-                      state, batch_size)
+        log.debug('%s doing a refresh of %s workers', state, batch_size)
         sys.stdout.flush()
         sys.stderr.flush()
 
@@ -615,61 +785,73 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
             gunicorn_master_proc.send_signal(signal.SIGTTIN)
             excess += 1
             wait_until_true(lambda: num_workers_expected + excess ==
-                                    get_num_workers_running(gunicorn_master_proc))
+                            get_num_workers_running(gunicorn_master_proc),
+                            master_timeout)
 
-    wait_until_true(lambda: num_workers_expected ==
-                            get_num_workers_running(gunicorn_master_proc))
+    try:
+        wait_until_true(lambda: num_workers_expected ==
+                        get_num_workers_running(gunicorn_master_proc),
+                        master_timeout)
+        while True:
+            num_workers_running = get_num_workers_running(gunicorn_master_proc)
+            num_ready_workers_running = \
+                get_num_ready_workers_running(gunicorn_master_proc)
 
-    while True:
-        num_workers_running = get_num_workers_running(gunicorn_master_proc)
-        num_ready_workers_running = get_num_ready_workers_running(gunicorn_master_proc)
+            state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
 
-        state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
+            # Whenever some workers are not ready, wait until all workers are ready
+            if num_ready_workers_running < num_workers_running:
+                log.debug('%s some workers are starting up, waiting...', state)
+                sys.stdout.flush()
+                time.sleep(1)
 
-        # Whenever some workers are not ready, wait until all workers are ready
-        if num_ready_workers_running < num_workers_running:
-            logging.debug('%s some workers are starting up, waiting...', state)
-            sys.stdout.flush()
-            time.sleep(1)
+            # Kill a worker gracefully by asking gunicorn to reduce number of workers
+            elif num_workers_running > num_workers_expected:
+                excess = num_workers_running - num_workers_expected
+                log.debug('%s killing %s workers', state, excess)
 
-        # Kill a worker gracefully by asking gunicorn to reduce number of workers
-        elif num_workers_running > num_workers_expected:
-            excess = num_workers_running - num_workers_expected
-            logging.debug('%s killing %s workers', state, excess)
+                for _ in range(excess):
+                    gunicorn_master_proc.send_signal(signal.SIGTTOU)
+                    excess -= 1
+                    wait_until_true(lambda: num_workers_expected + excess ==
+                                    get_num_workers_running(gunicorn_master_proc),
+                                    master_timeout)
 
-            for _ in range(excess):
-                gunicorn_master_proc.send_signal(signal.SIGTTOU)
-                excess -= 1
-                wait_until_true(lambda: num_workers_expected + excess ==
-                                        get_num_workers_running(gunicorn_master_proc))
-
-        # Start a new worker by asking gunicorn to increase number of workers
-        elif num_workers_running == num_workers_expected:
-            refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
-            logging.debug(
-                '%s sleeping for %ss starting doing a refresh...',
-                state, refresh_interval
-            )
-            time.sleep(refresh_interval)
-            start_refresh(gunicorn_master_proc)
-
-        else:
-            # num_ready_workers_running == num_workers_running < num_workers_expected
-            logging.error((
-                "%s some workers seem to have died and gunicorn"
-                "did not restart them as expected"
-            ), state)
-            time.sleep(10)
-            if len(
-                psutil.Process(gunicorn_master_proc.pid).children()
-            ) < num_workers_expected:
+            # Start a new worker by asking gunicorn to increase number of workers
+            elif num_workers_running == num_workers_expected:
+                refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
+                log.debug(
+                    '%s sleeping for %ss starting doing a refresh...',
+                    state, refresh_interval
+                )
+                time.sleep(refresh_interval)
                 start_refresh(gunicorn_master_proc)
 
+            else:
+                # num_ready_workers_running == num_workers_running < num_workers_expected
+                log.error((
+                    "%s some workers seem to have died and gunicorn"
+                    "did not restart them as expected"
+                ), state)
+                time.sleep(10)
+                if len(
+                    psutil.Process(gunicorn_master_proc.pid).children()
+                ) < num_workers_expected:
+                    start_refresh(gunicorn_master_proc)
+    except (AirflowWebServerTimeout, OSError) as err:
+        log.error(err)
+        log.error("Shutting down webserver")
+        try:
+            gunicorn_master_proc.terminate()
+            gunicorn_master_proc.wait()
+        finally:
+            sys.exit(1)
 
+
+@cli_utils.action_logging
 def webserver(args):
     print(settings.HEADER)
 
-    app = cached_app(conf)
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
     num_workers = args.workers or conf.get('webserver', 'workers')
@@ -689,10 +871,19 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app.run(debug=True, port=args.port, host=args.hostname,
+        if settings.RBAC:
+            app, _ = create_app_rbac(conf, testing=conf.get('core', 'unit_test_mode'))
+        else:
+            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
+                port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
-        pid, stdout, stderr, log_file = setup_locations("webserver", args.pid, args.stdout, args.stderr, args.log_file)
+        os.environ['SKIP_DAGS_PARSING'] = 'True'
+        app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
+        pid, stdout, stderr, log_file = setup_locations(
+            "webserver", args.pid, args.stdout, args.stderr, args.log_file)
+        os.environ.pop('SKIP_DAGS_PARSING')
         if args.daemon:
             handle = setup_logging(log_file)
             stdout = open(stdout, 'w+')
@@ -717,7 +908,7 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
-            '-c', 'airflow.www.gunicorn_config'
+            '-c', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -732,7 +923,8 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        run_args += ["airflow.www.app:cached_app()"]
+        webserver_module = 'www_rbac' if settings.RBAC else 'www'
+        run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
         gunicorn_master_proc = None
 
@@ -744,10 +936,13 @@ def webserver(args):
         def monitor_gunicorn(gunicorn_master_proc):
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             if conf.getint('webserver', 'worker_refresh_interval') > 0:
-                restart_workers(gunicorn_master_proc, num_workers)
+                master_timeout = conf.getint('webserver', 'web_server_master_timeout')
+                restart_workers(gunicorn_master_proc, num_workers, master_timeout)
             else:
-                while True:
+                while gunicorn_master_proc.poll() is None:
                     time.sleep(1)
+
+                sys.exit(gunicorn_master_proc.returncode)
 
         if args.daemon:
             base, ext = os.path.splitext(pid)
@@ -762,7 +957,7 @@ def webserver(args):
                 },
             )
             with ctx:
-                subprocess.Popen(run_args)
+                subprocess.Popen(run_args, close_fds=True)
 
                 # Reading pid file directly, since Popen#pid doesn't
                 # seem to return the right value with DaemonContext.
@@ -772,7 +967,7 @@ def webserver(args):
                             gunicorn_master_proc_pid = int(f.read())
                             break
                     except IOError:
-                        logging.debug("Waiting for gunicorn's pid file to be created.")
+                        log.debug("Waiting for gunicorn's pid file to be created.")
                         time.sleep(0.1)
 
                 gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
@@ -781,7 +976,7 @@ def webserver(args):
             stdout.close()
             stderr.close()
         else:
-            gunicorn_master_proc = subprocess.Popen(run_args)
+            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
 
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
@@ -789,6 +984,7 @@ def webserver(args):
             monitor_gunicorn(gunicorn_master_proc)
 
 
+@cli_utils.action_logging
 def scheduler(args):
     print(settings.HEADER)
     job = jobs.SchedulerJob(
@@ -799,7 +995,11 @@ def scheduler(args):
         do_pickle=args.do_pickle)
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("scheduler",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -822,6 +1022,7 @@ def scheduler(args):
         job.run()
 
 
+@cli_utils.action_logging
 def serve_logs(args):
     print("Starting flask")
     import flask
@@ -842,9 +1043,15 @@ def serve_logs(args):
         host='0.0.0.0', port=WORKER_LOG_SERVER_PORT)
 
 
+@cli_utils.action_logging
 def worker(args):
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
+
+    if not settings.validate_session():
+        log = LoggingMixin().log
+        log.error("Worker exiting... database connection precheck failed! ")
+        sys.exit(1)
 
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
@@ -856,10 +1063,15 @@ def worker(args):
         'O': 'fair',
         'queues': args.queues,
         'concurrency': args.concurrency,
+        'hostname': args.celery_hostname,
     }
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("worker",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -871,7 +1083,7 @@ def worker(args):
             stderr=stderr,
         )
         with ctx:
-            sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+            sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
             worker.run(**options)
             sp.kill()
 
@@ -881,7 +1093,7 @@ def worker(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
 
         worker.run(**options)
         sp.kill()
@@ -889,22 +1101,21 @@ def worker(args):
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
-    db_utils.initdb()
+    db_utils.initdb(settings.RBAC)
     print("Done.")
 
 
 def resetdb(args):
     print("DB: " + repr(settings.engine.url))
-    if args.yes or input(
-        "This will drop existing tables if they exist. "
-        "Proceed? (y/n)").upper() == "Y":
-        logging.basicConfig(level=settings.LOGGING_LEVEL,
-                            format=settings.SIMPLE_LOG_FORMAT)
-        db_utils.resetdb()
+    if args.yes or input("This will drop existing tables "
+                         "if they exist. Proceed? "
+                         "(y/n)").upper() == "Y":
+        db_utils.resetdb(settings.RBAC)
     else:
         print("Bail.")
 
 
+@cli_utils.action_logging
 def upgradedb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
     db_utils.upgradedb()
@@ -915,22 +1126,28 @@ def upgradedb(args):  # noqa
     if not ds_rows:
         qry = (
             session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-                .group_by(DagRun.dag_id, DagRun.state)
+                   .group_by(DagRun.dag_id, DagRun.state)
         )
         for dag_id, state, count in qry:
             session.add(DagStat(dag_id=dag_id, state=state, count=count))
         session.commit()
 
 
+@cli_utils.action_logging
 def version(args):  # noqa
     print(settings.HEADER + "  v" + airflow.__version__)
 
 
+alternative_conn_specs = ['conn_type', 'conn_host',
+                          'conn_login', 'conn_password', 'conn_schema', 'conn_port']
+
+
+@cli_utils.action_logging
 def connections(args):
     if args.list:
         # Check that no other flags were passed to the command
         invalid_args = list()
-        for arg in ['conn_id', 'conn_uri', 'conn_extra']:
+        for arg in ['conn_id', 'conn_uri', 'conn_extra'] + alternative_conn_specs:
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
         if invalid_args:
@@ -947,15 +1164,18 @@ def connections(args):
                               Connection.is_extra_encrypted,
                               Connection.extra).all()
         conns = [map(reprlib.repr, conn) for conn in conns]
-        print(tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
+        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt="fancy_grid"))
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
         return
 
     if args.delete:
         # Check that only the `conn_id` arg was passed to the command
         invalid_args = list()
-        for arg in ['conn_uri', 'conn_extra']:
+        for arg in ['conn_uri', 'conn_extra'] + alternative_conn_specs:
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
         if invalid_args:
@@ -999,27 +1219,55 @@ def connections(args):
     if args.add:
         # Check that the conn_id and conn_uri args were passed to the command:
         missing_args = list()
-        for arg in ['conn_id', 'conn_uri']:
-            if getattr(args, arg) is None:
-                missing_args.append(arg)
+        invalid_args = list()
+        if not args.conn_id:
+            missing_args.append('conn_id')
+        if args.conn_uri:
+            for arg in alternative_conn_specs:
+                if getattr(args, arg) is not None:
+                    invalid_args.append(arg)
+        elif not args.conn_type:
+            missing_args.append('conn_uri or conn_type')
         if missing_args:
             msg = ('\n\tThe following args are required to add a connection:' +
                    ' {missing!r}\n'.format(missing=missing_args))
             print(msg)
+        if invalid_args:
+            msg = ('\n\tThe following args are not compatible with the ' +
+                   '--add flag and --conn_uri flag: {invalid!r}\n')
+            msg = msg.format(invalid=invalid_args)
+            print(msg)
+        if missing_args or invalid_args:
             return
 
-        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+        if args.conn_uri:
+            new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+        else:
+            new_conn = Connection(conn_id=args.conn_id,
+                                  conn_type=args.conn_type,
+                                  host=args.conn_host,
+                                  login=args.conn_login,
+                                  password=args.conn_password,
+                                  schema=args.conn_schema,
+                                  port=args.conn_port)
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
         session = settings.Session()
-        if not (session
-                    .query(Connection)
-                    .filter(Connection.conn_id == new_conn.conn_id).first()):
+        if not (session.query(Connection)
+                       .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
             session.commit()
             msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id, uri=args.conn_uri)
+            msg = msg.format(conn_id=new_conn.conn_id,
+                             uri=args.conn_uri or
+                             urlunparse((args.conn_type,
+                                        '{login}:{password}@{host}:{port}'
+                                         .format(login=args.conn_login or '',
+                                                 password=args.conn_password or '',
+                                                 host=args.conn_host or '',
+                                                 port=args.conn_port or ''),
+                                         args.conn_schema or '', '', '', '')))
             print(msg)
         else:
             msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
@@ -1029,6 +1277,7 @@ def connections(args):
         return
 
 
+@cli_utils.action_logging
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
     address = '--address={}'.format(args.hostname)
@@ -1037,12 +1286,20 @@ def flower(args):
     if args.broker_api:
         api = '--broker_api=' + args.broker_api
 
+    url_prefix = ''
+    if args.url_prefix:
+        url_prefix = '--url-prefix=' + args.url_prefix
+
     flower_conf = ''
     if args.flower_conf:
         flower_conf = '--conf=' + args.flower_conf
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("flower",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1053,7 +1310,8 @@ def flower(args):
         )
 
         with ctx:
-            os.execvp("flower", ['flower', '-b', broka, address, port, api, flower_conf])
+            os.execvp("flower", ['flower', '-b',
+                                 broka, address, port, api, flower_conf, url_prefix])
 
         stdout.close()
         stderr.close()
@@ -1061,15 +1319,21 @@ def flower(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        os.execvp("flower", ['flower', '-b', broka, address, port, api, flower_conf])
+        os.execvp("flower", ['flower', '-b',
+                             broka, address, port, api, flower_conf, url_prefix])
 
 
+@cli_utils.action_logging
 def kerberos(args):  # noqa
     print(settings.HEADER)
     import airflow.security.kerberos
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("kerberos", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("kerberos",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1086,6 +1350,140 @@ def kerberos(args):  # noqa
         stderr.close()
     else:
         airflow.security.kerberos.run()
+
+
+@cli_utils.action_logging
+def users(args):
+    if args.list:
+
+        appbuilder = cached_appbuilder()
+        users = appbuilder.sm.get_all_users()
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+        users = [[user.__getattribute__(field) for field in fields] for user in users]
+        msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
+
+        return
+
+    if args.create:
+        fields = {
+            'role': args.role,
+            'username': args.username,
+            'email': args.email,
+            'firstname': args.firstname,
+            'lastname': args.lastname,
+        }
+        empty_fields = [k for k, v in fields.items() if not v]
+        if empty_fields:
+            raise SystemExit('Required arguments are missing: {}.'.format(
+                ', '.join(empty_fields)))
+
+        appbuilder = cached_appbuilder()
+        role = appbuilder.sm.find_role(args.role)
+        if not role:
+            raise SystemExit('{} is not a valid role.'.format(args.role))
+
+        if args.use_random_password:
+            password = ''.join(random.choice(string.printable) for _ in range(16))
+        elif args.password:
+            password = args.password
+        else:
+            password = getpass.getpass('Password:')
+            password_confirmation = getpass.getpass('Repeat for confirmation:')
+            if password != password_confirmation:
+                raise SystemExit('Passwords did not match!')
+
+        if appbuilder.sm.find_user(args.username):
+            print('{} already exist in the db'.format(args.username))
+            return
+        user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
+                                      args.email, role, password)
+        if user:
+            print('{} user {} created.'.format(args.role, args.username))
+        else:
+            raise SystemExit('Failed to create user.')
+
+    if args.delete:
+        if not args.username:
+            raise SystemExit('Required arguments are missing: username')
+
+        appbuilder = cached_appbuilder()
+
+        try:
+            u = next(u for u in appbuilder.sm.get_all_users()
+                     if u.username == args.username)
+        except StopIteration:
+            raise SystemExit('{} is not a valid user.'.format(args.username))
+
+        if appbuilder.sm.del_register_user(u):
+            print('User {} deleted.'.format(args.username))
+        else:
+            raise SystemExit('Failed to delete user.')
+
+
+@cli_utils.action_logging
+def list_dag_runs(args, dag=None):
+    if dag:
+        args.dag_id = dag.dag_id
+
+    dagbag = DagBag()
+
+    if args.dag_id not in dagbag.dags:
+        error_message = "Dag id {} not found".format(args.dag_id)
+        raise AirflowException(error_message)
+
+    dag_runs = list()
+    state = args.state.lower() if args.state else None
+    for run in DagRun.find(dag_id=args.dag_id,
+                           state=state,
+                           no_backfills=args.no_backfill):
+        dag_runs.append({
+            'id': run.id,
+            'run_id': run.run_id,
+            'state': run.state,
+            'dag_id': run.dag_id,
+            'execution_date': run.execution_date.isoformat(),
+            'start_date': ((run.start_date or '') and
+                           run.start_date.isoformat()),
+        })
+    if not dag_runs:
+        print('No dag runs for {dag_id}'.format(dag_id=args.dag_id))
+
+    s = textwrap.dedent("""\n
+    {line}
+    DAG RUNS
+    {line}
+    {dag_run_header}
+    """)
+
+    dag_runs.sort(key=lambda x: x['execution_date'], reverse=True)
+    dag_run_header = '%-3s | %-20s | %-10s | %-20s | %-20s |' % ('id',
+                                                                 'run_id',
+                                                                 'state',
+                                                                 'execution_date',
+                                                                 'state_date')
+    print(s.format(dag_run_header=dag_run_header,
+                   line='-' * 120))
+    for dag_run in dag_runs:
+        record = '%-3s | %-20s | %-10s | %-20s | %-20s |' % (dag_run['id'],
+                                                             dag_run['run_id'],
+                                                             dag_run['state'],
+                                                             dag_run['execution_date'],
+                                                             dag_run['start_date'])
+        print(record)
+
+
+@cli_utils.action_logging
+def sync_perm(args): # noqa
+    if settings.RBAC:
+        appbuilder = cached_appbuilder()
+        print('Update permission, view-menu for all existing roles')
+        appbuilder.sm.sync_roles()
+    else:
+        print('The sync_perm command only works for rbac UI.')
 
 
 Arg = namedtuple(
@@ -1106,8 +1504,10 @@ class CLIFactory(object):
             "The regex to filter specific task_ids to backfill (optional)"),
         'subdir': Arg(
             ("-sd", "--subdir"),
-            "File location or directory from which to look for the dag",
-            default=settings.DAGS_FOLDER),
+            "File location or directory from which to look for the dag. "
+            "Defaults to '[AIRFLOW_HOME]/dags' where [AIRFLOW_HOME] is the "
+            "value you set for 'AIRFLOW_HOME' config you set in 'airflow.cfg' ",
+            default=DAGS_FOLDER),
         'start_date': Arg(
             ("-s", "--start_date"), "Override start_date YYYY-MM-DD",
             type=parsedate),
@@ -1129,11 +1529,28 @@ class CLIFactory(object):
             ("--stdout",), "Redirect stdout to this file"),
         'log_file': Arg(
             ("-l", "--log-file"), "Location of the log file"),
+        'yes': Arg(
+            ("-y", "--yes"),
+            "Do not prompt to confirm reset. Use with care!",
+            "store_true",
+            default=False),
+
+        # list_dag_runs
+        'no_backfill': Arg(
+            ("--no_backfill",),
+            "filter all the backfill dagruns given the dag id", "store_true"),
+        'state': Arg(
+            ("--state",),
+            "Only list the dag runs corresponding to the state"
+        ),
 
         # backfill
         'mark_success': Arg(
             ("-m", "--mark_success"),
             "Mark jobs as succeeded without running them", "store_true"),
+        'verbose': Arg(
+            ("-v", "--verbose"),
+            "Make logging output more verbose", "store_true"),
         'local': Arg(
             ("-l", "--local"),
             "Run the task using the LocalExecutor", "store_true"),
@@ -1143,9 +1560,6 @@ class CLIFactory(object):
                 "to the workers, just tell the workers to run their version "
                 "of the code."),
             "store_true"),
-        'include_adhoc': Arg(
-            ("-a", "--include_adhoc"),
-            "Include dags with the adhoc parameter.", "store_true"),
         'bf_ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
             (
@@ -1169,6 +1583,21 @@ class CLIFactory(object):
                   "again."),
             type=float,
             default=1.0),
+        'reset_dag_run': Arg(
+            ("--reset_dagruns",),
+            (
+                "if set, the backfill will delete existing "
+                "backfill-related DAG runs and start "
+                "anew with fresh, running DAG runs"),
+            "store_true"),
+        'rerun_failed_tasks': Arg(
+            ("--rerun_failed_tasks",),
+            (
+                "if set, the backfill will auto-rerun "
+                "all the failed tasks for the backfill date range "
+                "instead of throwing exceptions"),
+            "store_true"),
+
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1189,6 +1618,10 @@ class CLIFactory(object):
         'exclude_subdags': Arg(
             ("-x", "--exclude_subdags"),
             "Exclude subdags", "store_true"),
+        'exclude_parentdag': Arg(
+            ("-xp", "--exclude_parentdag"),
+            "Exclude ParentDAGS if the task cleared is a part of a SubDAG",
+            "store_true"),
         'dag_regex': Arg(
             ("-dx", "--dag_regex"),
             "Search dag_id as regex instead of exact string", "store_true"),
@@ -1214,6 +1647,14 @@ class CLIFactory(object):
             ("-x", "--delete"),
             metavar="NAME",
             help="Delete a pool"),
+        'pool_import': Arg(
+            ("-i", "--import"),
+            metavar="FILEPATH",
+            help="Import pool from JSON file"),
+        'pool_export': Arg(
+            ("-e", "--export"),
+            metavar="FILEPATH",
+            help="Export pool to JSON file"),
         # variables
         'set': Arg(
             ("-s", "--set"),
@@ -1258,6 +1699,11 @@ class CLIFactory(object):
         # dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
         # the "ignore_all_dependencies" command should be called the"force" command
         # instead.
+        'interactive': Arg(
+            ('-int', '--interactive'),
+            help='Do not capture standard output and error streams '
+                 '(useful for interactive debugging)',
+            action='store_true'),
         'force': Arg(
             ("-f", "--force"),
             "Ignore previous task instance state, rerun regardless if task already "
@@ -1341,12 +1787,6 @@ class CLIFactory(object):
             default=conf.get('webserver', 'ERROR_LOGFILE'),
             help="The logfile to store the webserver error log. Use '-' to print to "
                  "stderr."),
-        # resetdb
-        'yes': Arg(
-            ("-y", "--yes"),
-            "Do not prompt to confirm reset. Use with care!",
-            "store_true",
-            default=False),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'run_duration': Arg(
@@ -1374,7 +1814,11 @@ class CLIFactory(object):
             ("-c", "--concurrency"),
             type=int,
             help="The number of worker processes",
-            default=conf.get('celery', 'celeryd_concurrency')),
+            default=conf.get('celery', 'worker_concurrency')),
+        'celery_hostname': Arg(
+            ("-cn", "--celery_hostname"),
+            help=("Set the hostname of celery worker "
+                  "if you have multiple workers on a single machine.")),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_hostname': Arg(
@@ -1389,6 +1833,10 @@ class CLIFactory(object):
         'flower_conf': Arg(
             ("-fc", "--flower_conf"),
             help="Configuration file for flower"),
+        'flower_url_prefix': Arg(
+            ("-u", "--url_prefix"),
+            default=conf.get('celery', 'FLOWER_URL_PREFIX'),
+            help="URL prefix for Flower"),
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
@@ -1411,22 +1859,110 @@ class CLIFactory(object):
             type=str),
         'conn_uri': Arg(
             ('--conn_uri',),
-            help='Connection URI, required to add a connection',
+            help='Connection URI, required to add a connection without conn_type',
+            type=str),
+        'conn_type': Arg(
+            ('--conn_type',),
+            help='Connection type, required to add a connection without conn_uri',
+            type=str),
+        'conn_host': Arg(
+            ('--conn_host',),
+            help='Connection host, optional when adding a connection',
+            type=str),
+        'conn_login': Arg(
+            ('--conn_login',),
+            help='Connection login, optional when adding a connection',
+            type=str),
+        'conn_password': Arg(
+            ('--conn_password',),
+            help='Connection password, optional when adding a connection',
+            type=str),
+        'conn_schema': Arg(
+            ('--conn_schema',),
+            help='Connection schema, optional when adding a connection',
+            type=str),
+        'conn_port': Arg(
+            ('--conn_port',),
+            help='Connection port, optional when adding a connection',
             type=str),
         'conn_extra': Arg(
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
+        # users
+        'username': Arg(
+            ('--username',),
+            help='Username of the user, required to create/delete a user',
+            type=str),
+        'firstname': Arg(
+            ('--firstname',),
+            help='First name of the user, required to create a user',
+            type=str),
+        'lastname': Arg(
+            ('--lastname',),
+            help='Last name of the user, required to create a user',
+            type=str),
+        'role': Arg(
+            ('--role',),
+            help='Role of the user. Existing roles include Admin, '
+                 'User, Op, Viewer, and Public. Required to create a user',
+            type=str),
+        'email': Arg(
+            ('--email',),
+            help='Email of the user, required to create a user',
+            type=str),
+        'password': Arg(
+            ('--password',),
+            help='Password of the user, required to create a user '
+                 'without --use_random_password',
+            type=str),
+        'use_random_password': Arg(
+            ('--use_random_password',),
+            help='Do not prompt for password. Use random string instead.'
+                 ' Required to create a user without --password ',
+            default=False,
+            action='store_true'),
+        'list_users': Arg(
+            ('-l', '--list'),
+            help='List all users',
+            action='store_true'),
+        'create_user': Arg(
+            ('-c', '--create'),
+            help='Create a user',
+            action='store_true'),
+        'delete_user': Arg(
+            ('-d', '--delete'),
+            help='Delete a user',
+            action='store_true'),
+
     }
     subparsers = (
         {
             'func': backfill,
-            'help': "Run subsections of a DAG for a specified date range",
+            'help': "Run subsections of a DAG for a specified date range. "
+                    "If reset_dag_run option is used,"
+                    " backfill will first prompt users whether airflow "
+                    "should clear all the previous dag_run and task_instances "
+                    "within the backfill date range. "
+                    "If rerun_failed_tasks is used, backfill "
+                    "will auto re-run the previous failed task instances"
+                    " within the backfill date range.",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date',
-                'mark_success', 'local', 'donot_pickle', 'include_adhoc',
+                'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                'subdir', 'pool', 'delay_on_limit', 'dry_run')
+                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
+                'reset_dag_run', 'rerun_failed_tasks',
+            )
+        }, {
+            'func': list_dag_runs,
+            'help': "List dag runs given a DAG id. If state option is given, it will only"
+                    "search for all the dagruns with the given state. "
+                    "If no_backfill option is given, it will filter out"
+                    "all backfill dagruns for given dag id.",
+            'args': (
+                'dag_id', 'no_backfill', 'state'
+            )
         }, {
             'func': list_tasks,
             'help': "List the tasks within a DAG",
@@ -1437,7 +1973,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running', 'exclude_subdags', 'dag_regex'),
+                'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
@@ -1451,13 +1987,18 @@ class CLIFactory(object):
             'help': "Trigger a DAG run",
             'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
         }, {
+            'func': delete_dag,
+            'help': "Delete all DB records related to the specified DAG",
+            'args': ('dag_id', 'yes',),
+        }, {
             'func': pool,
             'help': "CRUD operations on pools",
-            "args": ('pool_set', 'pool_get', 'pool_delete'),
+            "args": ('pool_set', 'pool_get', 'pool_delete', 'pool_import', 'pool_export'),
         }, {
             'func': variables,
             'help': "CRUD operations on variables",
-            "args": ('set', 'get', 'json', 'default', 'var_import', 'var_export', 'var_delete'),
+            "args": ('set', 'get', 'json', 'default',
+                     'var_import', 'var_export', 'var_delete'),
         }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
@@ -1474,7 +2015,7 @@ class CLIFactory(object):
                 'dag_id', 'task_id', 'execution_date', 'subdir',
                 'mark_success', 'force', 'pool', 'cfg_path',
                 'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
-                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
+                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
         }, {
             'func': initdb,
             'help': "Initialize the metadata database",
@@ -1507,7 +2048,7 @@ class CLIFactory(object):
             'func': test,
             'help': (
                 "Test a task instance. This will run a task without checking for "
-                "dependencies or recording it's state in the database."),
+                "dependencies or recording its state in the database."),
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
                 'task_params'),
@@ -1534,13 +2075,13 @@ class CLIFactory(object):
         }, {
             'func': worker,
             'help': "Start a Celery worker node",
-            'args': ('do_pickle', 'queues', 'concurrency',
+            'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
-            'args': ('flower_hostname', 'flower_port', 'flower_conf', 'broker_api',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+            'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
+                     'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
             'help': "Show the version",
@@ -1549,12 +2090,28 @@ class CLIFactory(object):
             'func': connections,
             'help': "List/Add/Delete connections",
             'args': ('list_connections', 'add_connection', 'delete_connection',
-                     'conn_id', 'conn_uri', 'conn_extra'),
+                     'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+        }, {
+            'func': users,
+            'help': "List/Create/Delete users",
+            'args': ('list_users', 'create_user', 'delete_user',
+                     'username', 'email', 'firstname', 'lastname', 'role',
+                     'password', 'use_random_password'),
         },
+        {
+            'func': sync_perm,
+            'help': "Update existing role's permissions.",
+            'args': tuple(),
+        },
+        {
+            'func': next_execution,
+            'help': "Get the next execution datetime of a DAG.",
+            'args': ('dag_id', 'subdir')
+        }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
-        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause')
+        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause', 'list_dag_runs')
 
     @classmethod
     def get_parser(cls, dag_parser=False):
