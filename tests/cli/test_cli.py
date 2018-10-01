@@ -75,6 +75,7 @@ def create_mock_args(
     pickle=None,
     raw=None,
     interactive=None,
+    keep_alive=None,
 ):
     if executor_config is None:
         executor_config = {}
@@ -101,6 +102,7 @@ def create_mock_args(
     args.ignore_dependencies = ignore_dependencies
     args.force = force
     args.interactive = interactive
+    args.keep_alive = keep_alive
     return args
 
 
