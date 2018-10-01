@@ -29,7 +29,6 @@ from alembic import op
 import sqlalchemy as sa
 from airflow import settings
 from airflow.models import DagBag
-from airflow.utils.sqlalchemy import UtcDateTime
 
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.engine.reflection import Inspector
@@ -51,7 +50,7 @@ class TaskInstance(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
+    execution_date = Column(sa.DateTime, primary_key=True)
     max_tries = Column(Integer)
     try_number = Column(Integer, default=0)
 
