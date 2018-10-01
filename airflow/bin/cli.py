@@ -1023,17 +1023,41 @@ def scheduler(args):
 @cli_utils.action_logging
 def serve_logs(args):
     print("Starting flask")
-    import flask
-    flask_app = flask.Flask(__name__)
+    from flask import Flask, request, Response, stream_with_context, send_from_directory
+    flask_app = Flask(__name__)
 
     @flask_app.route('/log/<path:filename>')
     def serve_logs(filename):  # noqa
+        def tail_logs(logdir, filename, num_lines):
+            logpath = "{logdir}/{filename}".format(logdir=logdir, filename=filename)
+            logsize = os.path.getsize(logpath)
+            if logsize >= 100 * 1024 * 1024:
+                p1 = subprocess.Popen(["tail", "-n " + str(num_lines), filename],
+                                      stdout=subprocess.PIPE, cwd=log)
+                out, err = p1.communicate()
+                out = "Tailing file\n\n" + out.decode("utf-8")
+            else:
+                fl = open("{log}//{filename}".format(log=log, filename=filename), "r")
+                lines = fl.readlines()
+                fl.close()
+                out = "".join(l for l in lines[-num_lines:])
+            line = "***** Showing only last {num_lines} lines from {filename} *****" \
+                   "\n\n\n{out}".format(num_lines=num_lines, filename=filename, out=out)
+            yield line
+        num_lines = request.args.get("num_lines")
+        try:
+            num_lines = int(num_lines)
+        except ValueError or TypeError:
+            num_lines = None
         log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
-        return flask.send_from_directory(
-            log,
-            filename,
-            mimetype="application/json",
-            as_attachment=False)
+        if num_lines:
+            return Response(stream_with_context(tail_logs(log, filename, num_lines)))
+        else:
+            return send_from_directory(
+                log,
+                filename,
+                mimetype="application/json",
+                as_attachment=False)
 
     WORKER_LOG_SERVER_PORT = \
         int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
