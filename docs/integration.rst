@@ -65,6 +65,15 @@ Your reverse proxy (ex: nginx) should be configured as follow:
           }
       }
 
+To ensure that Airflow generates URLs with the correct scheme when
+running behind a TLS-terminating proxy, you should configure the proxy
+to set the `X-Forwarded-Proto` header, and enable the `ProxyFix`
+middleware in your `airflow.cfg`::
+
+    enable_proxy_fix = True
+
+Note: you should only enable the `ProxyFix` middleware when running
+Airflow behind a trusted proxy (AWS ELB, nginx, etc.).
 
 .. _Azure:
 
