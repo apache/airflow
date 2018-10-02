@@ -114,6 +114,7 @@ user_perms = {
     'set_running',
     'set_success',
     'clear',
+    'can_clear',
 }
 
 op_perms = {

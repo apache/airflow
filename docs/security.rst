@@ -19,7 +19,7 @@ Password
 .. note::
 
    This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
-   please use command line interface ``create_user`` to create accounts, or do that in the FAB-based UI itself.
+   please use command line interface ``airflow users --create`` to create accounts, or do that in the FAB-based UI itself.
 
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
 Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
@@ -342,10 +342,10 @@ certs and keys.
 .. code-block:: bash
 
     [celery]
-    CELERY_SSL_ACTIVE = True
-    CELERY_SSL_KEY = <path to key>
-    CELERY_SSL_CERT = <path to cert>
-    CELERY_SSL_CACERT = <path to cacert>
+    ssl_active = True
+    ssl_key = <path to key>
+    ssl_cert = <path to cert>
+    ssl_cacert = <path to cacert>
 
 Impersonation
 -------------

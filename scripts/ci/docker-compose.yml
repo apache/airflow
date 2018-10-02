@@ -66,6 +66,7 @@ services:
     init: true
     environment:
       - USER=airflow
+      - ADDITIONAL_PATH=~/.local/bin
       - SLUGIFY_USES_TEXT_UNIDECODE=yes
       - TOX_ENV
       - PYTHON_VERSION

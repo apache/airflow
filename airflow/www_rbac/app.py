@@ -41,7 +41,8 @@ csrf = CSRFProtect()
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
-    app.wsgi_app = ProxyFix(app.wsgi_app)
+    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+        app.wsgi_app = ProxyFix(app.wsgi_app)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     airflow_home_path = conf.get('core', 'AIRFLOW_HOME')

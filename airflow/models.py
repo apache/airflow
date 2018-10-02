@@ -26,7 +26,13 @@ from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
-from collections import namedtuple, defaultdict, Hashable
+from collections import namedtuple, defaultdict
+try:
+    # Fix Python > 3.7 deprecation
+    from collections.abc import Hashable
+except ImportError:
+    # Preserve Python < 3.3 compatibility
+    from collections import Hashable
 from datetime import timedelta
 
 import dill
@@ -522,10 +528,12 @@ class DagBag(BaseDagBag, LoggingMixin):
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
 
-        Note that if a .airflowignore file is found while processing,
-        the directory, it will behaves much like a .gitignore does,
+        Note that if a ``.airflowignore`` file is found while processing
+        the directory, it will behave much like a ``.gitignore``,
         ignoring files that match any of the regex patterns specified
-        in the file. **Note**: The patterns in .airflowignore are treated as
+        in the file.
+
+        **Note**: The patterns in .airflowignore are treated as
         un-anchored regexes, not shell-like glob patterns.
         """
         start_dttm = timezone.utcnow()
@@ -581,21 +589,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
         )
-
-    @provide_session
-    def deactivate_inactive_dags(self, session=None):
-        active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
-        for dag in session.query(
-                DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
-            dag.is_active = False
-            session.merge(dag)
-        session.commit()
-
-    @provide_session
-    def paused_dags(self, session=None):
-        dag_ids = [dp.dag_id for dp in session.query(DagModel).filter(
-            DagModel.is_paused.__eq__(True))]
-        return dag_ids
 
 
 class User(Base):
@@ -3383,7 +3376,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
 
-        self._context_manager_set = False
+        self._old_context_manager_dags = []
 
         self._comps = {
             'dag_id',
@@ -3432,16 +3425,13 @@ class DAG(BaseDag, LoggingMixin):
 
     def __enter__(self):
         global _CONTEXT_MANAGER_DAG
-        if not self._context_manager_set:
-            self._old_context_manager_dag = _CONTEXT_MANAGER_DAG
-            _CONTEXT_MANAGER_DAG = self
-            self._context_manager_set = True
+        self._old_context_manager_dags.append(_CONTEXT_MANAGER_DAG)
+        _CONTEXT_MANAGER_DAG = self
         return self
 
     def __exit__(self, _type, _value, _tb):
         global _CONTEXT_MANAGER_DAG
-        _CONTEXT_MANAGER_DAG = self._old_context_manager_dag
-        self._context_manager_set = False
+        _CONTEXT_MANAGER_DAG = self._old_context_manager_dags.pop()
 
     # /Context Manager ----------------------------------------------
 
@@ -4196,16 +4186,6 @@ class DAG(BaseDag, LoggingMixin):
         """
         for task in tasks:
             self.add_task(task)
-
-    @provide_session
-    def db_merge(self, session=None):
-        BO = BaseOperator
-        tasks = session.query(BO).filter(BO.dag_id == self.dag_id).all()
-        for t in tasks:
-            session.delete(t)
-        session.commit()
-        session.merge(self)
-        session.commit()
 
     def run(
             self,
@@ -5276,6 +5256,9 @@ class DagRun(Base, LoggingMixin):
                 continue
 
             if task.task_id not in task_ids:
+                Stats.incr(
+                    "task_instance_created-{}".format(task.__class__.__name__),
+                    1, 1)
                 ti = TaskInstance(task, self.execution_date)
                 session.add(ti)
 

@@ -6,6 +6,7 @@ Integration
 - :ref:`AWS`
 - :ref:`Databricks`
 - :ref:`GCP`
+- :ref:`Qubole`
 
 .. _ReverseProxy:
 
@@ -64,6 +65,15 @@ Your reverse proxy (ex: nginx) should be configured as follow:
           }
       }
 
+To ensure that Airflow generates URLs with the correct scheme when
+running behind a TLS-terminating proxy, you should configure the proxy
+to set the `X-Forwarded-Proto` header, and enable the `ProxyFix`
+middleware in your `airflow.cfg`::
+
+    enable_proxy_fix = True
+
+Note: you should only enable the `ProxyFix` middleware when running
+Airflow behind a trusted proxy (AWS ELB, nginx, etc.).
 
 .. _Azure:
 
@@ -448,6 +458,40 @@ BigQueryHook
     :members:
 
 
+Cloud Functions
+'''''''''''''''
+
+Cloud Functions Operators
+"""""""""""""""""""""""""
+
+- :ref:`GcfFunctionDeployOperator` : deploy Google Cloud Function to the cloud.
+- :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in the cloud.
+
+.. autoclass:: airflow.contrib.operators.gcp_operator.GCP
+
+.. _GcfFunctionDeployOperator:
+
+GcfFunctionDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator
+
+
+.. _GcfFunctionDeleteOperator:
+
+GcfFunctionDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
+
+
+Cloud Functions Hook
+""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_function_hook.GcfHook
+    :members:
+
+
 Cloud DataFlow
 ''''''''''''''
 
@@ -795,3 +839,28 @@ Google Kubernetes Engine Hook
 
 .. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
     :members:
+
+
+.. _Qubole:
+
+Qubole
+------
+
+Apache Airflow has a native operator and hooks to talk to `Qubole <https://qubole.com/>`__,
+which lets you submit your big data jobs directly to Qubole from Apache Airflow.
+
+QuboleOperator
+''''''''''''''
+
+.. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
+
+QubolePartitionSensor
+'''''''''''''''''''''
+
+.. autoclass:: airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor
+
+
+QuboleFileSensor
+''''''''''''''''
+
+.. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleFileSensor

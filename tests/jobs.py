@@ -3285,16 +3285,22 @@ class SchedulerJobTest(unittest.TestCase):
         [JIRA-1357] Test the 'list_py_file_paths' function used by the
         scheduler to list and load DAGs.
         """
-        detected_files = []
-        expected_files = []
+        detected_files = set()
+        expected_files = set()
+        # No_dags is empty, _invalid_ is ignored by .airflowignore
+        ignored_files = [
+            'no_dags.py',
+            'test_invalid_cron.py',
+            'test_zip_invalid_cron.zip',
+        ]
         for file_name in os.listdir(TEST_DAGS_FOLDER):
             if file_name.endswith('.py') or file_name.endswith('.zip'):
-                if file_name not in ['no_dags.py']:
-                    expected_files.append(
+                if file_name not in ignored_files:
+                    expected_files.add(
                         '{}/{}'.format(TEST_DAGS_FOLDER, file_name))
         for file_path in list_py_file_paths(TEST_DAGS_FOLDER):
-            detected_files.append(file_path)
-        self.assertEqual(sorted(detected_files), sorted(expected_files))
+            detected_files.add(file_path)
+        self.assertEqual(detected_files, expected_files)
 
     def test_reset_orphaned_tasks_nothing(self):
         """Try with nothing. """
