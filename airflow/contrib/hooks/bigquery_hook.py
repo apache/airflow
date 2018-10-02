@@ -1487,7 +1487,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         """
         sql = _bind_parameters(operation,
                                parameters) if parameters else operation
-        self.job_id = self.run_query(sql)
+        self.job_id = self.run_query(sql=sql)
 
     def executemany(self, operation, seq_of_parameters):
         """
