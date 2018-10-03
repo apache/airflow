@@ -112,6 +112,11 @@ class BaseJob(Base, LoggingMixin):
         self.heartrate = heartrate
         self.unixname = getpass.getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
+
+        self.schedule_when_period_ends = True
+        if conf.has_option('scheduler', 'schedule_when_period_ends'):
+            self.schedule_when_period_ends = conf.getboolean('scheduler', 'schedule_when_period_ends')
+
         super(BaseJob, self).__init__(*args, **kwargs)
 
     def is_alive(self):
@@ -838,9 +843,9 @@ class SchedulerJob(BaseJob):
                 next_start = dag.following_schedule(now)
                 last_start = dag.previous_schedule(now)
                 if next_start <= now:
-                    new_start = last_start
+                    new_start = last_start if self.schedule_when_period_ends else next_start
                 else:
-                    new_start = dag.previous_schedule(last_start)
+                    new_start = dag.previous_schedule(last_start) if self.schedule_when_period_ends else last_start
 
                 if dag.start_date:
                     if new_start >= dag.start_date:
@@ -883,9 +888,9 @@ class SchedulerJob(BaseJob):
             if next_run_date > timezone.utcnow():
                 return
 
-            # this structure is necessary to avoid a TypeError from concatenating
-            # NoneType
-            if dag.schedule_interval == '@once':
+            # Only use period_end as following_schedule if
+            # schedule_when_period_ends is True
+            if dag.schedule_interval == '@once' or not self.schedule_when_period_ends:
                 period_end = next_run_date
             elif next_run_date:
                 period_end = dag.following_schedule(next_run_date)
