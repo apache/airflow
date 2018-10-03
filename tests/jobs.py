@@ -2316,7 +2316,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_task_instances(dag, queue=queue)
 
         queue.append.assert_called_with(
-            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE)
+            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, 1)
         )
 
     def test_scheduler_do_not_schedule_removed_task(self):
@@ -2584,7 +2584,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_task_instances(dag, queue=queue)
 
         queue.append.assert_called_with(
-            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE)
+            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, 1)
         )
 
     @patch.object(TI, 'pool_full')
