@@ -580,7 +580,8 @@ class SchedulerJob(BaseJob):
         self.using_sqlite = False
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
             if self.max_threads > 1:
-                self.log.error("Cannot use more than 1 thread when using sqlite. Setting max_threads to 1")
+                self.log.error("Cannot use more than 1 thread when using sqlite. "
+                               "Setting max_threads to 1")
             self.max_threads = 1
             self.using_sqlite = True
 
@@ -1026,7 +1027,8 @@ class SchedulerJob(BaseJob):
 
         if tis_changed > 0:
             self.log.warning(
-                "Set %s task instances to state=%s as their associated DagRun was not in RUNNING state",
+                "Set %s task instances to state=%s "
+                "as their associated DagRun was not in RUNNING state",
                 tis_changed, new_state
             )
 
@@ -1201,7 +1203,8 @@ class SchedulerJob(BaseJob):
                                       " this task has been reached.", task_instance)
                         continue
                     else:
-                        task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
+                        task_concurrency_map[(task_instance.dag_id,
+                                              task_instance.task_id)] += 1
 
                 if self.executor.has_task(task_instance):
                     self.log.debug(
@@ -1505,6 +1508,8 @@ class SchedulerJob(BaseJob):
                    "Last Run"]
 
         rows = []
+        dags_folder = conf.get('core', 'dags_folder').rstrip(os.sep)
+
         for file_path in known_file_paths:
             last_runtime = processor_manager.get_last_runtime(file_path)
             processor_pid = processor_manager.get_pid(file_path)
@@ -1512,6 +1517,16 @@ class SchedulerJob(BaseJob):
             runtime = ((timezone.utcnow() - processor_start_time).total_seconds()
                        if processor_start_time else None)
             last_run = processor_manager.get_last_finish_time(file_path)
+
+            file_name = file_path[len(dags_folder) + 1:]
+            dag_name = os.path.splitext(file_name)[0].replace(os.sep, '.')
+            if last_runtime is not None:
+                Stats.gauge('last_runtime.{}'.format(dag_name), last_runtime)
+            if last_run is not None:
+                unixtime = last_run.strftime("%s")
+                seconds_ago = (timezone.utcnow() - last_run).total_seconds()
+                Stats.gauge('last_run.unixtime.{}'.format(dag_name), unixtime)
+                Stats.gauge('last_run.seconds_ago.{}'.format(dag_name), seconds_ago)
 
             rows.append((file_path,
                          processor_pid,
