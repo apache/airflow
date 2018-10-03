@@ -20,6 +20,7 @@
 import logging
 import os
 import requests
+import subprocess
 
 from airflow import configuration as conf
 from airflow.configuration import AirflowConfigException
@@ -94,17 +95,38 @@ class FileTaskHandler(logging.Handler):
         # is needed to get correct log path.
         log_relative_path = self._render_filename(ti, try_number)
         location = os.path.join(self.local_base, log_relative_path)
+        if metadata and "num_lines" in metadata:
+            num_lines = metadata.num_lines
+        else:
+            num_lines = None
 
         log = ""
 
         if os.path.exists(location):
-            try:
-                with open(location) as f:
-                    log += "*** Reading local file: {}\n".format(location)
-                    log += "".join(f.readlines())
-            except Exception as e:
-                log = "*** Failed to load local log file: {}\n".format(location)
-                log += "*** {}\n".format(str(e))
+            if num_lines:
+                try:
+                    logsize = os.path.getsize(location)
+                    if logsize >= 100 * 1024 * 1024:
+                        p1 = subprocess.Popen(["tail", "-n " + str(num_lines), location],
+                                              stdout=subprocess.PIPE)
+                        out, err = p1.communicate()
+                        log = "Tailing file\n\n" + out.decode("utf-8")
+                    else:
+                        fl = open(location, "r")
+                        lines = fl.readlines()
+                        fl.close()
+                        log = "".join(l for l in lines[-num_lines:])
+                except Exception as e:
+                    log = "*** Failed to load local log file: {}\n".format(location)
+                    log += "*** {}\n".format(str(e))
+            else:
+                try:
+                    with open(location) as f:
+                        log += "*** Reading local file: {}\n".format(location)
+                        log += "".join(f.readlines())
+                except Exception as e:
+                    log = "*** Failed to load local log file: {}\n".format(location)
+                    log += "*** {}\n".format(str(e))
         else:
             url = os.path.join(
                 "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
@@ -112,6 +134,8 @@ class FileTaskHandler(logging.Handler):
                 ti=ti,
                 worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
             )
+            if num_lines:
+                url = "{url}?num_lines={num_lines}".format(url=url, num_lines=num_lines)
             log += "*** Log file does not exist: {}\n".format(location)
             log += "*** Fetching from: {}\n".format(url)
             try:

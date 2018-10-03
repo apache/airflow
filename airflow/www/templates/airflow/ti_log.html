@@ -29,6 +29,26 @@ limitations under the License.
     </a>
   </li>
   {% endfor %}
+  <ul class="nav nav-pills pull-right">
+    <li>
+      <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown" id="tailLinesList">
+          <span id="selected">Tail Logs</span><span class="caret"></span>
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="tailLinesList" id="linesList">
+          {% for tail_line in tail_lines_list %}
+            <li class="dropdown-item"><a href="#" onClick="select_tail_lines(this)">{{ tail_line }}</a></li>
+          {% endfor %}
+          <li class="dropdown-item"><a href="#" onClick="select_tail_lines(this)">{{ full_log_title }}</a></li>
+        </ul>
+      </div>
+    </li>
+    <li>
+      <button class="btn btn-default pull-right refresh_button" id="refresh-btn">
+        <span class="glyphicon glyphicon-refresh" aria-hidden="true" title="Refresh Logs"></span>
+      </button>
+    </li>
+  </ul>
 </ul>
 <div class="tab-content">
   {% for log in logs %}
@@ -52,6 +72,8 @@ limitations under the License.
     const ANIMATION_SPEED = 1000;
     // Total number of tabs to show.
     const TOTAL_ATTEMPTS = "{{ logs|length }}";
+    // Text filter to render full log
+    const FULL_LOG_TITLE = "{{ full_log_title }}";
 
     // Recursively fetch logs from flask endpoint.
     function recurse(delay=DELAY) {
@@ -71,7 +93,7 @@ limitations under the License.
     }
 
     // Streaming log with auto-tailing.
-    function autoTailingLog(try_number, metadata=null, auto_tailing=false) {
+    function autoTailingLog(try_number, metadata=null, auto_tailing=false, append_log=true) {
       console.debug("Auto-tailing log for dag_id: {{ dag_id }}, task_id: {{ task_id }}, \
        execution_date: {{ execution_date }}, try_number: " + try_number + ", metadata: " + JSON.stringify(metadata));
 
@@ -107,7 +129,11 @@ limitations under the License.
               var should_scroll = true
             }
             // The message may contain HTML, so either have to escape it or write it as text.
-            document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
+            if(append_log){
+             document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
+            }else{
+              document.getElementById(`try-${try_number}`).textContent = res.message + "\n";
+            }
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
               $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
@@ -130,11 +156,55 @@ limitations under the License.
       // returns at most 10k documents. We want the ability
       // to display all logs in the front-end.
       // An optimization here is to render from latest attempt.
+      var metadata = {{ metadata|safe }}
       for(let i = TOTAL_ATTEMPTS; i >= 1; i--) {
         // Only auto_tailing the page when streaming the latest attempt.
-        autoTailingLog(i, null, auto_tailing=(i == TOTAL_ATTEMPTS));
+        autoTailingLog(i, metadata, auto_tailing=(i == TOTAL_ATTEMPTS));
+      }
+      var num_lines = parseInt(metadata.num_lines);
+      if(!isNaN(num_lines)){
+        $("span#selected").text(num_lines);
+        $('span#selected').attr('data-original-title', `Tail last ${num_lines} lines`);
+        $("ul#linesList").prepend(`<li class="dropdown-item"><a href="#" onClick="select_tail_lines(this)">${num_lines}</a></li><li class="dropdown-divider"></li>`)
+      }
+      var text = $("span#selected").text()
+      var tail_lines = parseInt(text);
+      if(isNaN(tail_lines) && text != FULL_LOG_TITLE){
+        $("#refresh-btn").attr("disabled", "disabled");
       }
     });
+    function select_tail_lines(obj){
+      $('span#selected').text(obj.innerText);
+      if(!isNaN(parseInt(obj.innerText))){
+        $('span#selected').attr('data-original-title', `Tail last ${obj.innerText} lines`);
+      }
+      if(obj.innerText === FULL_LOG_TITLE){
+        $('span#selected').attr('data-original-title', "Fetch full log");
+      }
+      if(isNaN(parseInt(obj.innerText)) && obj.innerText != FULL_LOG_TITLE){
+        $("#refresh-btn").attr("disabled", "disabled");
+      }else{
+        $("#refresh-btn").prop("disabled", false);
+      }
+    }
+    $("#refresh-btn").click(() => {
+      var active_tab = parseInt($("li.active[role=presentation]").children()[0].innerText);
+      var text = $("span#selected").text();
+      var tail_lines = parseInt(text);
+      if(isNaN(tail_lines) && text != FULL_LOG_TITLE){
+        alert(`${text} is not a valid integer`);
+        return;
+      }else if(isNaN(active_tab)){
+        alert(`Invalid integer for active tab`)
+        return;
+      }
+      var metadata = {num_lines: tail_lines};
+      if(text === FULL_LOG_TITLE){
+        metadata = {}
+      }
+      autoTailingLog(active_tab, metadata, true, false);
+    });
+
 
 </script>
 {% endblock %}

@@ -777,10 +777,13 @@ class Airflow(BaseView):
         dttm = pendulum.parse(execution_date)
         try_number = int(request.args.get('try_number'))
         metadata = request.args.get('metadata')
-        metadata = json.loads(metadata)
-
         # metadata may be null
-        if not metadata:
+        if metadata:
+            try:
+                metadata = json.loads(metadata)
+            except TypeError or json.decoder.JSONDecodeError:
+                metadata = {}
+        else:
             metadata = {}
 
         # Convert string datetime into actual datetime
@@ -836,6 +839,23 @@ class Airflow(BaseView):
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
+        metadata = {}
+        try:
+            tailing_required = conf.getboolean('webserver', 'tail_logs')
+            if tailing_required:
+                num_lines = conf.getint('webserver', 'num_lines')
+                metadata = {
+                    "num_lines": num_lines
+                }
+        except Exception:
+            pass
+        tail_lines_list = [100, 200, 500, 1000]
+        try:
+            tail_lines_list = conf.get('webserver', 'tail_lines_list')
+            tail_lines_list = list(map(int, tail_lines_list.split(',')))
+        except Exception:
+            pass
+        tail_lines_list.sort()
 
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
@@ -847,7 +867,8 @@ class Airflow(BaseView):
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts",
             dag_id=dag.dag_id, task_id=task_id,
-            execution_date=execution_date, form=form)
+            execution_date=execution_date, form=form, full_log_title="Full Log",
+            metadata=json.dumps(metadata), tail_lines_list=tail_lines_list)
 
     @expose('/task')
     @login_required
