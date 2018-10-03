@@ -785,7 +785,7 @@ class SchedulerJob(BaseJob):
         for a DAG based on scheduling interval
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
-        if dag.schedule_interval:
+        if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,
