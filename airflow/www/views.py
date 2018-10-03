@@ -207,7 +207,7 @@ def label_link(v, c, m, p):
 
 
 def pool_link(v, c, m, p):
-    url = '/admin/taskinstance/?flt1_pool_equals=' + m.pool
+    url = '/admin/pool/?flt1_pool_equals=' + m.pool
     return Markup("<a href='{url}'>{m.pool}</a>".format(**locals()))
 
 
