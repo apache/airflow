@@ -24,14 +24,14 @@ Create Date: 2016-12-07 15:51:37.119478
 
 """
 
+from alembic import op
+import sqlalchemy as sa
+
 # revision identifiers, used by Alembic.
 revision = '5e7d17757c7a'
 down_revision = '8504051e801b'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():

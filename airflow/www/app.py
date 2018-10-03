@@ -18,7 +18,6 @@
 # under the License.
 #
 import six
-import os
 
 from flask import Flask
 from flask_admin import Admin, base
@@ -48,14 +47,9 @@ def create_app(config=None, testing=False):
     log = LoggingMixin().log
 
     app = Flask(__name__)
-    app.wsgi_app = ProxyFix(app.wsgi_app)
-
-    if configuration.conf.get('webserver', 'SECRET_KEY') == "temporary_key":
-        log.info("SECRET_KEY for Flask App is not specified. Using a random one.")
-        app.secret_key = os.urandom(16)
-    else:
-        app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
-
+    if configuration.conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+        app.wsgi_app = ProxyFix(app.wsgi_app)
+    app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not configuration.conf.getboolean(
         'webserver', 'AUTHENTICATE')
 
@@ -70,8 +64,8 @@ def create_app(config=None, testing=False):
     api.load_auth()
     api.api_auth.init_app(app)
 
-    cache = Cache(
-        app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
+    # flake8: noqa: F841
+    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     app.register_blueprint(routes)
 
@@ -155,11 +149,7 @@ def create_app(config=None, testing=False):
         # required for testing purposes otherwise the module retains
         # a link to the default_auth
         if app.config['TESTING']:
-            if six.PY2:
-                reload(e)
-            else:
-                import importlib
-                importlib.reload(e)
+            six.moves.reload_module(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 

@@ -32,8 +32,8 @@ __version__ = version.version
 
 import sys
 
-from airflow import configuration as conf
-from airflow import settings
+# flake8: noqa: F401
+from airflow import settings, configuration as conf
 from airflow.models import DAG
 from flask_admin import BaseView
 from importlib import import_module
@@ -79,16 +79,3 @@ class AirflowViewPlugin(BaseView):
 class AirflowMacroPlugin(object):
     def __init__(self, namespace):
         self.namespace = namespace
-
-
-from airflow import operators  # noqa: E402
-from airflow import sensors  # noqa: E402
-from airflow import hooks  # noqa: E402
-from airflow import executors  # noqa: E402
-from airflow import macros  # noqa: E402
-
-operators._integrate_plugins()
-sensors._integrate_plugins()  # noqa: E402
-hooks._integrate_plugins()
-executors._integrate_plugins()
-macros._integrate_plugins()

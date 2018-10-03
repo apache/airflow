@@ -51,9 +51,9 @@ class DruidCheckOperator(CheckOperator):
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param druid_broker_conn_id: reference to the druid broker
-    :type druid_broker_conn_id: string
+    :type druid_broker_conn_id: str
     """
 
     @apply_defaults

@@ -20,7 +20,7 @@
 import logging
 from paramiko import SFTP_NO_SUCH_FILE
 from airflow.contrib.hooks.sftp_hook import SFTPHook
-from airflow.operators.sensors import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

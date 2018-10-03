@@ -60,18 +60,18 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
                  **kwargs):
         """
         :param cql: The CQL to execute on the Cassandra table.
-        :type cql: string
+        :type cql: str
         :param bucket: The bucket to upload to.
-        :type bucket: string
+        :type bucket: str
         :param filename: The filename to use as the object name when uploading
             to Google cloud storage. A {} should be specified in the filename
             to allow the operator to inject file numbers in cases where the
             file is split due to size.
-        :type filename: string
+        :type filename: str
         :param schema_filename: If set, the filename to use as the object name
             when uploading a .json file containing the BigQuery schema fields
             for the table that was dumped from MySQL.
-        :type schema_filename: string
+        :type schema_filename: str
         :param approx_max_file_size_bytes: This operator supports the ability
             to split large table dumps into multiple files (see notes in the
             filenamed param docs above). Google cloud storage allows for files
@@ -79,14 +79,14 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
             file size of the splits.
         :type approx_max_file_size_bytes: long
         :param cassandra_conn_id: Reference to a specific Cassandra hook.
-        :type cassandra_conn_id: string
+        :type cassandra_conn_id: str
         :param google_cloud_storage_conn_id: Reference to a specific Google
             cloud storage hook.
-        :type google_cloud_storage_conn_id: string
+        :type google_cloud_storage_conn_id: str
         :param delegate_to: The account to impersonate, if any. For this to
             work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(CassandraToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
         self.cql = cql

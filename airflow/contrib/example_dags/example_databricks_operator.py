@@ -32,7 +32,7 @@ from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOpe
 # the spark jar task will NOT run until the notebook task completes
 # successfully.
 #
-# The definition of a succesful run is if the run has a result_state of "SUCCESS".
+# The definition of a successful run is if the run has a result_state of "SUCCESS".
 # For more information about the state of a run refer to
 # https://docs.databricks.com/api/latest/jobs.html#runstate
 

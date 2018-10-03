@@ -52,10 +52,12 @@ class OracleToOracleTransfer(BaseOperator):
             destination_table,
             oracle_source_conn_id,
             source_sql,
-            source_sql_params={},
+            source_sql_params=None,
             rows_chunk=5000,
             *args, **kwargs):
         super(OracleToOracleTransfer, self).__init__(*args, **kwargs)
+        if source_sql_params is None:
+            source_sql_params = {}
         self.oracle_destination_conn_id = oracle_destination_conn_id
         self.destination_table = destination_table
         self.oracle_source_conn_id = oracle_source_conn_id

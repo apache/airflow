@@ -52,24 +52,28 @@ class BigQueryCheckOperator(CheckOperator):
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param bigquery_conn_id: reference to the BigQuery database
-    :type bigquery_conn_id: string
+    :type bigquery_conn_id: str
+    :param use_legacy_sql: Whether to use legacy SQL (true)
+        or standard SQL (false).
+    :type use_legacy_sql: bool
     """
 
     @apply_defaults
-    def __init__(
-            self,
-            sql,
-            bigquery_conn_id='bigquery_default',
-            *args,
-            **kwargs):
+    def __init__(self,
+                 sql,
+                 bigquery_conn_id='bigquery_default',
+                 use_legacy_sql=True,
+                 *args, **kwargs):
         super(BigQueryCheckOperator, self).__init__(sql=sql, *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
         self.sql = sql
+        self.use_legacy_sql = use_legacy_sql
 
     def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id)
+        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+                            use_legacy_sql=self.use_legacy_sql)
 
 
 class BigQueryValueCheckOperator(ValueCheckOperator):
@@ -77,21 +81,28 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     Performs a simple value check using sql code.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
+    :param use_legacy_sql: Whether to use legacy SQL (true)
+        or standard SQL (false).
+    :type use_legacy_sql: bool
     """
 
     @apply_defaults
-    def __init__(
-            self, sql, pass_value, tolerance=None,
-            bigquery_conn_id='bigquery_default',
-            *args, **kwargs):
+    def __init__(self, sql,
+                 pass_value,
+                 tolerance=None,
+                 bigquery_conn_id='bigquery_default',
+                 use_legacy_sql=True,
+                 *args, **kwargs):
         super(BigQueryValueCheckOperator, self).__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance,
             *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
+        self.use_legacy_sql = use_legacy_sql
 
     def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id)
+        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+                            use_legacy_sql=self.use_legacy_sql)
 
 
 class BigQueryIntervalCheckOperator(IntervalCheckOperator):
@@ -102,7 +113,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     This method constructs a query like so ::
 
         SELECT {metrics_threshold_dict_key} FROM {table}
-            WHERE {date_filter_column}=<date>
+        WHERE {date_filter_column}=<date>
 
     :param table: the table name
     :type table: str
@@ -113,19 +124,22 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         example 'COUNT(*)': 1.5 would require a 50 percent or less difference
         between the current day, and the prior days_back.
     :type metrics_threshold: dict
+    :param use_legacy_sql: Whether to use legacy SQL (true)
+        or standard SQL (false).
+    :type use_legacy_sql: bool
     """
 
     @apply_defaults
-    def __init__(
-            self, table, metrics_thresholds,
-            date_filter_column='ds', days_back=-7,
-            bigquery_conn_id='bigquery_default',
-            *args, **kwargs):
+    def __init__(self, table, metrics_thresholds, date_filter_column='ds',
+                 days_back=-7, bigquery_conn_id='bigquery_default',
+                 use_legacy_sql=True, *args, **kwargs):
         super(BigQueryIntervalCheckOperator, self).__init__(
             table=table, metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
+        self.use_legacy_sql = use_legacy_sql
 
     def get_db_hook(self):
-        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id)
+        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+                            use_legacy_sql=self.use_legacy_sql)

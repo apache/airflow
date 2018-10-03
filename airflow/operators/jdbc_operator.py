@@ -29,7 +29,7 @@ class JdbcOperator(BaseOperator):
     Requires jaydebeapi.
 
     :param jdbc_conn_id: reference to a predefined database
-    :type jdbc_conn_id: string
+    :type jdbc_conn_id: str
     :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.

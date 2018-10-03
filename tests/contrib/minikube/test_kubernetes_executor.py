@@ -16,6 +16,7 @@
 # under the License.
 
 
+import os
 import unittest
 from subprocess import check_call, check_output
 import requests.exceptions
@@ -25,24 +26,32 @@ import six
 import re
 
 try:
-    check_call(["kubectl", "get", "pods"])
+    check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:
-    raise unittest.SkipTest(
-        "Kubernetes integration tests require a minikube cluster;"
-        "Skipping tests {}".format(e)
-    )
+    if os.environ.get('KUBERNETES_VERSION'):
+        raise e
+    else:
+        raise unittest.SkipTest(
+            "Kubernetes integration tests require a minikube cluster;"
+            "Skipping tests {}".format(e)
+        )
 
 
 def get_minikube_host():
-    host_ip = check_output(['minikube', 'ip'])
-    if six.PY3:
-        host_ip = host_ip.decode('UTF-8')
+    if "MINIKUBE_IP" in os.environ:
+        host_ip = os.environ['MINIKUBE_IP']
+    else:
+        host_ip = check_output(['/usr/local/bin/minikube', 'ip'])
+        if six.PY3:
+            host_ip = host_ip.decode('UTF-8')
+
     host = '{}:30809'.format(host_ip.strip())
     return host
 
 
 class KubernetesExecutorTest(unittest.TestCase):
-    def _delete_airflow_pod(self):
+    @staticmethod
+    def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
         air_pod = air_pod.split('\n')
         names = [re.compile('\s+').split(x)[0] for x in air_pod if 'airflow' in x]

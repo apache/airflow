@@ -34,12 +34,13 @@ DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 
 class _DataflowJob(LoggingMixin):
-    def __init__(self, dataflow, project_number, name, location, poll_sleep=10):
+    def __init__(self, dataflow, project_number, name, location, poll_sleep=10,
+                 job_id=None):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
         self._job_location = location
-        self._job_id = None
+        self._job_id = job_id
         self._job = self._get_job()
         self._poll_sleep = poll_sleep
 
@@ -55,13 +56,15 @@ class _DataflowJob(LoggingMixin):
         return None
 
     def _get_job(self):
-        if self._job_name:
+        if self._job_id:
+            job = self._dataflow.projects().locations().jobs().get(
+                projectId=self._project_number,
+                location=self._job_location,
+                jobId=self._job_id).execute(num_retries=5)
+        elif self._job_name:
             job = self._get_job_id_from_name()
         else:
-            job = self._dataflow.projects().jobs().get(
-                projectId=self._project_number,
-                jobId=self._job_id
-            ).execute(num_retries=5)
+            raise Exception('Missing both dataflow job ID and name.')
 
         if job and 'currentState' in job:
             self.log.info(
@@ -124,36 +127,50 @@ class _Dataflow(LoggingMixin):
 
     def _line(self, fd):
         if fd == self._proc.stderr.fileno():
-            lines = self._proc.stderr.readlines()
-            for line in lines:
+            line = b''.join(self._proc.stderr.readlines())
+            if line:
                 self.log.warning(line[:-1])
-            if lines:
-                return lines[-1]
+            return line
         if fd == self._proc.stdout.fileno():
-            line = self._proc.stdout.readline()
+            line = b''.join(self._proc.stdout.readlines())
+            if line:
+                self.log.info(line[:-1])
             return line
 
     @staticmethod
     def _extract_job(line):
-        if line is not None:
-            if line.startswith("Submitted job: "):
-                return line[15:-1]
+        # Job id info: https://goo.gl/SE29y9.
+        job_id_pattern = re.compile(
+            b'.*console.cloud.google.com/dataflow.*/jobs/([a-z|0-9|A-Z|\-|\_]+).*')
+        matched_job = job_id_pattern.search(line or '')
+        if matched_job:
+            return matched_job.group(1).decode()
 
     def wait_for_done(self):
         reads = [self._proc.stderr.fileno(), self._proc.stdout.fileno()]
         self.log.info("Start waiting for DataFlow process to complete.")
-        while self._proc.poll() is None:
+        job_id = None
+        # Make sure logs are processed regardless whether the subprocess is
+        # terminated.
+        process_ends = False
+        while True:
             ret = select.select(reads, [], [], 5)
             if ret is not None:
                 for fd in ret[0]:
                     line = self._line(fd)
                     if line:
-                        self.log.debug(line[:-1])
+                        job_id = job_id or self._extract_job(line)
             else:
                 self.log.info("Waiting for DataFlow process to complete.")
+            if process_ends:
+                break
+            if self._proc.poll() is not None:
+                # Mark process completion but allows its outputs to be consumed.
+                process_ends = True
         if self._proc.returncode is not 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
+        return job_id
 
 
 class DataFlowHook(GoogleCloudBaseHook):
@@ -173,14 +190,13 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    def _start_dataflow(self, task_id, variables, name,
-                        command_prefix, label_formatter):
+    def _start_dataflow(self, variables, name, command_prefix, label_formatter):
         variables = self._set_variables(variables)
-        cmd = command_prefix + self._build_cmd(task_id, variables,
-                                               label_formatter)
-        _Dataflow(cmd).wait_for_done()
+        cmd = command_prefix + self._build_cmd(variables, label_formatter)
+        job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
-                     variables['region'], self.poll_sleep).wait_for_done()
+                     variables['region'],
+                     self.poll_sleep, job_id).wait_for_done()
 
     @staticmethod
     def _set_variables(variables):
@@ -190,9 +206,9 @@ class DataFlowHook(GoogleCloudBaseHook):
             variables['region'] = DEFAULT_DATAFLOW_LOCATION
         return variables
 
-    def start_java_dataflow(self, task_id, variables, dataflow, job_class=None,
+    def start_java_dataflow(self, job_name, variables, dataflow, job_class=None,
                             append_job_name=True):
-        name = self._build_dataflow_job_name(task_id, append_job_name)
+        name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['jobName'] = name
 
         def label_formatter(labels_dict):
@@ -200,46 +216,44 @@ class DataFlowHook(GoogleCloudBaseHook):
                 json.dumps(labels_dict).replace(' ', ''))]
         command_prefix = (["java", "-cp", dataflow, job_class] if job_class
                           else ["java", "-jar", dataflow])
-        self._start_dataflow(task_id, variables, name,
-                             command_prefix, label_formatter)
+        self._start_dataflow(variables, name, command_prefix, label_formatter)
 
-    def start_template_dataflow(self, task_id, variables, parameters, dataflow_template,
+    def start_template_dataflow(self, job_name, variables, parameters, dataflow_template,
                                 append_job_name=True):
-        name = self._build_dataflow_job_name(task_id, append_job_name)
+        name = self._build_dataflow_job_name(job_name, append_job_name)
         self._start_template_dataflow(
             name, variables, parameters, dataflow_template)
 
-    def start_python_dataflow(self, task_id, variables, dataflow, py_options,
+    def start_python_dataflow(self, job_name, variables, dataflow, py_options,
                               append_job_name=True):
-        name = self._build_dataflow_job_name(task_id, append_job_name)
+        name = self._build_dataflow_job_name(job_name, append_job_name)
         variables['job_name'] = name
 
         def label_formatter(labels_dict):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
-        self._start_dataflow(task_id, variables, name,
-                             ["python"] + py_options + [dataflow],
+        self._start_dataflow(variables, name, ["python2"] + py_options + [dataflow],
                              label_formatter)
 
     @staticmethod
-    def _build_dataflow_job_name(task_id, append_job_name=True):
-        task_id = str(task_id).replace('_', '-')
+    def _build_dataflow_job_name(job_name, append_job_name=True):
+        base_job_name = str(job_name).replace('_', '-')
 
-        if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", task_id):
+        if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
             raise ValueError(
                 'Invalid job_name ({}); the name must consist of'
                 'only the characters [-a-z0-9], starting with a '
-                'letter and ending with a letter or number '.format(task_id))
+                'letter and ending with a letter or number '.format(base_job_name))
 
         if append_job_name:
-            job_name = task_id + "-" + str(uuid.uuid1())[:8]
+            safe_job_name = base_job_name + "-" + str(uuid.uuid4())[:8]
         else:
-            job_name = task_id
+            safe_job_name = base_job_name
 
-        return job_name
+        return safe_job_name
 
     @staticmethod
-    def _build_cmd(task_id, variables, label_formatter):
+    def _build_cmd(variables, label_formatter):
         command = ["--runner=DataflowRunner"]
         if variables is not None:
             for attr, value in variables.items():

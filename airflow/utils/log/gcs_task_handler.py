@@ -126,7 +126,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         """
         Returns the log found at the remote_log_location.
         :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: string (path)
+        :type remote_log_location: str (path)
         """
         bkt, blob = self.parse_gcs_url(remote_log_location)
         return self.hook.download(bkt, blob).decode()
@@ -136,9 +136,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
         :param log: the log to write to the remote_log_location
-        :type log: string
+        :type log: str
         :param remote_log_location: the log's location in remote storage
-        :type remote_log_location: string (path)
+        :type remote_log_location: str (path)
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :type append: bool
@@ -164,7 +164,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             self.log.error('Could not write logs to %s: %s', remote_log_location, e)
 
-    def parse_gcs_url(self, gsurl):
+    @staticmethod
+    def parse_gcs_url(gsurl):
         """
         Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
         tuple containing the corresponding bucket and blob.

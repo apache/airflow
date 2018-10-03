@@ -41,10 +41,10 @@ class CassandraTableSensor(BaseSensorOperator):
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
-        :type table: string
+        :type table: str
         :param cassandra_conn_id: The connection ID to use
                                   when connecting to Cassandra cluster
-        :type cassandra_conn_id: string
+        :type cassandra_conn_id: str
         """
         super(CassandraTableSensor, self).__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
