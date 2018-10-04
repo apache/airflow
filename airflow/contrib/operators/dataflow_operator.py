@@ -86,7 +86,7 @@ class DataFlowJavaOperator(BaseOperator):
 
     .. code-block:: python
 
-       t1 = DataFlowOperation(
+       t1 = DataFlowJavaOperator(
            task_id='datapflow_example',
            jar='{{var.value.gcp_dataflow_base}}pipeline/build/libs/pipeline-example-1.0.jar',
            options={
