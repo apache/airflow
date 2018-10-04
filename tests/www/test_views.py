@@ -242,6 +242,7 @@ class TestKnownEventView(unittest.TestCase):
 class TestPoolModelView(unittest.TestCase):
 
     CREATE_ENDPOINT = '/admin/pool/new/?url=/admin/pool/'
+    LIST_ENDPOINT = '/admin/pool/'
 
     @classmethod
     def setUpClass(cls):
@@ -304,6 +305,22 @@ class TestPoolModelView(unittest.TestCase):
         )
         self.assertIn('This field is required.', response.data.decode('utf-8'))
         self.assertEqual(self.session.query(models.Pool).count(), 0)
+
+    def test_list_pools(self):
+        # create test pool
+        self.app.post(
+            self.CREATE_ENDPOINT,
+            data=self.pool,
+            follow_redirects=True,
+        )
+        # Get the list of pools
+        response = self.app.get(self.LIST_ENDPOINT)
+        content = response.data.decode('utf-8')
+        self.assertIn(self.pool['pool'], content)
+        self.assertIn(
+            "<a href='/admin/pool/?flt1_pool_equals=test-pool'>test-pool</a>",
+            content
+        )
 
 
 class TestLogView(unittest.TestCase):
