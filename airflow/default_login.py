@@ -44,14 +44,17 @@ class DefaultUser(object):
     def __init__(self, user):
         self.user = user
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False

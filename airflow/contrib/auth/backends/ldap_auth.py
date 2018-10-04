@@ -235,14 +235,17 @@ class LdapUser(models.User):
             log.info("Password incorrect for user %s", username)
             raise AuthenticationError("Invalid username or password")
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False
@@ -273,7 +276,7 @@ def load_user(userid, session=None):
 
 @provide_session
 def login(self, request, session=None):
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('admin.index'))
 

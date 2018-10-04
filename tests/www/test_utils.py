@@ -117,8 +117,8 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('page=3&search=bash_&showPaused=False',
                          utils.get_params(showPaused=False, page=3, search='bash_'))
 
-    # flask_login is loaded by calling flask_login._get_user.
-    @mock.patch("flask_login._get_user")
+    # flask_login is loaded by calling flask_login.utils._get_user.
+    @mock.patch("flask_login.utils._get_user")
     @mock.patch("airflow.settings.Session")
     def test_action_logging_with_login_user(self, mocked_session, mocked_get_user):
         fake_username = 'someone'
@@ -143,7 +143,7 @@ class UtilsTest(unittest.TestCase):
                 self.assertEqual(fake_username, kwargs['owner'])
                 mocked_session_instance.add.assert_called_once()
 
-    @mock.patch("flask_login._get_user")
+    @mock.patch("flask_login.utils._get_user")
     @mock.patch("airflow.settings.Session")
     def test_action_logging_with_invalid_user(self, mocked_session, mocked_get_user):
         anonymous_username = 'anonymous'
