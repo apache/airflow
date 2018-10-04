@@ -32,7 +32,7 @@ def action_logging(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         session = settings.Session()
-        if g.user.is_anonymous():
+        if g.user.is_anonymous:
             user = 'anonymous'
         else:
             user = g.user.username
