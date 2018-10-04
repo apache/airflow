@@ -71,8 +71,8 @@ class LoginMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or (
-                not current_user.is_anonymous() and
-                current_user.is_authenticated()
+                not current_user.is_anonymous and
+                current_user.is_authenticated
             )
         )
 
@@ -81,7 +81,7 @@ class SuperUserMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or
-            (not current_user.is_anonymous() and current_user.is_superuser())
+            (not current_user.is_anonymous and current_user.is_superuser())
         )
 
 
@@ -89,7 +89,7 @@ class DataProfilingMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or
-            (not current_user.is_anonymous() and current_user.data_profiling())
+            (not current_user.is_anonymous and current_user.data_profiling())
         )
 
 

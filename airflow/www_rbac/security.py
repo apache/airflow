@@ -171,7 +171,7 @@ def init_roles(appbuilder):
 
 
 def is_view_only(user, appbuilder):
-    if user.is_anonymous():
+    if user.is_anonymous:
         anonymous_role = appbuilder.sm.auth_role_public
         return anonymous_role == 'Viewer'
 
