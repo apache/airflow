@@ -317,7 +317,10 @@ class TestPoolModelView(unittest.TestCase):
         response = self.app.get(self.LIST_ENDPOINT)
         content = response.data.decode('utf-8')
         self.assertIn(self.pool['pool'], content)
-        self.assertIn("<a href='/admin/pool/?flt1_pool_equals=test-pool'>test-pool</a>", content)
+        self.assertIn(
+            "<a href='/admin/pool/?flt1_pool_equals=test-pool'>test-pool</a>",
+            content
+        )
 
 
 class TestLogView(unittest.TestCase):
