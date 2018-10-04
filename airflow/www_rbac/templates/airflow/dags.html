@@ -119,15 +119,11 @@
 
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
-                  {% if dag %}
-                    {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
-                    {% if last_run and last_run.execution_date %}
-                      <a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
-                        {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
-                      </a>
-                      <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
-                    {% endif %}
-                  {% endif %}
+                  <div height="10" width="10" id='last-run-{{ dag.safe_dag_id }}' style="display: block;">
+                    <a></a>
+                    <img class="loading-last-run" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+                    <span aria-hidden="true" id="statuses_info" title=" " class="glyphicon glyphicon-info-sign" style="display:none"></span>
+                  </div>
                 </td>
 
                 <!-- Column 8: Dag Runs -->
@@ -317,6 +313,24 @@
             .css('background-color', 'red');
           }
         });
+      });
+      d3.json("{{ url_for('Airflow.last_dagruns') }}", function(error, json) {
+        for(var safe_dag_id in json) {
+          dag_id = json[safe_dag_id].dag_id;
+          last_run = json[safe_dag_id].last_run;
+          g = d3.select('div#last-run-' + safe_dag_id)
+
+          g.selectAll('a')
+            .attr("href", "{{ url_for('Airflow.graph') }}?dag_id=" + dag_id + "&execution_date=" + last_run)
+            .text(last_run);
+
+          g.selectAll('span')
+            .attr("data-original-title", "Start Date: " + last_run)
+            .style('display', null);
+
+          g.selectAll(".loading-last-run").remove();
+        }
+        d3.selectAll(".loading-last-run").remove();
       });
       d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
