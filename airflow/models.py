@@ -1114,10 +1114,10 @@ class TaskInstance(Base, LoggingMixin):
         BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
         if settings.RBAC:
             return BASE_URL + (
-                "/log/list/"
-                "?_flt_3_dag_id={self.dag_id}"
-                "&_flt_3_task_id={self.task_id}"
-                "&_flt_3_execution_date={iso}"
+                "/log?"
+                "execution_date={iso}"
+                "&task_id={self.task_id}"
+                "&dag_id={self.dag_id}"
             ).format(**locals())
         else:
             return BASE_URL + (
