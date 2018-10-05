@@ -3201,7 +3201,7 @@ class DagModel(Base):
 class DAG(BaseDag, LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
-    dependencies. A dag also has a schedule, a start end an end date
+    dependencies. A dag also has a schedule, a start date and an end date
     (optional). For each schedule, (say daily or hourly), the DAG needs to run
     each individual tasks as their dependencies are met. Certain tasks have
     the property of depending on their own past, meaning that they can't run
