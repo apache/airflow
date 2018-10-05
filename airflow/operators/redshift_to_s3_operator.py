@@ -42,6 +42,7 @@ class RedshiftToS3Transfer(BaseOperator):
     :parame verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
+
         - False: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
@@ -69,7 +70,6 @@ class RedshiftToS3Transfer(BaseOperator):
             verify=None,
             unload_options=tuple(),
             autocommit=False,
-            parameters=None,
             include_header=False,
             *args, **kwargs):
         super(RedshiftToS3Transfer, self).__init__(*args, **kwargs)
@@ -82,7 +82,6 @@ class RedshiftToS3Transfer(BaseOperator):
         self.verify = verify
         self.unload_options = unload_options
         self.autocommit = autocommit
-        self.parameters = parameters
         self.include_header = include_header
 
         if self.include_header and \
