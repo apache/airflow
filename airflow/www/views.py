@@ -2422,8 +2422,8 @@ class JobModelView(ModelViewOnly):
 
 class DagRunModelView(ModelViewOnly):
     verbose_name_plural = "DAG Runs"
-    can_edit = False # our user does not need this permission
-    can_create = False # our user does not need this permission
+    can_edit = False  # our user does not need this permission
+    can_create = True
     column_editable_list = ('state',)
     verbose_name = "dag run"
     column_default_sort = ('execution_date', True)
