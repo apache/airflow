@@ -629,3 +629,57 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
             project_id=self.project_id,
             dataset_id=self.dataset_id,
             dataset_reference=self.dataset_reference)
+
+
+class BigQuerySetTableDescriptionOperator(BaseOperator):
+    """
+    This operator is called to set the desription on a table
+
+    :param project_id: The Google cloud project in which to look for the
+        table. The connection supplied must provide access to
+        the specified project.
+    :type project_id: string
+    :param dataset_id: The name of the dataset in which to look for the
+        table.
+    :type dataset_id: string
+    :param table_id: The name of the table to set the description for.
+    :type table_id: string
+    :param description: The description to set
+    :type description: string
+    :param bigquery_conn_id: The connection ID to use when
+        connecting to BigQuery.
+    :type google_cloud_storage_conn_id: string
+    :param delegate_to: The account to impersonate, if any. For this to
+        work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: string
+    """
+    template_fields = ('project_id', 'dataset_id', 'table_id', 'description')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 project_id=None,
+                 dataset_id=None,
+                 table_id=None,
+                 description=None,
+                 bigquery_conn_id='bigquery_default',
+                 delegate_to=None,
+                 *args,
+                 **kwargs):
+        super(BigQuerySetTableDescriptionOperator, self).__init__(*args, **kwargs)
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.description = description
+        self.bigquery_conn_id = bigquery_conn_id
+        self.delegate_to = delegate_to
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(
+            bigquery_conn_id=self.bigquery_conn_id,
+            delegate_to=self.delegate_to)
+        bq_hook.set_table_description(project_id=self.project_id,
+                                      dataset_id=self.dataset_id,
+                                      table_id=self.table_id,
+                                      description=self.description)

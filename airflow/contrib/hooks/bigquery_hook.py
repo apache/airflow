@@ -135,6 +135,34 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
                 return False
             raise
 
+    def set_table_description(self, dataset_id, table_id, description, project_id=None):
+        """
+        Sets the description for the given table
+
+        :param project_id: The Google cloud project in which to look for the
+            table. The connection supplied to the hook must provide access to
+            the specified project.
+        :type project_id: string
+        :param dataset_id: The name of the dataset in which to look for the
+            table.
+        :type dataset_id: string
+        :param table_id: The name of the table to set the description for.
+        :type table_id: string
+        :param description: The description to set
+        :type description: string
+        """
+        service = self.get_service()
+        project_id = project_id if project_id is not None else self._get_field('project')
+        table = service.tables().get(
+            projectId=project_id, datasetId=dataset_id,
+            tableId=table_id).execute()
+        table['description'] = description
+        service.tables().patch(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=table).execute()
+
 
 class BigQueryPandasConnector(GbqConnector):
     """
