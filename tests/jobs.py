@@ -2252,6 +2252,27 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
 
+    def test_scheduler_task_start_date(self):
+        """
+        Test that the scheduler respects task start dates that are different
+        from DAG start dates
+        """
+        dag_id = 'test_task_start_date_scheduling'
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+        scheduler = SchedulerJob(dag_id,
+                                 num_runs=2)
+        scheduler.run()
+
+        session = settings.Session()
+        tiq = session.query(TI).filter(TI.dag_id == dag_id)
+        ti1s = tiq.filter(TI.task_id == 'dummy1').all()
+        ti2s = tiq.filter(TI.task_id == 'dummy2').all()
+        self.assertEqual(len(ti1s), 0)
+        self.assertEqual(len(ti2s), 2)
+        for t in ti2s:
+            self.assertEqual(t.state, State.SUCCESS)
+
     def test_scheduler_multiprocessing(self):
         """
         Test that the scheduler can successfully queue multiple dags in parallel

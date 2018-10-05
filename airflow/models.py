@@ -5252,7 +5252,7 @@ class DagRun(Base, LoggingMixin):
 
         # check for missing tasks
         for task in six.itervalues(dag.task_dict):
-            if task.adhoc:
+            if task.adhoc or task.start_date > self.execution_date:
                 continue
 
             if task.task_id not in task_ids:
