@@ -2217,7 +2217,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag_id = 'test_start_date_scheduling'
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
-        self.assertTrue(dag.start_date > DEFAULT_DATE)
+        self.assertTrue(dag.start_date > datetime.datetime.utcnow() )
 
         scheduler = SchedulerJob(dag_id,
                                  num_runs=2)

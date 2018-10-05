@@ -27,7 +27,7 @@ DEFAULT_DATE = datetime(2016, 1, 1)
 # Previously backfill would queue the task but never run it
 dag1 = DAG(
     dag_id='test_start_date_scheduling',
-    start_date=DEFAULT_DATE + timedelta(days=3))
+    start_date=datetime.utcnow() + timedelta(days=1))
 dag1_task1 = DummyOperator(
     task_id='dummy',
     dag=dag1,
