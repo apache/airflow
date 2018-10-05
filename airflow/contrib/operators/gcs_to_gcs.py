@@ -20,6 +20,7 @@
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from datetime import datetime
 
 
 class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
@@ -55,6 +56,11 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
+    :param filter_by_last_modified: When True, only copies/moves source object(s)
+        that were last modified after last_modified_time
+    :type: bool
+    :param last_modified_time: Timestamp in GMT to filter source object(s)
+    :type datetime
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
     :type google_cloud_storage_conn_id: str
@@ -112,6 +118,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  destination_bucket=None,
                  destination_object=None,
                  move_object=False,
+                 filter_by_last_modified=False,
+                 last_modified_time=datetime.utcnow(),
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
@@ -123,6 +131,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
         self.move_object = move_object
+        self.filter_by_last_modified = filter_by_last_modified
+        self.last_modified_time = last_modified_time
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
         self.wildcard = '*'
@@ -140,6 +150,13 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             objects = hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
+                if self.filter_by_last_modified:
+                    # Check to see if object was modified after last_modified_time
+                    if hook.is_updated_after(self.source_bucket, source_object,
+                                             self.last_modified_time):
+                        pass
+                    else:
+                        continue
                 if self.destination_object is None:
                     destination_object = source_object
                 else:
@@ -156,6 +173,14 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                     hook.delete(self.source_bucket, source_object)
 
         else:
+            if self.filter_by_last_modified:
+                if hook.is_updated_after(self.source_bucket,
+                                         self.source_object,
+                                         self.last_modified_time):
+                    pass
+                else:
+                    return
+
             self.log.info(
                 log_message.format(self.source_bucket, self.source_object,
                                    self.destination_bucket or self.source_bucket,
