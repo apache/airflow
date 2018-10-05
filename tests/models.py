@@ -2361,6 +2361,20 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(d['task_id'][0], 'op')
         self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
 
+    @patch('airflow.settings.RBAC', True)
+    def test_log_url_rbac(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
+
+        expected_url = (
+            'http://localhost:8080/log?'
+            'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
+            '&task_id=op'
+            '&dag_id=dag'
+        )
+        self.assertEqual(ti.log_url, expected_url)
+
     def test_mark_success_url(self):
         now = pendulum.now('Europe/Brussels')
         dag = DAG('dag', start_date=DEFAULT_DATE)
