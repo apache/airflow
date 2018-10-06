@@ -45,8 +45,8 @@ class WorkerConfiguration(LoggingMixin):
     def _get_init_containers(self):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
         # If we're using volume claims to mount the dags, no init container is needed
-        if self.kube_config.dags_volume_claim or \
-           self.kube_config.dags_volume_host or self.kube_config.dags_in_image:
+        if self.kube_config.dags_volume_claim \
+            or (not self.kube_config.git_repo and not self.kube_config.git_branch):
             return []
 
         # Otherwise, define a git-sync init container
@@ -197,63 +197,50 @@ class WorkerConfiguration(LoggingMixin):
                 volume['emptyDir'] = {}
             return volume
 
-        volumes = {
-            self.dags_volume_name: _construct_volume(
+        volumes = []
+        volume_mounts = []
+        volumes = []
+
+        should_use_dag_volume = self.kube_config.dags_volume_claim or (self.kube_config.git_repo and self.kube_config.git_branch)
+        if should_use_dag_volume:
+            dag_volume_mount_path = ""
+            volumes.append(_construct_volume(
                 self.dags_volume_name,
                 self.kube_config.dags_volume_claim,
                 self.kube_config.dags_volume_host
-            ),
-            self.logs_volume_name: _construct_volume(
+            ))
+
+            if self.kube_config.dags_volume_claim:
+                dag_volume_mount_path = self.worker_airflow_dags
+            else:
+                dag_volume_mount_path = os.path.join(
+                    self.worker_airflow_dags,
+                    self.kube_config.git_subpath
+                )
+            dags_volume_mount = {
+                'name': self.dags_volume_name,
+                'mountPath': dag_volume_mount_path,
+                'readOnly': True,
+            }
+            if self.kube_config.dags_volume_subpath:
+                dags_volume_mount['subPath'] = self.kube_config.dags_volume_subpath
+            volume_mounts.append(dags_volume_mount)
+            
+
+        should_use_logs_volume = True
+        if should_use_logs_volume:
+            volumes.append(_construct_volume(
                 self.logs_volume_name,
                 self.kube_config.logs_volume_claim,
                 self.kube_config.logs_volume_host
-            )
-        }
-
-        volume_mounts = {
-            self.dags_volume_name: {
-                'name': self.dags_volume_name,
-                'mountPath': self.generate_dag_volume_mount_path(),
-                'readOnly': True,
-            },
-            self.logs_volume_name: {
+            ))
+            logs_volume_mount = {
                 'name': self.logs_volume_name,
                 'mountPath': self.worker_airflow_logs,
             }
-        }
-
-        if self.kube_config.dags_volume_subpath:
-            volume_mounts[self.dags_volume_name]['subPath'] = self.kube_config.dags_volume_subpath
-
-        if self.kube_config.logs_volume_subpath:
-            volume_mounts[self.logs_volume_name]['subPath'] = self.kube_config.logs_volume_subpath
-
-        if self.kube_config.dags_in_image:
-            del volumes[self.dags_volume_name]
-            del volume_mounts[self.dags_volume_name]
-
-        # Get the SSH key from secrets as a volume
-        if self.kube_config.git_ssh_key_secret_name:
-            volumes[self.git_sync_ssh_secret_volume_name] = {
-                'name': self.git_sync_ssh_secret_volume_name,
-                'secret': {
-                    'secretName': self.kube_config.git_ssh_key_secret_name,
-                    'items': [{
-                        'key': self.git_ssh_key_secret_key,
-                        'path': 'ssh',
-                        'mode': 0o440
-                    }]
-                }
-            }
-
-        if self.kube_config.git_ssh_known_hosts_configmap_name:
-            volumes[self.git_sync_ssh_known_hosts_volume_name] = {
-                'name': self.git_sync_ssh_known_hosts_volume_name,
-                'configMap': {
-                    'name': self.kube_config.git_ssh_known_hosts_configmap_name
-                },
-                'mode': 0o440
-            }
+            if self.kube_config.logs_volume_subpath:
+                logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
+            volume_mounts.append(logs_volume_mount)
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
