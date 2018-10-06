@@ -191,4 +191,9 @@ key3 = value3
         conf.set('celery', 'celery_result_backend_cmd', '/bin/echo 99')
 
         with self.assertWarns(DeprecationWarning):
+            tmp = None
+            if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
+                tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
             self.assertEquals(conf.getint('celery', 'result_backend'), 99)
+            if tmp:
+                os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
