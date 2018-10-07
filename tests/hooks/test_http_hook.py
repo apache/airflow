@@ -42,6 +42,15 @@ def get_airflow_connection(conn_id=None):
     )
 
 
+def get_airflow_connection_with_port(conn_id=None):
+    return models.Connection(
+        conn_id='http_default',
+        conn_type='http',
+        host='test.com',
+        port=1234
+    )
+
+
 class TestHttpHook(unittest.TestCase):
     """Test get, post and raise_for_status"""
     def setUp(self):
@@ -68,6 +77,32 @@ class TestHttpHook(unittest.TestCase):
 
             resp = self.get_hook.run('v1/test')
             self.assertEquals(resp.text, '{"status":{"status": 200}}')
+
+    @requests_mock.mock()
+    @mock.patch('requests.Request')
+    def test_get_request_with_port(self, m, request_mock):
+        from requests.exceptions import MissingSchema
+
+        with mock.patch(
+            'airflow.hooks.base_hook.BaseHook.get_connection',
+            side_effect=get_airflow_connection_with_port
+        ):
+            expected_url = 'http://test.com:1234/some/endpoint'
+            for endpoint in ['some/endpoint', '/some/endpoint']:
+
+                try:
+                    self.get_hook.run(endpoint)
+                except MissingSchema:
+                    pass
+
+                request_mock.assert_called_once_with(
+                    mock.ANY,
+                    expected_url,
+                    headers=mock.ANY,
+                    params=mock.ANY
+                )
+
+                request_mock.reset_mock()
 
     @requests_mock.mock()
     def test_get_request_do_not_raise_for_status_if_check_response_is_false(self, m):
