@@ -30,7 +30,7 @@ class SFTPOperation(object):
 class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
-    This operator uses ssh_hook to open sftp trasport channel that serve as basis
+    This operator uses ssh_hook to open sftp transport channel that serve as basis
     for file transfer.
 
     :param ssh_hook: predefined ssh_hook to use for remote execution.
