@@ -1441,16 +1441,16 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
-    def get_dataset(self, dataset_id="", project_id=""):
+    def get_dataset(self, dataset_id, project_id=None):
         """
         Method returns dataset_resource if dataset exist
         and raised 404 error if dataset does not exist
 
-        :param dataset_id: dataset_id to get
+        :param dataset_id: The BigQuery Dataset ID
         :type dataset_id: str
-        :param project_id: Google Cloud Project for which you try to get dataset
-        :type  project_id: str
-        :return dataset_resource
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :return: dataset_resource
 
             .. seealso::
                 For more information, see Dataset Resource content:
@@ -1459,7 +1459,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if not dataset_id or not isinstance(dataset_id, str):
             raise ValueError("dataset_id argument must be provided and has "
-                             "a type 'str'. You provide: {}".format(dataset_id))
+                             "a type 'str'. You provided: {}".format(dataset_id))
 
         dataset_project_id = project_id if project_id else self.project_id
 
@@ -1473,9 +1473,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return dataset_resource
 
-    def get_datasets_list(self, project_id=""):
+    def get_datasets_list(self, project_id=None):
         """
-        Method returned full list of BigQuery datasets into current project
+        Method returns full list of BigQuery datasets into current project
 
         .. seealso::
             For more information, see:
@@ -1483,10 +1483,10 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param project_id: Google Cloud Project for which you
             try to get all datasets
-        :type  project_id: str
-        :return datasets_list:
+        :type project_id: str
+        :return: datasets_list
 
-            Example of returned datasets_list:
+            Example of returned datasets_list: ::
 
                    {
                       "kind":"bigquery#dataset",
