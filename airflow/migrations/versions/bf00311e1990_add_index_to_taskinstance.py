@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,28 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import unicode_literals
-from __future__ import absolute_import
 
-import os
-import json
-from tempfile import mkstemp
+"""add index to taskinstance
 
-from airflow import configuration as conf
+Revision ID: bf00311e1990
+Revises: dd25f486b8ea
+Create Date: 2018-09-12 09:53:52.007433
+
+"""
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = 'bf00311e1990'
+down_revision = 'dd25f486b8ea'
+branch_labels = None
+depends_on = None
 
 
-def tmp_configuration_copy(chmod=0o600):
-    """
-    Returns a path for a temporary file including a full copy of the configuration
-    settings.
-    :return: a path to a temporary file
-    """
-    cfg_dict = conf.as_dict(display_sensitive=True, raw=True)
-    temp_fd, cfg_path = mkstemp()
+def upgrade():
+    op.create_index(
+        'ti_dag_date',
+        'task_instance',
+        ['dag_id', 'execution_date'],
+        unique=False
+    )
 
-    with os.fdopen(temp_fd, 'w') as temp_file:
-        if chmod is not None:
-            os.fchmod(temp_fd, chmod)
-        json.dump(cfg_dict, temp_file)
 
-    return cfg_path
+def downgrade():
+    op.drop_index('ti_dag_date', table_name='task_instance')

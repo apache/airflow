@@ -139,19 +139,20 @@ class S3ToSFTPOperatorTest(unittest.TestCase):
         ti3.run()
         self.assertEqual(
             ti3.xcom_pull(task_ids='test_check_file', key='return_value').strip(),
-            test_remote_file_content)
+            test_remote_file_content.encode('utf-8'))
 
         # Clean up after finishing with test
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
         self.assertFalse((self.s3_hook.check_for_bucket(self.s3_bucket)))
 
+    @staticmethod
     def delete_remote_resource(self):
         # check the remote file content
         remove_file_task = SSHOperator(
             task_id="test_check_file",
             ssh_hook=self.hook,
-            command="rm {0}".format(self.test_remote_filepath),
+            command="rm {0}".format(self.sftp_path),
             do_xcom_push=True,
             dag=self.dag
         )

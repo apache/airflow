@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 from airflow.utils.decorators import apply_defaults
 
 
+@staticmethod
 def get_s3_key(s3_key):
     """This parses the correct format for S3 keys
         regardless of how the S3 url is passed."""
@@ -76,8 +77,7 @@ class SFTPToS3Operator(BaseOperator):
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
         s3_hook = S3Hook(self.s3_conn_id)
 
-        ssh_client = ssh_hook.get_conn()
-        sftp_client = ssh_client.open_sftp()
+        sftp_client = ssh_hook.get_conn().open_sftp()
 
         with NamedTemporaryFile("w") as f:
             sftp_client.get(self.sftp_path, f.name)

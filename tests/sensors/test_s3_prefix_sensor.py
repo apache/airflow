@@ -16,28 +16,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import unicode_literals
-from __future__ import absolute_import
 
-import os
-import json
-from tempfile import mkstemp
+import mock
+import unittest
 
-from airflow import configuration as conf
+from airflow.sensors.s3_prefix_sensor import S3PrefixSensor
 
 
-def tmp_configuration_copy(chmod=0o600):
-    """
-    Returns a path for a temporary file including a full copy of the configuration
-    settings.
-    :return: a path to a temporary file
-    """
-    cfg_dict = conf.as_dict(display_sensitive=True, raw=True)
-    temp_fd, cfg_path = mkstemp()
+class S3PrefixSensorTests(unittest.TestCase):
 
-    with os.fdopen(temp_fd, 'w') as temp_file:
-        if chmod is not None:
-            os.fchmod(temp_fd, chmod)
-        json.dump(cfg_dict, temp_file)
+    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    def test_poke(self, mock_hook):
+        s = S3PrefixSensor(
+            task_id='s3_prefix',
+            bucket_name='bucket',
+            prefix='prefix')
 
-    return cfg_path
+        mock_hook.return_value.check_for_prefix.return_value = False
+        self.assertFalse(s.poke(None))
+        mock_hook.return_value.check_for_prefix.assert_called_with(
+            prefix='prefix',
+            delimiter='/',
+            bucket_name='bucket')
+
+        mock_hook.return_value.check_for_prefix.return_value = True
+        self.assertTrue(s.poke(None))

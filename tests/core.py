@@ -62,7 +62,7 @@ from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.state import State
-from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
+from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
@@ -80,6 +80,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
+EXAMPLE_DAG_DEFAULT_DATE = days_ago(2)
 
 try:
     import cPickle as pickle
@@ -1805,21 +1806,21 @@ class WebUiTests(unittest.TestCase):
 
         self.dagrun_python = self.dag_python.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
-            execution_date=DEFAULT_DATE,
+            execution_date=EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING
         )
 
         self.sub_dag.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
-            execution_date=DEFAULT_DATE,
+            execution_date=EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING
         )
 
         self.example_xcom.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
-            execution_date=DEFAULT_DATE,
+            execution_date=EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING
         )
@@ -1912,7 +1913,7 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/task?'
             'task_id=runme_0&dag_id=example_bash_operator&'
-            'execution_date={}'.format(DEFAULT_DATE_DS))
+            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
         self.assertIn("Attributes", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/dag_stats')
@@ -1924,22 +1925,21 @@ class WebUiTests(unittest.TestCase):
             "/admin/airflow/success?task_id=print_the_context&"
             "dag_id=example_python_operator&upstream=false&downstream=false&"
             "future=false&past=false&execution_date={}&"
-            "origin=/admin".format(DEFAULT_DATE_DS))
+            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
-        response = self.app.get(url + "&confirmed=true")
         response = self.app.get(
             '/admin/airflow/clear?task_id=print_the_context&'
             'dag_id=example_python_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date={}&'
-            'origin=/admin'.format(DEFAULT_DATE_DS))
+            'origin=/admin'.format(EXAMPLE_DAG_DEFAULT_DATE))
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         url = (
             "/admin/airflow/success?task_id=section-1&"
             "dag_id=example_subdag_operator&upstream=true&downstream=true&"
             "future=false&past=false&execution_date={}&"
-            "origin=/admin".format(DEFAULT_DATE_DS))
+            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         self.assertIn("section-1-task-1", response.data.decode('utf-8'))
@@ -1953,7 +1953,7 @@ class WebUiTests(unittest.TestCase):
             "dag_id=example_python_operator&future=false&past=false&"
             "upstream=false&downstream=true&"
             "execution_date={}&"
-            "origin=/admin".format(DEFAULT_DATE_DS))
+            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
@@ -1962,7 +1962,7 @@ class WebUiTests(unittest.TestCase):
             "dag_id=example_subdag_operator.section-1&future=false&past=false&"
             "upstream=false&downstream=true&recursive=true&"
             "execution_date={}&"
-            "origin=/admin".format(DEFAULT_DATE_DS))
+            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         self.assertIn("example_subdag_operator.end",
@@ -1989,7 +1989,7 @@ class WebUiTests(unittest.TestCase):
             "/admin/airflow/run?task_id=runme_0&"
             "dag_id=example_bash_operator&ignore_all_deps=false&ignore_ti_state=true&"
             "ignore_task_deps=true&execution_date={}&"
-            "origin=/admin".format(DEFAULT_DATE_DS))
+            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
         response = self.app.get(url)
         response = self.app.get(
             "/admin/airflow/refresh?dag_id=example_bash_operator")
@@ -2024,7 +2024,7 @@ class WebUiTests(unittest.TestCase):
         url = (
             "/admin/airflow/object/task_instances?"
             "dag_id=example_python_operator&"
-            "execution_date={}".format(DEFAULT_DATE_DS))
+            "execution_date={}".format(EXAMPLE_DAG_DEFAULT_DATE))
         response = self.app.get(url)
         self.assertIn("print_the_context", response.data.decode('utf-8'))
 
@@ -2032,19 +2032,20 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/task?'
             'task_id=test_dagrun_functool_partial&dag_id=test_task_view_type_check&'
-            'execution_date={}'.format(DEFAULT_DATE_DS))
+            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
         self.assertIn("A function with two args", response.data.decode('utf-8'))
 
     def test_dag_view_task_with_python_operator_using_instance(self):
         response = self.app.get(
             '/admin/airflow/task?'
             'task_id=test_dagrun_instance&dag_id=test_task_view_type_check&'
-            'execution_date={}'.format(DEFAULT_DATE_DS))
+            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
         self.assertIn("A __call__ method", response.data.decode('utf-8'))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
+        self.dag_bash.clear(start_date=EXAMPLE_DAG_DEFAULT_DATE,
+                            end_date=timezone.utcnow())
         session = Session()
         session.query(models.DagRun).delete()
         session.query(models.TaskInstance).delete()
