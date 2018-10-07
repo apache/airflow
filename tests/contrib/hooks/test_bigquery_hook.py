@@ -360,6 +360,68 @@ class TestDatasetsOperations(unittest.TestCase):
                         {"datasetId": "test_dataset",
                          "projectId": "project_test2"}})
 
+    def test_get_dataset_without_dataset_id(self):
+        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+            with self.assertRaises(ValueError):
+                hook.BigQueryBaseCursor(
+                    mock.Mock(), "test_create_empty_dataset").get_dataset(
+                    dataset_id="", project_id="project_test")
+
+    def test_get_dataset(self):
+        expected_result = {
+            "kind": "bigquery#dataset",
+            "location": "US",
+            "id": "your-project:dataset_2_test",
+            "datasetReference": {
+                "projectId": "your-project",
+                "datasetId": "dataset_2_test"
+            }
+        }
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        with mock.patch.object(bq_hook.service, 'datasets') as MockService:
+            MockService.return_value.get(datasetId=dataset_id,
+                                         projectId=project_id).execute.\
+                return_value = expected_result
+            result = bq_hook.get_dataset(dataset_id=dataset_id,
+                                         project_id=project_id)
+            self.assertEqual(result, expected_result)
+
+    def test_get_datasets_list(self):
+        expected_result = {'datasets': [
+            {
+                "kind": "bigquery#dataset",
+                "location": "US",
+                "id": "your-project:dataset_2_test",
+                "datasetReference": {
+                    "projectId": "your-project",
+                    "datasetId": "dataset_2_test"
+                }
+            },
+            {
+                "kind": "bigquery#dataset",
+                "location": "US",
+                "id": "your-project:dataset_1_test",
+                "datasetReference": {
+                    "projectId": "your-project",
+                    "datasetId": "dataset_1_test"
+                }
+            }
+        ]}
+        project_id = "project_test"''
+
+        mocked = mock.Mock()
+        with mock.patch.object(hook.BigQueryBaseCursor(mocked, project_id).service,
+                               'datasets') as MockService:
+            MockService.return_value.list(
+                projectId=project_id).execute.return_value = expected_result
+            result = hook.BigQueryBaseCursor(
+                mocked, "test_create_empty_dataset").get_datasets_list(
+                project_id=project_id)
+            self.assertEqual(result, expected_result['datasets'])
+
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
     @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
