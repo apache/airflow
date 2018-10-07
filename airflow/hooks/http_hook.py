@@ -98,7 +98,11 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self.base_url + endpoint
+        if not self.base_url.endswith('/') and not endpoint.startswith('/'):
+            url = self.base_url + '/' + endpoint
+        else:
+            url = self.base_url + endpoint
+
         req = None
         if self.method == 'GET':
             # GET uses params
