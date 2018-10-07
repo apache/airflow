@@ -51,8 +51,4 @@ class SqlSensor(BaseSensorOperator):
         records = hook.get_records(self.sql)
         if not records:
             return False
-        else:
-            if str(records[0][0]) in ('0', '',):
-                return False
-            else:
-                return True
+        return str(records[0][0]) not in ('0', '')
