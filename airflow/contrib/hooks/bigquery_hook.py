@@ -1475,7 +1475,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
     def get_datasets_list(self, project_id=None):
         """
-        Method returns full list of BigQuery datasets into current project
+        Method returns full list of BigQuery datasets in the current project
 
         .. seealso::
             For more information, see:
