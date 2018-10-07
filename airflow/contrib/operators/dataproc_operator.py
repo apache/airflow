@@ -52,7 +52,8 @@ class DataprocClusterCreateOperator(BaseOperator):
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
     :type project_id: str
-    :param num_workers: The # of workers to spin up
+    :param num_workers: The # of workers to spin up. If set to zero will
+        spin up cluster in a single node mode
     :type num_workers: int
     :param storage_bucket: The storage bucket to use, setting to None lets dataproc
         generate a custom one for you
@@ -133,8 +134,6 @@ class DataprocClusterCreateOperator(BaseOperator):
         auto-deleted at the end of this duration.
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
     :type auto_delete_ttl: int
-    :param single_node: Create single node cluster
-    :type single_node: bool
     """
 
     template_fields = ['cluster_name', 'project_id', 'zone', 'region']
@@ -172,7 +171,6 @@ class DataprocClusterCreateOperator(BaseOperator):
                  idle_delete_ttl=None,
                  auto_delete_time=None,
                  auto_delete_ttl=None,
-                 single_node=False,
                  *args,
                  **kwargs):
 
@@ -208,18 +206,17 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.idle_delete_ttl = idle_delete_ttl
         self.auto_delete_time = auto_delete_time
         self.auto_delete_ttl = auto_delete_ttl
-        self.single_node = single_node
+        self.single_node = num_workers == 0
 
         assert not (self.custom_image and self.image_version), \
             "custom_image and image_version can't be both set"
 
         assert (
-            self.single_node and
-            self.num_preemptible_workers + self.num_workers == 0
-        ) or (
-            not self.single_node and
-            self.num_preemptible_workers + self.num_workers != 0
-        )
+            not self.single_node or (
+                self.single_node and self.num_preemptible_workers == 0
+            )
+        ), "num_workers == 0 means single node mode - no preemptibles allowed"
+
 
     def _get_cluster_list_for_project(self, service):
         result = service.projects().regions().clusters().list(

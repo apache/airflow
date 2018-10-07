@@ -306,25 +306,24 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             num_workers=0,
             num_preemptible_workers=0,
             zone=ZONE,
-            dag=self.dag,
-            single_node=True
+            dag=self.dag
         )
         cluster_data = dataproc_operator._build_cluster_data()
         self.assertEqual(
             cluster_data['config']['softwareConfig']['properties']
             ['dataproc:dataproc.allow.zero.workers'], "true")
 
-    def test_init_with_single_node_and_non_zero_workers(self):
+    def test_init_cluster_with_zero_workers_and_not_non_zero_preemtibles(self):
         with self.assertRaises(AssertionError):
             DataprocClusterCreateOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
                 project_id=PROJECT_ID,
-                num_workers=NUM_WORKERS,
+                num_workers=0,
+                num_preemptible_workers=2,
                 zone=ZONE,
                 dag=self.dag,
                 image_version=IMAGE_VERSION,
-                single_node=True
             )
 
     def test_cluster_name_log_no_sub(self):
