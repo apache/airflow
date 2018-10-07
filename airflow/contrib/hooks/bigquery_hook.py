@@ -1441,6 +1441,86 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
+    def get_dataset(self, dataset_id, project_id=None):
+        """
+        Method returns dataset_resource if dataset exist
+        and raised 404 error if dataset does not exist
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :return: dataset_resource
+
+            .. seealso::
+                For more information, see Dataset Resource content:
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError("dataset_id argument must be provided and has "
+                             "a type 'str'. You provided: {}".format(dataset_id))
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset_resource = self.service.datasets().get(
+                datasetId=dataset_id, projectId=dataset_project_id).execute()
+            self.log.info("Dataset Resource: {}".format(dataset_resource))
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content))
+
+        return dataset_resource
+
+    def get_datasets_list(self, project_id=None):
+        """
+        Method returns full list of BigQuery datasets in the current project
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
+
+        :param project_id: Google Cloud Project for which you
+            try to get all datasets
+        :type project_id: str
+        :return: datasets_list
+
+            Example of returned datasets_list: ::
+
+                   {
+                      "kind":"bigquery#dataset",
+                      "location":"US",
+                      "id":"your-project:dataset_2_test",
+                      "datasetReference":{
+                         "projectId":"your-project",
+                         "datasetId":"dataset_2_test"
+                      }
+                   },
+                   {
+                      "kind":"bigquery#dataset",
+                      "location":"US",
+                      "id":"your-project:dataset_1_test",
+                      "datasetReference":{
+                         "projectId":"your-project",
+                         "datasetId":"dataset_1_test"
+                      }
+                   }
+                ]
+        """
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            datasets_list = self.service.datasets().list(
+                projectId=dataset_project_id).execute()['datasets']
+            self.log.info("Datasets List: {}".format(datasets_list))
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content))
+
+        return datasets_list
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
