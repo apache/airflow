@@ -221,12 +221,6 @@ def _retryable_error(exception):
         or exception.response is not None and exception.response.status_code >= 500
 
 
-def _retryable_error(exception):
-    return isinstance(exception, requests_exceptions.ConnectionError) \
-        or isinstance(exception, requests_exceptions.Timeout) \
-        or exception.response is not None and exception.response.status_code >= 500
-
-
 RUN_LIFE_CYCLE_STATES = [
     'PENDING',
     'RUNNING',
