@@ -145,6 +145,7 @@ Currently **officially** using Airflow:
 1. [Custom Ink](https://www.customink.com/) [[@david-dalisay](https://github.com/david-dalisay), [@dmartin11](https://github.com/dmartin11) & [@mpeteuil](https://github.com/mpeteuil)]
 1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)]
 1. [Data Reply](https://www.datareply.co.uk/) [[@kaxil](https://github.com/kaxil)]
+1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [DocuTAP](https://www.docutap.com/) [[@jshvrsn](https://github.com/jshvrsn) & [@lhvphan](https://github.com/lhvphan) & [@cloneluke](https://github.com/cloneluke)]
@@ -260,9 +261,11 @@ Currently **officially** using Airflow:
 1. [Square](https://squareup.com/)
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
 1. [Tesla](https://www.tesla.com/) [[@thoralf-gutierrez](https://github.com/thoralf-gutierrez)]
+1. [The Home Depot](https://www.homedepot.com/)[[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay)] [[@ilikedata](https://github.com/ilikedata)]
 1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thinknear](https://www.thinknear.com/) [[@d3cay1](https://github.com/d3cay1), [@ccson](https://github.com/ccson), & [@ababian](https://github.com/ababian)]
+1. [ThoughtWorks](https://www.thoughtworks.com/) [[@sann3](https://github.com/sann3)]
 1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
 1. [Tictail](https://tictail.com/)
 1. [Tile](https://tile.com/) [[@ranjanmanish](https://github.com/ranjanmanish)]

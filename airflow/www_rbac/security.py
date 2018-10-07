@@ -195,7 +195,7 @@ class AirflowSecurityManager(SecurityManager):
         """
         if user is None:
             user = g.user
-        if user.is_anonymous():
+        if user.is_anonymous:
             public_role = appbuilder.config.get('AUTH_ROLE_PUBLIC')
             return [appbuilder.security_manager.find_role(public_role)] \
                 if public_role else []
@@ -221,7 +221,7 @@ class AirflowSecurityManager(SecurityManager):
         if not username:
             username = g.user
 
-        if username.is_anonymous() or 'Public' in username.roles:
+        if username.is_anonymous or 'Public' in username.roles:
             # return an empty list if the role is public
             return set()
 
@@ -245,7 +245,7 @@ class AirflowSecurityManager(SecurityManager):
         """
         if not user:
             user = g.user
-        if user.is_anonymous():
+        if user.is_anonymous:
             return self.is_item_public(permission, view_name)
         return self._has_view_access(user, permission, view_name)
 
