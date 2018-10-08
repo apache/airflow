@@ -34,6 +34,9 @@ spec:
     - name: base
       image: airflow-worker:latest
       command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
+    - name: serve_logs
+      image: airflow_worker:latest
+      command: ["airflow", "serve_logs"]
   restartPolicy: Never
     """
 

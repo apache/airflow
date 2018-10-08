@@ -39,6 +39,7 @@ class KubernetesRequestFactory:
     @staticmethod
     def extract_image(pod, req):
         req['spec']['containers'][0]['image'] = pod.image
+        req['spec']['containers'][1]['image'] = pod.image
 
     @staticmethod
     def extract_image_pull_policy(pod, req):
