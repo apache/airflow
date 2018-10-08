@@ -163,10 +163,11 @@ class DbApiHook(BaseHook):
                 for s in sql:
                     if sys.version_info[0] < 3:
                         s = s.encode('utf-8')
-                    self.log.info(s)
                     if parameters is not None:
+                        self.log.info("{} with parameters {}".format(s, parameters))
                         cur.execute(s, parameters)
                     else:
+                        self.log.info(s)
                         cur.execute(s)
 
             # If autocommit was set to False for db that supports autocommit,
