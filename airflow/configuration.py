@@ -154,9 +154,9 @@ class AirflowConfigParser(ConfigParser):
     def __init__(self, default_config=None, *args, **kwargs):
         super(AirflowConfigParser, self).__init__(*args, **kwargs)
 
-        self.defaults = ConfigParser(*args, **kwargs)
+        self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
-            self.defaults.read_string(default_config)
+            self.airflow_defaults.read_string(default_config)
 
         self.is_validated = False
 
@@ -246,9 +246,9 @@ class AirflowConfigParser(ConfigParser):
                 return option
 
         # ...then the default config
-        if self.defaults.has_option(section, key):
+        if self.airflow_defaults.has_option(section, key):
             return expand_env_var(
-                self.defaults.get(section, key, **kwargs))
+                self.airflow_defaults.get(section, key, **kwargs))
 
         else:
             log.warning(
@@ -300,8 +300,8 @@ class AirflowConfigParser(ConfigParser):
         if super(AirflowConfigParser, self).has_option(section, option):
             super(AirflowConfigParser, self).remove_option(section, option)
 
-        if self.defaults.has_option(section, option) and remove_default:
-            self.defaults.remove_option(section, option)
+        if self.airflow_defaults.has_option(section, option) and remove_default:
+            self.airflow_defaults.remove_option(section, option)
 
     def getsection(self, section):
         """
@@ -310,10 +310,11 @@ class AirflowConfigParser(ConfigParser):
         :param section: section from the config
         :return: dict
         """
-        if section not in self._sections and section not in self.defaults._sections:
+        if (section not in self._sections and
+                section not in self.airflow_defaults._sections):
             return None
 
-        _section = copy.deepcopy(self.defaults._sections[section])
+        _section = copy.deepcopy(self.airflow_defaults._sections[section])
 
         if section in self._sections:
             _section.update(copy.deepcopy(self._sections[section]))
@@ -344,7 +345,7 @@ class AirflowConfigParser(ConfigParser):
             are shown as '< hidden >'
         :type display_sensitive: bool
         """
-        cfg = copy.deepcopy(self.defaults._sections)
+        cfg = copy.deepcopy(self.airflow_defaults._sections)
         cfg.update(copy.deepcopy(self._sections))
 
         # remove __name__ (affects Python 2 only)
