@@ -252,8 +252,12 @@ previously you had this in your user class
 
     def is_active(self):
       return self.active
+=======
+## This branch
 
-then you need to change it like this
+### Astronomer Theme
+
+This branch contains some color changes to match the astronomer brand.
 
     @property
     def is_active(self):
@@ -286,6 +290,8 @@ Connecting to an LDAP serever over plain text is not supported anymore. The
 certificate presented by the LDAP server must be signed by a trusted
 certificiate, or you must provide the `cacert` option under `[ldap]` in the
 config file.
+
+The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). Scheduler upness can be determined by graphing and alerting using a rate. If the scheduler goes down, the rate will drop to 0.
 
 If you want to use LDAP auth backend without TLS then you will habe to create a
 custom-auth backend based on
