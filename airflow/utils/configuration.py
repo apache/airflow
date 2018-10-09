@@ -32,7 +32,7 @@ def tmp_configuration_copy():
     settings.
     :return: a path to a temporary file
     """
-    cfg_dict = conf.as_dict(display_sensitive=True)
+    cfg_dict = conf.as_dict(display_sensitive=True, raw=True)
     temp_fd, cfg_path = mkstemp()
 
     with os.fdopen(temp_fd, 'w') as temp_file:
