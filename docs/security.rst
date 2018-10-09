@@ -237,6 +237,12 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
+To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+
+.. code-block:: base
+
+   pip install airflow[kerberos]
+
 OAuth Authentication
 --------------------
 
@@ -263,6 +269,12 @@ to only members of those teams.
 
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
+
+To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+
+.. code-block:: base
+
+   pip install airflow[github_enterprise]
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -305,6 +317,12 @@ login, separated with a comma, to only members of those domains.
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
     domain = "example1.com,example2.com"
+
+To use Google authentication, you must install Airflow with the `google_auth` extras group:
+
+.. code-block:: base
+
+   pip install airflow[google_auth]
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
