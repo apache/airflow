@@ -18,6 +18,7 @@
 # under the License.
 import json
 import unittest
+import datetime
 
 from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
@@ -83,8 +84,16 @@ class TestDagRunsEndpoint(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/dag_runs?run_id_prefix=test'
         dag_id = 'example_bash_operator'
 
-        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs')
-        trigger_dag(dag_id=dag_id, run_id='other_get_dag_runs')
+        dag_run = trigger_dag(
+            dag_id=dag_id,
+            run_id='test_get_dag_runs',
+            execution_date=datetime.datetime.fromtimestamp('1539097214'),
+        )
+        trigger_dag(
+            dag_id=dag_id,
+            run_id='other_get_dag_runs',
+            execution_date=datetime.datetime.fromtimestamp('1539097218'),
+        )
 
         response = self.app.get(url_template.format(dag_id))
         self.assertEqual(200, response.status_code)
