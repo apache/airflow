@@ -22,6 +22,7 @@ under the License.
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
+<<<<<<< HEAD
 ## Airflow 1.10.2
 
 ### Modification to `ts_nodash` macro
@@ -62,9 +63,15 @@ previously you had this in your user class
 
     def is_active(self):
       return self.active
+=======
+## This branch
 
-then you need to change it like this
+### Astronomer Theme
+>>>>>>> Merge UPDATING.md
 
+This branch contains some color changes to match the astronomer brand.
+
+<<<<<<< HEAD
     @property
     def is_active(self):
       return self.active
@@ -96,12 +103,13 @@ Ec2SubnetId, TerminationProtection and KeepJobFlowAliveWhenNoSteps were all top-
 should be inside the "Instances" dict)
 
 ### LDAP Auth Backend now requires TLS
+=======
+### StatsD Metrics
+>>>>>>> Merge UPDATING.md
 
-Connecting to an LDAP serever over plain text is not supported anymore. The
-certificate presented by the LDAP server must be signed by a trusted
-certificiate, or you must provide the `cacert` option under `[ldap]` in the
-config file.
+The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). Scheduler upness can be determined by graphing and alerting using a rate. If the scheduler goes down, the rate will drop to 0.
 
+<<<<<<< HEAD
 If you want to use LDAP auth backend without TLS then you will habe to create a
 custom-auth backend based on
 https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
@@ -121,6 +129,9 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
+=======
+## Airflow Master
+>>>>>>> Merge UPDATING.md
 
 ## Airflow 1.10
 
