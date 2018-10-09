@@ -349,10 +349,10 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :param file_path: the file to process
         :type file_path: unicode
         :param pickle_dags: whether to pickle the DAGs found in the file and
-        save them to the DB
+            save them to the DB
         :type pickle_dags: bool
         :param dag_id_white_list: if specified, only examine DAG ID's that are
-        in this list
+            in this list
         :type dag_id_white_list: list[unicode]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: unicode
@@ -424,6 +424,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def terminate(self, sigkill=False):
         """
         Terminate (and then kill) the process launched to process the file.
+        
         :param sigkill: whether to issue a SIGKILL if SIGTERM doesn't work.
         :type sigkill: bool
         """
@@ -452,6 +453,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def exit_code(self):
         """
         After the process is finished, this can be called to get the return code
+        
         :return: the exit code of the process
         :rtype: int
         """
@@ -463,6 +465,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def done(self):
         """
         Check if the process launched to process this file is done.
+        
         :return: whether the process is finished running
         :rtype: bool
         """
@@ -544,16 +547,18 @@ class SchedulerJob(BaseJob):
         :param dag_ids: if specified, only schedule tasks with these DAG IDs
         :type dag_ids: list[unicode]
         :param subdir: directory containing Python files with Airflow DAG
-        definitions, or a specific path to a file
+            definitions, or a specific path to a file
         :type subdir: unicode
         :param num_runs: The number of times to try to schedule each DAG file.
-        -1 for unlimited within the run_duration.
+            -1 for unlimited within the run_duration.
+        :type num_runs: int
         :param processor_poll_interval: The number of seconds to wait between
-        polls of running processors
+            polls of running processors
+        :type processor_poll_interval: int
         :param run_duration: how long to run (in seconds) before exiting
         :type run_duration: int
         :param do_pickle: once a DAG object is obtained by executing the Python
-        file, whether to serialize the DAG object to the DB
+            file, whether to serialize the DAG object to the DB
         :type do_pickle: bool
         """
         # for BaseJob compatibility
@@ -782,7 +787,7 @@ class SchedulerJob(BaseJob):
     def create_dag_run(self, dag, session=None):
         """
         This method checks whether a new DagRun needs to be created
-        for a DAG based on scheduling interval
+        for a DAG based on scheduling interval.
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
         if dag.schedule_interval and conf.getboolean('scheduler', 'USE_JOB_SCHEDULE'):
@@ -990,7 +995,7 @@ class SchedulerJob(BaseJob):
         :param new_state: set TaskInstances to this state
         :type new_state: State
         :param simple_dag_bag: TaskInstances associated with DAGs in the
-        simple_dag_bag and with states in the old_state will be examined
+            simple_dag_bag and with states in the old_state will be examined
         :type simple_dag_bag: SimpleDagBag
         """
         tis_changed = 0
@@ -1061,7 +1066,7 @@ class SchedulerJob(BaseJob):
         dag concurrency, executor state, and priority.
 
         :param simple_dag_bag: TaskInstances associated with DAGs in the
-        simple_dag_bag will be fetched from the DB and executed
+            simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: SimpleDagBag
         :param executor: the executor that runs task instances
         :type executor: BaseExecutor
@@ -1374,7 +1379,7 @@ class SchedulerJob(BaseJob):
         3. Enqueue the TIs in the executor.
 
         :param simple_dag_bag: TaskInstances associated with DAGs in the
-        simple_dag_bag will be fetched from the DB and executed
+            simple_dag_bag will be fetched from the DB and executed
         :type simple_dag_bag: SimpleDagBag
         :param states: Execute TaskInstances in these states
         :type states: Tuple[State]
@@ -1483,7 +1488,7 @@ class SchedulerJob(BaseJob):
         Print out stats about how files are getting processed.
 
         :param known_file_paths: a list of file paths that may contain Airflow
-        DAG definitions
+            DAG definitions
         :type known_file_paths: list[unicode]
         :param processor_manager: manager for the file processors
         :type stats: DagFileProcessorManager
@@ -1789,7 +1794,7 @@ class SchedulerJob(BaseJob):
         :param file_path: the path to the Python file that should be executed
         :type file_path: unicode
         :param pickle_dags: whether serialize the DAGs found in the file and
-        save them to the db
+            save them to the db
         :type pickle_dags: bool
         :return: a list of SimpleDags made from the Dags found in the file
         :rtype: list[SimpleDag]
@@ -2028,6 +2033,7 @@ class BackfillJob(BaseJob):
         """
         Updates the counters per state of the tasks that were running. Can re-add
         to tasks to run in case required.
+        
         :param ti_status: the internal status of the backfill job tasks
         :type ti_status: BackfillJob._DagRunTaskStatus
         """
@@ -2072,6 +2078,7 @@ class BackfillJob(BaseJob):
         """
         Checks if the executor agrees with the state of task instances
         that are running
+        
         :param running: dict of key, task to verify
         """
         executor = self.executor
@@ -2103,6 +2110,7 @@ class BackfillJob(BaseJob):
         Returns a dag run for the given run date, which will be matched to an existing
         dag run if available or create a new dag run otherwise. If the max_active_runs
         limit is reached, this function will return None.
+        
         :param run_date: the execution date for the dag run
         :type run_date: datetime
         :param session: the database session object
@@ -2162,6 +2170,7 @@ class BackfillJob(BaseJob):
         """
         Returns a map of task instance key to task instance object for the tasks to
         run in the given dag run.
+        
         :param dag_run: the dag run to get the tasks from
         :type dag_run: models.DagRun
         :param session: the database session object
@@ -2227,6 +2236,7 @@ class BackfillJob(BaseJob):
         Process a set of task instances from a set of dag runs. Special handling is done
         to account for different task instance states that could be present when running
         them in a backfill process.
+        
         :param ti_status: the internal status of the job
         :type ti_status: BackfillJob._DagRunTaskStatus
         :param executor: the executor to run the task instances
@@ -2464,6 +2474,7 @@ class BackfillJob(BaseJob):
         Computes the dag runs and their respective task instances for
         the given run dates and executes the task instances.
         Returns a list of execution dates of the dag runs that were executed.
+        
         :param run_dates: Execution dates for dag runs
         :type run_dates: list
         :param ti_status: internal BackfillJob status structure to tis track progress
