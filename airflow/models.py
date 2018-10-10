@@ -62,7 +62,7 @@ from urllib.parse import urlparse, quote, parse_qsl
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
     Integer, LargeBinary, PickleType, String, Text, UniqueConstraint,
-    and_, asc, func, or_, true as sqltrue
+    and_, asc, func, not_, or_, true as sqltrue
 )
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
