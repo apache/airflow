@@ -4643,7 +4643,9 @@ class DAG(BaseDag, LoggingMixin):
                     # according to plan. But if it's FAILED, someone may be
                     # coming to fix it, and SLAs for tasks in it will still
                     # matter.
-                    DR.state != State.SUCCESS).all()
+                    DR.state != State.SUCCESS) \
+                .order_by(asc(DR.execution_date)) \
+                .all()
         else:
             scheduled_tis = []
 
