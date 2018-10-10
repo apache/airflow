@@ -4577,7 +4577,7 @@ class DAG(BaseDag, LoggingMixin):
         # or previously failed.
         unsent_sla_misses = self.get_sla_notifications(session=session)
         self.log.debug("Found %s unsent SLA miss notifications",
-                       len(unsent_sla_misses))\
+                       len(unsent_sla_misses))
 
         # Trigger the SLA miss callbacks.
         if unsent_sla_misses:
