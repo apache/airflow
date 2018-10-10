@@ -4699,7 +4699,7 @@ class DAG(BaseDag, LoggingMixin):
         for sla_miss in sla_misses:
             TI = TaskInstance
             ti = session.query(TI).filter(
-                TI.dag_id != sla_miss.dag_id,
+                TI.dag_id == sla_miss.dag_id,
                 TI.task_id == sla_miss.task_id,
                 TI.execution_date == sla_miss.execution_date,
             ).all()
