@@ -405,6 +405,6 @@ def send_task_late_finish_email(context):
         impacted_downstreams="\n".join(
             describe_task_instance(d) for d in impacted_downstreams),
         ti_url=ti.details_url,
-        art=asciiart.bug)
+        art=asciiart.snail)
 
     return email_to, email_subject, email_body
