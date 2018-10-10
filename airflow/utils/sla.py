@@ -151,7 +151,7 @@ def create_sla_misses(ti, ts, session):
                     sla_type=SM.TASK_DURATION_EXCEEDED,
                     timestamp=ts))
         except Exception:
-            log.warning(
+            log.exception(
                 "Failed to calculate expected duration SLA miss for "
                 "task %s",
                 ti
@@ -178,7 +178,7 @@ def create_sla_misses(ti, ts, session):
                     sla_type=SM.ti_misses,
                     timestamp=ts))
         except Exception:
-            log.warning(
+            log.exception(
                 "Failed to calculate expected start SLA miss for "
                 "task %s",
                 ti
@@ -205,7 +205,7 @@ def create_sla_misses(ti, ts, session):
                     sla_type=SM.TASK_LATE_FINISH,
                     timestamp=ts))
         except Exception:
-            log.warning(
+            log.exception(
                 "Failed to calculate expected finish SLA miss for "
                 "task %s",
                 ti
