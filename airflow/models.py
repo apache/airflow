@@ -4678,8 +4678,8 @@ class DAG(BaseDag, LoggingMixin):
         Given a list of SLA misses, send emails and/or do SLA miss callback.
         """
         if not sla_misses:
-            self.log.info("send_sla_notifications was called without any SLA "
-                          "notifications to send!")
+            self.log.warning("send_sla_notifications was called without any "
+                             "SLA notifications to send!")
             return
 
         # Retrieve the context for this TI, but patch in the SLA miss object.
