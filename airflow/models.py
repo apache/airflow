@@ -4591,6 +4591,11 @@ class DAG(BaseDag, LoggingMixin):
         but expected executions, since new DAG runs may not get created if
         there are concurrency restrictions on the scheduler. We still want to
         receive SLA notifications in that scenario!
+
+        In the future, it would be preferable to have an SLA monitoring service
+        that runs independently from the scheduler, so that the service
+        responsible for scheduling work is not also responsible for determining
+        whether work is being scheduled.
         """
         self.log.debug("Checking for SLA misses for DAG %s", self.dag_id)
 
