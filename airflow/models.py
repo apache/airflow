@@ -2640,7 +2640,7 @@ class BaseOperator(LoggingMixin):
             )
 
             if expected_duration \
-               and (expected_start + expected_duration) >= expected_finish:
+               and (expected_start + expected_duration) > expected_finish:
                 self.log.warning(
                     "Task %s has an expected start + expected duration "
                     ">= expected finish.",
