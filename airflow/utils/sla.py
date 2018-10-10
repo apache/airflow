@@ -91,7 +91,8 @@ def yield_unscheduled_tis(dag_run, ts, session=None):
 
 def get_sla_misses(ti, session):
     """
-    Get all SLA misses that match a particular TaskInstance.
+    Get all SLA misses that match a particular TaskInstance. There may be
+    several matches if the Task has several independent SLAs.
     """
     SM = airflow.models.SlaMiss
     return session.query(SM).filter(
