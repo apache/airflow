@@ -10,7 +10,12 @@ log = LoggingMixin().log
 
 def yield_unscheduled_runs(dag, last_scheduled_run, ts):
     """
-    Yield new DagRuns that haven't been created yet.
+    Yield new DagRuns that haven't been created yet. This functionality is
+    important to SLA misses because it is possible for the scheduler to fall
+    so far behind that it cannot create a DAGRun when it is supposed to (like
+    if it is offline, or if there are strict concurrency limits). We need to
+    understand and alert on what DAGRuns *should* have been created by this
+    point in time.
     """
 
     # TODO: A lot of this logic is duplicated from the scheduler. It would
@@ -75,7 +80,8 @@ def yield_unscheduled_runs(dag, last_scheduled_run, ts):
 def yield_unscheduled_tis(dag_run, ts, session=None):
     """
     Given an unscheduled `DagRun`, yield any unscheduled TIs that will exist
-    for it in the future, respecting the end date of the DAG and task.
+    for it in the future, respecting the end date of the DAG and task. See note
+    above for why this is important for SLA notifications.
     """
     for task in dag_run.dag.tasks:
         end_dates = []
