@@ -47,7 +47,7 @@ def action_logging(f):
 
         if 'execution_date' in request.args:
             log.execution_date = pendulum.parse(
-                request.args.get('execution_date'))
+                request.args.get('execution_date'), strict=False)
 
         session.add(log)
         session.commit()

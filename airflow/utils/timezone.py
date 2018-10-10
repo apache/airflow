@@ -169,4 +169,4 @@ def parse(string):
     Parse a time string and return an aware datetime
     :param string: time string
     """
-    return pendulum.parse(string, tz=TIMEZONE)
+    return pendulum.parse(string, strict=False, tz=TIMEZONE)
