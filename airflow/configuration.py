@@ -130,6 +130,10 @@ class AirflowConfigParser(ConfigParser):
         ('celery', 'result_backend'),
         # Todo: remove this in Airflow 1.11
         ('celery', 'celery_result_backend'),
+        ('atlas', 'password'),
+        ('smtp', 'smtp_password'),
+        ('ldap', 'bind_password'),
+        ('kubernetes', 'git_password'),
     }
 
     # A two-level mapping of (section -> new_name -> old_name). When reading
