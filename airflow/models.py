@@ -2499,7 +2499,8 @@ class BaseOperator(LoggingMixin):
                 'Airflow 2.0. Invalid arguments were:'
                 '\n*args: {a}\n**kwargs: {k}'.format(
                     c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
-                category=PendingDeprecationWarning
+                category=PendingDeprecationWarning,
+                stacklevel=3
             )
 
         validate_key(task_id)
