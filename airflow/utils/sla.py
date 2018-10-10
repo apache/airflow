@@ -299,6 +299,18 @@ def get_blocked_task_instances(task_instance, session=None):
 
 
 def send_task_duration_exceeded_email(context):
+    """
+    This helper function is the default implementation for a duration SLA
+    miss callback. It sends an email to all subscribers explaining that the
+    task is taking too long, which downstream tasks may be impacted, and
+    where to go for further information.
+
+    Note that if the task instance hasn't been created yet (such as scheduler
+    concurrency limits), this function may have a "dummy" task instance in its
+    context. In that case, it will not exist in the db or have a full set of
+    attributes.
+    """
+
     ti = context["ti"]
     target_time = ti.task.expected_duration
     blocked = get_blocked_task_instances(ti)
@@ -324,6 +336,17 @@ def send_task_duration_exceeded_email(context):
 
 
 def send_task_late_start_email(context):
+    """
+    This helper function is the default implementation for a late finish SLA
+    miss callback. It sends an email to all subscribers explaining that the
+    task hasn't started on time, which downstream tasks may be impacted, and
+    where to go for further information.
+
+    Note that if the task instance hasn't been created yet (such as scheduler
+    concurrency limits), this function may have a "dummy" task instance in its
+    context. In that case, it will not exist in the db or have a full set of
+    attributes.
+    """
     ti = context["ti"]
     target_time = ti.execution_date + ti.task.expected_start
     blocked = get_blocked_task_instances(ti)
@@ -348,6 +371,17 @@ def send_task_late_start_email(context):
 
 
 def send_task_late_finish_email(context):
+    """
+    This helper function is the default implementation for a late finish SLA
+    miss callback. It sends an email to all subscribers explaining that the
+    task hasn't finished on time, which downstream tasks may be impacted, and
+    where to go for further information.
+
+    Note that if the task instance hasn't been created yet (such as scheduler
+    concurrency limits), this function may have a "dummy" task instance in its
+    context. In that case, it will not exist in the db or have a full set of
+    attributes.
+    """
     ti = context["ti"]
     target_time = ti.execution_date + ti.task.expected_finish
     blocked = get_blocked_task_instances(ti)
