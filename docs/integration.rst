@@ -457,6 +457,37 @@ BigQueryHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
     :members:
 
+Compute Engine
+''''''''''''''
+
+Compute Engine Operators
+""""""""""""""""""""""""
+
+- :ref:`GceInstanceStartOperator` : start an existing Google Compute Engine instance.
+- :ref:`GceInstanceStopOperator` : stop an existing Google Compute Engine instance.
+- :ref:`GceSetMachineTypeOperator` : change the machine type for a stopped instance.
+
+.. _GceInstanceStartOperator:
+
+GceInstanceStartOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator
+
+.. _GceInstanceStopOperator:
+
+GceInstanceStopOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator
+
+.. _GceSetMachineTypeOperator:
+
+GceSetMachineTypeOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
+
 
 Cloud Functions
 '''''''''''''''

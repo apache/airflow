@@ -102,6 +102,62 @@ to execute a BigQuery load job.
     :start-after: [START howto_operator_gcs_to_bq]
     :end-before: [END howto_operator_gcs_to_bq]
 
+GceInstanceStartOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Allows to start an existing Google Compute Engine instance.
+
+In this example parameter values are extracted from Airflow variables.
+Moreover, the ``default_args`` dict is used to pass common arguments to all operators in a single DAG.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :start-after: [START howto_operator_gce_args]
+    :end-before: [END howto_operator_gce_args]
+
+
+Define the :class:`~airflow.contrib.operators.gcp_compute_operator
+.GceInstanceStartOperator` by passing the required arguments to the constructor.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_start]
+    :end-before: [END howto_operator_gce_start]
+
+GceInstanceStopOperator
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Allows to stop an existing Google Compute Engine instance.
+
+For parameter definition take a look at :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator` above.
+
+Define the :class:`~airflow.contrib.operators.gcp_compute_operator
+.GceInstanceStopOperator` by passing the required arguments to the constructor.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_stop]
+    :end-before: [END howto_operator_gce_stop]
+
+GceSetMachineTypeOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Allows to change the machine type for a stopped instance to the specified machine type.
+
+For parameter definition take a look at :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator` above.
+
+Define the :class:`~airflow.contrib.operators.gcp_compute_operator
+.GceSetMachineTypeOperator` by passing the required arguments to the constructor.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_set_machine_type]
+    :end-before: [END howto_operator_gce_set_machine_type]
+
+
 GcfFunctionDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
