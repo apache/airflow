@@ -4614,6 +4614,8 @@ class DAG(BaseDag, LoggingMixin):
         )
 
         # TODO: Is there a better limit here than "look at most recent 100"?
+        # Perhaps there should be a configurable lookback window on the DAG,
+        # for how many runs to consider SLA violations for.
         scheduled_dagruns = scheduled_dagruns[-100:]
         scheduled_dagrun_ids = [d.id for d in scheduled_dagruns]
 
