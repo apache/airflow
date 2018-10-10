@@ -519,6 +519,23 @@ class GcfFunctionDeployTest(unittest.TestCase):
         )
         mock_hook.reset_mock()
 
+    @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
+    def test_extra_parameter(self, mock_hook):
+        mock_hook.return_value.list_functions.return_value = []
+        mock_hook.return_value.create_new_function.return_value = True
+        body = deepcopy(VALID_BODY)
+        body['extra_parameter'] = 'extra'
+        op = GcfFunctionDeployOperator(
+            project_id="test_project_id",
+            location="test_region",
+            body=body,
+            task_id="id"
+        )
+        op.execute(None)
+        mock_hook.assert_called_once_with(api_version='v1',
+                                          gcp_conn_id='google_cloud_default')
+        mock_hook.reset_mock()
+
 
 class GcfFunctionDeleteTest(unittest.TestCase):
     _FUNCTION_NAME = 'projects/project_name/locations/project_location/functions' \
