@@ -4602,10 +4602,14 @@ class DAG(BaseDag, LoggingMixin):
         # Get all current DagRuns.
         scheduled_dagruns = DagRun.find(
             dag_id=self.dag_id,
-            # TODO: Implement SLA misses for backfills and externally triggered
+            # TODO related to AIRFLOW-2236: determine how SLA misses should
+            # work for backfills and externally triggered
             # DAG runs. At minimum they could have duration SLA misses.
             external_trigger=False,
             no_backfills=True,
+            # We aren't passing in the "state" parameter because we care about
+            # checking for SLAs whether the DAG run has failed, succeeded, or
+            # is still running.
             session=session
         )
 
