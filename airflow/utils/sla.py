@@ -263,10 +263,12 @@ def get_subscribers(tasks):
 
 
 @provide_session
-def get_blocked_task_instances(task_instance, session=None):
+def get_impacted_downstream_task_instances(task_instance, session=None):
     """
-    Given a task instance, return task instances that may currently
-    be blocked by it.
+    Given a task instance that has had an SLA miss, return any
+    downstream task instances that may have been impacted too. In this case, we
+    mean any tasks that may now themselves be delayed due to the initial delay,
+    even if the downstream tasks themselves do not have SLAs set.
     """
     dag = task_instance.task.dag
 
@@ -314,9 +316,9 @@ def send_task_duration_exceeded_email(context):
 
     ti = context["ti"]
     target_time = ti.task.expected_duration
-    blocked = get_blocked_task_instances(ti)
+    impacted_downstreams = get_impacted_downstream_task_instances(ti)
 
-    email_to = get_subscribers(blocked)
+    email_to = get_subscribers(impacted_downstreams)
     email_subject = get_sla_miss_subject("Exceeded duration", ti)
     email_body = ""
     "<pre><code>{task_string}</pre></code> missed an SLA: duration "
@@ -324,12 +326,12 @@ def send_task_duration_exceeded_email(context):
 
     "View Task Details: {ti_url}\n\n"
 
-    "This may be blocking the following downstream tasks:\n"
-
+    "This may be impacting the following downstream tasks:\n"
     "<pre><code>{blocked_tasks}\n{art}</pre></code>".format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
-        blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
+        impacted_downstreams="\n".join(
+            describe_task_instance(d) for d in impacted_downstreams),
         ti_url=ti.details_url,
         art=asciiart.snail)
 
@@ -350,9 +352,9 @@ def send_task_late_start_email(context):
     """
     ti = context["ti"]
     target_time = ti.execution_date + ti.task.expected_start
-    blocked = get_blocked_task_instances(ti)
+    impacted_downstreams = get_impacted_downstream_task_instances(ti)
 
-    email_to = get_subscribers(blocked)
+    email_to = get_subscribers(impacted_downstreams)
     email_subject = get_sla_miss_subject("Late start", ti)
     email_body = ""
     "<pre><code>{task_string}</pre></code> missed an SLA: did not start by "
@@ -360,11 +362,12 @@ def send_task_late_start_email(context):
 
     "View Task Details: {ti_url}\n\n"
 
-    "This may be blocking the following downstream tasks:\n"
-    "<pre><code>{blocked_tasks}\n{art}</pre></code>".format(
+    "This may be impacting the following downstream tasks:\n"
+    "<pre><code>{impacted_downstreams}\n{art}</pre></code>".format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
-        blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
+        impacted_downstreams="\n".join(
+            describe_task_instance(d) for d in impacted_downstreams),
         ti_url=ti.details_url,
         art=asciiart.snail)
 
@@ -385,9 +388,9 @@ def send_task_late_finish_email(context):
     """
     ti = context["ti"]
     target_time = ti.execution_date + ti.task.expected_finish
-    blocked = get_blocked_task_instances(ti)
+    impacted_downstreams = get_impacted_downstream_task_instances(ti)
 
-    email_to = get_subscribers(blocked)
+    email_to = get_subscribers(impacted_downstreams)
     email_subject = get_sla_miss_subject("Late finish", ti)
     email_body = ""
     "<pre><code>{task_string}</pre></code> missed an SLA: did not finish by "
@@ -395,11 +398,12 @@ def send_task_late_finish_email(context):
 
     "View Task Details: {ti_url}\n\n"
 
-    "This may be blocking the following downstream tasks:\n"
-    "<pre><code>{blocked_tasks}\n{art}</pre></code>".format(
+    "This may be impacting the following downstream tasks:\n"
+    "<pre><code>{impacted_downstreams}\n{art}</pre></code>".format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
-        blocked_tasks="\n".join(describe_task_instance(d) for d in blocked),
+        impacted_downstreams="\n".join(
+            describe_task_instance(d) for d in impacted_downstreams),
         ti_url=ti.details_url,
         art=asciiart.bug)
 
