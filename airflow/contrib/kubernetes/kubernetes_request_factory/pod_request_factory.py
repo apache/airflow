@@ -37,12 +37,10 @@ spec:
   containers:
     - name: base
       image: airflow-worker:latest
-      command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
-    - name: serve-logs
-      image: airflow-worker:latest
-      command: ["airflow", "serve_logs"]
+      command: ["airflow", "serve_and_run"]
       ports:
-        - containerPort: 8793
+        - name: "logs"
+          containerPort: 8793
   restartPolicy: Never
     """
 

@@ -39,7 +39,6 @@ class KubernetesRequestFactory:
     @staticmethod
     def extract_image(pod, req):
         req['spec']['containers'][0]['image'] = pod.image
-        req['spec']['containers'][1]['image'] = pod.image
 
     @staticmethod
     def extract_image_pull_policy(pod, req):
@@ -103,9 +102,6 @@ class KubernetesRequestFactory:
             req['spec']['containers'][0]['volumeMounts'] = (
                 req['spec']['containers'][0].get('volumeMounts', []))
             req['spec']['containers'][0]['volumeMounts'].extend(pod.volume_mounts)
-            req['spec']['containers'][1]['volumeMounts'] = (
-                req['spec']['containers'][1].get('volumeMounts', []))
-            req['spec']['containers'][1]['volumeMounts'].extend(pod.volume_mounts)
 
     @staticmethod
     def extract_name(pod, req):
@@ -143,7 +139,6 @@ class KubernetesRequestFactory:
             for secret in env_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
             req['spec']['containers'][0]['env'] = env
-            req['spec']['containers'][1]['env'] = env
 
     @staticmethod
     def extract_resources(pod, req):
