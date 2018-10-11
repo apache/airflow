@@ -2677,9 +2677,18 @@ class DagRunModelView(ModelViewOnly):
             ('failed', 'failed'),
         ],
     }
-    form_args = dict(
-        dag_id=dict(validators=[validators.DataRequired()])
-    )
+    form_args = {
+        'dag_id': {
+            'validators': [
+                validators.DataRequired(),
+            ]
+        },
+        'execution_date': {
+            'filters': [
+                parse_datetime_f,
+            ]
+        }
+    }
     column_list = (
         'state', 'dag_id', 'execution_date', 'run_id', 'external_trigger')
     column_filters = column_list
@@ -2692,6 +2701,7 @@ class DagRunModelView(ModelViewOnly):
         dag_id=dag_link,
         run_id=dag_run_link
     )
+    form_overrides = dict(execution_date=DateTimeField)
 
     @action('new_delete', "Delete", "Are you sure you want to delete selected records?")
     @provide_session
