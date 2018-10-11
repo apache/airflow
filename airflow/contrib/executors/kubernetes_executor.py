@@ -604,6 +604,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def _create_worker_service(self):
         service = self.kube_client.create_namespaced_service(
             self.kube_config.executor_namespace, kubernetes.client.V1Service(
+                metadata=kubernetes.client.V1ObjectMeta(
+                    name='airflow-worker-logs'
+                ),
                 spec=kubernetes.client.V1ServiceSpec(
                     cluster_ip=None,
                     selector={
