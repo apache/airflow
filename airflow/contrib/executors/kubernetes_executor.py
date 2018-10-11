@@ -600,6 +600,24 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 for account_spec in self.kube_config.gcp_service_account_keys.split(',')]
             for service_account in name_path_pair_list:
                 _create_or_update_secret(service_account['name'], service_account['path'])
+    
+    def _create_worker_service(self):
+        service = self.kube_client.create_namespaced_service(
+            self.kube_config.executor_namespace, kubernetes.client.V1Service(
+                spec=kubernetes.client.V1ServiceSpec(
+                    cluster_ip=None,
+                    selector={
+                        'app.kubernetes.io/name': 'airflow-worker',
+                    },
+                    ports=[
+                        kubernetes.client.V1ServicePort(
+                            name='logs',
+                            protocol='TCP',
+                            port=8793
+                        )
+                    ]
+                )
+            ))
 
     def start(self):
         self.log.info('Start Kubernetes executor')
@@ -618,6 +636,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             self.kube_client, self.worker_uuid
         )
         self._inject_secrets()
+        self._create_worker_service()
         self.clear_not_launched_queued_tasks()
 
     def execute_async(self, key, command, queue=None, executor_config=None):
