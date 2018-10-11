@@ -180,6 +180,11 @@ elasticsearch_end_of_log_mark = end_of_log
 ```
 
 The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storages. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
+basically 
+```
+[core]
+task_log_reader = task
+```
 
 #### Change of per-task log path
 
