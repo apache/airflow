@@ -40,6 +40,8 @@ class SqlSensorTests(unittest.TestCase):
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
+    @unittest.skipUnless('mysql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+                        "this is a mysql test")
     def test_sql_sensor_mysql(self):
         t = SqlSensor(
             task_id='sql_sensor_check',
@@ -49,6 +51,8 @@ class SqlSensorTests(unittest.TestCase):
         )
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @unittest.skipUnless('postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'),
+                        "this is a postgres test")
     def test_sql_sensor_postgres(self):
         t = SqlSensor(
             task_id='sql_sensor_check',
