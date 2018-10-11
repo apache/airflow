@@ -29,13 +29,16 @@ class SimplePodRequestFactory(KubernetesRequestFactory):
 kind: Pod
 metadata:
   name: name
+  labels:
+    app.kubernetes.io/name: airflow-worker
+    app.kubernetes.io/part-of: airflow
 spec:
   containers:
     - name: base
       image: airflow-worker:latest
       command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
     - name: serve-logs
-      image: airflow_worker:latest
+      image: airflow-worker:latest
       command: ["airflow", "serve_logs"]
       ports:
         - containerPort: 8793
