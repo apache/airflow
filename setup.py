@@ -121,6 +121,7 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
+
 async = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
@@ -238,6 +239,10 @@ devel = [
     'rednose',
     'requests_mock'
 ]
+# We need unittest2 in Python 2.x to run tests
+if not PY3:
+    devel = devel + ['unittest2']
+
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
@@ -251,7 +256,7 @@ if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
 else:
-    devel_ci = devel_all + ['unittest2']
+    devel_ci = devel_all
 
 
 def do_setup():

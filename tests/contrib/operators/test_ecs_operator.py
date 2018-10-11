@@ -200,6 +200,38 @@ class TestECSOperator(unittest.TestCase):
         self.ecs._check_success_task()
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
+    def test_host_terminated_raises(self):
+        client_mock = mock.Mock()
+        self.ecs.client = client_mock
+        self.ecs.arn = 'arn'
+        client_mock.describe_tasks.return_value = {
+            'tasks': [{
+                'stoppedReason': 'Host EC2 (instance i-1234567890abcdef) terminated.',
+                "containers": [
+                    {
+                        "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",
+                        "lastStatus": "RUNNING",
+                        "name": "wordpress",
+                        "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55"
+                    }
+                ],
+                "desiredStatus": "STOPPED",
+                "lastStatus": "STOPPED",
+                "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55",
+                "taskDefinitionArn": "arn:aws:ecs:us-east-1:012345678910:task-definition/hello_world:11"
+
+            }]
+        }
+
+        with self.assertRaises(AirflowException) as e:
+            self.ecs._check_success_task()
+
+        self.assertIn(
+            "The task was stopped because the host instance terminated:", str(e.exception))
+        self.assertIn("Host EC2 (", str(e.exception))
+        self.assertIn(") terminated", str(e.exception))
+        client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
+
     def test_check_success_task_not_raises(self):
         client_mock = mock.Mock()
         self.ecs.client = client_mock

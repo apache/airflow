@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
+import re
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -115,6 +116,9 @@ class ECSOperator(BaseOperator):
             raise AirflowException(response)
 
         for task in response['tasks']:
+            if re.match('Host .+?\(.+?\) terminated\.', task.get('stoppedReason', '')):
+                raise AirflowException('The task was stopped because the host instance terminated: {}'.format(
+                    task.get('stoppedReason', '')))
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and \
