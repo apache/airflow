@@ -21,10 +21,14 @@ import unittest
 from datetime import datetime
 from mock import Mock
 
+import pendulum
 from airflow.models import DAG, BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import State
+
+
+UTC = pendulum.timezone('UTC')
 
 
 class PrevDagrunDepTest(unittest.TestCase):
@@ -42,9 +46,9 @@ class PrevDagrunDepTest(unittest.TestCase):
                               wait_for_downstream=False)
         prev_ti = Mock(task=task, state=State.SUCCESS,
                        are_dependents_done=Mock(return_value=True),
-                       execution_date=datetime(2016, 1, 2))
+                       execution_date=datetime(2016, 1, 2, tzinfo=UTC))
         ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 3))
+                  execution_date=datetime(2016, 1, 3, tzinfo=UTC))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -59,9 +63,9 @@ class PrevDagrunDepTest(unittest.TestCase):
                               wait_for_downstream=False)
         prev_ti = Mock(task=task, state=State.SUCCESS,
                        are_dependents_done=Mock(return_value=True),
-                       execution_date=datetime(2016, 1, 2))
+                       execution_date=datetime(2016, 1, 2, tzinfo=UTC))
         ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 3))
+                  execution_date=datetime(2016, 1, 3, tzinfo=UTC))
         dep_context = DepContext(ignore_depends_on_past=True)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -75,7 +79,7 @@ class PrevDagrunDepTest(unittest.TestCase):
                               wait_for_downstream=False)
         prev_ti = None
         ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 1))
+                  execution_date=datetime(2016, 1, 1, tzinfo=UTC))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -90,7 +94,7 @@ class PrevDagrunDepTest(unittest.TestCase):
         prev_ti = Mock(state=State.NONE,
                        are_dependents_done=Mock(return_value=True))
         ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 2))
+                  execution_date=datetime(2016, 1, 2, tzinfo=UTC))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertFalse(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -107,7 +111,7 @@ class PrevDagrunDepTest(unittest.TestCase):
         prev_ti = Mock(state=State.SUCCESS,
                        are_dependents_done=Mock(return_value=False))
         ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 2))
+                  execution_date=datetime(2016, 1, 2, tzinfo=UTC))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertFalse(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
@@ -122,7 +126,7 @@ class PrevDagrunDepTest(unittest.TestCase):
         prev_ti = Mock(state=State.SUCCESS,
                        are_dependents_done=Mock(return_value=True))
         ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 2))
+                  execution_date=datetime(2016, 1, 2, tzinfo=UTC))
         dep_context = DepContext(ignore_depends_on_past=False)
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))
