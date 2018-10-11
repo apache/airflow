@@ -24,11 +24,16 @@ from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.celery_executor import app
 from airflow.utils.state import State
 
+from airflow import configuration
+configuration.load_test_config()
+
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 
 
 class CeleryExecutorTest(unittest.TestCase):
+    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+                     "sqlite is configured with SequentialExecutor")
     def test_celery_integration(self):
         executor = CeleryExecutor()
         executor.start()
