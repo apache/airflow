@@ -103,6 +103,9 @@ class KubernetesRequestFactory:
             req['spec']['containers'][0]['volumeMounts'] = (
                 req['spec']['containers'][0].get('volumeMounts', []))
             req['spec']['containers'][0]['volumeMounts'].extend(pod.volume_mounts)
+            req['spec']['containers'][1]['volumeMounts'] = (
+                req['spec']['containers'][1].get('volumeMounts', []))
+            req['spec']['containers'][1]['volumeMounts'].extend(pod.volume_mounts)
 
     @staticmethod
     def extract_name(pod, req):
