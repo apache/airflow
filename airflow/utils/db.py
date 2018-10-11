@@ -268,7 +268,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='qubole_default', conn_type='qubole',
-            host= 'localhost'))
+            host='localhost'))
     merge_conn(
         models.Connection(
             conn_id='segment_default', conn_type='segment',

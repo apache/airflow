@@ -44,7 +44,7 @@ class LocalExecutorTest(unittest.TestCase):
         # errors are propagated for some reason
         try:
             executor.execute_async(key='fail', command=fail_command)
-        except:
+        except Exception:
             pass
 
         executor.running['fail'] = True

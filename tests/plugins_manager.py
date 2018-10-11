@@ -28,7 +28,7 @@ from flask.blueprints import Blueprint
 from flask_admin.menu import MenuLink, MenuView
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import  BaseOperator
+from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 from airflow.www.app import cached_app

@@ -275,8 +275,8 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         value = False
         dag = DAG('shortcircuit_operator_test_without_dag_run',
                   default_args={
-                       'owner': 'airflow',
-                       'start_date': DEFAULT_DATE
+                      'owner': 'airflow',
+                      'start_date': DEFAULT_DATE
                   },
                   schedule_interval=INTERVAL)
         short_op = ShortCircuitOperator(task_id='make_choice',
@@ -330,8 +330,8 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         value = False
         dag = DAG('shortcircuit_operator_test_with_dag_run',
                   default_args={
-                       'owner': 'airflow',
-                       'start_date': DEFAULT_DATE
+                      'owner': 'airflow',
+                      'start_date': DEFAULT_DATE
                   },
                   schedule_interval=INTERVAL)
         short_op = ShortCircuitOperator(task_id='make_choice',

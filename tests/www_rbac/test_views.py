@@ -173,7 +173,7 @@ class TestVariableModelView(TestBase):
         self.assertNotIn("<img src='' onerror='alert(1);'>",
                          resp.data.decode("utf-8"))
 
-    def test_import_variables(self):
+    def test_import_variables_failed(self):
         content = '{"str_key": "str_value"}'
 
         with mock.patch('airflow.models.Variable.set') as set_mock:
@@ -192,7 +192,7 @@ class TestVariableModelView(TestBase):
                                     follow_redirects=True)
             self.check_content_in_response('1 variable(s) failed to be updated.', resp)
 
-    def test_import_variables(self):
+    def test_import_variables_success(self):
         self.assertEqual(self.session.query(models.Variable).count(), 0)
 
         content = ('{"str_key": "str_value", "int_key": 60,'
