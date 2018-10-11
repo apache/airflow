@@ -605,10 +605,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         service = self.kube_client.create_namespaced_service(
             self.kube_config.executor_namespace, kubernetes.client.V1Service(
                 metadata=kubernetes.client.V1ObjectMeta(
-                    name='airflow-worker-logs'
+                    name='airflow-worker'
                 ),
                 spec=kubernetes.client.V1ServiceSpec(
-                    cluster_ip=None,
+                    cluster_ip='None',
                     selector={
                         'app.kubernetes.io/name': 'airflow-worker',
                     },

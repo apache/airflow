@@ -33,6 +33,7 @@ metadata:
     app.kubernetes.io/name: airflow-worker
     app.kubernetes.io/part-of: airflow
 spec:
+  subdomain: airflow-worker
   containers:
     - name: base
       image: airflow-worker:latest
