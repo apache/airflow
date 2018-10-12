@@ -602,8 +602,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 _create_or_update_secret(service_account['name'], service_account['path'])
     
     def _create_worker_service(self):
-        service = self.kube_client.create_namespaced_service(
-            self.kube_config.executor_namespace, kubernetes.client.V1Service(
+        service = kubernetes.client.V1Service(
                 metadata=kubernetes.client.V1ObjectMeta(
                     name='airflow-worker'
                 ),
@@ -620,7 +619,17 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                         )
                     ]
                 )
-            ))
+            )
+
+        try:
+            return self.kube_client.create_namespaced_service(
+                self.kube_config.executor_namespace, service
+            )
+        except ApiException as e:
+            if e.status == 409:
+                return self.kube_client.replace_namespaced_service(
+                    self.kube_config.executor_namespace, service
+                )
 
     def start(self):
         self.log.info('Start Kubernetes executor')
