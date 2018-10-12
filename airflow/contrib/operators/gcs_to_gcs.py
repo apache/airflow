@@ -56,11 +56,6 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :type move_object: bool
-    :param filter_by_last_modified: When True, only copies/moves source object(s)
-        that were last modified after last_modified_time
-    :type: bool
-    :param last_modified_time: Timestamp in GMT to filter source object(s)
-    :type datetime
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
     :type google_cloud_storage_conn_id: str
@@ -68,6 +63,11 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param filter_by_last_modified: When True, only copies/moves source object(s)
+        that were last modified after last_modified_time
+    :type: bool
+    :param last_modified_time: Timestamp in GMT to filter source object(s)
+    :type datetime
 
     **Examples**:
         The following Operator would copy a single file named
@@ -118,10 +118,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  destination_bucket=None,
                  destination_object=None,
                  move_object=False,
-                 filter_by_last_modified=False,
-                 last_modified_time=datetime.utcnow(),
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
+                 filter_by_last_modified=False,
+                 last_modified_time=datetime.utcnow(),
                  *args,
                  **kwargs):
         super(GoogleCloudStorageToGoogleCloudStorageOperator,
@@ -131,10 +131,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
         self.move_object = move_object
-        self.filter_by_last_modified = filter_by_last_modified
-        self.last_modified_time = last_modified_time
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
+        self.filter_by_last_modified = filter_by_last_modified
+        self.last_modified_time = last_modified_time
         self.wildcard = '*'
 
     def execute(self, context):
