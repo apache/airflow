@@ -286,6 +286,10 @@ class AirflowConfigParser(ConfigParser):
         super(AirflowConfigParser, self).read(filenames)
         self._validate()
 
+    def read_dict(self, *args, **kwargs):
+        super(AirflowConfigParser, self).read_dict(*args, **kwargs)
+        self._validate()
+
     def has_option(self, section, option):
         try:
             # Using self.get() to avoid reimplementing the priority order
