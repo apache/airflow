@@ -78,7 +78,8 @@ class Pod:
             resources=None,
             annotations=None,
             affinity=None,
-            hostnetwork=False
+            hostnetwork=False,
+            tolerations=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -100,3 +101,4 @@ class Pod:
         self.annotations = annotations or {}
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
+        self.tolerations = tolerations or []
