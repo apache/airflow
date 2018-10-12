@@ -65,9 +65,9 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     :type delegate_to: str
     :param filter_by_last_modified: When True, only copies/moves source object(s)
         that were last modified after last_modified_time
-    :type: bool
+    :type filter_by_last_modified: bool
     :param last_modified_time: Timestamp in GMT to filter source object(s)
-    :type datetime
+    :type last_modified_time: datetime
 
     **Examples**:
         The following Operator would copy a single file named
