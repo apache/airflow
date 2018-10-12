@@ -120,9 +120,9 @@ def dag_runs(dag_id):
     or all runs if the state is not specified
     """
     try:
-        prefix = request.args.get('run_id_prefix')
+        run_id__like = request.args.get('run_id__like')
         state = request.args.get('state')
-        dagruns = get_dag_runs(dag_id, prefix, state)
+        dagruns = get_dag_runs(dag_id, run_id__like, state)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))

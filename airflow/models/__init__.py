@@ -4740,7 +4740,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def find(dag_id=None, run_id=None, execution_date=None,
              state=None, external_trigger=None, no_backfills=False,
-             run_id_prefix=None, session=None):
+             run_id__like=None, session=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -4757,7 +4757,7 @@ class DagRun(Base, LoggingMixin):
         :param no_backfills: return no backfills (True), return all (False).
         Defaults to False
         :type no_backfills: bool
-        :param run_id_prefix: match runs with the given prefix in the run_id.
+        :param run_id_prefix: select runs with a run_id matching this pattern.
         :type run_id_prefix: string
         :param session: database session
         :type session: Session
@@ -4769,8 +4769,8 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(DR.dag_id == dag_id)
         if run_id:
             qry = qry.filter(DR.run_id == run_id)
-        elif run_id_prefix:
-            qry = qry.filter(DR.run_id.like(run_id_prefix + '%'))
+        elif run_id__like:
+            qry = qry.filter(DR.run_id.like(run_id__like))
         if execution_date:
             if isinstance(execution_date, list):
                 qry = qry.filter(DR.execution_date.in_(execution_date))

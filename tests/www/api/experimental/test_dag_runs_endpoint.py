@@ -80,8 +80,8 @@ class TestDagRunsEndpoint(unittest.TestCase):
         self.assertEqual(data[0]['dag_id'], dag_id)
         self.assertEqual(data[0]['id'], dag_run.id)
 
-    def test_get_dag_runs_success_with_prefix_parameter(self):
-        url_template = '/api/experimental/dags/{}/dag_runs?run_id_prefix=test'
+    def test_get_dag_runs_success_with_run_id__like_parameter(self):
+        url_template = '/api/experimental/dags/{}/dag_runs?run_id__like=test%'
         dag_id = 'example_bash_operator'
 
         dag_run = trigger_dag(

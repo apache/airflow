@@ -22,11 +22,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagRun
 
 
-def get_dag_runs(dag_id, prefix=None, state=None):
+def get_dag_runs(dag_id, run_id__like=None, state=None):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :param dag_id: String identifier of a DAG
-    :param prefix: Limit result to runs with an ID starting with this prefix
+    :param run_id__like: Select runs with a run_id matching this pattern.
     :param state: queued|running|success...
     :return: List of DAG runs of a DAG with requested state,
     or all runs if the state is not specified
@@ -40,7 +40,8 @@ def get_dag_runs(dag_id, prefix=None, state=None):
 
     dag_runs = list()
     state = state.lower() if state else None
-    for run in DagRun.find(dag_id=dag_id, state=state, run_id_prefix=prefix):
+    for run in DagRun.find(dag_id=dag_id, state=state,
+                           run_id__like=run_id__like):
         dag_runs.append({
             'id': run.id,
             'run_id': run.run_id,
