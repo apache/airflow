@@ -37,12 +37,24 @@ else:
 
 class ConfTest(unittest.TestCase):
 
-    def setup(self):
+    @classmethod
+    def setUpClass(cls):
+        os.environ['AIRFLOW__TESTSECTION__TESTKEY'] = 'testvalue'
+        os.environ['AIRFLOW__TESTSECTION__TESTPERCENT'] = 'with%percent'
         configuration.load_test_config()
+        conf.set('core', 'percent', 'with%%inside')
+
+    @classmethod
+    def tearDownClass(cls):
+        del os.environ['AIRFLOW__TESTSECTION__TESTKEY']
+        del os.environ['AIRFLOW__TESTSECTION__TESTPERCENT']
 
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
         self.assertEqual(opt, 'testvalue')
+
+        opt = conf.get('testsection', 'testpercent')
+        self.assertEqual(opt, 'with%percent')
 
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
@@ -50,24 +62,38 @@ class ConfTest(unittest.TestCase):
         # test that configs are picked up
         self.assertEqual(cfg_dict['core']['unit_test_mode'], 'True')
 
+        self.assertEqual(cfg_dict['core']['percent'], 'with%inside')
+
         # test env vars
         self.assertEqual(cfg_dict['testsection']['testkey'], '< hidden >')
 
+    def test_conf_as_dict_source(self):
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         self.assertEqual(
-            cfg_dict['core']['load_examples'][1], 'airflow config')
+            cfg_dict['core']['load_examples'][1], 'airflow.cfg')
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
 
+    def test_conf_as_dict_sensitive(self):
         # test display_sensitive
         cfg_dict = conf.as_dict(display_sensitive=True)
         self.assertEqual(cfg_dict['testsection']['testkey'], 'testvalue')
+        self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%percent')
 
         # test display_source and display_sensitive
         cfg_dict = conf.as_dict(display_sensitive=True, display_source=True)
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
+
+    def test_conf_as_dict_raw(self):
+        # test display_sensitive
+        cfg_dict = conf.as_dict(raw=True, display_sensitive=True)
+        self.assertEqual(cfg_dict['testsection']['testkey'], 'testvalue')
+
+        # Values with '%' in them should be escaped
+        self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
+        self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
 
     def test_command_config(self):
         TEST_CONFIG = '''[test]
@@ -103,6 +129,10 @@ key6 = value6
         self.assertTrue(test_conf.has_option('test', 'key4'))
         self.assertFalse(test_conf.has_option('test', 'key5'))
         self.assertTrue(test_conf.has_option('another', 'key6'))
+
+        cfg_dict = test_conf.as_dict(display_sensitive=True)
+        self.assertEqual('cmd_result', cfg_dict['test']['key2'])
+        self.assertNotIn('key2_cmd', cfg_dict['test'])
 
     def test_remove_option(self):
         TEST_CONFIG = '''[test]

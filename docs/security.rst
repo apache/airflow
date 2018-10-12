@@ -12,9 +12,10 @@ Be sure to checkout :doc:`api` for securing the API.
 
 .. note::
 
-   Airflow uses the config parser of Python. This config parser interpolates '%'-signs.
-   Make sure not to have those in your passwords if they do not make sense, otherwise
-   Airflow might leak these passwords on a config parser exception to a log.
+   Airflow uses the config parser of Python. This config parser interpolates
+   '%'-signs.  Make sure escape any ``%`` signs in your config file (but not
+   environment variables) as ``%%``, otherwise Airflow might leak these
+   passwords on a config parser exception to a log.
 
 Web Authentication
 ------------------

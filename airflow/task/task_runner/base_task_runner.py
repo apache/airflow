@@ -60,12 +60,6 @@ class BaseTaskRunner(LoggingMixin):
 
         # Always provide a copy of the configuration file settings
         cfg_path = tmp_configuration_copy()
-        # The following command should always work since the user doing chmod is the same
-        # as the one who just created the file.
-        subprocess.call(
-            ['chmod', '600', cfg_path],
-            close_fds=True
-        )
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
