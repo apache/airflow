@@ -4738,9 +4738,9 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def find(dag_id=None, run_id=None, execution_date=None, run_id_prefix=None,
+    def find(dag_id=None, run_id=None, execution_date=None,
              state=None, external_trigger=None, no_backfills=False,
-             session=None):
+             run_id_prefix=None, session=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -4749,8 +4749,6 @@ class DagRun(Base, LoggingMixin):
         :param run_id: defines the the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
-        :param run_id_prefix: match runs with the given prefix in the run_id.
-        :type run_id_prefix: string
         :type execution_date: datetime
         :param state: the state of the dag run
         :type state: State
@@ -4759,6 +4757,8 @@ class DagRun(Base, LoggingMixin):
         :param no_backfills: return no backfills (True), return all (False).
         Defaults to False
         :type no_backfills: bool
+        :param run_id_prefix: match runs with the given prefix in the run_id.
+        :type run_id_prefix: string
         :param session: database session
         :type session: Session
         """
@@ -4769,7 +4769,7 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(DR.dag_id == dag_id)
         if run_id:
             qry = qry.filter(DR.run_id == run_id)
-        if run_id_prefix:
+        elif run_id_prefix:
             qry = qry.filter(DR.run_id.like(run_id_prefix + '%'))
         if execution_date:
             if isinstance(execution_date, list):
@@ -5052,19 +5052,6 @@ class DagRun(Base, LoggingMixin):
             .join(subquery,
                   and_(cls.dag_id == subquery.c.dag_id,
                        cls.execution_date == subquery.c.execution_date))
-            .all()
-        )
-        return dagruns
-
-    @classmethod
-    @provide_session
-    def get_runs(cls, dag_id, run_id_prefix, session=None):
-        """Returns all DagRuns for a given DAG."""
-        dagruns = (
-            session
-            .query(cls)
-            .filter(DagRun.dag_id == dag_id,
-                    DagRun.run_id.like(run_id_prefix + '%'))
             .all()
         )
         return dagruns
