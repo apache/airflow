@@ -19,6 +19,7 @@
 #
 
 import unittest
+
 import boto3
 
 from airflow import configuration
@@ -145,6 +146,26 @@ class TestAwsHook(unittest.TestCase):
         self.assertEqual(credentials_from_hook.access_key, 'aws_access_key_id')
         self.assertEqual(credentials_from_hook.secret_key, 'aws_secret_access_key')
         self.assertIsNone(credentials_from_hook.token)
+
+    @mock.patch('airflow.contrib.hooks.aws_hook._parse_s3_config',
+                return_value=('aws_access_key_id', 'aws_secret_access_key'))
+    @mock.patch.object(AwsHook, 'get_connection')
+    def test_get_credentials_from_extra_with_s3_config_and_profile(
+        self, mock_get_connection, mock_parse_s3_config
+    ):
+        mock_connection = Connection(
+            extra='{"s3_config_format": "aws", '
+                  '"profile": "test", '
+                  '"s3_config_file": "aws-credentials", '
+                  '"region_name": "us-east-1"}')
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        hook._get_credentials(region_name=None)
+        mock_parse_s3_config.assert_called_with(
+            'aws-credentials',
+            'aws',
+            'test'
+        )
 
     @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
     @mock.patch.object(AwsHook, 'get_connection')
