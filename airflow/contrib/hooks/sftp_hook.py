@@ -21,11 +21,14 @@ import stat
 import pysftp
 import logging
 import datetime
-from airflow.hooks.base_hook import BaseHook
+from airflow.contrib.hooks.ssh_hook import SSHHook
 
 
-class SFTPHook(BaseHook):
+class SFTPHook(SSHHook):
     """
+    This hook is inherited from SSH hook. Please refer to SSH hook for the input
+    arguments.
+
     Interact with SFTP. Aims to be interchangeable with FTPHook.
 
     Pitfalls: - In contrast with FTPHook describe_directory only returns size, type and
@@ -39,32 +42,66 @@ class SFTPHook(BaseHook):
     Errors that may occur throughout but should be handled downstream.
     """
 
-    def __init__(self, ftp_conn_id='sftp_default'):
-        self.ftp_conn_id = ftp_conn_id
+    def __init__(self, ftp_conn_id='sftp_default', *args, **kwargs):
+        kwargs['ssh_conn_id'] = ftp_conn_id
+        super(SFTPHook, self).__init__(*args, **kwargs)
+
         self.conn = None
+        self.private_key_pass = None
+
+        if self.ssh_conn_id is not None:
+            conn = self.get_connection(self.ssh_conn_id)
+            if conn.extra is not None:
+                extra_options = conn.extra_dejson
+                if 'private_key_pass' in extra_options:
+                    self.private_key_pass = extra_options.get('private_key_pass', None)
+
+                # For backward compatibility
+                # TODO: remove in Airflow 2.1
+                import warnings
+                if 'ignore_hostkey_verification' in extra_options \
+                        and str(extra_options["ignore_hostkey_verification"])\
+                        .lower() == 'false':
+                    warnings.warn(
+                        'Extra option `ignore_hostkey_verification` is deprecated.'
+                        'Please use `no_host_key_check` instead.'
+                        'This option will be removed in Airflow 2.1',
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    self.no_host_key_check = False
+                if 'private_key' in extra_options:
+                    warnings.warn(
+                        'Extra option `private_key` is deprecated.'
+                        'Please use `key_file` instead.'
+                        'This option will be removed in Airflow 2.1',
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    self.key_file = extra_options.get('private_key')
 
     def get_conn(self):
         """
         Returns an SFTP connection object
         """
         if self.conn is None:
-            params = self.get_connection(self.ftp_conn_id)
             cnopts = pysftp.CnOpts()
-            if ('ignore_hostkey_verification' in params.extra_dejson and
-                    params.extra_dejson['ignore_hostkey_verification']):
+            if self.no_host_key_check:
                 cnopts.hostkeys = None
+            cnopts.compression = self.compress
             conn_params = {
-                'host': params.host,
-                'port': params.port,
-                'username': params.login,
+                'host': self.remote_host,
+                'port': self.port,
+                'username': self.username,
                 'cnopts': cnopts
             }
-            if params.password is not None:
-                conn_params['password'] = params.password
-            if 'private_key' in params.extra_dejson:
-                conn_params['private_key'] = params.extra_dejson['private_key']
-            if 'private_key_pass' in params.extra_dejson:
-                conn_params['private_key_pass'] = params.extra_dejson['private_key_pass']
+            if self.password and self.password.strip():
+                conn_params['password'] = self.password
+            if self.key_file:
+                conn_params['private_key'] = self.key_file
+            if self.private_key_pass:
+                conn_params['private_key_pass'] = self.private_key_pass
+
             self.conn = pysftp.Connection(**conn_params)
         return self.conn
 
