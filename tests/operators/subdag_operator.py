@@ -85,7 +85,7 @@ class SubDagOperatorTests(unittest.TestCase):
         session.add(pool_10)
         session.commit()
 
-        dummy_1 = DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_1')
+        DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_1')
 
         self.assertRaises(
             AirflowException,
@@ -116,8 +116,7 @@ class SubDagOperatorTests(unittest.TestCase):
         session.add(pool_10)
         session.commit()
 
-        dummy_1 = DummyOperator(
-            task_id='dummy', dag=subdag, pool='test_pool_10')
+        DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_10')
 
         mock_session = Mock()
         SubDagOperator(

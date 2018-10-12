@@ -34,14 +34,14 @@ except ImportError:
     except ImportError:
         mock = None
 
-
 RESPONSE_WITHOUT_FAILURES = {
     "failures": [],
     "tasks": [
         {
             "containers": [
                 {
-                    "containerArn": "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",
+                    "containerArn":
+                        "arn:aws:ecs:us-east-1:012345678910:container/e1ed7aac-d9b2-4315-8726-d2432bf11868",
                     "lastStatus": "PENDING",
                     "name": "wordpress",
                     "taskArn": "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55"
@@ -85,7 +85,6 @@ class TestECSOperator(unittest.TestCase):
         )
 
     def test_init(self):
-
         self.assertEqual(self.ecs.region_name, 'eu-west-1')
         self.assertEqual(self.ecs.task_definition, 't')
         self.assertEqual(self.ecs.aws_conn_id, None)
@@ -101,13 +100,13 @@ class TestECSOperator(unittest.TestCase):
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
     def test_execute_without_failures(self, check_mock, wait_mock):
-
         client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.ecs.execute(None)
 
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs', region_name='eu-west-1')
+        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs',
+                                                                                region_name='eu-west-1')
         client_mock.run_task.assert_called_once_with(
             cluster='c',
             launchType='EC2',
@@ -131,10 +130,10 @@ class TestECSOperator(unittest.TestCase):
 
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
-        self.assertEqual(self.ecs.arn, 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55')
+        self.assertEqual(self.ecs.arn,
+                         'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55')
 
     def test_execute_with_failures(self):
-
         client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
         resp_failures = deepcopy(RESPONSE_WITHOUT_FAILURES)
         resp_failures['failures'].append('dummy error')
@@ -143,7 +142,8 @@ class TestECSOperator(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self.ecs.execute(None)
 
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs', region_name='eu-west-1')
+        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs',
+                                                                                region_name='eu-west-1')
         client_mock.run_task.assert_called_once_with(
             cluster='c',
             launchType='EC2',
@@ -166,7 +166,6 @@ class TestECSOperator(unittest.TestCase):
         )
 
     def test_wait_end_tasks(self):
-
         client_mock = mock.Mock()
         self.ecs.arn = 'arn'
         self.ecs.client = client_mock

@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 try:
     from unittest import mock
 except ImportError:
@@ -31,7 +32,7 @@ from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
 from collections import OrderedDict
 from airflow.exceptions import AirflowException
 from tempfile import NamedTemporaryFile, mkdtemp
-import gzip
+from gzip import GzipFile
 import bz2
 import shutil
 import filecmp
@@ -85,39 +86,31 @@ class S3ToHiveTransferTest(unittest.TestCase):
                 self._set_fn(f_txt_h.name, '.txt', True)
                 f_txt_h.writelines([header, line1, line2])
             fn_gz = self._get_fn('.txt', True) + ".gz"
-            with gzip.GzipFile(filename=fn_gz,
-                               mode="wb") as f_gz_h:
+            with GzipFile(filename=fn_gz, mode="wb") as f_gz_h:
                 self._set_fn(fn_gz, '.gz', True)
                 f_gz_h.writelines([header, line1, line2])
             fn_gz_upper = self._get_fn('.txt', True) + ".GZ"
-            with gzip.GzipFile(filename=fn_gz_upper,
-                               mode="wb") as f_gz_upper_h:
+            with GzipFile(filename=fn_gz_upper, mode="wb") as f_gz_upper_h:
                 self._set_fn(fn_gz_upper, '.GZ', True)
                 f_gz_upper_h.writelines([header, line1, line2])
             fn_bz2 = self._get_fn('.txt', True) + '.bz2'
-            with bz2.BZ2File(filename=fn_bz2,
-                             mode="wb") as f_bz2_h:
+            with bz2.BZ2File(filename=fn_bz2, mode="wb") as f_bz2_h:
                 self._set_fn(fn_bz2, '.bz2', True)
                 f_bz2_h.writelines([header, line1, line2])
             # create sample txt, bz and bz2 without header
-            with NamedTemporaryFile(mode='wb+',
-                                    dir=self.tmp_dir,
-                                    delete=False) as f_txt_nh:
+            with NamedTemporaryFile(mode='wb+', dir=self.tmp_dir, delete=False) as f_txt_nh:
                 self._set_fn(f_txt_nh.name, '.txt', False)
                 f_txt_nh.writelines([line1, line2])
             fn_gz = self._get_fn('.txt', False) + ".gz"
-            with gzip.GzipFile(filename=fn_gz,
-                               mode="wb") as f_gz_nh:
+            with GzipFile(filename=fn_gz, mode="wb") as f_gz_nh:
                 self._set_fn(fn_gz, '.gz', False)
                 f_gz_nh.writelines([line1, line2])
             fn_gz_upper = self._get_fn('.txt', False) + ".GZ"
-            with gzip.GzipFile(filename=fn_gz_upper,
-                               mode="wb") as f_gz_upper_nh:
+            with GzipFile(filename=fn_gz_upper, mode="wb") as f_gz_upper_nh:
                 self._set_fn(fn_gz_upper, '.GZ', False)
                 f_gz_upper_nh.writelines([line1, line2])
             fn_bz2 = self._get_fn('.txt', False) + '.bz2'
-            with bz2.BZ2File(filename=fn_bz2,
-                             mode="wb") as f_bz2_nh:
+            with bz2.BZ2File(filename=fn_bz2, mode="wb") as f_bz2_nh:
                 self._set_fn(fn_bz2, '.bz2', False)
                 f_bz2_nh.writelines([line1, line2])
         # Base Exception so it catches Keyboard Interrupt
@@ -156,15 +149,13 @@ class S3ToHiveTransferTest(unittest.TestCase):
         # causes filecmp to return False even if contents are identical
         # Hence decompress to test for equality
         if ext.lower() == '.gz':
-            with gzip.GzipFile(fn_1, 'rb') as f_1,\
-                 NamedTemporaryFile(mode='wb') as f_txt_1,\
-                 gzip.GzipFile(fn_2, 'rb') as f_2,\
-                 NamedTemporaryFile(mode='wb') as f_txt_2:
-                shutil.copyfileobj(f_1, f_txt_1)
-                shutil.copyfileobj(f_2, f_txt_2)
-                f_txt_1.flush()
-                f_txt_2.flush()
-                return filecmp.cmp(f_txt_1.name, f_txt_2.name, shallow=False)
+            with GzipFile(fn_1, 'rb') as f_1, NamedTemporaryFile(mode='wb') as f_txt_1:
+                with GzipFile(fn_2, 'rb') as f_2, NamedTemporaryFile(mode='wb') as f_txt_2:
+                    shutil.copyfileobj(f_1, f_txt_1)
+                    shutil.copyfileobj(f_2, f_txt_2)
+                    f_txt_1.flush()
+                    f_txt_2.flush()
+                    return filecmp.cmp(f_txt_1.name, f_txt_2.name, shallow=False)
         else:
             return filecmp.cmp(fn_1, fn_2, shallow=False)
 
@@ -179,20 +170,20 @@ class S3ToHiveTransferTest(unittest.TestCase):
     def test__get_top_row_as_list(self):
         self.kwargs['delimiter'] = '\t'
         fn_txt = self._get_fn('.txt', True)
-        header_list = S3ToHiveTransfer(**self.kwargs).\
+        header_list = S3ToHiveTransfer(**self.kwargs). \
             _get_top_row_as_list(fn_txt)
         self.assertEqual(header_list, ['Sno', 'Some,Text'],
                          msg="Top row from file doesnt matched expected value")
 
         self.kwargs['delimiter'] = ','
-        header_list = S3ToHiveTransfer(**self.kwargs).\
+        header_list = S3ToHiveTransfer(**self.kwargs). \
             _get_top_row_as_list(fn_txt)
         self.assertEqual(header_list, ['Sno\tSome', 'Text'],
                          msg="Top row from file doesnt matched expected value")
 
     def test__match_headers(self):
         self.kwargs['field_dict'] = OrderedDict([('Sno', 'BIGINT'),
-                                                ('Some,Text', 'STRING')])
+                                                 ('Some,Text', 'STRING')])
         self.assertTrue(S3ToHiveTransfer(**self.kwargs).
                         _match_headers(['Sno', 'Some,Text']),
                         msg="Header row doesnt match expected value")
@@ -250,8 +241,7 @@ class S3ToHiveTransferTest(unittest.TestCase):
             # file parameter to HiveCliHook.load_file is compared
             # against expected file output
             mock_hiveclihook().load_file.side_effect = \
-                lambda *args, **kwargs: \
-                self.assertTrue(
+                lambda *args, **kwargs: self.assertTrue(
                     self._check_file_equality(args[0], op_fn, ext),
                     msg='{0} output file not as expected'.format(ext))
             # Execute S3ToHiveTransfer

@@ -185,8 +185,7 @@ class TestMLEngineHook(unittest.TestCase):
                 self._SERVICE_URI_PREFIX, project, model_name), 'GET',
              None),
         ] + [
-            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}'
-             '&pageSize=100'.format(
+            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}&pageSize=100'.format(
                 self._SERVICE_URI_PREFIX, project, model_name, ix), 'GET',
              None) for ix in range(len(versions) - 1)
         ]

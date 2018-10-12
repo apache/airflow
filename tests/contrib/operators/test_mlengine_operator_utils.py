@@ -36,7 +36,6 @@ TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
 
 
 class CreateEvaluateOpsTest(unittest.TestCase):
-
     INPUT_MISSING_ORIGIN = {
         'dataFormat': 'TEXT',
         'inputPaths': ['gs://legal-bucket/fake-input-path/*'],
@@ -89,7 +88,6 @@ class CreateEvaluateOpsTest(unittest.TestCase):
 
         with patch('airflow.contrib.operators.mlengine_operator.'
                    'MLEngineHook') as mock_mlengine_hook:
-
             success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
             success_message['predictionInput'] = input_with_model
             hook_instance = mock_mlengine_hook.return_value
@@ -107,7 +105,6 @@ class CreateEvaluateOpsTest(unittest.TestCase):
 
         with patch('airflow.contrib.operators.dataflow_operator.'
                    'DataFlowHook') as mock_dataflow_hook:
-
             hook_instance = mock_dataflow_hook.return_value
             hook_instance.start_python_dataflow.return_value = None
             summary.execute(None)
@@ -126,7 +123,6 @@ class CreateEvaluateOpsTest(unittest.TestCase):
 
         with patch('airflow.contrib.operators.mlengine_operator_utils.'
                    'GoogleCloudStorageHook') as mock_gcs_hook:
-
             hook_instance = mock_gcs_hook.return_value
             hook_instance.download.return_value = '{"err": 0.9, "count": 9}'
             result = validate.execute({})
@@ -159,27 +155,25 @@ class CreateEvaluateOpsTest(unittest.TestCase):
         }
 
         with self.assertRaisesRegexp(AirflowException, 'Missing model origin'):
-            _ = create_evaluate_ops(**other_params_but_models)
+            create_evaluate_ops(**other_params_but_models)
 
         with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
-            _ = create_evaluate_ops(model_uri='abc', model_name='cde',
-                                    **other_params_but_models)
+            create_evaluate_ops(model_uri='abc', model_name='cde', **other_params_but_models)
 
         with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
-            _ = create_evaluate_ops(model_uri='abc', version_name='vvv',
-                                    **other_params_but_models)
+            create_evaluate_ops(model_uri='abc', version_name='vvv', **other_params_but_models)
 
         with self.assertRaisesRegexp(AirflowException,
                                      '`metric_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['metric_fn_and_keys'] = (None, ['abc'])
-            _ = create_evaluate_ops(model_uri='gs://blah', **params)
+            create_evaluate_ops(model_uri='gs://blah', **params)
 
         with self.assertRaisesRegexp(AirflowException,
                                      '`validate_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['validate_fn'] = None
-            _ = create_evaluate_ops(model_uri='gs://blah', **params)
+            create_evaluate_ops(model_uri='gs://blah', **params)
 
 
 if __name__ == '__main__':

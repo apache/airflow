@@ -116,7 +116,7 @@ class FileProcessorHandler(logging.Handler):
                         os.unlink(latest_log_directory_path)
                         os.symlink(log_directory, latest_log_directory_path)
                 elif (os.path.isdir(latest_log_directory_path) or
-                          os.path.isfile(latest_log_directory_path)):
+                      os.path.isfile(latest_log_directory_path)):
                     logging.warning(
                         "%s already exists as a dir/file. Skip creating symlink.",
                         latest_log_directory_path

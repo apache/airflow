@@ -40,6 +40,7 @@ def reset(dag_id=TEST_DAG_ID):
     session.commit()
     session.close()
 
+
 reset()
 
 
@@ -79,17 +80,17 @@ class SSHOperatorTest(unittest.TestCase):
     def test_json_command_execution(self):
         configuration.conf.set("core", "enable_xcom_pickling", "False")
         task = SSHOperator(
-                task_id="test",
-                ssh_hook=self.hook,
-                command="echo -n airflow",
-                do_xcom_push=True,
-                dag=self.dag,
+            task_id="test",
+            ssh_hook=self.hook,
+            command="echo -n airflow",
+            do_xcom_push=True,
+            dag=self.dag,
         )
 
         self.assertIsNotNone(task)
 
         ti = TaskInstance(
-                task=task, execution_date=timezone.utcnow())
+            task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertIsNotNone(ti.duration)
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'),
@@ -98,17 +99,17 @@ class SSHOperatorTest(unittest.TestCase):
     def test_pickle_command_execution(self):
         configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
-                task_id="test",
-                ssh_hook=self.hook,
-                command="echo -n airflow",
-                do_xcom_push=True,
-                dag=self.dag,
+            task_id="test",
+            ssh_hook=self.hook,
+            command="echo -n airflow",
+            do_xcom_push=True,
+            dag=self.dag,
         )
 
         self.assertIsNotNone(task)
 
         ti = TaskInstance(
-                task=task, execution_date=timezone.utcnow())
+            task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertIsNotNone(ti.duration)
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')

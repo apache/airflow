@@ -682,12 +682,12 @@ class Airflow(BaseView):
         title = "DAG details"
 
         TI = models.TaskInstance
-        states = (
-            session.query(TI.state, sqla.func.count(TI.dag_id))
-                .filter(TI.dag_id == dag_id)
-                .group_by(TI.state)
-                .all()
-        )
+        states = session\
+            .query(TI.state, sqla.func.count(TI.dag_id))\
+            .filter(TI.dag_id == dag_id)\
+            .group_by(TI.state)\
+            .all()
+
         return self.render(
             'airflow/dag_details.html',
             dag=dag, title=title, states=states, State=State)
@@ -1192,12 +1192,12 @@ class Airflow(BaseView):
     @provide_session
     def blocked(self, session=None):
         DR = models.DagRun
-        dags = (
-            session.query(DR.dag_id, sqla.func.count(DR.id))
-                .filter(DR.state == State.RUNNING)
-                .group_by(DR.dag_id)
-                .all()
-        )
+        dags = session\
+            .query(DR.dag_id, sqla.func.count(DR.id))\
+            .filter(DR.state == State.RUNNING)\
+            .group_by(DR.dag_id)\
+            .all()
+
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
@@ -1454,8 +1454,8 @@ class Airflow(BaseView):
                 children_key = "_children"
 
             def set_duration(tid):
-                if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
-                            tid["start_date"] is not None):
+                if isinstance(tid, dict) and tid.get("state") == State.RUNNING \
+                        and tid["start_date"] is not None:
                     d = timezone.utcnow() - pendulum.parse(tid["start_date"])
                     tid["duration"] = d.total_seconds()
                 return tid
@@ -1482,9 +1482,7 @@ class Airflow(BaseView):
         data = {
             'name': '[DAG]',
             'children': [recurse_nodes(t, set()) for t in dag.roots],
-            'instances': [
-                dag_runs.get(d) or {'execution_date': d.isoformat()}
-                for d in dates],
+            'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
         }
 
         # minimize whitespace as this can be huge for bigger dags
@@ -2338,13 +2336,10 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
 
 @provide_session
 def _connection_ids(session=None):
-    return [
-            (c.conn_id, c.conn_id)
-            for c in (
-                session.query(models.Connection.conn_id)
-                    .group_by(models.Connection.conn_id)
-            )
-    ]
+    return [(c.conn_id, c.conn_id) for c in (
+        session
+            .query(models.Connection.conn_id)
+            .group_by(models.Connection.conn_id))]
 
 
 class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
@@ -3144,20 +3139,16 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
         """
         Default filters for model
         """
-        return (
-            super(DagModelView, self)
-                .get_query()
-                .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
-                .filter(~models.DagModel.is_subdag)
-        )
+        return super(DagModelView, self)\
+            .get_query()\
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
+            .filter(~models.DagModel.is_subdag)
 
     def get_count_query(self):
         """
         Default filters for model
         """
-        return (
-            super(DagModelView, self)
-                .get_count_query()
-                .filter(models.DagModel.is_active)
-                .filter(~models.DagModel.is_subdag)
-        )
+        return super(DagModelView, self)\
+            .get_count_query()\
+            .filter(models.DagModel.is_active)\
+            .filter(~models.DagModel.is_subdag)

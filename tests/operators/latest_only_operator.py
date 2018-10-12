@@ -91,7 +91,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'success',
             timezone.datetime(2016, 1, 1, 12): 'success',
-            timezone.datetime(2016, 1, 2): 'success', },
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')
@@ -100,7 +100,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)
 
         downstream_instances = get_task_instances('downstream_2')
@@ -109,7 +109,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)
 
     def test_skipping_dagrun(self):
@@ -126,21 +126,21 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         downstream_task.set_upstream(latest_task)
         downstream_task2.set_upstream(downstream_task)
 
-        dr1 = self.dag.create_dagrun(
+        self.dag.create_dagrun(
             run_id="manual__1",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
         )
 
-        dr2 = self.dag.create_dagrun(
+        self.dag.create_dagrun(
             run_id="manual__2",
             start_date=timezone.utcnow(),
             execution_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING
         )
 
-        dr2 = self.dag.create_dagrun(
+        self.dag.create_dagrun(
             run_id="manual__3",
             start_date=timezone.utcnow(),
             execution_date=END_DATE,
@@ -157,7 +157,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'success',
             timezone.datetime(2016, 1, 1, 12): 'success',
-            timezone.datetime(2016, 1, 2): 'success', },
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')
@@ -166,7 +166,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)
 
         downstream_instances = get_task_instances('downstream_2')
@@ -175,5 +175,5 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)

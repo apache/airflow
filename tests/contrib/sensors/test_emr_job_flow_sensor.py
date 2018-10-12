@@ -42,7 +42,8 @@ DESCRIBE_CLUSTER_RUNNING_RETURN = {
         'Status': {
             'State': 'STARTING',
             'StateChangeReason': {},
-            'Timeline': {'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+            'Timeline': {
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
         },
         'Tags': [
             {'Key': 'app', 'Value': 'analytics'},
@@ -74,7 +75,8 @@ DESCRIBE_CLUSTER_TERMINATED_RETURN = {
         'Status': {
             'State': 'TERMINATED',
             'StateChangeReason': {},
-            'Timeline': {'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
+            'Timeline': {
+                'CreationDateTime': datetime.datetime(2016, 6, 27, 21, 5, 2, 348000, tzinfo=tzlocal())}
         },
         'Tags': [
             {'Key': 'app', 'Value': 'analytics'},
@@ -107,10 +109,8 @@ class TestEmrJobFlowSensor(unittest.TestCase):
         # Mock out the emr_client creator
         self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
 
-
     def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_terminal_state(self):
         with patch('boto3.session.Session', self.boto3_session_mock):
-
             operator = EmrJobFlowSensor(
                 task_id='test_task',
                 poke_interval=2,
