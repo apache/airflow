@@ -2078,14 +2078,14 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/task?'
             'task_id=test_dagrun_functool_partial&dag_id=test_task_view_type_check&'
-            'execution_date={}'.format(DEFAULT_DATE_DS))
+            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
         self.assertIn("A function with two args", response.data.decode('utf-8'))
 
     def test_dag_view_task_with_python_operator_using_instance(self):
         response = self.app.get(
             '/admin/airflow/task?'
             'task_id=test_dagrun_instance&dag_id=test_task_view_type_check&'
-            'execution_date={}'.format(DEFAULT_DATE_DS))
+            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
         self.assertIn("A __call__ method", response.data.decode('utf-8'))
 
     def tearDown(self):

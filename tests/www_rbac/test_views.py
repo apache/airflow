@@ -409,7 +409,7 @@ class TestAirflowBaseViews(TestBase):
     def test_failed(self):
         url = ('failed?task_id=run_this_last&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response('Wait a minute', resp)
 
