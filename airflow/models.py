@@ -2388,9 +2388,10 @@ class BaseOperator(LoggingMixin):
     :type pool: str
     :param sla: Deprecated in favor of ``expected_finish``.
     :type sla: datetime.timedelta
-    :param expected_duration: time by which the task is expected to complete,
-        provided as a ``timedelta`` relative to the actual start time of
-        the task instance. This expected duration is not reset by task retries.
+    :param expected_duration: the maximum duration the task is allowed to take,
+        provided as a ``timedelta``. This ``timedelta`` is relative to when the
+        task actually starts running, not to the execution date. It includes
+        any task retries, similar to the ``execution_timeout`` parameter.
 
         SLA misses are stored in the database, and then SLA miss callbacks
         are triggered. The default SLA miss callback is to email task owners.
@@ -2402,7 +2403,7 @@ class BaseOperator(LoggingMixin):
         expected to always cause an SLA miss.
     :type expected_duration: datetime.timedelta
     :param expected_start: time by which the task is expected to start,
-        provided as a ``timedelta`` relative to the scheduled start time of
+        provided as a ``timedelta`` relative to the expected start time of
         this task's DAG. For instance, if you set an ``expected_start`` of
         ``timedelta(hours=1)`` on a task inside of a DAG that runs on a
         midnight UTC schedule, any unscheduled instances would be marked as
@@ -2418,7 +2419,7 @@ class BaseOperator(LoggingMixin):
         expected to always cause an SLA miss.
     :type expected_start: datetime.timedelta
     :param expected_finish: time by which the task is expected to finish,
-        provided as a ``timedelta`` relative to the scheduled start time of
+        provided as a ``timedelta`` relative to the expected start time of
         this task's DAG. For instance, if you set an ``expected_finish`` of
         ``timedelta(hours=1)`` on a task inside of a DAG that runs on a
         midnight UTC schedule, any unscheduled or still-executing task
