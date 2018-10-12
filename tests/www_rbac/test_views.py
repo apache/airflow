@@ -39,7 +39,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
-from airflow.utils import timezone
+from airflow.utils import dates, timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www_rbac import app as application
@@ -267,8 +267,8 @@ class TestMountPoint(unittest.TestCase):
 
 
 class TestAirflowBaseViews(TestBase):
-    default_date = timezone.datetime(2018, 3, 1)
-    run_id = "test_{}".format(models.DagRun.id_for_date(default_date))
+    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
 
     def setUp(self):
         super(TestAirflowBaseViews, self).setUp()
@@ -297,19 +297,19 @@ class TestAirflowBaseViews(TestBase):
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_id=self.run_id,
-            execution_date=self.default_date,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
             run_id=self.run_id,
-            execution_date=self.default_date,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.xcom_dagrun = self.xcom_dag.create_dagrun(
             run_id=self.run_id,
-            execution_date=self.default_date,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
@@ -327,19 +327,19 @@ class TestAirflowBaseViews(TestBase):
 
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Task Instance Details', resp)
 
     def test_xcom(self):
         url = ('xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
 
     def test_rendered(self):
         url = ('rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Rendered Template', resp)
 
@@ -409,28 +409,28 @@ class TestAirflowBaseViews(TestBase):
     def test_failed(self):
         url = ('failed?task_id=run_this_last&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response('Wait a minute', resp)
 
     def test_success(self):
         url = ('success?task_id=run_this_last&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response('Wait a minute', resp)
 
     def test_clear(self):
         url = ('clear?task_id=runme_1&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
 
     def test_run(self):
         url = ('run?task_id=runme_0&dag_id=example_bash_operator&ignore_all_deps=false&'
                'ignore_ti_state=true&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response('', resp, resp_code=302)
 
