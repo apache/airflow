@@ -176,7 +176,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     # pylint:disable=redefined-builtin
     def upload(self, bucket, object, filename,
-               gzip=False, mime_type='application/octet-stream'):
+               mime_type='application/octet-stream', gzip=False):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -186,10 +186,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type object: str
         :param filename: The local file path to the file to be uploaded.
         :type filename: str
-        :param gzip: Option to compress file for upload
-        :type gzip: boolean
         :param mime_type: The MIME type to set when uploading the file.
         :type mime_type: str
+        :param gzip: Option to compress file for upload
+        :type gzip: bool
         """
         service = self.get_conn()
 
