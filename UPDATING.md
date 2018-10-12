@@ -72,6 +72,16 @@ then you need to change it like this
     def is_active(self):
       return self.active
 
+### EMRHook now passes all of connection's extra to CreateJobFlow API
+
+EMRHook.create_job_flow has been changed to pass all keys to the create_job_flow API, rather than
+just specific known keys for greater flexibility.
+
+However prior to this release the "emr_default" sample connection that was created had invalid
+configuration, so creating EMR clusters might fail until your connection is updated. (Ec2KeyName,
+Ec2SubnetId, TerminationProtection and KeepJobFlowAliveWhenNoSteps were all top-level keys when they
+should be inside the "Instances" dict)
+
 ## Airflow 1.10
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
