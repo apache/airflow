@@ -30,9 +30,11 @@ from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 
+
 # Will show up under airflow.hooks.test_plugin.PluginHook
 class PluginHook(BaseHook):
     pass
+
 
 # Will show up under airflow.operators.test_plugin.PluginOperator
 class PluginOperator(BaseOperator):
@@ -48,22 +50,27 @@ class PluginSensorOperator(BaseSensorOperator):
 class PluginExecutor(BaseExecutor):
     pass
 
+
 # Will show up under airflow.macros.test_plugin.plugin_macro
 def plugin_macro():
     pass
+
 
 # Creating a flask admin BaseView
 class TestView(BaseView):
     @expose('/')
     def test(self):
-        # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
+        # in this example, put your test_plugin/test.html
+        # template at airflow/plugins/templates/test_plugin/test.html
         return self.render("test_plugin/test.html", content="Hello galaxy!")
+
+
 v = TestView(category="Test Plugin", name="Test View")
 
 # Creating a flask blueprint to intergrate the templates and static folder
 bp = Blueprint(
     "test_plugin", __name__,
-    template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
+    template_folder='templates',  # registers airflow/plugins/templates as a Jinja template folder
     static_folder='static',
     static_url_path='/static/test_plugin')
 

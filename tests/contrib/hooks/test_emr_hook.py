@@ -24,7 +24,6 @@ import boto3
 from airflow import configuration
 from airflow.contrib.hooks.emr_hook import EmrHook
 
-
 try:
     from moto import mock_emr
 except ImportError:
@@ -53,6 +52,7 @@ class TestEmrHook(unittest.TestCase):
         cluster = hook.create_job_flow({'Name': 'test_cluster'})
 
         self.assertEqual(client.list_clusters()['Clusters'][0]['Id'], cluster['JobFlowId'])
+
 
 if __name__ == '__main__':
     unittest.main()

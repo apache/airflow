@@ -237,5 +237,6 @@ class DockerOperatorTestCase(unittest.TestCase):
             'Image was not pulled using operator client'
         )
 
+
 if __name__ == "__main__":
     unittest.main()

@@ -42,4 +42,3 @@ class BaseExecutorTest(unittest.TestCase):
         self.assertEqual(len(executor.get_event_buffer(("my_dag1",))), 1)
         self.assertEqual(len(executor.get_event_buffer()), 2)
         self.assertEqual(len(executor.event_buffer), 0)
-

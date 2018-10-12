@@ -31,6 +31,7 @@ class TriggerRule(object):
     DUMMY = 'dummy'
 
     _ALL_TRIGGER_RULES = {}
+
     @classmethod
     def is_valid(cls, trigger_rule):
         return trigger_rule in cls.all_triggers()

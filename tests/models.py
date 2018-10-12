@@ -636,10 +636,10 @@ class DagStatTest(unittest.TestCase):
             default_args={'owner': 'owner1'})
 
         with dag:
-            op1 = DummyOperator(task_id='A')
+            DummyOperator(task_id='A')
 
         now = timezone.utcnow()
-        dr = dag.create_dagrun(
+        dag.create_dagrun(
             run_id='manual__' + now.isoformat(),
             execution_date=now,
             start_date=now,
@@ -914,8 +914,8 @@ class DagRunTest(unittest.TestCase):
         dag = DAG('test_dagrun_no_deadlock',
                   start_date=DEFAULT_DATE)
         with dag:
-            op1 = DummyOperator(task_id='dop', depends_on_past=True)
-            op2 = DummyOperator(task_id='tc', task_concurrency=1)
+            DummyOperator(task_id='dop', depends_on_past=True)
+            DummyOperator(task_id='tc', task_concurrency=1)
 
         dag.clear()
         dr = dag.create_dagrun(run_id='test_dagrun_no_deadlock_1',
@@ -927,9 +927,9 @@ class DagRunTest(unittest.TestCase):
                                 execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
                                 start_date=DEFAULT_DATE + datetime.timedelta(days=1))
         ti1_op1 = dr.get_task_instance(task_id='dop')
-        ti2_op1 = dr2.get_task_instance(task_id='dop')
+        dr2.get_task_instance(task_id='dop')
         ti2_op1 = dr.get_task_instance(task_id='tc')
-        ti2_op2 = dr.get_task_instance(task_id='tc')
+        dr.get_task_instance(task_id='tc')
         ti1_op1.set_state(state=State.RUNNING, session=session)
         dr.update_state()
         dr2.update_state()
@@ -1130,7 +1130,7 @@ class DagRunTest(unittest.TestCase):
             dag_id='test_get_task_instance_on_empty_dagrun',
             start_date=timezone.datetime(2017, 1, 1)
         )
-        dag_task1 = ShortCircuitOperator(
+        ShortCircuitOperator(
             task_id='test_short_circuit_false',
             dag=dag,
             python_callable=lambda: False)
@@ -1160,10 +1160,8 @@ class DagRunTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_latest_runs_1',
             start_date=DEFAULT_DATE)
-        dag_1_run_1 = self.create_dag_run(dag,
-                                          execution_date=timezone.datetime(2015, 1, 1))
-        dag_1_run_2 = self.create_dag_run(dag,
-                                          execution_date=timezone.datetime(2015, 1, 2))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2015, 1, 1))
+        self.create_dag_run(dag, execution_date=timezone.datetime(2015, 1, 2))
         dagruns = models.DagRun.get_latest_runs(session)
         session.close()
         for dagrun in dagruns:
@@ -1315,9 +1313,9 @@ class DagBagTest(unittest.TestCase):
                 super(TestDagBag, self).process_file(filepath, only_if_updated, safe_mode)
 
         dagbag = TestDagBag(include_examples=True)
-        processed_files = dagbag.process_file_calls
+        dagbag.process_file_calls
 
-        # Should not call process_file agani, since it's already loaded during init.
+        # Should not call process_file again, since it's already loaded during init.
         self.assertEqual(1, dagbag.process_file_calls)
         self.assertIsNotNone(dagbag.get_dag(dag_id))
         self.assertEqual(1, dagbag.process_file_calls)

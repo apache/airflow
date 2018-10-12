@@ -35,8 +35,8 @@ def get_after(sentinel, iterable):
     next(truncated)
     return next(truncated)
 
-class TestSparkSqlHook(unittest.TestCase):
 
+class TestSparkSqlHook(unittest.TestCase):
     _config = {
         'conn_id': 'spark_default',
         'executor_cores': 4,
@@ -98,7 +98,8 @@ class TestSparkSqlHook(unittest.TestCase):
                 hook.run_query()
                 mock_debug.assert_called_with(
                     'Spark-Sql cmd: %s',
-                    ['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose', '--queue', 'default']
+                    ['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose',
+                     '--queue', 'default']
                 )
                 mock_info.assert_called_with(
                     'Spark-sql communicates using stdout'
@@ -107,7 +108,8 @@ class TestSparkSqlHook(unittest.TestCase):
         # Then
         self.assertEqual(
             mock_popen.mock_calls[0],
-            call(['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose', '--queue', 'default'], stderr=-2, stdout=-1)
+            call(['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose',
+                  '--queue', 'default'], stderr=-2, stdout=-1)
         )
 
 
