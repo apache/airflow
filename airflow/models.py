@@ -151,8 +151,6 @@ def get_fernet():
     """
     global _fernet
     log = LoggingMixin().log
-    no_encryption_phrase = \
-        'cryptography_not_found_storing_passwords_in_plain_text'
 
     if _fernet:
         return _fernet
@@ -163,14 +161,14 @@ def get_fernet():
 
     except BuiltinImportError:
         log.warning(
-            "cryptography not found - values will not be stored encrypted.",
-            exc_info=1
+            "cryptography not found - values will not be stored encrypted."
         )
         _fernet = NullFernet()
+        return _fernet
 
     try:
         fernet_key = configuration.conf.get('core', 'FERNET_KEY')
-        if not fernet_key or fernet_key == no_encryption_phrase:
+        if not fernet_key:
             log.warning(
                 "empty cryptography key - values will not be stored encrypted."
             )
