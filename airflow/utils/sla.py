@@ -4,6 +4,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+from six import string_types
 
 log = LoggingMixin().log
 
@@ -260,7 +261,7 @@ def get_subscribers(tasks):
     def _yield_subscribers(tasks):
         for t in tasks:
             if t.email:
-                if isinstance(t.email, basestring):
+                if isinstance(t.email, string_types):
                     yield t.email
                 else:
                     for e in t.email:
