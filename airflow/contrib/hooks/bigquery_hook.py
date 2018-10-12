@@ -496,12 +496,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   schema_update_options=(),
                   priority='INTERACTIVE',
                   time_partitioning=None,
-<<<<<<< HEAD
                   api_resource_configs=None,
                   cluster_fields=None):
-=======
-                  api_resource_configs=None):
->>>>>>> 5869feae... [AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -532,11 +528,7 @@ class BigQueryBaseCursor(LoggingMixin):
             See https://cloud.google.com/bigquery/user-defined-functions for details.
         :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
             If `None`, defaults to `self.use_legacy_sql`.
-<<<<<<< HEAD
         :type use_legacy_sql: bool
-=======
-        :type use_legacy_sql: boolean
->>>>>>> 5869feae... [AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
         :param api_resource_configs: a dictionary that contain params
             'configuration' applied for Google BigQuery Jobs API:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
@@ -577,6 +569,7 @@ class BigQueryBaseCursor(LoggingMixin):
             time_partitioning. The order of columns given determines the sort order.
         :type cluster_fields: list of str
         """
+
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
         else:
@@ -590,22 +583,6 @@ class BigQueryBaseCursor(LoggingMixin):
             _validate_value("api_resource_configs['query']",
                             configuration['query'], dict)
 
-<<<<<<< HEAD
-        if not api_resource_configs:
-            api_resource_configs = self.api_resource_configs
-        else:
-            _validate_value('api_resource_configs',
-                            api_resource_configs, dict)
-        configuration = deepcopy(api_resource_configs)
-        if 'query' not in configuration:
-            configuration['query'] = {}
-
-        else:
-            _validate_value("api_resource_configs['query']",
-                            configuration['query'], dict)
-
-=======
->>>>>>> 5869feae... [AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
         sql = bql if sql is None else sql
 
         # TODO remove `bql` in Airflow 2.0 - Jira: [AIRFLOW-2513]
@@ -657,12 +634,9 @@ class BigQueryBaseCursor(LoggingMixin):
                 'tableId': destination_table,
             }
 
-<<<<<<< HEAD
         if cluster_fields:
             cluster_fields = {'fields': cluster_fields}
 
-=======
->>>>>>> 5869feae... [AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
         query_param_list = [
             (sql, 'query', None, str),
             (priority, 'priority', 'INTERACTIVE', str),
@@ -673,12 +647,8 @@ class BigQueryBaseCursor(LoggingMixin):
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
             (time_partitioning, 'timePartitioning', {}, dict),
             (schema_update_options, 'schemaUpdateOptions', None, tuple),
-<<<<<<< HEAD
             (destination_dataset_table, 'destinationTable', None, dict),
             (cluster_fields, 'clustering', None, dict),
-=======
-            (destination_dataset_table, 'destinationTable', None, dict)
->>>>>>> 5869feae... [AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
         ]
 
         for param_tuple in query_param_list:
@@ -1847,7 +1817,6 @@ def _validate_value(key, value, expected_type):
             key, expected_type, type(value)))
 
 
-<<<<<<< HEAD
 def _api_resource_configs_duplication_check(key, value, config_dict,
                                             config_dict_name='api_resource_configs'):
     if key in config_dict and value != config_dict[key]:
@@ -1856,12 +1825,3 @@ def _api_resource_configs_duplication_check(key, value, config_dict,
                          "in `query` config and {param_name} was also provided "
                          "with arg to run_query() method. Please remove duplicates."
                          .format(param_name=key, dict_name=config_dict_name))
-=======
-def _api_resource_configs_duplication_check(key, value, config_dict):
-    if key in config_dict and value != config_dict[key]:
-        raise ValueError("Values of {param_name} param are duplicated. "
-                         "`api_resource_configs` contained {param_name} param "
-                         "in `query` config and {param_name} was also provided "
-                         "with arg to run_query() method. Please remove duplicates."
-                         .format(param_name=key))
->>>>>>> 5869feae... [AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
