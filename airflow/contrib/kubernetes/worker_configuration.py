@@ -296,7 +296,7 @@ class WorkerConfiguration(LoggingMixin):
             image=kube_executor_config.image or self.kube_config.kube_image,
             image_pull_policy=(kube_executor_config.image_pull_policy or
                                self.kube_config.kube_image_pull_policy),
-            cmds=airflow_command + ['--serve_logs=True'],
+            cmds=airflow_command + ['--serve_logs'],
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
