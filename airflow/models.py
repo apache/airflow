@@ -5254,6 +5254,8 @@ class DagRun(Base, LoggingMixin):
         for task in six.itervalues(dag.task_dict):
             if task.adhoc:
                 continue
+            if task.start_date > self.execution_date and not self.is_backfill:
+                continue
 
             if task.task_id not in task_ids:
                 Stats.incr(
