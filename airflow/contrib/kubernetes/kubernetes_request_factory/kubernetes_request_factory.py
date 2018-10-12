@@ -106,6 +106,7 @@ class KubernetesRequestFactory:
     @staticmethod
     def extract_name(pod, req):
         req['metadata']['name'] = pod.name
+        req['spec']['hostname'] = pod.name
 
     @staticmethod
     def extract_volume_secrets(pod, req):
