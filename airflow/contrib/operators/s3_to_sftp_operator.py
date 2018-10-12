@@ -72,7 +72,7 @@ class S3ToSFTPOperator(BaseOperator):
         return parsed_s3_key.path.lstrip('/')
 
     def execute(self, context):
-        self.s3_key = get_s3_key(self.s3_key)
+        self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
         s3_hook = S3Hook(self.s3_conn_id)
 
