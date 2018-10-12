@@ -298,6 +298,34 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
                          expected_custom_image_url)
 
+    def test_build_single_node_cluster(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=0,
+            num_preemptible_workers=0,
+            zone=ZONE,
+            dag=self.dag
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertEqual(
+            cluster_data['config']['softwareConfig']['properties']
+            ['dataproc:dataproc.allow.zero.workers'], "true")
+
+    def test_init_cluster_with_zero_workers_and_not_non_zero_preemtibles(self):
+        with self.assertRaises(AssertionError):
+            DataprocClusterCreateOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                project_id=PROJECT_ID,
+                num_workers=0,
+                num_preemptible_workers=2,
+                zone=ZONE,
+                dag=self.dag,
+                image_version=IMAGE_VERSION,
+            )
+
     def test_cluster_name_log_no_sub(self):
         with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') \
                 as mock_hook:
