@@ -24,7 +24,6 @@ import boto3
 from airflow import configuration
 from airflow.contrib.hooks.emr_hook import EmrHook
 
-
 try:
     from moto import mock_emr
 except ImportError:
@@ -74,6 +73,7 @@ class TestEmrHook(unittest.TestCase):
 
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
         self.assertEqual(cluster['RequestedAmiVersion'], '3.2')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -98,7 +98,8 @@ class TestSqoopHook(unittest.TestCase):
         mock_popen.return_value.stdout = StringIO(u'stdout')
         mock_popen.return_value.stderr = StringIO(u'stderr')
         mock_popen.return_value.returncode = 0
-        mock_popen.return_value.communicate.return_value = [StringIO(u'stdout\nstdout'), StringIO(u'stderr\nstderr')]
+        mock_popen.return_value.communicate.return_value = \
+            [StringIO(u'stdout\nstdout'), StringIO(u'stderr\nstderr')]
 
         # When
         hook = SqoopHook(conn_id='sqoop_test')
@@ -163,7 +164,7 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("-files {}".format(self._config_json['files']), cmd)
 
         if self._config_json['archives']:
-            self.assertIn( "-archives {}".format(self._config_json['archives']), cmd)
+            self.assertIn("-archives {}".format(self._config_json['archives']), cmd)
 
         self.assertIn("--hcatalog-database {}".format(self._config['hcatalog_database']), cmd)
         self.assertIn("--hcatalog-table {}".format(self._config['hcatalog_table']), cmd)
@@ -173,7 +174,7 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("--verbose", cmd)
 
         if self._config['num_mappers']:
-            self.assertIn( "--num-mappers {}".format(self._config['num_mappers']), cmd)
+            self.assertIn("--num-mappers {}".format(self._config['num_mappers']), cmd)
 
         for key, value in self._config['properties'].items():
             self.assertIn("-D {}={}".format(key, value), cmd)
@@ -301,7 +302,8 @@ class TestSqoopHook(unittest.TestCase):
 
     def test_get_export_format_argument(self):
         """
-        Tests to verify the hook get format function is building correct Sqoop command with correct format type.
+        Tests to verify the hook get format function is building
+        correct Sqoop command with correct format type.
         """
         hook = SqoopHook()
         self.assertIn("--as-avrodatafile",

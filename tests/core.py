@@ -916,11 +916,11 @@ class CoreTest(unittest.TestCase):
         session = settings.Session()
         try:
             p.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except:
+        except Exception:
             pass
         try:
             f.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except:
+        except Exception:
             pass
         p_fails = session.query(models.TaskFail).filter_by(
             task_id='pass_sleepy',
@@ -930,10 +930,9 @@ class CoreTest(unittest.TestCase):
             task_id='fail_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
-        print(f_fails)
+
         self.assertEqual(0, len(p_fails))
         self.assertEqual(1, len(f_fails))
-        # C
         self.assertGreaterEqual(sum([f.duration for f in f_fails]), 3)
 
     def test_dag_stats(self):
@@ -1619,7 +1618,7 @@ class CliTests(unittest.TestCase):
             try:
                 with open(pidfile) as f:
                     return int(f.read())
-            except:
+            except Exception:
                 sleep(1)
 
     def test_cli_webserver_foreground(self):
@@ -1729,7 +1728,7 @@ class SecurityTests(unittest.TestCase):
     def test_xss(self):
         try:
             self.app.get("/admin/airflow/tree?dag_id=<script>alert(123456)</script>")
-        except:
+        except Exception:
             # exception is expected here since dag doesnt exist
             pass
         response = self.app.get("/admin/log", follow_redirects=True)
@@ -2180,7 +2179,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
         try:
             configuration.conf.add_section("ldap")
-        except:
+        except Exception:
             pass
         configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
@@ -2267,7 +2266,7 @@ class LdapGroupTest(unittest.TestCase):
         configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
         try:
             configuration.conf.add_section("ldap")
-        except:
+        except Exception:
             pass
         configuration.conf.set("ldap", "uri", "ldap://openldap:389")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
@@ -2605,6 +2604,7 @@ class HDFSHookTest(unittest.TestCase):
         mock_get_connections.return_value = [c1, c2]
         client = HDFSHook().get_conn()
         self.assertIsInstance(client, snakebite.client.HAClient)
+
 
 send_email_test = mock.Mock()
 

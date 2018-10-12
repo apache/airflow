@@ -91,7 +91,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'success',
             timezone.datetime(2016, 1, 1, 12): 'success',
-            timezone.datetime(2016, 1, 2): 'success', },
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')
@@ -157,7 +157,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'success',
             timezone.datetime(2016, 1, 1, 12): 'success',
-            timezone.datetime(2016, 1, 2): 'success', },
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')

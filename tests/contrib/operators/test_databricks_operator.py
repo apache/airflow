@@ -94,9 +94,9 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         Test the initializer with a specified run_name.
         """
         json = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': NOTEBOOK_TASK,
-          'run_name': RUN_NAME
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
+            'run_name': RUN_NAME
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
         expected = op._deep_string_coerce({
@@ -127,8 +127,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
 
     def test_init_with_templating(self):
         json = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': TEMPLATED_NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': TEMPLATED_NOTEBOOK_TASK,
         }
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
@@ -174,8 +174,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         Test the execute function in case where the run is successful.
         """
         run = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
@@ -204,8 +204,8 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         Test the execute function in case where the run failed.
         """
         run = {
-          'new_cluster': NEW_CLUSTER,
-          'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
