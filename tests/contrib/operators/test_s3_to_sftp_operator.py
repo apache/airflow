@@ -154,7 +154,7 @@ class S3ToSFTPOperatorTest(unittest.TestCase):
             ssh_hook=self.hook,
             command="rm {0}".format(self.sftp_path),
             do_xcom_push=True,
-            dag=self.dag
+            dag=self.dags
         )
         self.assertIsNotNone(remove_file_task)
         ti3 = TaskInstance(task=remove_file_task, execution_date=timezone.utcnow())
