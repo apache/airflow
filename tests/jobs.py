@@ -1303,7 +1303,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
-        task2 = DummyOperator(dag=dag2, task_id=task_id_1)
+        DummyOperator(dag=dag2, task_id=task_id_1)
 
         dagbag1 = self._make_simple_dag_bag([dag])
         dagbag2 = self._make_simple_dag_bag([dag2])
@@ -1479,7 +1479,7 @@ class SchedulerJobTest(unittest.TestCase):
             TI(task2, dr1.execution_date),
             TI(task1, dr2.execution_date),
             TI(task2, dr2.execution_date)
-            ])
+        ])
         for ti in tis:
             ti.state = State.SCHEDULED
             session.merge(ti)
@@ -1858,8 +1858,12 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
 
         self.assertEqual(State.RUNNING, dr1.state)
-        self.assertEqual(2, DAG.get_num_task_instances(dag_id, dag.task_ids,
-            states=[State.RUNNING], session=session))
+        self.assertEqual(
+            2,
+            DAG.get_num_task_instances(
+                dag_id, dag.task_ids, states=[State.RUNNING], session=session
+            )
+        )
 
         # create second dag run
         dr2 = scheduler.create_dag_run(dag)
@@ -1883,8 +1887,12 @@ class SchedulerJobTest(unittest.TestCase):
         ti2.refresh_from_db()
         ti3.refresh_from_db()
         ti4.refresh_from_db()
-        self.assertEqual(3, DAG.get_num_task_instances(dag_id, dag.task_ids,
-            states=[State.RUNNING, State.QUEUED], session=session))
+        self.assertEqual(
+            3,
+            DAG.get_num_task_instances(
+                dag_id, dag.task_ids, states=[State.RUNNING, State.QUEUED], session=session
+            )
+        )
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
         six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
@@ -1931,43 +1939,26 @@ class SchedulerJobTest(unittest.TestCase):
     @unittest.skipUnless("INTEGRATION" in os.environ,
                          "The test is flaky with nondeterministic result")
     def test_change_state_for_tis_without_dagrun(self):
-        dag1 = DAG(
-            dag_id='test_change_state_for_tis_without_dagrun',
-            start_date=DEFAULT_DATE)
+        dag1 = DAG(dag_id='test_change_state_for_tis_without_dagrun', start_date=DEFAULT_DATE)
 
-        DummyOperator(
-            task_id='dummy',
-            dag=dag1,
-            owner='airflow')
-        DummyOperator(
-            task_id='dummy_b',
-            dag=dag1,
-            owner='airflow')
+        DummyOperator(task_id='dummy', dag=dag1, owner='airflow')
 
-        dag2 = DAG(
-            dag_id='test_change_state_for_tis_without_dagrun_dont_change',
-            start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy_b', dag=dag1, owner='airflow')
 
-        DummyOperator(
-            task_id='dummy',
-            dag=dag2,
-            owner='airflow')
+        dag2 = DAG(dag_id='test_change_state_for_tis_without_dagrun_dont_change', start_date=DEFAULT_DATE)
 
-        dag3 = DAG(
-            dag_id='test_change_state_for_tis_without_dagrun_no_dagrun',
-            start_date=DEFAULT_DATE)
+        DummyOperator(task_id='dummy', dag=dag2, owner='airflow')
 
-        DummyOperator(
-            task_id='dummy',
-            dag=dag3,
-            owner='airflow')
+        dag3 = DAG(dag_id='test_change_state_for_tis_without_dagrun_no_dagrun', start_date=DEFAULT_DATE)
+
+        DummyOperator(task_id='dummy', dag=dag3, owner='airflow')
 
         session = settings.Session()
         dr1 = dag1.create_dagrun(run_id=DagRun.ID_PREFIX,
-                               state=State.RUNNING,
-                               execution_date=DEFAULT_DATE,
-                               start_date=DEFAULT_DATE,
-                               session=session)
+                                 state=State.RUNNING,
+                                 execution_date=DEFAULT_DATE,
+                                 start_date=DEFAULT_DATE,
+                                 session=session)
 
         dr2 = dag2.create_dagrun(run_id=DagRun.ID_PREFIX,
                                  state=State.RUNNING,
@@ -2353,7 +2344,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_do_not_schedule_removed_task',
             start_date=DEFAULT_DATE)
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2383,7 +2374,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_do_not_schedule_too_early',
             start_date=timezone.datetime(2200, 1, 1))
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2409,7 +2400,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_do_not_run_finished',
             start_date=DEFAULT_DATE)
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2445,7 +2436,7 @@ class SchedulerJobTest(unittest.TestCase):
             dag_id='test_scheduler_add_new_task',
             start_date=DEFAULT_DATE)
 
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2465,7 +2456,7 @@ class SchedulerJobTest(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEquals(len(tis), 1)
 
-        dag_task2 = DummyOperator(
+        DummyOperator(
             task_id='dummy2',
             dag=dag,
             owner='airflow')
@@ -2485,7 +2476,7 @@ class SchedulerJobTest(unittest.TestCase):
             start_date=DEFAULT_DATE)
         dag.max_active_runs = 1
 
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2514,7 +2505,7 @@ class SchedulerJobTest(unittest.TestCase):
             start_date=DEFAULT_DATE)
         dag.dagrun_timeout = datetime.timedelta(seconds=60)
 
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2541,8 +2532,11 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_scheduler_verify_max_active_runs_and_dagrun_timeout(self):
         """
-        Test if a a dagrun will not be scheduled if max_dag_runs has been reached and dagrun_timeout is not reached
-        Test if a a dagrun will be scheduled if max_dag_runs has been reached but dagrun_timeout is also reached
+        Test if a a dagrun will not be scheduled if max_dag_runs
+        has been reached and dagrun_timeout is not reached
+
+        Test if a a dagrun will be scheduled if max_dag_runs has
+        been reached but dagrun_timeout is also reached
         """
         dag = DAG(
             dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout',
@@ -2550,7 +2544,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag.max_active_runs = 1
         dag.dagrun_timeout = datetime.timedelta(seconds=60)
 
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2686,7 +2680,7 @@ class SchedulerJobTest(unittest.TestCase):
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule_interval="4 5 * * *"
         )
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2708,7 +2702,7 @@ class SchedulerJobTest(unittest.TestCase):
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule_interval="10 10 * * *"
         )
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2739,7 +2733,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_scheduler_reschedule',
             start_date=DEFAULT_DATE)
-        dag_task1 = DummyOperator(
+        DummyOperator(
             task_id='dummy',
             dag=dag,
             owner='airflow')
@@ -2784,7 +2778,8 @@ class SchedulerJobTest(unittest.TestCase):
         # Mock the callback function so we can verify that it was not called
         sla_callback = MagicMock()
 
-        # Create dag with a start of 2 days ago, but an sla of 1 day ago so we'll already have an sla_miss on the books
+        # Create dag with a start of 2 days ago, but an sla of 1 day
+        # ago so we'll already have an sla_miss on the books
         test_start_date = days_ago(2)
         dag = DAG(dag_id='test_sla_miss',
                   sla_miss_callback=sla_callback,
@@ -2996,8 +2991,8 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler.run()
 
         session = settings.Session()
-        ti = session.query(TI).filter(TI.dag_id==dag.dag_id,
-                                      TI.task_id==dag_task1.task_id).first()
+        ti = session.query(TI).filter(TI.dag_id == dag.dag_id,
+                                      TI.task_id == dag_task1.task_id).first()
 
         # make sure the counter has increased
         self.assertEqual(ti.try_number, 2)
@@ -3059,7 +3054,8 @@ class SchedulerJobTest(unittest.TestCase):
         """
 
         now = timezone.utcnow()
-        six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
+        six_hours_ago_to_the_hour = \
+            (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
 
         START_DATE = six_hours_ago_to_the_hour
         DAG_NAME1 = 'get_active_runs_test'
@@ -3102,7 +3098,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         try:
             running_date = running_dates[0]
-        except:
+        except Exception as _:
             running_date = 'Except'
 
         self.assertEqual(execution_date, running_date, 'Running Date must match Execution Date')
@@ -3184,7 +3180,6 @@ class SchedulerJobTest(unittest.TestCase):
                          catchup=False)
         dr = scheduler.create_dag_run(dag4)
         self.assertIsNotNone(dr)
-
 
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         dags_folder = mkdtemp()

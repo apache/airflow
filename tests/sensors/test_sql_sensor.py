@@ -38,6 +38,11 @@ class SqlSensorTests(unittest.TestCase):
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
+<<<<<<< HEAD
+=======
+    @unittest.skipUnless(
+        'mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")
+>>>>>>> 0e8394fd... [AIRFLOW-3190] Make flake8 compliant (#4035)
     def test_sql_sensor_mysql(self):
         t = SqlSensor(
             task_id='sql_sensor_check',
@@ -47,6 +52,11 @@ class SqlSensorTests(unittest.TestCase):
         )
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+<<<<<<< HEAD
+=======
+    @unittest.skipUnless(
+        'postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a postgres test")
+>>>>>>> 0e8394fd... [AIRFLOW-3190] Make flake8 compliant (#4035)
     def test_sql_sensor_postgres(self):
         t = SqlSensor(
             task_id='sql_sensor_check',
@@ -55,3 +65,22 @@ class SqlSensorTests(unittest.TestCase):
             dag=self.dag
         )
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+<<<<<<< HEAD
+=======
+
+    @mock.patch('airflow.sensors.sql_sensor.BaseHook')
+    def test_sql_sensor_postgres_poke(self, mock_hook):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT 1",
+        )
+
+        mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
+
+        mock_get_records.return_value = []
+        self.assertFalse(t.poke(None))
+
+        mock_get_records.return_value = [['1']]
+        self.assertTrue(t.poke(None))
+>>>>>>> 0e8394fd... [AIRFLOW-3190] Make flake8 compliant (#4035)

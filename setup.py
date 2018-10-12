@@ -45,8 +45,7 @@ def verify_gpl_dependency():
     if os.getenv("READTHEDOCS") == "True":
         os.environ["SLUGIFY_USES_TEXT_UNIDECODE"] = "yes"
 
-    if (not os.getenv("AIRFLOW_GPL_UNIDECODE")
-            and not os.getenv("SLUGIFY_USES_TEXT_UNIDECODE") == "yes"):
+    if not os.getenv("AIRFLOW_GPL_UNIDECODE") and not os.getenv("SLUGIFY_USES_TEXT_UNIDECODE") == "yes":
         raise RuntimeError("By default one of Airflow's dependencies installs a GPL "
                            "dependency (unidecode). To avoid this dependency set "
                            "SLUGIFY_USES_TEXT_UNIDECODE=yes in your environment when you "

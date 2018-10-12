@@ -29,5 +29,9 @@ Make sure you have checked _all_ steps below.
     - When adding new operators/hooks/sensors, the autoclass documentation generation needs to be added.
 
 
+<<<<<<< HEAD
 ### Code Quality
 - [ ] Passes `git diff upstream/master -u -- "*.py" | flake8 --diff`
+=======
+- [ ] Passes `flake8`
+>>>>>>> 0e8394fd... [AIRFLOW-3190] Make flake8 compliant (#4035)

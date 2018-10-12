@@ -2095,7 +2095,7 @@ class VariableModelView(AirflowModelView):
                     suc_count += 1
             flash("{} variable(s) successfully updated.".format(suc_count))
             if fail_count:
-                flash("{} variables(s) failed to be updated.".format(fail_count), 'error')
+                flash("{} variable(s) failed to be updated.".format(fail_count), 'error')
             self.update_redirect()
             return redirect(self.get_redirect())
 
@@ -2338,7 +2338,7 @@ class TaskInstanceModelView(AirflowModelView):
             self.update_redirect()
             return redirect(self.get_redirect())
 
-        except Exception as ex:
+        except Exception:
             flash('Failed to clear task instances', 'error')
 
     @provide_session

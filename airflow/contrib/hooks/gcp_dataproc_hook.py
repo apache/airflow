@@ -70,10 +70,21 @@ class _DataProcJob(LoggingMixin):
             time.sleep(5)
 
     def raise_error(self, message=None):
+<<<<<<< HEAD
         if 'ERROR' == self.job['status']['state']:
             if message is None:
                 message = "Google DataProc job has error"
             raise Exception(message + ": " + str(self.job['status']['details']))
+=======
+        job_state = self.job['status']['state']
+        # We always consider ERROR to be an error state.
+        if (self.job_error_states and job_state in self.job_error_states) or 'ERROR' == job_state:
+            ex_message = message or ("Google DataProc job has state: %s" % job_state)
+            ex_details = (str(self.job['status']['details'])
+                          if 'details' in self.job['status']
+                          else "No details available")
+            raise Exception(ex_message + ": " + ex_details)
+>>>>>>> 0e8394fd... [AIRFLOW-3190] Make flake8 compliant (#4035)
 
     def get(self):
         return self.job

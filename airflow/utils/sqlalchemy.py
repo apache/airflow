@@ -37,12 +37,10 @@ log = LoggingMixin().log
 utc = pendulum.timezone('UTC')
 
 
-def setup_event_handlers(
-        engine,
-        reconnect_timeout_seconds,
-        initial_backoff_seconds=0.2,
-        max_backoff_seconds=120):
-
+def setup_event_handlers(engine,
+                         reconnect_timeout_seconds,
+                         initial_backoff_seconds=0.2,
+                         max_backoff_seconds=120):
     @event.listens_for(engine, "engine_connect")
     def ping_connection(connection, branch):
         """
@@ -99,7 +97,6 @@ def setup_event_handlers(
             finally:
                 # restore "close with result"
                 connection.should_close_with_result = save_should_close_with_result
-
 
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):

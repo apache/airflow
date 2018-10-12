@@ -157,8 +157,10 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         """This checks the defensive against non existent tasks in a dag run"""
         value = False
         dag = DAG('shortcircuit_operator_test_without_dag_run',
-                  default_args={'owner': 'airflow',
-                                'start_date': DEFAULT_DATE},
+                  default_args={
+                      'owner': 'airflow',
+                      'start_date': DEFAULT_DATE
+                  },
                   schedule_interval=INTERVAL)
         short_op = ShortCircuitOperator(task_id='make_choice',
                                         dag=dag,
@@ -210,8 +212,10 @@ class ShortCircuitOperatorTest(unittest.TestCase):
     def test_with_dag_run(self):
         value = False
         dag = DAG('shortcircuit_operator_test_with_dag_run',
-                  default_args={'owner': 'airflow',
-                                'start_date': DEFAULT_DATE},
+                  default_args={
+                      'owner': 'airflow',
+                      'start_date': DEFAULT_DATE
+                  },
                   schedule_interval=INTERVAL)
         short_op = ShortCircuitOperator(task_id='make_choice',
                                         dag=dag,
