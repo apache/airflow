@@ -2618,7 +2618,7 @@ class BaseOperator(LoggingMixin):
             self.log.warning(
                 "Both sla and expected_finish provided as task "
                 "parameters to %s; using expected_finish and ignoring "
-                "sla.",
+                "deprecated sla parameter.",
                 self
             )
             self.expected_finish = expected_finish
@@ -2636,17 +2636,29 @@ class BaseOperator(LoggingMixin):
         if expected_start and expected_finish \
            and expected_start >= expected_finish:
             self.log.warning(
-                "Task %s has an expected start >= expected finish.",
-                self
+                "Task %s has an expected_start (%s) that occurs after its "
+                "expected_finish (%s), so it will always send an SLA "
+                "notification.",
+                self, expected_start, expected_finish
             )
 
             if expected_duration \
-               and (expected_start + expected_duration) > expected_finish:
+                    and (expected_start + expected_duration) > expected_finish:
                 self.log.warning(
-                    "Task %s has an expected start + expected duration "
-                    ">= expected finish.",
-                    self
+                    "Task %s has an expected_start (%s) and expected_duration "
+                    "(%s) that exceed its expected_finish (%s), so it will "
+                    "always send an SLA notification.",
+                    self, expected_start, expected_duration, expected_finish
                 )
+
+        if expected_duration and execution_timeout \
+                and expected_duration > execution_timeout:
+            self.log.warning(
+                "Task %s has an expected_duration (%s) that is longer than "
+                "its execution_timeout (%s), so it will time out before "
+                "sending an SLA notification.",
+                self, expected_duration, execution_timeout
+            )
 
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
