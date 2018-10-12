@@ -1644,21 +1644,7 @@ class TaskInstance(Base, LoggingMixin):
                 if result is not None:
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
-                # TODO remove deprecated behavior in Airflow 2.0
-                try:
-                    task_copy.post_execute(context=context, result=result)
-                except TypeError as e:
-                    if 'unexpected keyword argument' in str(e):
-                        warnings.warn(
-                            'BaseOperator.post_execute() now takes two '
-                            'arguments, `context` and `result`, but "{}" only '
-                            'expected one. This behavior is deprecated and '
-                            'will be removed in a future version of '
-                            'Airflow.'.format(self.task_id),
-                            category=DeprecationWarning)
-                        task_copy.post_execute(context=context)
-                    else:
-                        raise
+                task_copy.post_execute(context=context, result=result)
 
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
