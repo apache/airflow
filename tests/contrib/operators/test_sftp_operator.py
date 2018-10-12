@@ -285,6 +285,71 @@ class SFTPOperatorTest(unittest.TestCase):
             pass
         self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
 
+    def test_arg_checking(self):
+        from airflow.exceptions import AirflowException
+        conn_id = "conn_id_for_testing"
+        os.environ['AIRFLOW_CONN_' + conn_id.upper()] = "ssh://test_id@localhost"
+
+        # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
+        if six.PY2:
+            self.assertRaisesRegex = self.assertRaisesRegexp
+        with self.assertRaisesRegex(AirflowException,
+                                    "Cannot operate without ssh_hook or ssh_conn_id."):
+            task_0 = SFTPOperator(
+                task_id="test_sftp",
+                local_filepath=self.test_local_filepath,
+                remote_filepath=self.test_remote_filepath,
+                operation=SFTPOperation.PUT,
+                dag=self.dag
+            )
+            task_0.execute(None)
+
+        # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
+        task_1 = SFTPOperator(
+            task_id="test_sftp",
+            ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
+            ssh_conn_id=conn_id,
+            local_filepath=self.test_local_filepath,
+            remote_filepath=self.test_remote_filepath,
+            operation=SFTPOperation.PUT,
+            dag=self.dag
+        )
+        try:
+            task_1.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task_1.ssh_hook.ssh_conn_id, conn_id)
+
+        task_2 = SFTPOperator(
+            task_id="test_sftp",
+            ssh_conn_id=conn_id,  # no ssh_hook provided
+            local_filepath=self.test_local_filepath,
+            remote_filepath=self.test_remote_filepath,
+            operation=SFTPOperation.PUT,
+            dag=self.dag
+        )
+        try:
+            task_2.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task_2.ssh_hook.ssh_conn_id, conn_id)
+
+        # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
+        task_3 = SFTPOperator(
+            task_id="test_sftp",
+            ssh_hook=self.hook,
+            ssh_conn_id=conn_id,
+            local_filepath=self.test_local_filepath,
+            remote_filepath=self.test_remote_filepath,
+            operation=SFTPOperation.PUT,
+            dag=self.dag
+        )
+        try:
+            task_3.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
+
     def delete_local_resource(self):
         if os.path.exists(self.test_local_filepath):
             os.remove(self.test_local_filepath)
