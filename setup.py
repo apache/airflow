@@ -192,6 +192,7 @@ gcp_api = [
     'pandas-gbq'
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
+google_auth = ['Flask-OAuthlib>=0.9.1']
 hdfs = ['snakebite>=2.7.8']
 hive = [
     'hmsclient>=0.1.0',
@@ -298,10 +299,10 @@ def do_setup():
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'flask>=0.12.4, <0.13',
-            'flask-appbuilder>=1.11.1, <2.0.0',
+            'flask-appbuilder>=1.12, <2.0.0',
             'flask-admin==1.4.1',
             'flask-caching>=1.3.3, <1.4.0',
-            'flask-login==0.2.11',
+            'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
@@ -358,6 +359,7 @@ def do_setup():
             'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
+            'google_auth': google_auth,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,

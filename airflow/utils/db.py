@@ -338,8 +338,8 @@ def upgradedb():
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
-    config.set_main_option('script_location', directory)
-    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
+    config.set_main_option('script_location', directory.replace('%', '%%'))
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
 
 

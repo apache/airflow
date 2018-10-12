@@ -260,7 +260,7 @@ def data_profiling_required(f):
     def decorated_function(*args, **kwargs):
         if (
                 current_app.config['LOGIN_DISABLED'] or
-                (not current_user.is_anonymous() and current_user.data_profiling())
+                (not current_user.is_anonymous and current_user.data_profiling())
         ):
             return f(*args, **kwargs)
         else:

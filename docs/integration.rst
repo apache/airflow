@@ -65,6 +65,15 @@ Your reverse proxy (ex: nginx) should be configured as follow:
           }
       }
 
+To ensure that Airflow generates URLs with the correct scheme when
+running behind a TLS-terminating proxy, you should configure the proxy
+to set the `X-Forwarded-Proto` header, and enable the `ProxyFix`
+middleware in your `airflow.cfg`::
+
+    enable_proxy_fix = True
+
+Note: you should only enable the `ProxyFix` middleware when running
+Airflow behind a trusted proxy (AWS ELB, nginx, etc.).
 
 .. _Azure:
 
@@ -447,6 +456,37 @@ BigQueryHook
 
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
     :members:
+
+Compute Engine
+''''''''''''''
+
+Compute Engine Operators
+""""""""""""""""""""""""
+
+- :ref:`GceInstanceStartOperator` : start an existing Google Compute Engine instance.
+- :ref:`GceInstanceStopOperator` : stop an existing Google Compute Engine instance.
+- :ref:`GceSetMachineTypeOperator` : change the machine type for a stopped instance.
+
+.. _GceInstanceStartOperator:
+
+GceInstanceStartOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator
+
+.. _GceInstanceStopOperator:
+
+GceInstanceStopOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator
+
+.. _GceSetMachineTypeOperator:
+
+GceSetMachineTypeOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 
 
 Cloud Functions

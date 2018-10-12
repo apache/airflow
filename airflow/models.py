@@ -887,6 +887,7 @@ class TaskInstance(Base, LoggingMixin):
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
+        Index('ti_dag_date', dag_id, execution_date),
         Index('ti_state', state),
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
@@ -1114,10 +1115,10 @@ class TaskInstance(Base, LoggingMixin):
         BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
         if settings.RBAC:
             return BASE_URL + (
-                "/log/list/"
-                "?_flt_3_dag_id={self.dag_id}"
-                "&_flt_3_task_id={self.task_id}"
-                "&_flt_3_execution_date={iso}"
+                "/log?"
+                "execution_date={iso}"
+                "&task_id={self.task_id}"
+                "&dag_id={self.dag_id}"
             ).format(**locals())
         else:
             return BASE_URL + (
@@ -3201,7 +3202,7 @@ class DagModel(Base):
 class DAG(BaseDag, LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
-    dependencies. A dag also has a schedule, a start end an end date
+    dependencies. A dag also has a schedule, a start date and an end date
     (optional). For each schedule, (say daily or hourly), the DAG needs to run
     each individual tasks as their dependencies are met. Certain tasks have
     the property of depending on their own past, meaning that they can't run
@@ -5253,6 +5254,8 @@ class DagRun(Base, LoggingMixin):
         # check for missing tasks
         for task in six.itervalues(dag.task_dict):
             if task.adhoc:
+                continue
+            if task.start_date > self.execution_date and not self.is_backfill:
                 continue
 
             if task.task_id not in task_ids:
