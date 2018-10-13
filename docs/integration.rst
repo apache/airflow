@@ -543,6 +543,54 @@ SageMakerEndpointOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
     :noindex:
 
+AWS DynamoDB
+''''''''''''
+
+- :ref:`HiveToDynamoDBTransferOperator` :  Moves data from Hive to DynamoDB.
+- :ref:`AwsDynamoDBHook` : Interact with AWS DynamoDB.
+
+.. _HiveToDynamoDBTransferOperator:
+
+HiveToDynamoDBTransferOperator
+""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator
+   :noindex:
+
+.. _AwsDynamoDBHook:
+
+AwsDynamoDBHook
+"""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
+   :noindex:
+
+AWS Lambda
+''''''''''
+
+- :ref:`AwsLambdaHook` : Interact with AWS Lambda.
+
+.. _AwsLambdaHook:
+
+AwsLambdaHook
+"""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
+   :noindex:
+
+AWS Kinesis
+'''''''''''
+
+- :ref:`AwsFirehoseHook` : Interact with AWS Kinesis Firehose.
+
+.. _AwsFirehoseHook:
+
+AwsFirehoseHook
+"""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
+   :noindex:
+
 .. _Databricks:
 
 Databricks

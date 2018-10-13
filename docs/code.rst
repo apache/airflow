@@ -480,6 +480,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 .. autoclass:: airflow.contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
+.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
 .. autoclass:: airflow.contrib.hooks.aws_sns_hook.AwsSnsHook
 .. autoclass:: airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook
