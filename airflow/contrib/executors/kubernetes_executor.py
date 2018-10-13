@@ -628,6 +628,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         except ApiException as e:
             if e.status == 409:
                 return self.kube_client.replace_namespaced_service(
+                    service.metadata.name,
                     self.kube_config.executor_namespace, service
                 )
 
