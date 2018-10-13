@@ -24,7 +24,10 @@ from googleapiclient import errors
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
 
+import gzip as gz
+import shutil
 import re
+import os
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -172,7 +175,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         return downloaded_file_bytes
 
     # pylint:disable=redefined-builtin
-    def upload(self, bucket, object, filename, mime_type='application/octet-stream'):
+    def upload(self, bucket, object, filename,
+               mime_type='application/octet-stream', gzip=False):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -184,14 +188,30 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type filename: str
         :param mime_type: The MIME type to set when uploading the file.
         :type mime_type: str
+        :param gzip: Option to compress file for upload
+        :type gzip: bool
         """
         service = self.get_conn()
+
+        if gzip:
+            filename_gz = filename + '.gz'
+
+            with open(filename, 'rb') as f_in:
+                with gz.open(filename_gz, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
+
         media = MediaFileUpload(filename, mime_type)
+
         try:
             service \
                 .objects() \
                 .insert(bucket=bucket, name=object, media_body=media) \
                 .execute()
+
+            # Clean up gzip file
+            if gzip:
+                os.remove(filename)
             return True
         except errors.HttpError as ex:
             if ex.resp['status'] == '404':
