@@ -206,16 +206,16 @@ class DockerOperator(BaseOperator):
 
             self.container = self.cli.create_container(
                 command=self.get_command(),
-                cpu_shares=cpu_shares,
                 environment=self.environment,
                 host_config=self.cli.create_host_config(
                     binds=self.volumes,
+                    cpu_shares=cpu_shares,
+                    mem_limit=self.mem_limit,
                     network_mode=self.network_mode,
                     shm_size=self.shm_size,
                     dns=self.dns,
                     dns_search=self.dns_search),
                 image=image,
-                mem_limit=self.mem_limit,
                 user=self.user,
                 working_dir=self.working_dir
             )
