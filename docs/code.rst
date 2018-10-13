@@ -378,6 +378,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
+.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 .. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
