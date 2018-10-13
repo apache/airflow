@@ -313,6 +313,49 @@ S3ToRedshiftTransfer
 
 .. autoclass:: airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer
 
+AWS DynamoDB
+''''''''''''
+
+- :ref:`HiveToDynamoDBTransferOperator` :  Moves data from Hive to DynamoDB.
+- :ref:`AwsDynamoDBHook` : Interact with AWS DynamoDB.
+
+.. _HiveToDynamoDBTransferOperator:
+
+HiveToDynamoDBTransferOperator
+""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator
+
+.. _AwsDynamoDBHook:
+
+AwsDynamoDBHook
+"""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
+
+AWS Lambda
+''''''''''
+
+- :ref:`AwsLambdaHook` : Interact with AWS Lambda.
+
+.. _AwsLambdaHook:
+
+AwsLambdaHook
+"""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
+
+AWS Kinesis
+'''''''''''
+
+- :ref:`AwsFirehoseHook` : Interact with AWS Kinesis Firehose.
+
+.. _AwsFirehoseHook:
+
+AwsFirehoseHook
+"""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 
 .. _Databricks:
 
