@@ -23,7 +23,7 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 class EmrHook(AwsHook):
     """
-    Interact with AWS EMR. emr_conn_id is only necessary for using the
+    Interact with AWS EMR. emr_conn_id is only neccessary for using the
     create_job_flow method.
     """
 
@@ -51,19 +51,6 @@ class EmrHook(AwsHook):
         config = emr_conn.extra_dejson.copy()
         config.update(job_flow_overrides)
 
-        response = self.get_conn().run_job_flow(
-            Name=config.get('Name'),
-            LogUri=config.get('LogUri'),
-            ReleaseLabel=config.get('ReleaseLabel'),
-            Instances=config.get('Instances'),
-            Steps=config.get('Steps', []),
-            BootstrapActions=config.get('BootstrapActions', []),
-            Applications=config.get('Applications'),
-            Configurations=config.get('Configurations', []),
-            VisibleToAllUsers=config.get('VisibleToAllUsers'),
-            JobFlowRole=config.get('JobFlowRole'),
-            ServiceRole=config.get('ServiceRole'),
-            Tags=config.get('Tags')
-        )
+        response = self.get_conn().run_job_flow(**config)
 
         return response
