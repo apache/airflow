@@ -217,7 +217,6 @@ class DataprocClusterCreateOperator(BaseOperator):
             )
         ), "num_workers == 0 means single node mode - no preemptibles allowed"
 
-
     def _get_cluster_list_for_project(self, service):
         result = service.projects().regions().clusters().list(
             projectId=self.project_id,
