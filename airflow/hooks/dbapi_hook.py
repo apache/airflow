@@ -192,6 +192,7 @@ class DbApiHook(BaseHook):
         Return True if conn.autocommit is set to True.
         Return False if conn.autocommit is not set or set to False or conn
         does not support autocommit.
+
         :param conn: Connection to get autocommit setting from.
         :type conn: connection object.
         :return: connection autocommit setting.
