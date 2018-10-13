@@ -49,6 +49,7 @@ class MySqlHook(DbApiHook):
     def get_autocommit(self, conn):
         """
         MySql connection gets autocommit in a different way.
+
         :param conn: connection to get autocommit setting from.
         :type conn: connection object.
         :return: connection autocommit setting
