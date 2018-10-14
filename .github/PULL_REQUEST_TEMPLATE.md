@@ -31,4 +31,4 @@ Make sure you have checked _all_ steps below.
 
 ### Code Quality
 
-- [ ] Passes `git diff upstream/master -u -- "*.py" | flake8 --diff`
+- [ ] Passes `flake8`

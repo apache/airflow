@@ -222,6 +222,8 @@ def initdb(rbac=False):
                     "LogUri": "s3://my-emr-log-bucket/default_job_flow_location",
                     "ReleaseLabel": "emr-4.6.0",
                     "Instances": {
+                        "Ec2KeyName": "mykey",
+                        "Ec2SubnetId": "somesubnet",
                         "InstanceGroups": [
                             {
                                 "Name": "Master nodes",
@@ -237,12 +239,10 @@ def initdb(rbac=False):
                                 "InstanceType": "r3.2xlarge",
                                 "InstanceCount": 1
                             }
-                        ]
+                        ],
+                        "TerminationProtected": false,
+                        "KeepJobFlowAliveWhenNoSteps": false
                     },
-                    "Ec2KeyName": "mykey",
-                    "KeepJobFlowAliveWhenNoSteps": false,
-                    "TerminationProtected": false,
-                    "Ec2SubnetId": "somesubnet",
                     "Applications":[
                         { "Name": "Spark" }
                     ],
@@ -268,7 +268,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='qubole_default', conn_type='qubole',
-            host= 'localhost'))
+            host='localhost'))
     merge_conn(
         models.Connection(
             conn_id='segment_default', conn_type='segment',

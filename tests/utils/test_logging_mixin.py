@@ -120,4 +120,3 @@ class TestStreamLogWriter(unittest.TestCase):
 
         log = StreamLogWriter(logger, 1)
         self.assertFalse(log.encoding)
-
