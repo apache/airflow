@@ -113,6 +113,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type destination_bucket: str
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
+        :type destination_object: str
         """
         destination_object = destination_object or source_object
         if (source_bucket == destination_bucket and
