@@ -47,7 +47,8 @@ class BashOperator(BaseOperator):
         of inheriting the current process environment, which is the default
         behavior. (templated)
     :type env: dict
-    :type output_encoding: output encoding of bash command
+    :param output_encoding: Output encoding of bash command 
+    :type output_encoding: str
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
