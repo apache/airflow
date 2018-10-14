@@ -62,7 +62,9 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param last_modified_time: Timestamp in GMT to filter source object(s)
+    :param last_modified_time: When specified, if the object(s) were
+        modified after last_modified_time, they will be copied/moved.
+        If tzinfo has not been set, UTC will be assumed.
     :type last_modified_time: datetime
 
     **Examples**:
