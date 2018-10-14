@@ -641,6 +641,11 @@ def list_tasks(args, dag=None):
 
 @cli_utils.action_logging
 def test(args, dag=None):
+    # We want log outout from operators etc to show up here. Normally
+    # airflow.task would redirect to a file, but here we want it to propagate
+    # up to the normal airflow handler.
+    logging.getLogger('airflow.task').propagate = True
+
     dag = dag or get_dag(args)
 
     task = dag.get_task(task_id=args.task_id)
