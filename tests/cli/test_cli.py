@@ -18,6 +18,8 @@
 # under the License.
 #
 
+from six import StringIO
+import sys
 import unittest
 
 from datetime import datetime, timedelta, time
@@ -28,6 +30,7 @@ import pytz
 import subprocess
 from argparse import Namespace
 from airflow import settings
+import airflow.bin.cli as cli
 from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
 from airflow.models import TaskInstance
 from airflow.utils import timezone
@@ -182,6 +185,29 @@ class TestCLI(unittest.TestCase):
             ti.refresh_from_db()
             state = ti.current_state()
             self.assertEqual(state, State.SUCCESS)
+
+    def test_test(self):
+        """Test the `airflow test` command"""
+        args = create_mock_args(
+            task_id='print_the_context',
+            dag_id='example_python_operator',
+            subdir=None,
+            execution_date=timezone.parse('2018-01-01')
+        )
+
+        saved_stdout = sys.stdout
+        try:
+            sys.stdout = out = StringIO()
+            cli.test(args)
+
+            output = out.getvalue()
+            # Check that prints, and log messages, are shown
+            self.assertIn('Done. Returned value was: Whatever you return gets printed in the logs',
+                          output)
+            self.assertIn("'example_python_operator__print_the_context__20180101'",
+                          output)
+        finally:
+            sys.stdout = saved_stdout
 
     def test_next_execution(self):
         # A scaffolding function
