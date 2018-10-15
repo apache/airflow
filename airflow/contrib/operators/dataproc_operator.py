@@ -221,14 +221,14 @@ class DataprocClusterCreateOperator(BaseOperator):
         cluster = [c for c in cluster_list if c['clusterName'] == self.cluster_name]
         if cluster:
             return cluster[0]
-        return None
+        return
 
     def _get_cluster_state(self, service):
         cluster = self._get_cluster(service)
         if 'status' in cluster:
             return cluster['status']['state']
         else:
-            return None
+            return
 
     def _cluster_ready(self, state, service):
         if state == 'RUNNING':
@@ -394,7 +394,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                 self.cluster_name
             )
             self._wait_for_done(service)
-            return None
+            return
 
         cluster_data = self._build_cluster_data()
         try:
@@ -412,7 +412,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                     self.cluster_name
                 )
                 self._wait_for_done(service)
-                return None
+                return
             else:
                 raise e
 
