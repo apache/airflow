@@ -440,9 +440,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     @staticmethod
     def _make_safe_pod_id(safe_dag_id, safe_task_id, safe_uuid):
-        r"""
-        Kubernetes pod names must be <= 253 chars and must pass the following regex for
-        validation
+        """
+        Kubernetes pod names must be <= 63 chars (due to the use of hostnames)
+        and must pass the following regex for validation
         "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
         :param safe_dag_id: a dag_id with only alphanumeric characters
@@ -450,7 +450,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         :param random_uuid: a uuid
         :return: ``str`` valid Pod name of appropriate length
         """
-        MAX_POD_ID_LEN = 253
+        MAX_POD_ID_LEN = 63
 
         safe_key = safe_dag_id + safe_task_id
 
