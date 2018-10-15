@@ -1877,6 +1877,10 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/duration?days=30&dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
+            '/admin/airflow/duration?days=30&dag_id=missing_dag',
+            follow_redirects=True)
+        self.assertIn("seems to be missing", response.data.decode('utf-8'))
+        response = self.app.get(
             '/admin/airflow/tries?days=30&dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
