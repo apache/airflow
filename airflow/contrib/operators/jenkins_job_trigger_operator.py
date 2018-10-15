@@ -248,8 +248,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
                     'You can also check logs for more details on this exception '
                     '(jenkins_url/log/rss)', str(err))
 
-        if self.do_xcom_push:
-            if build_info:
-                # If we can we return the url of the job
-                # for later use (like retrieving an artifact)
-                return build_info['url']
+        if self.do_xcom_push and build_info:
+            # If we can we return the url of the job
+            # for later use (like retrieving an artifact)
+            return build_info['url']
