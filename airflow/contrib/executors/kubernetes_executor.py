@@ -626,9 +626,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.kube_config.executor_namespace, service
             )
         except ApiException as e:
-            self.log.error('Error creating namespaced service: %s', e)
             if e.status == 409:
-                return self.kube_client.replace_namespaced_service(
+                return self.kube_client.patch_namespaced_service(
                     service.metadata.name,
                     self.kube_config.executor_namespace, service
                 )
