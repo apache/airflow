@@ -133,9 +133,9 @@ class GKEClusterCreateOperator(BaseOperator):
     :type gcp_conn_id: str
     :param api_version: The api version to use
     :type api_version: str
-    :param do_xcom_push: return the result of cluster creation operation which also get
+    :param xcom_push: return the result of cluster creation operation which also get
         set in XCOM
-    :type do_xcom_push: bool
+    :type xcom_push: bool
     """
     template_fields = ['project_id', 'gcp_conn_id', 'location', 'api_version', 'body']
 
@@ -146,7 +146,7 @@ class GKEClusterCreateOperator(BaseOperator):
                  body=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v2',
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         super(GKEClusterCreateOperator, self).__init__(*args, **kwargs)
@@ -158,7 +158,7 @@ class GKEClusterCreateOperator(BaseOperator):
         self.location = location
         self.api_version = api_version
         self.body = body
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def _check_input(self):
         if all([self.project_id, self.location, self.body]):
@@ -181,7 +181,7 @@ class GKEClusterCreateOperator(BaseOperator):
         hook = GKEClusterHook(self.project_id, self.location)
         create_op = hook.create_cluster(cluster=self.body)
 
-        if self.do_xcom_push:
+        if self.xcom_push_flag:
             return create_op
 
 

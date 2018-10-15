@@ -61,7 +61,7 @@ class GoogleCloudStorageListOperatorTest(unittest.TestCase):
                                                   bucket=TEST_BUCKET,
                                                   prefix=PREFIX,
                                                   delimiter=DELIMITER,
-                                                  do_xcom_push=False)
+                                                  xcom_push=False)
 
         files = operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(

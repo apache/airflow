@@ -82,7 +82,7 @@ class DatastoreExportOperator(BaseOperator):
         self.labels = labels
         self.polling_interval_in_seconds = polling_interval_in_seconds
         self.overwrite_existing = overwrite_existing
-        self.xcom_push = xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         self.log.info('Exporting data to Cloud Storage bucket ' + self.bucket)
@@ -106,5 +106,5 @@ class DatastoreExportOperator(BaseOperator):
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
 
-        if self.xcom_push:
+        if self.xcom_push_flag:
             return result

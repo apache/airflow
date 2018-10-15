@@ -63,11 +63,11 @@ def _handle_databricks_operator_execution(operator, hook, log, context):
     :param operator: Databricks operator being handled
     :param context: Airflow context
     """
-    if operator.do_xcom_push:
+    if operator.xcom_push:
         context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
     log.info('Run submitted with run_id: %s', operator.run_id)
     run_page_url = hook.get_run_page_url(operator.run_id)
-    if operator.do_xcom_push:
+    if operator.xcom_push:
         context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
 
     log.info('View run status, Spark UI, and logs at %s', run_page_url)
@@ -209,8 +209,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
     :type databricks_retry_delay: float
-    :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
-    :type do_xcom_push: bool
+    :param xcom_push: Whether we should push run_id and run_page_url to xcom.
+    :type xcom_push: bool
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
@@ -232,7 +232,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             polling_period_seconds=30,
             databricks_retry_limit=3,
             databricks_retry_delay=1,
-            do_xcom_push=False,
+            xcom_push=False,
             **kwargs):
         """
         Creates a new ``DatabricksSubmitRunOperator``.
@@ -263,7 +263,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id = None
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def get_hook(self):
         return DatabricksHook(
@@ -410,8 +410,8 @@ class DatabricksRunNowOperator(BaseOperator):
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
-    :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
-    :type do_xcom_push: bool
+    :param xcom_push: Whether we should push run_id and run_page_url to xcom.
+    :type xcom_push: bool
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
@@ -430,7 +430,7 @@ class DatabricksRunNowOperator(BaseOperator):
             polling_period_seconds=30,
             databricks_retry_limit=3,
             databricks_retry_delay=1,
-            do_xcom_push=False,
+            xcom_push=False,
             **kwargs):
 
         """
@@ -455,7 +455,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.json = _deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id = None
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def get_hook(self):
         return DatabricksHook(

@@ -527,8 +527,8 @@ class GcfFunctionDeleteOperator(BaseOperator):
     :type gcp_conn_id: str
     :param api_version: Version of the API used (for example v1).
     :type api_version: str
-    :param do_xcom_push: return the file list which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the file list which also get set in XCOM
+    :type xcom_push: bool
     """
 
     @apply_defaults
@@ -536,13 +536,13 @@ class GcfFunctionDeleteOperator(BaseOperator):
                  name,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         self.name = name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
         self._validate_inputs()
         self.hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         super(GcfFunctionDeleteOperator, self).__init__(*args, **kwargs)
@@ -560,7 +560,7 @@ class GcfFunctionDeleteOperator(BaseOperator):
         try:
             result = self.hook.delete_function(self.name)
 
-            if self.do_xcom_push:
+            if self.xcom_push_flag:
                 return result
         except HttpError as e:
             status = e.resp.status

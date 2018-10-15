@@ -150,8 +150,8 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         For this to work, the service account making the request must
         have doamin-wide delegation enabled.
     :type delegate_to: str
-    :param do_xcom_push: return the result which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the result which also get set in XCOM
+    :type xcom_push: bool
 
     Raises:
         ``ValueError``: if a unique model/version origin cannot be determined.
@@ -183,7 +183,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                  runtime_version=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         super(MLEngineBatchPredictionOperator, self).__init__(*args, **kwargs)
@@ -201,7 +201,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         self._runtime_version = runtime_version
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
         if not self._project_id:
             raise AirflowException('Google Cloud project id is required.')
@@ -276,7 +276,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                 str(finished_prediction_job)))
             raise RuntimeError(finished_prediction_job['errorMessage'])
 
-        if self.do_xcom_push:
+        if self.xcom_push_flag:
             return finished_prediction_job['predictionOutput']
 
 
@@ -305,8 +305,8 @@ class MLEngineModelOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param do_xcom_push: return the result which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the result which also get set in XCOM
+    :type xcom_push: bool
     """
 
     template_fields = [
@@ -320,7 +320,7 @@ class MLEngineModelOperator(BaseOperator):
                  operation='create',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         super(MLEngineModelOperator, self).__init__(*args, **kwargs)
@@ -329,7 +329,7 @@ class MLEngineModelOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         hook = MLEngineHook(
@@ -341,7 +341,7 @@ class MLEngineModelOperator(BaseOperator):
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
-        if self.do_xcom_push:
+        if self.xcom_push_flag:
             return result
 
 
@@ -399,8 +399,8 @@ class MLEngineVersionOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param do_xcom_push: return the result which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the result which also get set in XCOM
+    :type xcom_push: bool
     """
 
     template_fields = [
@@ -418,7 +418,7 @@ class MLEngineVersionOperator(BaseOperator):
                  operation='create',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
 
@@ -430,7 +430,7 @@ class MLEngineVersionOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         if 'name' not in self._version:
@@ -456,7 +456,7 @@ class MLEngineVersionOperator(BaseOperator):
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
-        if self.do_xcom_push:
+        if self.xcom_push_flag:
             return result
 
 

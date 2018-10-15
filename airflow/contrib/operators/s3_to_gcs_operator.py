@@ -64,8 +64,8 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :param replace: Whether you want to replace existing destination files
         or not.
     :type replace: bool
-    :param do_xcom_push: return the file list which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the file list which also get set in XCOM
+    :type xcom_push: bool
 
 
     **Example**:
@@ -99,7 +99,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                  dest_gcs=None,
                  delegate_to=None,
                  replace=False,
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
 
@@ -115,7 +115,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         self.delegate_to = delegate_to
         self.replace = replace
         self.verify = verify
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
             self.log.info(
@@ -198,7 +198,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                 'In sync, no files needed to be uploaded to Google Cloud'
                 'Storage')
 
-        if self.do_xcom_push:
+        if self.xcom_push_flag:
             return files
 
     # Following functionality may be better suited in

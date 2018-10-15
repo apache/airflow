@@ -82,7 +82,7 @@ class SSHOperatorTest(unittest.TestCase):
                 task_id="test",
                 ssh_hook=self.hook,
                 command="echo -n airflow",
-                do_xcom_push=True,
+                xcom_push=True,
                 dag=self.dag,
         )
 
@@ -101,7 +101,7 @@ class SSHOperatorTest(unittest.TestCase):
                 task_id="test",
                 ssh_hook=self.hook,
                 command="echo -n airflow",
-                do_xcom_push=True,
+                xcom_push=True,
                 dag=self.dag,
         )
 
@@ -119,7 +119,7 @@ class SSHOperatorTest(unittest.TestCase):
             task_id="test",
             ssh_hook=self.hook,
             command="echo -n airflow",
-            do_xcom_push=True,
+            xcom_push=True,
             dag=self.dag,
         )
 
@@ -137,7 +137,7 @@ class SSHOperatorTest(unittest.TestCase):
             task_id="test",
             ssh_hook=self.hook,
             command="sleep 1",
-            do_xcom_push=True,
+            xcom_push=True,
             dag=self.dag,
         )
 

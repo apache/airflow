@@ -126,7 +126,7 @@ class KubernetesPodOperator(BaseOperator):
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state)
                 )
-            if self.xcom_push:
+            if self.xcom_push_flag:
                 return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
@@ -179,7 +179,7 @@ class KubernetesPodOperator(BaseOperator):
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.xcom_push = xcom_push
+        self.xcom_push_flag = xcom_push
         self.resources = resources or Resources()
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets

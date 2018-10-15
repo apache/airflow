@@ -87,7 +87,7 @@ class GoogleCloudStorageToS3OperatorTest(unittest.TestCase):
                                                   delimiter=DELIMITER,
                                                   dest_aws_conn_id=None,
                                                   dest_s3_key=S3_BUCKET,
-                                                  do_xcom_push=False)
+                                                  xcom_push=False)
         # create dest bucket
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')

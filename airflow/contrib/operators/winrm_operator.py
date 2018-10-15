@@ -48,8 +48,8 @@ class WinRMOperator(BaseOperator):
     :type command: str
     :param timeout: timeout for executing the command.
     :type timeout: int
-    :param do_xcom_push: return the stdout which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the stdout which also get set in XCOM
+    :type xcom_push: bool
     """
     template_fields = ('command',)
 
@@ -60,7 +60,7 @@ class WinRMOperator(BaseOperator):
                  remote_host=None,
                  command=None,
                  timeout=10,
-                 do_xcom_push=False,
+                 xcom_push=False,
                  *args,
                  **kwargs):
         super(WinRMOperator, self).__init__(*args, **kwargs)
@@ -69,7 +69,7 @@ class WinRMOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         if self.ssh_conn_id and not self.winrm_hook:
@@ -107,7 +107,7 @@ class WinRMOperator(BaseOperator):
                         )
 
                     # Only buffer stdout if we need to so that we minimize memory usage.
-                    if self.do_xcom_push:
+                    if self.xcom_push_flag:
                         stdout_buffer.append(stdout)
                     stderr_buffer.append(stderr)
 
@@ -127,8 +127,8 @@ class WinRMOperator(BaseOperator):
             raise AirflowException("WinRM operator error: {0}".format(str(e)))
 
         if return_code is 0:
-            # returning output if do_xcom_push is set
-            if self.do_xcom_push:
+            # returning output if xcom_push is set
+            if self.xcom_push_flag:
                 enable_pickling = configuration.conf.getboolean(
                     'core', 'enable_xcom_pickling'
                 )

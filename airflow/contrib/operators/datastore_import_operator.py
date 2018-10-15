@@ -76,7 +76,7 @@ class DatastoreImportOperator(BaseOperator):
         self.entity_filter = entity_filter
         self.labels = labels
         self.polling_interval_in_seconds = polling_interval_in_seconds
-        self.xcom_push = xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
@@ -94,5 +94,5 @@ class DatastoreImportOperator(BaseOperator):
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
 
-        if self.xcom_push:
+        if self.xcom_push_flag:
             return result

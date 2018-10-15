@@ -45,9 +45,9 @@ class GoogleCloudStorageListOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param do_xcom_push: return the list of Google Cloud Storage Hook which also get set
+    :param xcom_push: return the list of Google Cloud Storage Hook which also get set
         in XCOM
-    :type do_xcom_push: bool
+    :type xcom_push: bool
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``
@@ -71,7 +71,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
                  delimiter=None,
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         super(GoogleCloudStorageListOperator, self).__init__(*args, **kwargs)
@@ -80,7 +80,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
         self.delimiter = delimiter
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
 
@@ -96,5 +96,5 @@ class GoogleCloudStorageListOperator(BaseOperator):
                           prefix=self.prefix,
                           delimiter=self.delimiter)
 
-        if self.do_xcom_push or __name__ != 'GoogleCloudStorageListOperator':
+        if self.xcom_push_flag or __name__ != 'GoogleCloudStorageListOperator':
             return files

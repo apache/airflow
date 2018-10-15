@@ -95,7 +95,7 @@ class SFTPOperatorTest(unittest.TestCase):
                 task_id="test_check_file",
                 ssh_hook=self.hook,
                 command="cat {0}".format(self.test_remote_filepath),
-                do_xcom_push=True,
+                xcom_push=True,
                 dag=self.dag
         )
         self.assertIsNotNone(check_file_task)
@@ -132,7 +132,7 @@ class SFTPOperatorTest(unittest.TestCase):
                 task_id="test_check_file",
                 ssh_hook=self.hook,
                 command="cat {0}".format(self.test_remote_filepath),
-                do_xcom_push=True,
+                xcom_push=True,
                 dag=self.dag
         )
         self.assertIsNotNone(check_file_task)
@@ -155,7 +155,7 @@ class SFTPOperatorTest(unittest.TestCase):
                 ssh_hook=self.hook,
                 command="echo '{0}' > {1}".format(test_remote_file_content,
                                                   self.test_remote_filepath),
-                do_xcom_push=True,
+                xcom_push=True,
                 dag=self.dag
         )
         self.assertIsNotNone(create_file_task)
@@ -193,7 +193,7 @@ class SFTPOperatorTest(unittest.TestCase):
                 ssh_hook=self.hook,
                 command="echo '{0}' > {1}".format(test_remote_file_content,
                                                   self.test_remote_filepath),
-                do_xcom_push=True,
+                xcom_push=True,
                 dag=self.dag
         )
         self.assertIsNotNone(create_file_task)
@@ -295,7 +295,7 @@ class SFTPOperatorTest(unittest.TestCase):
             task_id="test_check_file",
             ssh_hook=self.hook,
             command="rm {0}".format(self.test_remote_filepath),
-            do_xcom_push=True,
+            xcom_push=True,
             dag=self.dag
         )
         self.assertIsNotNone(remove_file_task)

@@ -66,8 +66,8 @@ class BigQueryGetDataOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
-    :param do_xcom_push: return the result which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the result which also get set in XCOM
+    :type xcom_push: bool
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
     ui_color = '#e4f0e8'
@@ -80,7 +80,7 @@ class BigQueryGetDataOperator(BaseOperator):
                  selected_fields=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         super(BigQueryGetDataOperator, self).__init__(*args, **kwargs)
@@ -90,7 +90,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.selected_fields = selected_fields
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         self.log.info('Fetching Data from:')
@@ -117,5 +117,5 @@ class BigQueryGetDataOperator(BaseOperator):
                 single_row.append(fields['v'])
             table_data.append(single_row)
 
-        if self.do_xcom_push:
+        if self.xcom_push_flag:
             return table_data

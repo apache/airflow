@@ -28,8 +28,8 @@ class QuboleOperator(BaseOperator):
 
     :param qubole_conn_id: Connection id which consists of qds auth_token
     :type qubole_conn_id: str
-    :param do_xcom_push: return the result which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the result which also get set in XCOM
+    :type xcom_push: bool
 
     kwargs:
         :command_type: type of command to be executed, e.g. hivecmd, shellcmd, hadoopcmd
@@ -133,14 +133,14 @@ class QuboleOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  qubole_conn_id="qubole_default",
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         self.args = args
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
         super(QuboleOperator, self).__init__(*args, **kwargs)
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
         if self.on_failure_callback is None:
             self.on_failure_callback = QuboleHook.handle_failure_retry
@@ -151,7 +151,7 @@ class QuboleOperator(BaseOperator):
     def execute(self, context):
         result = self.get_hook().execute(context)
 
-        if self.do_xcom_push:
+        if self.xcom_push_flag:
             return result
 
     def on_kill(self, ti=None):

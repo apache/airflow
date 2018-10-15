@@ -106,8 +106,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
     :type max_try_before_job_appears: int
-    :param do_xcom_push: return the build URL which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the build URL which also get set in XCOM
+    :type xcom_push: bool
     """
     template_fields = ('parameters',)
     template_ext = ('.json',)
@@ -120,7 +120,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
                  parameters="",
                  sleep_time=10,
                  max_try_before_job_appears=10,
-                 do_xcom_push=True,
+                 xcom_push=True,
                  *args,
                  **kwargs):
         super(JenkinsJobTriggerOperator, self).__init__(*args, **kwargs)
@@ -131,7 +131,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.sleep_time = sleep_time
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def build_job(self, jenkins_server):
         """
@@ -248,7 +248,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
                     'You can also check logs for more details on this exception '
                     '(jenkins_url/log/rss)', str(err))
 
-        if self.do_xcom_push and build_info:
+        if self.xcom_push_flag and build_info:
             # If we can we return the url of the job
             # for later use (like retrieving an artifact)
             return build_info['url']

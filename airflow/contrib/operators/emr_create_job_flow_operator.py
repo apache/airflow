@@ -35,8 +35,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param job_flow_overrides: boto3 style arguments to override
        emr_connection extra. (templated)
     :type steps: dict
-    :param do_xcom_push: return the status code which also get set in XCOM
-    :type do_xcom_push: bool
+    :param xcom_push: return the status code which also get set in XCOM
+    :type xcom_push: bool
     """
     template_fields = ['job_flow_overrides']
     template_ext = ()
@@ -48,7 +48,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             aws_conn_id='s3_default',
             emr_conn_id='emr_default',
             job_flow_overrides=None,
-            do_xcom_push=True,
+            xcom_push=True,
             *args, **kwargs):
         super(EmrCreateJobFlowOperator, self).__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
@@ -56,7 +56,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         if job_flow_overrides is None:
             job_flow_overrides = {}
         self.job_flow_overrides = job_flow_overrides
-        self.do_xcom_push = do_xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id)
@@ -71,5 +71,5 @@ class EmrCreateJobFlowOperator(BaseOperator):
             raise AirflowException('JobFlow creation failed: %s' % response)
         else:
             self.log.info('JobFlow with id %s created', response['JobFlowId'])
-            if self.do_xcom_push:
+            if self.xcom_push_flag:
                 return response['JobFlowId']
