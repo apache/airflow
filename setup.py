@@ -50,8 +50,8 @@ def verify_gpl_dependency():
             "By default, one of Airflow's dependencies (unidecode) is GPL licensed .\n"
             "In order to proceed with installation, "
             "you will need to set one of the following environment variables:\n"
-            "To disallow the dependency, set SLUGIFY_USES_TEXT_UNIDECODE=yes.\n"
-            "To allow the dependency, set AIRFLOW_GPL_UNIDECODE=yes.\n"
+            "To disallow the dependency, export SLUGIFY_USES_TEXT_UNIDECODE=yes.\n"
+            "To allow the dependency, export AIRFLOW_GPL_UNIDECODE=yes.\n"
             "Once either environment variable is set, you may proceed with installation.")
 
 
