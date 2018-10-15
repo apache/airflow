@@ -31,11 +31,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     :type source_bucket: str
     :param source_object: The source name of the object to copy in the Google cloud
         storage bucket. (templated)
-        If wildcards are used in this argument:
-            You can use only one wildcard for objects (filenames) within your
-            bucket. The wildcard can appear inside the object name or at the
-            end of the object name. Appending a wildcard to the bucket name is
-            unsupported.
+        You can use only one wildcard for objects (filenames) within your
+        bucket. The wildcard can appear inside the object name or at the
+        end of the object name. Appending a wildcard to the bucket name is
+        unsupported.
     :type source_object: str
     :param destination_bucket: The destination Google cloud storage bucket
         where the object should be. (templated)
