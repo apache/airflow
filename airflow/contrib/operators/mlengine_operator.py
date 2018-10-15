@@ -150,7 +150,6 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         For this to work, the service account making the request must
         have doamin-wide delegation enabled.
     :type delegate_to: str
-
     :param do_xcom_push: return the result which also get set in XCOM
     :type do_xcom_push: bool
 
@@ -400,7 +399,6 @@ class MLEngineVersionOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-
     :param do_xcom_push: return the result which also get set in XCOM
     :type do_xcom_push: bool
     """
