@@ -94,14 +94,9 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
         self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
-        # this operator calls super and uses the returned value, so we set do_xcom_push to
-        # True in order to make super return
-        do_xcom_push = self.do_xcom_push
-        self.do_xcom_push = True
         # use the super to list all files in an Google Cloud Storage bucket
         files = super(GoogleCloudStorageToS3Operator, self).execute(context)
         s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
-        self.do_xcom_push = do_xcom_push
 
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket

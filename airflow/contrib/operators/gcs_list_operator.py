@@ -96,5 +96,5 @@ class GoogleCloudStorageListOperator(BaseOperator):
                           prefix=self.prefix,
                           delimiter=self.delimiter)
 
-        if self.do_xcom_push:
+        if self.do_xcom_push or __name__ != 'GoogleCloudStorageListOperator':
             return files
