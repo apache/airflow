@@ -381,6 +381,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
+    def test_duration_missing(self):
+        url = 'duration?days=30&dag_id=missing_dag'
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('seems to be missing', resp)
+
     def test_tries(self):
         url = 'tries?days=30&dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
