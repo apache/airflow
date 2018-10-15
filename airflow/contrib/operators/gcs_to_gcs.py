@@ -62,6 +62,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param last_modified_time: When specified, if the object(s) were
+        modified after last_modified_time, they will be copied/moved.
+        If tzinfo has not been set, UTC will be assumed.
+    :type last_modified_time: datetime
 
     :Example:
 
@@ -119,6 +123,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  move_object=False,
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
+                 last_modified_time=None,
                  *args,
                  **kwargs):
         super(GoogleCloudStorageToGoogleCloudStorageOperator,
@@ -130,6 +135,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.move_object = move_object
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
+        self.last_modified_time = last_modified_time
         self.wildcard = '*'
 
     def execute(self, context):
@@ -145,6 +151,13 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             objects = hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
+                if self.last_modified_time is not None:
+                    # Check to see if object was modified after last_modified_time
+                    if hook.is_updated_after(self.source_bucket, source_object,
+                                             self.last_modified_time):
+                        pass
+                    else:
+                        continue
                 if self.destination_object is None:
                     destination_object = source_object
                 else:
@@ -161,6 +174,14 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                     hook.delete(self.source_bucket, source_object)
 
         else:
+            if self.last_modified_time is not None:
+                if hook.is_updated_after(self.source_bucket,
+                                         self.source_object,
+                                         self.last_modified_time):
+                    pass
+                else:
+                    return
+
             self.log.info(
                 log_message.format(self.source_bucket, self.source_object,
                                    self.destination_bucket or self.source_bucket,

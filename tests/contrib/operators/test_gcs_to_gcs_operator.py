@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+from datetime import datetime
 
 from airflow.contrib.operators.gcs_to_gcs import \
     GoogleCloudStorageToGoogleCloudStorageOperator
@@ -38,6 +39,7 @@ SOURCE_OBJECT_1 = '*test_object'
 SOURCE_OBJECT_2 = 'test_object*'
 SOURCE_OBJECT_3 = 'test*object'
 SOURCE_OBJECT_4 = 'test_object*.txt'
+SOURCE_OBJECT_5 = 'test_object.txt'
 DESTINATION_BUCKET = 'archive'
 DESTINATION_OBJECT_PREFIX = 'foo/bar'
 SOURCE_FILES_LIST = [
@@ -45,6 +47,7 @@ SOURCE_FILES_LIST = [
     'test_object/file2.txt',
     'test_object/file3.json',
 ]
+MOD_TIME_1 = datetime(2016, 1, 1)
 
 
 class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
@@ -167,3 +170,113 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
                       DESTINATION_BUCKET, '/file2.txt'),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_empty)
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_execute_last_modified_time(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_4,
+            destination_bucket=DESTINATION_BUCKET,
+            last_modified_time=None)
+
+        operator.execute(None)
+        mock_calls_none = [
+            mock.call(TEST_BUCKET, 'test_object/file1.txt',
+                      DESTINATION_BUCKET, 'test_object/file1.txt'),
+            mock.call(TEST_BUCKET, 'test_object/file2.txt',
+                      DESTINATION_BUCKET, 'test_object/file2.txt'),
+        ]
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_wc_with_last_modified_time_with_all_true_cond(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        mock_hook.return_value.is_updated_after.side_effect = [True, True, True]
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_4,
+            destination_bucket=DESTINATION_BUCKET,
+            last_modified_time=MOD_TIME_1)
+
+        operator.execute(None)
+        mock_calls_none = [
+            mock.call(TEST_BUCKET, 'test_object/file1.txt',
+                      DESTINATION_BUCKET, 'test_object/file1.txt'),
+            mock.call(TEST_BUCKET, 'test_object/file2.txt',
+                      DESTINATION_BUCKET, 'test_object/file2.txt'),
+        ]
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_wc_with_last_modified_time_with_one_true_cond(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        mock_hook.return_value.is_updated_after.side_effect = [True, False, False]
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_4,
+            destination_bucket=DESTINATION_BUCKET,
+            last_modified_time=MOD_TIME_1)
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, 'test_object/file1.txt',
+            DESTINATION_BUCKET, 'test_object/file1.txt')
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_wc_with_no_last_modified_time(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_4,
+            destination_bucket=DESTINATION_BUCKET,
+            last_modified_time=None)
+
+        operator.execute(None)
+        mock_calls_none = [
+            mock.call(TEST_BUCKET, 'test_object/file1.txt',
+                      DESTINATION_BUCKET, 'test_object/file1.txt'),
+            mock.call(TEST_BUCKET, 'test_object/file2.txt',
+                      DESTINATION_BUCKET, 'test_object/file2.txt'),
+        ]
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_no_prefix_with_last_modified_time_with_true_cond(self, mock_hook):
+        mock_hook.return_value.is_updated_after.return_value = True
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_5,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_5,
+            last_modified_time=MOD_TIME_1)
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, 'test_object.txt', DESTINATION_BUCKET, 'test_object.txt')
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_execute_no_prefix_with_no_last_modified_time(self, mock_hook):
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_5,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_5,
+            last_modified_time=None)
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_called_once_with(
+            TEST_BUCKET, 'test_object.txt', DESTINATION_BUCKET, 'test_object.txt')
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_no_prefix_with_last_modified_time_with_false_cond(self, mock_hook):
+        mock_hook.return_value.is_updated_after.return_value = False
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_5,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=SOURCE_OBJECT_5,
+            last_modified_time=MOD_TIME_1)
+
+        operator.execute(None)
+        mock_hook.return_value.rewrite.assert_not_called()
