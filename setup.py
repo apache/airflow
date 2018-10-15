@@ -46,11 +46,13 @@ def verify_gpl_dependency():
         os.environ["SLUGIFY_USES_TEXT_UNIDECODE"] = "yes"
 
     if not os.getenv("AIRFLOW_GPL_UNIDECODE") and not os.getenv("SLUGIFY_USES_TEXT_UNIDECODE") == "yes":
-        raise RuntimeError("By default one of Airflow's dependencies installs a GPL "
-                           "dependency (unidecode). To avoid this dependency set "
-                           "SLUGIFY_USES_TEXT_UNIDECODE=yes in your environment when you "
-                           "install or upgrade Airflow. To force installing the GPL "
-                           "version set AIRFLOW_GPL_UNIDECODE")
+        raise RuntimeError(
+            "By default, one of Airflow's dependencies (unidecode) is GPL licensed .\n"
+            "In order to proceed with installation, "
+            "you will need to set one of the following environment variables:\n"
+            "To disallow the dependency, set SLUGIFY_USES_TEXT_UNIDECODE=yes.\n"
+            "To allow the dependency, set AIRFLOW_GPL_UNIDECODE=yes.\n"
+            "Once either environment variable is set, you may proceed with installation.")
 
 
 class Tox(TestCommand):
