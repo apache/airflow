@@ -1769,6 +1769,9 @@ class TaskInstance(Base, LoggingMixin):
         # Log failure duration
         session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
+        if context is not None:
+            context['exception'] = error
+
         # Let's go deeper
         try:
             # Since this function is called only when the TI state is running,
