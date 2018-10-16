@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, DagRun
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -26,18 +26,18 @@ from airflow.utils.state import State
 
 class ExternalTaskSensor(BaseSensorOperator):
     """
-    Waits for a task to complete in a different DAG
+    Waits for a different DAG or a task in in a different DAG to complete
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
     :type external_dag_id: str
     :param external_task_id: The task_id that contains the task you want to
-        wait for
+        wait for. If ``None`` the sensor waits for the DAG
     :type external_task_id: str
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to
-        look at, the default is the same execution_date as the current task.
+        look at, the default is the same execution_date as the current task or DAG.
         For yesterday, use [positive!] datetime.timedelta(days=1). Either
         execution_delta or execution_date_fn can be passed to
         ExternalTaskSensor, but not both.
@@ -89,13 +89,23 @@ class ExternalTaskSensor(BaseSensorOperator):
             '{self.external_dag_id}.'
             '{self.external_task_id} on '
             '{} ... '.format(serialized_dttm_filter, **locals()))
-        TI = TaskInstance
 
-        count = session.query(TI).filter(
-            TI.dag_id == self.external_dag_id,
-            TI.task_id == self.external_task_id,
-            TI.state.in_(self.allowed_states),
-            TI.execution_date.in_(dttm_filter),
-        ).count()
+        if self.external_task_id:
+            TI = TaskInstance
+
+            count = session.query(TI).filter(
+                TI.dag_id == self.external_dag_id,
+                TI.task_id == self.external_task_id,
+                TI.state.in_(self.allowed_states),
+                TI.execution_date.in_(dttm_filter),
+            ).count()
+        else:
+            DR = DagRun
+            count = session.query(DR).filter(
+                DR.dag_id == self.external_dag_id,
+                DR.state.in_(self.allowed_states),
+                DR.execution_date.in_(dttm_filter),
+            ).count()
+
         session.commit()
         return count == len(dttm_filter)

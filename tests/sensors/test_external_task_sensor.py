@@ -75,6 +75,20 @@ class ExternalTaskSensorTests(unittest.TestCase):
             ignore_ti_state=True
         )
 
+    def test_external_dag_sensor(self):
+        self.test_time_sensor()
+        t = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_id=None,
+            dag=self.dag
+        )
+        t.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True
+        )
+
     def test_templated_sensor(self):
         dag = DAG(TEST_DAG_ID, self.args)
 
