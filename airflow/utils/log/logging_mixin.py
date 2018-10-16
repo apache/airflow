@@ -90,7 +90,7 @@ class StreamLogWriter(object):
         Returns False to indicate that the stream is not closed (as it will be
         open for the duration of Airflow's lifecycle).
 
-        For compatibility.
+        For compatibility with the io.IOBase interface.
         """
         return False
 
