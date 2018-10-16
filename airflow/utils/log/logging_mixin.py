@@ -68,6 +68,7 @@ class LoggingMixin(object):
             set_context(self.log, context)
 
 
+# TODO: Formally inherit from io.IOBase
 class StreamLogWriter(object):
     encoding = False
 
@@ -82,6 +83,16 @@ class StreamLogWriter(object):
         self.logger = logger
         self.level = level
         self._buffer = str()
+
+    @property
+    def closed(self):
+        """
+        Returns False to indicate that the stream is not closed (as it will be
+        open for the duration of Airflow's lifecycle).
+
+        For compatibility with the io.IOBase interface.
+        """
+        return False
 
     def write(self, message):
         """
