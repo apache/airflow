@@ -787,7 +787,7 @@ class HiveServer2Hook(BaseHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
-            password=db.password or password,
+            password=db.password,
             database=schema or db.schema or 'default')
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
