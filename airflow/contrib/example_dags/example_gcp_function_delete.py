@@ -33,9 +33,9 @@ from airflow import models
 from airflow.contrib.operators.gcp_function_operator import GcfFunctionDeleteOperator
 
 # [START howto_operator_gcf_delete_args]
-PROJECT_ID = models.Variable.get('PROJECT_ID', '')
-LOCATION = models.Variable.get('LOCATION', '')
-ENTRYPOINT = models.Variable.get('ENTRYPOINT', '')
+PROJECT_ID = models.Variable.get('PROJECT_ID', 'example-airflow')
+LOCATION = models.Variable.get('LOCATION', 'europe-west1')
+ENTRYPOINT = models.Variable.get('ENTRYPOINT', 'helloWorld')
 # A fully-qualified name of the function to delete
 
 FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(PROJECT_ID, LOCATION,

@@ -65,7 +65,7 @@ class GcfHook(GoogleCloudBaseHook):
 
         :param name: name of the function
         :type name: str
-        :return: a CloudFunction object representing the function
+        :return: a Cloud Functions object representing the function
         :rtype: dict
         """
         return self.get_conn().projects().locations().functions().get(
@@ -78,7 +78,7 @@ class GcfHook(GoogleCloudBaseHook):
         :param full_location: full location including the project in the form of
             of /projects/<PROJECT>/location/<LOCATION>
         :type full_location: str
-        :return: array of CloudFunction objects - representing functions in the location
+        :return: array of Cloud Functions objects - representing functions in the location
         :rtype: [dict]
         """
         list_response = self.get_conn().projects().locations().functions().list(
