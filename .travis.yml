@@ -20,7 +20,7 @@ sudo: true
 dist: trusty
 language: python
 jdk:
-  - oraclejdk8
+  - openjdk8
 services:
   - cassandra
   - mysql
@@ -92,7 +92,7 @@ before_install:
   - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
   - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
   - chmod 600 ~/.ssh/*
-  - jdk_switcher use oraclejdk8
+  - jdk_switcher use openjdk8
 install:
   - pip install --upgrade pip
   - pip install tox
