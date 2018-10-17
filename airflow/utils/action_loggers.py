@@ -36,7 +36,11 @@ class DefaultActionLogger:
 
         session = airflow.settings.Session()
         session.add(log)
-        session.commit()
+        try:
+            session.commit()
+        except Exception as e:
+            logging.warning('Failed to commit action_logs', e)
+            session.rollback()
 
 
 def add(action_logger):
