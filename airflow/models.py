@@ -2659,7 +2659,8 @@ class BaseOperator(LoggingMixin):
                 self, self.expected_start, self.expected_finish
             )
 
-            if self.expected_duration and \
+            if self.expected_duration and self.expected_start \
+                    and self.expected_finish and \
                     (self.expected_start + self.expected_duration) \
                     > self.expected_finish:
                 self.log.warning(
