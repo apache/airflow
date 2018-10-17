@@ -187,7 +187,7 @@ def create_sla_misses(ti, timestamp, session):
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    sla_type=SM.ti_misses,
+                    sla_type=SM.TASK_LATE_START,
                     timestamp=timestamp))
 
             # The case where we haven't even started the ti yet
@@ -199,7 +199,7 @@ def create_sla_misses(ti, timestamp, session):
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    sla_type=SM.ti_misses,
+                    sla_type=SM.TASK_LATE_START,
                     timestamp=timestamp))
             else:
                 log.debug("Task instance {}'s expected start of {} hasn't "
