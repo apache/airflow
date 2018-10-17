@@ -480,7 +480,6 @@ class BigQueryBaseCursor(LoggingMixin):
             )
 
     def run_query(self,
-                  bql=None,
                   sql=None,
                   destination_dataset_table=None,
                   write_disposition='WRITE_EMPTY',
@@ -506,9 +505,6 @@ class BigQueryBaseCursor(LoggingMixin):
 
         For more details about these parameters.
 
-        :param bql: (Deprecated. Use `sql` parameter instead) The BigQuery SQL
-            to execute.
-        :type bql: str
         :param sql: The BigQuery SQL to execute.
         :type sql: str
         :param destination_dataset_table: The dotted <dataset>.<table>
@@ -582,19 +578,6 @@ class BigQueryBaseCursor(LoggingMixin):
         else:
             _validate_value("api_resource_configs['query']",
                             configuration['query'], dict)
-
-        sql = bql if sql is None else sql
-
-        # TODO remove `bql` in Airflow 2.0 - Jira: [AIRFLOW-2513]
-        if bql:
-            import warnings
-            warnings.warn('Deprecated parameter `bql` used in '
-                          '`BigQueryBaseCursor.run_query` '
-                          'Use `sql` parameter instead to pass the sql to be '
-                          'executed. `bql` parameter is deprecated and '
-                          'will be removed in a future version of '
-                          'Airflow.',
-                          category=DeprecationWarning)
 
         if sql is None and not configuration['query'].get('query', None):
             raise TypeError('`BigQueryBaseCursor.run_query` '
