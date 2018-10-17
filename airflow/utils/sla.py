@@ -318,9 +318,15 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
         .filter(
             or_(TI.state == None, TI.state.in_(blocked_states))  # noqa E711
         )
-        .all()
     )
-    return qry
+
+    # Make sure to set Task on each returned TI.
+    impacted_downstreams = qry.all()
+    for ti in impacted_downstreams:
+        ti.task = dag.get_task(ti.task_id)
+
+    log.debug("Impacted downstream task instances: %s", impacted_downstreams)
+    return impacted_downstreams
 
 
 def send_task_duration_exceeded_email(context):
