@@ -4680,6 +4680,10 @@ class DAG(BaseDag, LoggingMixin):
         else:
             scheduled_tis = []
 
+        self.log.debug(
+            "Found {} outstanding TIs across {} dagruns for DAG {}".format(
+                len(scheduled_tis), len(scheduled_dagruns), self.dag_id))
+
         # We need to examine unscheduled DAGRuns, too. If there are concurrency
         # limitations, it's possible that a task instance will miss its SLA
         # before its corresponding DAGRun even gets created.

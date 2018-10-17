@@ -128,6 +128,8 @@ def create_sla_misses(ti, timestamp, session):
     if ti.state == State.SKIPPED:
         return
 
+    log.debug("Calculating SLA misses for {} as of {}".format(ti, timestamp))
+
     SM = airflow.models.SlaMiss
 
     # Get existing misses.
