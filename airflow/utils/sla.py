@@ -259,19 +259,22 @@ def get_sla_miss_subject(miss_type, ti):
     )
 
 
-def get_subscribers(tasks):
+def get_subscribers(task_instances):
     """
-    Return a list of unique emails from a list of tasks.
+    Return a list of unique emails from a list of task instances.
     """
-    def _yield_subscribers(tasks):
-        for t in tasks:
-            if t.email:
-                if isinstance(t.email, string_types):
-                    yield t.email
-                else:
-                    for e in t.email:
-                        yield e
-    return list(set(_yield_subscribers(tasks)))
+    def _yield_subscribers(task_instances):
+        for ti in task_instances:
+            email = ti.task.email
+            if isinstance(email, string_types):
+                yield email
+            elif email:
+                for e in email:
+                    yield e
+
+    unique_emails = list(set(_yield_subscribers(task_instances)))
+    log.debug("Found subscribers: {}".format(", ".join(unique_emails)))
+    return unique_emails
 
 
 @provide_session
