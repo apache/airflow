@@ -2610,8 +2610,9 @@ class BaseOperator(LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
+        self.execution_timeout = execution_timeout
 
-        # Warn about use of the SLA parameter
+        # Warn about use of the deprecated SLA parameter
         if sla and expected_finish:
             self.log.warning(
                 "Both sla and expected_finish provided as task "
@@ -2627,40 +2628,63 @@ class BaseOperator(LoggingMixin):
             )
             expected_finish = sla
 
+        # Set SLA parameters, batching invalid type messages into a
+        # single exception.
+        sla_param_errs = []
+        if expected_duration:
+            if not isinstance(expected_duration, timedelta):
+                sla_param_errs.append("expected_duration must be a timedelta, "
+                                      "got: {}".format(expected_duration))
+            else:
+                self.expected_duration = expected_duration
+
+        if expected_start:
+            if not isinstance(expected_start, timedelta):
+                sla_param_errs.append("expected_start must be a timedelta, "
+                                      "got: {}".format(expected_start))
+            else:
+                self.expected_start = expected_start
+
+        if expected_finish:
+            if not isinstance(expected_finish, timedelta):
+                sla_param_errs.append("expected_finish must be a timedelta, "
+                                      "got: {}".format(expected_finish))
+            else:
+                self.expected_finish = expected_finish
+
+        if sla_param_errs:
+            raise AirflowException("Invalid SLA params were set! {}".format(
+                "; ".join(sla_param_errs)))
+
         # Warn the user if they've set any non-sensical parameter combinations
-        if expected_start and expected_finish \
-           and expected_start >= expected_finish:
+        if self.expected_start and self.expected_finish \
+                and self.expected_start >= self.expected_finish:
             self.log.warning(
                 "Task %s has an expected_start (%s) that occurs after its "
                 "expected_finish (%s), so it will always send an SLA "
                 "notification.",
-                self, expected_start, expected_finish
+                self, self.expected_start, self.expected_finish
             )
 
-            if expected_duration \
-                    and (expected_start + expected_duration) > expected_finish:
+            if self.expected_duration and \
+                    (self.expected_start + self.expected_duration) \
+                    > self.expected_finish:
                 self.log.warning(
                     "Task %s has an expected_start (%s) and expected_duration "
                     "(%s) that exceed its expected_finish (%s), so it will "
                     "always send an SLA notification.",
-                    self, expected_start, expected_duration, expected_finish
+                    self, self.expected_start, self.expected_duration, self.expected_finish
                 )
 
-        if expected_duration and execution_timeout \
-                and expected_duration > execution_timeout:
+        if self.expected_duration and self.execution_timeout \
+                and self.expected_duration > self.execution_timeout:
             self.log.warning(
                 "Task %s has an expected_duration (%s) that is longer than "
                 "its execution_timeout (%s), so it will time out before "
                 "sending an SLA notification.",
-                self, expected_duration, execution_timeout
+                self, self.expected_duration, self.execution_timeout
             )
 
-        # Finally set SLA parameters.
-        self.expected_duration = expected_duration
-        self.expected_start = expected_start
-        self.expected_finish = expected_finish
-
-        self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
