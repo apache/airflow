@@ -29,11 +29,6 @@ class BigQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database
 
-    :param bql: (Deprecated. Use `sql` parameter instead) the sql code to be
-        executed (templated)
-    :type bql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'.
     :param sql: the sql code to be executed (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
@@ -104,13 +99,12 @@ class BigQueryOperator(BaseOperator):
     :type cluster_fields: list of str
     """
 
-    template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
+    template_fields = ('sql', 'destination_dataset_table', 'labels')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
     @apply_defaults
     def __init__(self,
-                 bql=None,
                  sql=None,
                  destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
@@ -133,8 +127,7 @@ class BigQueryOperator(BaseOperator):
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
-        self.bql = bql
-        self.sql = sql if sql else bql
+        self.sql = sql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
@@ -156,16 +149,6 @@ class BigQueryOperator(BaseOperator):
         if api_resource_configs is None:
             self.api_resource_configs = {}
         self.cluster_fields = cluster_fields
-
-        # TODO remove `bql` in Airflow 2.0
-        if self.bql:
-            import warnings
-            warnings.warn('Deprecated parameter `bql` used in Task id: {}. '
-                          'Use `sql` parameter instead to pass the sql to be '
-                          'executed. `bql` parameter is deprecated and '
-                          'will be removed in a future version of '
-                          'Airflow.'.format(self.task_id),
-                          category=DeprecationWarning)
 
         if self.sql is None:
             raise TypeError('{} missing 1 required positional '
