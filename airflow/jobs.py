@@ -35,7 +35,6 @@ import time
 import datetime
 
 from collections import defaultdict
-from past.builtins import basestring
 from sqlalchemy import (
     Column, Integer, String, func, Index, or_, and_, not_)
 from sqlalchemy.exc import OperationalError

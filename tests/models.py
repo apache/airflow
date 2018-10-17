@@ -898,7 +898,6 @@ class DagTest(unittest.TestCase):
                              next_execution_date)
 
 
-
 class DagStatTest(unittest.TestCase):
     def test_dagstats_crud(self):
         DagStat.create(dag_id='test_dagstats_crud')
