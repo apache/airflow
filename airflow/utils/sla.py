@@ -355,7 +355,7 @@ def send_task_duration_exceeded_email(context):
     "View Task Details: {ti_url}\n\n"
 
     "This may be impacting the following downstream tasks:\n"
-    "<pre><code>{blocked_tasks}\n{art}</pre></code>".format(
+    "<pre><code>{impacted_downstreams}\n{art}</pre></code>".format(
         task_string=describe_task_instance(ti),
         target_time=target_time,
         impacted_downstreams="\n".join(
