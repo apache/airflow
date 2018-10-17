@@ -2614,17 +2614,17 @@ class BaseOperator(LoggingMixin):
 
         # Warn about use of the deprecated SLA parameter
         if sla and expected_finish:
-            self.log.warning(
+            warnings.warn(
                 "Both sla and expected_finish provided as task "
-                "parameters to %s; using expected_finish and ignoring "
-                "deprecated sla parameter.",
-                self
+                "parameters to {}; using expected_finish and ignoring "
+                "deprecated sla parameter.".format(self),
+                category=PendingDeprecationWarning
             )
         elif sla:
-            self.log.warning(
-                "sla is deprecated as a task parameter for %s; converting to "
-                "expected_finish instead.",
-                self
+            warnings.warn(
+                "sla is deprecated as a task parameter for {}; converting to "
+                "expected_finish instead.".format(self),
+                category=PendingDeprecationWarning
             )
             expected_finish = sla
 
