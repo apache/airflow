@@ -161,7 +161,7 @@ exit 0
                 TI.state == State.FAILED,
                 TI.execution_date == DEFAULT_DATE + timedelta(seconds=1)).all()
             if len(failed_tis) == 1 and \
-                failed_tis[0].task_id == 'task_external_with_failure':
+               failed_tis[0].task_id == 'task_external_with_failure':
                 pass
             else:
                 raise e
