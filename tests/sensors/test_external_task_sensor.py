@@ -79,11 +79,13 @@ class ExternalTaskSensorTests(unittest.TestCase):
         other_dag = DAG(
             'other_dag',
             default_args=self.args,
-            start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
             schedule_interval='@once')
-        d = DummyOperator(dag=other_dag, task_id='dummy')
-        d.run()
+        other_dag.create_dagrun(
+            run_id='test',
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+            state=State.SUCCESS)
         t = ExternalTaskSensor(
             task_id='test_external_dag_sensor_check',
             external_dag_id='other_dag',
