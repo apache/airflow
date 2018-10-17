@@ -2631,30 +2631,23 @@ class BaseOperator(LoggingMixin):
         # Set SLA parameters, batching invalid type messages into a
         # single exception.
         sla_param_errs = []
-        if expected_duration:
-            if not isinstance(expected_duration, timedelta):
-                sla_param_errs.append("expected_duration must be a timedelta, "
-                                      "got: {}".format(expected_duration))
-            else:
-                self.expected_duration = expected_duration
-
-        if expected_start:
-            if not isinstance(expected_start, timedelta):
-                sla_param_errs.append("expected_start must be a timedelta, "
-                                      "got: {}".format(expected_start))
-            else:
-                self.expected_start = expected_start
-
-        if expected_finish:
-            if not isinstance(expected_finish, timedelta):
-                sla_param_errs.append("expected_finish must be a timedelta, "
-                                      "got: {}".format(expected_finish))
-            else:
-                self.expected_finish = expected_finish
-
+        if expected_duration and not isinstance(expected_duration, timedelta):
+            sla_param_errs.append("expected_duration must be a timedelta, "
+                                  "got: {}".format(expected_duration))
+        if expected_start and not isinstance(expected_start, timedelta):
+            sla_param_errs.append("expected_start must be a timedelta, "
+                                  "got: {}".format(expected_start))
+        if expected_finish and not isinstance(expected_finish, timedelta):
+            sla_param_errs.append("expected_finish must be a timedelta, "
+                                  "got: {}".format(expected_finish))
         if sla_param_errs:
             raise AirflowException("Invalid SLA params were set! {}".format(
                 "; ".join(sla_param_errs)))
+
+        # If no exception has been raised, go ahead and set these.
+        self.expected_duration = expected_duration
+        self.expected_start = expected_start
+        self.expected_finish = expected_finish
 
         # Warn the user if they've set any non-sensical parameter combinations
         if self.expected_start and self.expected_finish \
