@@ -346,7 +346,8 @@ def send_task_duration_exceeded_email(context):
     target_time = ti.task.expected_duration
     impacted_downstreams = get_impacted_downstream_task_instances(ti)
 
-    email_to = get_subscribers(impacted_downstreams)
+    # Get the subscribers for this task instance plus any downstreams
+    email_to = get_subscribers([ti] + impacted_downstreams)
     email_subject = get_sla_miss_subject("Exceeded duration", ti)
     email_body = ""
     "<pre><code>{task_string}</pre></code> missed an SLA: duration "
@@ -379,10 +380,12 @@ def send_task_late_start_email(context):
     attributes.
     """
     ti = context["ti"]
+
     target_time = ti.execution_date + ti.task.expected_start
     impacted_downstreams = get_impacted_downstream_task_instances(ti)
 
-    email_to = get_subscribers(impacted_downstreams)
+    # Get the subscribers for this task instance plus any downstreams
+    email_to = get_subscribers([ti] + impacted_downstreams)
     email_subject = get_sla_miss_subject("Late start", ti)
     email_body = ""
     "<pre><code>{task_string}</pre></code> missed an SLA: did not start by "
@@ -418,7 +421,8 @@ def send_task_late_finish_email(context):
     target_time = ti.execution_date + ti.task.expected_finish
     impacted_downstreams = get_impacted_downstream_task_instances(ti)
 
-    email_to = get_subscribers(impacted_downstreams)
+    # Get the subscribers for this task instance plus any downstreams
+    email_to = get_subscribers([ti] + impacted_downstreams)
     email_subject = get_sla_miss_subject("Late finish", ti)
     email_body = ""
     "<pre><code>{task_string}</pre></code> missed an SLA: did not finish by "
