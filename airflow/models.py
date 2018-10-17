@@ -4655,28 +4655,35 @@ class DAG(BaseDag, LoggingMixin):
 
         if scheduled_dagrun_ids:
             # Find full, existing TIs for these DagRuns.
-            scheduled_tis = session.query(TI).outerjoin(DR, and_(
-                DR.dag_id == TI.dag_id,
-                DR.execution_date == TI.execution_date)).filter(
-                    # Only look at TIs for this DAG.
-                    TI.dag_id == self.dag_id,
-                    # Only look at TIs that *still* exist in this DAG.
-                    TI.task_id.in_(self.task_ids),
-                    # Don't look for success/skip TIs. We check SLAs often, so
-                    # there's little chance that a TI switches to successful
-                    # after an SLA miss but before we notice; and this should
-                    # be a major perf boost (since most TIs are successful or
-                    # skipped).
-                    not_(TI.state.in_((State.SUCCESS, State.SKIPPED))),
-                    # Only look at specified DagRuns
-                    DR.id.in_(scheduled_dagrun_ids),
-                    # If the DAGRun is SUCCEEDED, then everything has gone
-                    # according to plan. But if it's FAILED, someone may be
-                    # coming to fix it, and SLAs for tasks in it will still
-                    # matter.
-                    DR.state != State.SUCCESS) \
-                .order_by(asc(DR.execution_date)) \
+            scheduled_tis = (
+                session.query(TI)
+                .outerjoin(DR, and_(
+                    DR.dag_id == TI.dag_id,
+                    DR.execution_date == TI.execution_date))
+                # Only look at TIs for this DAG.
+                .filter(TI.dag_id == self.dag_id)
+                # Only look at TIs that *still* exist in this DAG.
+                .filter(TI.task_id.in_(self.task_ids))
+                # Don't look for success/skip TIs. We check SLAs often, so
+                # there's little chance that a TI switches to successful
+                # after an SLA miss but before we notice; and this should
+                # be a major perf boost (since most TIs are successful or
+                # skipped).
+                .filter(or_(
+                    # has to be written this way to account for sql nulls
+                    TI.state == None, # noqa E711
+                    not_(TI.state.in_((State.SUCCESS, State.SKIPPED)))
+                ))
+                # Only look at specified DagRuns
+                .filter(DR.id.in_(scheduled_dagrun_ids))
+                # If the DAGRun is SUCCEEDED, then everything has gone
+                # according to plan. But if it's FAILED, someone may be
+                # coming to fix it, and SLAs for tasks in it will still
+                # matter.
+                .filter(DR.state != State.SUCCESS)
+                .order_by(asc(DR.execution_date))
                 .all()
+            )
         else:
             scheduled_tis = []
 
