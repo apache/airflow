@@ -476,6 +476,22 @@ class CoreTest(unittest.TestCase):
             "Both sla and expected_finish provided as task parameters",
             w[0].message.args[0])
 
+    def test_sla_invalid_arg_exception(self):
+        msg = (
+            "Invalid SLA params were set! "
+            "expected_duration must be a timedelta, got: 10; "
+            "expected_start must be a timedelta, got: 1.0; "
+            "expected_finish must be a timedelta, got: 10"
+        )
+
+        with self.assertRaisesRegexp(AirflowException, msg):
+            DummyOperator(
+                task_id="test_sla_redundant_arg_warning",
+                expected_duration=10,
+                expected_start=1.0,
+                expected_finish="10"
+            )
+
     def test_bash_operator(self):
         t = BashOperator(
             task_id='test_bash_operator',
