@@ -1,3 +1,6 @@
+# there's a sqlalchemy.py in this dir!
+from __future__ import absolute_import
+
 import airflow.models
 from airflow.utils import asciiart
 from airflow.utils.db import provide_session
@@ -5,6 +8,8 @@ from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from six import string_types
+
+from sqlalchemy import or_
 
 log = LoggingMixin().log
 
@@ -293,7 +298,6 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
         State.UPSTREAM_FAILED,
         State.SCHEDULED,
         State.QUEUED,
-        State.NONE,
     )
 
     qry = (
@@ -302,7 +306,11 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
         .filter(TI.dag_id == dag.dag_id)
         .filter(TI.task_id.in_(list(t.task_id for t in downstream_tasks)))
         .filter(TI.execution_date == task_instance.execution_date)
-        .filter(TI.state.in_(blocked_states))
+        # State.NONE is actually a None, which is a null, which breaks
+        # comparisons without writing them like this.
+        .filter(
+            or_(TI.state == None, TI.state.in_(blocked_states))  # noqa E711
+        )
         .all()
     )
     return qry
