@@ -25,6 +25,8 @@ env:
     - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
+    - TOX_ENV=integration
+    - TOX_ENV=docs
     - TOX_ENV=flake8
     - TOX_ENV=py27-backend_mysql-env_docker
     - TOX_ENV=py27-backend_sqlite-env_docker
@@ -34,7 +36,6 @@ env:
     - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
     - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
     - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
-
 cache:
   directories:
     - $HOME/.wheelhouse/
