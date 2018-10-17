@@ -140,6 +140,7 @@ def create_sla_misses(ti, timestamp, session):
     # prevent other task SLAs from getting triggered.
 
     # SLA Miss for Expected Duration
+    # n.b. - this one can't be calculated until the ti has started!
     if SM.TASK_DURATION_EXCEEDED not in ti_misses \
             and ti.task.expected_duration and ti.start_date:
         try:
