@@ -39,6 +39,7 @@ from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
+from airflow.models import SlaMiss
 from airflow.models import DagModel, DagRun, DagStat
 from airflow.models import clear_task_instances
 from airflow.models import XCom
@@ -609,6 +610,84 @@ class DagTest(unittest.TestCase):
         self.assertEqual(set(orm_subdag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_subdag.last_scheduler_run, now)
         self.assertTrue(orm_subdag.is_active)
+
+    def test_record_sla_misses(self):
+        """
+        Test that missed SLAs are recorded correctly.
+        """
+        # Create a db session.
+        session = settings.Session()
+
+        # Create a testing DAG with all three SLA types.
+        dag = DAG(
+            "test_record_sla_misses",
+            start_date=DEFAULT_DATE,
+        )
+        with dag:
+            expected_duration = DummyOperator(
+                task_id="expected_duration",
+                expected_duration=datetime.timedelta(hours=1))
+
+            expected_start = DummyOperator(
+                task_id="expected_start",
+                expected_start=datetime.timedelta(hours=1))
+
+            expected_finish = DummyOperator(
+                task_id="expected_finish",
+                expected_finish=datetime.timedelta(hours=2))
+
+            expected_duration >> expected_start >> expected_finish
+
+        # Patch time so that we don't try to calculate SLA misses for a huge
+        # span of time
+
+        # the first processed execution date is the date BEFORE start
+        execution_date = DEFAULT_DATE
+        start_date = execution_date + datetime.timedelta(days=1)
+
+        # DAGrun got created at "midnight" on the first run
+        with patch("airflow.models.timezone.utcnow",
+                   return_value=start_date):
+
+            # Create a DAGRun.
+            dr = dag.create_dagrun(
+                run_id="scheduled__" + execution_date.isoformat(),
+                execution_date=execution_date,
+                start_date=start_date,
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session
+            )
+
+            # Create TIs within the DAGRun.
+            duration_ti = dr.get_task_instance(task_id=expected_duration.task_id)
+            duration_ti.set_state(state=State.RUNNING, session=session)
+
+            start_ti = dr.get_task_instance(task_id=expected_start.task_id)
+            start_ti.set_state(state=State.NONE, session=session)
+
+            finish_ti = dr.get_task_instance(task_id=expected_finish.task_id)
+            finish_ti.set_state(state=State.NONE, session=session)
+
+        # SLA miss check as of 4 hours after first run
+        with patch("airflow.models.timezone.utcnow",
+                   return_value=start_date + datetime.timedelta(hours=4)):
+            # Record SLA misses
+            dag.record_sla_misses(session=session)
+
+        # Assert that misses were stored properly.
+        for sla_ti, sla_type in ((duration_ti, SlaMiss.TASK_DURATION_EXCEEDED),
+                                 (start_ti, SlaMiss.TASK_LATE_START),
+                                 (finish_ti, SlaMiss.TASK_LATE_FINISH)):
+            sla_miss = (
+                session.query(SlaMiss)
+                .filter(SlaMiss.dag_id == dag.dag_id)
+                .filter(SlaMiss.task_id == sla_ti.task_id)
+                .one()
+            )
+            self.assertEqual(sla_miss.execution_date, DEFAULT_DATE)
+            self.assertEqual(sla_miss.sla_type, sla_type)
+            self.assertFalse(sla_miss.notification_sent)
 
 
 class DagStatTest(unittest.TestCase):

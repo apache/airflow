@@ -46,14 +46,13 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
 
-from airflow.utils.dates import days_ago
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
 from airflow.utils.net import get_hostname
 
-from mock import Mock, patch, MagicMock, PropertyMock
+from mock import Mock, patch
 from tests.executors.test_executor import TestExecutor
 
 from tests.core import TEST_DAG_FOLDER
@@ -2759,99 +2758,6 @@ class SchedulerJobTest(unittest.TestCase):
 
         do_schedule()
         self.assertEquals(2, len(executor.queued_tasks))
-
-    def test_scheduler_sla_miss_callback(self):
-        """
-        Test that the scheduler does not call the sla_miss_callback when a notification has already been sent
-        """
-        session = settings.Session()
-
-        # Mock the callback function so we can verify that it was not called
-        sla_callback = MagicMock()
-
-<<<<<<< HEAD
-        # Create dag with a start of 2 days ago, but an sla of 1 day
-        # ago so we'll already have an sla_miss on the books
-=======
-        # Create dag with a start of 2 days ago
->>>>>>> Fix unit tests for SLAs
-        test_start_date = days_ago(2)
-        dag = DAG(dag_id='test_sla_miss',
-                  default_args={'start_date': test_start_date})
-
-        # Create a task with an expected finish SLA of 1 day
-        task = DummyOperator(task_id='dummy',
-                             dag=dag,
-                             owner='airflow',
-                             expected_finish=datetime.timedelta(days=1),
-                             sla_miss_callback=sla_callback)
-
-        # Create successful TaskInstances
-        for i in reversed(range(0, 3)):
-            session.merge(models.TaskInstance(task=task,
-                                              execution_date=days_ago(i),
-                                              state=State.SUCCESS))
-
-        # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date,
-                                     sla_type=models.SlaMiss.TASK_LATE_FINISH,
-                                     email_sent=False,
-                                     notification_sent=True))
-
-        # Now call manage_slas and see if the sla_miss callback gets called
-        dag.manage_slas(session=session)
-
-        sla_callback.assert_not_called()
-
-    def test_scheduler_sla_miss_callback_exception(self):
-        """
-        Test that the scheduler gracefully logs an exception if there is a problem
-         calling the sla_miss_callback
-        """
-        session = settings.Session()
-
-        sla_callback = MagicMock(side_effect=RuntimeError('Could not call function'))
-
-        # Create dag with a start of 2 days ago
-        test_start_date = days_ago(2)
-        dag = DAG(dag_id='test_sla_miss',
-                  default_args={'start_date': test_start_date})
-
-        # Create a task with an expected finish SLA of 1 day
-        task = DummyOperator(task_id='dummy',
-                             dag=dag,
-                             owner='airflow',
-                             expected_finish=datetime.timedelta(days=1),
-                             sla_miss_callback=sla_callback)
-
-        # Create a task instance that's still running after 2 days
-        session.merge(models.TaskInstance(task=task,
-                                          execution_date=test_start_date,
-                                          state=State.RUNNING))
-
-        # Create successful task instances after
-        for i in reversed(range(1, 3)):
-            session.merge(models.TaskInstance(task=task,
-                                              execution_date=days_ago(i),
-                                              state=State.RUNNING))
-
-        # Create an SlaMiss that never fired.
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date,
-                                     notification_sent=False,
-                                     sla_type=models.SlaMiss.TASK_LATE_FINISH))
-
-        # Now call manage_slas and see if the sla_miss callback gets called
-        with mock.patch('airflow.models.DAG.log',
-                        new_callable=PropertyMock) as mock_log:
-            dag.manage_slas(session=session)
-            sla_callback.assert_called()
-            mock_log().exception.assert_called_with(
-                'Could not call sla_miss_callback for DAG %s',
-                'test_sla_miss')
 
     def test_retry_still_in_executor(self):
         """
