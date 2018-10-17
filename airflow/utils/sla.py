@@ -132,11 +132,11 @@ def create_sla_misses(ti, timestamp, session):
 
     SM = airflow.models.SlaMiss
 
-    # Get existing misses.
+    # Get existing SLA misses for this task instance.
     ti_misses = {sm.sla_type: sm for sm in get_sla_misses(ti, session)}
 
-    # Calculate each type of SLA miss. Wrapping exceptions here is
-    # important so that an exception in one type of SLA doesn't
+    # Calculate SLA misses that don't already exist. Wrapping exceptions here
+    # is important so that an exception in one type of SLA doesn't
     # prevent other task SLAs from getting triggered.
 
     # SLA Miss for Expected Duration
@@ -150,18 +150,23 @@ def create_sla_misses(ti, timestamp, session):
                 duration = timestamp - ti.start_date
 
             if duration > ti.task.expected_duration:
-                log.debug("Created duration exceeded SLA miss for %s.%s [%s]",
-                          ti.dag_id, ti.task_id, ti.execution_date)
+                log.debug("Task instance {}'s duration of {} > its expected "
+                          "duration of {}. Created duration exceeded SLA miss."
+                          .format(ti, duration, ti.task.expected_duration))
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
                     sla_type=SM.TASK_DURATION_EXCEEDED,
                     timestamp=timestamp))
+            else:
+                log.debug("Task instance {}'s duration of {} <= its expected "
+                          "duration of {}, SLA not yet missed."
+                          .format(ti, duration, ti.task.expected_duration))
         except Exception:
             log.exception(
                 "Failed to calculate expected duration SLA miss for "
-                "task %s",
+                "task instance %s",
                 ti
             )
 
@@ -173,22 +178,37 @@ def create_sla_misses(ti, timestamp, session):
             expected_start = ti.task.dag.following_schedule(ti.execution_date)
             expected_start += ti.task.expected_start
 
-            # "now" is the start date for comparison, if the TI hasn't started
-            actual_start = ti.start_date or timestamp
-
-            if actual_start > expected_start:
-                log.debug("Created expected start SLA miss for %s.%s [%s]",
-                          ti.dag_id, ti.task_id, ti.execution_date)
+            # The case where we have started the ti, but late
+            if ti.start_date and ti.start_date > expected_start:
+                log.debug("Task instance {}'s actual start {} > its expected "
+                          "start of {}. Created late start SLA miss."
+                          .format(ti, ti.start_date, expected_start))
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
                     sla_type=SM.ti_misses,
                     timestamp=timestamp))
+
+            # The case where we haven't even started the ti yet
+            elif timestamp > expected_start:
+                log.debug("Task instance {} has not started by its expected "
+                          "start of {}. Created late start SLA miss."
+                          .format(ti, expected_start))
+                session.merge(SM(
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    execution_date=ti.execution_date,
+                    sla_type=SM.ti_misses,
+                    timestamp=timestamp))
+            else:
+                log.debug("Task instance {}'s expected start of {} hasn't "
+                          "happened yet, SLA not yet missed."
+                          .format(ti, expected_start))
         except Exception:
             log.exception(
                 "Failed to calculate expected start SLA miss for "
-                "task %s",
+                "task instance %s",
                 ti
             )
 
@@ -200,22 +220,35 @@ def create_sla_misses(ti, timestamp, session):
             expected_finish = ti.task.dag.following_schedule(ti.execution_date)
             expected_finish += ti.task.expected_finish
 
-            # "now" is the end date for comparison, if the TI hasn't finished
-            actual_finish = ti.end_date or timestamp
-
-            if actual_finish > expected_finish:
-                log.debug("Created expected finish SLA miss for %s.%s [%s]",
-                          ti.dag_id, ti.task_id, ti.execution_date)
+            if ti.end_date and ti.end_date > expected_finish:
+                log.debug("Task instance {}'s actual finish {} > its expected "
+                          "finish of {}. Created late finish SLA miss."
+                          .format(ti, ti.end_date, expected_finish))
                 session.merge(SM(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
                     sla_type=SM.TASK_LATE_FINISH,
                     timestamp=timestamp))
+
+            elif timestamp > expected_finish:
+                log.debug("Task instance {} has not finished by its expected "
+                          "finish of {}. Created late finish SLA miss."
+                          .format(ti, expected_finish))
+                session.merge(SM(
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    execution_date=ti.execution_date,
+                    sla_type=SM.TASK_LATE_FINISH,
+                    timestamp=timestamp))
+            else:
+                log.debug("Task instance {}'s expected finish of {} hasn't "
+                          "happened yet, SLA not yet missed."
+                          .format(ti, expected_finish))
         except Exception:
             log.exception(
                 "Failed to calculate expected finish SLA miss for "
-                "task %s",
+                "task instance %s",
                 ti
             )
 
