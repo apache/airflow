@@ -69,14 +69,16 @@ def yield_unscheduled_runs(dag, last_scheduled_run, ts):
 
         # We've passed every filter; this is a valid future DagRun that
         # presumably hasn't been scheduled due to concurrency limits.
-        # Create a DAGRun, though it won't exist in the db yet.
-        next_run = dag.create_dagrun(
+        # Create and yield a fake DAGRun, which won't exist in the db yet.
+        next_run = airflow.models.DagRun(
+            dag_id=dag.dag_id,
             run_id=airflow.models.DagRun.ID_PREFIX + next_run_date.isoformat(),
             execution_date=next_run_date,
             start_date=ts,
-            state=State.RUNNING,
-            external_trigger=False
+            state=State.NONE,
+            external_trigger=False,
         )
+        next_run.dag = dag
         yield next_run
 
         # Examine the next date.
