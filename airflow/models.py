@@ -2611,9 +2611,7 @@ class BaseOperator(LoggingMixin):
         self.queue = queue
         self.pool = pool
 
-        self.expected_duration = expected_duration
-        self.expected_start = expected_start
-
+        # Warn about use of the SLA parameter
         if sla and expected_finish:
             self.log.warning(
                 "Both sla and expected_finish provided as task "
@@ -2621,18 +2619,15 @@ class BaseOperator(LoggingMixin):
                 "deprecated sla parameter.",
                 self
             )
-            self.expected_finish = expected_finish
         elif sla:
             self.log.warning(
-                "sla is deprecated as a task parameter for %s; use "
+                "sla is deprecated as a task parameter for %s; converting to "
                 "expected_finish instead.",
                 self
             )
-            self.expected_finish = sla
-        elif expected_finish:
-            self.expected_finish = expected_finish
+            expected_finish = sla
 
-        # Warn the user if they've set any non-sensical combinations of SLAs
+        # Warn the user if they've set any non-sensical parameter combinations
         if expected_start and expected_finish \
            and expected_start >= expected_finish:
             self.log.warning(
@@ -2659,6 +2654,11 @@ class BaseOperator(LoggingMixin):
                 "sending an SLA notification.",
                 self, expected_duration, execution_timeout
             )
+
+        # Finally set SLA parameters.
+        self.expected_duration = expected_duration
+        self.expected_start = expected_start
+        self.expected_finish = expected_finish
 
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
