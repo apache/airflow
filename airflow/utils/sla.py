@@ -151,7 +151,7 @@ def create_sla_misses(ti, timestamp, session):
 
             if duration > ti.task.expected_duration:
                 log.debug("Task instance {}'s duration of {} > its expected "
-                          "duration of {}. Created duration exceeded SLA miss."
+                          "duration of {}. Creating duration exceeded SLA miss."
                           .format(ti, duration, ti.task.expected_duration))
                 session.merge(SM(
                     task_id=ti.task_id,
@@ -181,7 +181,7 @@ def create_sla_misses(ti, timestamp, session):
             # The case where we have started the ti, but late
             if ti.start_date and ti.start_date > expected_start:
                 log.debug("Task instance {}'s actual start {} > its expected "
-                          "start of {}. Created late start SLA miss."
+                          "start of {}. Creating late start SLA miss."
                           .format(ti, ti.start_date, expected_start))
                 session.merge(SM(
                     task_id=ti.task_id,
@@ -193,7 +193,7 @@ def create_sla_misses(ti, timestamp, session):
             # The case where we haven't even started the ti yet
             elif timestamp > expected_start:
                 log.debug("Task instance {} has not started by its expected "
-                          "start of {}. Created late start SLA miss."
+                          "start of {}. Creating late start SLA miss."
                           .format(ti, expected_start))
                 session.merge(SM(
                     task_id=ti.task_id,
@@ -222,7 +222,7 @@ def create_sla_misses(ti, timestamp, session):
 
             if ti.end_date and ti.end_date > expected_finish:
                 log.debug("Task instance {}'s actual finish {} > its expected "
-                          "finish of {}. Created late finish SLA miss."
+                          "finish of {}. Creating late finish SLA miss."
                           .format(ti, ti.end_date, expected_finish))
                 session.merge(SM(
                     task_id=ti.task_id,
@@ -233,7 +233,7 @@ def create_sla_misses(ti, timestamp, session):
 
             elif timestamp > expected_finish:
                 log.debug("Task instance {} has not finished by its expected "
-                          "finish of {}. Created late finish SLA miss."
+                          "finish of {}. Creating late finish SLA miss."
                           .format(ti, expected_finish))
                 session.merge(SM(
                     task_id=ti.task_id,
