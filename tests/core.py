@@ -447,6 +447,35 @@ class CoreTest(unittest.TestCase):
                 'Invalid arguments were passed to BashOperator.',
                 w[0].message.args[0])
 
+    def test_sla_deprecated_arg_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            DummyOperator(
+                task_id="test_sla_deprecated_arg_warning",
+                sla=timedelta(hours=1)
+            )
+
+        self.assertTrue(
+            issubclass(w[0].category, PendingDeprecationWarning))
+        self.assertIn(
+            "sla is deprecated as a task parameter",
+            w[0].message.args[0])
+
+    def test_sla_redundant_arg_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            expected_finish = timedelta(hours=2)
+            op = DummyOperator(
+                task_id="test_sla_redundant_arg_warning",
+                sla=timedelta(hours=1),
+                expected_finish=expected_finish
+            )
+
+        self.assertEquals(op.expected_finish, expected_finish)
+        self.assertTrue(
+            issubclass(w[0].category, PendingDeprecationWarning))
+        self.assertIn(
+            "Both sla and expected_finish provided as task parameters",
+            w[0].message.args[0])
+
     def test_bash_operator(self):
         t = BashOperator(
             task_id='test_bash_operator',
