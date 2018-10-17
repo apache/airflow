@@ -400,6 +400,7 @@ BigQuery Operators
 - :ref:`BigQueryCheckOperator` : Performs checks against a SQL query that will return a single row with different values.
 - :ref:`BigQueryValueCheckOperator` : Performs a simple value check using SQL code.
 - :ref:`BigQueryIntervalCheckOperator` : Checks that the values of metrics given as SQL expressions are within a certain tolerance of the ones from days_back before.
+- :ref:`BigQueryGetDataOperator` : Fetches the data from a BigQuery table and returns data in a python list
 - :ref:`BigQueryCreateEmptyTableOperator` : Creates a new, empty table in the specified BigQuery dataset optionally with schema.
 - :ref:`BigQueryCreateExternalTableOperator` : Creates a new, external table in the dataset with the data in Google Cloud Storage.
 - :ref:`BigQueryDeleteDatasetOperator` : Deletes an existing BigQuery dataset.
