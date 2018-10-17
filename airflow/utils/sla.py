@@ -114,7 +114,7 @@ def get_sla_misses(ti, session):
     ).all()
 
 
-def create_sla_misses(ti, ts, session):
+def create_sla_misses(ti, timestamp, session):
     """
     Determine whether a TaskInstance has missed any SLAs as of a provided
     timestamp. If it has, create `SlaMiss` objects in the provided session.
@@ -145,7 +145,7 @@ def create_sla_misses(ti, ts, session):
                 duration = ti.end_date - ti.start_date
             else:
                 # Use the current time, if the task is still running.
-                duration = ts - ti.start_date
+                duration = timestamp - ti.start_date
 
             if duration > ti.task.expected_duration:
                 log.debug("Created duration exceeded SLA miss for %s.%s [%s]",
@@ -155,7 +155,7 @@ def create_sla_misses(ti, ts, session):
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
                     sla_type=SM.TASK_DURATION_EXCEEDED,
-                    timestamp=ts))
+                    timestamp=timestamp))
         except Exception:
             log.exception(
                 "Failed to calculate expected duration SLA miss for "
@@ -172,7 +172,7 @@ def create_sla_misses(ti, ts, session):
             expected_start += ti.task.expected_start
 
             # "now" is the start date for comparison, if the TI hasn't started
-            actual_start = ti.start_date or ts
+            actual_start = ti.start_date or timestamp
 
             if actual_start > expected_start:
                 log.debug("Created expected start SLA miss for %s.%s [%s]",
@@ -182,7 +182,7 @@ def create_sla_misses(ti, ts, session):
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
                     sla_type=SM.ti_misses,
-                    timestamp=ts))
+                    timestamp=timestamp))
         except Exception:
             log.exception(
                 "Failed to calculate expected start SLA miss for "
@@ -199,7 +199,7 @@ def create_sla_misses(ti, ts, session):
             expected_finish += ti.task.expected_finish
 
             # "now" is the end date for comparison, if the TI hasn't finished
-            actual_finish = ti.end_date or ts
+            actual_finish = ti.end_date or timestamp
 
             if actual_finish > expected_finish:
                 log.debug("Created expected finish SLA miss for %s.%s [%s]",
@@ -209,7 +209,7 @@ def create_sla_misses(ti, ts, session):
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
                     sla_type=SM.TASK_LATE_FINISH,
-                    timestamp=ts))
+                    timestamp=timestamp))
         except Exception:
             log.exception(
                 "Failed to calculate expected finish SLA miss for "
