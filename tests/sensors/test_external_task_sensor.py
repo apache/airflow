@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from datetime import timedelta, time
 
 from airflow import DAG, configuration, settings
@@ -76,10 +75,18 @@ class ExternalTaskSensorTests(unittest.TestCase):
         )
 
     def test_external_dag_sensor(self):
-        self.test_time_sensor()
+
+        other_dag = DAG(
+            'other_dag',
+            default_args=self.args,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            schedule_interval='@once')
+        d = DummyOperator(dag=other_dag, task_id='dummy')
+        d.run()
         t = ExternalTaskSensor(
-            task_id='test_external_task_sensor_check',
-            external_dag_id=TEST_DAG_ID,
+            task_id='test_external_dag_sensor_check',
+            external_dag_id='other_dag',
             external_task_id=None,
             dag=self.dag
         )
@@ -154,7 +161,7 @@ exit 0
                 TI.state == State.FAILED,
                 TI.execution_date == DEFAULT_DATE + timedelta(seconds=1)).all()
             if len(failed_tis) == 1 and \
-               failed_tis[0].task_id == 'task_external_with_failure':
+                failed_tis[0].task_id == 'task_external_with_failure':
                 pass
             else:
                 raise e
