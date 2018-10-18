@@ -897,6 +897,101 @@ class DagTest(unittest.TestCase):
             self.assertEqual(sla_misses[2].execution_date,
                              next_execution_date)
 
+    def test_send_sla_notifications(self):
+        """
+        Test that SLA notifications are only sent for appropriate SLAMisses
+        and that they are flagged as sent once delivered.
+        """
+        session = settings.Session()
+
+        # Create a testing DAG with all three SLA types.
+        dag = DAG(
+            "test_send_sla_notifications",
+            start_date=DEFAULT_DATE,
+        )
+        with dag:
+            expected_duration = DummyOperator(
+                task_id="expected_duration",
+                expected_duration=datetime.timedelta(hours=1),
+                sla_miss_callback=Mock(name="expected_duration_callback"))
+
+            expected_start = DummyOperator(
+                task_id="expected_start",
+                expected_start=datetime.timedelta(hours=1),
+                sla_miss_callback=Mock(name="expected_start_callback"))
+
+            expected_finish = DummyOperator(
+                task_id="expected_finish",
+                expected_finish=datetime.timedelta(hours=1),
+                sla_miss_callback=Mock(name="expected_finish_callback"))
+
+            expected_duration >> expected_start >> expected_finish
+
+        miss_types = ((expected_duration, SlaMiss.TASK_DURATION_EXCEEDED),
+                      (expected_start, SlaMiss.TASK_LATE_START),
+                      (expected_finish, SlaMiss.TASK_LATE_FINISH))
+
+        # the first processed execution date is the date BEFORE start
+        execution_date = DEFAULT_DATE
+        start_date = execution_date + datetime.timedelta(days=1)
+        missed_at = start_date + datetime.timedelta(hours=1)
+
+        # Create a DAGrun with TIs on "midnight" on the first run
+        fake_time = start_date
+        with patch("airflow.models.timezone.utcnow", return_value=fake_time):
+            # Create a DAGRun.
+            dr = dag.create_dagrun(
+                run_id="scheduled__" + execution_date.isoformat(),
+                execution_date=execution_date,
+                start_date=start_date,
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session
+            )
+
+            # Create successful TIs within the DAGRun.
+            duration_ti = dr.get_task_instance(task_id=expected_duration.task_id)
+            duration_ti.set_state(state=State.NONE, session=session)
+
+            start_ti = dr.get_task_instance(task_id=expected_start.task_id)
+            start_ti.set_state(state=State.NONE, session=session)
+
+            finish_ti = dr.get_task_instance(task_id=expected_finish.task_id)
+            finish_ti.set_state(state=State.NONE, session=session)
+
+        # Create SLA miss objects that haven't been sent yet
+        for task, sla_type in miss_types:
+            session.merge(SlaMiss(
+                dag_id=task.dag_id,
+                task_id=task.task_id,
+                execution_date=execution_date,
+                sla_type=sla_type,
+                timestamp=missed_at))
+
+        # Save created objects.
+        session.commit()
+
+        # Notify a first time, which should call the mocks
+        logging.info("Sending first batch of SLA notifications")
+        unsent_notifications = dag.get_unsent_sla_notifications(session=session)
+        self.assertEqual(len(unsent_notifications), len(miss_types))
+        dag.send_sla_notifications(unsent_notifications, session=session)
+
+        # Notify a second time, which should find nothing
+        logging.info("Sending second batch of SLA notifications")
+        unsent_notifications = dag.get_unsent_sla_notifications(session=session)
+        self.assertEqual(len(unsent_notifications), 0)
+        dag.send_sla_notifications(unsent_notifications, session=session)
+
+        # Assert that each mock was called once and with a reasonable context
+        for task, sla_type in miss_types:
+            task.sla_miss_callback.assert_called_once()
+            # the 0th argument of the 0th call
+            context = task.sla_miss_callback.call_args[0][0]
+            logging.info("Callback context values: %s", context)
+            for key in ("dag", "task", "ti", "sla_miss"):
+                self.assertTrue(key in context)
+
 
 class DagStatTest(unittest.TestCase):
     def test_dagstats_crud(self):
