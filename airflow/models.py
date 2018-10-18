@@ -4787,6 +4787,7 @@ class DAG(BaseDag, LoggingMixin):
                 session.merge(sla_miss)
                 session.commit()
 
+
 class Chart(Base):
     __tablename__ = "chart"
 
