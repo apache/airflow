@@ -356,6 +356,7 @@ def get_impacted_downstream_task_instances(task_instance, session=None):
         .filter(
             or_(TI.state == None, TI.state.in_(blocked_states))  # noqa E711
         )
+        .order_by(TI.task_id)
     )
 
     # Make sure to set Task on each returned TI.
