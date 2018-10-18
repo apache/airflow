@@ -539,8 +539,8 @@ Cloud Functions
 Cloud Functions Operators
 """""""""""""""""""""""""
 
-- :ref:`GcfFunctionDeployOperator` : deploy Google Cloud Function to the cloud.
-- :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in the cloud.
+- :ref:`GcfFunctionDeployOperator` : deploy Google Cloud Function to Google Cloud Platform
+- :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in Google Cloud Platform
 
 .. autoclass:: airflow.contrib.operators.gcp_operator.GCP
 
