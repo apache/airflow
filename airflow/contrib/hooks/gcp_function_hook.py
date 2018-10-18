@@ -35,7 +35,7 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 # noinspection PyAbstractClass
 class GcfHook(GoogleCloudBaseHook):
     """
-    Hook for Google Cloud Functions APIs.
+    Hook for the Google Cloud Functions APIs.
     """
     _conn = None
 
@@ -48,7 +48,7 @@ class GcfHook(GoogleCloudBaseHook):
 
     def get_conn(self):
         """
-        Retrieves connection to cloud functions.
+        Retrieves the connection to Cloud Functions.
 
         :return: Google Cloud Function services object
         :rtype: dict
@@ -61,7 +61,7 @@ class GcfHook(GoogleCloudBaseHook):
 
     def get_function(self, name):
         """
-        Returns the function with a given name.
+        Returns the Cloud Function with the given name.
 
         :param name: name of the function
         :type name: str
@@ -73,9 +73,9 @@ class GcfHook(GoogleCloudBaseHook):
 
     def list_functions(self, full_location):
         """
-        Lists all functions created in the location.
+        Lists all Cloud Functions created in the location.
 
-        :param full_location: full location including project. On the form
+        :param full_location: full location including the project in the form of
             of /projects/<PROJECT>/location/<LOCATION>
         :type full_location: str
         :return: array of CloudFunction objects - representing functions in the location
@@ -87,12 +87,12 @@ class GcfHook(GoogleCloudBaseHook):
 
     def create_new_function(self, full_location, body):
         """
-        Creates new cloud function in location given with body specified.
+        Creates a new function in Cloud Function in the location specified in the body.
 
-        :param full_location: full location including project. On the form
+        :param full_location: full location including the project in the form of
             of /projects/<PROJECT>/location/<LOCATION>
         :type full_location: str
-        :param body: body required by the cloud function insert API
+        :param body: body required by the Cloud Functions insert API
         :type body: dict
         :return: response returned by the operation
         :rtype: dict
@@ -106,7 +106,7 @@ class GcfHook(GoogleCloudBaseHook):
 
     def update_function(self, name, body, update_mask):
         """
-        Updates cloud function according to the update mask specified.
+        Updates Cloud Functions according to the specified update mask.
 
         :param name: name of the function
         :type name: str
@@ -129,10 +129,10 @@ class GcfHook(GoogleCloudBaseHook):
         """
         Uploads zip file with sources.
 
-        :param parent: project and location in which signed upload URL should be generated
-           in the form of /projects/<PROJECT>/location/<LOCATION>
+        :param parent: Google Cloud Platform project id and region where zip file should
+         be uploaded in the form of /projects/<PROJECT>/location/<LOCATION>
         :type parent: str
-        :param zip_path: path of the file to upload (should point to valid .zip file)
+        :param zip_path: path of the valid .zip file to upload
         :type zip_path: str
         :return: Upload URL that was returned by generateUploadUrl method
         """
@@ -156,7 +156,7 @@ class GcfHook(GoogleCloudBaseHook):
 
     def delete_function(self, name):
         """
-        Deletes cloud function specified by name.
+        Deletes the specified Cloud Function.
 
         :param name: name of the function
         :type name: str
