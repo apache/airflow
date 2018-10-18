@@ -5722,8 +5722,9 @@ class SlaMiss(Base):
     notification_sent = Column(Boolean, default=False)
 
     def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
+        return "SlaMiss <{sla_type}, {dag_id}.{task_id} [{exc_date}]>".format(
+            dag_id=self.dag_id, task_id=self.task_id, sla_type=self.sla_type,
+            exc_date=self.execution_date.isoformat())
 
 
 class ImportError(Base):
