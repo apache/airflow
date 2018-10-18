@@ -80,28 +80,29 @@ CLOUD_FUNCTION_VALIDATION = [
 
 class GcfFunctionDeployOperator(BaseOperator):
     """
-    Create a function in Google Cloud Functions.
+    Creates a function in Google Cloud Functions.
 
-    :param project_id: Project ID that the operator works on
+    :param project_id: Google Cloud Platform Project ID where the function should
+        be created.
     :type project_id: str
-    :param location: Region where the operator operates on
+    :param location: Google Cloud Platform region where the function should be created.
     :type location: str
-    :param body: Body of the cloud function definition. The body must be a CloudFunction
-        dictionary as described in:
+    :param body: Body of the Cloud Functions definition. The body must be a
+        Cloud Functions dictionary as described in:
         https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions
-        (note that different API versions require different
-        variants of the CloudFunction dictionary)
+        . Different API versions require different variants of the Cloud Functions
+        dictionary.
     :type body: dict or google.cloud.functions.v1.CloudFunction
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param api_version: Version of the API used (for example v1).
+    :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
-    :param zip_path: Path to zip file containing source code of the function. If it is
-        set, then sourceUploadUrl should not be specified in the body (or it should
-        be empty), then the zip file will be uploaded using upload URL generated
-        via generateUploadUrl from cloud functions API
+    :param zip_path: Path to zip file containing source code of the function. If the path
+        is set, the sourceUploadUrl should not be specified in the body or it should
+        be empty. Then the zip file will be uploaded using the upload URL generated
+        via generateUploadUrl from the Cloud Functions API.
     :type zip_path: str
-    :param validate_body: If set to False, no body validation is performed.
+    :param validate_body: If set to False, body validation is not performed.
     :type validate_body: bool
     """
 
@@ -265,14 +266,14 @@ FUNCTION_NAME_COMPILED_PATTERN = re.compile(FUNCTION_NAME_PATTERN)
 
 class GcfFunctionDeleteOperator(BaseOperator):
     """
-    Delete a function with specified name from Google Cloud Functions.
+    Deletes the specified function from Google Cloud Functions.
 
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
     :type name: str
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param api_version: Version of the API used (for example v1).
+    :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
     """
 
