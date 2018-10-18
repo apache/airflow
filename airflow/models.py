@@ -4761,18 +4761,20 @@ class DAG(BaseDag, LoggingMixin):
                 ti.task = task
 
             notification_sent = False
-            # If no callback exists, we want to update the SlaMiss, but don't
-            # want to notify.
+            # If no callback exists, we don't want to send any notification;
+            # but we do want to update the SlaMiss in the database so that it
+            # doesn't keep looping.
             if not task.sla_miss_callback:
                 notification_sent = True
             else:
-                self.log.info("Triggering callback for SLA miss %s:", sla_miss)
+                self.log.info("Calling sla_miss_callback for %s", sla_miss)
                 try:
                     # Patch context with the current SLA miss.
                     context = ti.get_template_context()
                     context["sla_miss"] = sla_miss
                     task.sla_miss_callback(context)
                     notification_sent = True
+                    self.log.debug("Called sla_miss_callback for %s", sla_miss)
                 except Exception:
                     self.log.exception(
                         "Could not call sla_miss_callback for DAG %s",
