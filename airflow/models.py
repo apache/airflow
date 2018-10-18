@@ -4739,6 +4739,10 @@ class DAG(BaseDag, LoggingMixin):
 
         # Retrieve the context for this TI, but patch in the SLA miss object.
         for sla_miss in sla_misses:
+            if sla_miss.notification_sent:
+                self.log.debug("SLA miss %s has already had a notification sent, "
+                               "ignoring.", sla_miss)
+
             TI = TaskInstance
             ti = session.query(TI).filter(
                 TI.dag_id == sla_miss.dag_id,
