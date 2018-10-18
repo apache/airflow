@@ -1299,7 +1299,15 @@ class SchedulerJob(BaseJob):
 
             # Look for SLA misses for all task instances associated with this
             # DAG, whether or not corresponding runs have been created yet.
-            dag.manage_slas()
+            # Catch exceptions, though; we don't want SLA checking failures to
+            # prevent tasks from being scheduled!
+            try:
+                dag.manage_slas()
+            except Exception:
+                self.log.exception(
+                    "DAG {} was unable to successfully manage SLAs; continuing"
+                    " with scheduling rather than raising exception."
+                    .format(dag))
 
         models.DagStat.update([d.dag_id for d in dags])
 
