@@ -4758,6 +4758,7 @@ class DAG(BaseDag, LoggingMixin):
             # Else make a temporary one.
             else:
                 ti = TaskInstance(task, sla_miss.execution_date)
+                ti.task = task
 
             notification_sent = False
             # If no callback exists, we want to update the SlaMiss, but don't
