@@ -4785,10 +4785,7 @@ class DAG(BaseDag, LoggingMixin):
             if notification_sent:
                 sla_miss.notification_sent = True
                 session.merge(sla_miss)
-
-        # Save the updated SlaMiss objects.
-        session.commit()
-
+                session.commit()
 
 class Chart(Base):
     __tablename__ = "chart"
