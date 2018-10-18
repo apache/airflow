@@ -4606,7 +4606,7 @@ class DAG(BaseDag, LoggingMixin):
 
         # Collect pending SLA miss callbacks, either created immediately above
         # or previously failed.
-        unsent_sla_misses = self.get_sla_notifications(session=session)
+        unsent_sla_misses = self.get_unsent_sla_notifications(session=session)
         self.log.debug("Found %s unsent SLA miss notifications",
                        len(unsent_sla_misses))
 
@@ -4715,7 +4715,7 @@ class DAG(BaseDag, LoggingMixin):
         session.commit()
 
     @provide_session
-    def get_sla_notifications(self, session=None):
+    def get_unsent_sla_notifications(self, session=None):
         """
         Find all SlaMisses for this DAG that haven't yet been notified.
         """
