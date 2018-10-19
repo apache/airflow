@@ -20,7 +20,6 @@
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
-import os.path
 import time
 
 
@@ -104,7 +103,6 @@ class AwsGlueJobHook(AwsHook):
                 self.log.info("Polling for AWS Glue Job {} current run state"
                               .format(job_name))
                 time.sleep(6)
-
 
     def get_glue_job(self):
         """

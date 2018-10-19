@@ -19,7 +19,6 @@
 #
 
 import unittest
-import json
 
 
 try:
