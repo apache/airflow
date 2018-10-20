@@ -64,20 +64,22 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
                                              version='1.19')
 
-        client_mock.create_container.assert_called_with(command='env', cpu_shares=1024,
+        client_mock.create_container.assert_called_with(command='env',
                                                         environment={
                                                             'AIRFLOW_TMP_DIR': '/tmp/airflow',
                                                             'UNIT': 'TEST'
                                                         },
                                                         host_config=host_config,
                                                         image='ubuntu:latest',
-                                                        mem_limit=None, user=None,
+                                                        user=None,
                                                         working_dir='/container/path'
                                                         )
         client_mock.create_host_config.assert_called_with(binds=['/host/path:/container/path',
                                                                  '/mkdtemp:/tmp/airflow'],
                                                           network_mode='bridge',
                                                           shm_size=1000,
+                                                          cpu_shares=1024,
+                                                          mem_limit=None,
                                                           dns=None,
                                                           dns_search=None)
         client_mock.images.assert_called_with(name='ubuntu:latest')
