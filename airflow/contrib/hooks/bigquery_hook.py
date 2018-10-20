@@ -229,7 +229,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :param table_id: The Name of the table to be created.
         :type table_id: str
         :param schema_fields: If set, the schema field list as defined here:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+        :type schema_fields: list
         :param labels: a dictionary containing labels for the table, passed to BigQuery
         :type labels: dict
 
@@ -238,7 +239,6 @@ class BigQueryBaseCursor(LoggingMixin):
             schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
 
-        :type schema_fields: list
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
 
@@ -480,7 +480,7 @@ class BigQueryBaseCursor(LoggingMixin):
             )
 
     def run_query(self,
-                  sql=None,
+                  sql,
                   destination_dataset_table=None,
                   write_disposition='WRITE_EMPTY',
                   allow_large_results=False,
@@ -522,6 +522,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type flatten_results: bool
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
+        :type udf_config: list
         :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
             If `None`, defaults to `self.use_legacy_sql`.
         :type use_legacy_sql: bool
@@ -532,7 +533,6 @@ class BigQueryBaseCursor(LoggingMixin):
             if you need to provide some params that are not supported by the
             BigQueryHook like args.
         :type api_resource_configs: dict
-        :type udf_config: list
         :param maximum_billing_tier: Positive integer that serves as a
             multiplier of the basic price.
         :type maximum_billing_tier: int
