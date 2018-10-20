@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -155,9 +155,9 @@ class S3ToHiveTransferTest(unittest.TestCase):
         # Hence decompress to test for equality
         if(ext.lower() == '.gz'):
             with gzip.GzipFile(fn_1, 'rb') as f_1,\
-                 NamedTemporaryFile(mode='wb') as f_txt_1,\
-                 gzip.GzipFile(fn_2, 'rb') as f_2,\
-                 NamedTemporaryFile(mode='wb') as f_txt_2:
+                    NamedTemporaryFile(mode='wb') as f_txt_1,\
+                    gzip.GzipFile(fn_2, 'rb') as f_2,\
+                    NamedTemporaryFile(mode='wb') as f_txt_2:
                 shutil.copyfileobj(f_1, f_txt_1)
                 shutil.copyfileobj(f_2, f_txt_2)
                 f_txt_1.flush()

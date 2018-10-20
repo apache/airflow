@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,11 +20,9 @@
 from __future__ import print_function, unicode_literals
 
 import datetime
-import logging
 import unittest
 
 from airflow import configuration, DAG, settings
-from airflow.jobs import BackfillJob
 from airflow.models import TaskInstance
 from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -102,7 +100,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)
 
         downstream_instances = get_task_instances('downstream_2')
@@ -111,7 +109,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)
 
     def test_skipping_dagrun(self):
@@ -128,21 +126,21 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         downstream_task.set_upstream(latest_task)
         downstream_task2.set_upstream(downstream_task)
 
-        dr1 = self.dag.create_dagrun(
+        self.dag.create_dagrun(
             run_id="manual__1",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
         )
 
-        dr2 = self.dag.create_dagrun(
+        self.dag.create_dagrun(
             run_id="manual__2",
             start_date=timezone.utcnow(),
             execution_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING
         )
 
-        dr2 = self.dag.create_dagrun(
+        self.dag.create_dagrun(
             run_id="manual__3",
             start_date=timezone.utcnow(),
             execution_date=END_DATE,
@@ -168,7 +166,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)
 
         downstream_instances = get_task_instances('downstream_2')
@@ -177,5 +175,5 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         self.assertEqual({
             timezone.datetime(2016, 1, 1): 'skipped',
             timezone.datetime(2016, 1, 1, 12): 'skipped',
-            timezone.datetime(2016, 1, 2): 'success',},
+            timezone.datetime(2016, 1, 2): 'success'},
             exec_date_to_downstream_state)

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -157,10 +157,8 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         """This checks the defensive against non existent tasks in a dag run"""
         value = False
         dag = DAG('shortcircuit_operator_test_without_dag_run',
-                  default_args={
-                       'owner': 'airflow',
-                       'start_date': DEFAULT_DATE
-                  },
+                  default_args={'owner': 'airflow',
+                                'start_date': DEFAULT_DATE},
                   schedule_interval=INTERVAL)
         short_op = ShortCircuitOperator(task_id='make_choice',
                                         dag=dag,
@@ -212,10 +210,8 @@ class ShortCircuitOperatorTest(unittest.TestCase):
     def test_with_dag_run(self):
         value = False
         dag = DAG('shortcircuit_operator_test_with_dag_run',
-                  default_args={
-                       'owner': 'airflow',
-                       'start_date': DEFAULT_DATE
-                  },
+                  default_args={'owner': 'airflow',
+                                'start_date': DEFAULT_DATE},
                   schedule_interval=INTERVAL)
         short_op = ShortCircuitOperator(task_id='make_choice',
                                         dag=dag,
