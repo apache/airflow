@@ -49,6 +49,16 @@ class BashOperator(BaseOperator):
     :type env: dict
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
+    
+    On execution of the operator the task will up for retry when exception is raised.
+    However if a command exists with non-zero value Airflow will not recognize
+    it as failure unless explicitly specified in the beggining of the script.
+    Example: bash_command = """python3 script.py '{{ next_execution_date }}' """
+             when executing command exit(1) the task will be marked as success.
+             bash_command = """python3 script.py '{{ next_execution_date }}' || exit 1 """
+             when executing command  exit(1) the task will be marked as up for retry.
+    
+    
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
