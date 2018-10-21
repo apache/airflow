@@ -1691,6 +1691,31 @@ class DagBagTest(unittest.TestCase):
                                    configuration.getboolean('core', 'unit_test_mode'),
                                    ANY)
 
+    def test_deactivate_unknown_dags(self):
+        """
+        Test that dag_ids not passed into deactivate_unknown_dags
+        are deactivated when function is invoked
+        """
+        dagbag = models.DagBag(include_examples=True)
+        expected_active_dags = dagbag.dags.keys()
+
+        session = settings.Session
+        session.add(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
+        session.commit()
+
+        models.DAG.deactivate_unknown_dags(expected_active_dags)
+
+        for dag in session.query(DagModel).all():
+            if dag.dag_id in expected_active_dags:
+                self.assertTrue(dag.is_active)
+            else:
+                self.assertEquals(dag.dag_id, 'test_deactivate_unknown_dags')
+                self.assertFalse(dag.is_active)
+
+        # clean up
+        session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
+        session.commit()
+
 
 class TaskInstanceTest(unittest.TestCase):
 
