@@ -34,6 +34,8 @@ class AWSGlueJobOperator(BaseOperator):
     :type str
     :param script_args: etl script arguments and AWS Glue arguments
     :type dict
+    :param aws_conn_id: aws connection id
+    :type aws_conn_id: str
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
     """

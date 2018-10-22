@@ -21,6 +21,7 @@
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 import time
+from botocore.exceptions import ClientError
 
 
 class AwsGlueJobHook(AwsHook):
@@ -31,6 +32,8 @@ class AwsGlueJobHook(AwsHook):
     :type str
     :param desc: job description
     :type str
+    :param aws_conn_id: aws connection id
+    :type aws_conn_id: str
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
     """
@@ -47,8 +50,7 @@ class AwsGlueJobHook(AwsHook):
         super(AwsGlueJobHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
-        conn = self.get_client_type('glue', self.region_name)
-        return conn
+        return self.get_client_type('glue', self.region_name)
 
     def list_jobs(self):
         conn = self.get_conn()
@@ -70,7 +72,7 @@ class AwsGlueJobHook(AwsHook):
                 Arguments=script_arguments
             )
             return self.job_completion(job_name, job_run['JobRunId'])
-        except Exception as general_error:
+        except ClientError as general_error:
             raise AirflowException(
                 'Failed to run aws glue job, error: {error}'.format(
                     error=str(general_error)
@@ -90,12 +92,9 @@ class AwsGlueJobHook(AwsHook):
             PredecessorsIncluded=True
         )
         job_run_state = job_status['JobRun']['JobRunState']
-        failed = job_run_state == 'FAILED'
-        stopped = job_run_state == 'STOPPED'
-        completed = job_run_state == 'SUCCEEDED'
 
         while True:
-            if failed or stopped or completed:
+            if job_run_state in {'FAILED', 'STOPPED', 'SUCCEEDED'}:
                 self.log.info("Exiting Job {} Run State: {}"
                               .format(run_id, job_run_state))
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
@@ -122,7 +121,7 @@ class AwsGlueJobHook(AwsHook):
             self.logger.info("Job Creation Time: {}".format(get_job_response['CreatedOn']))
             self.logger.info("Last Job Modification Time: {}".format(get_job_response['LastModifiedOn']))
             return get_job_response
-        except Exception as general_error:
+        except ClientError as general_error:
             raise AirflowException(
                 'Failed to create aws glue job, error: {error}'.format(
                     error=str(general_error)
