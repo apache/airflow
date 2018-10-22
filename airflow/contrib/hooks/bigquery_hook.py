@@ -832,8 +832,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
     def run_load(self,
                  destination_project_dataset_table,
-                 source_uris,
                  schema_fields=None,
+                 source_uris,
                  source_format='CSV',
                  create_disposition='CREATE_IF_NEEDED',
                  skip_leading_rows=0,
