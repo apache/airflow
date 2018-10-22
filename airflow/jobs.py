@@ -1492,7 +1492,8 @@ class SchedulerJob(BaseJob):
                             try:
                                 self.dagbag_import_failure_handler(dag_id)
                             except Exception as e:
-                                self.log.error("Could not call dagbag_import_failure_handler for DAG %s, err: %s", dag_id, e)
+                                self.log.error("Could not call dagbag_import_failure_handler"
+                                               "for DAG %s, err: %s", dag_id, e)
 
     def _log_file_processing_stats(self,
                                    known_file_paths,
