@@ -289,7 +289,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  project_id=None,
                  schema_fields=None,
                  gcs_schema_object=None,
-                 time_partitioning={},
+                 time_partitioning=None,
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
@@ -306,7 +306,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
-        self.time_partitioning = time_partitioning
+        self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
 
     def execute(self, context):
