@@ -60,6 +60,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.email import send_email, get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
+from airflow.utils.module_loading import import_string
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -578,6 +579,13 @@ class SchedulerJob(BaseJob):
 
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
         self.max_threads = conf.getint('scheduler', 'max_threads')
+
+        dagbag_import_failure_handler_path = conf.get('core', 'DAGBAG_IMPORT_FAILURE_HANDLER')
+        if dagbag_import_failure_handler_path:
+            try:
+                self.dagbag_import_failure_handler = import_string(dagbag_import_failure_handler_path)
+            except Exception as e:
+                self.log.error("Could not import dagbag failure handler, err: %s", e)
 
         if log:
             self._log = log
@@ -1480,6 +1488,11 @@ class SchedulerJob(BaseJob):
                         ti.state = State.FAILED
                         session.merge(ti)
                         session.commit()
+                        if self.dagbag_import_failure_handler:
+                            try:
+                                self.dagbag_import_failure_handler(dag_id)
+                            except Exception as e:
+                                self.log.error("Could not call dagbag_import_failure_handler for DAG %s, err: %s", dag_id, e)
 
     def _log_file_processing_stats(self,
                                    known_file_paths,

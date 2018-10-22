@@ -2760,6 +2760,45 @@ class SchedulerJobTest(unittest.TestCase):
         do_schedule()
         self.assertEquals(2, len(executor.queued_tasks))
 
+    @mock.patch("airflow.utils.dag_processing.SimpleDagBag.get_dag")
+    @mock.patch("airflow.utils.timeout.timeout")
+    def test_scheduler_dagbag_import_failure_handler(
+        self, dagbag_import_failure_mock, get_dag_mock
+    ):
+        """
+        Test that the scheduler calls the dagbag_import_failure_handler if the the dagbag was not imported
+        """
+        session = settings.Session()
+
+        configuration.set(
+            "core", "dagbag_import_failure_handler", "airflow.utils.timeout.timeout"
+        )
+        get_dag_mock.side_effect = Exception()
+
+        dag_id = "test_scheduler_dagbag_import_failure_handler"
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        task1 = DummyOperator(dag=dag, task_id="dummy_task")
+
+        dagbag = self._make_simple_dag_bag([dag])
+        scheduler = SchedulerJob()
+        session = settings.Session()
+
+        ti1 = TI(task1, DEFAULT_DATE)
+        ti1.state = State.QUEUED
+        session.merge(ti1)
+        session.commit()
+
+        executor = TestExecutor()
+        executor.event_buffer[ti1.key] = State.FAILED
+
+        scheduler.executor = executor
+
+        scheduler._process_executor_events(simple_dag_bag=dagbag)
+
+        ti1.refresh_from_db()
+
+        dagbag_import_failure_mock.assert_called()
+
     def test_scheduler_sla_miss_callback(self):
         """
         Test that the scheduler does not call the sla_miss_callback when a notification has already been sent
