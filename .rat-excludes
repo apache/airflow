@@ -37,3 +37,6 @@ bootstrap-toggle.min.js
 bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
+airflow/www/static/coverage/*
+airflow/git_version
+scripts/ci/flake8_diff.sh
