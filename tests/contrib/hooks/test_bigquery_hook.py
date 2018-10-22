@@ -422,6 +422,14 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         mocked_rwc.assert_called_once()
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_with_auto_detect(self, run_with_config):
+        destination_project_dataset_table = "autodetect.table"
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_load(destination_project_dataset_table, [], [], autodetect=True)
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['load']['autodetect'], True)
+
     @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
     @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')

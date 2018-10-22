@@ -152,6 +152,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  external_table=False,
                  time_partitioning=None,
                  cluster_fields=None,
+                 autodetect=False,
                  *args, **kwargs):
 
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
@@ -190,20 +191,24 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.src_fmt_configs = src_fmt_configs
         self.time_partitioning = time_partitioning
         self.cluster_fields = cluster_fields
+        self.autodetect = autodetect
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        if not self.schema_fields and \
-                self.schema_object and \
-                self.source_format != 'DATASTORE_BACKUP':
-            gcs_hook = GoogleCloudStorageHook(
-                google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                delegate_to=self.delegate_to)
-            schema_fields = json.loads(gcs_hook.download(
-                self.bucket,
-                self.schema_object).decode("utf-8"))
+        if not self.schema_fields:
+            if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
+                gcs_hook = GoogleCloudStorageHook(
+                    google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+                    delegate_to=self.delegate_to)
+                schema_fields = json.loads(gcs_hook.download(
+                    self.bucket,
+                    self.schema_object).decode("utf-8"))
+            elif self.schema_object is None and self.autodetect is False:
+                raise ValueError('At least one of `schema_fields`, `schema_object`, '
+                                 'or `autodetect` must be passed.')
+
         else:
             schema_fields = self.schema_fields
 
@@ -234,6 +239,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 schema_fields=schema_fields,
                 source_uris=source_uris,
                 source_format=self.source_format,
+                autodetect=self.autodetect,
                 create_disposition=self.create_disposition,
                 skip_leading_rows=self.skip_leading_rows,
                 write_disposition=self.write_disposition,
