@@ -586,6 +586,8 @@ class SchedulerJob(BaseJob):
                 self.dagbag_import_failure_handler = import_string(dagbag_import_failure_handler_path)
             except Exception as e:
                 self.log.error("Could not import dagbag failure handler, err: %s", e)
+        else:
+            self.dagbag_import_failure_handler = None
 
         if log:
             self._log = log
