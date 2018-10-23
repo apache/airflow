@@ -49,6 +49,8 @@ class AirflowPlugin(object):
     admin_views = []
     flask_blueprints = []
     menu_links = []
+    appbuilder_views = []
+    appbuilder_menu_items = []
 
     @classmethod
     def validate(cls):
@@ -120,6 +122,8 @@ macros_modules = []
 admin_views = []
 flask_blueprints = []
 menu_links = []
+flask_appbuilder_views = []
+flask_appbuilder_menu_links = []
 
 for p in plugins:
     operators_modules.append(
@@ -135,3 +139,5 @@ for p in plugins:
     admin_views.extend(p.admin_views)
     flask_blueprints.extend(p.flask_blueprints)
     menu_links.extend(p.menu_links)
+    flask_appbuilder_views.extend(p.appbuilder_views)
+    flask_appbuilder_menu_links.extend(p.appbuilder_menu_items)

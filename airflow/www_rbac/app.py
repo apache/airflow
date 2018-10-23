@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import logging
 import socket
 import six
 
@@ -37,6 +38,7 @@ app = None
 appbuilder = None
 csrf = CSRFProtect()
 
+log = logging.getLogger(__name__)
 
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
@@ -135,6 +137,24 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 category='About',
                                 category_icon='fa-th')
 
+            def integrate_plugins():
+                """Integrate plugins to the context"""
+                from airflow.plugins_manager import (
+                    flask_appbuilder_views, flask_appbuilder_menu_links)
+
+                for v in flask_appbuilder_views:
+                    log.debug("Adding view %s", v["name"])
+                    appbuilder.add_view(v["view"],
+                                        v["name"],
+                                        category=v["category"])
+                for ml in sorted(flask_appbuilder_menu_links, key=lambda x: x["name"]):
+                    log.debug("Adding menu link %s", ml["name"])
+                    appbuilder.add_link(ml["name"],
+                                        href=ml["href"],
+                                        category=ml["category"],
+                                        category_icon=ml["category_icon"])
+
+            integrate_plugins()
             # Garbage collect old permissions/views after they have been modified.
             # Otherwise, when the name of a view or menu is changed, the framework
             # will add the new Views and Menus names to the backend, but will not

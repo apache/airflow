@@ -23,6 +23,7 @@ from airflow.plugins_manager import AirflowPlugin
 from flask import Blueprint
 from flask_admin import BaseView, expose
 from flask_admin.base import MenuLink
+from flask_appbuilder import BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
@@ -67,6 +68,28 @@ class TestView(BaseView):
 
 v = TestView(category="Test Plugin", name="Test View")
 
+
+# Creating a flask appbuilder BaseView
+class TestAppBuilderBaseView(AppBuilderBaseView):
+    default_view = "test"
+
+    @expose("/")
+    def test(self):
+        return self.render("test_plugin/test.html", content="Hello galaxy!")
+
+
+v_appbuilder_view = TestAppBuilderBaseView()
+v_appbuilder_package = {"name": "Test View",
+                        "category": "Test Plugin",
+                        "view": v_appbuilder_view}
+
+# Creating a flask appbuilder Menu Item
+appbuilder_mitem = {"name": "Google",
+                    "category": "Search",
+                    "category_icon": "fa-th",
+                    "href": "https://www.google.com"}
+
+
 # Creating a flask blueprint to intergrate the templates and static folder
 bp = Blueprint(
     "test_plugin", __name__,
@@ -74,10 +97,11 @@ bp = Blueprint(
     static_folder='static',
     static_url_path='/static/test_plugin')
 
+
 ml = MenuLink(
     category='Test Plugin',
-    name='Test Menu Link',
-    url='https://airflow.incubator.apache.org/')
+    name="Test Menu Link",
+    url="https://airflow.incubator.apache.org/")
 
 
 # Defining the plugin class
@@ -91,3 +115,5 @@ class AirflowTestPlugin(AirflowPlugin):
     admin_views = [v]
     flask_blueprints = [bp]
     menu_links = [ml]
+    appbuilder_views = [v_appbuilder_package]
+    appbuilder_menu_items = [appbuilder_mitem]
