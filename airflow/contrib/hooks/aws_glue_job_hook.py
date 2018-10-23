@@ -26,28 +26,24 @@ from botocore.exceptions import ClientError
 
 class AwsGlueJobHook(AwsHook):
     """
-    Interact with AWS Glue - create job, trigger, crawler
-
+    Interact with AWS Glue - create job
     :param job_name: unique job name per AWS account
     :type str
     :param desc: job description
     :type str
     :param aws_conn_id: aws connection id
     :type aws_conn_id: str
-    :param region_name: aws region name (example: us-east-1)
-    :type region_name: str
     """
 
     def __init__(self,
                  job_name=None,
                  desc=None,
                  aws_conn_id='aws_default',
-                 region_name=None, *args, **kwargs):
+                 *args, **kwargs):
         self.job_name = job_name
         self.desc = desc
         self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-        super(AwsGlueJobHook, self).__init__(*args, **kwargs)
+        super(AwsGlueJobHook, self).__init__(self.aws_conn_id, *args, **kwargs)
 
     def get_conn(self):
         return self.get_client_type('glue', self.region_name)

@@ -36,8 +36,6 @@ class AWSGlueJobOperator(BaseOperator):
     :type dict
     :param aws_conn_id: aws connection id
     :type aws_conn_id: str
-    :param region_name: aws region name (example: us-east-1)
-    :type region_name: str
     """
     template_fields = ()
     template_ext = ()
@@ -49,7 +47,6 @@ class AWSGlueJobOperator(BaseOperator):
                  job_desc='AWS Glue Job with Airflow',
                  script_args={},
                  aws_conn_id='aws_default',
-                 region_name=None,
                  *args, **kwargs
                  ):
         super(AWSGlueJobOperator, self).__init__(*args, **kwargs)
@@ -57,7 +54,6 @@ class AWSGlueJobOperator(BaseOperator):
         self.job_desc = job_desc
         self.script_args = script_args
         self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
 
     def execute(self, context):
         """
