@@ -65,11 +65,11 @@ class _DataProcJob(LoggingMixin):
         # The full set of possible states is here:
         # https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.jobs#State
         recoverable_states = frozenset([
-                'PENDING',
-                'SETUP_DONE',
-                'RUNNING',
-                'DONE',
-            ])
+            'PENDING',
+            'SETUP_DONE',
+            'RUNNING',
+            'DONE',
+        ])
 
         found_match = False
         for job_on_cluster in jobs_on_cluster:
@@ -81,7 +81,7 @@ class _DataProcJob(LoggingMixin):
                 self.job_id = self.job['reference']['jobId']
                 found_match = True
 
-                # We can stop looking once we find a matching job in a recoverable state
+                # We can stop looking once we find a matching job in a recoverable state.
                 if self.job['status']['state'] in recoverable_states:
                     break
 
@@ -94,13 +94,13 @@ class _DataProcJob(LoggingMixin):
     gcloud --project %s dataproc jobs delete %s --region %s
 """
             self.log.info(
-                    message,
-                    self.job_id,
-                    str(self.job['status']['state']),
-                    self.project_id,
-                    self.job_id,
-                    self.region,
-                    )
+                message,
+                self.job_id,
+                str(self.job['status']['state']),
+                self.project_id,
+                self.job_id,
+                self.region,
+            )
 
             return
 
@@ -277,6 +277,7 @@ class _DataProcOperation(LoggingMixin):
 
 class DataProcHook(GoogleCloudBaseHook):
     """Hook for Google Cloud Dataproc APIs."""
+
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
