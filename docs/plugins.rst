@@ -196,11 +196,8 @@ definitions in Airflow.
 
 
 Note on role based views
--------
+------------------------
 
-Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting rbac = True.
-To support plugin blueprints for both versions while maintaining backwards compatibility, additional fields in the
-AirflowTestPlugin class were added for specifically adding views and links to FlaskAppBuilder.
-
-
-
+Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
+rbac = True. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
+the fields appbuilder_views and appbuilder_menu_items were added to the AirflowTestPlugin class.
