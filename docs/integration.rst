@@ -516,62 +516,82 @@ Cloud SQL Operators
 """""""""""""""""""
 
 - :ref:`CloudSqlInstanceDatabaseDeleteOperator` : deletes a database from a Cloud SQL
-instance.
+  instance.
 - :ref:`CloudSqlInstanceDatabaseCreateOperator` : creates a new database inside a Cloud
-SQL instance.
+  SQL instance.
 - :ref:`CloudSqlInstanceDatabasePatchOperator` : updates a database inside a Cloud
-SQL instance.
+  SQL instance.
 - :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
 - :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
 - :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
+- :ref:`CloudSqlQueryOperator` : run query in a Cloud SQL instance.
 
-.. CloudSqlInstanceDatabaseDeleteOperator:
+.. _CloudSqlInstanceDatabaseDeleteOperator:
 
 CloudSqlInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
 
-.. CloudSqlInstanceDatabaseCreateOperator:
+.. _CloudSqlInstanceDatabaseCreateOperator:
 
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
 
-.. CloudSqlInstanceDatabasePatchOperator:
+.. _CloudSqlInstanceDatabasePatchOperator:
 
 CloudSqlInstanceDatabasePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
 
-.. CloudSqlInstanceDeleteOperator:
+.. _CloudSqlInstanceDeleteOperator:
 
 CloudSqlInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
 
-.. CloudSqlInstanceCreateOperator:
+.. _CloudSqlInstanceCreateOperator:
 
 CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
 
-.. CloudSqlInstancePatchOperator:
+.. _CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
 
-Cloud SQL Hook
-""""""""""""""
+.. _CloudSqlQueryOperator:
+
+CloudSqlQueryOperator
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator
+
+Cloud SQL Hooks
+"""""""""""""""
+
+.. _CloudSqlHook:
 
 .. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
     :members:
+
+.. _CloudSqlDatabaseHook:
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook
+    :members:
+
+.. _CloudSqlProxyRunner:
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner
+    :members:
+
 
 Compute Engine
 ''''''''''''''

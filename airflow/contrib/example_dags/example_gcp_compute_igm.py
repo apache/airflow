@@ -50,11 +50,11 @@ from airflow.contrib.operators.gcp_compute_operator import \
 # [START howto_operator_compute_igm_common_args]
 PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
 ZONE = os.environ.get('ZONE', 'europe-west1-b')
+# [END howto_operator_compute_igm_common_args]
 
 default_args = {
     'start_date': airflow.utils.dates.days_ago(1)
 }
-# [END howto_operator_compute_igm_common_args]
 
 # [START howto_operator_compute_template_copy_args]
 TEMPLATE_NAME = os.environ.get('TEMPLATE_NAME', 'instance-template-test')
