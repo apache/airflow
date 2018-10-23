@@ -59,7 +59,7 @@ def plugin_macro():
 
 # Creating a flask admin BaseView
 class TestView(BaseView):
-    @expose("/")
+    @expose('/')
     def test(self):
         # in this example, put your test_plugin/test.html
         # template at airflow/plugins/templates/test_plugin/test.html
@@ -93,12 +93,13 @@ appbuilder_mitem = {"name": "Google",
 # Creating a flask blueprint to intergrate the templates and static folder
 bp = Blueprint(
     "test_plugin", __name__,
-    template_folder="templates",
-    static_folder="static",
-    static_url_path="/static/test_plugin")
+    template_folder='templates',  # registers airflow/plugins/templates as a Jinja template folder
+    static_folder='static',
+    static_url_path='/static/test_plugin')
 
 
 ml = MenuLink(
+    category='Test Plugin',
     name="Test Menu Link",
     url="https://airflow.incubator.apache.org/")
 
