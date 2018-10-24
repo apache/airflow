@@ -28,6 +28,7 @@ class AWSGlueJobOperator(BaseOperator):
     Creates an AWS Glue Job. AWS Glue is a serverless Spark
     ETL service for running Spark Jobs on the AWS cloud.
     Language support: Python and Scala
+
     :param job_name: unique job name per AWS Account
     :type str
     :param job_desc: job description details
