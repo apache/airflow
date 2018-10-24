@@ -139,3 +139,15 @@ class AzureDataLakeHook(BaseHook):
                                   overwrite=overwrite,
                                   buffersize=buffersize,
                                   blocksize=blocksize)
+
+    def list(self, path):
+        """
+        List files in Azure Data Lake Storage
+
+        :param path: full path/globstring to use to list files in ADLS
+        :type path: str
+        """
+        if "*" in path:
+            return self.connection.glob(path)
+        else:
+            return self.connection.walk(path)
