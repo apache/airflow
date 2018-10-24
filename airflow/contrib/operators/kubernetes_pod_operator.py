@@ -106,6 +106,7 @@ class KubernetesPodOperator(BaseOperator):
 
             pod.service_account_name = self.service_account_name
             pod.secrets = self.secrets
+            pod.image_pull_secrets = self.image_pull_secrets
             pod.envs = self.env_vars
             pod.image_pull_policy = self.image_pull_policy
             pod.annotations = self.annotations
