@@ -88,10 +88,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     def execute(self, context):
         self.preprocess_config()
 
-        model_config = self.config['Model']\
-            if 'Model' in self.config else None
-        transform_config = self.config['Transform']\
-            if 'Transform' in self.config else self.config
+        model_config = self.config.get('Model')
+        transform_config = self.config.get('Transform', self.config)
 
         if model_config:
             self.log.info(
@@ -110,8 +108,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException(
-                'Sagemaker transform Job creation failed: %s' % response)
+            raise AirflowException('Sagemaker transform Job creation failed: %s' % response)
         else:
             return {
                 'Model': self.hook.describe_model(

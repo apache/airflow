@@ -92,7 +92,7 @@ class TestSagemakerBaseSensor(unittest.TestCase):
             aws_conn_id='aws_test'
         )
 
-        self.assertRaises(AirflowException, sensor.poke, None)
+        self.assertRaises(NotImplementedError, sensor.poke, None)
 
     def test_poke_with_bad_response(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):

@@ -47,7 +47,6 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         super(SageMakerTrainingSensor, self).__init__(*args, **kwargs)
         self.job_name = job_name
         self.print_log = print_log
-        self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         self.positions = {}
         self.stream_names = []
         self.instance_count = None
@@ -56,12 +55,12 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.last_describe_job_call = None
         self.log_resource_inited = False
 
-    def init_log_resource(self):
-        description = self.hook.describe_training_job(self.job_name)
+    def init_log_resource(self, hook):
+        description = hook.describe_training_job(self.job_name)
         self.instance_count = description['ResourceConfig']['InstanceCount']
 
         status = description['TrainingJobStatus']
-        job_already_completed = False if status in self.non_terminal_states() else True
+        job_already_completed = status not in self.non_terminal_states()
         self.state = LogState.TAILING if not job_already_completed else LogState.COMPLETE
         self.last_description = description
         self.last_describe_job_call = time.time()
@@ -74,17 +73,18 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
+        sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         if self.print_log:
             if not self.log_resource_inited:
-                self.init_log_resource()
+                self.init_log_resource(sagemaker_hook)
             self.state, self.last_description, self.last_describe_job_call = \
-                self.hook.describe_training_job_with_log(self.job_name, self.non_terminal_states(),
-                                                         self.positions, self.stream_names,
-                                                         self.instance_count, self.state,
-                                                         self.last_description,
-                                                         self.last_describe_job_call)
+                sagemaker_hook.describe_training_job_with_log(self.job_name, self.non_terminal_states(),
+                                                              self.positions, self.stream_names,
+                                                              self.instance_count, self.state,
+                                                              self.last_description,
+                                                              self.last_describe_job_call)
         else:
-            self.last_description = self.hook.describe_training_job(self.job_name)
+            self.last_description = sagemaker_hook.describe_training_job(self.job_name)
 
         status = self.state_from_response(self.last_description)
         if status not in self.non_terminal_states() and status not in self.failed_states():

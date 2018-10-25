@@ -69,17 +69,16 @@ class S3Hook(AwsHook):
         s3 = self.get_resource_type('s3')
         return s3.Bucket(bucket_name)
 
-    def create_bucket(self, bucket_name, region_name=None):
+    def create_bucket(self, bucket_name):
         """
         Creates a boto3.S3.Bucket object
 
         :param bucket_name: the name of the bucket
         :type bucket_name: str
-        :param region_name: the name of the region where the bucket
-        is created. None implies US Standard
-        :type region_name: str
         """
-        if not region_name or region_name == 'us-east-1':
+        s3_conn = self.get_conn()
+        region_name = s3_conn.region_name
+        if region_name == 'us-east-1':
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
             self.get_conn().create_bucket(Bucket=bucket_name,
