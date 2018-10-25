@@ -164,17 +164,17 @@ class AwsHook(BaseHook):
             aws_session_token=aws_session_token,
             region_name=region_name), endpoint_url
 
-    def get_client_type(self, client_type, region_name=None):
+    def get_client_type(self, client_type, region_name=None, config=None):
         session, endpoint_url = self._get_credentials(region_name)
 
         return session.client(client_type, endpoint_url=endpoint_url,
-                              verify=self.verify)
+                              config=config, verify=self.verify)
 
-    def get_resource_type(self, resource_type, region_name=None):
+    def get_resource_type(self, resource_type, region_name=None, config=None):
         session, endpoint_url = self._get_credentials(region_name)
 
         return session.resource(resource_type, endpoint_url=endpoint_url,
-                                verify=self.verify)
+                                config=config, verify=self.verify)
 
     def get_session(self, region_name=None):
         """Get the underlying boto3.session."""
