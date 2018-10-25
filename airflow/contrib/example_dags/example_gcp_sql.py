@@ -18,26 +18,30 @@
 # under the License.
 
 """
-Example Airflow DAG that deploys, updates, patches and deletes a Cloud SQL instance
-in Google Cloud Platform.
+Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and also
+creates, patches and deletes a database inside the instance, in Google Cloud Platform.
 
-This DAG relies on the following Airflow variables
-https://airflow.apache.org/concepts.html#variables
+This DAG relies on the following environment variables
 * PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance.
 * INSTANCE_NAME - Name of the Cloud SQL instance.
+* DB_NAME - Name of the database inside a Cloud SQL instance.
 """
 
+import os
 import datetime
 
 import airflow
 from airflow import models
 
 from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
-    CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator
+    CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
+    CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
+    CloudSqlInstanceDatabaseDeleteOperator
 
 # [START howto_operator_cloudsql_arguments]
-PROJECT_ID = models.Variable.get('PROJECT_ID', '')
-INSTANCE_NAME = models.Variable.get('INSTANCE_NAME', '')
+PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
+INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'testinstance')
+DB_NAME = os.environ.get('DB_NAME', 'testdb')
 # [END howto_operator_cloudsql_arguments]
 
 # Bodies below represent Cloud SQL instance resources:
@@ -97,6 +101,19 @@ patch_body = {
     }
 }
 # [END howto_operator_cloudsql_patch_body]
+# [START howto_operator_cloudsql_db_create_body]
+db_create_body = {
+    "instance": INSTANCE_NAME,
+    "name": DB_NAME,
+    "project": PROJECT_ID
+}
+# [END howto_operator_cloudsql_db_create_body]
+# [START howto_operator_cloudsql_db_patch_body]
+db_patch_body = {
+    "charset": "utf16",
+    "collation": "utf16_general_ci"
+}
+# [END howto_operator_cloudsql_db_patch_body]
 
 default_args = {
     'start_date': airflow.utils.dates.days_ago(1)
@@ -123,6 +140,31 @@ with models.DAG(
         task_id='sql_instance_patch_task'
     )
     # [END howto_operator_cloudsql_patch]
+    # [START howto_operator_cloudsql_db_create]
+    sql_db_create_task = CloudSqlInstanceDatabaseCreateOperator(
+        project_id=PROJECT_ID,
+        body=db_create_body,
+        instance=INSTANCE_NAME,
+        task_id='sql_db_create_task'
+    )
+    # [END howto_operator_cloudsql_db_create]
+    # [START howto_operator_cloudsql_db_patch]
+    sql_db_patch_task = CloudSqlInstanceDatabasePatchOperator(
+        project_id=PROJECT_ID,
+        body=db_patch_body,
+        instance=INSTANCE_NAME,
+        database=DB_NAME,
+        task_id='sql_db_patch_task'
+    )
+    # [END howto_operator_cloudsql_db_patch]
+    # [START howto_operator_cloudsql_db_delete]
+    sql_db_delete_task = CloudSqlInstanceDatabaseDeleteOperator(
+        project_id=PROJECT_ID,
+        instance=INSTANCE_NAME,
+        database=DB_NAME,
+        task_id='sql_db_delete_task'
+    )
+    # [END howto_operator_cloudsql_db_delete]
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSqlInstanceDeleteOperator(
         project_id=PROJECT_ID,
@@ -131,4 +173,6 @@ with models.DAG(
     )
     # [END howto_operator_cloudsql_delete]
 
-    sql_instance_create_task >> sql_instance_patch_task >> sql_instance_delete_task
+    sql_instance_create_task >> sql_instance_patch_task \
+        >> sql_db_create_task >> sql_db_patch_task \
+        >> sql_db_delete_task >> sql_instance_delete_task
