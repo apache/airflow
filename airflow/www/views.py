@@ -569,17 +569,13 @@ class Airflow(BaseView):
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
             for state in State.dag_states:
-                try:
-                    count = data[dag.dag_id][state]
-                except Exception:
-                    count = 0
-                d = {
+                count = data.get(dag.dag_id, {}).get(state, 0)
+                payload[dag.safe_dag_id].append({
                     'state': state,
                     'count': count,
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
-                }
-                payload[dag.safe_dag_id].append(d)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -640,17 +636,13 @@ class Airflow(BaseView):
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
             for state in State.task_states:
-                try:
-                    count = data[dag.dag_id][state]
-                except Exception:
-                    count = 0
-                d = {
+                count = data.get(dag.dag_id, {}).get(state, 0)
+                payload[dag.safe_dag_id].append({
                     'state': state,
                     'count': count,
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
-                }
-                payload[dag.safe_dag_id].append(d)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/code')
