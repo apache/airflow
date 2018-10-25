@@ -4895,7 +4895,7 @@ class DagStat(Base):
         """
         # unfortunately sqlalchemy does not know upsert
         qry = session.query(DagStat).filter(DagStat.dag_id == dag_id).all()
-        states = [dag_stat.state for dag_stat in qry]
+        states = {dag_stat.state for dag_stat in qry}
         for state in State.dag_states:
             if state not in states:
                 try:
