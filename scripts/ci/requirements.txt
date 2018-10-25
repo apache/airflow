@@ -31,7 +31,7 @@ dill
 distributed
 docker-py
 filechunkio
-flake8
+flake8==3.5.0
 flask
 flask-admin
 flask-bcrypt
