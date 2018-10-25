@@ -153,6 +153,7 @@ login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) a
  (see connection `azure_data_lake_default` for an example).
 
 - :ref:`AzureDataLakeHook`: Interface with Azure Data Lake.
+- :ref:`AzureDataLakeStorageListOperator`: Lists the files located in a specified Azure Data Lake path.
 
 .. _AzureDataLakeHook:
 
@@ -160,6 +161,13 @@ AzureDataLakeHook
 """""""""
 
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
+
+.. _AzureDataLakeStorageListOperator:
+
+AzureDataLakeStorageListOperator
+"""""""""
+
+.. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
 
 .. _AWS:
 
