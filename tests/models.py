@@ -23,42 +23,44 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import inspect
 import logging
 import os
-import pendulum
-import unittest
-import time
-import six
 import re
-import urllib
 import textwrap
-import inspect
+import time
+import unittest
+import urllib
+from tempfile import NamedTemporaryFile, mkdtemp
 
-from airflow import configuration, models, settings, AirflowException
+import pendulum
+import six
+from mock import ANY, Mock, patch
+from parameterized import parameterized
+
+from airflow import AirflowException, configuration, models, settings
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
-from airflow.models import State as ST
-from airflow.models import DagModel, DagRun, DagStat
-from airflow.models import clear_task_instances
-from airflow.models import XCom
 from airflow.models import Connection
-from airflow.models import SkipMixin
+from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DagModel, DagRun, DagStat
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
-from airflow.jobs import LocalTaskJob
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import SkipMixin
+from airflow.models import State as ST
+from airflow.models import XCom
+from airflow.models import clear_task_instances
 from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.weight_rule import WeightRule
+from airflow.utils.dag_processing import SimpleTaskInstance
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
-from mock import patch, Mock, ANY
-from parameterized import parameterized
-from tempfile import mkdtemp, NamedTemporaryFile
+from airflow.utils.weight_rule import WeightRule
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -1665,31 +1667,28 @@ class DagBagTest(unittest.TestCase):
         self.assertEqual([], dagbag.process_file(None))
 
     @patch.object(TI, 'handle_failure')
-    def test_kill_zombies(self, mock_ti):
+    def test_kill_zombies(self, mock_ti_handle_failure):
         """
         Test that kill zombies call TIs failure handler with proper context
         """
         dagbag = models.DagBag()
-        session = settings.Session
-        dag = dagbag.get_dag('example_branch_operator')
-        task = dag.get_task(task_id='run_this_first')
+        with create_session() as session:
+            session.query(TI).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            task = dag.get_task(task_id='run_this_first')
 
-        ti = TI(task, datetime.datetime.now() - datetime.timedelta(1), 'running')
-        lj = LocalTaskJob(ti)
-        lj.state = State.SHUTDOWN
+            ti = TI(task, DEFAULT_DATE, State.RUNNING)
 
-        session.add(lj)
-        session.commit()
+            session.add(ti)
+            session.commit()
 
-        ti.job_id = lj.id
-
-        session.add(ti)
-        session.commit()
-
-        dagbag.kill_zombies()
-        mock_ti.assert_called_with(ANY,
-                                   configuration.getboolean('core', 'unit_test_mode'),
-                                   ANY)
+            zombies = [SimpleTaskInstance(ti)]
+            dagbag.kill_zombies(zombies)
+            mock_ti_handle_failure \
+                .assert_called_with(ANY,
+                                    configuration.getboolean('core',
+                                                             'unit_test_mode'),
+                                    ANY)
 
     def test_deactivate_unknown_dags(self):
         """
