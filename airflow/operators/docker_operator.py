@@ -192,7 +192,8 @@ class DockerOperator(BaseOperator):
             self.log.info('Pulling docker image %s', self.image)
             for l in self.cli.pull(self.image, stream=True):
                 output = json.loads(l.decode('utf-8'))
-                self.log.info("%s", output['status'])
+                if 'status' in output:
+                    self.log.info("%s", output['status'])
 
         with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
