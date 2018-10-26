@@ -34,15 +34,10 @@ dag = DAG(
 )
 
 latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
-
 task1 = DummyOperator(task_id='task1', dag=dag)
-task1.set_upstream(latest_only)
-
 task2 = DummyOperator(task_id='task2', dag=dag)
-
 task3 = DummyOperator(task_id='task3', dag=dag)
-task3.set_upstream([task1, task2])
+task4 = DummyOperator(task_id='task4', dag=dag, trigger_rule=TriggerRule.ALL_DONE)
 
-task4 = DummyOperator(task_id='task4', dag=dag,
-                      trigger_rule=TriggerRule.ALL_DONE)
-task4.set_upstream([task1, task2])
+latest_only >> task1 >> [task3, task4]
+task2 >> [task3, task4]

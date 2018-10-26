@@ -18,17 +18,15 @@
 # under the License.
 """Used for unit tests"""
 import airflow
-from airflow.operators.bash_operator import BashOperator
 from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
 
-dag = DAG(
-    dag_id='test_utils',
-    schedule_interval=None,
-)
+dag = DAG(dag_id='test_utils', schedule_interval=None)
 
 task = BashOperator(
     task_id='sleeps_forever',
     dag=dag,
     bash_command="sleep 10000000000",
     start_date=airflow.utils.dates.days_ago(2),
-    owner='airflow')
+    owner='airflow',
+)
