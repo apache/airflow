@@ -186,6 +186,7 @@ gcp = [
     'pandas-gbq'
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
+grpc = ['grpcio>=1.15.0']
 google_auth = ['Flask-OAuthlib>=0.9.1']
 hdfs = ['snakebite>=2.7.8']
 hive = [
@@ -355,6 +356,7 @@ def do_setup():
             'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
             'github_enterprise': github_enterprise,
             'google_auth': google_auth,
+            'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,

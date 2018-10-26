@@ -90,6 +90,7 @@ class Connection(Base, LoggingMixin):
         ('qubole', 'Qubole'),
         ('mongo', 'MongoDB'),
         ('gcpcloudsql', 'Google Cloud SQL'),
+        ('grpc', 'GRPC Connection'),
     ]
 
     def __init__(
@@ -247,6 +248,9 @@ class Connection(Base, LoggingMixin):
         elif self.conn_type == 'gcpcloudsql':
             from airflow.contrib.hooks.gcp_sql_hook import CloudSqlDatabaseHook
             return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
+        elif self.conn_type == 'grpc':
+            from airflow.contrib.hooks.grpc_hook import GrpcHook
+            return GrpcHook(grpc_conn_id=self.conn_id)
 
     def __repr__(self):
         return self.conn_id
