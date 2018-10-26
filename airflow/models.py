@@ -150,6 +150,8 @@ def get_fernet():
     :raises: AirflowException if there's a problem trying to load Fernet
     """
     global _fernet
+    log = LoggingMixin().log
+
     if _fernet:
         return _fernet
     try:
@@ -158,18 +160,26 @@ def get_fernet():
         InvalidFernetToken = InvalidToken
 
     except BuiltinImportError:
-        LoggingMixin().log.warn("cryptography not found - values will not be stored "
-                                "encrypted.",
-                                exc_info=1)
+        log.warning(
+            "cryptography not found - values will not be stored encrypted."
+        )
         _fernet = NullFernet()
         return _fernet
 
     try:
-        _fernet = Fernet(configuration.conf.get('core', 'FERNET_KEY').encode('utf-8'))
-        _fernet.is_encrypted = True
-        return _fernet
+        fernet_key = configuration.conf.get('core', 'FERNET_KEY')
+        if not fernet_key:
+            log.warning(
+                "empty cryptography key - values will not be stored encrypted."
+            )
+            _fernet = NullFernet()
+        else:
+            _fernet = Fernet(fernet_key.encode('utf-8'))
+            _fernet.is_encrypted = True
     except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
+
+    return _fernet
 
 
 # Used by DAG context_managers
@@ -444,39 +454,28 @@ class DagBag(BaseDagBag, LoggingMixin):
         return found_dags
 
     @provide_session
-    def kill_zombies(self, session=None):
+    def kill_zombies(self, zombies, session=None):
         """
-        Fails tasks that haven't had a heartbeat in too long
+        Fail given zombie tasks, which are tasks that haven't
+        had a heartbeat for too long, in the current DagBag.
+
+        :param zombies: zombie task instances to kill.
+        :type zombies: SimpleTaskInstance
+        :param session: DB session.
+        :type Session.
         """
-        from airflow.jobs import LocalTaskJob as LJ
-        self.log.info("Finding 'running' jobs without a recent heartbeat")
-        TI = TaskInstance
-        secs = configuration.conf.getint('scheduler', 'scheduler_zombie_task_threshold')
-        limit_dttm = timezone.utcnow() - timedelta(seconds=secs)
-        self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
-
-        tis = (
-            session.query(TI)
-            .join(LJ, TI.job_id == LJ.id)
-            .filter(TI.state == State.RUNNING)
-            .filter(
-                or_(
-                    LJ.state != State.RUNNING,
-                    LJ.latest_heartbeat < limit_dttm,
-                ))
-            .all()
-        )
-
-        for ti in tis:
-            if ti and ti.dag_id in self.dags:
-                dag = self.dags[ti.dag_id]
-                if ti.task_id in dag.task_ids:
-                    task = dag.get_task(ti.task_id)
-
-                    # now set non db backed vars on ti
-                    ti.task = task
+        for zombie in zombies:
+            if zombie.dag_id in self.dags:
+                dag = self.dags[zombie.dag_id]
+                if zombie.task_id in dag.task_ids:
+                    task = dag.get_task(zombie.task_id)
+                    ti = TaskInstance(task, zombie.execution_date)
+                    # Get properties needed for failure handling from SimpleTaskInstance.
+                    ti.start_date = zombie.start_date
+                    ti.end_date = zombie.end_date
+                    ti.try_number = zombie.try_number
+                    ti.state = zombie.state
                     ti.test_mode = configuration.getboolean('core', 'unit_test_mode')
-
                     ti.handle_failure("{} detected as zombie".format(ti),
                                       ti.test_mode, ti.get_template_context())
                     self.log.info(

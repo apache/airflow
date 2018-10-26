@@ -5,6 +5,16 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### New `dag_processor_manager_log_location` config option
+
+The DAG parsing manager log now by default will be log into a file, where its location is
+controlled by the new `dag_processor_manager_log_location` config option in core section.
+
+### new `sync_parallelism` config option in celery section
+
+The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
+fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+
 ### Rename of BashTaskRunner to StandardTaskRunner
 
 BashTaskRunner has been renamed to StandardTaskRunner. It is the default task runner
@@ -25,11 +35,6 @@ We also provide a new cli command(``sync_perm``) to allow admin to auto sync per
 
 The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
 some bugs.
-
-### new `sync_parallelism` config option in celery section
-
-The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
-fetch celery task state in parallel. Default value is max(1, number of cores - 1)
 
 ### CLI Changes
 
@@ -185,11 +190,11 @@ With Airflow 1.9 or lower, `FILENAME_TEMPLATE`, `PROCESSOR_FILENAME_TEMPLATE`, `
 ```
 [core]
 fab_logging_level = WARN
-log_filename_template = {{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log
-log_processor_filename_template = {{ filename }}.log
+log_filename_template = {{{{ ti.dag_id }}}}/{{{{ ti.task_id }}}}/{{{{ ts }}}}/{{{{ try_number }}}}.log
+log_processor_filename_template = {{{{ filename }}}}.log
 
 [elasticsearch]
-elasticsearch_log_id_template = {dag_id}-{task_id}-{execution_date}-{try_number}
+elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_number}}
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
