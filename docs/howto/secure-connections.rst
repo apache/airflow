@@ -4,13 +4,14 @@ Securing Connections
 By default, Airflow will save the passwords for the connection in plain text
 within the metadata database. The ``crypto`` package is highly recommended
 during installation. The ``crypto`` package does require that your operating
-system have libffi-dev installed.
+system has ``libffi-dev`` installed.
 
-If ``crypto`` package was not installed initially, you can still enable encryption for
-connections by following steps below:
+If ``crypto`` package was not installed initially, it means that your Fernet key in ``airflow.cfg`` is empty.
+
+You can still enable encryption for passwords within connections by following below steps:
 
 1. Install crypto package ``pip install apache-airflow[crypto]``
-2. Generate fernet_key, using this code snippet below. fernet_key must be a base64-encoded 32-byte key.
+2. Generate fernet_key, using this code snippet below. ``fernet_key`` must be a base64-encoded 32-byte key.
 
 .. code:: python
 
