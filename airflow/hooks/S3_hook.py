@@ -77,7 +77,7 @@ class S3Hook(AwsHook):
         :type bucket_name: str
         """
         s3_conn = self.get_conn()
-        region_name = s3_conn.region_name
+        region_name = s3_conn.meta.region_name
         if region_name == 'us-east-1':
             self.get_conn().create_bucket(Bucket=bucket_name)
         else:
