@@ -47,10 +47,10 @@ class TriggerDagRunOperator(BaseOperator):
         to your tasks while executing that DAG run. Your function header
         should look like ``def foo(context, dag_run_obj):``
     :type python_callable: python callable
-    :param execution_date: Execution date for the dag
+    :param execution_date: Execution date for the dag (templated)
     :type execution_date: datetime.datetime
     """
-    template_fields = tuple()
+    template_fields = ('execution_date',)
     template_ext = tuple()
     ui_color = '#ffefeb'
 
