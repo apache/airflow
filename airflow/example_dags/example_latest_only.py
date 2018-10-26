@@ -33,6 +33,6 @@ dag = DAG(
 )
 
 latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
-
 task1 = DummyOperator(task_id='task1', dag=dag)
-task1.set_upstream(latest_only)
+
+latest_only >> task1

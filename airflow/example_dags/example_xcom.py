@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import print_function
+
 import airflow
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -24,25 +25,22 @@ from airflow.operators.python_operator import PythonOperator
 args = {
     'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2),
-    'provide_context': True
+    'provide_context': True,
 }
 
-dag = DAG(
-    'example_xcom',
-    schedule_interval="@once",
-    default_args=args)
+dag = DAG('example_xcom', schedule_interval="@once", default_args=args)
 
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}
 
 
 def push(**kwargs):
-    # pushes an XCom without a specific target
+    """Pushes an XCom without a specific target"""
     kwargs['ti'].xcom_push(key='value from pusher 1', value=value_1)
 
 
 def push_by_returning(**kwargs):
-    # pushes an XCom without a specific target, just by returning it
+    """Pushes an XCom without a specific target, just by returning it"""
     return value_2
 
 
@@ -63,12 +61,21 @@ def puller(**kwargs):
 
 
 push1 = PythonOperator(
-    task_id='push', dag=dag, python_callable=push)
+    task_id='push',
+    dag=dag,
+    python_callable=push,
+)
 
 push2 = PythonOperator(
-    task_id='push_by_returning', dag=dag, python_callable=push_by_returning)
+    task_id='push_by_returning',
+    dag=dag,
+    python_callable=push_by_returning,
+)
 
 pull = PythonOperator(
-    task_id='puller', dag=dag, python_callable=puller)
+    task_id='puller',
+    dag=dag,
+    python_callable=puller,
+)
 
-pull.set_upstream([push1, push2])
+pull << [push1, push2]

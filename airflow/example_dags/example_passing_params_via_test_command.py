@@ -18,18 +18,21 @@
 # under the License.
 
 from datetime import timedelta
+
 import airflow
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 
-
-dag = DAG("example_passing_params_via_test_command",
-          default_args={"owner": "airflow",
-                        "start_date": airflow.utils.dates.days_ago(1)},
-          schedule_interval='*/1 * * * *',
-          dagrun_timeout=timedelta(minutes=4)
-          )
+dag = DAG(
+    "example_passing_params_via_test_command",
+    default_args={
+        "owner": "airflow",
+        "start_date": airflow.utils.dates.days_ago(1),
+    },
+    schedule_interval='*/1 * * * *',
+    dagrun_timeout=timedelta(minutes=4),
+)
 
 
 def my_py_command(ds, **kwargs):
@@ -54,12 +57,14 @@ run_this = PythonOperator(
     provide_context=True,
     python_callable=my_py_command,
     params={"miff": "agg"},
-    dag=dag)
-
+    dag=dag,
+)
 
 also_run_this = BashOperator(
     task_id='also_run_this',
     bash_command=my_templated_command,
     params={"miff": "agg"},
-    dag=dag)
-also_run_this.set_upstream(run_this)
+    dag=dag,
+)
+
+run_this >> also_run_this
