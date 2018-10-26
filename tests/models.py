@@ -2786,7 +2786,6 @@ class ConnectionTest(unittest.TestCase):
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
-        mock_get.return_value = 'cryptography_not_found_storing_passwords_in_plain_text'
         test_connection = Connection(extra='testextra')
         self.assertEqual(test_connection.extra, 'testextra')
 
