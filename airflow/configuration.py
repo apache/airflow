@@ -57,12 +57,9 @@ def generate_fernet_key():
     try:
         from cryptography.fernet import Fernet
     except ImportError:
-        pass
-    try:
-        key = Fernet.generate_key().decode()
-    except NameError:
-        key = "cryptography_not_found_storing_passwords_in_plain_text"
-    return key
+        return ''
+    else:
+        return Fernet.generate_key().decode()
 
 
 def expand_env_var(env_var):
