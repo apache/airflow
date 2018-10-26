@@ -28,37 +28,36 @@ import logging
 import multiprocessing
 import os
 import shutil
-import six
 import threading
 import time
 import unittest
 from tempfile import mkdtemp
 
+import psutil
+import six
 import sqlalchemy
+from mock import Mock, patch, MagicMock, PropertyMock
 
+from airflow.utils.db import create_session
 from airflow import AirflowException, settings, models
+from airflow import configuration
 from airflow.bin import cli
 from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
-from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
-
+from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
 from airflow.utils.dates import days_ago
 from airflow.utils.db import provide_session
+from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
-from airflow.utils.net import get_hostname
-
-from mock import Mock, patch, MagicMock, PropertyMock
+from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 
-from tests.core import TEST_DAG_FOLDER
-
-from airflow import configuration
 configuration.load_test_config()
 
 logger = logging.getLogger(__name__)
@@ -1260,10 +1259,10 @@ class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
         self.dagbag = DagBag()
-        session = settings.Session()
-        session.query(models.DagRun).delete()
-        session.query(models.ImportError).delete()
-        session.commit()
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.ImportError).delete()
+            session.commit()
 
     @staticmethod
     def run_single_scheduler_loop_with_no_dags(dags_folder):
@@ -1285,6 +1284,21 @@ class SchedulerJobTest(unittest.TestCase):
 
     def _make_simple_dag_bag(self, dags):
         return SimpleDagBag([SimpleDag(dag) for dag in dags])
+
+    def test_no_orphan_process_will_be_left(self):
+        empty_dir = mkdtemp()
+        current_process = psutil.Process()
+        old_children = current_process.children(recursive=True)
+        scheduler = SchedulerJob(subdir=empty_dir,
+                                 num_runs=1)
+        scheduler.executor = TestExecutor()
+        scheduler.run()
+        shutil.rmtree(empty_dir)
+
+        # Remove potential noise created by previous tests.
+        current_children = set(current_process.children(recursive=True)) - set(
+            old_children)
+        self.assertFalse(current_children)
 
     def test_process_executor_events(self):
         dag_id = "test_process_executor_events"
@@ -2046,13 +2060,13 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
 
         processor = mock.MagicMock()
-        processor.get_last_finish_time.return_value = None
 
         scheduler = SchedulerJob(num_runs=0, run_duration=0)
         executor = TestExecutor()
         scheduler.executor = executor
+        scheduler.processor_agent = processor
 
-        scheduler._execute_helper(processor_manager=processor)
+        scheduler._execute_helper()
 
         ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti.state, State.NONE)
@@ -2159,10 +2173,10 @@ class SchedulerJobTest(unittest.TestCase):
 
         # Mark the successful task as never having run since we want to see if the
         # dagrun will be in a running state despite haveing an unfinished task.
-        session = settings.Session()
-        ti = dr.get_task_instance('test_dagrun_unfinished', session=session)
-        ti.state = State.NONE
-        session.commit()
+        with create_session() as session:
+            ti = dr.get_task_instance('test_dagrun_unfinished', session=session)
+            ti.state = State.NONE
+            session.commit()
         dr_state = dr.update_state()
         self.assertEqual(dr_state, State.RUNNING)
 
@@ -2204,44 +2218,44 @@ class SchedulerJobTest(unittest.TestCase):
         """
         Test that the scheduler respects start_dates, even when DAGS have run
         """
+        with create_session() as session:
+            dag_id = 'test_start_date_scheduling'
+            dag = self.dagbag.get_dag(dag_id)
+            dag.clear()
+            self.assertTrue(dag.start_date > datetime.datetime.utcnow())
 
-        dag_id = 'test_start_date_scheduling'
-        dag = self.dagbag.get_dag(dag_id)
-        dag.clear()
-        self.assertTrue(dag.start_date > datetime.datetime.utcnow())
+            scheduler = SchedulerJob(dag_id,
+                                     num_runs=2)
+            scheduler.run()
 
-        scheduler = SchedulerJob(dag_id,
-                                 num_runs=2)
-        scheduler.run()
+            # zero tasks ran
+            self.assertEqual(
+                len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
+            session.commit()
 
-        # zero tasks ran
-        session = settings.Session()
-        self.assertEqual(
-            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
+            # previously, running this backfill would kick off the Scheduler
+            # because it would take the most recent run and start from there
+            # That behavior still exists, but now it will only do so if after the
+            # start date
+            backfill = BackfillJob(
+                dag=dag,
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE)
+            backfill.run()
 
-        # previously, running this backfill would kick off the Scheduler
-        # because it would take the most recent run and start from there
-        # That behavior still exists, but now it will only do so if after the
-        # start date
-        backfill = BackfillJob(
-            dag=dag,
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE)
-        backfill.run()
+            # one task ran
+            self.assertEqual(
+                len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+            session.commit()
 
-        # one task ran
-        session = settings.Session()
-        self.assertEqual(
-            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+            scheduler = SchedulerJob(dag_id,
+                                     num_runs=2)
+            scheduler.run()
 
-        scheduler = SchedulerJob(dag_id,
-                                 num_runs=2)
-        scheduler.run()
-
-        # still one task
-        session = settings.Session()
-        self.assertEqual(
-            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+            # still one task
+            self.assertEqual(
+                len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+            session.commit()
 
     def test_scheduler_task_start_date(self):
         """
@@ -3004,7 +3018,9 @@ class SchedulerJobTest(unittest.TestCase):
         logging.info("Test ran in %.2fs, expected %.2fs",
                      run_duration,
                      expected_run_duration)
-        self.assertLess(run_duration - expected_run_duration, 5.0)
+        # 5s to wait for child process to exit and 1s dummy sleep
+        # in scheduler loop to prevent excessive logs.
+        self.assertLess(run_duration - expected_run_duration, 6.0)
 
     def test_dag_with_system_exit(self):
         """
@@ -3028,9 +3044,9 @@ class SchedulerJobTest(unittest.TestCase):
                                  subdir=dag_directory,
                                  num_runs=1)
         scheduler.run()
-        session = settings.Session()
-        self.assertEqual(
-            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+        with create_session() as session:
+            self.assertEqual(
+                len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
 
     def test_dag_get_active_runs(self):
         """
@@ -3166,8 +3182,8 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNotNone(dr)
 
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
+        dags_folder = mkdtemp()
         try:
-            dags_folder = mkdtemp()
             unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
             with open(unparseable_filename, 'w') as unparseable_file:
                 unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
@@ -3175,8 +3191,8 @@ class SchedulerJobTest(unittest.TestCase):
         finally:
             shutil.rmtree(dags_folder)
 
-        session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        with create_session() as session:
+            import_errors = session.query(models.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3186,8 +3202,8 @@ class SchedulerJobTest(unittest.TestCase):
                          "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
 
     def test_add_unparseable_file_after_sched_start_creates_import_error(self):
+        dags_folder = mkdtemp()
         try:
-            dags_folder = mkdtemp()
             unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
             self.run_single_scheduler_loop_with_no_dags(dags_folder)
 
@@ -3197,8 +3213,8 @@ class SchedulerJobTest(unittest.TestCase):
         finally:
             shutil.rmtree(dags_folder)
 
-        session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        with create_session() as session:
+            import_errors = session.query(models.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3218,8 +3234,8 @@ class SchedulerJobTest(unittest.TestCase):
         finally:
             shutil.rmtree(dags_folder)
 
-        session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        with create_session() as session:
+            import_errors = session.query(models.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 
@@ -3291,8 +3307,8 @@ class SchedulerJobTest(unittest.TestCase):
         # Rerun the scheduler once the dag file has been removed
         self.run_single_scheduler_loop_with_no_dags(dags_folder)
 
-        session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        with create_session() as session:
+            import_errors = session.query(models.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 
