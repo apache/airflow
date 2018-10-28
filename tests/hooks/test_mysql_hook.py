@@ -92,6 +92,15 @@ class TestMySqlHookConn(unittest.TestCase):
         self.assertEqual(args, ())
         self.assertEqual(kwargs['local_infile'], 1)
 
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    def test_get_con_unix_socket(self, mock_connect):
+        self.connection.extra = json.dumps({'unix_socket': "/tmp/socket"})
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once()
+        args, kwargs = mock_connect.call_args
+        self.assertEqual(args, ())
+        self.assertEqual(kwargs['unix_socket'], '/tmp/socket')
+
 
 class TestMySqlHook(unittest.TestCase):
 
