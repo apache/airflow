@@ -33,9 +33,12 @@ g.node.up_for_retry rect {
 }
 g.node.queued rect {
     stroke: #8f8d86;
+<<<<<<< HEAD:airflow/www/static/graph.css
 }
 g.node.up_for_reschedule rect{
     stroke: turquoise;
+=======
+>>>>>>> Updates to theme to account for new RBAC dashboard:airflow/www_rbac/static/graph.css
 }
 g.node.running rect{
     stroke: #07d65b;

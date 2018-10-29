@@ -4492,7 +4492,7 @@ fieldset[disabled] .navbar-default .btn-link:focus {
   color: #cccccc;
 }
 .navbar-inverse {
-  background-color: #302c43;
+  background-color: #302c43 !important;
   border-color: #282632;
   background-image: none;
 }
@@ -5544,11 +5544,11 @@ a.list-group-item-danger.active:focus {
   border-bottom-color: #dddddd;
 }
 .panel-primary {
-  border-color: #005c66;
+  border-color: #302c43;
 }
 .panel-primary > .panel-heading {
   color: #ffffff;
-  background-color: #005c66;
+  background-color: #302c43;
   border-color: #005c66;
 }
 .panel-primary > .panel-heading + .panel-collapse > .panel-body {
