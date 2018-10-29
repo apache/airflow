@@ -49,6 +49,9 @@ class SFTPHook(SSHHook):
         self.conn = None
         self.private_key_pass = None
 
+        # Fail for unverified hosts, unless this is explicitly allowed
+        self.no_host_key_check = False
+
         if self.ssh_conn_id is not None:
             conn = self.get_connection(self.ssh_conn_id)
             if conn.extra is not None:
@@ -59,9 +62,7 @@ class SFTPHook(SSHHook):
                 # For backward compatibility
                 # TODO: remove in Airflow 2.1
                 import warnings
-                if 'ignore_hostkey_verification' in extra_options \
-                        and str(extra_options["ignore_hostkey_verification"])\
-                        .lower() == 'false':
+                if 'ignore_hostkey_verification' in extra_options:
                     warnings.warn(
                         'Extra option `ignore_hostkey_verification` is deprecated.'
                         'Please use `no_host_key_check` instead.'
@@ -69,7 +70,14 @@ class SFTPHook(SSHHook):
                         DeprecationWarning,
                         stacklevel=2,
                     )
-                    self.no_host_key_check = False
+                    self.no_host_key_check = str(
+                        extra_options['ignore_hostkey_verification']
+                    ).lower() == 'true'
+
+                if 'no_host_key_check' in extra_options:
+                    self.no_host_key_check = str(
+                        extra_options['no_host_key_check']).lower() == 'true'
+
                 if 'private_key' in extra_options:
                     warnings.warn(
                         'Extra option `private_key` is deprecated.'
