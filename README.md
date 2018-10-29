@@ -151,6 +151,7 @@ Currently **officially** using Airflow:
 1. [DataCamp](https://datacamp.com/) [[@dgrtwo](https://github.com/dgrtwo)]
 1. [DataFox](https://www.datafox.com/) [[@sudowork](https://github.com/sudowork)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
+1. [DigitalOcean](https://digitalocean.com/) [[@ajbosco](https://github.com/ajbosco)]
 1. [DocuTAP](https://www.docutap.com/) [[@jshvrsn](https://github.com/jshvrsn) & [@lhvphan](https://github.com/lhvphan) & [@cloneluke](https://github.com/cloneluke)]
 1. [DoorDash](https://www.doordash.com/)
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
@@ -262,6 +263,7 @@ Currently **officially** using Airflow:
 1. [Spotahome](https://www.spotahome.com/) [[@spotahome](https://github.com/spotahome)]
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
 1. [Stackspace](https://beta.stackspace.io/)
+1. [Strava](https://strava.com) [[@strava](https://github.com/strava), [@dhuang](https://github.com/dhuang) & [@liamstewart](https://github.com/liamstewart)]
 1. [Stripe](https://stripe.com) [[@jbalogh](https://github.com/jbalogh)]
 1. [Strongmind](https://www.strongmind.com) [[@tomchapin](https://github.com/tomchapin) & [@wongstein](https://github.com/wongstein)]
 1. [Square](https://squareup.com/)
@@ -282,7 +284,7 @@ Currently **officially** using Airflow:
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
 1. [United Airlines](https://www.united.com/) [[@ilopezfr](https://github.com/ilopezfr)]
-1. [Upsight](https://www.upsight.com) [[@dhuang](https://github.com/dhuang)]
+1. [Upsight](https://www.upsight.com)
 1. [Vente-Exclusive.com](http://www.vente-exclusive.com/) [[@alexvanboxel](https://github.com/alexvanboxel)]
 1. [Vevo](https://www.vevo.com/) [[@csetiawan](https://github.com/csetiawan) & [@jerrygillespie](https://github.com/jerrygillespie)]
 1. [Vidio](https://www.vidio.com/)
