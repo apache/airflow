@@ -183,7 +183,7 @@ def initdb(rbac=False):
             conn_id='sftp_default', conn_type='sftp',
             host='localhost', port=22, login='airflow',
             extra='''
-                {"private_key": "~/.ssh/id_rsa", "ignore_hostkey_verification": true}
+                {"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}
             '''))
     merge_conn(
         models.Connection(
