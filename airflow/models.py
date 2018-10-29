@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+
 from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
@@ -58,7 +59,8 @@ import hashlib
 
 import uuid
 from datetime import datetime
-from urllib.parse import urlparse, quote, parse_qsl
+from urllib.parse import urlparse, quote, parse_qsl, unquote
+
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
     Integer, LargeBinary, PickleType, String, Text, UniqueConstraint,
@@ -685,16 +687,17 @@ class Connection(Base, LoggingMixin):
     def parse_from_uri(self, uri):
         temp_uri = urlparse(uri)
         hostname = temp_uri.hostname or ''
-        if '%2f' in hostname:
-            hostname = hostname.replace('%2f', '/').replace('%2F', '/')
         conn_type = temp_uri.scheme
         if conn_type == 'postgresql':
             conn_type = 'postgres'
         self.conn_type = conn_type
-        self.host = hostname
-        self.schema = temp_uri.path[1:]
-        self.login = temp_uri.username
-        self.password = temp_uri.password
+        self.host = unquote(hostname) if hostname else hostname
+        quoted_schema = temp_uri.path[1:]
+        self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
+        self.login = unquote(temp_uri.username) \
+            if temp_uri.username else temp_uri.username
+        self.password = unquote(temp_uri.password) \
+            if temp_uri.password else temp_uri.password
         self.port = temp_uri.port
         if temp_uri.query:
             self.extra = json.dumps(dict(parse_qsl(temp_uri.query)))
@@ -807,6 +810,17 @@ class Connection(Base, LoggingMixin):
 
     def __repr__(self):
         return self.conn_id
+
+    def debug_info(self):
+        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
+                "Login: {}, Password: {}, extra: {}".
+                format(self.conn_id,
+                       self.host,
+                       self.port,
+                       self.schema,
+                       self.login,
+                       "XXXXXXXX" if self.password else None,
+                       self.extra_dejson))
 
     @property
     def extra_dejson(self):

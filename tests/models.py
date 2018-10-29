@@ -2824,6 +2824,59 @@ class ConnectionTest(unittest.TestCase):
         self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
                                                        'extra2': '/path/'})
 
+    def test_connection_from_uri_with_colon_in_hostname(self):
+        uri = 'scheme://user:password@host%2flocation%3ax%3ay:1234/schema?' \
+              'extra1=a%20value&extra2=%2fpath%2f'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location:x:y')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
+                                                       'extra2': '/path/'})
+
+    def test_connection_from_uri_with_encoded_password(self):
+        uri = 'scheme://user:password%20with%20space@host%2flocation%3ax%3ay:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location:x:y')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password with space')
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_encoded_user(self):
+        uri = 'scheme://domain%2fuser:password@host%2flocation%3ax%3ay:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location:x:y')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'domain/user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_encoded_schema(self):
+        uri = 'scheme://user:password%20with%20space@host:1234/schema%2ftest'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host')
+        self.assertEqual(connection.schema, 'schema/test')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password with space')
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_no_schema(self):
+        uri = 'scheme://user:password%20with%20space@host:1234'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password with space')
+        self.assertEqual(connection.port, 1234)
+
 
 class TestSkipMixin(unittest.TestCase):
 
