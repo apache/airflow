@@ -23,7 +23,7 @@ start date, at the END of the period.
 
 The scheduler starts an instance of the executor specified in the your
 ``airflow.cfg``. If it happens to be the ``LocalExecutor``, tasks will be
-executed as subprocesses; in the case of ``CeleryExecutor`` and
+executed as subprocesses; in the case of ``CeleryExecutor``, ``DaskExecutor``, and
 ``MesosExecutor``, tasks are executed remotely.
 
 To start a scheduler, simply run the command:
