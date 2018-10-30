@@ -2476,7 +2476,7 @@ class BaseOperator(LoggingMixin):
             run_as_user=None,
             task_concurrency=None,
             executor_config=None,
-            do_xcom_push=True,
+            do_xcom_push=False,
             inlets=None,
             outlets=None,
             *args,
