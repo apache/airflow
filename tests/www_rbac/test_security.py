@@ -113,7 +113,7 @@ class TestSecurity(unittest.TestCase):
 
         perm = self.security_manager.\
             find_permission_view_menu('can_edit', 'RoleModelView')
-        self.security_manager.add_permission_role(role,perm)
+        self.security_manager.add_permission_role(role, perm)
         role_perms_len = len(role.permissions)
 
         self.security_manager.init_role('User', [], [])
