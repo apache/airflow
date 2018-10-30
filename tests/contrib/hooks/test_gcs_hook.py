@@ -469,7 +469,15 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
         response = self.gcs_hook.upload(test_bucket,
                                         test_object,
                                         self.testfile.name,
-                                        multipart=True,
-                                        chunksize=262144)
+                                        multipart=True)
 
         self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_multipart_wrong_chunksize(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        with self.assertRaises(ValueError):
+            self.gcs_hook.upload(test_bucket, test_object,
+                                 self.testfile.name, multipart=123)

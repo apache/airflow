@@ -178,8 +178,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     # pylint:disable=redefined-builtin
     def upload(self, bucket, object, filename,
                mime_type='application/octet-stream', gzip=False,
-               multipart=False, chunksize=256 * 1024 * 1024,
-               num_retries=0):
+               multipart=False, num_retries=0):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -193,12 +192,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type mime_type: str
         :param gzip: Option to compress file for upload
         :type gzip: bool
-        :param multipart: If true, split the upload into multiple HTTP requests
-        :type multipart: bool
-        :param chunksize: Size in bytes of each upload chunk when performing a
-                          multipart upload. This must be a multiple of 256KiB (262144 bytes)
-                          and the default is 256MiB.
-        :type chunksize: int
+        :param multipart: If True, the upload will be split into multiple HTTP requests. The
+                          default size is 256MiB per request. Pass a number instead of True to
+                          specify the request size, which must be a multiple of 262144 (256KiB).
+        :type multipart: bool or int
         :param num_retries: The number of times to attempt to re-upload the file (or individual
                             chunks, in the case of multipart uploads). Retries are attempted
                             with exponential backoff.
@@ -216,6 +213,14 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         try:
             if multipart:
+                if multipart is True:
+                    chunksize = 256 * 1024 * 1024
+                else:
+                    chunksize = multipart
+
+                if chunksize % (256 * 1024) > 0 or chunksize < 0:
+                    raise ValueError("Multipart size is not a multiple of 262144 (256KiB)")
+
                 media = MediaFileUpload(filename, mimetype=mime_type,
                                         chunksize=chunksize, resumable=True)
 
