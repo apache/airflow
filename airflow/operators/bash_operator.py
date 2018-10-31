@@ -57,8 +57,6 @@ class BashOperator(BaseOperator):
              when executing command exit(1) the task will be marked as success.
              bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
              when executing command  exit(1) the task will be marked as up for retry.
-    
-    
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
