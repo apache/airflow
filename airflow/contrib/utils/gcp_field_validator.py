@@ -69,17 +69,23 @@ following types:
   Each of the fields in the array is then expected (unless marked as optional)
   and validated recursively. If an extra field is present in the dictionary, warning is
   printed in log file (but the validation succeeds - see the Forward-compatibility notes)
+* List fields: (key = "type", value="list"):
+  Field of this type should be a list. Only the type correctness is validated.
+  The contents of a list are not subject to validation.
 * Union fields (key = "type", value="union"): field of this type should contain nested
   fields in form of an array of dicts. One of the fields (and only one) should be
   present (unless the union is marked as optional). If more than one union field is
   present, FieldValidationException is raised. If none of the union fields is
   present - warning is printed in the log (see below Forward-compatibility notes).
+* Fields validated for non-emptiness: (key = "allow_empty") - this applies only to
+  fields the value of which is a string, and it allows to check for non-emptiness of
+  the field (allow_empty=False).
 * Regexp-validated fields: (key = "regexp") - fields of this type are assumed to be
   strings and they are validated with the regexp specified. Remember that the regexps
   should ideally contain ^ at the beginning and $ at the end to make sure that
   the whole field content is validated. Typically such regexp
   validations should be used carefully and sparingly (see Forward-compatibility
-  notes below). Most of regexp validation should be at most r'^.+$'.
+  notes below).
 * Custom-validated fields: (key = "custom_validation") - fields of this type are validated
   using method specified via custom_validation field. Any exception thrown in the custom
   validation will be turned into FieldValidationException and will cause validation to
@@ -130,7 +136,7 @@ import re
 
 from airflow import LoggingMixin, AirflowException
 
-COMPOSITE_FIELD_TYPES = ['union', 'dict']
+COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
 
 
 class GcpFieldValidationException(AirflowException):
@@ -158,8 +164,8 @@ def _int_greater_than_zero(value):
 
 
 EXAMPLE_VALIDATION_SPECIFICATION = [
-    dict(name="name", regexp="^.+$"),
-    dict(name="description", regexp="^.+$", optional=True),
+    dict(name="name", allow_empty=False),
+    dict(name="description", allow_empty=False, optional=True),
     dict(name="availableMemoryMb", custom_validation=_int_greater_than_zero,
          optional=True),
     dict(name="labels", optional=True, type="dict"),
@@ -202,7 +208,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     @staticmethod
     def _sanity_checks(children_validation_specs, field_type, full_field_path,
-                       regexp, custom_validation, value):
+                       regexp, allow_empty, custom_validation, value):
         # type: (dict, str, str, str, function, object) -> None
         if value is None and field_type != 'union':
             raise GcpFieldValidationException(
@@ -213,6 +219,11 @@ class GcpBodyFieldValidator(LoggingMixin):
                 "The validation specification entry '{}' has both type and regexp. "
                 "The regexp is only allowed without type (i.e. assume type is 'str' "
                 "that can be validated with regexp)".format(full_field_path))
+        if allow_empty is not None and field_type:
+            raise GcpValidationSpecificationException(
+                "The validation specification entry '{}' has both type and allow_empty. "
+                "The allow_empty is only allowed without type (i.e. assume type is 'str' "
+                "that can be validated with allow_empty)".format(full_field_path))
         if children_validation_specs and field_type not in COMPOSITE_FIELD_TYPES:
             raise GcpValidationSpecificationException(
                 "Nested fields are specified in field '{}' of type '{}'. "
@@ -233,6 +244,14 @@ class GcpBodyFieldValidator(LoggingMixin):
                 "The body field '{}' of value '{}' does not match the field "
                 "specification regexp: '{}'.".
                 format(full_field_path, value, regexp))
+
+    @staticmethod
+    def _validate_is_empty(full_field_path, value):
+        # type: (str, str) -> None
+        if not value:
+            raise GcpFieldValidationException(
+                "The body field '{}' can't be empty. Please provide a value."
+                .format(full_field_path, value))
 
     def _validate_dict(self, children_validation_specs, full_field_path, value):
         # type: (dict, str, dict) -> None
@@ -306,6 +325,7 @@ class GcpBodyFieldValidator(LoggingMixin):
         field_type = validation_spec.get('type')
         optional = validation_spec.get('optional')
         regexp = validation_spec.get('regexp')
+        allow_empty = validation_spec.get('allow_empty')
         children_validation_specs = validation_spec.get('fields')
         required_api_version = validation_spec.get('api_version')
         custom_validation = validation_spec.get('custom_validation')
@@ -332,15 +352,18 @@ class GcpBodyFieldValidator(LoggingMixin):
                             field_type=field_type,
                             full_field_path=full_field_path,
                             regexp=regexp,
+                            allow_empty=allow_empty,
                             custom_validation=custom_validation,
                             value=value)
 
+        if allow_empty is False:
+            self._validate_is_empty(full_field_path, value)
         if regexp:
             self._validate_regexp(full_field_path, regexp, value)
         elif field_type == 'dict':
             if not isinstance(value, dict):
                 raise GcpFieldValidationException(
-                    "The field '{}' should be dictionary type according to "
+                    "The field '{}' should be of dictionary type according to the "
                     "specification '{}' but it is '{}'".
                     format(full_field_path, validation_spec, value))
             if children_validation_specs is None:
@@ -359,6 +382,12 @@ class GcpBodyFieldValidator(LoggingMixin):
                     "nested field defined.".format(full_field_path, validation_spec))
             self._validate_union(children_validation_specs, full_field_path,
                                  dictionary_to_validate)
+        elif field_type == 'list':
+            if not isinstance(value, list):
+                raise GcpFieldValidationException(
+                    "The field '{}' should be of list type according to the "
+                    "specification '{}' but it is '{}'".
+                    format(full_field_path, validation_spec, value))
         elif custom_validation:
             try:
                 custom_validation(value)
