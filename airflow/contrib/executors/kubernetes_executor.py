@@ -326,7 +326,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         self.log.info('Kubernetes job is %s', str(next_job))
         key, command, kube_executor_config = next_job
-        dag_id, task_id, execution_date = key
+        dag_id, task_id, execution_date, try_number = key
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", self.kube_config.kube_image)
         pod = self.worker_configuration.make_pod(
@@ -447,7 +447,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         try:
             return (
                 labels['dag_id'], labels['task_id'],
-                self._label_safe_datestring_to_datetime(labels['execution_date']))
+                self._label_safe_datestring_to_datetime(labels['execution_date']),
+                labels['try_number'])
         except Exception as e:
             self.log.warn(
                 'Error while converting labels to key; labels: %s; exception: %s',
@@ -606,7 +607,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.log.debug('Could not find key: %s', str(key))
                 pass
         self.event_buffer[key] = state
-        (dag_id, task_id, ex_time) = key
+        (dag_id, task_id, ex_time, try_number) = key
         item = self._session.query(TaskInstance).filter_by(
             dag_id=dag_id,
             task_id=task_id,
