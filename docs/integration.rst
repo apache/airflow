@@ -145,7 +145,7 @@ Airflow can be configured to read and write task logs in Azure Blob Storage.
 See :ref:`write-logs-azure`.
 
 Azure Data Lake
-''''''''''''''''''
+'''''''''''''''
 
 AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
 Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
@@ -153,13 +153,21 @@ login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) a
  (see connection `azure_data_lake_default` for an example).
 
 - :ref:`AzureDataLakeHook`: Interface with Azure Data Lake.
+- :ref:`AzureDataLakeStorageListOperator`: Lists the files located in a specified Azure Data Lake path.
 
 .. _AzureDataLakeHook:
 
 AzureDataLakeHook
-"""""""""
+"""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
+
+.. _AzureDataLakeStorageListOperator:
+
+AzureDataLakeStorageListOperator
+""""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
 
 .. _AWS:
 
@@ -170,7 +178,7 @@ Airflow has extensive support for Amazon Web Services. But note that the Hooks, 
 Operators are in the contrib section.
 
 AWS EMR
-''''''''
+'''''''
 
 - :ref:`EmrAddStepsOperator` : Adds steps to an existing EMR JobFlow.
 - :ref:`EmrCreateJobFlowOperator` : Creates an EMR JobFlow, reading the config from the EMR connection.
