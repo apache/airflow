@@ -78,7 +78,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
             if not self.log_resource_inited:
                 self.init_log_resource(sagemaker_hook)
             self.state, self.last_description, self.last_describe_job_call = \
-                sagemaker_hook.describe_training_job_with_log(self.job_name, self.non_terminal_states(),
+                sagemaker_hook.describe_training_job_with_log(self.job_name,
                                                               self.positions, self.stream_names,
                                                               self.instance_count, self.state,
                                                               self.last_description,

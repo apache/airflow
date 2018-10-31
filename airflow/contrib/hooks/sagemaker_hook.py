@@ -745,8 +745,8 @@ class SageMakerHook(AwsHook):
             sec = sec + check_interval
 
             state, last_description, last_describe_job_call = \
-                self.describe_training_job_with_log(job_name, self.non_terminal_states, positions,
-                                                    stream_names, instance_count, state, last_description,
+                self.describe_training_job_with_log(job_name, positions, stream_names,
+                                                    instance_count, state, last_description,
                                                     last_describe_job_call)
             if state == LogState.COMPLETE:
                 break
