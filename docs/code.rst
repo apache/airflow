@@ -112,6 +112,7 @@ Operators
 ^^^^^^^^^
 .. Alphabetize this list
 
+.. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
