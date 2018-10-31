@@ -72,7 +72,7 @@ except ImportError:
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-
+TRY_NUMBER = 1
 # Include the words "airflow" and "dag" in the file contents,
 # tricking airflow into thinking these
 # files contain a DAG (otherwise Airflow will skip them)
@@ -2342,7 +2342,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_task_instances(dag, queue=queue)
 
         queue.append.assert_called_with(
-            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE)
+            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
     def test_scheduler_do_not_schedule_removed_task(self):
@@ -2613,7 +2613,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_task_instances(dag, queue=queue)
 
         queue.append.assert_called_with(
-            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE)
+            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE, TRY_NUMBER)
         )
 
     @patch.object(TI, 'pool_full')
@@ -2967,13 +2967,18 @@ class SchedulerJobTest(unittest.TestCase):
         do_schedule()
         self.assertTrue(executor.has_task(ti))
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.SCHEDULED)
+        # removing self.assertEqual(ti.state, State.SCHEDULED)
+        # as scheduler will move state from SCHEDULED to QUEUED
 
         # now the executor has cleared and it should be allowed the re-queue
         executor.queued_tasks.clear()
         do_schedule()
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.QUEUED)
+        # calling below again in order to ensure with try_number 2,
+        # scheduler doesn't put task in queue
+        do_schedule()
+        self.assertEquals(1, len(executor.queued_tasks))
 
     @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
     def test_retry_handling_job(self):
