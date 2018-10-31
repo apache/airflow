@@ -156,33 +156,36 @@ class BaseJob(Base, LoggingMixin):
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
         """
-        with create_session() as session:
-            job = session.query(BaseJob).filter_by(id=self.id).one()
-            make_transient(job)
-            session.commit()
+        try:
+            with create_session() as session:
+                job = session.query(BaseJob).filter_by(id=self.id).one()
+                make_transient(job)
+                session.commit()
 
-        if job.state == State.SHUTDOWN:
-            self.kill()
+            if job.state == State.SHUTDOWN:
+                self.kill()
 
-        # Figure out how long to sleep for
-        sleep_for = 0
-        if job.latest_heartbeat:
-            sleep_for = max(
-                0,
-                self.heartrate - (
-                    timezone.utcnow() - job.latest_heartbeat).total_seconds())
+            # Figure out how long to sleep for
+            sleep_for = 0
+            if job.latest_heartbeat:
+                sleep_for = max(
+                    0,
+                    self.heartrate - (timezone.utcnow() -
+                                      job.latest_heartbeat).total_seconds())
 
-        sleep(sleep_for)
+            sleep(sleep_for)
 
-        # Update last heartbeat time
-        with create_session() as session:
-            job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
-            job.latest_heartbeat = timezone.utcnow()
-            session.merge(job)
-            session.commit()
+            # Update last heartbeat time
+            with create_session() as session:
+                job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+                job.latest_heartbeat = timezone.utcnow()
+                session.merge(job)
+                session.commit()
 
-            self.heartbeat_callback(session=session)
-            self.log.debug('[heartbeat]')
+                self.heartbeat_callback(session=session)
+                self.log.debug('[heartbeat]')
+        except OperationalError as e:
+            self.log.error("Scheduler heartbeat got an exception: %s", str(e))
 
     def run(self):
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
