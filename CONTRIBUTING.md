@@ -183,6 +183,24 @@ docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts
 Alternatively can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
 It is free for open source projects.
 
+Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be executed and if this pipeline failed (returned an exit code other than `0`) the commit does not come through.
+This "in theory" has the advantage that you can not commit any code that fails that again reduces the errors in the Travis CI Pipelines.
+
+Since there are a lot of tests the script would last very long so you propably only should test your new feature locally.
+
+The following example of a `pre-commit` file allows you..
+- to lint your code
+- test your code in a docker container based on python 2
+- test your code in a docker container based on python 3
+
+NOTE: Change the `airflow-py2` and `airflow-py3` to your docker containers or remove the `docker exec` if you have set up your environment directly on your host system.
+```
+git diff upstream/master -u -- "*.py" | flake8 --diff
+
+docker exec -t -i -w /airflow/ airflow-py2 nosetests tests/contrib/hooks/test_new_feature_hook.py
+docker exec -t -i -w /airflow/ airflow-py3 nosetests tests/contrib/hooks/test_new_feature_hook.py
+```
+
 For more information on how to run a subset of the tests, take a look at the
 nosetests docs.
 
