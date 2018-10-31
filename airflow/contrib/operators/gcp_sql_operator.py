@@ -96,6 +96,15 @@ CLOUD_SQL_VALIDATION = [
 class CloudSqlBaseOperator(BaseOperator):
     """
     Abstract base operator for Google Cloud SQL operators to inherit from.
+
+    :param project_id: Project ID of the Google Cloud Platform project to operate it.
+    :type project_id: str
+    :param instance: Cloud SQL instance ID. This does not include the project ID.
+    :type instance: str
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param api_version: API version used (e.g. v1).
+    :type api_version: str
     """
     @apply_defaults
     def __init__(self,
