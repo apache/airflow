@@ -87,7 +87,7 @@ class SageMakerBaseOperator(BaseOperator):
         )
         self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
 
-        self.config = self.hook.configure_s3_resources(self.config)
+        self.hook.configure_s3_resources(self.config)
         self.parse_config_integers()
         self.expand_role()
 

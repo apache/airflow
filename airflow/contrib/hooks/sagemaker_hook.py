@@ -21,7 +21,6 @@ import tempfile
 import time
 import os
 import collections
-from datetime import datetime
 
 import botocore.config
 from botocore.exceptions import ClientError
@@ -29,6 +28,7 @@ from botocore.exceptions import ClientError
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.hooks.S3_hook import S3Hook
+from airflow.utils import timezone
 
 
 class LogState(object):
@@ -111,8 +111,7 @@ def secondary_training_status_message(job_description, prev_description):
     status_strs = []
     for transition in transitions_to_print:
         message = transition['StatusMessage']
-        time_str = datetime.utcfromtimestamp(
-            time.mktime(job_description['LastModifiedTime'].timetuple())).strftime('%Y-%m-%d %H:%M:%S')
+        time_str = timezone.convert_to_utc(job_description['LastModifiedTime']).strftime('%Y-%m-%d %H:%M:%S')
         status_strs.append('{} {} - {}'.format(time_str, transition['Status'], message))
 
     return '\n'.join(status_strs)
@@ -177,8 +176,6 @@ class SageMakerHook(AwsHook):
                 else:
                     self.s3_hook.load_file(op['Path'], op['Key'],
                                            op['Bucket'])
-
-        return config
 
     def check_s3_url(self, s3url):
         """

@@ -80,7 +80,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             return
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
-            hook = AwsHook()
+            hook = AwsHook(self.aws_conn_id)
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
     def execute(self, context):

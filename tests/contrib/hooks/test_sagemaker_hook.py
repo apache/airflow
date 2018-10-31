@@ -21,6 +21,7 @@
 import unittest
 import time
 from datetime import datetime
+from tzlocal import get_localzone
 
 try:
     from unittest import mock
@@ -263,8 +264,8 @@ class TestSageMakerHook(unittest.TestCase):
             'Image': image,
             'Role': role
         }
-        self.assertEqual(evaluation_result,
-                         hook.configure_s3_resources(test_evaluation_config))
+        hook.configure_s3_resources(test_evaluation_config)
+        self.assertEqual(test_evaluation_config, evaluation_result)
         mock_create_bucket.assert_called_once_with(bucket_name=bucket)
         mock_load_file.assert_called_once_with(path, key, bucket)
 
@@ -540,7 +541,7 @@ class TestSageMakerHook(unittest.TestCase):
         self.assertFalse(changed)
 
     def test_secondary_training_status_message_status_changed(self):
-        now = datetime.now()
+        now = datetime.now(get_localzone())
         SECONDARY_STATUS_DESCRIPTION_1['LastModifiedTime'] = now
         expected = '{} {} - {}'.format(
             datetime.utcfromtimestamp(time.mktime(now.timetuple())).strftime('%Y-%m-%d %H:%M:%S'),
