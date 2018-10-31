@@ -283,3 +283,155 @@ See `Adding the IAM service agent user role to the runtime service <https://clou
 If the source code for your function is in Google Source Repository, make sure that
 your service account has the Source Repository Viewer role so that the source code
 can be downloaded if necessary.
+
+CloudSqlInstanceDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Deletes a Cloud SQL instance in Google Cloud Platform.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from Airflow variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_arguments]
+    :end-before: [END howto_operator_cloudsql_arguments]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_delete]
+    :end-before: [END howto_operator_cloudsql_delete]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_sql_operator.py
+  :language: python
+  :dedent: 4
+  :start-after: [START gcp_sql_delete_template_fields]
+  :end-before: [END gcp_sql_delete_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud SQL API documentation for delete
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
+
+.. _CloudSqlInstanceCreateOperator:
+
+CloudSqlInstanceCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates a new Cloud SQL instance in Google Cloud Platform.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`.
+
+If an instance with the same name exists, no action will be taken and the operator
+will succeed.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from Airflow variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_arguments]
+    :end-before: [END howto_operator_cloudsql_arguments]
+
+Example body defining the instance:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_create_body]
+    :end-before: [END howto_operator_cloudsql_create_body]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_create]
+    :end-before: [END howto_operator_cloudsql_create]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_sql_operator.py
+  :language: python
+  :dedent: 4
+  :start-after: [START gcp_sql_create_template_fields]
+  :end-before: [END gcp_sql_create_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud SQL API documentation for insert <https://cloud.google
+.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
+
+
+.. _CloudSqlInstancePatchOperator:
+
+CloudSqlInstancePatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Updates settings of a Cloud SQL instance in Google Cloud Platform (partial update).
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator`.
+
+This is a partial update, so only values for the settings specified in the body
+will be set / updated. The rest of the existing instance's configuration will remain
+unchanged.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from Airflow variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_arguments]
+    :end-before: [END howto_operator_cloudsql_arguments]
+
+Example body defining the instance:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_patch_body]
+    :end-before: [END howto_operator_cloudsql_patch_body]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_patch]
+    :end-before: [END howto_operator_cloudsql_patch]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_sql_operator.py
+  :language: python
+  :dedent: 4
+  :start-after: [START gcp_sql_patch_template_fields]
+  :end-before: [END gcp_sql_patch_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud SQL API documentation for patch <https://cloud.google
+.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.

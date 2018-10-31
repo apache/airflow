@@ -501,6 +501,43 @@ BigQueryHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
     :members:
 
+Cloud SQL
+'''''''''
+
+Cloud SQL Operators
+"""""""""""""""""""
+
+- :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
+- :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
+- :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
+
+.. CloudSqlInstanceDeleteOperator:
+
+CloudSqlInstanceDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
+
+.. CloudSqlInstanceCreateOperator:
+
+CloudSqlInstanceCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
+
+.. CloudSqlInstancePatchOperator:
+
+CloudSqlInstancePatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
+
+Cloud SQL Hook
+""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
+    :members:
+
 Compute Engine
 ''''''''''''''
 
