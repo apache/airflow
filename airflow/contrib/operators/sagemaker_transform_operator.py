@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
@@ -24,8 +25,9 @@ from airflow.exceptions import AirflowException
 
 class SageMakerTransformOperator(SageMakerBaseOperator):
     """
-    Initiate a SageMaker transform
-    This operator returns The ARN of the model created in Amazon SageMaker
+    Initiate a SageMaker transform job.
+
+    This operator returns The ARN of the model created in Amazon SageMaker.
 
     :param config: The configuration necessary to start a transform job (templated)
     :type config: dict
@@ -51,16 +53,12 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     @apply_defaults
     def __init__(self,
                  config,
-                 aws_conn_id='aws_default',
                  wait_for_completion=True,
                  check_interval=30,
                  max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerTransformOperator, self).__init__(config=config,
-                                                         aws_conn_id=aws_conn_id,
                                                          *args, **kwargs)
-
-        self.aws_conn_id = aws_conn_id
         self.config = config
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
@@ -82,8 +80,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             return
         config = self.config['Model']
         if 'ExecutionRoleArn' in config:
-            config['ExecutionRoleArn'] = \
-                self.hook.expand_role(config['ExecutionRoleArn'])
+            hook = AwsHook()
+            config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
     def execute(self, context):
         self.preprocess_config()
@@ -92,16 +90,10 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         transform_config = self.config.get('Transform', self.config)
 
         if model_config:
-            self.log.info(
-                'Creating SageMaker Model %s for transform job'
-                % model_config['ModelName']
-            )
+            self.log.info('Creating SageMaker Model %s for transform job', model_config['ModelName'])
             self.hook.create_model(model_config)
 
-        self.log.info(
-            'Creating SageMaker transform Job %s.'
-            % transform_config['TransformJobName']
-        )
+        self.log.info('Creating SageMaker transform Job %s.', transform_config['TransformJobName'])
         response = self.hook.create_transform_job(
             transform_config,
             wait_for_completion=self.wait_for_completion,

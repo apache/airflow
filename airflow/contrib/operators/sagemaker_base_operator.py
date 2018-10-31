@@ -38,6 +38,8 @@ class SageMakerBaseOperator(BaseOperator):
     template_ext = ()
     ui_color = '#ededed'
 
+    integer_fields = []
+
     @apply_defaults
     def __init__(self,
                  config,
@@ -47,8 +49,7 @@ class SageMakerBaseOperator(BaseOperator):
 
         self.aws_conn_id = aws_conn_id
         self.config = config
-        self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
-        self.integer_fields = []
+        self.hook = None
 
     def parse_integer(self, config, field):
         if len(field) == 1:
@@ -84,6 +85,7 @@ class SageMakerBaseOperator(BaseOperator):
         self.log.info(
             'Preprocessing the config and doing required s3_operations'
         )
+        self.hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
 
         self.config = self.hook.configure_s3_resources(self.config)
         self.parse_config_integers()

@@ -57,11 +57,6 @@ def argmin(arr, f):
     return i
 
 
-def some(arr):
-    """Return True iff there is an element, a, of arr such that a is not None"""
-    return functools.reduce(lambda x, y: x or (y is not None), arr, False)
-
-
 def secondary_training_status_changed(current_job_description, prev_job_description):
     """
     Returns true if training job's secondary status message has changed.
@@ -138,19 +133,6 @@ class SageMakerHook(AwsHook):
         super(SageMakerHook, self).__init__(*args, **kwargs)
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
-    def expand_role(self, role):
-        """
-        Expand an IAM role name to an IAM role ARN. If role is already an IAM ARN,
-        no change is made.
-
-        :param role: IAM role name or ARN
-        :return: IAM role ARN
-        """
-        if '/' in role:
-            return role
-        else:
-            return self.get_iam_conn().get_role(RoleName=role)['Role']['Arn']
-
     def tar_and_s3_upload(self, path, key, bucket):
         """
         Tar the local file or directory and upload to s3
@@ -172,7 +154,7 @@ class SageMakerHook(AwsHook):
                 for f in files:
                     tar_file.add(f, arcname=os.path.basename(f))
             temp_file.seek(0)
-            self.s3_hook.load_file_obj(temp_file, key, bucket, True)
+            self.s3_hook.load_file_obj(temp_file, key, bucket, replace=True)
 
     def configure_s3_resources(self, config):
         """
@@ -185,19 +167,17 @@ class SageMakerHook(AwsHook):
         s3_operations = config.pop('S3Operations', None)
 
         if s3_operations is not None:
-            create_bucket_ops = s3_operations.get('S3CreateBucket')
-            upload_ops = s3_operations.get('S3Upload')
-            if create_bucket_ops:
-                for op in create_bucket_ops:
-                    self.s3_hook.create_bucket(bucket_name=op['Bucket'])
-            if upload_ops:
-                for op in upload_ops:
-                    if op['Tar']:
-                        self.tar_and_s3_upload(op['Path'], op['Key'],
-                                               op['Bucket'])
-                    else:
-                        self.s3_hook.load_file(op['Path'], op['Key'],
-                                               op['Bucket'])
+            create_bucket_ops = s3_operations.get('S3CreateBucket', [])
+            upload_ops = s3_operations.get('S3Upload', [])
+            for op in create_bucket_ops:
+                self.s3_hook.create_bucket(bucket_name=op['Bucket'])
+            for op in upload_ops:
+                if op['Tar']:
+                    self.tar_and_s3_upload(op['Path'], op['Key'],
+                                           op['Bucket'])
+                else:
+                    self.s3_hook.load_file(op['Path'], op['Key'],
+                                           op['Bucket'])
 
         return config
 
@@ -233,8 +213,7 @@ class SageMakerHook(AwsHook):
         :return: None
         """
         for channel in training_config['InputDataConfig']:
-            self.check_s3_url(channel['DataSource']
-                                     ['S3DataSource']['S3Uri'])
+            self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def check_tuning_config(self, tuning_config):
         """
@@ -245,8 +224,7 @@ class SageMakerHook(AwsHook):
         :return: None
         """
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
-            self.check_s3_url(channel['DataSource']
-                                     ['S3DataSource']['S3Uri'])
+            self.check_s3_url(channel['DataSource']['S3DataSource']['S3Uri'])
 
     def get_conn(self):
         """
@@ -265,14 +243,6 @@ class SageMakerHook(AwsHook):
         config = botocore.config.Config(retries={'max_attempts': 15})
         return self.get_client_type('logs', config=config)
 
-    def get_iam_conn(self):
-        """
-        Establish an AWS connection for retrieving IAM roles during training
-
-        :return: a boto3 IAM client
-        """
-        return self.get_client_type('iam')
-
     def log_stream(self, log_group, stream_name, start_time=0, skip=0):
         """
         A generator for log items in a single stream. This will yield all the
@@ -288,9 +258,9 @@ class SageMakerHook(AwsHook):
             This is for when there are multiple entries at the same timestamp.
         :type skip: int
         :return:A CloudWatch log event with the following key-value pairs:
-            'timestamp' (int): The time of the event.
+            'timestamp' (int): The time in milliseconds of the event.
             'message' (str): The log event data.
-            'ingestionTime' (int): The time the event was ingested.
+            'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
 
         next_token = None
@@ -339,7 +309,7 @@ class SageMakerHook(AwsHook):
                        for s in streams]
         events = [next(s) if s else None for s in event_iters]
 
-        while some(events):
+        while any(events):
             i = argmin(events, lambda x: x['timestamp'] if x else 9999999999)
             yield (i, events[i])
             try:
@@ -371,15 +341,13 @@ class SageMakerHook(AwsHook):
         response = self.get_conn().create_training_job(**config)
         if print_log:
             self.check_training_status_with_log(config['TrainingJobName'],
-                                                SageMakerHook.non_terminal_states,
-                                                SageMakerHook.failed_states,
+                                                self.non_terminal_states,
+                                                self.failed_states,
                                                 wait_for_completion,
                                                 check_interval, max_ingestion_time
                                                 )
         elif wait_for_completion:
             describe_response = self.check_status(config['TrainingJobName'],
-                                                  SageMakerHook.non_terminal_states,
-                                                  SageMakerHook.failed_states,
                                                   'TrainingJobStatus',
                                                   self.describe_training_job,
                                                   check_interval, max_ingestion_time
@@ -416,8 +384,6 @@ class SageMakerHook(AwsHook):
         response = self.get_conn().create_hyper_parameter_tuning_job(**config)
         if wait_for_completion:
             self.check_status(config['HyperParameterTuningJobName'],
-                              SageMakerHook.non_terminal_states,
-                              SageMakerHook.failed_states,
                               'HyperParameterTuningJobStatus',
                               self.describe_tuning_job,
                               check_interval, max_ingestion_time
@@ -443,15 +409,11 @@ class SageMakerHook(AwsHook):
         :return: A response to transform job creation
         """
 
-        self.check_s3_url(config
-                          ['TransformInput']['DataSource']
-                          ['S3DataSource']['S3Uri'])
+        self.check_s3_url(config['TransformInput']['DataSource']['S3DataSource']['S3Uri'])
 
         response = self.get_conn().create_transform_job(**config)
         if wait_for_completion:
             self.check_status(config['TransformJobName'],
-                              SageMakerHook.non_terminal_states,
-                              SageMakerHook.failed_states,
                               'TransformJobStatus',
                               self.describe_transform_job,
                               check_interval, max_ingestion_time
@@ -502,11 +464,10 @@ class SageMakerHook(AwsHook):
         response = self.get_conn().create_endpoint(**config)
         if wait_for_completion:
             self.check_status(config['EndpointName'],
-                              SageMakerHook.endpoint_non_terminal_states,
-                              SageMakerHook.failed_states,
                               'EndpointStatus',
                               self.describe_endpoint,
-                              check_interval, max_ingestion_time
+                              check_interval, max_ingestion_time,
+                              non_terminal_states=self.endpoint_non_terminal_states
                               )
         return response
 
@@ -532,11 +493,10 @@ class SageMakerHook(AwsHook):
         response = self.get_conn().update_endpoint(**config)
         if wait_for_completion:
             self.check_status(config['EndpointName'],
-                              SageMakerHook.non_terminal_states,
-                              SageMakerHook.failed_states,
                               'EndpointStatus',
                               self.describe_endpoint,
-                              check_interval, max_ingestion_time
+                              check_interval, max_ingestion_time,
+                              non_terminal_states=self.endpoint_non_terminal_states
                               )
         return response
 
@@ -551,7 +511,7 @@ class SageMakerHook(AwsHook):
 
         return self.get_conn().describe_training_job(TrainingJobName=name)
 
-    def describe_training_job_with_log(self, job_name, non_terminal_states, positions, stream_names,
+    def describe_training_job_with_log(self, job_name, positions, stream_names,
                                        instance_count, state, last_description,
                                        last_describe_job_call):
         """
@@ -562,8 +522,9 @@ class SageMakerHook(AwsHook):
         if len(stream_names) < instance_count:
             # Log streams are created whenever a container starts writing to stdout/err, so this list
             # may be dynamic until we have a stream for every instance.
+            logs_conn = self.get_log_conn()
             try:
-                streams = self.get_log_conn().describe_log_streams(
+                streams = logs_conn.describe_log_streams(
                     logGroupName=log_group,
                     logStreamNamePrefix=job_name + '/',
                     orderBy='LogStreamName',
@@ -572,12 +533,10 @@ class SageMakerHook(AwsHook):
                 stream_names = [s['logStreamName'] for s in streams['logStreams']]
                 positions.update([(s, Position(timestamp=0, skip=0))
                                   for s in stream_names if s not in positions])
-            except ClientError as e:
+            except logs_conn.exceptions.ResourceNotFoundException:
                 # On the very first training job run on an account, there's no log group until
                 # the container starts logging, so ignore any errors thrown about that
-                err = e.response.get('Error', {})
-                if err.get('Code', None) != 'ResourceNotFoundException':
-                    raise
+                pass
 
         if len(stream_names) > 0:
             for idx, event in self.multi_stream_iter(log_group, stream_names, positions):
@@ -603,7 +562,7 @@ class SageMakerHook(AwsHook):
 
             status = description['TrainingJobStatus']
 
-            if status not in non_terminal_states:
+            if status not in self.non_terminal_states:
                 state = LogState.JOB_COMPLETE
         return state, last_description, last_describe_job_call
 
@@ -616,8 +575,7 @@ class SageMakerHook(AwsHook):
         :return: A dict contains all the tuning job info
         """
 
-        return self.get_conn().describe_hyper_parameter_tuning_job(
-            HyperParameterTuningJobName=name)
+        return self.get_conn().describe_hyper_parameter_tuning_job(HyperParameterTuningJobName=name)
 
     def describe_model(self, name):
         """
@@ -661,19 +619,15 @@ class SageMakerHook(AwsHook):
 
         return self.get_conn().describe_endpoint(EndpointName=name)
 
-    def check_status(self, job_name, non_terminal_states,
-                     failed_states, key,
+    def check_status(self, job_name, key,
                      describe_function, check_interval,
-                     max_ingestion_time):
+                     max_ingestion_time,
+                     non_terminal_states=None):
         """
         Check status of a SageMaker job
 
         :param job_name: name of the job to check status
         :type job_name: str
-        :param non_terminal_states: the set of non_terminal states
-        :type non_terminal_states: set
-        :param failed_states: the set of failed states
-        :type failed_states: set
         :param key: the key of the response dict
             that points to the state
         :type key: str
@@ -687,8 +641,13 @@ class SageMakerHook(AwsHook):
             SageMaker jobs that run longer than this will fail. Setting this to
             None implies no timeout for any SageMaker job.
         :type max_ingestion_time: int
+        :param non_terminal_states: the set of nonterminal states
+        :type non_terminal_states: set
         :return: response of describe call after job is done
         """
+        if not non_terminal_states:
+            non_terminal_states = self.non_terminal_states
+
         sec = 0
         running = True
 
@@ -696,10 +655,6 @@ class SageMakerHook(AwsHook):
             time.sleep(check_interval)
             sec = sec + check_interval
 
-            if max_ingestion_time and sec > max_ingestion_time:
-                # ensure that the job gets killed if the max ingestion time is exceeded
-                raise AirflowException('SageMaker job took more than '
-                                       '%s seconds', max_ingestion_time)
             try:
                 response = describe_function(job_name)
                 status = response[key]
@@ -712,11 +667,14 @@ class SageMakerHook(AwsHook):
 
             if status in non_terminal_states:
                 running = True
-            elif status in failed_states:
-                raise AirflowException('SageMaker job failed because %s'
-                                       % response['FailureReason'])
+            elif status in self.failed_states:
+                raise AirflowException('SageMaker job failed because %s' % response['FailureReason'])
             else:
                 running = False
+
+            if max_ingestion_time and sec > max_ingestion_time:
+                # ensure that the job gets killed if the max ingestion time is exceeded
+                raise AirflowException('SageMaker job took more than %s seconds', max_ingestion_time)
 
         self.log.info('SageMaker Job Compeleted')
         response = describe_function(job_name)
@@ -755,7 +713,7 @@ class SageMakerHook(AwsHook):
         stream_names = []  # The list of log streams
         positions = {}     # The current position in each stream, map of stream name -> position
 
-        job_already_completed = False if status in non_terminal_states else True
+        job_already_completed = status not in non_terminal_states
 
         state = LogState.TAILING if wait_for_completion and not job_already_completed else LogState.COMPLETE
 
@@ -784,19 +742,18 @@ class SageMakerHook(AwsHook):
 
         while True:
             time.sleep(check_interval)
-
             sec = sec + check_interval
-            if max_ingestion_time and sec > max_ingestion_time:
-                # ensure that the job gets killed if the max ingestion time is exceeded
-                raise AirflowException('SageMaker job took more than '
-                                       '%s seconds', max_ingestion_time)
 
             state, last_description, last_describe_job_call = \
-                self.describe_training_job_with_log(job_name, SageMakerHook.non_terminal_states, positions,
+                self.describe_training_job_with_log(job_name, self.non_terminal_states, positions,
                                                     stream_names, instance_count, state, last_description,
                                                     last_describe_job_call)
             if state == LogState.COMPLETE:
                 break
+
+            if max_ingestion_time and sec > max_ingestion_time:
+                # ensure that the job gets killed if the max ingestion time is exceeded
+                raise AirflowException('SageMaker job took more than %s seconds', max_ingestion_time)
 
         if wait_for_completion:
             status = last_description['TrainingJobStatus']

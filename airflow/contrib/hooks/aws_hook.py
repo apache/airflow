@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 import boto3
 import configparser
 import logging
@@ -191,3 +190,16 @@ class AwsHook(BaseHook):
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
         return session.get_credentials().get_frozen_credentials()
+
+    def expand_role(self, role):
+        """
+        Expand an IAM role name to an IAM role ARN. If role is already an IAM ARN,
+        no change is made.
+
+        :param role: IAM role name or ARN
+        :return: IAM role ARN
+        """
+        if '/' in role:
+            return role
+        else:
+            return self.get_client_type('iam').get_role(RoleName=role)['Role']['Arn']

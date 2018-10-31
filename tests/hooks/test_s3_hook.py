@@ -19,6 +19,7 @@
 #
 
 import mock
+import tempfile
 import unittest
 
 from botocore.exceptions import NoCredentialsError
@@ -72,6 +73,13 @@ class TestS3Hook(unittest.TestCase):
     def test_get_bucket(self):
         hook = S3Hook(aws_conn_id=None)
         b = hook.get_bucket('bucket')
+        self.assertIsNotNone(b)
+
+    @mock_s3
+    def test_create_bucket(self):
+        hook = S3Hook(aws_conn_id=None)
+        hook.create_bucket(bucket_name='new_bucket')
+        b = hook.get_bucket('new_bucket')
         self.assertIsNotNone(b)
 
     @mock_s3
@@ -254,6 +262,21 @@ class TestS3Hook(unittest.TestCase):
         body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
 
         self.assertEqual(body, b'Content')
+
+    @mock_s3
+    def test_load_fileobj(self):
+        hook = S3Hook(aws_conn_id=None)
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+        with tempfile.TemporaryFile() as temp_file:
+            temp_file.write(b"Content")
+            temp_file.seek(0)
+            hook.load_file_obj(temp_file, "my_key", "mybucket")
+            body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+
+            self.assertEqual(body, b'Content')
 
 
 if __name__ == '__main__':

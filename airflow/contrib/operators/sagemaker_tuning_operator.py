@@ -17,16 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
-
     """
-    Initiate a SageMaker hyper-parameter tuning job
-    This operator returns The ARN of the tuning job created in Amazon SageMaker
+    Initiate a SageMaker hyper-parameter tuning job.
+
+    This operator returns The ARN of the tuning job created in Amazon SageMaker.
 
     :param config: The configuration necessary to start a tuning job (templated)
     :type config: dict
@@ -43,46 +44,40 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
     :type max_ingestion_time: int
     """
 
+    integer_fields = [
+        ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],
+        ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxParallelTrainingJobs'],
+        ['TrainingJobDefinition', 'ResourceConfig', 'InstanceCount'],
+        ['TrainingJobDefinition', 'ResourceConfig', 'VolumeSizeInGB'],
+        ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds']
+    ]
+
     @apply_defaults
     def __init__(self,
                  config,
-                 aws_conn_id='aws_default',
                  wait_for_completion=True,
                  check_interval=30,
                  max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerTuningOperator, self).__init__(config=config,
-                                                      aws_conn_id=aws_conn_id,
                                                       *args, **kwargs)
-
-        self.aws_conn_id = aws_conn_id
         self.config = config
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
-        self.create_integer_fields()
-
-    def create_integer_fields(self):
-        self.integer_fields = [
-            ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],
-            ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxParallelTrainingJobs'],
-            ['TrainingJobDefinition', 'ResourceConfig', 'InstanceCount'],
-            ['TrainingJobDefinition', 'ResourceConfig', 'VolumeSizeInGB'],
-            ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds']
-        ]
 
     def expand_role(self):
         if 'TrainingJobDefinition' in self.config:
             config = self.config['TrainingJobDefinition']
             if 'RoleArn' in config:
-                config['RoleArn'] = self.hook.expand_role(config['RoleArn'])
+                hook = AwsHook()
+                config['RoleArn'] = hook.expand_role(config['RoleArn'])
 
     def execute(self, context):
         self.preprocess_config()
 
         self.log.info(
-            'Creating SageMaker Hyper Parameter Tunning Job %s'
-            % self.config['HyperParameterTuningJobName']
+            'Creating SageMaker Hyper-Parameter Tuning Job %s', self.config['HyperParameterTuningJobName']
         )
 
         response = self.hook.create_tuning_job(
