@@ -20,7 +20,7 @@
 import unittest
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceInsertOperator, \
+from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
     CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator
 
 try:
@@ -34,7 +34,7 @@ except ImportError:
 
 PROJECT_ID = "project-id"
 INSTANCE_NAME = "test-name"
-INSERT_BODY = {
+CREATE_BODY = {
     "name": INSTANCE_NAME,
     "settings": {
         "tier": "db-n1-standard-1",
@@ -113,49 +113,49 @@ PATCH_BODY = {
 
 class CloudSqlTest(unittest.TestCase):
     @mock.patch("airflow.contrib.operators.gcp_sql_operator"
-                ".CloudSqlInstanceInsertOperator._check_if_instance_exists")
+                ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_instance_insert(self, mock_hook, _check_if_instance_exists):
+    def test_instance_create(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = False
-        mock_hook.return_value.insert_instance.return_value = True
-        op = CloudSqlInstanceInsertOperator(
+        mock_hook.return_value.create_instance.return_value = True
+        op = CloudSqlInstanceCreateOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
-            body=INSERT_BODY,
+            body=CREATE_BODY,
             task_id="id"
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
-        mock_hook.return_value.insert_instance.assert_called_once_with(
-            PROJECT_ID, INSERT_BODY
+        mock_hook.return_value.create_instance.assert_called_once_with(
+            PROJECT_ID, CREATE_BODY
         )
         self.assertTrue(result)
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator"
-                ".CloudSqlInstanceInsertOperator._check_if_instance_exists")
+                ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_instance_insert_idempotent(self, mock_hook, _check_if_instance_exists):
+    def test_instance_create_idempotent(self, mock_hook, _check_if_instance_exists):
         _check_if_instance_exists.return_value = True
-        mock_hook.return_value.insert_instance.return_value = True
-        op = CloudSqlInstanceInsertOperator(
+        mock_hook.return_value.create_instance.return_value = True
+        op = CloudSqlInstanceCreateOperator(
             project_id=PROJECT_ID,
             instance=INSTANCE_NAME,
-            body=INSERT_BODY,
+            body=CREATE_BODY,
             task_id="id"
         )
         result = op.execute(None)
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
-        mock_hook.return_value.insert_instance.assert_not_called()
+        mock_hook.return_value.create_instance.assert_not_called()
         self.assertTrue(result)
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_insert_should_throw_ex_when_empty_project_id(self, mock_hook):
+    def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceInsertOperator(
+            op = CloudSqlInstanceCreateOperator(
                 project_id="",
-                body=INSERT_BODY,
+                body=CREATE_BODY,
                 instance=INSTANCE_NAME,
                 task_id="id"
             )
@@ -165,9 +165,9 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_insert_should_throw_ex_when_empty_body(self, mock_hook):
+    def test_create_should_throw_ex_when_empty_body(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceInsertOperator(
+            op = CloudSqlInstanceCreateOperator(
                 project_id=PROJECT_ID,
                 body={},
                 instance=INSTANCE_NAME,
@@ -179,11 +179,11 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_insert_should_throw_ex_when_empty_instance(self, mock_hook):
+    def test_create_should_throw_ex_when_empty_instance(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceInsertOperator(
+            op = CloudSqlInstanceCreateOperator(
                 project_id=PROJECT_ID,
-                body=INSERT_BODY,
+                body=CREATE_BODY,
                 instance="",
                 task_id="id"
             )
@@ -193,7 +193,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_insert_should_validate_list_type(self, mock_hook):
+    def test_create_should_validate_list_type(self, mock_hook):
         wrong_list_type_body = {
             "name": INSTANCE_NAME,
             "settings": {
@@ -205,7 +205,7 @@ class CloudSqlTest(unittest.TestCase):
             }
         }
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceInsertOperator(
+            op = CloudSqlInstanceCreateOperator(
                 project_id=PROJECT_ID,
                 body=wrong_list_type_body,
                 instance=INSTANCE_NAME,
@@ -219,7 +219,7 @@ class CloudSqlTest(unittest.TestCase):
                                           gcp_conn_id="google_cloud_default")
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_insert_should_validate_non_empty_fields(self, mock_hook):
+    def test_create_should_validate_non_empty_fields(self, mock_hook):
         empty_tier_body = {
             "name": INSTANCE_NAME,
             "settings": {
@@ -228,7 +228,7 @@ class CloudSqlTest(unittest.TestCase):
             }
         }
         with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceInsertOperator(
+            op = CloudSqlInstanceCreateOperator(
                 project_id=PROJECT_ID,
                 body=empty_tier_body,
                 instance=INSTANCE_NAME,

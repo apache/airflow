@@ -326,15 +326,15 @@ More information
 See `Google Cloud SQL API documentation for delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
-.. _CloudSqlInstanceInsertOperator:
+.. _CloudSqlInstanceCreateOperator:
 
-CloudSqlInstanceInsertOperator
+CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Creates a new Cloud SQL instance in Google Cloud Platform.
 
 For parameter definition take a look at
-:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceInsertOperator`.
+:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`.
 
 If an instance with the same name exists, no action will be taken and the operator
 will succeed.
@@ -353,8 +353,8 @@ Example body defining the instance:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
-    :start-after: [START howto_operator_cloudsql_insert_body]
-    :end-before: [END howto_operator_cloudsql_insert_body]
+    :start-after: [START howto_operator_cloudsql_create_body]
+    :end-before: [END howto_operator_cloudsql_create_body]
 
 Using the operator
 """"""""""""""""""
@@ -362,8 +362,8 @@ Using the operator
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_cloudsql_insert]
-    :end-before: [END howto_operator_cloudsql_insert]
+    :start-after: [START howto_operator_cloudsql_create]
+    :end-before: [END howto_operator_cloudsql_create]
 
 Templating
 """"""""""
@@ -371,8 +371,8 @@ Templating
 .. literalinclude:: ../../airflow/contrib/operators/gcp_sql_operator.py
   :language: python
   :dedent: 4
-  :start-after: [START gcp_sql_insert_template_fields]
-  :end-before: [END gcp_sql_insert_template_fields]
+  :start-after: [START gcp_sql_create_template_fields]
+  :end-before: [END gcp_sql_create_template_fields]
 
 More information
 """"""""""""""""
@@ -384,7 +384,7 @@ See `Google Cloud SQL API documentation for insert <https://cloud.google
 .. _CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Updates settings of a Cloud SQL instance in Google Cloud Platform (partial update).
 

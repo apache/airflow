@@ -32,7 +32,7 @@ import datetime
 import airflow
 from airflow import models
 
-from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceInsertOperator, \
+from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
     CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator
 
 # [START howto_operator_cloudsql_arguments]
@@ -43,7 +43,7 @@ INSTANCE_NAME = models.Variable.get('INSTANCE_NAME', '')
 # Bodies below represent Cloud SQL instance resources:
 # https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances
 
-# [START howto_operator_cloudsql_insert_body]
+# [START howto_operator_cloudsql_create_body]
 body = {
     "name": INSTANCE_NAME,
     "settings": {
@@ -80,7 +80,7 @@ body = {
     "databaseVersion": "MYSQL_5_7",
     "region": "europe-west4",
 }
-# [END howto_operator_cloudsql_insert_body]
+# [END howto_operator_cloudsql_create_body]
 # [START howto_operator_cloudsql_patch_body]
 patch_body = {
     "name": INSTANCE_NAME,
@@ -107,14 +107,14 @@ with models.DAG(
     default_args=default_args,
     schedule_interval=datetime.timedelta(days=1)
 ) as dag:
-    # [START howto_operator_cloudsql_insert]
-    sql_instance_insert_task = CloudSqlInstanceInsertOperator(
+    # [START howto_operator_cloudsql_create]
+    sql_instance_create_task = CloudSqlInstanceCreateOperator(
         project_id=PROJECT_ID,
         body=body,
         instance=INSTANCE_NAME,
-        task_id='sql_instance_insert_task'
+        task_id='sql_instance_create_task'
     )
-    # [END howto_operator_cloudsql_insert]
+    # [END howto_operator_cloudsql_create]
     # [START howto_operator_cloudsql_patch]
     sql_instance_patch_task = CloudSqlInstancePatchOperator(
         project_id=PROJECT_ID,
@@ -131,4 +131,4 @@ with models.DAG(
     )
     # [END howto_operator_cloudsql_delete]
 
-    sql_instance_insert_task >> sql_instance_patch_task >> sql_instance_delete_task
+    sql_instance_create_task >> sql_instance_patch_task >> sql_instance_delete_task

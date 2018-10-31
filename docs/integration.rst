@@ -508,7 +508,7 @@ Cloud SQL Operators
 """""""""""""""""""
 
 - :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
-- :ref:`CloudSqlInstanceInsertOperator` : create a new Cloud SQL instance.
+- :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
 - :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
 
 .. CloudSqlInstanceDeleteOperator:
@@ -518,12 +518,12 @@ CloudSqlInstanceDeleteOperator
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
 
-.. CloudSqlInstanceInsertOperator:
+.. CloudSqlInstanceCreateOperator:
 
-CloudSqlInstanceInsertOperator
+CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceInsertOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
 
 .. CloudSqlInstancePatchOperator:
 

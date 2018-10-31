@@ -145,7 +145,7 @@ class CloudSqlBaseOperator(BaseOperator):
         return instance.get(SETTINGS).get(SETTINGS_VERSION)
 
 
-class CloudSqlInstanceInsertOperator(CloudSqlBaseOperator):
+class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
     """
     Creates a new Cloud SQL instance.
     If an instance with the same name exists, no action will be taken and
@@ -167,9 +167,9 @@ class CloudSqlInstanceInsertOperator(CloudSqlBaseOperator):
     :param validate_body: True if body should be validated, False otherwise.
     :type validate_body: bool
     """
-    # [START gcp_sql_insert_template_fields]
+    # [START gcp_sql_create_template_fields]
     template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
-    # [END gcp_sql_insert_template_fields]
+    # [END gcp_sql_create_template_fields]
 
     @apply_defaults
     def __init__(self,
@@ -182,12 +182,12 @@ class CloudSqlInstanceInsertOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceInsertOperator, self).__init__(
+        super(CloudSqlInstanceCreateOperator, self).__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceInsertOperator, self)._validate_inputs()
+        super(CloudSqlInstanceCreateOperator, self)._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -199,10 +199,10 @@ class CloudSqlInstanceInsertOperator(CloudSqlBaseOperator):
     def execute(self, context):
         self._validate_body_fields()
         if not self._check_if_instance_exists(self.instance):
-            return self._hook.insert_instance(self.project_id, self.body)
+            return self._hook.create_instance(self.project_id, self.body)
         else:
             self.log.info("Cloud SQL instance with ID {} already exists. "
-                          "Aborting insert.".format(self.instance))
+                          "Aborting create.".format(self.instance))
             return True
 
 

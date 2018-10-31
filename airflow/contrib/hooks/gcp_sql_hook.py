@@ -81,7 +81,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             instance=instance
         ).execute(num_retries=NUM_RETRIES)
 
-    def insert_instance(self, project_id, body):
+    def create_instance(self, project_id, body):
         """
         Creates a new Cloud SQL instance.
 
