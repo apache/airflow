@@ -21,7 +21,6 @@ import tempfile
 import time
 import os
 import collections
-import functools
 from datetime import datetime
 
 import botocore.config
