@@ -35,12 +35,14 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name='test1.csv'
     if with_mail:
         mock_conn.select.return_value = ('OK', [])
         mock_conn.search.return_value = ('OK', [b'1'])
-        mail_string = 'Content-Type: multipart/mixed; boundary=123\r\n--123\r\n' \
-                      'Content-Disposition: attachment; filename="{}";' \
-                      'Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--'.format(attachment_name)
+        mail_string = \
+            'Content-Type: multipart/mixed; boundary=123\r\n--123\r\n' \
+            'Content-Disposition: attachment; filename="{}";' \
+            'Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--'.format(attachment_name)
         mock_conn.fetch.return_value = ('OK', [(
             b'',  # ..because the email parser awaits 2 elements
-            bytes(mail_string, encoding='utf-8') if sys.version_info >= (3, 0) else mail_string.encode('UTF-8')
+            bytes(mail_string, encoding='utf-8') if sys.version_info >= (3, 0)
+            else mail_string.encode('UTF-8')
         )])
         mock_conn.close.return_value = ('OK', [])
 
