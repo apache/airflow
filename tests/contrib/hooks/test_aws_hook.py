@@ -35,11 +35,12 @@ except ImportError:
         mock = None
 
 try:
-    from moto import mock_emr, mock_dynamodb2, mock_sts
+    from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam
 except ImportError:
     mock_emr = None
     mock_dynamodb2 = None
     mock_sts = None
+    mock_iam = None
 
 
 class TestAwsHook(unittest.TestCase):
@@ -184,6 +185,35 @@ class TestAwsHook(unittest.TestCase):
                          '3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4I'
                          'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
                          'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
+
+    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
+    @mock.patch.object(AwsHook, 'get_connection')
+    @mock_sts
+    def test_get_credentials_from_role_arn_with_external_id(self, mock_get_connection):
+        mock_connection = Connection(
+            extra='{"role_arn":"arn:aws:iam::123456:role/role_arn",'
+                  ' "external_id":"external_id"}')
+        mock_get_connection.return_value = mock_connection
+        hook = AwsHook()
+        credentials_from_hook = hook.get_credentials()
+        self.assertEqual(credentials_from_hook.access_key, 'AKIAIOSFODNN7EXAMPLE')
+        self.assertEqual(credentials_from_hook.secret_key,
+                         'aJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY')
+        self.assertEqual(credentials_from_hook.token,
+                         'BQoEXAMPLEH4aoAH0gNCAPyJxz4BlCFFxWNE1OPTgk5TthT+FvwqnKwRcOIfrRh'
+                         '3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4I'
+                         'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
+                         'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
+
+    @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
+    @mock_iam
+    def test_expand_role(self):
+        conn = boto3.client('iam', region_name='us-east-1')
+        conn.create_role(RoleName='test-role', AssumeRolePolicyDocument='some policy')
+        hook = AwsHook()
+        arn = hook.expand_role('test-role')
+        expect_arn = conn.get_role(RoleName='test-role').get('Role').get('Arn')
+        self.assertEqual(arn, expect_arn)
 
 
 if __name__ == '__main__':
