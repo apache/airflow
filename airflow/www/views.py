@@ -1943,9 +1943,9 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__key_path',
                     'extra__google_cloud_platform__keyfile_dict',
                     'extra__google_cloud_platform__scope',
-                    'extra__grpc__auth_type': StringField('Authentication Type'),
-                    'extra__grpc__credential_pem_file': StringField('Credential Pem File Path'),
-                    'extra__grpc__scopes': StringField('Scopes (comma separated)'),]
+                    'extra__grpc__auth_type',
+                    'extra__grpc__credential_pem_file',
+                    'extra__grpc__scopes']
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
     add_columns = edit_columns = ['conn_id', 'conn_type', 'host', 'schema',
