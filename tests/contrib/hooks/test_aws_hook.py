@@ -35,11 +35,12 @@ except ImportError:
         mock = None
 
 try:
-    from moto import mock_emr, mock_dynamodb2, mock_sts
+    from moto import mock_emr, mock_dynamodb2, mock_sts, mock_iam
 except ImportError:
     mock_emr = None
     mock_dynamodb2 = None
     mock_sts = None
+    mock_iam = None
 
 
 class TestAwsHook(unittest.TestCase):
@@ -203,6 +204,16 @@ class TestAwsHook(unittest.TestCase):
                          '3c/LTo6UDdyJwOOvEVPvLXCrrrUtdnniCEXAMPLE/IvU1dYUg2RVAJBanLiHb4I'
                          'gRmpRV3zrkuWJOgQs8IZZaIv2BXIa2R4OlgkBN9bkUDNCJiBeb/AXlzBBko7b15'
                          'fjrBs2+cTQtpZ3CYWFXG8C5zqx37wnOE49mRl/+OtkIKGO7fAE')
+
+    @unittest.skipIf(mock_iam is None, 'mock_iam package not present')
+    @mock_iam
+    def test_expand_role(self):
+        conn = boto3.client('iam', region_name='us-east-1')
+        conn.create_role(RoleName='test-role', AssumeRolePolicyDocument='some policy')
+        hook = AwsHook()
+        arn = hook.expand_role('test-role')
+        expect_arn = conn.get_role(RoleName='test-role').get('Role').get('Arn')
+        self.assertEqual(arn, expect_arn)
 
 
 if __name__ == '__main__':
