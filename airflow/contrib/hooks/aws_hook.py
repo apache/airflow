@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 import boto3
 import configparser
 import logging
@@ -164,17 +163,17 @@ class AwsHook(BaseHook):
             aws_session_token=aws_session_token,
             region_name=region_name), endpoint_url
 
-    def get_client_type(self, client_type, region_name=None):
+    def get_client_type(self, client_type, region_name=None, config=None):
         session, endpoint_url = self._get_credentials(region_name)
 
         return session.client(client_type, endpoint_url=endpoint_url,
-                              verify=self.verify)
+                              config=config, verify=self.verify)
 
-    def get_resource_type(self, resource_type, region_name=None):
+    def get_resource_type(self, resource_type, region_name=None, config=None):
         session, endpoint_url = self._get_credentials(region_name)
 
         return session.resource(resource_type, endpoint_url=endpoint_url,
-                                verify=self.verify)
+                                config=config, verify=self.verify)
 
     def get_session(self, region_name=None):
         """Get the underlying boto3.session."""
@@ -191,3 +190,16 @@ class AwsHook(BaseHook):
         # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
         return session.get_credentials().get_frozen_credentials()
+
+    def expand_role(self, role):
+        """
+        Expand an IAM role name to an IAM role ARN. If role is already an IAM ARN,
+        no change is made.
+
+        :param role: IAM role name or ARN
+        :return: IAM role ARN
+        """
+        if '/' in role:
+            return role
+        else:
+            return self.get_client_type('iam').get_role(RoleName=role)['Role']['Arn']

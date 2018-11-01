@@ -33,33 +33,27 @@ from airflow.contrib.sensors.sagemaker_transform_sensor \
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
 
-DESCRIBE_TRANSFORM_INPROGRESS_RETURN = {
+DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE = {
     'TransformJobStatus': 'InProgress',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRANSFORM_COMPELETED_RETURN = {
+DESCRIBE_TRANSFORM_COMPELETED_RESPONSE = {
     'TransformJobStatus': 'Compeleted',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRANSFORM_FAILED_RETURN = {
+DESCRIBE_TRANSFORM_FAILED_RESPONSE = {
     'TransformJobStatus': 'Failed',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     },
     'FailureReason': 'Unknown'
 }
-DESCRIBE_TRANSFORM_STOPPING_RETURN = {
+DESCRIBE_TRANSFORM_STOPPING_RESPONSE = {
     'TransformJobStatus': 'Stopping',
-    'ResponseMetadata': {
-        'HTTPStatusCode': 200,
-    }
-}
-DESCRIBE_TRANSFORM_STOPPED_RETURN = {
-    'TransformJobStatus': 'Stopped',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
@@ -72,8 +66,8 @@ class TestSageMakerTransformSensor(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_transform_job')
-    def test_raises_errors_failed_state(self, mock_describe_job, mock_client):
-        mock_describe_job.side_effect = [DESCRIBE_TRANSFORM_FAILED_RETURN]
+    def test_sensor_with_failure(self, mock_describe_job, mock_client):
+        mock_describe_job.side_effect = [DESCRIBE_TRANSFORM_FAILED_RESPONSE]
         sensor = SageMakerTransformSensor(
             task_id='test_task',
             poke_interval=2,
@@ -86,32 +80,28 @@ class TestSageMakerTransformSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_transform_job')
-    def test_calls_until_a_terminal_state(self,
-                                          mock_describe_job, hook_init, mock_client):
+    def test_sensor(self, mock_describe_job, hook_init, mock_client):
         hook_init.return_value = None
 
         mock_describe_job.side_effect = [
-            DESCRIBE_TRANSFORM_INPROGRESS_RETURN,
-            DESCRIBE_TRANSFORM_STOPPING_RETURN,
-            DESCRIBE_TRANSFORM_STOPPED_RETURN,
-            DESCRIBE_TRANSFORM_COMPELETED_RETURN
+            DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE,
+            DESCRIBE_TRANSFORM_STOPPING_RESPONSE,
+            DESCRIBE_TRANSFORM_COMPELETED_RESPONSE
         ]
         sensor = SageMakerTransformSensor(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test',
-            job_name='test_job_name',
-            region_name='us-east-1'
+            job_name='test_job_name'
         )
 
         sensor.execute(None)
 
         # make sure we called 4 times(terminated when its compeleted)
-        self.assertEqual(mock_describe_job.call_count, 4)
+        self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params
-        hook_init.assert_called_with(aws_conn_id='aws_test',
-                                     region_name='us-east-1')
+        hook_init.assert_called_with(aws_conn_id='aws_test')
 
 
 if __name__ == '__main__':

@@ -28,7 +28,7 @@ class TestSagemakerBaseSensor(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
 
-    def test_subclasses_succeed_when_response_is_good(self):
+    def test_execute(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
             def non_terminal_states(self):
                 return ['PENDING', 'RUNNING', 'CONTINUE']
@@ -53,7 +53,7 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
         sensor.execute(None)
 
-    def test_poke_returns_false_when_state_is_a_non_terminal_state(self):
+    def test_poke_with_unfinished_job(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
             def non_terminal_states(self):
                 return ['PENDING', 'RUNNING', 'CONTINUE']
@@ -78,7 +78,7 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
         self.assertEqual(sensor.poke(None), False)
 
-    def test_poke_raise_exception_when_method_not_implemented(self):
+    def test_poke_with_not_implemented_method(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
             def non_terminal_states(self):
                 return ['PENDING', 'RUNNING', 'CONTINUE']
@@ -92,9 +92,9 @@ class TestSagemakerBaseSensor(unittest.TestCase):
             aws_conn_id='aws_test'
         )
 
-        self.assertRaises(AirflowException, sensor.poke, None)
+        self.assertRaises(NotImplementedError, sensor.poke, None)
 
-    def test_poke_returns_false_when_http_response_is_bad(self):
+    def test_poke_with_bad_response(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
             def non_terminal_states(self):
                 return ['PENDING', 'RUNNING', 'CONTINUE']
@@ -119,7 +119,7 @@ class TestSagemakerBaseSensor(unittest.TestCase):
 
         self.assertEqual(sensor.poke(None), False)
 
-    def test_poke_raises_error_when_job_has_failed(self):
+    def test_poke_with_job_failure(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
             def non_terminal_states(self):
                 return ['PENDING', 'RUNNING', 'CONTINUE']
