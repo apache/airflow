@@ -89,19 +89,6 @@ except ImportError:
     import pickle
 
 
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-configuration.conf.load_test_config()
-if os.environ.get('KUBERNETES_VERSION') is None:
-    reset()
-
-
 class OperatorSubclass(BaseOperator):
     """
     An operator to test template substitution
@@ -129,6 +116,16 @@ class CoreTest(unittest.TestCase):
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.run_after_loop = self.dag_bash.get_task('run_after_loop')
         self.run_this_last = self.dag_bash.get_task('run_this_last')
+
+    def tearDown(self):
+        if os.environ.get('KUBERNETES_VERSION') is None:
+            session = Session()
+            session.query(models.TaskInstance).filter_by(
+                dag_id=TEST_DAG_ID).delete()
+            session.query(models.TaskFail).filter_by(
+                dag_id=TEST_DAG_ID).delete()
+            session.commit()
+            session.close()
 
     def test_schedule_dag_no_previous_runs(self):
         """
