@@ -91,6 +91,45 @@ CLOUD_SQL_VALIDATION = [
         ], optional=True),
     ], optional=True)
 ]
+CLOUD_SQL_EXPORT_VALIDATION = [
+    dict(name="exportContext", type="dict", fields=[
+        dict(name="fileType", allow_empty=False),
+        dict(name="uri", allow_empty=False),
+        dict(name="databases", type="list"),
+        dict(name="sqlExportOptions", type="dict", optional=True, fields=[
+            dict(name="tables", type="list"),
+            dict(name="schemaOnly")
+        ]),
+        dict(name="csvExportOptions", type="dict", optional=True, fields=[
+            dict(name="selectQuery")
+        ])
+    ])
+]
+CLOUD_SQL_IMPORT_VALIDATION = [
+    dict(name="importContext", type="dict", fields=[
+        dict(name="fileType", allow_empty=False),
+        dict(name="uri", allow_empty=False),
+        dict(name="database", optional=True, allow_empty=False),
+        dict(name="importUser", optional=True),
+        dict(name="csvImportOptions", type="dict", optional=True, fields=[
+            dict(name="table"),
+            dict(name="columns", type="list", optional=True)
+        ])
+    ])
+]
+CLOUD_SQL_DATABASE_INSERT_VALIDATION = [
+    dict(name="instance", allow_empty=False),
+    dict(name="name", allow_empty=False),
+    dict(name="project", allow_empty=False),
+]
+CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
+    dict(name="instance", optional=True),
+    dict(name="name", optional=True),
+    dict(name="project", optional=True),
+    dict(name="etag", optional=True),
+    dict(name="charset", optional=True),
+    dict(name="collation", optional=True),
+]
 
 
 class CloudSqlBaseOperator(BaseOperator):
@@ -137,6 +176,15 @@ class CloudSqlBaseOperator(BaseOperator):
                 return False
             raise e
 
+    def _check_if_db_exists(self, db_name):
+        try:
+            return self._hook.get_database(self.project_id, self.instance, db_name)
+        except HttpError as e:
+            status = e.resp.status
+            if status == 404:
+                return False
+            raise e
+
     def execute(self, context):
         pass
 
@@ -162,7 +210,7 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
     :type instance: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param api_version: API version used (e.g. v1).
+    :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
     :param validate_body: True if body should be validated, False otherwise.
     :type validate_body: bool
@@ -226,7 +274,7 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
     :type instance: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param api_version: API version used (e.g. v1).
+    :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
     """
     # [START gcp_sql_patch_template_fields]
@@ -270,7 +318,7 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
     :type instance: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
-    :param api_version: API version used (e.g. v1).
+    :param api_version: API version used (e.g. v1beta4).
     :type api_version: str
     """
     # [START gcp_sql_delete_template_fields]
@@ -295,3 +343,184 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
             return True
         else:
             return self._hook.delete_instance(self.project_id, self.instance)
+
+
+class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
+    """
+    Creates a new database inside a Cloud SQL instance.
+
+    :param project_id: Project ID of the project that contains the instance.
+    :type project_id: str
+    :param instance: Database instance ID. This does not include the project ID.
+    :type instance: str
+    :param body: The request body, as described in
+        https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body
+    :type body: dict
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param api_version: API version used (e.g. v1beta4).
+    :type api_version: str
+    :param validate_body: Whether the body should be validated. Defaults to True.
+    :type validate_body: bool
+    """
+    # [START gcp_sql_db_create_template_fields]
+    template_fields = ('project_id', 'instance', 'gcp_conn_id', 'api_version')
+    # [END gcp_sql_db_create_template_fields]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id,
+                 instance,
+                 body,
+                 gcp_conn_id='google_cloud_default',
+                 api_version='v1beta4',
+                 validate_body=True,
+                 *args, **kwargs):
+        self.body = body
+        self.validate_body = validate_body
+        super(CloudSqlInstanceDatabaseCreateOperator, self).__init__(
+            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
+            api_version=api_version, *args, **kwargs)
+
+    def _validate_inputs(self):
+        super(CloudSqlInstanceDatabaseCreateOperator, self)._validate_inputs()
+        if not self.body:
+            raise AirflowException("The required parameter 'body' is empty")
+
+    def _validate_body_fields(self):
+        if self.validate_body:
+            GcpBodyFieldValidator(CLOUD_SQL_DATABASE_INSERT_VALIDATION,
+                                  api_version=self.api_version).validate(self.body)
+
+    def execute(self, context):
+        self._validate_body_fields()
+        database = self.body.get("name")
+        if not database:
+            self.log.error("Body doesn't contain 'name'. Cannot check if the"
+                           " database already exists in the instance {}."
+                           .format(self.instance))
+            return False
+        if self._check_if_db_exists(database):
+            self.log.info("Cloud SQL instance with ID {} already contains database"
+                          " '{}'. Aborting database insert."
+                          .format(self.instance, database))
+            return True
+        else:
+            return self._hook.create_database(self.project_id, self.instance, self.body)
+
+
+class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
+    """
+    Updates a resource containing information about a database inside a Cloud SQL
+    instance using patch semantics.
+    See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
+
+    :param project_id: Project ID of the project that contains the instance.
+    :type project_id: str
+    :param instance: Database instance ID. This does not include the project ID.
+    :type instance: str
+    :param database: Name of the database to be updated in the instance.
+    :type database: str
+    :param body: The request body, as described in
+        https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch#request-body
+    :type body: dict
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param api_version: API version used (e.g. v1beta4).
+    :type api_version: str
+    :param validate_body: Whether the body should be validated. Defaults to True.
+    :type validate_body: bool
+    """
+    # [START gcp_sql_db_patch_template_fields]
+    template_fields = ('project_id', 'instance', 'database', 'gcp_conn_id',
+                       'api_version')
+    # [END gcp_sql_db_patch_template_fields]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id,
+                 instance,
+                 database,
+                 body,
+                 gcp_conn_id='google_cloud_default',
+                 api_version='v1beta4',
+                 validate_body=True,
+                 *args, **kwargs):
+        self.database = database
+        self.body = body
+        self.validate_body = validate_body
+        super(CloudSqlInstanceDatabasePatchOperator, self).__init__(
+            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
+            api_version=api_version, *args, **kwargs)
+
+    def _validate_inputs(self):
+        super(CloudSqlInstanceDatabasePatchOperator, self)._validate_inputs()
+        if not self.body:
+            raise AirflowException("The required parameter 'body' is empty")
+        if not self.database:
+            raise AirflowException("The required parameter 'database' is empty")
+
+    def _validate_body_fields(self):
+        if self.validate_body:
+            GcpBodyFieldValidator(CLOUD_SQL_DATABASE_PATCH_VALIDATION,
+                                  api_version=self.api_version).validate(self.body)
+
+    def execute(self, context):
+        self._validate_body_fields()
+        if not self._check_if_db_exists(self.database):
+            raise AirflowException("Cloud SQL instance with ID {} does not contain "
+                                   "database '{}'. "
+                                   "Please specify another database to patch."
+                                   .format(self.instance, self.database))
+        else:
+            return self._hook.patch_database(self.project_id, self.instance,
+                                             self.database, self.body)
+
+
+class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
+    """
+    Deletes a database from a Cloud SQL instance.
+
+    :param project_id: Project ID of the project that contains the instance.
+    :type project_id: str
+    :param instance: Database instance ID. This does not include the project ID.
+    :type instance: str
+    :param database: Name of the database to be deleted in the instance.
+    :type database: str
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    :param api_version: API version used (e.g. v1beta4).
+    :type api_version: str
+    """
+    # [START gcp_sql_db_delete_template_fields]
+    template_fields = ('project_id', 'instance', 'database', 'gcp_conn_id',
+                       'api_version')
+    # [END gcp_sql_db_delete_template_fields]
+
+    @apply_defaults
+    def __init__(self,
+                 project_id,
+                 instance,
+                 database,
+                 gcp_conn_id='google_cloud_default',
+                 api_version='v1beta4',
+                 *args, **kwargs):
+        self.database = database
+        super(CloudSqlInstanceDatabaseDeleteOperator, self).__init__(
+            project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
+            api_version=api_version, *args, **kwargs)
+
+    def _validate_inputs(self):
+        super(CloudSqlInstanceDatabaseDeleteOperator, self)._validate_inputs()
+        if not self.database:
+            raise AirflowException("The required parameter 'database' is empty")
+
+    def execute(self, context):
+        if not self._check_if_db_exists(self.database):
+            print("Cloud SQL instance with ID {} does not contain database '{}'. "
+                  "Aborting database delete."
+                  .format(self.instance, self.database))
+            return True
+        else:
+            return self._hook.delete_database(self.project_id, self.instance,
+                                              self.database)
