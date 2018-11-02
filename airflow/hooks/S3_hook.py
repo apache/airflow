@@ -71,11 +71,11 @@ class S3Hook(AwsHook):
 
     def create_bucket(self, bucket_name, region_name=None):
         """
-        Creates a boto3.S3.Bucket object
+        Creates an Amazon S3 bucket.
 
-        :param bucket_name: the name of the bucket
+        :param bucket_name: The name of the bucket
         :type bucket_name: str
-        :param region__name: the name of the aws region
+        :param region_name: The name of the aws region in which to create the bucket.
         :type region_name: str
         """
         s3_conn = self.get_conn()
@@ -428,19 +428,19 @@ class S3Hook(AwsHook):
                       replace=False,
                       encrypt=False):
         """
-        Loads file object to S3
+        Loads a file object to S3
 
-        :param file_obj: file-like object to set as content for the key.
+        :param file_obj: The file-like object to set as the content for the S3 key.
         :type file_obj: file-like object
         :param key: S3 key that will point to the file
         :type key: str
         :param bucket_name: Name of the bucket in which to store the file
         :type bucket_name: str
-        :param replace: A flag to decide whether or not to overwrite the key
-            if it already exists
+        :param replace: A flag that indicates whether to overwrite the key
+            if it already exists.
         :type replace: bool
-        :param encrypt: If True, the file will be encrypted on the server-side
-            by S3 and will be stored in an encrypted form while at rest in S3.
+        :param encrypt: If True, S3 encrypts the file on the server,
+            and the file is stored in encrypted form at rest in S3.
         :type encrypt: bool
         """
         if not bucket_name:
