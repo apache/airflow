@@ -515,9 +515,36 @@ Cloud SQL
 Cloud SQL Operators
 """""""""""""""""""
 
+- :ref:`CloudSqlInstanceDatabaseDeleteOperator` : deletes a database from a Cloud SQL
+instance.
+- :ref:`CloudSqlInstanceDatabaseCreateOperator` : creates a new database inside a Cloud
+SQL instance.
+- :ref:`CloudSqlInstanceDatabasePatchOperator` : updates a database inside a Cloud
+SQL instance.
 - :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
 - :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
 - :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
+
+.. CloudSqlInstanceDatabaseDeleteOperator:
+
+CloudSqlInstanceDatabaseDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
+
+.. CloudSqlInstanceDatabaseCreateOperator:
+
+CloudSqlInstanceDatabaseCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
+
+.. CloudSqlInstanceDatabasePatchOperator:
+
+CloudSqlInstanceDatabasePatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
 
 .. CloudSqlInstanceDeleteOperator:
 
@@ -536,12 +563,12 @@ CloudSqlInstanceCreateOperator
 .. CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
 
 Cloud SQL Hook
-""""""""""""""""""""
+""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
     :members:
@@ -566,14 +593,14 @@ GceInstanceStartOperator
 .. _GceInstanceStopOperator:
 
 GceInstanceStopOperator
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator
 
 .. _GceSetMachineTypeOperator:
 
 GceSetMachineTypeOperator
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 

@@ -144,6 +144,96 @@ class CloudSqlHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         return self._wait_for_operation_to_complete(project_id, operation_name)
 
+    def get_database(self, project_id, instance, database):
+        """
+        Retrieves a database resource from a Cloud SQL instance.
+
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
+        :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
+        :param database: Name of the database in the instance.
+        :type database: str
+        :return: A Cloud SQL database resource, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource
+        :rtype: dict
+        """
+        return self.get_conn().databases().get(
+            project=project_id,
+            instance=instance,
+            database=database
+        ).execute(num_retries=NUM_RETRIES)
+
+    def create_database(self, project, instance, body):
+        """
+        Creates a new database inside a Cloud SQL instance.
+
+        :param project: Project ID of the project that contains the instance.
+        :type project: str
+        :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body
+        :type body: dict
+        :return: True if the operation succeeded, raises an error otherwise
+        :rtype: bool
+        """
+        response = self.get_conn().databases().insert(
+            project=project,
+            instance=instance,
+            body=body
+        ).execute(num_retries=NUM_RETRIES)
+        operation_name = response["name"]
+        return self._wait_for_operation_to_complete(project, operation_name)
+
+    def patch_database(self, project, instance, database, body):
+        """
+        Updates a database resource inside a Cloud SQL instance.
+        This method supports patch semantics.
+        See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
+
+        :param project: Project ID of the project that contains the instance.
+        :type project: str
+        :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
+        :param database: Name of the database to be updated in the instance.
+        :type database: str
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body
+        :type body: dict
+        :return: True if the operation succeeded, raises an error otherwise
+        :rtype: bool
+        """
+        response = self.get_conn().databases().patch(
+            project=project,
+            instance=instance,
+            database=database,
+            body=body
+        ).execute(num_retries=NUM_RETRIES)
+        operation_name = response["name"]
+        return self._wait_for_operation_to_complete(project, operation_name)
+
+    def delete_database(self, project, instance, database):
+        """
+        Deletes a database from a Cloud SQL instance.
+
+        :param project: Project ID of the project that contains the instance.
+        :type project: str
+        :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
+        :param database: Name of the database to be deleted in the instance.
+        :type database: str
+        :return: True if the operation succeeded, raises an error otherwise
+        :rtype: bool
+        """
+        response = self.get_conn().databases().delete(
+            project=project,
+            instance=instance,
+            database=database
+        ).execute(num_retries=NUM_RETRIES)
+        operation_name = response["name"]
+        return self._wait_for_operation_to_complete(project, operation_name)
+
     def _wait_for_operation_to_complete(self, project_id, operation_name):
         """
         Waits for the named operation to complete - checks status of the
