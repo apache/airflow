@@ -26,8 +26,8 @@
 // and publish them to an S3 bucket so any service at Lyft can
 // reference them
 
-var DP_ANNOUNCEMENTS_FEED_ATOM_URL = "https://dataplatformadmin.lyft.net/announcements.atom";
-var DP_ANNOUNCEMENTS_FEED_HTML_URL = "https://dataplatformadmin.lyft.net/announcements/recent";
+var DP_ANNOUNCEMENTS_FEED_ATOM_URL = "https://dataplatformadmin.lyft.net/announcements/airflow.atom";
+var DP_ANNOUNCEMENTS_FEED_HTML_URL = "https://dataplatformadmin.lyft.net/announcements/airflow";
 
 var setCss = function(el, attrs) {
     el.setAttribute("style", attrs.join('; '));
