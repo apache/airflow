@@ -454,7 +454,6 @@ class DagTest(unittest.TestCase):
         result = task.render_template('', "{{ 'world' | hello}}", dict())
         self.assertEqual(result, 'Hello world')
 
-
     def test_next_run_date_and_next_execution_date(self):
         """
         [AIRFLOW-1424] test the 'next_run_date' and 'next_execution_date' DAG
@@ -468,7 +467,7 @@ class DagTest(unittest.TestCase):
                        schedule_interval=datetime.timedelta(days=1))
         self.assertEqual(test_dag.next_run_date, None)
 
-        test_task = DummyOperator(task_id=test_task_id, dag=test_dag)
+        DummyOperator(task_id=test_task_id, dag=test_dag)
         self.assertEqual(test_dag.next_run_date, DEFAULT_DATE)
         self.assertEqual(test_dag.next_execution_date,
                          DEFAULT_DATE + datetime.timedelta(days=1))
