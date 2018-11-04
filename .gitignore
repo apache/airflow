@@ -14,11 +14,13 @@ unittests.db
 airflow/git_version
 airflow/www/static/coverage/
 logs/
+airflow-webserver.pid
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache/
 
 # C extensions
 *.so
@@ -62,13 +64,14 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+.pytest_cache
 
 # Translations
 *.mo
 *.pot
 
 # Django stuff:
-*.log
+# *.log
 local_settings.py
 
 # Flask stuff:
@@ -100,8 +103,8 @@ celerybeat-schedule
 .env
 
 # virtualenv
-.venv
-venv/
+.venv*
+venv*
 ENV/
 
 # Spyder project settings
@@ -112,6 +115,10 @@ ENV/
 
 # PyCharm
 .idea/
+*.iml
+
+# Visual Studio Code
+.vscode/
 
 # vim
 *.swp
@@ -124,3 +131,18 @@ ENV/
 
 # Spark
 rat-results.txt
+
+# Git stuff
+.gitattributes
+# Kubernetes generated templated files
+*.generated
+*.tar.gz
+scripts/ci/kubernetes/kube/.generated/airflow.yaml
+
+# Node & Webpack Stuff
+*.entry.js
+node_modules
+npm-debug.log*
+static/dist
+derby.log
+metastore_db

@@ -1,22 +1,27 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import unittest
 
 from airflow import configuration
-from airflow.exceptions import AirflowException
 from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
+from airflow.exceptions import AirflowException
 
 
 class TestEmrBaseSensor(unittest.TestCase):
@@ -26,15 +31,17 @@ class TestEmrBaseSensor(unittest.TestCase):
     def test_subclasses_that_implment_required_methods_and_constants_succeed_when_response_is_good(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
-            def get_emr_response(self):
+            @staticmethod
+            def get_emr_response():
                 return {
                     'SomeKey': {'State': 'COMPLETED'},
                     'ResponseMetadata': {'HTTPStatusCode': 200}
                 }
 
-            def state_from_response(self, response):
+            @staticmethod
+            def state_from_response(response):
                 return response['SomeKey']['State']
 
         operator = EmrBaseSensorSubclass(
@@ -49,15 +56,17 @@ class TestEmrBaseSensor(unittest.TestCase):
     def test_poke_returns_false_when_state_is_a_non_terminal_state(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
-            def get_emr_response(self):
+            @staticmethod
+            def get_emr_response():
                 return {
                     'SomeKey': {'State': 'PENDING'},
                     'ResponseMetadata': {'HTTPStatusCode': 200}
                 }
 
-            def state_from_response(self, response):
+            @staticmethod
+            def state_from_response(response):
                 return response['SomeKey']['State']
 
         operator = EmrBaseSensorSubclass(
@@ -72,15 +81,17 @@ class TestEmrBaseSensor(unittest.TestCase):
     def test_poke_returns_false_when_http_response_is_bad(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
-            def get_emr_response(self):
+            @staticmethod
+            def get_emr_response():
                 return {
                     'SomeKey': {'State': 'COMPLETED'},
                     'ResponseMetadata': {'HTTPStatusCode': 400}
                 }
 
-            def state_from_response(self, response):
+            @staticmethod
+            def state_from_response(response):
                 return response['SomeKey']['State']
 
         operator = EmrBaseSensorSubclass(
@@ -92,19 +103,20 @@ class TestEmrBaseSensor(unittest.TestCase):
 
         self.assertEqual(operator.poke(None), False)
 
-
     def test_poke_raises_error_when_job_has_failed(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
-            def get_emr_response(self):
+            @staticmethod
+            def get_emr_response():
                 return {
                     'SomeKey': {'State': 'FAILED'},
                     'ResponseMetadata': {'HTTPStatusCode': 200}
                 }
 
-            def state_from_response(self, response):
+            @staticmethod
+            def state_from_response(response):
                 return response['SomeKey']['State']
 
         operator = EmrBaseSensorSubclass(
@@ -115,9 +127,7 @@ class TestEmrBaseSensor(unittest.TestCase):
         )
 
         with self.assertRaises(AirflowException) as context:
-
             operator.poke(None)
-
 
         self.assertIn('EMR job failed', str(context.exception))
 

@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import logging
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
@@ -24,14 +27,14 @@ class SimpleHttpOperator(BaseOperator):
     """
     Calls an endpoint on an HTTP system to execute an action
 
-    :param http_conn_id: The connection to run the sensor against
-    :type http_conn_id: string
-    :param endpoint: The relative part of the full url
-    :type endpoint: string
+    :param http_conn_id: The connection to run the operator against
+    :type http_conn_id: str
+    :param endpoint: The relative part of the full url. (templated)
+    :type endpoint: str
     :param method: The HTTP method to use, default = "POST"
-    :type method: string
+    :type method: str
     :param data: The data to pass. POST-data in POST/PUT and params
-        in the URL for a GET request.
+        in the URL for a GET request. (templated)
     :type data: For POST/PUT, depends on the content-type parameter,
         for GET a dictionary of key/value string pairs
     :param headers: The HTTP headers to be added to the GET request
@@ -43,9 +46,13 @@ class SimpleHttpOperator(BaseOperator):
         'requests' documentation (options to modify timeout, ssl, etc.)
     :type extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
+    :param xcom_push: Push the response to Xcom (default: False)
+    :type xcom_push: bool
+    :param log_response: Log the response (default: False)
+    :type log_response: bool
     """
 
-    template_fields = ('endpoint','data',)
+    template_fields = ('endpoint', 'data',)
     template_ext = ()
     ui_color = '#f4a460'
 
@@ -58,7 +65,9 @@ class SimpleHttpOperator(BaseOperator):
                  response_check=None,
                  extra_options=None,
                  xcom_push=False,
-                 http_conn_id='http_default', *args, **kwargs):
+                 http_conn_id='http_default',
+                 log_response=False,
+                 *args, **kwargs):
         """
         If xcom_push is True, response of an HTTP request will also
         be pushed to an XCom.
@@ -72,10 +81,13 @@ class SimpleHttpOperator(BaseOperator):
         self.response_check = response_check
         self.extra_options = extra_options or {}
         self.xcom_push_flag = xcom_push
+        self.log_response = log_response
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
-        logging.info("Calling HTTP method")
+
+        self.log.info("Calling HTTP method")
+
         response = http.run(self.endpoint,
                             self.data,
                             self.headers,
@@ -85,3 +97,5 @@ class SimpleHttpOperator(BaseOperator):
                 raise AirflowException("Response check returned False.")
         if self.xcom_push_flag:
             return response.text
+        if self.log_response:
+            self.log.info(response.text)

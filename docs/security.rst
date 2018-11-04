@@ -8,15 +8,29 @@ SSH tunnels.
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
 
+Be sure to checkout :doc:`api` for securing the API.
+
+.. note::
+
+   Airflow uses the config parser of Python. This config parser interpolates
+   '%'-signs.  Make sure escape any ``%`` signs in your config file (but not
+   environment variables) as ``%%``, otherwise Airflow might leak these
+   passwords on a config parser exception to a log.
+
 Web Authentication
 ------------------
 
 Password
 ''''''''
 
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   please use command line interface ``airflow users --create`` to create accounts, or do that in the FAB-based UI itself.
+
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
 Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
-uses bcrypt before storing passwords.
+uses ``bcrypt`` before storing passwords.
 
 .. code-block:: bash
 
@@ -25,7 +39,7 @@ uses bcrypt before storing passwords.
     auth_backend = airflow.contrib.auth.backends.password_auth
 
 When password auth is enabled, an initial user credential will need to be created before anyone can login. An initial
-user was not created in the migrations for this authenication backend to prevent default Airflow installations from
+user was not created in the migrations for this authentication backend to prevent default Airflow installations from
 attack. Creating a new user has to be done via a Python REPL on the same machine Airflow is installed.
 
 .. code-block:: bash
@@ -224,6 +238,12 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
+To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+
+.. code-block:: base
+
+   pip install airflow[kerberos]
+
 OAuth Authentication
 --------------------
 
@@ -251,6 +271,12 @@ to only members of those teams.
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
+To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+
+.. code-block:: base
+
+   pip install airflow[github_enterprise]
+
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -261,16 +287,25 @@ backend. In order to setup an application:
 2. Select 'Applications' from the left hand nav
 3. Select the 'Developer Applications' tab
 4. Click 'Register new application'
-5. Fill in the required information (the 'Authorization callback URL' must be fully qualifed e.g. http://airflow.example.com/example/ghe_oauth/callback)
+5. Fill in the required information (the 'Authorization callback URL' must be fully qualified e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
 7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
+
+Using GHE Authentication with github.com
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to use GHE authentication with github.com:
+
+1. `Create an Oauth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
+2. Copy 'Client ID', 'Client Secret' to your airflow.cfg according to the above example
+3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in airflow.cfg
 
 Google Authentication
 '''''''''''''''''''''
 
 The Google authentication backend can be used to authenticate users
-against Google using OAuth2. You must specify a domain to restrict login
-to only members of that domain.
+against Google using OAuth2. You must specify the email domains to restrict
+login, separated with a comma, to only members of those domains.
 
 .. code-block:: bash
 
@@ -282,7 +317,13 @@ to only members of that domain.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = example.com
+    domain = "example1.com,example2.com"
+
+To use Google authentication, you must install Airflow with the `google_auth` extras group:
+
+.. code-block:: base
+
+   pip install airflow[google_auth]
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -292,10 +333,9 @@ backend. In order to setup an application:
 
 1. Navigate to https://console.developers.google.com/apis/
 2. Select 'Credentials' from the left hand nav
-2. Select 'Credentials' from the left hand nav
 3. Click 'Create credentials' and choose 'OAuth client ID'
 4. Choose 'Web application'
-5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualifed e.g. http://airflow.example.com/oauth2callback)
+5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualified e.g. http://airflow.example.com/oauth2callback)
 6. Click 'Create'
 7. Copy 'Client ID', 'Client Secret', and your redirect URI to your airflow.cfg according to the above example
 
@@ -327,10 +367,10 @@ certs and keys.
 .. code-block:: bash
 
     [celery]
-    CELERY_SSL_ACTIVE = True
-    CELERY_SSL_KEY = <path to key>
-    CELERY_SSL_CERT = <path to cert>
-    CELERY_SSL_CACERT = <path to cacert>
+    ssl_active = True
+    ssl_key = <path to key>
+    ssl_cert = <path to cert>
+    ssl_cacert = <path to cacert>
 
 Impersonation
 -------------

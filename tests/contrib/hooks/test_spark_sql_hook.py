@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
-import sys
+
+import six
 import unittest
-from io import StringIO
 from itertools import dropwhile
 
-import mock
+from mock import patch, call
 
 from airflow import configuration, models
 from airflow.utils import db
@@ -25,13 +30,13 @@ from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 
 
 def get_after(sentinel, iterable):
-    "Get the value after `sentinel` in an `iterable`"
+    """Get the value after `sentinel` in an `iterable`"""
     truncated = dropwhile(lambda el: el != sentinel, iterable)
     next(truncated)
     return next(truncated)
 
-class TestSparkSqlHook(unittest.TestCase):
 
+class TestSparkSqlHook(unittest.TestCase):
     _config = {
         'conn_id': 'spark_default',
         'executor_cores': 4,
@@ -75,6 +80,37 @@ class TestSparkSqlHook(unittest.TestCase):
 
         if self._config['verbose']:
             assert "--verbose" in cmd
+
+    @patch('airflow.contrib.hooks.spark_sql_hook.subprocess.Popen')
+    def test_spark_process_runcmd(self, mock_popen):
+        # Given
+        mock_popen.return_value.stdout = six.StringIO('Spark-sql communicates using stdout')
+        mock_popen.return_value.stderr = six.StringIO('stderr')
+        mock_popen.return_value.wait.return_value = 0
+
+        # When
+        hook = SparkSqlHook(
+            conn_id='spark_default',
+            sql='SELECT 1'
+        )
+        with patch.object(hook.log, 'debug') as mock_debug:
+            with patch.object(hook.log, 'info') as mock_info:
+                hook.run_query()
+                mock_debug.assert_called_with(
+                    'Spark-Sql cmd: %s',
+                    ['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose',
+                     '--queue', 'default']
+                )
+                mock_info.assert_called_with(
+                    'Spark-sql communicates using stdout'
+                )
+
+        # Then
+        self.assertEqual(
+            mock_popen.mock_calls[0],
+            call(['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose',
+                  '--queue', 'default'], stderr=-2, stdout=-1)
+        )
 
 
 if __name__ == '__main__':

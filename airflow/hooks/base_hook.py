@@ -1,35 +1,39 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from builtins import object
-import logging
 import os
 import random
 
-from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
+from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
-class BaseHook(object):
+class BaseHook(LoggingMixin):
     """
     Abstract base class for hooks, hooks are meant as an interface to
     interact with external systems. MySqlHook, HiveHook, PigHook return
@@ -41,15 +45,14 @@ class BaseHook(object):
         pass
 
     @classmethod
-    def _get_connections_from_db(cls, conn_id):
-        session = settings.Session()
+    @provide_session
+    def _get_connections_from_db(cls, conn_id, session=None):
         db = (
             session.query(Connection)
             .filter(Connection.conn_id == conn_id)
             .all()
         )
         session.expunge_all()
-        session.close()
         if not db:
             raise AirflowException(
                 "The conn_id `{0}` isn't defined".format(conn_id))
@@ -76,7 +79,8 @@ class BaseHook(object):
     def get_connection(cls, conn_id):
         conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
-            logging.info("Using connection to: " + conn.host)
+            log = LoggingMixin().log
+            log.info("Using connection to: %s", conn.debug_info())
         return conn
 
     @classmethod

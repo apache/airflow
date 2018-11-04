@@ -15,7 +15,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -37,7 +37,7 @@ complicated, a line by line explanation follows below.
         # 'end_date': datetime(2016, 1, 1),
     }
 
-    dag = DAG('tutorial', default_args=default_args)
+    dag = DAG('tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
@@ -129,7 +129,7 @@ of default parameters that we can use when creating tasks.
     }
 
 For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:``airflow.models.BaseOperator`` documentation.
+refer to the :py:class:`airflow.models.BaseOperator` documentation.
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have
@@ -147,7 +147,7 @@ define a ``schedule_interval`` of 1 day for the DAG.
 .. code:: python
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
 Tasks
 -----
@@ -195,7 +195,8 @@ templates.
 This tutorial barely scratches the surface of what you can do with
 templating in Airflow, but the goal of this section is to let you know
 this feature exists, get you familiar with double curly brackets, and
-point to the most common template variable: ``{{ ds }}``.
+point to the most common template variable: ``{{ ds }}`` (today's "date
+stamp").
 
 .. code:: python
 
@@ -246,23 +247,36 @@ in templates, make sure to read through the :ref:`macros` section
 
 Setting up Dependencies
 -----------------------
-We have two simple tasks that do not depend on each other. Here's a few ways
+We have tasks `t1`, `t2` and `t3` that do not depend on each other. Here's a few ways
 you can define dependencies between them:
 
 .. code:: python
 
-    t2.set_upstream(t1)
+    t1.set_downstream(t2)
 
     # This means that t2 will depend on t1
-    # running successfully to run
-    # It is equivalent to
-    # t1.set_downstream(t2)
+    # running successfully to run.
+    # It is equivalent to:
+    t2.set_upstream(t1)
 
-    t3.set_upstream(t1)
+    # The bit shift operator can also be
+    # used to chain operations:
+    t1 >> t2
 
-    # all of this is equivalent to
-    # dag.set_dependency('print_date', 'sleep')
-    # dag.set_dependency('print_date', 'templated')
+    # And the upstream dependency with the
+    # bit shift operator:
+    t2 << t1
+
+    # Chaining multiple dependencies becomes
+    # concise with the bit shift operator:
+    t1 >> t2 >> t3
+
+    # A list of tasks can also be set as
+    # dependencies. These operations
+    # all have the same effect:
+    t1.set_downstream([t2, t3])
+    t1 >> [t2, t3]
+    [t2, t3] << t1
 
 Note that when executing your script, Airflow will raise exceptions when
 it finds cycles in your DAG or when a dependency is referenced more
@@ -276,8 +290,8 @@ something like this:
 .. code:: python
 
     """
-    Code that goes along with the Airflow located at:
-    http://airflow.readthedocs.org/en/latest/tutorial.html
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -300,7 +314,7 @@ something like this:
     }
 
     dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
+        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
     # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(

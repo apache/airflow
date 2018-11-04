@@ -1,31 +1,54 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from datetime import datetime
 from functools import wraps
-import logging
-import os
 
-from sqlalchemy import event, exc
-from sqlalchemy.pool import Pool
+import os
+import contextlib
 
 from airflow import settings
+from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = LoggingMixin().log
+
+
+@contextlib.contextmanager
+def create_session():
+    """
+    Contextmanager that will create and teardown a session.
+    """
+    session = settings.Session()
+    try:
+        yield session
+        session.expunge_all()
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
 
 def provide_session(func):
     """
@@ -36,37 +59,21 @@ def provide_session(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        needs_session = False
         arg_session = 'session'
+
         func_params = func.__code__.co_varnames
         session_in_args = arg_session in func_params and \
             func_params.index(arg_session) < len(args)
-        if not (arg_session in kwargs or session_in_args):
-            needs_session = True
-            session = settings.Session()
-            kwargs[arg_session] = session
-        result = func(*args, **kwargs)
-        if needs_session:
-            session.expunge_all()
-            session.commit()
-            session.close()
-        return result
+        session_in_kwargs = arg_session in kwargs
+
+        if session_in_kwargs or session_in_args:
+            return func(*args, **kwargs)
+        else:
+            with create_session() as session:
+                kwargs[arg_session] = session
+                return func(*args, **kwargs)
+
     return wrapper
-
-
-def pessimistic_connection_handling():
-    @event.listens_for(Pool, "checkout")
-    def ping_connection(dbapi_connection, connection_record, connection_proxy):
-        '''
-        Disconnect Handling - Pessimistic, taken from:
-        http://docs.sqlalchemy.org/en/rel_0_9/core/pooling.html
-        '''
-        cursor = dbapi_connection.cursor()
-        try:
-            cursor.execute("SELECT 1")
-        except:
-            raise exc.DisconnectionError()
-        cursor.close()
 
 
 @provide_session
@@ -78,23 +85,7 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-@event.listens_for(settings.engine, "connect")
-def connect(dbapi_connection, connection_record):
-    connection_record.info['pid'] = os.getpid()
-
-
-@event.listens_for(settings.engine, "checkout")
-def checkout(dbapi_connection, connection_record, connection_proxy):
-    pid = os.getpid()
-    if connection_record.info['pid'] != pid:
-        connection_record.connection = connection_proxy.connection = None
-        raise exc.DisconnectionError(
-            "Connection record belongs to pid {}, "
-            "attempting to check out in pid {}".format(connection_record.info['pid'], pid)
-        )
-
-
-def initdb():
+def initdb(rbac=False):
     session = settings.Session()
 
     from airflow import models
@@ -103,13 +94,8 @@ def initdb():
     merge_conn(
         models.Connection(
             conn_id='airflow_db', conn_type='mysql',
-            host='localhost', login='root', password='',
+            host='mysql', login='root', password='',
             schema='airflow'))
-    merge_conn(
-        models.Connection(
-            conn_id='airflow_ci', conn_type='mysql',
-            host='localhost', login='root', extra="{\"local_infile\": true}",
-            schema='airflow_ci'))
     merge_conn(
         models.Connection(
             conn_id='beeline_default', conn_type='beeline', port="10000",
@@ -117,7 +103,8 @@ def initdb():
             schema='default'))
     merge_conn(
         models.Connection(
-            conn_id='bigquery_default', conn_type='bigquery'))
+            conn_id='bigquery_default', conn_type='google_cloud_platform',
+            schema='default'))
     merge_conn(
         models.Connection(
             conn_id='local_mysql', conn_type='mysql',
@@ -148,15 +135,21 @@ def initdb():
             port=9083))
     merge_conn(
         models.Connection(
+            conn_id='mongo_default', conn_type='mongo',
+            host='mongo', port=27017))
+    merge_conn(
+        models.Connection(
             conn_id='mysql_default', conn_type='mysql',
             login='root',
-            host='localhost'))
+            schema='airflow',
+            host='mysql'))
     merge_conn(
         models.Connection(
             conn_id='postgres_default', conn_type='postgres',
             login='postgres',
+            password='airflow',
             schema='airflow',
-            host='localhost'))
+            host='postgres'))
     merge_conn(
         models.Connection(
             conn_id='sqlite_default', conn_type='sqlite',
@@ -187,6 +180,13 @@ def initdb():
             host='localhost'))
     merge_conn(
         models.Connection(
+            conn_id='sftp_default', conn_type='sftp',
+            host='localhost', port=22, login='airflow',
+            extra='''
+                {"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}
+            '''))
+    merge_conn(
+        models.Connection(
             conn_id='fs_default', conn_type='fs',
             extra='{"path": "/"}'))
     merge_conn(
@@ -197,6 +197,14 @@ def initdb():
         models.Connection(
             conn_id='spark_default', conn_type='spark',
             host='yarn', extra='{"queue": "root.default"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='druid_broker_default', conn_type='druid',
+            host='druid-broker', port=8082, extra='{"endpoint": "druid/v2/sql"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='druid_ingest_default', conn_type='druid',
+            host='druid-overlord', port=8081, extra='{"endpoint": "druid/indexer/v1/task"}'))
     merge_conn(
         models.Connection(
             conn_id='redis_default', conn_type='redis',
@@ -214,6 +222,8 @@ def initdb():
                     "LogUri": "s3://my-emr-log-bucket/default_job_flow_location",
                     "ReleaseLabel": "emr-4.6.0",
                     "Instances": {
+                        "Ec2KeyName": "mykey",
+                        "Ec2SubnetId": "somesubnet",
                         "InstanceGroups": [
                             {
                                 "Name": "Master nodes",
@@ -229,12 +239,10 @@ def initdb():
                                 "InstanceType": "r3.2xlarge",
                                 "InstanceCount": 1
                             }
-                        ]
+                        ],
+                        "TerminationProtected": false,
+                        "KeepJobFlowAliveWhenNoSteps": false
                     },
-                    "Ec2KeyName": "mykey",
-                    "KeepJobFlowAliveWhenNoSteps": false,
-                    "TerminationProtected": false,
-                    "Ec2SubnetId": "somesubnet",
                     "Applications":[
                         { "Name": "Spark" }
                     ],
@@ -257,6 +265,22 @@ def initdb():
         models.Connection(
             conn_id='databricks_default', conn_type='databricks',
             host='localhost'))
+    merge_conn(
+        models.Connection(
+            conn_id='qubole_default', conn_type='qubole',
+            host='localhost'))
+    merge_conn(
+        models.Connection(
+            conn_id='segment_default', conn_type='segment',
+            extra='{"write_key": "my-segment-write-key"}')),
+    merge_conn(
+        models.Connection(
+            conn_id='azure_data_lake_default', conn_type='azure_data_lake',
+            extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }'))
+    merge_conn(
+        models.Connection(
+            conn_id='cassandra_default', conn_type='cassandra',
+            host='cassandra', port=9042))
 
     # Known event types
     KET = models.KnownEventType
@@ -274,9 +298,8 @@ def initdb():
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
-    now = datetime.utcnow()
     for dag in dagbag.dags.values():
-        models.DAG.sync_to_db(dag, dag.owner, now)
+        dag.sync_to_db()
     # Deactivate the unknown ones
     models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
@@ -298,33 +321,48 @@ def initdb():
         session.add(chart)
         session.commit()
 
+    if rbac:
+        from flask_appbuilder.security.sqla import models
+        from flask_appbuilder.models.sqla import Base
+        Base.metadata.create_all(settings.engine)
+
 
 def upgradedb():
     # alembic adds significant import time, so we import it lazily
     from alembic import command
     from alembic.config import Config
 
-    logging.info("Creating tables")
+    log.info("Creating tables")
+
     current_dir = os.path.dirname(os.path.abspath(__file__))
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
-    config.set_main_option('script_location', directory)
-    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
+    config.set_main_option('script_location', directory.replace('%', '%%'))
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
 
 
-def resetdb():
-    '''
+def resetdb(rbac):
+    """
     Clear out the database
-    '''
+    """
     from airflow import models
+
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
 
-    logging.info("Dropping tables that exist")
+    log.info("Dropping tables that exist")
+
     models.Base.metadata.drop_all(settings.engine)
     mc = MigrationContext.configure(settings.engine)
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
-    initdb()
+
+    if rbac:
+        # drop rbac security tables
+        from flask_appbuilder.security.sqla import models
+        from flask_appbuilder.models.sqla import Base
+        Base.metadata.drop_all(settings.engine)
+
+    initdb(rbac)
