@@ -66,5 +66,4 @@ three_task = PythonOperator(
         "KubernetesExecutor": {"request_memory": "128Mi", "limit_memory": "128Mi"}}
 )
 
-
 start_task.set_downstream([one_task, two_task, three_task])
