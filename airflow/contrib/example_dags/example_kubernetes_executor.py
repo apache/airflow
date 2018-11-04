@@ -42,6 +42,14 @@ def use_zip_binary():
     assert rc == 0
 
 
+def test_volume_mount():
+    with open('/foo/volume_mount_test.txt', 'w') as foo:
+        foo.write('Hello')
+
+    rc = os.system("cat /foo/volume_mount_test.txt")
+    assert rc == 0
+
+
 # You don't have to use any special KubernetesExecutor configuration if you don't want to
 start_task = PythonOperator(
     task_id="start_task", python_callable=print_stuff, dag=dag
@@ -68,18 +76,18 @@ three_task = PythonOperator(
 
 # Mount volume or secret to the worker pod
 four_task = PythonOperator(
-    task_id="four_task", python_callable=print_stuff, dag=dag,
+    task_id="four_task", python_callable=test_volume_mount, dag=dag,
     executor_config={
         "KubernetesExecutor": {
             "volumes": [
                 {
                     "name": "test-volume",
-                    "hostPath": {"path": "/data"},
+                    "hostPath": {"path": "/tmp/"},
                 },
             ],
             "volume_mounts": [
                 {
-                    "mountPath": "/test-pd",
+                    "mountPath": "/foo/",
                     "name": "test-volume",
                 },
             ]
