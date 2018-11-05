@@ -3540,7 +3540,7 @@ class DAG(BaseDag, LoggingMixin):
         using_start_date = using_start_date or min([t.start_date for t in self.tasks])
         using_end_date = using_end_date or timezone.utcnow()
 
-        # next run date for a subdag isn't relevant (s  chedule_interval for subdags
+        # next run date for a subdag isn't relevant (schedule_interval for subdags
         # is ignored) so we use the dag run's start date in the case of a subdag
         next_run_date = (self.normalize_schedule(using_start_date)
                          if not self.is_subdag else using_start_date)
