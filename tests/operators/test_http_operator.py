@@ -42,22 +42,21 @@ class AnyStringWith(str):
 
 class SimpleHttpOpTests(unittest.TestCase):
     def setUp(self):
-        # Creating a local Http connection to Airflow Webserver
-        os.environ['AIRFLOW_CONN_HTTP_GOOGLE'] = 'http://www.google.com'
+        os.environ['AIRFLOW_CONN_HTTP_EXAMPLE'] = 'http://www.example.com'
 
     def test_response_in_logs(self):
         """
-        Test that when using SimpleHttpOperator with 'GET' on localhost:8080,
-        the log contains 'Google' in it
+        Test that when using SimpleHttpOperator with 'GET',
+        the log contains 'Example Domain' in it
         """
         operator = SimpleHttpOperator(
             task_id='test_HTTP_op',
             method='GET',
             endpoint='/',
-            http_conn_id='HTTP_GOOGLE',
+            http_conn_id='HTTP_EXAMPLE',
             log_response=True,
         )
 
         with patch.object(operator.log, 'info') as mock_info:
             operator.execute(None)
-            mock_info.assert_called_with(AnyStringWith('Google'))
+            mock_info.assert_called_with(AnyStringWith('Example Domain'))
