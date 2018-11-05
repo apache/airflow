@@ -66,8 +66,7 @@ LDAP
 ''''
 
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
-an encrypted connection to the ldap server as you probably do not want passwords be readable on the network level.
-We do not support insecure connections anymore.
+an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
 
 Additionally, if you are using Active Directory, and are not explicitly specifying an OU that your users are in,
 you will need to change ``search_scope`` to "SUBTREE".
