@@ -1847,17 +1847,6 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("DAGs", resp_html)
         self.assertIn("example_bash_operator", resp_html)
 
-        # The HTML should contain data for the last-run. A link to the specific run,
-        #  and the text of the date.
-        url = "/admin/airflow/graph?" + urlencode({
-            "dag_id": self.dag_python.dag_id,
-            "execution_date": self.dagrun_python.execution_date,
-        }).replace("&", "&amp;")
-        self.assertIn(url, resp_html)
-        self.assertIn(
-            self.dagrun_python.execution_date.strftime("%Y-%m-%d %H:%M"),
-            resp_html)
-
     def test_query(self):
         response = self.app.get('/admin/queryview/')
         self.assertIn("Ad Hoc Query", response.data.decode('utf-8'))
@@ -1941,6 +1930,9 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/task_stats')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
+        response = self.app.get(
+            '/admin/airflow/last_dagruns')
+        self.assertIn("example_python_operator", response.data.decode('utf-8'))
         url = (
             "/admin/airflow/success?task_id=print_the_context&"
             "dag_id=example_python_operator&upstream=false&downstream=false&"
