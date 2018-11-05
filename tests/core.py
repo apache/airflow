@@ -2110,6 +2110,11 @@ class PasswordUserTest(unittest.TestCase):
         self.password_user.password = "secure_password"
         self.assertTrue(self.password_user.authenticate("secure_password"))
 
+    def test_password_unicode_user_authenticate(self):
+        self.password_user.username = u"🐼"  # This is a panda
+        self.password_user.password = "secure_password"
+        self.assertTrue(self.password_user.authenticate("secure_password"))
+
     def test_password_authenticate_session(self):
         from airflow.contrib.auth.backends.password_auth import PasswordUser
         self.password_user.password = 'test_password'
