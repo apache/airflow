@@ -158,7 +158,7 @@ class KubernetesExecutorTest(unittest.TestCase):
 
     def test_integration_run_dag(self):
         host = get_minikube_host()
-        dag_id = 'example_kubernetes_annotation'
+        dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)
 
@@ -181,7 +181,7 @@ class KubernetesExecutorTest(unittest.TestCase):
 
     def test_integration_run_dag_with_scheduler_failure(self):
         host = get_minikube_host()
-        dag_id = 'example_kubernetes_annotation'
+        dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)
 
