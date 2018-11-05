@@ -1697,14 +1697,6 @@ class TaskInstance(Base, LoggingMixin):
             self.handle_failure(e, test_mode, context)
             raise
 
-        # Recording SUCCESS
-        self.end_date = timezone.utcnow()
-        self.set_duration()
-        if not test_mode:
-            session.add(Log(self.state, self))
-            session.merge(self)
-        session.commit()
-
         # Success callback
         try:
             if task.on_success_callback:
@@ -1713,6 +1705,12 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Failed when executing success callback")
             self.log.exception(e3)
 
+        # Recording SUCCESS
+        self.end_date = timezone.utcnow()
+        self.set_duration()
+        if not test_mode:
+            session.add(Log(self.state, self))
+            session.merge(self)
         session.commit()
 
     @provide_session
