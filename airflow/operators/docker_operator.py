@@ -48,6 +48,10 @@ class DockerOperator(BaseOperator):
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
     :type api_version: str
+    :param auto_remove: Auto-removal of the container on daemon side when the
+        container's process exits.
+        The default is False.
+    :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
     :type command: str or list
     :param cpus: Number of CPUs to assign to the container.
@@ -134,11 +138,13 @@ class DockerOperator(BaseOperator):
             docker_conn_id=None,
             dns=None,
             dns_search=None,
+            auto_remove=False,
             *args,
             **kwargs):
 
         super(DockerOperator, self).__init__(*args, **kwargs)
         self.api_version = api_version
+        self.auto_remove = auto_remove
         self.command = command
         self.cpus = cpus
         self.dns = dns
@@ -203,6 +209,7 @@ class DockerOperator(BaseOperator):
                 command=self.get_command(),
                 environment=self.environment,
                 host_config=self.cli.create_host_config(
+                    auto_remove=self.auto_remove,
                     binds=self.volumes,
                     network_mode=self.network_mode,
                     shm_size=self.shm_size,
