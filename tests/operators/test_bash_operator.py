@@ -65,6 +65,9 @@ class BashOperatorTestCase(unittest.TestCase):
                              'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
                              'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(fname)
             )
+
+            original_AIRFLOW_HOME = os.environ['AIRFLOW_HOME']
+
             os.environ['AIRFLOW_HOME'] = 'MY_PATH_TO_AIRFLOW_HOME'
             t.run(DEFAULT_DATE, DEFAULT_DATE,
                   ignore_first_depends_on_past=True, ignore_ti_state=True)
@@ -78,3 +81,5 @@ class BashOperatorTestCase(unittest.TestCase):
                 self.assertIn('echo_env_vars', output)
                 self.assertIn(DEFAULT_DATE.isoformat(), output)
                 self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
+
+            os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
