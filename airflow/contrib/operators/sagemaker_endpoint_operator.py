@@ -87,6 +87,8 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
         self.operation = operation.lower()
+        if self.operation not in ['create', 'update']:
+            raise AirflowException('Invalid value! Argument operation has to be one of "create" and "update"')
         self.create_integer_fields()
 
     def create_integer_fields(self):
@@ -106,9 +108,9 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     def execute(self, context):
         self.preprocess_config()
 
-        model_info = self.config['Model'] if 'Model' in self.config else None
-        endpoint_config_info = self.config['EndpointConfig'] if 'EndpointConfig' in self.config else None
-        endpoint_info = self.config['Endpoint'] if 'Endpoint' in self.config else self.config
+        model_info = self.config.get('Model')
+        endpoint_config_info = self.config.get('EndpointConfig')
+        endpoint_info = self.config.get('Endpoint', self.config)
 
         if model_info:
             self.log.info('Creating SageMaker model %s.', model_info['ModelName'])

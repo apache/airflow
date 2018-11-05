@@ -26,7 +26,8 @@ from airflow.exceptions import AirflowException
 class SageMakerModelOperator(SageMakerBaseOperator):
 
     """
-    Create a SageMaker model
+    Create a SageMaker model.
+    
     This operator returns The ARN of the model created in Amazon SageMaker
 
     :param config: The configuration necessary to create a model.
