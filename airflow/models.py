@@ -665,6 +665,7 @@ class Connection(Base, LoggingMixin):
         ('segment', 'Segment',),
         ('azure_data_lake', 'Azure Data Lake'),
         ('cassandra', 'Cassandra',),
+        ('qubole', 'Qubole'),
     ]
 
     def __init__(
