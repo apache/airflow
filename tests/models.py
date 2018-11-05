@@ -2558,6 +2558,40 @@ class TaskInstanceTest(unittest.TestCase):
         ti.set_duration()
         self.assertIsNone(ti.duration)
 
+    def test_success_callbak_no_race_condition(self):
+        class CallbackWrapper(object):
+            def wrap_task_instance(self, ti):
+                self.task_id = ti.task_id
+                self.dag_id = ti.dag_id
+                self.execution_date = ti.execution_date
+                self.task_state_in_callback = ""
+                self.callback_ran = False
+
+            def success_handler(self, context):
+                self.callback_ran = True
+                session = settings.Session()
+                temp_instance = session.query(TI).filter(
+                    TI.task_id == self.task_id).filter(
+                    TI.dag_id == self.dag_id).filter(
+                    TI.execution_date == self.execution_date).one()
+                self.task_state_in_callback = temp_instance.state
+        cw = CallbackWrapper()
+        dag = DAG('test_success_callbak_no_race_condition', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task = DummyOperator(task_id='op', email='test@test.test',
+                             on_success_callback=cw.success_handler, dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        cw.wrap_task_instance(ti)
+        ti._run_raw_task()
+        self.assertTrue(cw.callback_ran)
+        self.assertEqual(cw.task_state_in_callback, State.RUNNING)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
+
 
 class ClearTasksTest(unittest.TestCase):
 
