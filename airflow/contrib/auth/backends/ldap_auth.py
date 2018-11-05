@@ -271,6 +271,9 @@ def load_user(userid, session=None):
         return None
 
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
+    if not user:
+        return None
+
     return LdapUser(user)
 
 
