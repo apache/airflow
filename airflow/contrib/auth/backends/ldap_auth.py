@@ -57,6 +57,12 @@ class LdapException(Exception):
 def get_ldap_connection(dn=None, password=None):
     tls_configuration = None
     use_ssl = False
+
+    if dn == "":
+        dn = None
+    if password == "":
+        password = None
+
     try:
         cacert = configuration.conf.get("ldap", "cacert")
         tls_configuration = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cacert)
