@@ -177,7 +177,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     # pylint:disable=redefined-builtin
     def upload(self, bucket, object, filename,
-               mime_type='application/octet-stream', gzip=False):
+               mime_type='application/octet-stream', gzip=False,
+               multipart=False, num_retries=0):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -191,6 +192,14 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type mime_type: str
         :param gzip: Option to compress file for upload
         :type gzip: bool
+        :param multipart: If True, the upload will be split into multiple HTTP requests. The
+                          default size is 256MiB per request. Pass a number instead of True to
+                          specify the request size, which must be a multiple of 262144 (256KiB).
+        :type multipart: bool or int
+        :param num_retries: The number of times to attempt to re-upload the file (or individual
+                            chunks, in the case of multipart uploads). Retries are attempted
+                            with exponential backoff.
+        :type num_retries: int
         """
         service = self.get_conn()
 
@@ -202,22 +211,44 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     shutil.copyfileobj(f_in, f_out)
                     filename = filename_gz
 
-        media = MediaFileUpload(filename, mime_type)
-
         try:
-            service \
-                .objects() \
-                .insert(bucket=bucket, name=object, media_body=media) \
-                .execute()
+            if multipart:
+                if multipart is True:
+                    chunksize = 256 * 1024 * 1024
+                else:
+                    chunksize = multipart
 
-            # Clean up gzip file
-            if gzip:
-                os.remove(filename)
-            return True
+                if chunksize % (256 * 1024) > 0 or chunksize < 0:
+                    raise ValueError("Multipart size is not a multiple of 262144 (256KiB)")
+
+                media = MediaFileUpload(filename, mimetype=mime_type,
+                                        chunksize=chunksize, resumable=True)
+
+                request = service.objects().insert(bucket=bucket, name=object, media_body=media)
+                response = None
+                while response is None:
+                    status, response = request.next_chunk(num_retries=num_retries)
+                    if status:
+                        self.log.info("Upload progress %.1f%%", status.progress() * 100)
+
+            else:
+                media = MediaFileUpload(filename, mime_type)
+
+                service \
+                    .objects() \
+                    .insert(bucket=bucket, name=object, media_body=media) \
+                    .execute(num_retries=num_retries)
+
         except errors.HttpError as ex:
             if ex.resp['status'] == '404':
                 return False
             raise
+
+        finally:
+            if gzip:
+                os.remove(filename)
+
+        return True
 
     # pylint:disable=redefined-builtin
     def exists(self, bucket, object):

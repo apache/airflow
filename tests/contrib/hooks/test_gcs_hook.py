@@ -18,6 +18,8 @@
 # under the License.
 
 import unittest
+import tempfile
+import os
 
 from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
@@ -339,3 +341,143 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
 
         self.assertFalse(response)
+
+
+class TestGoogleCloudStorageHookUpload(unittest.TestCase):
+    def setUp(self):
+        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__')):
+            self.gcs_hook = gcs_hook.GoogleCloudStorageHook(
+                google_cloud_storage_conn_id='test'
+            )
+
+        # generate a 384KiB test file (larger than the minimum 256KiB multipart chunk size)
+        self.testfile = tempfile.NamedTemporaryFile(delete=False)
+        self.testfile.write(b"x" * 393216)
+        self.testfile.flush()
+
+    def tearDown(self):
+        os.unlink(self.testfile.name)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.execute.return_value) = {
+            "kind": "storage#object",
+            "id": "{}/{}/0123456789012345".format(test_bucket, test_object),
+            "name": test_object,
+            "bucket": test_bucket,
+            "generation": "0123456789012345",
+            "contentType": "application/octet-stream",
+            "timeCreated": "2018-03-15T16:51:02.502Z",
+            "updated": "2018-03-15T16:51:02.502Z",
+            "storageClass": "MULTI_REGIONAL",
+            "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+            "size": "393216",
+            "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+            "crc32c": "xgdNfQ==",
+            "etag": "CLf4hODk7tkCEAE="
+        }
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name)
+
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_gzip(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.execute.return_value) = {
+            "kind": "storage#object",
+            "id": "{}/{}/0123456789012345".format(test_bucket, test_object),
+            "name": test_object,
+            "bucket": test_bucket,
+            "generation": "0123456789012345",
+            "contentType": "application/octet-stream",
+            "timeCreated": "2018-03-15T16:51:02.502Z",
+            "updated": "2018-03-15T16:51:02.502Z",
+            "storageClass": "MULTI_REGIONAL",
+            "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+            "size": "393216",
+            "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+            "crc32c": "xgdNfQ==",
+            "etag": "CLf4hODk7tkCEAE="
+        }
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name,
+                                        gzip=True)
+        self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_gzip_error(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.execute.side_effect) = HttpError(
+            resp={'status': '404'}, content=EMPTY_CONTENT)
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name,
+                                        gzip=True)
+        self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
+        self.assertFalse(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_multipart(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        class MockProgress:
+            def __init__(self, value):
+                self.value = value
+
+            def progress(self):
+                return self.value
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.next_chunk.side_effect) = [
+            (MockProgress(0.66), None),
+            (MockProgress(1.0), {
+                "kind": "storage#object",
+                "id": "{}/{}/0123456789012345".format(test_bucket, test_object),
+                "name": test_object,
+                "bucket": test_bucket,
+                "generation": "0123456789012345",
+                "contentType": "application/octet-stream",
+                "timeCreated": "2018-03-15T16:51:02.502Z",
+                "updated": "2018-03-15T16:51:02.502Z",
+                "storageClass": "MULTI_REGIONAL",
+                "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+                "size": "393216",
+                "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+                "crc32c": "xgdNfQ==",
+                "etag": "CLf4hODk7tkCEAE="
+            })
+        ]
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name,
+                                        multipart=True)
+
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_multipart_wrong_chunksize(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        with self.assertRaises(ValueError):
+            self.gcs_hook.upload(test_bucket, test_object,
+                                 self.testfile.name, multipart=123)
