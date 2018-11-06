@@ -52,7 +52,8 @@ class BashOperator(BaseOperator):
     
     On execution of the operator the task will up for retry when exception is raised.
     However if a command exists with non-zero value Airflow will not recognize
-    it as failure unless explicitly specified in the beggining of the script.
+    it as failure unless the whole shell exits with a failure. The easiest way of 
+    achieving this is to prefix the command with ``set -e;`` 
     Example:
         bash_command = "python3 script.py '{{ next_execution_date }}'"
         when executing command exit(1) the task will be marked as success.
