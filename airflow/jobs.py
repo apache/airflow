@@ -772,7 +772,7 @@ class SchedulerJob(BaseJob):
         session.commit()
 
     @provide_session
-    def create_dag_run(self, dag, session=None):
+    def create_dag_run(self, dag, session=None, dry_run=False):
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval.
@@ -867,7 +867,6 @@ class SchedulerJob(BaseJob):
                     "Dag start date: %s. Next run date: %s",
                     dag.start_date, next_run_date
                 )
-
             # don't ever schedule in the future
             if next_run_date > timezone.utcnow():
                 return
@@ -891,6 +890,10 @@ class SchedulerJob(BaseJob):
                 min_task_end_date = min(task_end_dates)
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
+
+            # Don't really schedule the job, we are interested in its next execution date
+            if dry_run is True:
+                return next_run_date
 
             if next_run_date and period_end and period_end <= timezone.utcnow():
                 next_run = dag.create_dagrun(
