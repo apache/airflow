@@ -20,7 +20,6 @@
 import os
 import unittest
 
-import requests
 import requests_mock
 from airflow.operators.http_operator import SimpleHttpOperator
 
