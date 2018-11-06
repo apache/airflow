@@ -80,6 +80,7 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                           shm_size=1000,
                                                           cpu_shares=1024,
                                                           mem_limit=None,
+                                                          auto_remove=False,
                                                           dns=None,
                                                           dns_search=None)
         client_mock.images.assert_called_with(name='ubuntu:latest')
