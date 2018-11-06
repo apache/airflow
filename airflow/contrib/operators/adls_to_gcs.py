@@ -72,7 +72,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
             )
 
          The following Operator would copy all parquet files from ADLS
-        path ``/hello/world``to the GCS bucket ``mybucket``. ::
+         path ``/hello/world``to the GCS bucket ``mybucket``. ::
             copy_world_files = AdlsToGoogleCloudStorageOperator(
                 task_id='copy_world_files',
                 path='hello/world/*.parquet',
@@ -127,12 +127,12 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
                 azure_data_lake_conn_id=self.azure_data_lake_conn_id
             )
 
-            for file in files:
+            for obj in files:
                 with NamedTemporaryFile(mode='wb', delete=True) as f:
-                    hook.download_file(local_path=f.name, remote_path=file)
+                    hook.download_file(local_path=f.name, remote_path=obj)
                     f.flush()
                     dest_gcs_bucket, dest_gcs_prefix = _parse_gcs_url(self.dest_gcs)
-                    dest_path = os.path.join(dest_gcs_prefix, file)
+                    dest_path = os.path.join(dest_gcs_prefix, obj)
                     self.log.info("Saving file to %s", dest_path)
 
                     g_hook.upload(bucket=dest_gcs_bucket, object=dest_path, filename=f.name)
