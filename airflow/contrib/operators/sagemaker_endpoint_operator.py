@@ -27,33 +27,33 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
 
     """
     Create a SageMaker endpoint.
-    
+
     This operator returns The ARN of the endpoint created in Amazon SageMaker
 
     :param config:
         The configuration necessary to create an endpoint.
-        
+
         If you need to create a SageMaker endpoint based on an existed SageMaker model and an existed SageMaker
-        endpoint config, 
-        
+        endpoint config,
+
             config = endpoint_configuration;
-            
-        If you need to create all of SageMaker model, SageMaker endpoint-config and SageMaker endpoint, 
-        
+
+        If you need to create all of SageMaker model, SageMaker endpoint-config and SageMaker endpoint,
+
             config = {
                 'Model': model_configuration,
-                
+
                 'EndpointConfig': endpoint_config_configuration,
-                
+
                 'Endpoint': endpoint_configuration
             }
-    
+
         For details of the configuration parameter of model_configuration, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model
-        
+
         For details of the configuration parameter of endpoint_config_configuration, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_endpoint_config
-        
+
         For details of the configuration parameter of endpoint_configuration, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_endpoint
     :type config: dict
@@ -69,7 +69,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     :type max_ingestion_time: int
     :param operation: Whether to create an endpoint or update an endpoint. Must be either 'create or 'update'.
     :type operation: str
-    """  # noqa
+    """  # noqa: E501
 
     @apply_defaults
     def __init__(self,

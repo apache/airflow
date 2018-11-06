@@ -26,17 +26,17 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
 
     """
     Create a SageMaker endpoint config.
-    
+
     This operator returns The ARN of the endpoint config created in Amazon SageMaker
 
     :param config: The configuration necessary to create an endpoint config.
-    
+
         For details of the configuration parameter, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_endpoint_config
     :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
     :type aws_conn_id: str
-    """  # noqa
+    """  # noqa: E501
 
     integer_fields = [
         ['ProductionVariants', 'InitialInstanceCount']

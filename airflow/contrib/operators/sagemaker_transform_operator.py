@@ -30,22 +30,22 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     This operator returns The ARN of the model created in Amazon SageMaker.
 
     :param config: The configuration necessary to start a transform job (templated).
-    
-        If you need to create a SageMaker transform job based on an existed SageMaker model, 
-        
+
+        If you need to create a SageMaker transform job based on an existed SageMaker model,
+
             config = transform_config;
-            
-        If you need to create both SageMaker model and SageMaker Transform job, 
-        
+
+        If you need to create both SageMaker model and SageMaker Transform job,
+
             config = {
                 'Model': model_config,
-                
+
                 'Transform': transform_config
             }
-    
+
         For details of the configuration parameter of transform_config, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_transform_job
-        
+
         For details of the configuration parameter of model_config, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model
 
@@ -61,7 +61,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         if the transform job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
     :type max_ingestion_time: int
-    """  # noqa
+    """  # noqa: E501
 
     @apply_defaults
     def __init__(self,

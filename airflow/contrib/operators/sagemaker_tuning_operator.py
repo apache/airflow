@@ -30,7 +30,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
     This operator returns The ARN of the tuning job created in Amazon SageMaker.
 
     :param config: The configuration necessary to start a tuning job (templated).
-    
+
         For details of the configuration parameter, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_hyper_parameter_tuning_job
     :type config: dict
@@ -45,7 +45,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         if the tuning job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
     :type max_ingestion_time: int
-    """  # noqa
+    """  # noqa: E501
 
     integer_fields = [
         ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],

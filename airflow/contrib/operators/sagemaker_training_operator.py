@@ -30,7 +30,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     This operator returns The ARN of the training job created in Amazon SageMaker.
 
     :param config: The configuration necessary to start a training job (templated).
-    
+
         For details of the configuration parameter, See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_training_job
     :type config: dict
@@ -48,7 +48,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
     :type max_ingestion_time: int
-    """  # noqa
+    """  # noqa: E501
 
     integer_fields = [
         ['ResourceConfig', 'InstanceCount'],
