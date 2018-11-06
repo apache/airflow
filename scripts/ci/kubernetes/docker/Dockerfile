@@ -47,6 +47,7 @@ COPY airflow.tar.gz /tmp/airflow.tar.gz
 RUN pip install /tmp/airflow.tar.gz
 
 COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
+COPY airflow-init-db-env.py /tmp/airflow-init-db-env.py
 
 COPY bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh

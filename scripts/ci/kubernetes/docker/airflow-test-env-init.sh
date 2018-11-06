@@ -19,6 +19,7 @@
 
 cd /usr/local/lib/python2.7/dist-packages/airflow && \
 cp -R example_dags/* /root/airflow/dags/ && \
+python /tmp/airflow-init-db-env.py && \
 airflow initdb && \
 alembic upgrade heads && \
 (airflow create_user -u airflow -l airflow -f jon -e airflow@apache.org -r Admin -p airflow || true) && \
