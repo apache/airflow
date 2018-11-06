@@ -42,11 +42,7 @@ class TestAwsGlueJobOperator(unittest.TestCase):
         some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
         self.glue = AWSGlueJobOperator(task_id='test_glue_operator',
                                        job_name='my_test_job',
-                                       script_location=some_script,
-                                       aws_conn_id='aws_default',
-                                       region_name='us-west-2',
-                                       s3_bucket='some_bucket',
-                                       iam_role_name='my_test_role')
+                                       aws_conn_id='aws_default')
 
     @mock.patch.object(AwsGlueJobHook, 'initialize_job')
     def test_execute_without_failure(self, mock_initialize_job):

@@ -47,7 +47,7 @@ class AwsGlueJobHook(AwsHook):
         super(AwsGlueJobHook, self).__init__(self.aws_conn_id, *args, **kwargs)
 
     def get_conn(self):
-        return self.get_client_type('glue', self.region_name)
+        return self.get_client_type('glue')
 
     def list_jobs(self):
         conn = self.get_conn()

@@ -64,8 +64,7 @@ class AWSGlueJobOperator(BaseOperator):
         glue_job = AwsGlueJobHook(
             job_name=self.job_name,
             desc=self.job_desc,
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name
+            aws_conn_id=self.aws_conn_id
         )
 
         self.log.info("Initializing AWS Glue Job: {}".format(self.job_name))
