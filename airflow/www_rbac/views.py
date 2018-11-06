@@ -384,33 +384,6 @@ class Airflow(AirflowBaseView):
                     })
         return wwwutils.json_response(payload)
 
-    @expose('/last_dagruns')
-    @has_access
-    @provide_session
-    def last_dagruns(self, session=None):
-        DagRun = models.DagRun
-
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-
-        if not filter_dag_ids:
-            return
-
-        dags_to_latest_runs = dict(session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-            .group_by(DagRun.dag_id).all())
-
-        payload = {}
-        for dag in dagbag.dags.values():
-            dag_accessible = 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids
-            if (dag_accessible and dag.dag_id in dags_to_latest_runs and
-                    dags_to_latest_runs[dag.dag_id]):
-                payload[dag.safe_dag_id] = {
-                    'dag_id': dag.dag_id,
-                    'last_run': dags_to_latest_runs[dag.dag_id].strftime("%Y-%m-%d %H:%M")
-                }
-
-        return wwwutils.json_response(payload)
-
     @expose('/code')
     @has_dag_access(can_dag_read=True)
     @has_access

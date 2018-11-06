@@ -645,26 +645,6 @@ class Airflow(BaseView):
                 })
         return wwwutils.json_response(payload)
 
-    @expose('/last_dagruns')
-    @login_required
-    @provide_session
-    def last_dagruns(self, session=None):
-        DagRun = models.DagRun
-
-        dags_to_latest_runs = dict(session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-            .group_by(DagRun.dag_id).all())
-
-        payload = {}
-        for dag in dagbag.dags.values():
-            if dag.dag_id in dags_to_latest_runs and dags_to_latest_runs[dag.dag_id]:
-                payload[dag.safe_dag_id] = {
-                    'dag_id': dag.dag_id,
-                    'last_run': dags_to_latest_runs[dag.dag_id].strftime("%Y-%m-%d %H:%M")
-                }
-
-        return wwwutils.json_response(payload)
-
     @expose('/code')
     @login_required
     def code(self):
