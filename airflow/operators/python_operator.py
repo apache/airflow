@@ -190,6 +190,7 @@ class PythonVirtualenvOperator(PythonOperator):
     can use a return value.
     Note that if your virtualenv runs in a different Python major version than Airflow,
     you cannot use return values, op_args, or op_kwargs. You can use string_args though.
+
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
     :type python_callable: function

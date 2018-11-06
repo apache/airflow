@@ -33,6 +33,7 @@ class SqlSensor(BaseSensorOperator):
     :type conn_id: str
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
+    :type sql: str
     """
     template_fields = ('sql',)
     template_ext = ('.hql', '.sql',)
