@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,8 +24,8 @@ import unittest
 from airflow.utils import timezone
 
 CET = pendulum.timezone("Europe/Paris")
-EAT = pendulum.timezone('Africa/Nairobi')      # Africa/Nairobi
-ICT = pendulum.timezone('Asia/Bangkok')      # Asia/Bangkok
+EAT = pendulum.timezone('Africa/Nairobi')  # Africa/Nairobi
+ICT = pendulum.timezone('Asia/Bangkok')  # Asia/Bangkok
 UTC = timezone.utc
 
 
@@ -69,4 +69,3 @@ class TimezoneTest(unittest.TestCase):
             datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT))
         with self.assertRaises(ValueError):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
-

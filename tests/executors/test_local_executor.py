@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -33,18 +33,18 @@ class LocalExecutorTest(unittest.TestCase):
         executor.start()
 
         success_key = 'success {}'
-        success_command = 'echo {}'
-        fail_command = 'exit 1'
+        success_command = ['true', 'some_parameter']
+        fail_command = ['false', 'some_parameter']
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
-            key, command = success_key.format(i), success_command.format(i)
+            key, command = success_key.format(i), success_command
             executor.execute_async(key=key, command=command)
             executor.running[key] = True
 
         # errors are propagated for some reason
         try:
             executor.execute_async(key='fail', command=fail_command)
-        except:
+        except Exception:
             pass
 
         executor.running['fail'] = True

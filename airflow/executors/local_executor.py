@@ -77,14 +77,13 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         :param key: the key to identify the TI
         :type key: Tuple(dag_id, task_id, execution_date)
         :param command: the command to execute
-        :type command: string
+        :type command: str
         """
         if key is None:
             return
         self.log.info("%s running %s", self.__class__.__name__, command)
-        command = "exec bash -c '{0}'".format(command)
         try:
-            subprocess.check_call(command, shell=True, close_fds=True)
+            subprocess.check_call(command, close_fds=True)
             state = State.SUCCESS
         except subprocess.CalledProcessError as e:
             state = State.FAILED
@@ -147,7 +146,7 @@ class LocalExecutor(BaseExecutor):
             :param key: the key to identify the TI
             :type key: Tuple(dag_id, task_id, execution_date)
             :param command: the command to execute
-            :type command: string
+            :type command: str
             """
             local_worker = LocalWorker(self.executor.result_queue)
             local_worker.key = key
@@ -192,7 +191,7 @@ class LocalExecutor(BaseExecutor):
             :param key: the key to identify the TI
             :type key: Tuple(dag_id, task_id, execution_date)
             :param command: the command to execute
-            :type command: string
+            :type command: str
             """
             self.executor.queue.put((key, command))
 

@@ -16,6 +16,7 @@
 # under the License.
 
 
+import os
 import unittest
 from subprocess import check_call, check_output
 import requests.exceptions
@@ -25,24 +26,32 @@ import six
 import re
 
 try:
-    check_call(["kubectl", "get", "pods"])
+    check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:
-    raise unittest.SkipTest(
-        "Kubernetes integration tests require a minikube cluster;"
-        "Skipping tests {}".format(e)
-    )
+    if os.environ.get('KUBERNETES_VERSION'):
+        raise e
+    else:
+        raise unittest.SkipTest(
+            "Kubernetes integration tests require a minikube cluster;"
+            "Skipping tests {}".format(e)
+        )
 
 
 def get_minikube_host():
-    host_ip = check_output(['minikube', 'ip'])
-    if six.PY3:
-        host_ip = host_ip.decode('UTF-8')
+    if "MINIKUBE_IP" in os.environ:
+        host_ip = os.environ['MINIKUBE_IP']
+    else:
+        host_ip = check_output(['/usr/local/bin/minikube', 'ip'])
+        if six.PY3:
+            host_ip = host_ip.decode('UTF-8')
+
     host = '{}:30809'.format(host_ip.strip())
     return host
 
 
 class KubernetesExecutorTest(unittest.TestCase):
-    def _delete_airflow_pod(self):
+    @staticmethod
+    def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
         air_pod = air_pod.split('\n')
         names = [re.compile('\s+').split(x)[0] for x in air_pod if 'airflow' in x]
@@ -149,8 +158,9 @@ class KubernetesExecutorTest(unittest.TestCase):
 
     def test_integration_run_dag(self):
         host = get_minikube_host()
+        dag_id = 'example_kubernetes_executor_config'
 
-        result_json = self.start_dag(dag_id='example_python_operator', host=host)
+        result_json = self.start_dag(dag_id=dag_id, host=host)
 
         self.assertGreater(len(result_json['items']), 0)
 
@@ -160,19 +170,20 @@ class KubernetesExecutorTest(unittest.TestCase):
         # Wait 100 seconds for the operator to complete
         self.monitor_task(host=host,
                           execution_date=execution_date,
-                          dag_id='example_python_operator',
-                          task_id='print_the_context',
+                          dag_id=dag_id,
+                          task_id='start_task',
                           expected_final_state='success', timeout=100)
 
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
-                                       dag_id='example_python_operator',
+                                       dag_id=dag_id,
                                        expected_final_state='success', timeout=100)
 
     def test_integration_run_dag_with_scheduler_failure(self):
         host = get_minikube_host()
+        dag_id = 'example_kubernetes_executor_config'
 
-        result_json = self.start_dag(dag_id='example_python_operator', host=host)
+        result_json = self.start_dag(dag_id=dag_id, host=host)
 
         self.assertGreater(len(result_json['items']), 0)
 
@@ -186,13 +197,13 @@ class KubernetesExecutorTest(unittest.TestCase):
         # Wait 100 seconds for the operator to complete
         self.monitor_task(host=host,
                           execution_date=execution_date,
-                          dag_id='example_python_operator',
-                          task_id='print_the_context',
+                          dag_id=dag_id,
+                          task_id='start_task',
                           expected_final_state='success', timeout=120)
 
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
-                                       dag_id='example_python_operator',
+                                       dag_id=dag_id,
                                        expected_final_state='success', timeout=100)
 
 

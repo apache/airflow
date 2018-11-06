@@ -19,8 +19,9 @@
 
 cd /usr/local/lib/python2.7/dist-packages/airflow && \
 cp -R example_dags/* /root/airflow/dags/ && \
+cp -R contrib/example_dags/example_kubernetes_*.py /root/airflow/dags/ && \
 python /tmp/airflow-init-db-env.py && \
 airflow initdb && \
 alembic upgrade heads && \
-(airflow create_user -u airflow -l airflow -f jon -e airflow@apache.org -r Admin -p airflow || true) && \
+(airflow users --create --username airflow --lastname airflow --firstname jon --email airflow@apache.org --role Admin --password airflow || true) && \
 echo "retrieved from mount" > /root/test_volume/test.txt

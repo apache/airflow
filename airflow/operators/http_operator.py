@@ -28,11 +28,11 @@ class SimpleHttpOperator(BaseOperator):
     Calls an endpoint on an HTTP system to execute an action
 
     :param http_conn_id: The connection to run the operator against
-    :type http_conn_id: string
+    :type http_conn_id: str
     :param endpoint: The relative part of the full url. (templated)
-    :type endpoint: string
+    :type endpoint: str
     :param method: The HTTP method to use, default = "POST"
-    :type method: string
+    :type method: str
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
     :type data: For POST/PUT, depends on the content-type parameter,
@@ -46,6 +46,10 @@ class SimpleHttpOperator(BaseOperator):
         'requests' documentation (options to modify timeout, ssl, etc.)
     :type extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
+    :param xcom_push: Push the response to Xcom (default: False)
+    :type xcom_push: bool
+    :param log_response: Log the response (default: False)
+    :type log_response: bool
     """
 
     template_fields = ('endpoint', 'data',)
@@ -61,7 +65,9 @@ class SimpleHttpOperator(BaseOperator):
                  response_check=None,
                  extra_options=None,
                  xcom_push=False,
-                 http_conn_id='http_default', *args, **kwargs):
+                 http_conn_id='http_default',
+                 log_response=False,
+                 *args, **kwargs):
         """
         If xcom_push is True, response of an HTTP request will also
         be pushed to an XCom.
@@ -75,6 +81,7 @@ class SimpleHttpOperator(BaseOperator):
         self.response_check = response_check
         self.extra_options = extra_options or {}
         self.xcom_push_flag = xcom_push
+        self.log_response = log_response
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
@@ -90,3 +97,5 @@ class SimpleHttpOperator(BaseOperator):
                 raise AirflowException("Response check returned False.")
         if self.xcom_push_flag:
             return response.text
+        if self.log_response:
+            self.log.info(response.text)

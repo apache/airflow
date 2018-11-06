@@ -18,7 +18,7 @@
 # under the License.
 from airflow.contrib.hooks.emr_hook import EmrHook
 from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class EmrJobFlowSensor(EmrBaseSensor):
@@ -27,7 +27,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     If it fails the sensor errors, failing the task.
 
     :param job_flow_id: job_flow_id to check the state of
-    :type job_flow_id: string
+    :type job_flow_id: str
     """
 
     NON_TERMINAL_STATES = ['STARTING', 'BOOTSTRAPPING', 'RUNNING',
@@ -50,5 +50,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
         self.log.info('Poking cluster %s', self.job_flow_id)
         return emr.describe_cluster(ClusterId=self.job_flow_id)
 
-    def state_from_response(self, response):
+    @staticmethod
+    def state_from_response(response):
         return response['Cluster']['Status']['State']

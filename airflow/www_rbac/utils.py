@@ -26,6 +26,10 @@ import time
 import wtforms
 import bleach
 import markdown
+import re
+import zipfile
+import os
+import io
 
 from builtins import str
 from past.builtins import basestring
@@ -54,8 +58,13 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 
 
 def should_hide_value_for_key(key_name):
-    return any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS) \
-        and configuration.getboolean('admin', 'hide_sensitive_variable_fields')
+    # It is possible via importing variables from file that a key is empty.
+    if key_name:
+        config_set = configuration.conf.getboolean('admin',
+                                                   'hide_sensitive_variable_fields')
+        field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
+        return config_set and field_comp
+    return False
 
 
 def get_params(**kwargs):
@@ -195,6 +204,22 @@ def json_response(obj):
             obj, indent=4, cls=AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
+
+
+def open_maybe_zipped(f, mode='r'):
+    """
+    Opens the given file. If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive, opening the file inside the archive.
+
+    :return: a file object, as in `open`, or as in `ZipFile.open`.
+    """
+
+    _, archive, filename = re.search(
+        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return zipfile.ZipFile(archive, mode=mode).open(filename)
+    else:
+        return io.open(f, mode=mode)
 
 
 def make_cache_key(*args, **kwargs):

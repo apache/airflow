@@ -18,13 +18,10 @@
 # under the License.
 
 import airflow
-
+from airflow.example_dags.subdags.subdag import subdag
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
-
-from airflow.example_dags.subdags.subdag import subdag
-
 
 DAG_NAME = 'example_subdag_operator'
 
@@ -71,7 +68,4 @@ end = DummyOperator(
     dag=dag,
 )
 
-start.set_downstream(section_1)
-section_1.set_downstream(some_other_task)
-some_other_task.set_downstream(section_2)
-section_2.set_downstream(end)
+start >> section_1 >> some_other_task >> section_2 >> end

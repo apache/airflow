@@ -42,7 +42,7 @@ class CassandraHookTest(unittest.TestCase):
         db.merge_conn(
             models.Connection(
                 conn_id='cassandra_default_with_schema', conn_type='cassandra',
-                host='localhost', port='9042', schema='s'))
+                host='cassandra', port='9042', schema='s'))
 
         hook = CassandraHook("cassandra_default")
         session = hook.get_conn()

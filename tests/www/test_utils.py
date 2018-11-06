@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import functools
 import mock
 import unittest
 from xml.dom import minidom
@@ -30,6 +31,10 @@ class UtilsTest(unittest.TestCase):
 
     def setUp(self):
         super(UtilsTest, self).setUp()
+
+    def test_empty_variable_should_not_be_hidden(self):
+        self.assertFalse(utils.should_hide_value_for_key(""))
+        self.assertFalse(utils.should_hide_value_for_key(None))
 
     def test_normal_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key("key"))
@@ -112,8 +117,8 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('page=3&search=bash_&showPaused=False',
                          utils.get_params(showPaused=False, page=3, search='bash_'))
 
-    # flask_login is loaded by calling flask_login._get_user.
-    @mock.patch("flask_login._get_user")
+    # flask_login is loaded by calling flask_login.utils._get_user.
+    @mock.patch("flask_login.utils._get_user")
     @mock.patch("airflow.settings.Session")
     def test_action_logging_with_login_user(self, mocked_session, mocked_get_user):
         fake_username = 'someone'
@@ -138,7 +143,7 @@ class UtilsTest(unittest.TestCase):
                 self.assertEqual(fake_username, kwargs['owner'])
                 mocked_session_instance.add.assert_called_once()
 
-    @mock.patch("flask_login._get_user")
+    @mock.patch("flask_login.utils._get_user")
     @mock.patch("airflow.settings.Session")
     def test_action_logging_with_invalid_user(self, mocked_session, mocked_get_user):
         anonymous_username = 'anonymous'
@@ -189,6 +194,76 @@ class UtilsTest(unittest.TestCase):
                 self.assertEqual('some_func', kwargs['event'])
                 self.assertEqual(anonymous_username, kwargs['owner'])
                 mocked_session_instance.add.assert_called_once()
+
+    def test_open_maybe_zipped_normal_file(self):
+        with mock.patch(
+                'io.open', mock.mock_open(read_data="data")) as mock_file:
+            utils.open_maybe_zipped('/path/to/some/file.txt')
+            mock_file.assert_called_with('/path/to/some/file.txt', mode='r')
+
+    def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
+        path = '/path/to/fakearchive.zip.other/file.txt'
+        with mock.patch(
+                'io.open', mock.mock_open(read_data="data")) as mock_file:
+            utils.open_maybe_zipped(path)
+            mock_file.assert_called_with(path, mode='r')
+
+    @mock.patch("zipfile.is_zipfile")
+    @mock.patch("zipfile.ZipFile")
+    def test_open_maybe_zipped_archive(self, mocked_ZipFile, mocked_is_zipfile):
+        mocked_is_zipfile.return_value = True
+        instance = mocked_ZipFile.return_value
+        instance.open.return_value = mock.mock_open(read_data="data")
+
+        utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
+
+        mocked_is_zipfile.assert_called_once()
+        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
+        self.assertEqual('/path/to/archive.zip', args[0])
+
+        mocked_ZipFile.assert_called_once()
+        (args, kwargs) = mocked_ZipFile.call_args_list[0]
+        self.assertEqual('/path/to/archive.zip', args[0])
+
+        instance.open.assert_called_once()
+        (args, kwargs) = instance.open.call_args_list[0]
+        self.assertEqual('deep/path/to/file.txt', args[0])
+
+    def test_get_python_source_from_method(self):
+        class AMockClass(object):
+            def a_method(self):
+                """ A method """
+                pass
+
+        mocked_class = AMockClass()
+
+        result = utils.get_python_source(mocked_class.a_method)
+        self.assertIn('A method', result)
+
+    def test_get_python_source_from_class(self):
+        class AMockClass(object):
+            def __call__(self):
+                """ A __call__ method """
+                pass
+
+        mocked_class = AMockClass()
+
+        result = utils.get_python_source(mocked_class)
+        self.assertIn('A __call__ method', result)
+
+    def test_get_python_source_from_partial_func(self):
+        def a_function(arg_x, arg_y):
+            """ A function with two args """
+            pass
+
+        partial_function = functools.partial(a_function, arg_x=1)
+
+        result = utils.get_python_source(partial_function)
+        self.assertIn('A function with two args', result)
+
+    def test_get_python_source_from_none(self):
+        result = utils.get_python_source(None)
+        self.assertIn('No source code available', result)
 
 
 if __name__ == '__main__':

@@ -35,7 +35,7 @@ class DatadogHook(BaseHook, LoggingMixin):
     Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
-    :param datadog_conn_id: string
+    :param datadog_conn_id: str
     """
     def __init__(self, datadog_conn_id='datadog_default'):
         conn = self.get_connection(datadog_conn_id)
@@ -71,9 +71,9 @@ class DatadogHook(BaseHook, LoggingMixin):
         Sends a single datapoint metric to DataDog
 
         :param metric_name: The name of the metric
-        :type metric_name: string
+        :type metric_name: str
         :param datapoint: A single integer or float related to the metric
-        :type datapoint: integer or float
+        :type datapoint: int or float
         :param tags: A list of tags associated with the metric
         :type tags: list
         """
@@ -95,7 +95,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         function applied to it and returns the results.
 
         :param query: The datadog query to execute (see datadog docs)
-        :type query: string
+        :type query: str
         :param from_seconds_ago: How many seconds ago to start querying for.
         :type from_seconds_ago: int
         :param to_seconds_ago: Up to how many seconds ago to query for.
@@ -118,16 +118,16 @@ class DatadogHook(BaseHook, LoggingMixin):
         alerting itself.
 
         :param title: The title of the event
-        :type title: string
+        :type title: str
         :param text: The body of the event (more information)
-        :type text: string
+        :type text: str
         :param tags: List of string tags to apply to the event
         :type tags: list
         :param alert_type: The alert type for the event, one of
             ["error", "warning", "info", "success"]
-        :type alert_type: string
+        :type alert_type: str
         :param aggregation_key: Key that can be used to aggregate this event in a stream
-        :type aggregation_key: string
+        :type aggregation_key: str
         """
         response = api.Event.create(
             title=title,

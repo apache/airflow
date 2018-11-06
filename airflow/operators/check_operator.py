@@ -59,7 +59,7 @@ class CheckOperator(BaseOperator):
     single record from an external source.
 
     :param sql: the sql to be executed. (templated)
-    :type sql: string
+    :type sql: str
     """
 
     template_fields = ('sql',)
@@ -114,7 +114,7 @@ class ValueCheckOperator(BaseOperator):
     single record from an external source.
 
     :param sql: the sql to be executed. (templated)
-    :type sql: string
+    :type sql: str
     """
 
     __mapper_args__ = {
@@ -147,7 +147,7 @@ class ValueCheckOperator(BaseOperator):
         is_numeric_value_check = isinstance(pass_value_conv, float)
 
         tolerance_pct_str = None
-        if (self.tol is not None):
+        if self.tol is not None:
             tolerance_pct_str = str(self.tol * 100) + '%'
 
         except_temp = ("Test failed.\nPass value:{pass_value_conv}\n"

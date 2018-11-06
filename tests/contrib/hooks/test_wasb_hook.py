@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,8 +21,9 @@
 
 import json
 import unittest
+from collections import namedtuple
 
-from airflow import configuration
+from airflow import configuration, AirflowException
 from airflow import models
 from airflow.contrib.hooks.wasb_hook import WasbHook
 from airflow.utils import db
@@ -142,6 +143,59 @@ class TestWasbHook(unittest.TestCase):
         mock_instance.get_blob_to_text.assert_called_once_with(
             'container', 'blob', max_connections=1
         )
+
+    @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
+                autospec=True)
+    def test_delete_single_blob(self, mock_service):
+        mock_instance = mock_service.return_value
+        hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
+        hook.delete_file('container', 'blob', is_prefix=False)
+        mock_instance.delete_blob.assert_called_once_with(
+            'container', 'blob', delete_snapshots='include'
+        )
+
+    @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
+                autospec=True)
+    def test_delete_multiple_blobs(self, mock_service):
+        mock_instance = mock_service.return_value
+        Blob = namedtuple('Blob', ['name'])
+        mock_instance.list_blobs.return_value = iter(
+            [Blob('blob_prefix/blob1'), Blob('blob_prefix/blob2')]
+        )
+        hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
+        hook.delete_file('container', 'blob_prefix', is_prefix=True)
+        mock_instance.delete_blob.assert_any_call(
+            'container', 'blob_prefix/blob1', delete_snapshots='include'
+        )
+        mock_instance.delete_blob.assert_any_call(
+            'container', 'blob_prefix/blob2', delete_snapshots='include'
+        )
+
+    @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
+                autospec=True)
+    def test_delete_nonexisting_blob_fails(self, mock_service):
+        mock_instance = mock_service.return_value
+        mock_instance.exists.return_value = False
+        hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
+        with self.assertRaises(Exception) as context:
+            hook.delete_file(
+                'container', 'nonexisting_blob',
+                is_prefix=False, ignore_if_missing=False
+            )
+        self.assertIsInstance(context.exception, AirflowException)
+
+    @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
+                autospec=True)
+    def test_delete_multiple_nonexisting_blobs_fails(self, mock_service):
+        mock_instance = mock_service.return_value
+        mock_instance.list_blobs.return_value = iter([])
+        hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
+        with self.assertRaises(Exception) as context:
+            hook.delete_file(
+                'container', 'nonexisting_blob_prefix',
+                is_prefix=True, ignore_if_missing=False
+            )
+        self.assertIsInstance(context.exception, AirflowException)
 
 
 if __name__ == '__main__':

@@ -70,7 +70,11 @@ class HttpHook(BaseHook):
         if conn.login:
             session.auth = (conn.login, conn.password)
         if conn.extra:
-            session.headers.update(conn.extra_dejson)
+            try:
+                session.headers.update(conn.extra_dejson)
+            except TypeError:
+                self.log.warn('Connection to {} has invalid extra field.'.format(
+                    conn.host))
         if headers:
             session.headers.update(headers)
 
@@ -94,7 +98,11 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self.base_url + endpoint
+        if not self.base_url.endswith('/') and not endpoint.startswith('/'):
+            url = self.base_url + '/' + endpoint
+        else:
+            url = self.base_url + endpoint
+
         req = None
         if self.method == 'GET':
             # GET uses params

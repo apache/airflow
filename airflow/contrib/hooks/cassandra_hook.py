@@ -164,7 +164,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
-        :type table: string
+        :type table: str
         """
         keyspace = self.keyspace
         if '.' in table:
@@ -179,7 +179,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
-        :type table: string
+        :type table: str
         :param keys: The keys and their values to check the existence.
         :type keys: dict
         """

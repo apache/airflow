@@ -5,6 +5,23 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### New `dag_processor_manager_log_location` config option
+
+The DAG parsing manager log now by default will be log into a file, where its location is
+controlled by the new `dag_processor_manager_log_location` config option in core section.
+
+### new `sync_parallelism` config option in celery section
+
+The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
+fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+
+### Rename of BashTaskRunner to StandardTaskRunner
+
+BashTaskRunner has been renamed to StandardTaskRunner. It is the default task runner
+so you might need to update your config.
+
+`task_runner = StandardTaskRunner`
+
 ### DAG level Access Control for new RBAC UI
 
 Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
@@ -13,9 +30,77 @@ that he has permissions on. If a new role wants to access all the dags, the admi
 
 We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
+
+### min_file_parsing_loop_time config option temporarily disabled
+
+The scheduler.min_file_parsing_loop_time config option has been temporarily removed due to
+some bugs.
+
+### CLI Changes
+
+The ability to manipulate users from the command line has been changed. 'airflow create_user' and 'airflow delete_user' and 'airflow list_users' has been grouped to a single command `airflow users` with optional flags `--create`, `--list` and `--delete`.
+
+Example Usage:
+
+To create a new user:
+```bash
+airflow users --create --username jondoe --lastname doe --firstname jon --email jdoe@apache.org --role Viewer --password test
+```
+
+To list users:
+```bash
+airflow users --list
+```
+
+To delete a user:
+```bash
+airflow users --delete --username jondoe
+```
+
+### StatsD Metrics
+
+The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). Scheduler upness can be determined by graphing and alerting using a rate. If the scheduler goes down, the rate will drop to 0.
+
+### Custom auth backends interface change
+
+We have updated the version of flask-login we depend upon, and as a result any
+custom auth backends might need a small change: `is_active`,
+`is_authenticated`, and `is_anonymous` should now be properties. What this means is if
+previously you had this in your user class
+
+    def is_active(self):
+      return self.active
+
+then you need to change it like this
+
+    @property
+    def is_active(self):
+      return self.active
+
+### EMRHook now passes all of connection's extra to CreateJobFlow API
+
+EMRHook.create_job_flow has been changed to pass all keys to the create_job_flow API, rather than
+just specific known keys for greater flexibility.
+
+However prior to this release the "emr_default" sample connection that was created had invalid
+configuration, so creating EMR clusters might fail until your connection is updated. (Ec2KeyName,
+Ec2SubnetId, TerminationProtection and KeepJobFlowAliveWhenNoSteps were all top-level keys when they
+should be inside the "Instances" dict)
+
+## Airflow 1.10
+
+Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
+`AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
+dependency (python-nvd3 -> python-slugify -> unidecode).
+
+### Replace DataProcHook.await calls to DataProcHook.wait
+
+The method name was changed to be compatible with the Python 3.7 async/await keywords
+
 ### Setting UTF-8 as default mime_charset in email utils
 
 ### Add a configuration variable(default_dag_run_display_number) to control numbers of dag run for display
+
 Add a configuration variable(default_dag_run_display_number) under webserver section to control num of dag run to show in UI.
 
 ### Default executor for SubDagOperator is changed to SequentialExecutor
@@ -45,6 +130,7 @@ Run `airflow webserver` to start the new UI. This will bring up a log in page, e
 There are five roles created for Airflow by default: Admin, User, Op, Viewer, and Public. To configure roles/permissions, go to the `Security` tab and click `List Roles` in the new UI.
 
 #### Breaking changes
+
 - AWS Batch Operator renamed property queue to job_queue to prevent conflict with the internal queue from CeleryExecutor - AIRFLOW-2542
 - Users created and stored in the old users table will not be migrated automatically. FAB's built-in authentication support must be reconfigured.
 - Airflow dag home page is now `/home` (instead of `/admin`).
@@ -64,6 +150,7 @@ to have specified `explicit_defaults_for_timestamp=1` in your my.cnf under `[mys
 ### Celery config
 
 To make the config of Airflow compatible with Celery, some properties have been renamed:
+
 ```
 celeryd_concurrency -> worker_concurrency
 celery_result_backend -> result_backend
@@ -71,18 +158,22 @@ celery_ssl_active -> ssl_active
 celery_ssl_cert -> ssl_cert
 celery_ssl_key -> ssl_key
 ```
+
 Resulting in the same config parameters as Celery 4, with more transparency.
 
 ### GCP Dataflow Operators
+
 Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a default
 "airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
 to 2.2.0 or greater.
 
 ### BigQuery Hooks and Operator
+
 The `bql` parameter passed to `BigQueryOperator` and `BigQueryBaseCursor.run_query` has been deprecated and renamed to `sql` for consistency purposes. Using `bql` will still work (and raise a `DeprecationWarning`), but is no longer
 supported and will be removed entirely in Airflow 2.0
 
 ### Redshift to S3 Operator
+
 With Airflow 1.9 or lower, Unload operation always included header row. In order to include header row,
 we need to turn off parallel unload. It is preferred to perform unload operation using all nodes so that it is
 faster for larger tables. So, parameter called `include_header` is added and default is set to False.
@@ -93,7 +184,9 @@ Header row will be added only if this parameter is set True and also in that cas
 With Airflow 1.9 or lower, there were two connection strings for the Google Cloud operators, both `google_cloud_storage_default` and `google_cloud_default`. This can be confusing and therefore the `google_cloud_storage_default` connection id has been replaced with `google_cloud_default` to make the connection id consistent across Airflow.
 
 ### Logging Configuration
+
 With Airflow 1.9 or lower, `FILENAME_TEMPLATE`, `PROCESSOR_FILENAME_TEMPLATE`, `LOG_ID_TEMPLATE`, `END_OF_LOG_MARK` were configured in `airflow_local_settings.py`. These have been moved into the configuration file, and hence if you were using a custom configuration file the following defaults need to be added.
+
 ```
 [core]
 fab_logging_level = WARN
@@ -105,23 +198,36 @@ elasticsearch_log_id_template = {{dag_id}}-{{task_id}}-{{execution_date}}-{{try_
 elasticsearch_end_of_log_mark = end_of_log
 ```
 
+The previous setting of `log_task_reader` is not needed in many cases now when using the default logging config with remote storages. (Previously it needed to be set to `s3.task` or similar. This is not needed with the default config anymore)
+
+#### Change of per-task log path
+
+With the change to Airflow core to be timezone aware the default log path for task instances will now include timezone information. This will by default mean all previous task logs won't be found. You can get the old behaviour back by setting the following config options:
+
+```
+[core]
+log_filename_template = {{ ti.dag_id }}/{{ ti.task_id }}/{{ execution_date.strftime("%%Y-%%m-%%dT%%H:%%M:%%S") }}/{{ try_number }}.log
+```
+
 ## Airflow 1.9
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator
 
 SSH Hook now uses the Paramiko library to create an ssh client connection, instead of the sub-process based ssh command execution previously (<1.9.0), so this is backward incompatible.
-  - update SSHHook constructor
-  - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer to test_ssh_operator.py for usage info.
-  - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer to test_sftp_operator.py.py for usage info.
-  - No updates are required if you are using ftpHook, it will continue to work as is.
+
+- update SSHHook constructor
+- use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer to test_ssh_operator.py for usage info.
+- SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer to test_sftp_operator.py.py for usage info.
+- No updates are required if you are using ftpHook, it will continue to work as is.
 
 ### S3Hook switched to use Boto3
 
 The airflow.hooks.S3_hook.S3Hook has been switched to use boto3 instead of the older boto (a.k.a. boto2). This results in a few backwards incompatible changes to the following classes: S3Hook:
-  - the constructors no longer accepts `s3_conn_id`. It is now called `aws_conn_id`.
-  - the default connection is now "aws_default" instead of "s3_default"
-  - the return type of objects returned by `get_bucket` is now boto3.s3.Bucket
-  - the return type of `get_key`, and `get_wildcard_key` is now an boto3.S3.Object.
+
+- the constructors no longer accepts `s3_conn_id`. It is now called `aws_conn_id`.
+- the default connection is now "aws_default" instead of "s3_default"
+- the return type of objects returned by `get_bucket` is now boto3.s3.Bucket
+- the return type of `get_key`, and `get_wildcard_key` is now an boto3.S3.Object.
 
 If you are using any of these in your DAGs and specify a connection ID you will need to update the parameter name for the connection to "aws_conn_id": S3ToHiveTransfer, S3PrefixSensor, S3KeySensor, RedshiftToS3Transfer.
 
@@ -297,10 +403,11 @@ The `file_task_handler` logger has been made more flexible. The default format c
 If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.incubator.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
 
 If you are using S3, the instructions should be largely the same as the Google cloud platform instructions above. You will need a custom logging config. The `REMOTE_BASE_LOG_FOLDER` configuration key in your airflow config has been removed, therefore you will need to take the following steps:
- - Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/incubator-airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
- - Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
- - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
- - Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your pythonpath, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
+
+- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/incubator-airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
+- Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
+- Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
+- Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your pythonpath, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
 
 ### New Features
 
@@ -309,8 +416,10 @@ If you are using S3, the instructions should be largely the same as the Google c
 A new DaskExecutor allows Airflow tasks to be run in Dask Distributed clusters.
 
 ### Deprecated Features
+
 These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer
 supported and will be removed entirely in Airflow 2.0
+
 - If you're using the `google_cloud_conn_id` or `dataproc_cluster` argument names explicitly in `contrib.operators.Dataproc{*}Operator`(s), be sure to rename them to `gcp_conn_id` or `cluster_name`, respectively. We've renamed these arguments for consistency. (AIRFLOW-1323)
 
 - `post_execute()` hooks now take two arguments, `context` and `result`
@@ -334,30 +443,36 @@ a previously installed version of Airflow before installing 1.8.1.
 ## Airflow 1.8
 
 ### Database
+
 The database schema needs to be upgraded. Make sure to shutdown Airflow and make a backup of your database. To
 upgrade the schema issue `airflow upgradedb`.
 
 ### Upgrade systemd unit files
+
 Systemd unit files have been updated. If you use systemd please make sure to update these.
 
 > Please note that the webserver does not detach properly, this will be fixed in a future version.
 
 ### Tasks not starting although dependencies are met due to stricter pool checking
+
 Airflow 1.7.1 has issues with being able to over subscribe to a pool, ie. more slots could be used than were
 available. This is fixed in Airflow 1.8.0, but due to past issue jobs may fail to start although their
 dependencies are met after an upgrade. To workaround either temporarily increase the amount of slots above
 the amount of queued tasks or use a new pool.
 
 ### Less forgiving scheduler on dynamic start_date
+
 Using a dynamic start_date (e.g. `start_date = datetime.now()`) is not considered a best practice. The 1.8.0 scheduler
 is less forgiving in this area. If you encounter DAGs not being scheduled you can try using a fixed start_date and
 renaming your DAG. The last step is required to make sure you start with a clean slate, otherwise the old schedule can
 interfere.
 
 ### New and updated scheduler options
+
 Please read through the new scheduler options, defaults have changed since 1.7.1.
 
 #### child_process_log_directory
+
 In order to increase the robustness of the scheduler, DAGS are now processed in their own process. Therefore each
 DAG has its own log file for the scheduler. These log files are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
@@ -365,24 +480,30 @@ DAG has its own log file for the scheduler. These log files are placed in `child
 > DAG logs or processor logs ignore and command line settings for log file locations.
 
 #### run_duration
+
 Previously the command line option `num_runs` was used to let the scheduler terminate after a certain amount of
 loops. This is now time bound and defaults to `-1`, which means run continuously. See also num_runs.
 
 #### num_runs
+
 Previously `num_runs` was used to let the scheduler terminate after a certain amount of loops. Now num_runs specifies
 the number of times to try to schedule each DAG file within `run_duration` time. Defaults to `-1`, which means try
 indefinitely. This is only available on the command line.
 
 #### min_file_process_interval
+
 After how much time should an updated DAG be picked up from the filesystem.
 
 #### min_file_parsing_loop_time
+CURRENTLY DISABLED DUE TO A BUG
 How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
 
 #### dag_dir_list_interval
+
 The frequency with which the scheduler should relist the contents of the DAG directory. If while developing +dags, they are not being picked up, have a look at this number and decrease it when necessary.
 
 #### catchup_by_default
+
 By default the scheduler will fill any missing interval DAG Runs between the last execution date and the current date.
 This setting changes that behavior to only execute the latest interval. This can also be specified per DAG as
 `catchup = False / True`. Command line backfills will still work.
@@ -413,6 +534,7 @@ required to whitelist these variables by adding the following to your configurat
      <value>airflow\.ctx\..*</value>
 </property>
 ```
+
 ### Google Cloud Operator and Hook alignment
 
 All Google Cloud Operators and Hooks are aligned and use the same client library. Now you have a single connection
@@ -424,6 +546,7 @@ Also the old P12 key file type is not supported anymore and only the new JSON ke
 account.
 
 ### Deprecated Features
+
 These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer
 supported and will be removed entirely in Airflow 2.0
 
@@ -440,6 +563,7 @@ supported and will be removed entirely in Airflow 2.0
 - The config value secure_mode will default to True which will disable some insecure endpoints/features
 
 ### Known Issues
+
 There is a report that the default of "-1" for num_runs creates an issue where errors are reported while parsing tasks.
 It was not confirmed, but a workaround was found by changing the default back to `None`.
 
@@ -466,7 +590,9 @@ To continue using the default smtp email backend, change the email_backend line 
 [email]
 email_backend = airflow.utils.send_email_smtp
 ```
+
 to:
+
 ```
 [email]
 email_backend = airflow.utils.email.send_email_smtp
@@ -479,7 +605,9 @@ To continue using S3 logging, update your config file so:
 ```
 s3_log_folder = s3://my-airflow-log-bucket/logs
 ```
+
 becomes:
+
 ```
 remote_base_log_folder = s3://my-airflow-log-bucket/logs
 remote_log_conn_id = <your desired s3 connection>
