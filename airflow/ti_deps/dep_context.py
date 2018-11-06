@@ -49,20 +49,22 @@ class DepContext(object):
         creation while checking to see whether the task instance is runnable. It was the
         shortest path to add the feature. This is bad since this class should be pure (no
         side effects).
-    :type flag_upstream_failed: boolean
+    :type flag_upstream_failed: bool
     :param ignore_all_deps: Whether or not the context should ignore all ignoreable
         dependencies. Overrides the other ignore_* parameters
-    :type ignore_all_deps: boolean
+    :type ignore_all_deps: bool
     :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
         Backfills)
-    :type ignore_depends_on_past: boolean
+    :type ignore_depends_on_past: bool
     :param ignore_in_retry_period: Ignore the retry period for task instances
-    :type ignore_in_retry_period: boolean
+    :type ignore_in_retry_period: bool
+    :param ignore_in_reschedule_period: Ignore the reschedule period for task instances
+    :type ignore_in_reschedule_period: bool
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
-    :type ignore_task_deps: boolean
+    :type ignore_task_deps: bool
     :param ignore_ti_state: Ignore the task instance's previous failure/success
-    :type ignore_ti_state: boolean
+    :type ignore_ti_state: bool
     """
     def __init__(
             self,
@@ -71,6 +73,7 @@ class DepContext(object):
             ignore_all_deps=False,
             ignore_depends_on_past=False,
             ignore_in_retry_period=False,
+            ignore_in_reschedule_period=False,
             ignore_task_deps=False,
             ignore_ti_state=False):
         self.deps = deps or set()
@@ -78,6 +81,7 @@ class DepContext(object):
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
         self.ignore_in_retry_period = ignore_in_retry_period
+        self.ignore_in_reschedule_period = ignore_in_reschedule_period
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
 

@@ -29,7 +29,7 @@ class JiraHook(BaseHook, LoggingMixin):
     Jira interaction hook, a Wrapper around JIRA Python SDK.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: string
+    :type jira_conn_id: str
     """
     def __init__(self,
                  jira_conn_id='jira_default',

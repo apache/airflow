@@ -30,14 +30,14 @@ def mock_get_conn():
     commit_mock = mock.MagicMock(
     )
     cursor_mock = mock.MagicMock(
-        execute     = [],
-        fetchall    = [['1', '2', '3']],
-        description =  ['a', 'b', 'c'],
-        iterate     = [['1', '2', '3']],
+        execute=[],
+        fetchall=[['1', '2', '3']],
+        description=['a', 'b', 'c'],
+        iterate=[['1', '2', '3']],
     )
     conn_mock = mock.MagicMock(
-        commit      = commit_mock,
-        cursor      = cursor_mock,
+        commit=commit_mock,
+        cursor=cursor_mock,
     )
     return conn_mock
 

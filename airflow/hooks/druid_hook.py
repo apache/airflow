@@ -35,9 +35,10 @@ class DruidHook(BaseHook):
 
     :param druid_ingest_conn_id: The connection id to the Druid overlord machine
                                  which accepts index jobs
-    :type druid_ingest_conn_id: string
+    :type druid_ingest_conn_id: str
     :param timeout: The interval between polling
-                    the Druid job for the status of the ingestion job
+                    the Druid job for the status of the ingestion job.
+                    Must be greater than or equal to 1
     :type timeout: int
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :type max_ingestion_time: int
@@ -53,6 +54,9 @@ class DruidHook(BaseHook):
         self.max_ingestion_time = max_ingestion_time
         self.header = {'content-type': 'application/json'}
 
+        if self.timeout < 1:
+            raise ValueError("Druid timeout should be equal or greater than 1")
+
     def get_conn_url(self):
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
@@ -64,14 +68,16 @@ class DruidHook(BaseHook):
     def submit_indexing_job(self, json_index_spec):
         url = self.get_conn_url()
 
-        req_index = requests.post(url, data=json_index_spec, headers=self.header)
-        if (req_index.status_code != 200):
+        self.log.info("Druid ingestion spec: {}".format(json_index_spec))
+        req_index = requests.post(url, json=json_index_spec, headers=self.header)
+        if req_index.status_code != 200:
             raise AirflowException('Did not get 200 when '
                                    'submitting the Druid job to {}'.format(url))
 
         req_json = req_index.json()
         # Wait until the job is completed
         druid_task_id = req_json['task']
+        self.log.info("Druid indexing task-id: {}".format(druid_task_id))
 
         running = True
 
@@ -81,8 +87,6 @@ class DruidHook(BaseHook):
 
             self.log.info("Job still running for %s seconds...", sec)
 
-            sec = sec + 1
-
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post("{0}/{1}/shutdown".format(url, druid_task_id))
@@ -90,6 +94,8 @@ class DruidHook(BaseHook):
                                        '%s seconds', self.max_ingestion_time)
 
             time.sleep(self.timeout)
+
+            sec = sec + self.timeout
 
             status = req_status.json()['status']['status']
             if status == 'RUNNING':

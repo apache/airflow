@@ -72,7 +72,7 @@ class TestMarkTasks(unittest.TestCase):
     def snapshot_state(self, dag, execution_dates):
         TI = models.TaskInstance
         tis = self.session.query(TI).filter(
-            TI.dag_id==dag.dag_id,
+            TI.dag_id == dag.dag_id,
             TI.execution_date.in_(execution_dates)
         ).all()
 
@@ -84,7 +84,7 @@ class TestMarkTasks(unittest.TestCase):
         TI = models.TaskInstance
 
         tis = self.session.query(TI).filter(
-            TI.dag_id==dag.dag_id,
+            TI.dag_id == dag.dag_id,
             TI.execution_date.in_(execution_dates)
         ).all()
 
@@ -95,9 +95,8 @@ class TestMarkTasks(unittest.TestCase):
                 self.assertEqual(ti.state, state)
             else:
                 for old_ti in old_tis:
-                    if (old_ti.task_id == ti.task_id
-                            and old_ti.execution_date == ti.execution_date):
-                            self.assertEqual(ti.state, old_ti.state)
+                    if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
+                        self.assertEqual(ti.state, old_ti.state)
 
     def test_mark_tasks_now(self):
         # set one task to success but do not commit
@@ -267,11 +266,25 @@ class TestMarkDAGRun(unittest.TestCase):
     def _verify_dag_run_state(self, dag, date, state):
         drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
         dr = drs[0]
+
         self.assertEqual(dr.get_state(), state)
+
+    def _verify_dag_run_dates(self, dag, date, state, middle_time):
+        # When target state is RUNNING, we should set start_date,
+        # otherwise we should set end_date.
+        drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
+        dr = drs[0]
+        if state == State.RUNNING:
+            self.assertGreater(dr.start_date, middle_time)
+            self.assertIsNone(dr.end_date)
+        else:
+            self.assertLess(dr.start_date, middle_time)
+            self.assertGreater(dr.end_date, middle_time)
 
     def test_set_running_dag_run_to_success(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.RUNNING, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
@@ -280,10 +293,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 5)
         self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
         self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
+        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
 
     def test_set_running_dag_run_to_failed(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.RUNNING, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
@@ -292,10 +307,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 1)
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         self.assertEqual(dr.get_task_instance('run_after_loop').state, State.FAILED)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
     def test_set_running_dag_run_to_running(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.RUNNING, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_running(self.dag1, date, commit=True)
@@ -304,10 +321,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 0)
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
+        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
 
     def test_set_success_dag_run_to_success(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
@@ -316,10 +335,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 5)
         self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
         self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
+        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
 
     def test_set_success_dag_run_to_failed(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
@@ -328,10 +349,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 1)
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         self.assertEqual(dr.get_task_instance('run_after_loop').state, State.FAILED)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
     def test_set_success_dag_run_to_running(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_running(self.dag1, date, commit=True)
@@ -340,10 +363,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 0)
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
+        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
 
     def test_set_failed_dag_run_to_success(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_success(self.dag1, date, commit=True)
@@ -352,10 +377,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 5)
         self._verify_dag_run_state(self.dag1, date, State.SUCCESS)
         self._verify_task_instance_states(self.dag1, date, State.SUCCESS)
+        self._verify_dag_run_dates(self.dag1, date, State.SUCCESS, middle_time)
 
     def test_set_failed_dag_run_to_failed(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_failed(self.dag1, date, commit=True)
@@ -364,10 +391,12 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 1)
         self._verify_dag_run_state(self.dag1, date, State.FAILED)
         self.assertEqual(dr.get_task_instance('run_after_loop').state, State.FAILED)
+        self._verify_dag_run_dates(self.dag1, date, State.FAILED, middle_time)
 
     def test_set_failed_dag_run_to_running(self):
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
+        middle_time = timezone.utcnow()
         self._set_default_task_instance_states(dr)
 
         altered = set_dag_run_state_to_running(self.dag1, date, commit=True)
@@ -376,6 +405,7 @@ class TestMarkDAGRun(unittest.TestCase):
         self.assertEqual(len(altered), 0)
         self._verify_dag_run_state(self.dag1, date, State.RUNNING)
         self._verify_task_instance_states_remain_default(dr)
+        self._verify_dag_run_dates(self.dag1, date, State.RUNNING, middle_time)
 
     def test_set_state_without_commit(self):
         date = self.execution_dates[0]
@@ -404,19 +434,19 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_task_instance_states_remain_default(dr)
 
     def test_set_state_with_multiple_dagruns(self):
-        dr1 = self.dag2.create_dagrun(
+        self.dag2.create_dagrun(
             run_id='manual__' + datetime.now().isoformat(),
             state=State.FAILED,
             execution_date=self.execution_dates[0],
             session=self.session
         )
-        dr2 = self.dag2.create_dagrun(
+        self.dag2.create_dagrun(
             run_id='manual__' + datetime.now().isoformat(),
             state=State.FAILED,
             execution_date=self.execution_dates[1],
             session=self.session
         )
-        dr3 = self.dag2.create_dagrun(
+        self.dag2.create_dagrun(
             run_id='manual__' + datetime.now().isoformat(),
             state=State.RUNNING,
             execution_date=self.execution_dates[2],
@@ -437,13 +467,11 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed
-        dr1 = models.DagRun.find(dag_id=self.dag2.dag_id,
-                                 execution_date=self.execution_dates[0])
-        dr1 = dr1[0]
+        models.DagRun.find(dag_id=self.dag2.dag_id,
+                           execution_date=self.execution_dates[0])
         self._verify_dag_run_state(self.dag2, self.execution_dates[0], State.FAILED)
-        dr3 = models.DagRun.find(dag_id=self.dag2.dag_id,
-                                 execution_date=self.execution_dates[2])
-        dr3 = dr3[0]
+        models.DagRun.find(dag_id=self.dag2.dag_id,
+                           execution_date=self.execution_dates[2])
         self._verify_dag_run_state(self.dag2, self.execution_dates[2], State.RUNNING)
 
     def test_set_dag_run_state_edge_cases(self):

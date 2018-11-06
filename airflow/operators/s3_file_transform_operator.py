@@ -19,6 +19,7 @@
 
 from tempfile import NamedTemporaryFile
 import subprocess
+import sys
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook
@@ -47,6 +48,18 @@ class S3FileTransformOperator(BaseOperator):
     :type source_s3_key: str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
+    :param source_verify: Whether or not to verify SSL certificates for S3 connetion.
+        By default SSL certificates are verified.
+        You can provide the following values:
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+             (unless use_ssl is False), but SSL certificates will not be
+             verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+             You can specify this argument if you want to use a different
+             CA cert bundle than the one used by botocore.
+        This is also applicable to ``dest_verify``.
+    :type source_verify: bool or str
     :param dest_s3_key: The key to be written from S3. (templated)
     :type dest_s3_key: str
     :param dest_aws_conn_id: destination s3 connection
@@ -71,25 +84,32 @@ class S3FileTransformOperator(BaseOperator):
             transform_script=None,
             select_expression=None,
             source_aws_conn_id='aws_default',
+            source_verify=None,
             dest_aws_conn_id='aws_default',
+            dest_verify=None,
             replace=False,
             *args, **kwargs):
         super(S3FileTransformOperator, self).__init__(*args, **kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id
+        self.source_verify = source_verify
         self.dest_s3_key = dest_s3_key
         self.dest_aws_conn_id = dest_aws_conn_id
+        self.dest_verify = dest_verify
         self.replace = replace
         self.transform_script = transform_script
         self.select_expression = select_expression
+        self.output_encoding = sys.getdefaultencoding()
 
     def execute(self, context):
         if self.transform_script is None and self.select_expression is None:
             raise AirflowException(
                 "Either transform_script or select_expression must be specified")
 
-        source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id)
-        dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id)
+        source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id,
+                           verify=self.source_verify)
+        dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id,
+                         verify=self.dest_verify)
 
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
@@ -114,15 +134,23 @@ class S3FileTransformOperator(BaseOperator):
             f_source.flush()
 
             if self.transform_script is not None:
-                transform_script_process = subprocess.Popen(
+                process = subprocess.Popen(
                     [self.transform_script, f_source.name, f_dest.name],
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-                (transform_script_stdoutdata, transform_script_stderrdata) = \
-                    transform_script_process.communicate()
-                self.log.info("Transform script stdout %s", transform_script_stdoutdata)
-                if transform_script_process.returncode > 0:
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    close_fds=True
+                )
+
+                self.log.info("Output:")
+                for line in iter(process.stdout.readline, b''):
+                    self.log.info(line.decode(self.output_encoding).rstrip())
+
+                process.wait()
+
+                if process.returncode > 0:
                     raise AirflowException(
-                        "Transform script failed %s", transform_script_stderrdata)
+                        "Transform script failed: {0}".format(process.returncode)
+                    )
                 else:
                     self.log.info(
                         "Transform script successful. Output temporarily located at %s",

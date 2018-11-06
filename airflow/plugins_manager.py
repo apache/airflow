@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -34,6 +34,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 
+
 class AirflowPluginException(Exception):
     pass
 
@@ -48,6 +49,8 @@ class AirflowPlugin(object):
     admin_views = []
     flask_blueprints = []
     menu_links = []
+    appbuilder_views = []
+    appbuilder_menu_items = []
 
     @classmethod
     def validate(cls):
@@ -107,6 +110,7 @@ def make_module(name, objects):
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
 
+
 # Plugin components to integrate as modules
 operators_modules = []
 sensors_modules = []
@@ -118,6 +122,8 @@ macros_modules = []
 admin_views = []
 flask_blueprints = []
 menu_links = []
+flask_appbuilder_views = []
+flask_appbuilder_menu_links = []
 
 for p in plugins:
     operators_modules.append(
@@ -133,3 +139,5 @@ for p in plugins:
     admin_views.extend(p.admin_views)
     flask_blueprints.extend(p.flask_blueprints)
     menu_links.extend(p.menu_links)
+    flask_appbuilder_views.extend(p.appbuilder_views)
+    flask_appbuilder_menu_links.extend(p.appbuilder_menu_items)

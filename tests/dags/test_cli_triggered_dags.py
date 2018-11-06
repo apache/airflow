@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -42,14 +42,15 @@ def success(ti=None, *args, **kwargs):
 
 # DAG tests that tasks ignore all dependencies
 
-dag1 = DAG(dag_id='test_run_ignores_all_dependencies', default_args=dict(depends_on_past=True, **default_args))
+dag1 = DAG(dag_id='test_run_ignores_all_dependencies',
+           default_args=dict(depends_on_past=True, **default_args))
 dag1_task1 = PythonOperator(
     task_id='test_run_dependency_task',
     python_callable=fail,
-    dag=dag1,)
+    dag=dag1)
 dag1_task2 = PythonOperator(
     task_id='test_run_dependent_task',
     python_callable=success,
     provide_context=True,
-    dag=dag1,)
+    dag=dag1)
 dag1_task1.set_downstream(dag1_task2)

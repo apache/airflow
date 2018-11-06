@@ -43,7 +43,7 @@ def create_session():
         yield session
         session.expunge_all()
         session.commit()
-    except:
+    except Exception:
         session.rollback()
         raise
     finally:
@@ -94,13 +94,8 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='airflow_db', conn_type='mysql',
-            host='localhost', login='root', password='',
+            host='mysql', login='root', password='',
             schema='airflow'))
-    merge_conn(
-        models.Connection(
-            conn_id='airflow_ci', conn_type='mysql',
-            host='localhost', login='root', extra="{\"local_infile\": true}",
-            schema='airflow_ci'))
     merge_conn(
         models.Connection(
             conn_id='beeline_default', conn_type='beeline', port="10000",
@@ -141,18 +136,20 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='mongo_default', conn_type='mongo',
-            host='localhost', port=27017))
+            host='mongo', port=27017))
     merge_conn(
         models.Connection(
             conn_id='mysql_default', conn_type='mysql',
             login='root',
-            host='localhost'))
+            schema='airflow',
+            host='mysql'))
     merge_conn(
         models.Connection(
             conn_id='postgres_default', conn_type='postgres',
             login='postgres',
+            password='airflow',
             schema='airflow',
-            host='localhost'))
+            host='postgres'))
     merge_conn(
         models.Connection(
             conn_id='sqlite_default', conn_type='sqlite',
@@ -184,9 +181,9 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='sftp_default', conn_type='sftp',
-            host='localhost', port=22, login='travis',
+            host='localhost', port=22, login='airflow',
             extra='''
-                {"private_key": "~/.ssh/id_rsa", "ignore_hostkey_verification": true}
+                {"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}
             '''))
     merge_conn(
         models.Connection(
@@ -225,6 +222,8 @@ def initdb(rbac=False):
                     "LogUri": "s3://my-emr-log-bucket/default_job_flow_location",
                     "ReleaseLabel": "emr-4.6.0",
                     "Instances": {
+                        "Ec2KeyName": "mykey",
+                        "Ec2SubnetId": "somesubnet",
                         "InstanceGroups": [
                             {
                                 "Name": "Master nodes",
@@ -240,12 +239,10 @@ def initdb(rbac=False):
                                 "InstanceType": "r3.2xlarge",
                                 "InstanceCount": 1
                             }
-                        ]
+                        ],
+                        "TerminationProtected": false,
+                        "KeepJobFlowAliveWhenNoSteps": false
                     },
-                    "Ec2KeyName": "mykey",
-                    "KeepJobFlowAliveWhenNoSteps": false,
-                    "TerminationProtected": false,
-                    "Ec2SubnetId": "somesubnet",
                     "Applications":[
                         { "Name": "Spark" }
                     ],
@@ -271,7 +268,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='qubole_default', conn_type='qubole',
-            host= 'localhost'))
+            host='localhost'))
     merge_conn(
         models.Connection(
             conn_id='segment_default', conn_type='segment',
@@ -283,7 +280,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='cassandra_default', conn_type='cassandra',
-            host='localhost', port=9042))
+            host='cassandra', port=9042))
 
     # Known event types
     KET = models.KnownEventType
@@ -341,8 +338,8 @@ def upgradedb():
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
-    config.set_main_option('script_location', directory)
-    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
+    config.set_main_option('script_location', directory.replace('%', '%%'))
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN.replace('%', '%%'))
     command.upgrade(config, 'heads')
 
 

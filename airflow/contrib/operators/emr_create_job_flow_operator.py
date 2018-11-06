@@ -18,7 +18,7 @@
 # under the License.
 from airflow.contrib.hooks.emr_hook import EmrHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
 
@@ -33,7 +33,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param emr_conn_id: emr connection to use
     :type emr_conn_id: str
     :param job_flow_overrides: boto3 style arguments to override
-           emr_connection extra. (templated)
+       emr_connection extra. (templated)
     :type steps: dict
     """
     template_fields = ['job_flow_overrides']

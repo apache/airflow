@@ -188,10 +188,8 @@ class PythonVirtualenvOperator(PythonOperator):
     variable named virtualenv_string_args will be available (populated by
     string_args). In addition, one can pass stuff through op_args and op_kwargs, and one
     can use a return value.
-
     Note that if your virtualenv runs in a different Python major version than Airflow,
     you cannot use return values, op_args, or op_kwargs. You can use string_args though.
-
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
     :type python_callable: function
@@ -363,7 +361,8 @@ class PythonVirtualenvOperator(PythonOperator):
             cmd = ['{}/bin/pip'.format(tmp_dir), 'install']
             return cmd + self.requirements
 
-    def _generate_python_cmd(self, tmp_dir, script_filename,
+    @staticmethod
+    def _generate_python_cmd(tmp_dir, script_filename,
                              input_filename, output_filename, string_args_filename):
         # direct path alleviates need to activate
         return ['{}/bin/python'.format(tmp_dir), script_filename,

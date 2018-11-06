@@ -38,7 +38,7 @@ class BashOperator(BaseOperator):
 
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
-    :type bash_command: string
+    :type bash_command: str
     :param xcom_push: If xcom_push is True, the last line written to stdout
         will also be pushed to an XCom when the bash command completes.
     :type xcom_push: bool
@@ -47,7 +47,8 @@ class BashOperator(BaseOperator):
         of inheriting the current process environment, which is the default
         behavior. (templated)
     :type env: dict
-    :type output_encoding: output encoding of bash command
+    :param output_encoding: Output encoding of bash command
+    :type output_encoding: str
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)

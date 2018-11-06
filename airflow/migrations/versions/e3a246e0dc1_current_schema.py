@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,16 +25,16 @@ Create Date: 2015-08-18 16:35:00.883495
 
 """
 
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy import func
+from sqlalchemy.engine.reflection import Inspector
+
 # revision identifiers, used by Alembic.
 revision = 'e3a246e0dc1'
 down_revision = None
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
-from sqlalchemy import func
-from sqlalchemy.engine.reflection import Inspector
 
 
 def upgrade():

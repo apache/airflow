@@ -61,7 +61,8 @@ class _TestMLEngineHook(object):
             for x in expected_requests]
         self._actual_requests = []
 
-    def _normalize_requests_for_comparison(self, uri, http_method, body):
+    @staticmethod
+    def _normalize_requests_for_comparison(uri, http_method, body):
         parts = urlparse(uri)
         return (
             parts._replace(query=set(parse_qsl(parts.query))),
@@ -184,8 +185,7 @@ class TestMLEngineHook(unittest.TestCase):
                 self._SERVICE_URI_PREFIX, project, model_name), 'GET',
              None),
         ] + [
-            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}'
-             '&pageSize=100'.format(
+            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}&pageSize=100'.format(
                 self._SERVICE_URI_PREFIX, project, model_name, ix), 'GET',
              None) for ix in range(len(versions) - 1)
         ]

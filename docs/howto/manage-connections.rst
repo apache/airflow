@@ -3,7 +3,7 @@ Managing Connections
 
 Airflow needs to know how to connect to your environment. Information
 such as hostname, port, login and passwords to other systems and services is
-handled in the ``Admin->Connection`` section of the UI. The pipeline code you
+handled in the ``Admin->Connections`` section of the UI. The pipeline code you
 will author will reference the 'conn_id' of the Connection objects.
 
 .. image:: ../img/connections.png
@@ -17,7 +17,7 @@ more information.
 Creating a Connection with the UI
 ---------------------------------
 
-Open the ``Admin->Connection`` section of the UI. Click the ``Create`` link
+Open the ``Admin->Connections`` section of the UI. Click the ``Create`` link
 to create a new connection.
 
 .. image:: ../img/connection_create.png
@@ -34,7 +34,7 @@ to create a new connection.
 Editing a Connection with the UI
 --------------------------------
 
-Open the ``Admin->Connection`` section of the UI. Click the pencil icon next
+Open the ``Admin->Connections`` section of the UI. Click the pencil icon next
 to the connection you wish to edit in the connection list.
 
 .. image:: ../img/connection_edit.png
@@ -133,3 +133,81 @@ Scopes (comma separated)
         Scopes are ignored when using application default credentials. See
         issue `AIRFLOW-2522
         <https://issues.apache.org/jira/browse/AIRFLOW-2522>`_.
+
+MySQL
+~~~~~
+The MySQL connect type allows to connect with MySQL database.
+
+Configuring the Connection
+''''''''''''''''''''''''''
+Host (required)
+    The host to connect to.
+
+Schema (optional)
+    Specify the schema name to be used in the database.
+
+Login (required)
+    Specify the user name to connect.
+    
+Password (required)
+    Specify the password to connect.    
+    
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in mysql
+    connection. The following parameters are supported:
+
+    * **charset**: specify charset of the connection
+    * **cursor**: one of "sscursor", "dictcursor, "ssdictcursor" - specifies cursor class to be
+      used
+    * **local_infile**: controls MySQL's LOCAL capability (permitting local data loading by
+      clients). See `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_
+      for details.
+    * **unix_socket**: UNIX socket used instead of the default socket
+    * **ssl**: Dictionary of SSL parameters that control connecting using SSL (those
+      parameters are server specific and should contain "ca", "cert", "key", "capath",
+      "cipher" parameters. See
+      `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_ for details.
+      Note that in order to be useful in URL notation, this parameter might also be
+      a string where the SSL dictionary is a string-encoded JSON dictionary.
+
+    Example "extras" field:
+
+    .. code-block:: json
+
+       {
+          "charset": "utf8",
+          "cursorclass": "sscursor",
+          "local_infile": true,
+          "unix_socket": "/var/socket",
+          "ssl": {
+            "cert": "/tmp/client-cert.pem",
+            "ca": "/tmp/server-ca.pem'",
+            "key": "/tmp/client-key.pem"
+          }
+       }
+
+    or
+
+    .. code-block:: json
+
+       {
+          "charset": "utf8",
+          "cursorclass": "sscursor",
+          "local_infile": true,
+          "unix_socket": "/var/socket",
+          "ssl": "{\"cert\": \"/tmp/client-cert.pem\", \"ca\": \"/tmp/server-ca.pem\", \"key\": \"/tmp/client-key.pem\"}"
+       }
+
+    When specifying the connection as URI (in AIRFLOW_CONN_* variable) you should specify it
+    following the standard syntax of DB connections, where extras as passed as parameters
+    of the URI (note that all components of the URI should be URL-encoded).
+
+    For example:
+
+    .. code-block:: bash
+
+       mysql://mysql_user:XXXXXXXXXXXX@1.1.1.1:3306/mysqldb?ssl=%7B%22cert%22%3A+%22%2Ftmp%2Fclient-cert.pem%22%2C+%22ca%22%3A+%22%2Ftmp%2Fserver-ca.pem%22%2C+%22key%22%3A+%22%2Ftmp%2Fclient-key.pem%22%7D
+
+    .. note::
+        If encounter UnicodeDecodeError while working with MySQL connection check
+        the charset defined is matched to the database charset.

@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import logging
 import socket
 import six
 
@@ -31,17 +32,19 @@ from werkzeug.contrib.fixers import ProxyFix
 from airflow import settings
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
-
+from airflow.www_rbac.static_config import configure_manifest_files
 
 app = None
 appbuilder = None
 csrf = CSRFProtect()
 
+log = logging.getLogger(__name__)
 
 def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     global app, appbuilder
     app = Flask(__name__)
-    app.wsgi_app = ProxyFix(app.wsgi_app)
+    if conf.getboolean('webserver', 'ENABLE_PROXY_FIX'):
+        app.wsgi_app = ProxyFix(app.wsgi_app)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
     airflow_home_path = conf.get('core', 'AIRFLOW_HOME')
@@ -58,12 +61,14 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     api.load_auth()
     api.api_auth.init_app(app)
 
-    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})  # noqa
+    # flake8: noqa: F841
+    cache = Cache(app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     from airflow.www_rbac.blueprints import routes
     app.register_blueprint(routes)
 
     configure_logging()
+    configure_manifest_files(app)
 
     with app.app_context():
 
@@ -132,6 +137,24 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 category='About',
                                 category_icon='fa-th')
 
+            def integrate_plugins():
+                """Integrate plugins to the context"""
+                from airflow.plugins_manager import (
+                    flask_appbuilder_views, flask_appbuilder_menu_links)
+
+                for v in flask_appbuilder_views:
+                    log.debug("Adding view %s", v["name"])
+                    appbuilder.add_view(v["view"],
+                                        v["name"],
+                                        category=v["category"])
+                for ml in sorted(flask_appbuilder_menu_links, key=lambda x: x["name"]):
+                    log.debug("Adding menu link %s", ml["name"])
+                    appbuilder.add_link(ml["name"],
+                                        href=ml["href"],
+                                        category=ml["category"],
+                                        category_icon=ml["category_icon"])
+
+            integrate_plugins()
             # Garbage collect old permissions/views after they have been modified.
             # Otherwise, when the name of a view or menu is changed, the framework
             # will add the new Views and Menus names to the backend, but will not

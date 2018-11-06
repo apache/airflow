@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -51,6 +51,7 @@ class State(object):
         RUNNING,
         FAILED,
         UPSTREAM_FAILED,
+        SKIPPED,
         UP_FOR_RETRY,
         QUEUED,
         NONE,
@@ -79,18 +80,14 @@ class State(object):
 
     @classmethod
     def color(cls, state):
-        if state in cls.state_color:
-            return cls.state_color[state]
-        else:
-            return 'white'
+        return cls.state_color.get(state, 'white')
 
     @classmethod
     def color_fg(cls, state):
         color = cls.color(state)
         if color in ['green', 'red']:
             return 'white'
-        else:
-            return 'black'
+        return 'black'
 
     @classmethod
     def finished(cls):
@@ -101,7 +98,6 @@ class State(object):
         """
         return [
             cls.SUCCESS,
-            cls.SHUTDOWN,
             cls.FAILED,
             cls.SKIPPED,
         ]
@@ -117,5 +113,6 @@ class State(object):
             cls.SCHEDULED,
             cls.QUEUED,
             cls.RUNNING,
+            cls.SHUTDOWN,
             cls.UP_FOR_RETRY
         ]

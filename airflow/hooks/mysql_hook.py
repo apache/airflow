@@ -19,6 +19,8 @@
 
 import MySQLdb
 import MySQLdb.cursors
+import json
+import six
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -49,6 +51,7 @@ class MySqlHook(DbApiHook):
     def get_autocommit(self, conn):
         """
         MySql connection gets autocommit in a different way.
+
         :param conn: connection to get autocommit setting from.
         :type conn: connection object.
         :return: connection autocommit setting
@@ -87,7 +90,15 @@ class MySqlHook(DbApiHook):
                 conn_config["cursorclass"] = MySQLdb.cursors.SSDictCursor
         local_infile = conn.extra_dejson.get('local_infile', False)
         if conn.extra_dejson.get('ssl', False):
-            conn_config['ssl'] = conn.extra_dejson['ssl']
+            # SSL parameter for MySQL has to be a dictionary and in case
+            # of extra/dejson we can get string if extra is passed via
+            # URL parameters
+            dejson_ssl = conn.extra_dejson['ssl']
+            if isinstance(dejson_ssl, six.string_types):
+                dejson_ssl = json.loads(dejson_ssl)
+            conn_config['ssl'] = dejson_ssl
+        if conn.extra_dejson.get('unix_socket'):
+            conn_config['unix_socket'] = conn.extra_dejson['unix_socket']
         if local_infile:
             conn_config["local_infile"] = 1
         conn = MySQLdb.connect(**conn_config)
@@ -121,7 +132,7 @@ class MySqlHook(DbApiHook):
     def _serialize_cell(cell, conn):
         """
         MySQLdb converts an argument to a literal
-        when passing those seperately to execute. Hence, this method does nothing.
+        when passing those separately to execute. Hence, this method does nothing.
 
         :param cell: The cell to insert into the table
         :type cell: object

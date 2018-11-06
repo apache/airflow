@@ -18,7 +18,7 @@
 # under the License.
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.contrib.hooks.datadog_hook import DatadogHook
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 from datadog import api
 
@@ -32,7 +32,7 @@ class DatadogSensor(BaseSensorOperator):
     Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
-    :param datadog_conn_id: string
+    :param datadog_conn_id: str
     """
     ui_color = '#66c3dd'
 

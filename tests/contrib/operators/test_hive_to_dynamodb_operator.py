@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,16 +20,17 @@
 
 import json
 import unittest
+import datetime
 
 import mock
 import pandas as pd
 
 from airflow import configuration, DAG
+from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
+
+import airflow.contrib.operators.hive_to_dynamodb
 
 configuration.load_test_config()
-import datetime
-from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
-import airflow.contrib.operators.hive_to_dynamodb
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -52,7 +53,8 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
         self.hook = AwsDynamoDBHook(
             aws_conn_id='aws_default', region_name='us-east-1')
 
-    def process_data(self, data, *args, **kwargs):
+    @staticmethod
+    def process_data(data, *args, **kwargs):
         return json.loads(data.to_json(orient='records'))
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
@@ -66,9 +68,8 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_get_records_with_schema(self, get_results_mock):
-
         # this table needs to be created in production
-        table = self.hook.get_conn().create_table(
+        self.hook.get_conn().create_table(
             TableName='test_airflow',
             KeySchema=[
                 {
@@ -107,9 +108,8 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_pre_process_records_with_schema(self, get_results_mock):
-
-         # this table needs to be created in production
-        table = self.hook.get_conn().create_table(
+        # this table needs to be created in production
+        self.hook.get_conn().create_table(
             TableName='test_airflow',
             KeySchema=[
                 {
@@ -140,8 +140,7 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
         operator.execute(None)
 
         table = self.hook.get_conn().Table('test_airflow')
-        table.meta.client.get_waiter(
-            'table_exists').wait(TableName='test_airflow')
+        table.meta.client.get_waiter('table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 1)
 
 
