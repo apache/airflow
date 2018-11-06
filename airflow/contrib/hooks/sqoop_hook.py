@@ -36,13 +36,14 @@ class SqoopHook(BaseHook, LoggingMixin):
 
     Additional arguments that can be passed via the 'extra' JSON field of the
     sqoop connection:
-    * job_tracker: Job tracker local|jobtracker:port.
-    * namenode: Namenode.
-    * lib_jars: Comma separated jar files to include in the classpath.
-    * files: Comma separated files to be copied to the map reduce cluster.
-    * archives: Comma separated archives to be unarchived on the compute
-        machines.
-    * password_file: Path to file containing the password.
+
+        * ``job_tracker``: Job tracker local|jobtracker:port.
+        * ``namenode``: Namenode.
+        * ``lib_jars``: Comma separated jar files to include in the classpath.
+        * ``files``: Comma separated files to be copied to the map reduce cluster.
+        * ``archives``: Comma separated archives to be unarchived on the compute
+            machines.
+        * ``password_file``: Path to file containing the password.
 
     :param conn_id: Reference to the sqoop connection.
     :type conn_id: str
@@ -205,6 +206,7 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
+
         :param table: Table to read
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
@@ -235,6 +237,7 @@ class SqoopHook(BaseHook, LoggingMixin):
                      split_by=None, direct=None, driver=None, extra_import_options=None):
         """
         Imports a specific query from the rdbms to hdfs
+
         :param query: Free format query to run
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
@@ -319,6 +322,7 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
+
         :param table: Table remote destination
         :param export_dir: Hive table to export
         :param input_null_string: The string to be interpreted as null for

@@ -25,22 +25,22 @@ class BigQueryTableSensor(BaseSensorOperator):
     """
     Checks for the existence of a table in Google Bigquery.
 
-        :param project_id: The Google cloud project in which to look for the table.
-            The connection supplied to the hook must provide
-            access to the specified project.
-        :type project_id: str
-        :param dataset_id: The name of the dataset in which to look for the table.
-            storage bucket.
-        :type dataset_id: str
-        :param table_id: The name of the table to check the existence of.
-        :type table_id: str
-        :param bigquery_conn_id: The connection ID to use when connecting to
-            Google BigQuery.
-        :type bigquery_conn_id: str
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must
-            have domain-wide delegation enabled.
-        :type delegate_to: str
+    :param project_id: The Google cloud project in which to look for the table.
+        The connection supplied to the hook must provide
+        access to the specified project.
+    :type project_id: str
+    :param dataset_id: The name of the dataset in which to look for the table.
+        storage bucket.
+    :type dataset_id: str
+    :param table_id: The name of the table to check the existence of.
+    :type table_id: str
+    :param bigquery_conn_id: The connection ID to use when connecting to
+        Google BigQuery.
+    :type bigquery_conn_id: str
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must
+        have domain-wide delegation enabled.
+    :type delegate_to: str
     """
     template_fields = ('project_id', 'dataset_id', 'table_id',)
     ui_color = '#f0eee4'
