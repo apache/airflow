@@ -27,6 +27,7 @@ from airflow.utils.decorators import apply_defaults
 class SFTPSensor(BaseSensorOperator):
     """
     Waits for a file or directory to be present on SFTP.
+
     :param path: Remote file or directory path
     :type path: str
     :param sftp_conn_id: The connection to run the sensor against
