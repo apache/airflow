@@ -183,22 +183,44 @@ docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts
 Alternatively can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
 It is free for open source projects.
 
-Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be executed and if this pipeline failed (returned an exit code other than `0`) the commit does not come through.
+Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be triggered and if this pipeline fails (returns an exit code other than `0`) the commit does not come through.
 This "in theory" has the advantage that you can not commit any code that fails that again reduces the errors in the Travis CI Pipelines.
 
 Since there are a lot of tests the script would last very long so you propably only should test your new feature locally.
 
 The following example of a `pre-commit` file allows you..
-- to lint your code
-- test your code in a docker container based on python 2
-- test your code in a docker container based on python 3
+- to lint your code via flake8
+- to test your code via nosetests in a docker container based on python 2
+- to test your code via nosetests in a docker container based on python 3
 
-NOTE: Change the `airflow-py2` and `airflow-py3` to your docker containers or remove the `docker exec` if you have set up your environment directly on your host system.
 ```
-git diff upstream/master -u -- "*.py" | flake8 --diff
+#!/bin/sh
 
-docker exec -t -i -w /airflow/ airflow-py2 nosetests tests/contrib/hooks/test_new_feature_hook.py
-docker exec -t -i -w /airflow/ airflow-py3 nosetests tests/contrib/hooks/test_new_feature_hook.py
+GREEN='\033[0;32m'
+NO_COLOR='\033[0m'
+PROJECT_DIR=$(git rev-parse --show-toplevel)
+
+setup_python_env() {
+    echo -e "${GREEN}Activating python virtual environment ${1}..${NO_COLOR}"
+    source ${1}
+}
+run_linting() {
+    echo -e "${GREEN}Running flake8 over all files..${NO_COLOR}"
+    flake8 ${PROJECT_DIR}
+}
+run_testing_in_docker() {
+    # IMPORTANT NOTE: Change the docker container names to your containers.
+    echo -e "${GREEN}Running tests in ${1} in airflow python 2 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ dazzling_chatterjee nosetests -v ${1}
+    echo -e "${GREEN}Running tests in ${1} in airflow python 3 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ quirky_stallman nosetests -v ${1}
+}
+
+set -e
+setup_python_env /Users/feluelle/venv/bin/activate
+run_linting
+# NOTE: The first argument is the name of your feature you want to test.
+run_testing_in_docker tests/contrib/hooks/test_imap_hook.py
 ```
 
 For more information on how to run a subset of the tests, take a look at the
