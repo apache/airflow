@@ -18,9 +18,9 @@
 
 import re
 import socket
-import airflow.configuration as conf
 
 from airflow.utils.net import get_hostname
+
 
 def get_components(principal):
     """
