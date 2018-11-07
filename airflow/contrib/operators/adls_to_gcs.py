@@ -17,20 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
-from airflow.contrib.operators.adls_list_operator import AzureDataLakeStorageListOperator
-from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
-
 import os
 from tempfile import NamedTemporaryFile
+
+from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+from airflow.contrib.operators.adls_list_operator import AzureDataLakeStorageListOperator
+from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.utils.decorators import apply_defaults
 
 
 class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
     """
     Synchronizes an Azure Data Lake Storage path with a GCS bucket
-    :param path: The Azure Data Lake path to find the objects (templated)
-    :type path: str
+    :param src_adls: The Azure Data Lake path to find the objects (templated)
+    :type src_adls: str
     :param dest_gcs: The Google Cloud Storage bucket and prefix to
         store the objects. (templated)
     :type dest_gcs: str
@@ -39,9 +39,9 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
     :param azure_data_lake_conn_id: The connection ID to use when
         connecting to Azure Data Lake Storage.
     :type azure_data_lake_conn_id: str
-    :param dest_google_cloud_storage_conn_id: The connection ID to use when
+    :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.
-    :type dest_google_cloud_storage_conn_id: str
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -82,26 +82,27 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
                 google_cloud_storage_conn_id='google_cloud_default'
             )
     """
-    template_fields = ('path', 'dest_gcs')
+    template_fields = ('src_adls', 'dest_gcs')
     ui_color = '#f0eee4'
 
     @apply_defaults
     def __init__(self,
-                 path,
-                 dest_gcs=None,
-                 replace=False,
-                 azure_data_lake_conn_id='azure_data_lake_default',
-                 google_cloud_storage_conn_id='google_cloud_default',
+                 src_adls,
+                 dest_gcs,
+                 azure_data_lake_conn_id,
+                 google_cloud_storage_conn_id,
                  delegate_to=None,
+                 replace=False,
                  *args,
                  **kwargs):
 
         super(AdlsToGoogleCloudStorageOperator, self).__init__(
-            path=path,
+            path=src_adls,
             azure_data_lake_conn_id=azure_data_lake_conn_id,
             *args,
             **kwargs
         )
+        self.src_adls = src_adls
         self.dest_gcs = dest_gcs
         self.replace = replace
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id

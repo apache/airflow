@@ -46,11 +46,11 @@ class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         operator = AdlsToGoogleCloudStorageOperator(
             task_id=TASK_ID,
-            path=ADLS_PATH_1,
+            src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
-            dest_gcs_conn_id=GCS_CONN_ID
+            google_cloud_storage_conn_id=GCS_CONN_ID
         )
 
         self.assertEqual(operator.task_id, TASK_ID)
@@ -69,11 +69,11 @@ class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         operator = AdlsToGoogleCloudStorageOperator(
             task_id=TASK_ID,
-            path=ADLS_PATH_1,
+            src_adls=ADLS_PATH_1,
             dest_gcs=GCS_PATH,
             replace=False,
             azure_data_lake_conn_id=AZURE_CONN_ID,
-            dest_gcs_conn_id=GCS_CONN_ID
+            google_cloud_storage_conn_id=GCS_CONN_ID
         )
 
         adls_one_mock_hook.return_value.list.return_value = MOCK_FILES
