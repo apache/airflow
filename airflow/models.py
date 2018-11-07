@@ -667,6 +667,7 @@ class Connection(Base, LoggingMixin):
         ('azure_data_lake', 'Azure Data Lake'),
         ('cassandra', 'Cassandra',),
         ('qubole', 'Qubole'),
+        ('mongo', 'MongoDb'),
     ]
 
     def __init__(
@@ -807,6 +808,9 @@ class Connection(Base, LoggingMixin):
             elif self.conn_type == 'cassandra':
                 from airflow.contrib.hooks.cassandra_hook import CassandraHook
                 return CassandraHook(cassandra_conn_id=self.conn_id)
+            elif self.conn_type == 'mongo':
+                from airflow.contrib.hooks.mongo_hook import MongoHook
+                return MongoHook(conn_id=self.conn_id)
         except Exception:
             pass
 
