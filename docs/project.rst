@@ -46,7 +46,7 @@ Resources & links
   ``commits-subscribe@airflow.incubator.apache.org``
   to subscribe to each)
 * `Issues on Apache's Jira <https://issues.apache.org/jira/browse/AIRFLOW>`_
-* `Gitter (chat) Channel <https://gitter.im/airbnb/airflow>`_
+* `Slack (chat) Channel <https://apache-airflow-slack.herokuapp.com/>`_
 * `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`_
 
 
