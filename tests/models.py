@@ -454,23 +454,30 @@ class DagTest(unittest.TestCase):
         result = task.render_template('', "{{ 'world' | hello}}", dict())
         self.assertEqual(result, 'Hello world')
 
-    def test_next_run_date_and_next_execution_date(self):
+    def test_schedulable_at(self):
         """
-        [AIRFLOW-1424] test the 'next_run_date' and 'next_execution_date' DAG
-        properties used in the interface to give more visibility to the
-        scheduler's execution time of DAGs.
+        [AIRFLOW-1424] test the 'schedulable_after' DAG property.
         """
         test_dag_id = 'test_get_num_task_instances_dag'
         test_task_id = 'task_1'
 
         test_dag = DAG(dag_id=test_dag_id, start_date=DEFAULT_DATE,
                        schedule_interval=datetime.timedelta(days=1))
-        self.assertEqual(test_dag.next_run_date, None)
-
         DummyOperator(task_id=test_task_id, dag=test_dag)
-        self.assertEqual(test_dag.next_run_date, DEFAULT_DATE)
-        self.assertEqual(test_dag.next_execution_date,
+        self.assertEqual(test_dag.schedulable_at,
                          DEFAULT_DATE + datetime.timedelta(days=1))
+
+    def test_scheduled_in_overdue(self):
+        """
+        [AIRFLOW-1424] test the 'scheduled_in' DAG property.
+        """
+        test_dag_id = 'test_get_num_task_instances_dag'
+        test_task_id = 'task_1'
+
+        test_dag = DAG(dag_id=test_dag_id, start_date=DEFAULT_DATE,
+                       schedule_interval=datetime.timedelta(days=1))
+        DummyOperator(task_id=test_task_id, dag=test_dag)
+        self.assertEqual(test_dag.scheduled_in, "overdue")
 
     def test_cycle(self):
         # test empty

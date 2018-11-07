@@ -891,7 +891,8 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-            # Don't really schedule the job, we are interested in its next execution date
+            # Don't really schedule the job, we are interested in its next run date
+            # as calculated by the scheduler
             if dry_run is True:
                 return next_run_date
 

@@ -59,8 +59,8 @@
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
-                <th>Next Execution
-                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Period end date after which the DAG will be eligible for execution by the scheduler."></span>
+                <th>Scheduled in
+                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Earliest time at which the DAG will next be scheduled."></span>
                 </th>
                 <th class="text-center">Links</th>
             </tr>
@@ -137,11 +137,11 @@
                     <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
 
-                <!-- Column 9: Dag Next Scheduler Execution -->
+                <!-- Column 9: Dag Scheduled in -->
                 <td>
                     {% if dag_id in webserver_dags %}
-                    <a class="label label-default" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
-                        {{ dag.next_execution_date }}
+                    <a class="label label-default" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}" title="Schedulable at: {{ dag.schedulable_at }}">
+                        {{ dag.scheduled_in }}
                     </a>
                     {% endif %}
                 </td>

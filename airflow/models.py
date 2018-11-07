@@ -3734,14 +3734,29 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     @provide_session
-    def next_execution_date(self, session=None):
+    def schedulable_at(self, session=None):
         """
-        Returns the next execution date at which the dag will be scheduled by
-        the scheduler (period end)
+        Returns the earliest time at which the DAG will next be eligible for
+        execution by the scheduler
         """
         from airflow.jobs import SchedulerJob
         scheduler = SchedulerJob()
-        return scheduler.create_dag_run(self, dry_run=True)
+        next_run_date = scheduler.create_dag_run(self, dry_run=True)
+        if next_run_date:
+            period_end = self.following_schedule(next_run_date)
+            return period_end
+
+    @property
+    def scheduled_in(self):
+        """
+        Returns a human readable duration before the next schedulable time
+        of the DAG
+        """
+        import pendulum
+        diff = self.schedulable_at - pendulum.now()
+        if diff.in_seconds() <= 0:
+            return "overdue"
+        return diff
 
     @property
     def subdags(self):
