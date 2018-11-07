@@ -22,15 +22,30 @@ import json
 import unittest
 from urllib.parse import quote_plus
 
-from airflow import configuration
+
+from airflow import configuration as conf
+from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagBag, DagModel, DagRun, Pool, TaskInstance
+from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, utcnow
 from airflow.www import app as application
 
 
-class TestApiExperimental(unittest.TestCase):
+class TestBase(unittest.TestCase):
+    def setUp(self):
+        conf.load_test_config()
+        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
+        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'
+        self.app.config['SECRET_KEY'] = 'secret_key'
+        self.app.config['CSRF_ENABLED'] = False
+        self.app.config['WTF_CSRF_ENABLED'] = False
+        self.client = self.app.test_client()
+        settings.configure_orm()
+        self.session = Session
+
+
+class TestApiExperimental(TestBase):
 
     @classmethod
     def setUpClass(cls):
@@ -43,9 +58,6 @@ class TestApiExperimental(unittest.TestCase):
 
     def setUp(self):
         super(TestApiExperimental, self).setUp()
-        configuration.load_test_config()
-        app = application.create_app(testing=True)
-        self.app = app.test_client()
 
     def tearDown(self):
         session = Session()
@@ -58,28 +70,45 @@ class TestApiExperimental(unittest.TestCase):
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
 
-        response = self.app.get(
+        response = self.client.get(
             url_template.format('example_bash_operator', 'runme_0')
         )
         self.assertIn('"email"', response.data.decode('utf-8'))
         self.assertNotIn('error', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
 
-        response = self.app.get(
+        response = self.client.get(
             url_template.format('example_bash_operator', 'DNE')
         )
         self.assertIn('error', response.data.decode('utf-8'))
         self.assertEqual(404, response.status_code)
 
-        response = self.app.get(
+        response = self.client.get(
             url_template.format('DNE', 'DNE')
         )
         self.assertIn('error', response.data.decode('utf-8'))
         self.assertEqual(404, response.status_code)
 
+    def test_task_paused(self):
+        url_template = '/api/experimental/dags/{}/paused/{}'
+
+        response = self.client.get(
+            url_template.format('example_bash_operator', 'true')
+        )
+        self.assertIn('ok', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+        url_template = '/api/experimental/dags/{}/paused/{}'
+
+        response = self.client.get(
+            url_template.format('example_bash_operator', 'false')
+        )
+        self.assertIn('ok', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
     def test_trigger_dag(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
-        response = self.app.post(
+        response = self.client.post(
             url_template.format('example_bash_operator'),
             data=json.dumps({'run_id': 'my_run' + utcnow().isoformat()}),
             content_type="application/json"
@@ -87,29 +116,9 @@ class TestApiExperimental(unittest.TestCase):
 
         self.assertEqual(200, response.status_code)
 
-        response = self.app.post(
+        response = self.client.post(
             url_template.format('does_not_exist_dag'),
             data=json.dumps({}),
-            content_type="application/json"
-        )
-        self.assertEqual(404, response.status_code)
-
-    def test_delete_dag(self):
-        url_template = '/api/experimental/dags/{}'
-
-        from airflow import settings
-        session = settings.Session()
-        key = "my_dag_id"
-        session.add(DagModel(dag_id=key))
-        session.commit()
-        response = self.app.delete(
-            url_template.format(key),
-            content_type="application/json"
-        )
-        self.assertEqual(200, response.status_code)
-
-        response = self.app.delete(
-            url_template.format('does_not_exist_dag'),
             content_type="application/json"
         )
         self.assertEqual(404, response.status_code)
@@ -125,7 +134,7 @@ class TestApiExperimental(unittest.TestCase):
         datetime_string = execution_date.isoformat()
 
         # Test Correct execution
-        response = self.app.post(
+        response = self.client.post(
             url_template.format(dag_id),
             data=json.dumps({'execution_date': datetime_string}),
             content_type="application/json"
@@ -140,7 +149,7 @@ class TestApiExperimental(unittest.TestCase):
                         .format(execution_date))
 
         # Test error for nonexistent dag
-        response = self.app.post(
+        response = self.client.post(
             url_template.format('does_not_exist_dag'),
             data=json.dumps({'execution_date': execution_date.isoformat()}),
             content_type="application/json"
@@ -148,7 +157,7 @@ class TestApiExperimental(unittest.TestCase):
         self.assertEqual(404, response.status_code)
 
         # Test error for bad datetime format
-        response = self.app.post(
+        response = self.client.post(
             url_template.format(dag_id),
             data=json.dumps({'execution_date': 'not_a_datetime'}),
             content_type="application/json"
@@ -171,7 +180,7 @@ class TestApiExperimental(unittest.TestCase):
                     execution_date=execution_date)
 
         # Test Correct execution
-        response = self.app.get(
+        response = self.client.get(
             url_template.format(dag_id, datetime_string, task_id)
         )
         self.assertEqual(200, response.status_code)
@@ -179,7 +188,7 @@ class TestApiExperimental(unittest.TestCase):
         self.assertNotIn('error', response.data.decode('utf-8'))
 
         # Test error for nonexistent dag
-        response = self.app.get(
+        response = self.client.get(
             url_template.format('does_not_exist_dag', datetime_string,
                                 task_id),
         )
@@ -187,28 +196,71 @@ class TestApiExperimental(unittest.TestCase):
         self.assertIn('error', response.data.decode('utf-8'))
 
         # Test error for nonexistent task
-        response = self.app.get(
+        response = self.client.get(
             url_template.format(dag_id, datetime_string, 'does_not_exist_task')
         )
         self.assertEqual(404, response.status_code)
         self.assertIn('error', response.data.decode('utf-8'))
 
         # Test error for nonexistent dag run (wrong execution_date)
-        response = self.app.get(
+        response = self.client.get(
             url_template.format(dag_id, wrong_datetime_string, task_id)
         )
         self.assertEqual(404, response.status_code)
         self.assertIn('error', response.data.decode('utf-8'))
 
         # Test error for bad datetime format
-        response = self.app.get(
+        response = self.client.get(
             url_template.format(dag_id, 'not_a_datetime', task_id)
         )
         self.assertEqual(400, response.status_code)
         self.assertIn('error', response.data.decode('utf-8'))
 
+    def test_dagrun_status(self):
+        url_template = '/api/experimental/dags/{}/dag_runs/{}'
+        dag_id = 'example_bash_operator'
+        execution_date = utcnow().replace(microsecond=0)
+        datetime_string = quote_plus(execution_date.isoformat())
+        wrong_datetime_string = quote_plus(
+            datetime(1990, 1, 1, 1, 1, 1).isoformat()
+        )
 
-class TestPoolApiExperimental(unittest.TestCase):
+        # Create DagRun
+        trigger_dag(dag_id=dag_id,
+                    run_id='test_task_instance_info_run',
+                    execution_date=execution_date)
+
+        # Test Correct execution
+        response = self.client.get(
+            url_template.format(dag_id, datetime_string)
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn('state', response.data.decode('utf-8'))
+        self.assertNotIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag
+        response = self.client.get(
+            url_template.format('does_not_exist_dag', datetime_string),
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag run (wrong execution_date)
+        response = self.client.get(
+            url_template.format(dag_id, wrong_datetime_string)
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for bad datetime format
+        response = self.client.get(
+            url_template.format(dag_id, 'not_a_datetime')
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+
+class TestPoolApiExperimental(TestBase):
 
     @classmethod
     def setUpClass(cls):
@@ -220,10 +272,7 @@ class TestPoolApiExperimental(unittest.TestCase):
 
     def setUp(self):
         super(TestPoolApiExperimental, self).setUp()
-        configuration.load_test_config()
-        app = application.create_app(testing=True)
-        self.app = app.test_client()
-        self.session = Session()
+
         self.pools = []
         for i in range(2):
             name = 'experimental_%s' % (i + 1)
@@ -244,12 +293,12 @@ class TestPoolApiExperimental(unittest.TestCase):
         super(TestPoolApiExperimental, self).tearDown()
 
     def _get_pool_count(self):
-        response = self.app.get('/api/experimental/pools')
+        response = self.client.get('/api/experimental/pools')
         self.assertEqual(response.status_code, 200)
         return len(json.loads(response.data.decode('utf-8')))
 
     def test_get_pool(self):
-        response = self.app.get(
+        response = self.client.get(
             '/api/experimental/pools/{}'.format(self.pool.pool),
         )
         self.assertEqual(response.status_code, 200)
@@ -257,13 +306,13 @@ class TestPoolApiExperimental(unittest.TestCase):
                          self.pool.to_json())
 
     def test_get_pool_non_existing(self):
-        response = self.app.get('/api/experimental/pools/foo')
+        response = self.client.get('/api/experimental/pools/foo')
         self.assertEqual(response.status_code, 404)
         self.assertEqual(json.loads(response.data.decode('utf-8'))['error'],
                          "Pool 'foo' doesn't exist")
 
     def test_get_pools(self):
-        response = self.app.get('/api/experimental/pools')
+        response = self.client.get('/api/experimental/pools')
         self.assertEqual(response.status_code, 200)
         pools = json.loads(response.data.decode('utf-8'))
         self.assertEqual(len(pools), 2)
@@ -271,7 +320,7 @@ class TestPoolApiExperimental(unittest.TestCase):
             self.assertDictEqual(pool, self.pools[i].to_json())
 
     def test_create_pool(self):
-        response = self.app.post(
+        response = self.client.post(
             '/api/experimental/pools',
             data=json.dumps({
                 'name': 'foo',
@@ -289,7 +338,7 @@ class TestPoolApiExperimental(unittest.TestCase):
 
     def test_create_pool_with_bad_name(self):
         for name in ('', '    '):
-            response = self.app.post(
+            response = self.client.post(
                 '/api/experimental/pools',
                 data=json.dumps({
                     'name': name,
@@ -306,7 +355,7 @@ class TestPoolApiExperimental(unittest.TestCase):
         self.assertEqual(self._get_pool_count(), 2)
 
     def test_delete_pool(self):
-        response = self.app.delete(
+        response = self.client.delete(
             '/api/experimental/pools/{}'.format(self.pool.pool),
         )
         self.assertEqual(response.status_code, 200)
@@ -315,7 +364,7 @@ class TestPoolApiExperimental(unittest.TestCase):
         self.assertEqual(self._get_pool_count(), 1)
 
     def test_delete_pool_non_existing(self):
-        response = self.app.delete(
+        response = self.client.delete(
             '/api/experimental/pools/foo',
         )
         self.assertEqual(response.status_code, 404)

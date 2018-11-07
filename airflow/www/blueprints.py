@@ -17,9 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import (
-    url_for, Markup, Blueprint, redirect,
-)
+from flask import Markup, Blueprint, redirect
 import markdown
 
 routes = Blueprint('routes', __name__)
@@ -27,7 +25,7 @@ routes = Blueprint('routes', __name__)
 
 @routes.route('/')
 def index():
-    return redirect(url_for('admin.index'))
+    return redirect('/home')
 
 
 @routes.route('/health')

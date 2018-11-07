@@ -30,3 +30,4 @@ python:
         - sendgrid
         - ssh
         - slack
+        - qds

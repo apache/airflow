@@ -39,5 +39,5 @@ bootstrap-toggle.min.js
 bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
-airflow/www_rbac/node_modules
+airflow/www/node_modules
 .*json

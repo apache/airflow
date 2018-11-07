@@ -48,6 +48,7 @@ import json
 import logging
 import numbers
 import os
+import pendulum
 import pickle
 import re
 import signal
@@ -665,6 +666,7 @@ class Connection(Base, LoggingMixin):
         ('segment', 'Segment',),
         ('azure_data_lake', 'Azure Data Lake'),
         ('cassandra', 'Cassandra',),
+        ('qubole', 'Qubole'),
     ]
 
     def __init__(
@@ -1125,44 +1127,26 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
-        if settings.RBAC:
-            return BASE_URL + (
-                "/log?"
-                "execution_date={iso}"
-                "&task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-            ).format(**locals())
-        else:
-            return BASE_URL + (
-                "/admin/airflow/log"
-                "?dag_id={self.dag_id}"
-                "&task_id={self.task_id}"
-                "&execution_date={iso}"
-            ).format(**locals())
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/log?"
+            "execution_date={iso}"
+            "&task_id={self.task_id}"
+            "&dag_id={self.dag_id}"
+        ).format(**locals())
 
     @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
-        if settings.RBAC:
-            return BASE_URL + (
-                "/success"
-                "?task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-                "&execution_date={iso}"
-                "&upstream=false"
-                "&downstream=false"
-            ).format(**locals())
-        else:
-            return BASE_URL + (
-                "/admin/airflow/success"
-                "?task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-                "&execution_date={iso}"
-                "&upstream=false"
-                "&downstream=false"
-            ).format(**locals())
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/success"
+            "?task_id={self.task_id}"
+            "&dag_id={self.dag_id}"
+            "&execution_date={iso}"
+            "&upstream=false"
+            "&downstream=false"
+        ).format(**locals())
 
     @provide_session
     def current_state(self, session=None):
@@ -1684,14 +1668,6 @@ class TaskInstance(Base, LoggingMixin):
             self.handle_failure(e, test_mode, context)
             raise
 
-        # Recording SUCCESS
-        self.end_date = timezone.utcnow()
-        self.set_duration()
-        if not test_mode:
-            session.add(Log(self.state, self))
-            session.merge(self)
-        session.commit()
-
         # Success callback
         try:
             if task.on_success_callback:
@@ -1700,6 +1676,12 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Failed when executing success callback")
             self.log.exception(e3)
 
+        # Recording SUCCESS
+        self.end_date = timezone.utcnow()
+        self.set_duration()
+        if not test_mode:
+            session.add(Log(self.state, self))
+            session.merge(self)
         session.commit()
 
     @provide_session
@@ -3445,33 +3427,76 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
+    def is_fixed_time_schedule(self):
+        """
+        Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
+
+        :return: True if the schedule has a fixed time, False if not.
+        """
+        now = datetime.now()
+        cron = croniter(self._schedule_interval, now)
+
+        start = cron.get_next(datetime)
+        cron_next = cron.get_next(datetime)
+
+        if cron_next.minute == start.minute and cron_next.hour == start.hour:
+            return True
+
+        return False
+
     def following_schedule(self, dttm):
         """
-        Calculates the following schedule for this dag in local time
+        Calculates the following schedule for this dag in UTC.
 
         :param dttm: utc datetime
         :return: utc datetime
         """
         if isinstance(self._schedule_interval, six.string_types):
-            dttm = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, dttm)
-            following = timezone.make_aware(cron.get_next(datetime), self.timezone)
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(self._schedule_interval, naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = cron.get_next(datetime) - naive
+                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_next(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
         elif self._schedule_interval is not None:
             return dttm + self._schedule_interval
 
     def previous_schedule(self, dttm):
         """
-        Calculates the previous schedule for this dag in local time
+        Calculates the previous schedule for this dag in UTC
 
         :param dttm: utc datetime
         :return: utc datetime
         """
         if isinstance(self._schedule_interval, six.string_types):
-            dttm = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, dttm)
-            prev = timezone.make_aware(cron.get_prev(datetime), self.timezone)
-            return timezone.convert_to_utc(prev)
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(self._schedule_interval, naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = naive - cron.get_prev(datetime)
+                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_prev(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                previous = timezone.make_aware(naive, tz)
+            return timezone.convert_to_utc(previous)
         elif self._schedule_interval is not None:
             return dttm - self._schedule_interval
 

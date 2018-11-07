@@ -19,12 +19,13 @@
 
 {% block head_css %}
 {{ super() }}
-<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet"/>
-<link type="text/css" href="{{ url_for('static', filename='gantt.css') }}" rel="stylesheet" />
-<link type="text/css" href="{{ url_for('static', filename='tree.css') }}" rel="stylesheet" />
+<link rel="stylesheet" type="text/css"
+    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
+<link type="text/css" href="{{ url_for('static', filename='css/gantt.css') }}" rel="stylesheet" />
+<link type="text/css" href="{{ url_for('static', filename='css/tree.css') }}" rel="stylesheet" />
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
 <form method="get">
   <div class="form-inline">
@@ -45,11 +46,10 @@
 
 {% block tail %}
 {{ super() }}
-<script src="{{ admin_static.url(
-  filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
-<script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-<script src="{{ url_for('static', filename='d3.tip.v0.6.3.js') }}"></script>/
-<script src="{{ url_for('static', filename='gantt-chart-d3v2.js') }}"></script>
+<script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js') }}"></script>
+<script src="{{ url_for_asset('d3.min.js') }}"></script>
+<script src="{{ url_for_asset('d3-tip.js') }}"></script>/
+<script src="{{ url_for_asset('ganttChartD3v2.js') }}"></script>
 <script>
   $( document ).ready(function() {
     var dag_id = '{{ dag.dag_id }}';

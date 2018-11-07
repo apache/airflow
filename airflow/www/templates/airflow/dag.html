@@ -16,18 +16,16 @@
 
 #}
 {% extends "airflow/master.html" %}
-{% import 'admin/lib.html' as lib with context %}
 
 {% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
 
 {% block head_css %}
-  {{ lib.form_css() }}
   {{ super() }}
-  <link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
+  <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
-{% block body %}
-  <div>
+{% block content %}
+<div>
     <h3 class="pull-left">
       {% if dag.parent_dag %}
         <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
@@ -40,68 +38,70 @@
       {% endif %}
     </h3>
     <h4 class="pull-right">
-      <a class="label label-default" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
         schedule: {{ dag.schedule_interval }}
       </a>
     </h4>
   </div>
   <div class="clearfix"></div>
   <div>
+    {% set base_date_arg = request.args.get('base_date') %}
+    {% set num_runs_arg = request.args.get('num_runs') %}
     <ul class="nav nav-pills">
       {% if dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for('airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id) }}">
+          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
       {% endif %}
-      <li><a href="{{ url_for("airflow.graph", dag_id=dag.dag_id, root=root, execution_date=execution_date) }}">
+      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
-      <li><a href="{{ url_for("airflow.tree", dag_id=dag.dag_id, num_runs=num_runs, root=root) }}">
+      <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
         Tree View
       </a></li>
-      <li><a href="{{ url_for("airflow.duration", dag_id=dag.dag_id, days=30, root=root) }}">
+      <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
           Task Duration
       </a></li>
-      <li><a href="{{ url_for("airflow.tries", dag_id=dag.dag_id, days=30, root=root) }}">
+      <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
           Task Tries
       </a></li>
       <li>
-        <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id, days=30, root=root) }}">
+        <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
           Landing Times
         </a>
       </li>
       <li>
-        <a href="{{ url_for("airflow.gantt", dag_id=dag.dag_id, root=root) }}">
+        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
           <i class="icon-align-left"></i>
           Gantt
         </a>
       </li>
       <li>
-      <a href="{{ url_for("airflow.dag_details", dag_id=dag.dag_id) }}">
+      <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
           <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
           Details
         </a>
       </li>
       <li>
-        <a href="{{ url_for("airflow.code", dag_id=dag.dag_id, root=root) }}">
+        <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
           Code
         </a>
       </li>
       <li>
-        <a href="{{ url_for("airflow.refresh", dag_id=dag.dag_id) }}" title="Refresh">
+        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh">
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
           Refresh
         </a>
       </li>
       <li>
-        <a href="{{ url_for("airflow.delete", dag_id=dag.dag_id, root=root) }}"
+        <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, root=root) }}"
         onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
         <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
         Delete
@@ -276,9 +276,8 @@
   </div>
 {% endblock %}
 {% block tail %}
-  {{ lib.form_js() }}
   {{ super() }}
-  <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
+  <script src="{{ url_for_asset('bootstrap-toggle.min.js') }}"></script>
   <script>
 function updateQueryStringParameter(uri, key, value) {
   var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
@@ -299,6 +298,7 @@ function updateQueryStringParameter(uri, key, value) {
 
     var id = '';
     var dag_id = '{{ dag.dag_id }}';
+    var dagTZ = '{{ dag.timezone.name }}'; // Being used in datetime-utils.js
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
@@ -337,7 +337,7 @@ function updateQueryStringParameter(uri, key, value) {
     }
 
     $("#btn_rendered").click(function(){
-      url = "{{ url_for('airflow.rendered') }}" +
+      url = "{{ url_for('Airflow.rendered') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
@@ -345,14 +345,14 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_subdag").click(function(){
-      url = "{{ url_for( 'airflow.' + dag.default_view ) }}" +
+      url = "{{ url_for( 'Airflow.' + dag.default_view ) }}" +
         "?dag_id=" + encodeURIComponent(subdag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
     $("#btn_log").click(function(){
-      url = "{{ url_for('airflow.log') }}" +
+      url = "{{ url_for('Airflow.log') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
@@ -360,7 +360,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_task").click(function(){
-      url = "{{ url_for('airflow.task') }}" +
+      url = "{{ url_for('Airflow.task') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
@@ -368,15 +368,15 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_ti").click(function(){
-      url = "/admin/taskinstance/" +
-        "?flt1_dag_id_equals=" + encodeURIComponent(dag_id) +
-        "&flt2_task_id_equals=" + encodeURIComponent(task_id) +
-        "&sort=3&desc=1";
+      url = "{{ url_for('TaskInstanceModelView.list') }}" +
+        "?flt1_dag_id_equals=" + dag_id +
+        "&_flt_3_task_id=" + task_id +
+        "&_oc_TaskInstanceModelView=execution_date";
       window.location = url;
     });
 
     $("#btn_run").click(function(){
-      url = "{{ url_for('airflow.run') }}" +
+      url = "{{ url_for('Airflow.run') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&ignore_all_deps=" + $('#btn_ignore_all_deps').hasClass('active') +
@@ -388,7 +388,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_clear").click(function(){
-      url = "{{ url_for('airflow.clear') }}" +
+      url = "{{ url_for('Airflow.clear') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&future=" + $('#btn_future').hasClass('active') +
@@ -402,7 +402,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_dagrun_clear").click(function(){
-      url = "{{ url_for('airflow.dagrun_clear') }}" +
+      url = "{{ url_for('Airflow.dagrun_clear') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date) +
@@ -411,7 +411,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_failed").click(function(){
-      url = "{{ url_for('airflow.failed') }}" +
+      url = "{{ url_for('Airflow.failed') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&upstream=" + $('#btn_failed_upstream').hasClass('active') +
@@ -425,7 +425,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_success").click(function(){
-      url = "{{ url_for('airflow.success') }}" +
+      url = "{{ url_for('Airflow.success') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
         "&upstream=" + $('#btn_success_upstream').hasClass('active') +
@@ -439,7 +439,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $('#btn_dagrun_failed').click(function(){
-      url = "{{ url_for('airflow.dagrun_failed') }}" +
+      url = "{{ url_for('Airflow.dagrun_failed') }}" +
         "?dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
@@ -447,7 +447,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $('#btn_dagrun_success').click(function(){
-      url = "{{ url_for('airflow.dagrun_success') }}" +
+      url = "{{ url_for('Airflow.dagrun_success') }}" +
         "?dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
@@ -455,14 +455,14 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_gantt").click(function(){
-      url = "{{ url_for('airflow.gantt') }}" +
+      url = "{{ url_for('Airflow.gantt') }}" +
         "?dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
     $("#btn_graph").click(function(){
-      url = "{{ url_for('airflow.graph') }}" +
+      url = "{{ url_for('Airflow.graph') }}" +
         "?dag_id=" + encodeURIComponent(dag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
@@ -475,12 +475,13 @@ function updateQueryStringParameter(uri, key, value) {
       } else {
         is_paused = 'false'
       }
-      url = "{{ url_for('airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
+      url = "{{ url_for('Airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
       $.post(url);
     });
 
     $('#btn_edit_dagrun').click(function(){
-      window.location = '/admin/dagrun/edit/?id=' + id;
+      window.location = "{{ url_for('DagModelView.show', pk=id) }}";
+
     });
 
   </script>

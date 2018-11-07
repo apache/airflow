@@ -33,7 +33,7 @@ from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 from airflow.www.app import cached_app
-from airflow.www_rbac import app as application
+from airflow.www import app as application
 
 
 class PluginsTest(unittest.TestCase):

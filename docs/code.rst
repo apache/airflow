@@ -408,6 +408,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
 .. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+.. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
 .. autoclass:: airflow.contrib.hooks.mongo_hook.MongoHook

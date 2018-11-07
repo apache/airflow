@@ -20,44 +20,35 @@
 import os
 import unittest
 
-from mock import patch
+import requests_mock
 from airflow.operators.http_operator import SimpleHttpOperator
 
 try:
     from unittest import mock
 except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
-
-class AnyStringWith(str):
-    """
-    Helper class to check if a substring is a part of a string
-    """
-    def __eq__(self, other):
-        return self in other
+    import mock
 
 
 class SimpleHttpOpTests(unittest.TestCase):
     def setUp(self):
-        # Creating a local Http connection to Airflow Webserver
-        os.environ['AIRFLOW_CONN_HTTP_GOOGLE'] = 'http://www.google.com'
+        os.environ['AIRFLOW_CONN_HTTP_EXAMPLE'] = 'http://www.example.com'
 
-    def test_response_in_logs(self):
+    @requests_mock.mock()
+    def test_response_in_logs(self, m):
         """
-        Test that when using SimpleHttpOperator with 'GET' on localhost:8080,
-        the log contains 'Google' in it
+        Test that when using SimpleHttpOperator with 'GET',
+        the log contains 'Example Domain' in it
         """
+
+        m.get('http://www.example.com', text='Example.com fake response')
         operator = SimpleHttpOperator(
             task_id='test_HTTP_op',
             method='GET',
             endpoint='/',
-            http_conn_id='HTTP_GOOGLE',
+            http_conn_id='HTTP_EXAMPLE',
             log_response=True,
         )
 
-        with patch.object(operator.log, 'info') as mock_info:
+        with mock.patch.object(operator.log, 'info') as mock_info:
             operator.execute(None)
-            mock_info.assert_called_with(AnyStringWith('Google'))
+            mock_info.assert_called_with('Example.com fake response')

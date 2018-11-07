@@ -580,6 +580,96 @@ class DagTest(unittest.TestCase):
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
 
+    def test_following_previous_schedule(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+        self.assertEqual(start.isoformat(), "2018-10-28T02:55:00+02:00",
+                         "Pre-condition: start date is in DST")
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
+
+        self.assertEqual(_next.isoformat(), "2018-10-28T01:00:00+00:00")
+        self.assertEqual(next_local.isoformat(), "2018-10-28T02:00:00+01:00")
+
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-28T02:50:00+02:00")
+
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-28T02:55:00+02:00")
+        self.assertEqual(prev, utc)
+
+    def test_following_previous_schedule_daily_dag_CEST_to_CET(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-26T03:00:00+02:00")
+        self.assertEqual(prev.isoformat(), "2018-10-26T01:00:00+00:00")
+
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
+
+        self.assertEqual(next_local.isoformat(), "2018-10-28T03:00:00+01:00")
+        self.assertEqual(_next.isoformat(), "2018-10-28T02:00:00+00:00")
+
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-27T03:00:00+02:00")
+        self.assertEqual(prev.isoformat(), "2018-10-27T01:00:00+00:00")
+
+    def test_following_previous_schedule_daily_dag_CET_to_CEST(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
+        self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
+
+        self.assertEqual(next_local.isoformat(), "2018-03-25T03:00:00+02:00")
+        self.assertEqual(_next.isoformat(), "2018-03-25T01:00:00+00:00")
+
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
+        self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+
     @patch('airflow.models.timezone.utcnow')
     def test_sync_to_db(self, mock_now):
         dag = DAG(
@@ -2371,20 +2461,19 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
         self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
 
-    def test_log_url(self):
-        now = pendulum.now('Europe/Brussels')
-        dag = DAG('dag', start_date=DEFAULT_DATE)
-        task = DummyOperator(task_id='op', dag=dag)
-        ti = TI(task=task, execution_date=now)
-        d = urllib.parse.parse_qs(
-            urllib.parse.urlparse(ti.log_url).query,
-            keep_blank_values=True, strict_parsing=True)
-        self.assertEqual(d['dag_id'][0], 'dag')
-        self.assertEqual(d['task_id'][0], 'op')
-        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
+    # def test_log_url(self):
+    #     now = pendulum.now('Europe/Brussels')
+    #     dag = DAG('dag', start_date=DEFAULT_DATE)
+    #     task = DummyOperator(task_id='op', dag=dag)
+    #     ti = TI(task=task, execution_date=now)
+    #     d = urllib.parse.parse_qs(
+    #         urllib.parse.urlparse(ti.log_url).query,
+    #         keep_blank_values=True, strict_parsing=True)
+    #     self.assertEqual(d['dag_id'][0], 'dag')
+    #     self.assertEqual(d['task_id'][0], 'op')
+    #     self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
 
-    @patch('airflow.settings.RBAC', True)
-    def test_log_url_rbac(self):
+    def test_log_url(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
         ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
@@ -2467,6 +2556,40 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(task=task, execution_date=datetime.datetime.now())
         ti.set_duration()
         self.assertIsNone(ti.duration)
+
+    def test_success_callbak_no_race_condition(self):
+        class CallbackWrapper(object):
+            def wrap_task_instance(self, ti):
+                self.task_id = ti.task_id
+                self.dag_id = ti.dag_id
+                self.execution_date = ti.execution_date
+                self.task_state_in_callback = ""
+                self.callback_ran = False
+
+            def success_handler(self, context):
+                self.callback_ran = True
+                session = settings.Session()
+                temp_instance = session.query(TI).filter(
+                    TI.task_id == self.task_id).filter(
+                    TI.dag_id == self.dag_id).filter(
+                    TI.execution_date == self.execution_date).one()
+                self.task_state_in_callback = temp_instance.state
+        cw = CallbackWrapper()
+        dag = DAG('test_success_callbak_no_race_condition', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task = DummyOperator(task_id='op', email='test@test.test',
+                             on_success_callback=cw.success_handler, dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        cw.wrap_task_instance(ti)
+        ti._run_raw_task()
+        self.assertTrue(cw.callback_ran)
+        self.assertEqual(cw.task_state_in_callback, State.RUNNING)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
 
 
 class ClearTasksTest(unittest.TestCase):
