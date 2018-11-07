@@ -145,7 +145,7 @@ Airflow can be configured to read and write task logs in Azure Blob Storage.
 See :ref:`write-logs-azure`.
 
 Azure Data Lake
-''''''''''''''''''
+'''''''''''''''
 
 AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
 Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
@@ -153,13 +153,21 @@ login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) a
  (see connection `azure_data_lake_default` for an example).
 
 - :ref:`AzureDataLakeHook`: Interface with Azure Data Lake.
+- :ref:`AzureDataLakeStorageListOperator`: Lists the files located in a specified Azure Data Lake path.
 
 .. _AzureDataLakeHook:
 
 AzureDataLakeHook
-"""""""""
+"""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
+
+.. _AzureDataLakeStorageListOperator:
+
+AzureDataLakeStorageListOperator
+""""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
 
 .. _AWS:
 
@@ -170,7 +178,7 @@ Airflow has extensive support for Amazon Web Services. But note that the Hooks, 
 Operators are in the contrib section.
 
 AWS EMR
-''''''''
+'''''''
 
 - :ref:`EmrAddStepsOperator` : Adds steps to an existing EMR JobFlow.
 - :ref:`EmrCreateJobFlowOperator` : Creates an EMR JobFlow, reading the config from the EMR connection.
@@ -501,6 +509,70 @@ BigQueryHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
     :members:
 
+Cloud SQL
+'''''''''
+
+Cloud SQL Operators
+"""""""""""""""""""
+
+- :ref:`CloudSqlInstanceDatabaseDeleteOperator` : deletes a database from a Cloud SQL
+instance.
+- :ref:`CloudSqlInstanceDatabaseCreateOperator` : creates a new database inside a Cloud
+SQL instance.
+- :ref:`CloudSqlInstanceDatabasePatchOperator` : updates a database inside a Cloud
+SQL instance.
+- :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
+- :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
+- :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
+
+.. CloudSqlInstanceDatabaseDeleteOperator:
+
+CloudSqlInstanceDatabaseDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
+
+.. CloudSqlInstanceDatabaseCreateOperator:
+
+CloudSqlInstanceDatabaseCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
+
+.. CloudSqlInstanceDatabasePatchOperator:
+
+CloudSqlInstanceDatabasePatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
+
+.. CloudSqlInstanceDeleteOperator:
+
+CloudSqlInstanceDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
+
+.. CloudSqlInstanceCreateOperator:
+
+CloudSqlInstanceCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
+
+.. CloudSqlInstancePatchOperator:
+
+CloudSqlInstancePatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
+
+Cloud SQL Hook
+""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
+    :members:
+
 Compute Engine
 ''''''''''''''
 
@@ -521,14 +593,14 @@ GceInstanceStartOperator
 .. _GceInstanceStopOperator:
 
 GceInstanceStopOperator
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator
 
 .. _GceSetMachineTypeOperator:
 
 GceSetMachineTypeOperator
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 
@@ -939,3 +1011,13 @@ QuboleFileSensor
 ''''''''''''''''
 
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleFileSensor
+
+QuboleCheckOperator
+'''''''''''''''''''
+
+.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator
+
+QuboleValueCheckOperator
+''''''''''''''''''''''''
+
+.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator

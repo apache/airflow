@@ -23,42 +23,44 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import inspect
 import logging
 import os
-import pendulum
-import unittest
-import time
-import six
 import re
-import urllib
 import textwrap
-import inspect
+import time
+import unittest
+import urllib
+from tempfile import NamedTemporaryFile, mkdtemp
 
-from airflow import configuration, models, settings, AirflowException
+import pendulum
+import six
+from mock import ANY, Mock, patch
+from parameterized import parameterized
+
+from airflow import AirflowException, configuration, models, settings
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
-from airflow.models import State as ST
-from airflow.models import DagModel, DagRun, DagStat
-from airflow.models import clear_task_instances
-from airflow.models import XCom
 from airflow.models import Connection
-from airflow.models import SkipMixin
+from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DagModel, DagRun, DagStat
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
-from airflow.jobs import LocalTaskJob
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.models import SkipMixin
+from airflow.models import State as ST
+from airflow.models import XCom
+from airflow.models import clear_task_instances
 from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.weight_rule import WeightRule
+from airflow.utils.dag_processing import SimpleTaskInstance
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
-from mock import patch, Mock, ANY
-from parameterized import parameterized
-from tempfile import mkdtemp, NamedTemporaryFile
+from airflow.utils.weight_rule import WeightRule
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -577,6 +579,96 @@ class DagTest(unittest.TestCase):
 
         with self.assertRaises(AirflowDagCycleException):
             dag.test_cycle()
+
+    def test_following_previous_schedule(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+        self.assertEqual(start.isoformat(), "2018-10-28T02:55:00+02:00",
+                         "Pre-condition: start date is in DST")
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval='*/5 * * * *')
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
+
+        self.assertEqual(_next.isoformat(), "2018-10-28T01:00:00+00:00")
+        self.assertEqual(next_local.isoformat(), "2018-10-28T02:00:00+01:00")
+
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-28T02:50:00+02:00")
+
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-28T02:55:00+02:00")
+        self.assertEqual(prev, utc)
+
+    def test_following_previous_schedule_daily_dag_CEST_to_CET(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-26T03:00:00+02:00")
+        self.assertEqual(prev.isoformat(), "2018-10-26T01:00:00+00:00")
+
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
+
+        self.assertEqual(next_local.isoformat(), "2018-10-28T03:00:00+01:00")
+        self.assertEqual(_next.isoformat(), "2018-10-28T02:00:00+00:00")
+
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-10-27T03:00:00+02:00")
+        self.assertEqual(prev.isoformat(), "2018-10-27T01:00:00+00:00")
+
+    def test_following_previous_schedule_daily_dag_CET_to_CEST(self):
+        """
+        Make sure DST transitions are properly observed
+        """
+        local_tz = pendulum.timezone('Europe/Zurich')
+        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2),
+                                 dst_rule=pendulum.PRE_TRANSITION)
+
+        utc = timezone.convert_to_utc(start)
+
+        dag = DAG('tz_dag', start_date=start, schedule_interval='0 3 * * *')
+
+        prev = dag.previous_schedule(utc)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
+        self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
+
+        _next = dag.following_schedule(utc)
+        next_local = local_tz.convert(_next)
+
+        self.assertEqual(next_local.isoformat(), "2018-03-25T03:00:00+02:00")
+        self.assertEqual(_next.isoformat(), "2018-03-25T01:00:00+00:00")
+
+        prev = dag.previous_schedule(_next)
+        prev_local = local_tz.convert(prev)
+
+        self.assertEqual(prev_local.isoformat(), "2018-03-24T03:00:00+01:00")
+        self.assertEqual(prev.isoformat(), "2018-03-24T02:00:00+00:00")
 
     @patch('airflow.models.timezone.utcnow')
     def test_sync_to_db(self, mock_now):
@@ -1665,31 +1757,28 @@ class DagBagTest(unittest.TestCase):
         self.assertEqual([], dagbag.process_file(None))
 
     @patch.object(TI, 'handle_failure')
-    def test_kill_zombies(self, mock_ti):
+    def test_kill_zombies(self, mock_ti_handle_failure):
         """
         Test that kill zombies call TIs failure handler with proper context
         """
         dagbag = models.DagBag()
-        session = settings.Session
-        dag = dagbag.get_dag('example_branch_operator')
-        task = dag.get_task(task_id='run_this_first')
+        with create_session() as session:
+            session.query(TI).delete()
+            dag = dagbag.get_dag('example_branch_operator')
+            task = dag.get_task(task_id='run_this_first')
 
-        ti = TI(task, datetime.datetime.now() - datetime.timedelta(1), 'running')
-        lj = LocalTaskJob(ti)
-        lj.state = State.SHUTDOWN
+            ti = TI(task, DEFAULT_DATE, State.RUNNING)
 
-        session.add(lj)
-        session.commit()
+            session.add(ti)
+            session.commit()
 
-        ti.job_id = lj.id
-
-        session.add(ti)
-        session.commit()
-
-        dagbag.kill_zombies()
-        mock_ti.assert_called_with(ANY,
-                                   configuration.getboolean('core', 'unit_test_mode'),
-                                   ANY)
+            zombies = [SimpleTaskInstance(ti)]
+            dagbag.kill_zombies(zombies)
+            mock_ti_handle_failure \
+                .assert_called_with(ANY,
+                                    configuration.getboolean('core',
+                                                             'unit_test_mode'),
+                                    ANY)
 
     def test_deactivate_unknown_dags(self):
         """
@@ -2469,6 +2558,40 @@ class TaskInstanceTest(unittest.TestCase):
         ti.set_duration()
         self.assertIsNone(ti.duration)
 
+    def test_success_callbak_no_race_condition(self):
+        class CallbackWrapper(object):
+            def wrap_task_instance(self, ti):
+                self.task_id = ti.task_id
+                self.dag_id = ti.dag_id
+                self.execution_date = ti.execution_date
+                self.task_state_in_callback = ""
+                self.callback_ran = False
+
+            def success_handler(self, context):
+                self.callback_ran = True
+                session = settings.Session()
+                temp_instance = session.query(TI).filter(
+                    TI.task_id == self.task_id).filter(
+                    TI.dag_id == self.dag_id).filter(
+                    TI.execution_date == self.execution_date).one()
+                self.task_state_in_callback = temp_instance.state
+        cw = CallbackWrapper()
+        dag = DAG('test_success_callbak_no_race_condition', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task = DummyOperator(task_id='op', email='test@test.test',
+                             on_success_callback=cw.success_handler, dag=dag)
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        cw.wrap_task_instance(ti)
+        ti._run_raw_task()
+        self.assertTrue(cw.callback_ran)
+        self.assertEqual(cw.task_state_in_callback, State.RUNNING)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
+
 
 class ClearTasksTest(unittest.TestCase):
 
@@ -2787,7 +2910,6 @@ class ConnectionTest(unittest.TestCase):
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
-        mock_get.return_value = 'cryptography_not_found_storing_passwords_in_plain_text'
         test_connection = Connection(extra='testextra')
         self.assertEqual(test_connection.extra, 'testextra')
 
@@ -2825,6 +2947,59 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.port, 1234)
         self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
                                                        'extra2': '/path/'})
+
+    def test_connection_from_uri_with_colon_in_hostname(self):
+        uri = 'scheme://user:password@host%2flocation%3ax%3ay:1234/schema?' \
+              'extra1=a%20value&extra2=%2fpath%2f'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location:x:y')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
+                                                       'extra2': '/path/'})
+
+    def test_connection_from_uri_with_encoded_password(self):
+        uri = 'scheme://user:password%20with%20space@host%2flocation%3ax%3ay:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location:x:y')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password with space')
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_encoded_user(self):
+        uri = 'scheme://domain%2fuser:password@host%2flocation%3ax%3ay:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location:x:y')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'domain/user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_encoded_schema(self):
+        uri = 'scheme://user:password%20with%20space@host:1234/schema%2ftest'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host')
+        self.assertEqual(connection.schema, 'schema/test')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password with space')
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_no_schema(self):
+        uri = 'scheme://user:password%20with%20space@host:1234'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password with space')
+        self.assertEqual(connection.port, 1234)
 
 
 class TestSkipMixin(unittest.TestCase):

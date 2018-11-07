@@ -378,7 +378,7 @@ class PubSubPublishOperator(BaseOperator):
             create_topic=True,
             dag=dag)
 
-     ``project`` , ``topic``, and ``messages`` are templated so you can use
+    ``project`` , ``topic``, and ``messages`` are templated so you can use
     variables in them.
     """
     template_fields = ['project', 'topic', 'messages']

@@ -20,6 +20,7 @@ from __future__ import print_function
 import airflow
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
+import os
 
 args = {
     'owner': 'airflow',
@@ -27,13 +28,21 @@ args = {
 }
 
 dag = DAG(
-    dag_id='example_kubernetes_annotation', default_args=args,
+    dag_id='example_kubernetes_executor_config', default_args=args,
     schedule_interval=None
 )
 
 
 def print_stuff():
     print("annotated!")
+
+
+def test_volume_mount():
+    with open('/foo/volume_mount_test.txt', 'w') as foo:
+        foo.write('Hello')
+
+    rc = os.system("cat /foo/volume_mount_test.txt")
+    assert rc == 0
 
 
 # You can use annotations on your kubernetes pods!
@@ -45,3 +54,26 @@ start_task = PythonOperator(
         }
     }
 )
+
+# You can mount volume or secret to the worker pod
+second_task = PythonOperator(
+    task_id="four_task", python_callable=test_volume_mount, dag=dag,
+    executor_config={
+        "KubernetesExecutor": {
+            "volumes": [
+                {
+                    "name": "test-volume",
+                    "hostPath": {"path": "/tmp/"},
+                },
+            ],
+            "volume_mounts": [
+                {
+                    "mountPath": "/foo/",
+                    "name": "test-volume",
+                },
+            ]
+        }
+    }
+)
+
+start_task.set_downstream(second_task)

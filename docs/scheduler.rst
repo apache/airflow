@@ -3,8 +3,9 @@ Scheduling & Triggers
 
 The Airflow scheduler monitors all tasks and all DAGs, and triggers the
 task instances whose dependencies have been met. Behind the scenes,
-it monitors and stays in sync with a folder for all DAG objects it may contain,
-and periodically (every minute or so) inspects active tasks to see whether
+it spins up a subprocess, which monitors and stays in sync with a folder
+for all DAG objects it may contain, and periodically (every minute or so)
+collects DAG parsing results and inspects active tasks to see whether
 they can be triggered.
 
 The Airflow scheduler is designed to run as a persistent service in an
@@ -22,7 +23,7 @@ start date, at the END of the period.
 
 The scheduler starts an instance of the executor specified in the your
 ``airflow.cfg``. If it happens to be the ``LocalExecutor``, tasks will be
-executed as subprocesses; in the case of ``CeleryExecutor`` and
+executed as subprocesses; in the case of ``CeleryExecutor``, ``DaskExecutor``, and
 ``MesosExecutor``, tasks are executed remotely.
 
 To start a scheduler, simply run the command:

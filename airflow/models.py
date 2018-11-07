@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+
 from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
@@ -47,6 +48,7 @@ import json
 import logging
 import numbers
 import os
+import pendulum
 import pickle
 import re
 import signal
@@ -58,7 +60,8 @@ import hashlib
 
 import uuid
 from datetime import datetime
-from urllib.parse import urlparse, quote, parse_qsl
+from urllib.parse import urlparse, quote, parse_qsl, unquote
+
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
     Integer, LargeBinary, PickleType, String, Text, UniqueConstraint,
@@ -150,6 +153,8 @@ def get_fernet():
     :raises: AirflowException if there's a problem trying to load Fernet
     """
     global _fernet
+    log = LoggingMixin().log
+
     if _fernet:
         return _fernet
     try:
@@ -158,18 +163,26 @@ def get_fernet():
         InvalidFernetToken = InvalidToken
 
     except BuiltinImportError:
-        LoggingMixin().log.warn("cryptography not found - values will not be stored "
-                                "encrypted.",
-                                exc_info=1)
+        log.warning(
+            "cryptography not found - values will not be stored encrypted."
+        )
         _fernet = NullFernet()
         return _fernet
 
     try:
-        _fernet = Fernet(configuration.conf.get('core', 'FERNET_KEY').encode('utf-8'))
-        _fernet.is_encrypted = True
-        return _fernet
+        fernet_key = configuration.conf.get('core', 'FERNET_KEY')
+        if not fernet_key:
+            log.warning(
+                "empty cryptography key - values will not be stored encrypted."
+            )
+            _fernet = NullFernet()
+        else:
+            _fernet = Fernet(fernet_key.encode('utf-8'))
+            _fernet.is_encrypted = True
     except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
+
+    return _fernet
 
 
 # Used by DAG context_managers
@@ -444,39 +457,28 @@ class DagBag(BaseDagBag, LoggingMixin):
         return found_dags
 
     @provide_session
-    def kill_zombies(self, session=None):
+    def kill_zombies(self, zombies, session=None):
         """
-        Fails tasks that haven't had a heartbeat in too long
+        Fail given zombie tasks, which are tasks that haven't
+        had a heartbeat for too long, in the current DagBag.
+
+        :param zombies: zombie task instances to kill.
+        :type zombies: SimpleTaskInstance
+        :param session: DB session.
+        :type Session.
         """
-        from airflow.jobs import LocalTaskJob as LJ
-        self.log.info("Finding 'running' jobs without a recent heartbeat")
-        TI = TaskInstance
-        secs = configuration.conf.getint('scheduler', 'scheduler_zombie_task_threshold')
-        limit_dttm = timezone.utcnow() - timedelta(seconds=secs)
-        self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
-
-        tis = (
-            session.query(TI)
-            .join(LJ, TI.job_id == LJ.id)
-            .filter(TI.state == State.RUNNING)
-            .filter(
-                or_(
-                    LJ.state != State.RUNNING,
-                    LJ.latest_heartbeat < limit_dttm,
-                ))
-            .all()
-        )
-
-        for ti in tis:
-            if ti and ti.dag_id in self.dags:
-                dag = self.dags[ti.dag_id]
-                if ti.task_id in dag.task_ids:
-                    task = dag.get_task(ti.task_id)
-
-                    # now set non db backed vars on ti
-                    ti.task = task
+        for zombie in zombies:
+            if zombie.dag_id in self.dags:
+                dag = self.dags[zombie.dag_id]
+                if zombie.task_id in dag.task_ids:
+                    task = dag.get_task(zombie.task_id)
+                    ti = TaskInstance(task, zombie.execution_date)
+                    # Get properties needed for failure handling from SimpleTaskInstance.
+                    ti.start_date = zombie.start_date
+                    ti.end_date = zombie.end_date
+                    ti.try_number = zombie.try_number
+                    ti.state = zombie.state
                     ti.test_mode = configuration.getboolean('core', 'unit_test_mode')
-
                     ti.handle_failure("{} detected as zombie".format(ti),
                                       ti.test_mode, ti.get_template_context())
                     self.log.info(
@@ -664,6 +666,7 @@ class Connection(Base, LoggingMixin):
         ('segment', 'Segment',),
         ('azure_data_lake', 'Azure Data Lake'),
         ('cassandra', 'Cassandra',),
+        ('qubole', 'Qubole'),
     ]
 
     def __init__(
@@ -686,16 +689,17 @@ class Connection(Base, LoggingMixin):
     def parse_from_uri(self, uri):
         temp_uri = urlparse(uri)
         hostname = temp_uri.hostname or ''
-        if '%2f' in hostname:
-            hostname = hostname.replace('%2f', '/').replace('%2F', '/')
         conn_type = temp_uri.scheme
         if conn_type == 'postgresql':
             conn_type = 'postgres'
         self.conn_type = conn_type
-        self.host = hostname
-        self.schema = temp_uri.path[1:]
-        self.login = temp_uri.username
-        self.password = temp_uri.password
+        self.host = unquote(hostname) if hostname else hostname
+        quoted_schema = temp_uri.path[1:]
+        self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
+        self.login = unquote(temp_uri.username) \
+            if temp_uri.username else temp_uri.username
+        self.password = unquote(temp_uri.password) \
+            if temp_uri.password else temp_uri.password
         self.port = temp_uri.port
         if temp_uri.query:
             self.extra = json.dumps(dict(parse_qsl(temp_uri.query)))
@@ -808,6 +812,17 @@ class Connection(Base, LoggingMixin):
 
     def __repr__(self):
         return self.conn_id
+
+    def debug_info(self):
+        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
+                "Login: {}, Password: {}, extra: {}".
+                format(self.conn_id,
+                       self.host,
+                       self.port,
+                       self.schema,
+                       self.login,
+                       "XXXXXXXX" if self.password else None,
+                       self.extra_dejson))
 
     @property
     def extra_dejson(self):
@@ -1231,7 +1246,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         Returns a tuple that identifies the task instance uniquely
         """
-        return self.dag_id, self.task_id, self.execution_date
+        return self.dag_id, self.task_id, self.execution_date, self.try_number
 
     @provide_session
     def set_state(self, state, session=None):
@@ -1671,14 +1686,6 @@ class TaskInstance(Base, LoggingMixin):
             self.handle_failure(e, test_mode, context)
             raise
 
-        # Recording SUCCESS
-        self.end_date = timezone.utcnow()
-        self.set_duration()
-        if not test_mode:
-            session.add(Log(self.state, self))
-            session.merge(self)
-        session.commit()
-
         # Success callback
         try:
             if task.on_success_callback:
@@ -1687,6 +1694,12 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Failed when executing success callback")
             self.log.exception(e3)
 
+        # Recording SUCCESS
+        self.end_date = timezone.utcnow()
+        self.set_duration()
+        if not test_mode:
+            session.add(Log(self.state, self))
+            session.merge(self)
         session.commit()
 
     @provide_session
@@ -3442,33 +3455,76 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
+    def is_fixed_time_schedule(self):
+        """
+        Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
+
+        :return: True if the schedule has a fixed time, False if not.
+        """
+        now = datetime.now()
+        cron = croniter(self._schedule_interval, now)
+
+        start = cron.get_next(datetime)
+        cron_next = cron.get_next(datetime)
+
+        if cron_next.minute == start.minute and cron_next.hour == start.hour:
+            return True
+
+        return False
+
     def following_schedule(self, dttm):
         """
-        Calculates the following schedule for this dag in local time
+        Calculates the following schedule for this dag in UTC.
 
         :param dttm: utc datetime
         :return: utc datetime
         """
         if isinstance(self._schedule_interval, six.string_types):
-            dttm = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, dttm)
-            following = timezone.make_aware(cron.get_next(datetime), self.timezone)
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(self._schedule_interval, naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = cron.get_next(datetime) - naive
+                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_next(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                following = timezone.make_aware(naive, tz)
             return timezone.convert_to_utc(following)
         elif self._schedule_interval is not None:
             return dttm + self._schedule_interval
 
     def previous_schedule(self, dttm):
         """
-        Calculates the previous schedule for this dag in local time
+        Calculates the previous schedule for this dag in UTC
 
         :param dttm: utc datetime
         :return: utc datetime
         """
         if isinstance(self._schedule_interval, six.string_types):
-            dttm = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, dttm)
-            prev = timezone.make_aware(cron.get_prev(datetime), self.timezone)
-            return timezone.convert_to_utc(prev)
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(self._schedule_interval, naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = naive - cron.get_prev(datetime)
+                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_prev(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                previous = timezone.make_aware(naive, tz)
+            return timezone.convert_to_utc(previous)
         elif self._schedule_interval is not None:
             return dttm - self._schedule_interval
 
@@ -4905,7 +4961,7 @@ class DagStat(Base):
         """
         # unfortunately sqlalchemy does not know upsert
         qry = session.query(DagStat).filter(DagStat.dag_id == dag_id).all()
-        states = [dag_stat.state for dag_stat in qry]
+        states = {dag_stat.state for dag_stat in qry}
         for state in State.dag_states:
             if state not in states:
                 try:
