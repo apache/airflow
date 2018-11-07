@@ -198,29 +198,36 @@ The following example of a `pre-commit` file allows you..
 
 GREEN='\033[0;32m'
 NO_COLOR='\033[0m'
-PROJECT_DIR=$(git rev-parse --show-toplevel)
 
 setup_python_env() {
-    echo -e "${GREEN}Activating python virtual environment ${1}..${NO_COLOR}"
-    source ${1}
+    local venv_path=${1}
+
+    echo -e "${GREEN}Activating python virtual environment ${venv_path}..${NO_COLOR}"
+    source ${venv_path}
 }
 run_linting() {
-    echo -e "${GREEN}Running flake8 over all files..${NO_COLOR}"
-    flake8 ${PROJECT_DIR}
+    local project_dir=$(git rev-parse --show-toplevel)
+
+    echo -e "${GREEN}Running flake8 over directory ${project_dir}..${NO_COLOR}"
+    flake8 ${project_dir}
 }
 run_testing_in_docker() {
-    # IMPORTANT NOTE: Change the docker container names to your containers.
-    echo -e "${GREEN}Running tests in ${1} in airflow python 2 docker container..${NO_COLOR}"
-    docker exec -i -w /airflow/ dazzling_chatterjee nosetests -v ${1}
-    echo -e "${GREEN}Running tests in ${1} in airflow python 3 docker container..${NO_COLOR}"
-    docker exec -i -w /airflow/ quirky_stallman nosetests -v ${1}
+    local feature_path=${1}
+    local airflow_py2_container=${2}
+    local airflow_py3_container=${3}
+
+    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 2 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ ${airflow_py2_container} nosetests -v ${feature_path}
+    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 3 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ ${airflow_py3_container} nosetests -v ${feature_path}
 }
 
 set -e
+# NOTE: Before running this make sure you have set the function arguments correctly.
 setup_python_env /Users/feluelle/venv/bin/activate
 run_linting
-# NOTE: The first argument is the name of your feature you want to test.
-run_testing_in_docker tests/contrib/hooks/test_imap_hook.py
+run_testing_in_docker tests/contrib/hooks/test_imap_hook.py dazzling_chatterjee quirky_stallman
+
 ```
 
 For more information on how to run a subset of the tests, take a look at the
