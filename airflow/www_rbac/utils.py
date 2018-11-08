@@ -37,7 +37,10 @@ from past.builtins import basestring
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from flask import request, Response, Markup, url_for
-from airflow import configuration
+from flask_appbuilder.models.sqla.interface import SQLAInterface
+import flask_appbuilder.models.sqla.filters as fab_sqlafilters
+import sqlalchemy as sqla
+from airflow import configuration, settings
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
@@ -378,3 +381,69 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+class UtcAwareFilterMixin(object):
+    def apply(self, query, value):
+        value = timezone.parse(value, timezone=timezone.utc)
+
+        return super(UtcAwareFilterMixin, self).apply(query, value)
+
+
+class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
+    pass
+
+
+class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):
+    pass
+
+
+class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):
+    pass
+
+
+class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
+    pass
+
+
+class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
+
+    conversion_table = (
+        (('is_utcdatetime', [UtcAwareFilterEqual,
+                             UtcAwareFilterGreater,
+                             UtcAwareFilterSmaller,
+                             UtcAwareFilterNotEqual]),) +
+        fab_sqlafilters.SQLAFilterConverter.conversion_table
+    )
+
+
+class CustomSQLAInterface(SQLAInterface):
+    """
+    FAB does not know how to handle columns with leading underscores because
+    they are not supported by WTForm. This hack will remove the leading
+    '_' from the key to lookup the column names.
+
+    """
+    def __init__(self, obj):
+        super(CustomSQLAInterface, self).__init__(obj)
+
+        self.session = settings.Session()
+
+        def clean_column_names():
+            if self.list_properties:
+                self.list_properties = dict(
+                    (k.lstrip('_'), v) for k, v in self.list_properties.items())
+            if self.list_columns:
+                self.list_columns = dict(
+                    (k.lstrip('_'), v) for k, v in self.list_columns.items())
+
+        clean_column_names()
+
+    def is_utcdatetime(self, col_name):
+        from airflow.utils.sqlalchemy import UtcDateTime
+        obj = self.list_columns[col_name].type
+        return isinstance(obj, UtcDateTime) or \
+            isinstance(obj, sqla.types.TypeDecorator) and \
+            isinstance(obj.impl, UtcDateTime)
+
+    filter_converter_class = UtcAwareFilterConverter
