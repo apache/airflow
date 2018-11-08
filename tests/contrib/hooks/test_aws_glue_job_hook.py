@@ -40,12 +40,9 @@ from airflow.contrib.hooks.aws_glue_job_hook import AwsGlueJobHook
 
 class TestGlueJobHook(unittest.TestCase):
 
-    def setUp(self):
-        self.some_aws_region = "us-west-2"
-
     @mock.patch.object(AwsGlueJobHook, 'get_conn')
     def test_get_conn_returns_a_boto3_connection(self, mock_get_conn):
-        hook = AwsGlueJobHook(job_name='aws_test_glue_job', s3_bucket='some_bucket')
+        hook = AwsGlueJobHook(job_name='aws_test_glue_job')
         self.assertIsNotNone(hook.get_conn())
 
     @mock.patch.object(AwsGlueJobHook, "get_conn")
@@ -54,8 +51,7 @@ class TestGlueJobHook(unittest.TestCase):
         mock_glue_job = mock_get_conn.return_value.get_job(JobName=mock_job_name)
         glue_job = AwsGlueJobHook(
             job_name=mock_job_name,
-            desc='This is test case job from Airflow',
-            region_name=self.some_aws_region
+            desc='This is test case job from Airflow'
         ).get_glue_job()
         self.assertEqual(glue_job, mock_glue_job['Job'])
 
@@ -74,8 +70,7 @@ class TestGlueJobHook(unittest.TestCase):
         mock_job_run_state = mock_completion.return_value
         glue_job_run_state = AwsGlueJobHook(
             job_name='aws_test_glue_job',
-            desc='This is test case job from Airflow',
-            region_name=self.some_aws_region
+            desc='This is test case job from Airflow'
         ).initialize_job(some_script_arguments)
         self.assertEqual(glue_job_run_state, mock_job_run_state, msg='Mocks but be equal')
 
