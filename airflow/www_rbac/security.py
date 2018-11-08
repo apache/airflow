@@ -181,7 +181,7 @@ class AirflowSecurityManager(SecurityManager):
         if not role:
             role = self.add_role(role_name)
 
-        if (len(role.permissions) == 0):
+        if len(role.permissions) == 0:
             logging.info('Initializing permissions for role:%s in the database.', role_name)
             role_pvms = []
             for pvm in pvms:
