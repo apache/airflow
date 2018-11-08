@@ -193,9 +193,9 @@ class AirflowSecurityManager(SecurityManager):
         else:
             logging.info('Existing permissions for the role:%s within the database will persist.', role_name)
             for pvm in pvms:
-                if pvm not in role.permissions and pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
-                    role.permissions.append(pvm)
-
+                if pvm not in role.permissions:
+                    if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
+                        role.permissions.append(pvm)
 
     def get_user_roles(self, user=None):
         """
