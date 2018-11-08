@@ -83,14 +83,16 @@ class AwsGlueJobHook(AwsHook):
         :return:
         """
         glue_client = self.get_conn()
-        job_status = glue_client.get_job_run(
-            JobName=job_name,
-            RunId=run_id,
-            PredecessorsIncluded=True
-        )
-        job_run_state = job_status['JobRun']['JobRunState']
 
         while True:
+
+            job_status = glue_client.get_job_run(
+                JobName=job_name,
+                RunId=run_id,
+                PredecessorsIncluded=True
+            )
+            job_run_state = job_status['JobRun']['JobRunState']
+
             if job_run_state in {'FAILED', 'STOPPED', 'SUCCEEDED'}:
                 self.log.info("Exiting Job {} Run State: {}"
                               .format(run_id, job_run_state))
