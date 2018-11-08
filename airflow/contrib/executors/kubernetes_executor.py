@@ -364,7 +364,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             pod_id=self._create_pod_id(dag_id, task_id),
             dag_id=dag_id, task_id=task_id,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
-            airflow_command=command, kube_executor_config=kube_executor_config
+            airflow_command=command, kube_executor_config=kube_executor_config,
+            try_number=try_number
         )
         # the watcher will monitor pods, so we do not block.
         self.launcher.run_pod_async(pod)
@@ -478,7 +479,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
             return (
                 labels['dag_id'], labels['task_id'],
                 self._label_safe_datestring_to_datetime(labels['execution_date']),
-                labels.get('try_number', "1"))
+                labels.get('try_number', '1')
+            )
         except Exception as e:
             self.log.warn(
                 'Error while converting labels to key; labels: %s; exception: %s',
