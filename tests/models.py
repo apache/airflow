@@ -456,44 +456,47 @@ class DagTest(unittest.TestCase):
 
     def test_resolve_template_files_value(self):
 
-        f = NamedTemporaryFile(suffix='.template')
-        f.write('{{ ds }}'.encode('utf8'))
-        f.flush()
-        template_dir = os.path.dirname(f.name)
-        template_file = os.path.basename(f.name)
+        with NamedTemporaryFile(suffix='.template') as f:
+            f.write('{{ ds }}'.encode('utf8'))
+            f.flush()
+            template_dir = os.path.dirname(f.name)
+            template_file = os.path.basename(f.name)
 
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE,
-                  template_searchpath=template_dir)
+            dag = DAG('test-dag',
+                      start_date=DEFAULT_DATE,
+                      template_searchpath=template_dir)
 
-        with dag:
-            task = DummyOperator(task_id='op1')
+            with dag:
+                task = DummyOperator(task_id='op1')
 
-        task.test_field = template_file
-        task.template_fields = ('test_field',)
-        task.template_ext = ('.template',)
-        task.resolve_template_files()
+            task.test_field = template_file
+            task.template_fields = ('test_field',)
+            task.template_ext = ('.template',)
+            task.resolve_template_files()
+
         self.assertEqual(task.test_field, '{{ ds }}')
 
     def test_resolve_template_files_list(self):
 
-        f = NamedTemporaryFile(suffix='.template')
-        f.write('{{ ds }}'.encode('utf8'))
-        f.flush()
-        template_dir = os.path.dirname(f.name)
-        template_file = os.path.basename(f.name)
+        with NamedTemporaryFile(suffix='.template') as f:
+            f = NamedTemporaryFile(suffix='.template')
+            f.write('{{ ds }}'.encode('utf8'))
+            f.flush()
+            template_dir = os.path.dirname(f.name)
+            template_file = os.path.basename(f.name)
 
-        dag = DAG('test-dag',
-                  start_date=DEFAULT_DATE,
-                  template_searchpath=template_dir)
+            dag = DAG('test-dag',
+                      start_date=DEFAULT_DATE,
+                      template_searchpath=template_dir)
 
-        with dag:
-            task = DummyOperator(task_id='op1')
+            with dag:
+                task = DummyOperator(task_id='op1')
 
-        task.test_field = [template_file, 'some_string']
-        task.template_fields = ('test_field',)
-        task.template_ext = ('.template',)
-        task.resolve_template_files()
+            task.test_field = [template_file, 'some_string']
+            task.template_fields = ('test_field',)
+            task.template_ext = ('.template',)
+            task.resolve_template_files()
+
         self.assertEqual(task.test_field, ['{{ ds }}', 'some_string'])
 
     def test_cycle(self):
