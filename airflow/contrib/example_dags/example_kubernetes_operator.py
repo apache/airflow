@@ -58,6 +58,7 @@ try:
         get_logs=True,
         dag=dag,
         is_delete_operator_pod=False,
+        keep_failed_pod=False,
         tolerations=tolerations
     )
 

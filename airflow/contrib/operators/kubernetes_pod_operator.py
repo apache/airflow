@@ -78,6 +78,13 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type xcom_push: bool
+    :param is_delete_operator_pod: Delete the pod after it completes
+    :type is_delete_operator_pod: bool
+    :param keep_failed_pod: Keep pods that exit with non zero error code. This allows
+                            for easy log inspection of failed pods - assuming the
+                            node is still in the cluster
+                            (only works when is_delete_operator_pod is True)
+    :type keep_failed_pod: bool
     :param tolerations: Kubernetes tolerations
     :type list of tolerations
     """
@@ -123,7 +130,10 @@ class KubernetesPodOperator(BaseOperator):
                 get_logs=self.get_logs)
 
             if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
+                if final_state != State.SUCCESS and self.keep_failed_pod:
+                    pass
+                else:
+                    launcher.delete_pod(pod)
 
             if final_state != State.SUCCESS:
                 raise AirflowException(
@@ -160,6 +170,7 @@ class KubernetesPodOperator(BaseOperator):
                  image_pull_secrets=None,
                  service_account_name="default",
                  is_delete_operator_pod=False,
+                 keep_failed_pod=False,
                  hostnetwork=False,
                  tolerations=None,
                  *args,
@@ -189,5 +200,6 @@ class KubernetesPodOperator(BaseOperator):
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
         self.is_delete_operator_pod = is_delete_operator_pod
+        self.keep_failed_pod = keep_failed_pod
         self.hostnetwork = hostnetwork
         self.tolerations = tolerations or []

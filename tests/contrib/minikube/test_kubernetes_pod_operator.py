@@ -111,6 +111,21 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         )
         k.execute(None)
 
+    def test_keep_failed_pod(self):
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["exit 1"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            is_delete_operator_pod=True,
+            keep_failed_pod=True
+        )
+        with self.assertRaises(AirflowException):
+            k.execute(None)
+
     @staticmethod
     def test_pod_hostnetwork():
         k = KubernetesPodOperator(

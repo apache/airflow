@@ -102,6 +102,7 @@ Kubernetes Operator
                               task_id="task",
                               affinity=affinity,
                               is_delete_operator_pod=True,
+                              keep_failed_pod=True,
                               hostnetwork=False,
                               tolerations=tolerations
                               )
