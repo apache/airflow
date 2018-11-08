@@ -42,6 +42,7 @@ from tabulate import tabulate
 
 # To avoid circular imports
 import airflow.models
+import airflow.settings
 from airflow.config_templates import airflow_local_settings
 from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
