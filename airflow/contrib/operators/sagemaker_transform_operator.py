@@ -29,26 +29,39 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
     This operator returns The ARN of the model created in Amazon SageMaker.
 
-    :param config: The configuration necessary to start a transform job (templated)
+    :param config: The configuration necessary to start a transform job (templated).
+
+        If you need to create a SageMaker transform job based on an existed SageMaker model,
+
+            config = transform_config;
+
+        If you need to create both SageMaker model and SageMaker Transform job,
+
+            config = {
+                'Model': model_config,
+
+                'Transform': transform_config
+            }
+
+        For details of the configuration parameter of transform_config, See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_transform_job
+
+        For details of the configuration parameter of model_config, See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model
+
     :type config: dict
-    :param model_config:
-        The configuration necessary to create a SageMaker model, the default is none
-        which means the SageMaker model used for the SageMaker transform job already exists.
-        If given, it will be used to create a SageMaker model before creating
-        the SageMaker transform job
-    :type model_config: dict
     :param aws_conn_id: The AWS connection ID to use.
     :type aws_conn_id: string
-    :param wait_for_completion: if the program should keep running until job finishes
+    :param wait_for_completion: Set to True to wait until the transform job finishes.
     :type wait_for_completion: bool
-    :param check_interval: if wait is set to be true, this is the time interval
-        in seconds which the operator will check the status of the transform job
+    :param check_interval: If wait is set to True, the time interval, in seconds,
+        that this operation waits to check the status of the transform job.
     :type check_interval: int
-    :param max_ingestion_time: if wait is set to be true, the operator will fail
-        if the transform job hasn't finish within the max_ingestion_time in seconds
-        (Caution: be careful to set this parameters because transform can take very long)
+    :param max_ingestion_time: If wait is set to True, the operation fails
+        if the transform job doesn't finish within max_ingestion_time seconds. If you
+        set this parameter to None, the operation does not timeout.
     :type max_ingestion_time: int
-    """
+    """  # noqa: E501
 
     @apply_defaults
     def __init__(self,

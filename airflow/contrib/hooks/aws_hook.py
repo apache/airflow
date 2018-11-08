@@ -183,7 +183,7 @@ class AwsHook(BaseHook):
     def get_credentials(self, region_name=None):
         """Get the underlying `botocore.Credentials` object.
 
-        This contains the attributes: access_key, secret_key and token.
+        This contains the following authentication attributes: access_key, secret_key and token.
         """
         session, _ = self._get_credentials(region_name)
         # Credentials are refreshable, so accessing your access key and
@@ -193,8 +193,8 @@ class AwsHook(BaseHook):
 
     def expand_role(self, role):
         """
-        Expand an IAM role name to an IAM role ARN. If role is already an IAM ARN,
-        no change is made.
+        If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
+        If IAM role is already an IAM role ARN, no change is made.
 
         :param role: IAM role name or ARN
         :return: IAM role ARN

@@ -100,7 +100,7 @@ class TestSageMakerTuningSensor(unittest.TestCase):
 
         sensor.execute(None)
 
-        # make sure we called 4 times(terminated when its compeleted)
+        # make sure we called 3 times(terminated when its compeleted)
         self.assertEqual(mock_describe_job.call_count, 3)
 
         # make sure the hook was initialized with the specific params
