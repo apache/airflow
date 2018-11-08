@@ -773,5 +773,18 @@ class TestGanttView(TestBase):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
+class TestTaskInstanceView(TestBase):
+    TI_ENDPOINT = '/taskinstance/list/?_flt_0_execution_date={}'
+
+    def test_start_date_filter(self):
+        resp = self.client.get(self.TI_ENDPOINT.format(
+            self.percent_encode('2018-10-09 22:44:31')))
+        # We aren't checking the logic of the date filter itself (that is built
+        # in to FAB) but simply that our UTC conversion was run - i.e. it
+        # doesn't blow up!
+        self.check_content_in_response('List Task Instance', resp)
+        pass
+
+
 if __name__ == '__main__':
     unittest.main()
