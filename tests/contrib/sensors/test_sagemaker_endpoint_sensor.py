@@ -28,77 +28,79 @@ except ImportError:
         mock = None
 
 from airflow import configuration
-from airflow.contrib.sensors.sagemaker_transform_sensor \
-    import SageMakerTransformSensor
+from airflow.contrib.sensors.sagemaker_endpoint_sensor \
+    import SageMakerEndpointSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
 
-DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE = {
-    'TransformJobStatus': 'InProgress',
+DESCRIBE_ENDPOINT_CREATING_RESPONSE = {
+    'EndpointStatus': 'Creating',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRANSFORM_COMPELETED_RESPONSE = {
-    'TransformJobStatus': 'Compeleted',
+DESCRIBE_ENDPOINT_INSERVICE_RESPONSE = {
+    'EndpointStatus': 'InService',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRANSFORM_FAILED_RESPONSE = {
-    'TransformJobStatus': 'Failed',
+
+DESCRIBE_ENDPOINT_FAILED_RESPONSE = {
+    'EndpointStatus': 'Failed',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     },
     'FailureReason': 'Unknown'
 }
-DESCRIBE_TRANSFORM_STOPPING_RESPONSE = {
-    'TransformJobStatus': 'Stopping',
+
+DESCRIBE_ENDPOINT_UPDATING_RESPONSE = {
+    'EndpointStatus': 'Updating',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
 
 
-class TestSageMakerTransformSensor(unittest.TestCase):
+class TestSageMakerEndpointSensor(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
 
     @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(SageMakerHook, 'describe_transform_job')
-    def test_sensor_with_failure(self, mock_describe_job, mock_client):
-        mock_describe_job.side_effect = [DESCRIBE_TRANSFORM_FAILED_RESPONSE]
-        sensor = SageMakerTransformSensor(
+    @mock.patch.object(SageMakerHook, 'describe_endpoint')
+    def test_sensor_with_failure(self, mock_describe, mock_client):
+        mock_describe.side_effect = [DESCRIBE_ENDPOINT_FAILED_RESPONSE]
+        sensor = SageMakerEndpointSensor(
             task_id='test_task',
-            poke_interval=2,
+            poke_interval=1,
             aws_conn_id='aws_test',
-            job_name='test_job_name'
+            endpoint_name='test_job_name'
         )
         self.assertRaises(AirflowException, sensor.execute, None)
-        mock_describe_job.assert_called_once_with('test_job_name')
+        mock_describe.assert_called_once_with('test_job_name')
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
-    @mock.patch.object(SageMakerHook, 'describe_transform_job')
-    def test_sensor(self, mock_describe_job, hook_init, mock_client):
+    @mock.patch.object(SageMakerHook, 'describe_endpoint')
+    def test_sensor(self, mock_describe, hook_init, mock_client):
         hook_init.return_value = None
 
-        mock_describe_job.side_effect = [
-            DESCRIBE_TRANSFORM_INPROGRESS_RESPONSE,
-            DESCRIBE_TRANSFORM_STOPPING_RESPONSE,
-            DESCRIBE_TRANSFORM_COMPELETED_RESPONSE
+        mock_describe.side_effect = [
+            DESCRIBE_ENDPOINT_CREATING_RESPONSE,
+            DESCRIBE_ENDPOINT_UPDATING_RESPONSE,
+            DESCRIBE_ENDPOINT_INSERVICE_RESPONSE
         ]
-        sensor = SageMakerTransformSensor(
+        sensor = SageMakerEndpointSensor(
             task_id='test_task',
-            poke_interval=2,
+            poke_interval=1,
             aws_conn_id='aws_test',
-            job_name='test_job_name'
+            endpoint_name='test_job_name'
         )
 
         sensor.execute(None)
 
-        # make sure we called 3 times(terminated when its compeleted)
-        self.assertEqual(mock_describe_job.call_count, 3)
+        # make sure we called 3 times(terminated when its completed)
+        self.assertEqual(mock_describe.call_count, 3)
 
         # make sure the hook was initialized with the specific params
         hook_init.assert_called_with(aws_conn_id='aws_test')

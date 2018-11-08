@@ -79,7 +79,7 @@ class SageMakerBaseOperator(BaseOperator):
             self.parse_integer(self.config, field)
 
     def expand_role(self):
-        raise NotImplementedError('Please implement expand_role() in sub class!')
+        pass
 
     def preprocess_config(self):
         self.log.info(

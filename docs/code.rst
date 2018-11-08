@@ -190,9 +190,12 @@ Operators
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_base_operator.SageMakerBaseOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator
-.. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SagemakerTuningOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator
 .. autoclass:: airflow.contrib.operators.segment_track_event_operator.SegmentTrackEventOperator
 .. autoclass:: airflow.contrib.operators.sftp_operator.SFTPOperator
 .. autoclass:: airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator
@@ -231,6 +234,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_base_sensor.SageMakerBaseSensor
+.. autoclass:: airflow.contrib.sensors.sagemaker_endpoint_sensor.SageMakerEndpointSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_training_sensor.SageMakerTrainingSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_transform_sensor.SageMakerTransformSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor
