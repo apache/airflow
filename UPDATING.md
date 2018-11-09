@@ -87,6 +87,17 @@ configuration, so creating EMR clusters might fail until your connection is upda
 Ec2SubnetId, TerminationProtection and KeepJobFlowAliveWhenNoSteps were all top-level keys when they
 should be inside the "Instances" dict)
 
+### LDAP Auth Backend now requires TLS
+
+Connecting to an LDAP serever over plain text is not supported anymore. The
+certificate presented by the LDAP server must be signed by a trusted
+certificiate, or you must provide the `cacert` option under `[ldap]` in the
+config file.
+
+If you want to use LDAP auth backend without TLS then you will habe to create a
+custom-auth backend based on
+https://github.com/apache/incubator-airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
+
 ## Airflow 1.10
 
 Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
