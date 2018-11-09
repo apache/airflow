@@ -3,15 +3,7 @@
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
-## Airflow 1.10
-
-Installation and upgrading requires setting `SLUGIFY_USES_TEXT_UNIDECODE=yes` in your environment or
-`AIRFLOW_GPL_UNIDECODE=yes`. In case of the latter a GPL runtime dependency will be installed due to a
-dependency (python-nvd3 -> python-slugify -> unidecode).
-
-### Replace DataProcHook.await calls to DataProcHook.wait
-
-The method name was changed to be compatible with the Python 3.7 async/await keywords
+## Airflow Master
 
 ### DAG level Access Control for new RBAC UI
 
@@ -52,6 +44,12 @@ To delete a user:
 ```bash
 airflow users --delete --username jondoe
 ```
+
+## Airflow 1.10.1
+
+### Replace DataProcHook.await calls to DataProcHook.wait
+
+The method name was changed to be compatible with the Python 3.7 async/await keywords
 
 ### StatsD Metrics
 
