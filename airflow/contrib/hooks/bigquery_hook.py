@@ -1527,8 +1527,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type dataset_id: str
         """
         try:
-            service = self.get_service()
-            service.datasets().get(
+            self.service.datasets().get(
                 projectId=project_id, datasetId=dataset_id).execute()
             return True
         except errors.HttpError as e:

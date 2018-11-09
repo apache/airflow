@@ -22,12 +22,14 @@ import unittest
 
 from google.auth.exceptions import GoogleAuthError
 import mock
-
+from apiclient import errors
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
     _validate_value, _api_resource_configs_duplication_check
 
 bq_available = True
+
+EMPTY_CONTENT = ''.encode('utf8')
 
 try:
     hook.BigQueryHook().get_service()
@@ -400,6 +402,49 @@ class TestDatasetsOperations(unittest.TestCase):
                 mocked, "test_create_empty_dataset").get_datasets_list(
                 project_id=project_id)
             self.assertEqual(result, expected_result['datasets'])
+
+    def test_check_dataset_exists(self):
+        dataset_id = "dataset_test"
+        project_id = "project-test"
+        dataset_result = {
+            "kind": "bigquery#dataset",
+            "location": "US",
+            "id": "{}:{}".format(project_id, dataset_id),
+            "datasetReference": {
+                "projectId": project_id,
+                "datasetId": dataset_id
+            }
+        }
+
+        mocked = mock.Mock()
+        with mock.patch.object(
+            hook.BigQueryBaseCursor(mocked, project_id).service, "datasets"
+        ) as mock_service:
+            mock_service.return_value.get(
+                datasetId=dataset_id, projectId=project_id
+            ).execute.return_value = dataset_result
+            result = hook.BigQueryBaseCursor(
+                mocked, "test_check_dataset_exists"
+            ).dataset_exists(dataset_id=dataset_id, project_id=project_id)
+            self.assertTrue(result)
+
+    def test_check_dataset_exists_not_exist(self):
+        dataset_id = "dataset_test"
+        project_id = "project_test"
+
+        mocked = mock.Mock()
+        with mock.patch.object(
+            hook.BigQueryBaseCursor(mocked, project_id).service, "datasets"
+        ) as mock_service:
+            (
+                mock_service.return_value.get(
+                    dataset_id=dataset_id, project_id=project_id
+                ).execute.side_effect
+            ) = errors.HttpError(resp={"status": "404"}, content=EMPTY_CONTENT)
+            result = hook.BigQueryBaseCursor(
+                mocked, "test_check_dataset_exists_not_found"
+            ).dataset_exists(dataset_id=dataset_id, project_id=project_id)
+            self.assertFalse(result)
 
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
