@@ -18,7 +18,7 @@ Improvements:
 
 [AIRFLOW-393] Add progress callbacks for FTP downloads
 [AIRFLOW-520] Show Airflow version on web page
-[AIRFLOW-843] Excpetions now available in context durint on_failure_callback
+[AIRFLOW-843] Exceptions now available in context during on_failure_callback
 [AIRFLOW-2476] Update tabulate dependency to v0.8.2
 [AIRFLOW-2592] Bump Bleach dependency
 [AIRFLOW-2622] Add "confirm=False" option to SFTPOperator
@@ -37,8 +37,8 @@ Improvements:
 [AIRFLOW-2951] dag_run end_date Null after a dag is finished
 [AIRFLOW-2956] Kubernetes tolerations for pod operator
 [AIRFLOW-2997] Support for clustered tables in Bigquery hooks/operators
-[AIRFLOW-3006] Fix rrror when schedule_interval="None"
-[AIRFLOW-3008] Move Kubernetes related example DAGs to contribe/example_dags
+[AIRFLOW-3006] Fix error when schedule_interval="None"
+[AIRFLOW-3008] Move Kubernetes related example DAGs to contrib/example_dags
 [AIRFLOW-3025] Allow to specify dns and dns-search parameters for DockerOperator
 [AIRFLOW-3067] (www_rbac) Flask flash messages are not displayed properly (no background color)
 [AIRFLOW-3069] Decode output of S3 file transform operator
