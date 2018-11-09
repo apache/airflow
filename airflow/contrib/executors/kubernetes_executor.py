@@ -346,6 +346,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             namespace=self.namespace, worker_uuid=self.worker_uuid,
             pod_id=self._create_pod_id(dag_id, task_id),
             dag_id=dag_id, task_id=task_id,
+            try_number=try_number,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
         )
