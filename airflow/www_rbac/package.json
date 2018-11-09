@@ -29,7 +29,6 @@
     "babel": "^6.23.0",
     "babel-core": "^6.26.3",
     "babel-eslint": "^8.2.6",
-    "babel-istanbul": "^0.12.2",
     "babel-loader": "^7.1.4",
     "babel-plugin-css-modules-transform": "^1.6.1",
     "babel-polyfill": "^6.26.0",
@@ -57,11 +56,11 @@
     "bootstrap-toggle": "^2.2.2",
     "d3": "^3.4.4",
     "d3-tip": "^0.9.1",
-    "dagre-d3": "^0.4.18",
+    "dagre-d3": "^0.6.1",
     "datatables.net": "^1.10.19",
     "datatables.net-bs": "^1.10.19",
     "moment-timezone": "^0.5.21",
-    "npm": "^6.3.0",
+    "npm": "^6.4.1",
     "nvd3": "^1.8.6"
   }
 }
