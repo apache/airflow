@@ -476,10 +476,15 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def _labels_to_key(self, labels):
         try:
+            try_num = 1
+            try:
+                try_num = int(labels.get('try_number', '1'))
+            except ValueError:
+                self.log.warn("could not get try_number as an int: %s", labels.get('try_number', '1'))
             return (
                 labels['dag_id'], labels['task_id'],
                 self._label_safe_datestring_to_datetime(labels['execution_date']),
-                labels.get('try_number', '1')
+                try_num
             )
         except Exception as e:
             self.log.warn(
