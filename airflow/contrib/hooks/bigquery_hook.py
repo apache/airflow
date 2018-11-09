@@ -1515,6 +1515,27 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
+    def dataset_exists(self, project_id, dataset_id):
+        """
+        Checks for the existence of a dataset in Google BigQuery.
+
+        :param project_id: The Google cloud project in which to look for the
+            dataset. The connection supplied to the hook must provide access to
+            the specified project.
+        :type project_id: str
+        :param dataset_id: The name of the dataset to check the existence of.
+        :type dataset_id: str
+        """
+        try:
+            service = self.get_service()
+            service.datasets().get(
+                projectId=project_id, datasetId=dataset_id).execute()
+            return True
+        except errors.HttpError as e:
+            if e.resp['status'] == '404':
+                return False
+            raise
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
