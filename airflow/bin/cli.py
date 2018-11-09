@@ -1276,6 +1276,10 @@ def flower(args):
     if args.url_prefix:
         url_prefix = '--url-prefix=' + args.url_prefix
 
+    basic_auth = ''
+    if args.basic_auth:
+        basic_auth = '--basic_auth=' + args.basic_auth
+
     flower_conf = ''
     if args.flower_conf:
         flower_conf = '--conf=' + args.flower_conf
@@ -1297,7 +1301,7 @@ def flower(args):
 
         with ctx:
             os.execvp("flower", ['flower', '-b',
-                                 broka, address, port, api, flower_conf, url_prefix])
+                                 broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
         stdout.close()
         stderr.close()
@@ -1306,7 +1310,7 @@ def flower(args):
         signal.signal(signal.SIGTERM, sigint_handler)
 
         os.execvp("flower", ['flower', '-b',
-                             broka, address, port, api, flower_conf, url_prefix])
+                             broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
 
 @cli_utils.action_logging
@@ -1823,6 +1827,12 @@ class CLIFactory(object):
             ("-u", "--url_prefix"),
             default=conf.get('celery', 'FLOWER_URL_PREFIX'),
             help="URL prefix for Flower"),
+        'flower_basic_auth': Arg(
+            ("-ba", "--basic_auth"),
+            default=conf.get('celery', 'FLOWER_BASIC_AUTH'),
+            help=("Securing Flower with Basic Authentication. "
+                  "Accepts user:password pairs separated by a comma. "
+                  "Example: flower_basic_auth = user1:password1,user2:password2")),
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
@@ -2070,7 +2080,7 @@ class CLIFactory(object):
             'func': flower,
             'help': "Start a Celery Flower",
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
-                     'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+                     'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
             'help': "Show the version",
