@@ -833,136 +833,159 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
 
 @cli_utils.action_logging
 def webserver(args):
-    print(settings.HEADER)
+    return WebserverCommand(args)()
 
-    access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
-    error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
-    num_workers = args.workers or conf.get('webserver', 'workers')
-    worker_timeout = (args.worker_timeout or
-                      conf.get('webserver', 'web_server_worker_timeout'))
-    ssl_cert = args.ssl_cert or conf.get('webserver', 'web_server_ssl_cert')
-    ssl_key = args.ssl_key or conf.get('webserver', 'web_server_ssl_key')
-    if not ssl_cert and ssl_key:
-        raise AirflowException(
-            'An SSL certificate must also be provided for use with ' + ssl_key)
-    if ssl_cert and not ssl_key:
-        raise AirflowException(
-            'An SSL key must also be provided for use with ' + ssl_cert)
 
-    if args.debug:
-        print(
-            "Starting the web server on port {0} and host {1}.".format(
-                args.port, args.hostname))
-        if settings.RBAC:
-            app, _ = create_app_rbac(conf, testing=conf.get('core', 'unit_test_mode'))
+class WebserverCommand(object):
+
+    server_print_info = '''\
+                            Running the Gunicorn Server with:
+                            Workers: {self.args.workers} {self.args.workerclass}
+                            Host: {self.args.hostname}:{self.args.port}
+                            Timeout: {self.args.worker_timeout}
+                            Logfiles: {self.args.access_logfile} {self.args.error_logfile}
+                            =================================================================\
+                        '''
+
+    def __init__(self, args):
+        if not args.ssl_cert and args.ssl_key:
+            raise AirflowException(
+                'An SSL certificate must also be provided for use with ' + args.ssl_key)
+        if args.ssl_cert and not args.ssl_key:
+            raise AirflowException(
+                'An SSL key must also be provided for use with ' + args.ssl_cert)
+        self.args = args
+
+    def __call__(self):
+        """ main call method """
+
+        print(settings.HEADER)
+
+        if self.args.debug:
+            self._debug_run()
         else:
-            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
-        app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
-                port=args.port, host=args.hostname,
-                ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
-    else:
-        os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
-        pid, stdout, stderr, log_file = setup_locations(
-            "webserver", args.pid, args.stdout, args.stderr, args.log_file)
-        os.environ.pop('SKIP_DAGS_PARSING')
-        if args.daemon:
-            handle = setup_logging(log_file)
-            stdout = open(stdout, 'w+')
-            stderr = open(stderr, 'w+')
+            os.environ['SKIP_DAGS_PARSING'] = 'True'
+            app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
+            pid, stdout, stderr, log_file = setup_locations(
+                "webserver", self.args.pid, self.args.stdout, self.args.stderr,
+                self.args.log_file)
+            os.environ.pop('SKIP_DAGS_PARSING')
+            if self.args.daemon:
+                handle = setup_logging(log_file)
+                stdout = open(stdout, 'w+')
+                stderr = open(stderr, 'w+')
 
-        print(
-            textwrap.dedent('''\
-                Running the Gunicorn Server with:
-                Workers: {num_workers} {args.workerclass}
-                Host: {args.hostname}:{args.port}
-                Timeout: {worker_timeout}
-                Logfiles: {access_logfile} {error_logfile}
-                =================================================================\
-            '''.format(**locals())))
+            print(textwrap.dedent(self.server_print_info.format(**locals())))
 
+            run_args = self.prepare_run_args(pid)
+
+            gunicorn_master_proc = None
+
+            def kill_proc(dummy_signum, dummy_frame):
+                gunicorn_master_proc.terminate()
+                gunicorn_master_proc.wait()
+                sys.exit(0)
+
+            if self.args.daemon:
+                base, ext = os.path.splitext(pid)
+                ctx = daemon.DaemonContext(
+                    pidfile=TimeoutPIDLockFile(base + "-monitor" + ext, -1),
+                    files_preserve=[handle],
+                    stdout=stdout,
+                    stderr=stderr,
+                    signal_map={
+                        signal.SIGINT: kill_proc,
+                        signal.SIGTERM: kill_proc
+                    },
+                )
+                with ctx:
+                    subprocess.Popen(run_args, close_fds=True)
+
+                    # Reading pid file directly, since Popen#pid doesn't
+                    # seem to return the right value with DaemonContext.
+                    while True:
+                        try:
+                            with open(pid) as f:
+                                gunicorn_master_proc_pid = int(f.read())
+                                break
+                        except IOError:
+                            log.debug("Waiting for gunicorn's pid file to be created.")
+                            time.sleep(0.1)
+
+                    gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
+                    self.monitor_gunicorn(gunicorn_master_proc)
+
+                stdout.close()
+                stderr.close()
+            else:
+                gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
+
+                signal.signal(signal.SIGINT, kill_proc)
+                signal.signal(signal.SIGTERM, kill_proc)
+
+                self.monitor_gunicorn(gunicorn_master_proc)
+
+    def prepare_run_args(self, pid):
+        """ combine command to run gunicorn server """
         run_args = [
             'gunicorn',
-            '-w', str(num_workers),
-            '-k', str(args.workerclass),
-            '-t', str(worker_timeout),
-            '-b', args.hostname + ':' + str(args.port),
+            '-w', str(self.args.workers),
+            '-k', str(self.args.workerclass),
+            '-t', str(self.args.worker_timeout),
+            '-b', self.args.hostname + ':' + str(self.args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
             '-c', 'python:airflow.www.gunicorn_config',
         ]
 
-        if args.access_logfile:
-            run_args += ['--access-logfile', str(args.access_logfile)]
+        if self.args.access_logfile:
+            run_args += ['--access-logfile', str(self.args.access_logfile)]
 
-        if args.error_logfile:
-            run_args += ['--error-logfile', str(args.error_logfile)]
+        if self.args.error_logfile:
+            run_args += ['--error-logfile', str(self.args.error_logfile)]
 
-        if args.daemon:
+        if self.args.daemon:
             run_args += ['-D']
 
-        if ssl_cert:
-            run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
+        if self.args.ssl_cert:
+            run_args += ['--certfile', self.args.ssl_cert, '--keyfile',
+                         self.args.ssl_key]
+
+        if self.args.gunicorn_config:
+            if isinstance(self.args.gunicorn_config, list):
+                self.args.gunicorn_config = self.args.gunicorn_config[0]
+            for arg in self.args.gunicorn_config.split():
+                run_args.append(arg)
 
         webserver_module = 'www_rbac' if settings.RBAC else 'www'
         run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
-        gunicorn_master_proc = None
+        return run_args
 
-        def kill_proc(dummy_signum, dummy_frame):
-            gunicorn_master_proc.terminate()
-            gunicorn_master_proc.wait()
-            sys.exit(0)
+    def _debug_run(self):
+        print("Starting the web server on port {0} and host {1}.".format(
+            self.args.port, self.args.hostname))
 
-        def monitor_gunicorn(gunicorn_master_proc):
-            # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
-            if conf.getint('webserver', 'worker_refresh_interval') > 0:
-                master_timeout = conf.getint('webserver', 'web_server_master_timeout')
-                restart_workers(gunicorn_master_proc, num_workers, master_timeout)
-            else:
-                while gunicorn_master_proc.poll() is None:
-                    time.sleep(1)
-
-                sys.exit(gunicorn_master_proc.returncode)
-
-        if args.daemon:
-            base, ext = os.path.splitext(pid)
-            ctx = daemon.DaemonContext(
-                pidfile=TimeoutPIDLockFile(base + "-monitor" + ext, -1),
-                files_preserve=[handle],
-                stdout=stdout,
-                stderr=stderr,
-                signal_map={
-                    signal.SIGINT: kill_proc,
-                    signal.SIGTERM: kill_proc
-                },
-            )
-            with ctx:
-                subprocess.Popen(run_args, close_fds=True)
-
-                # Reading pid file directly, since Popen#pid doesn't
-                # seem to return the right value with DaemonContext.
-                while True:
-                    try:
-                        with open(pid) as f:
-                            gunicorn_master_proc_pid = int(f.read())
-                            break
-                    except IOError:
-                        log.debug("Waiting for gunicorn's pid file to be created.")
-                        time.sleep(0.1)
-
-                gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                monitor_gunicorn(gunicorn_master_proc)
-
-            stdout.close()
-            stderr.close()
+        if settings.RBAC:
+            app, _ = create_app_rbac(conf,
+                                     testing=conf.get('core', 'unit_test_mode'))
         else:
-            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
+            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
 
-            signal.signal(signal.SIGINT, kill_proc)
-            signal.signal(signal.SIGTERM, kill_proc)
+        app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
+                port=self.args.port, host=self.args.hostname,
+                ssl_context=(self.args.ssl_cert, self.args.ssl_key)
+                if self.args.ssl_cert and self.args.ssl_key else None)
 
-            monitor_gunicorn(gunicorn_master_proc)
+    def monitor_gunicorn(self, gunicorn_master_proc):
+        # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
+        if conf.getint('webserver', 'worker_refresh_interval') > 0:
+            master_timeout = conf.getint('webserver', 'web_server_master_timeout')
+            restart_workers(gunicorn_master_proc, self.args.workers, master_timeout)
+        else:
+            while gunicorn_master_proc.poll() is None:
+                time.sleep(1)
+            sys.exit(gunicorn_master_proc.returncode)
 
 
 @cli_utils.action_logging
@@ -1777,6 +1800,13 @@ class CLIFactory(object):
             default=conf.get('webserver', 'ERROR_LOGFILE'),
             help="The logfile to store the webserver error log. Use '-' to print to "
                  "stderr."),
+        'gunicorn_config': Arg(
+            ('-gc', '--gunicorn_config',),
+            default=conf.get('webserver', 'gunicorn_config'),
+            help="Provide all params what you want to gunicorn webserver run command."
+                 "You can use official gunicorn settings:"
+                 "http://docs.gunicorn.org/en/stable/settings.html. Usage: "
+                 "-gc='--forwarded-allow-ips 255.255.255.0'"),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'run_duration': Arg(
@@ -1809,6 +1839,7 @@ class CLIFactory(object):
             ("-cn", "--celery_hostname"),
             help=("Set the hostname of celery worker "
                   "if you have multiple workers on a single machine.")),
+
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_hostname': Arg(
@@ -2056,7 +2087,8 @@ class CLIFactory(object):
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
-                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
+                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug',
+                     'gunicorn_config'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",

@@ -19,9 +19,8 @@
 #
 
 from six import StringIO
-import sys
 import unittest
-
+import sys
 from datetime import datetime, timedelta, time
 from mock import patch, Mock, MagicMock
 from time import sleep
@@ -31,6 +30,7 @@ import subprocess
 from argparse import Namespace
 from airflow import settings
 import airflow.bin.cli as cli
+from airflow import configuration as conf
 from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
 from airflow.models import TaskInstance
 from airflow.utils import timezone
@@ -285,3 +285,61 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(stdout[-1], expected_output[i])
 
             reset_dr_db(dag_id)
+
+
+class TestWebserverAgrs(unittest.TestCase):
+
+    real_method = conf.get
+
+    @classmethod
+    def setUpClass(cls):
+        sys.argv = ['airflow', 'webserver', '-p', '0', '-w', '3', '-t', '50']
+
+    @classmethod
+    def tearDownClass(cls):
+        conf.get = TestWebserverAgrs.real_method
+
+    @staticmethod
+    def reload_cli_module():
+        try:
+            from importlib import reload
+        except ImportError:
+            # it mean we have Python 2.7
+            from imp import reload
+        reload(cli)
+
+    @staticmethod
+    def patch_conf_get(test_line, target_section):
+        def get_test_line(section, key, **kwargs):
+            if section != target_section:
+                return TestWebserverAgrs.real_method(section, key, **kwargs)
+            return test_line
+        conf.get = get_test_line
+        TestWebserverAgrs.reload_cli_module()
+
+    def test_cli_webserver_get_values_from_config(self):
+        test_line = "test_line"
+        self.patch_conf_get(test_line, 'webserver')
+        parser = cli.CLIFactory.get_parser()
+        args = parser.parse_args()
+
+        self.assertEqual(args.ssl_key, test_line)
+        self.assertEqual(args.ssl_cert, test_line)
+        self.assertEqual(args.access_logfile, test_line)
+        self.assertEqual(args.error_logfile, test_line)
+        self.assertEqual(args.hostname, test_line)
+        self.assertEqual(args.gunicorn_config, test_line)
+
+    def test_cli_webserver_gunicorn_cli_arg(self):
+        """ check what all provided args was added to run_args """
+        target_command = "--provide-value one --provide two"
+        fake_args = Namespace(
+            gunicorn_config=target_command,
+            access_logfile="-",
+            error_logfile="-", workers="3", worker_timeout="0",
+            ssl_cert=None, ssl_key=None, debug=False, pid="pid",
+            stdout=None, stderr=None, log_file=None, daemon=False,
+            workerclass=None, hostname="127.0.0.1", port=0)
+        for item in target_command.split():
+            self.assertIn(item, cli.WebserverCommand(fake_args).prepare_run_args(
+                'pid.pid'))
