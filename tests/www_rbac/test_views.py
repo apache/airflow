@@ -46,13 +46,16 @@ from airflow.www_rbac import app as application
 
 
 class TestBase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         conf.load_test_config()
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.client = self.app.test_client()
+        cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
+        cls.app.config['WTF_CSRF_ENABLED'] = False
         settings.configure_orm()
-        self.session = Session
+        cls.session = Session
+
+    def setUp(self):
+        self.client = self.app.test_client()
         self.login()
 
     def login(self):
