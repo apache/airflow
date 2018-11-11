@@ -183,6 +183,53 @@ docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts
 Alternatively can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
 It is free for open source projects.
 
+Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be triggered and if this pipeline fails (returns an exit code other than `0`) the commit does not come through.
+This "in theory" has the advantage that you can not commit any code that fails that again reduces the errors in the Travis CI Pipelines.
+
+Since there are a lot of tests the script would last very long so you propably only should test your new feature locally.
+
+The following example of a `pre-commit` file allows you..
+- to lint your code via flake8
+- to test your code via nosetests in a docker container based on python 2
+- to test your code via nosetests in a docker container based on python 3
+
+```
+#!/bin/sh
+
+GREEN='\033[0;32m'
+NO_COLOR='\033[0m'
+
+setup_python_env() {
+    local venv_path=${1}
+
+    echo -e "${GREEN}Activating python virtual environment ${venv_path}..${NO_COLOR}"
+    source ${venv_path}
+}
+run_linting() {
+    local project_dir=$(git rev-parse --show-toplevel)
+
+    echo -e "${GREEN}Running flake8 over directory ${project_dir}..${NO_COLOR}"
+    flake8 ${project_dir}
+}
+run_testing_in_docker() {
+    local feature_path=${1}
+    local airflow_py2_container=${2}
+    local airflow_py3_container=${3}
+
+    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 2 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ ${airflow_py2_container} nosetests -v ${feature_path}
+    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 3 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ ${airflow_py3_container} nosetests -v ${feature_path}
+}
+
+set -e
+# NOTE: Before running this make sure you have set the function arguments correctly.
+setup_python_env /Users/feluelle/venv/bin/activate
+run_linting
+run_testing_in_docker tests/contrib/hooks/test_imap_hook.py dazzling_chatterjee quirky_stallman
+
+```
+
 For more information on how to run a subset of the tests, take a look at the
 nosetests docs.
 
