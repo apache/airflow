@@ -200,6 +200,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.sftp_operator.SFTPOperator
 .. autoclass:: airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator
 .. autoclass:: airflow.contrib.operators.snowflake_operator.SnowflakeOperator
+.. autoclass:: airflow.contrib.operators.sns_publish_operator.SnsPublishOperator
 .. autoclass:: airflow.contrib.operators.spark_jdbc_operator.SparkJDBCOperator
 .. autoclass:: airflow.contrib.operators.spark_sql_operator.SparkSqlOperator
 .. autoclass:: airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator
@@ -390,9 +391,10 @@ Community contributed hooks
 '''''''''''''''''''''''''''
 .. Alphabetize this list
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
+.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
-.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
+.. autoclass:: airflow.contrib.hooks.aws_sns_hook.AwsSnsHook
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 .. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
