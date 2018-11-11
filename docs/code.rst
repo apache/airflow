@@ -229,6 +229,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor
 .. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorFolder
 .. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex
+.. autoclass:: airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor
 .. autoclass:: airflow.contrib.sensors.jira_sensor.JiraSensor
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
