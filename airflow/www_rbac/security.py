@@ -75,6 +75,7 @@ viewer_perms = [
     'can_task_stats',
     'can_code',
     'can_log',
+    'can_get_logs_with_metadata',
     'can_tries',
     'can_graph',
     'can_tree',
