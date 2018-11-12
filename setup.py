@@ -309,6 +309,7 @@ def do_setup():
             'gitpython>=2.0.2',
             'gunicorn>=19.4.0, <20.0',
             'iso8601>=0.1.12',
+            'json-merge-patch==0.2',
             'jinja2>=2.7.3, <2.9.0',
             'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',

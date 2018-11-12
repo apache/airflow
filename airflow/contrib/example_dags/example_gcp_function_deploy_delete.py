@@ -45,11 +45,14 @@ from airflow.contrib.operators.gcp_function_operator \
 from airflow.utils import dates
 
 # [START howto_operator_gcf_deploy_variables]
-PROJECT_ID = models.Variable.get('PROJECT_ID', '')
-LOCATION = models.Variable.get('LOCATION', '')
+PROJECT_ID = models.Variable.get('PROJECT_ID', 'example-airflow')
+LOCATION = models.Variable.get('LOCATION', 'europe-west1')
 SOURCE_ARCHIVE_URL = models.Variable.get('SOURCE_ARCHIVE_URL', '')
 SOURCE_UPLOAD_URL = models.Variable.get('SOURCE_UPLOAD_URL', '')
-SOURCE_REPOSITORY = models.Variable.get('SOURCE_REPOSITORY', '')
+SOURCE_REPOSITORY = models.Variable.get('SOURCE_REPOSITORY',
+                                        'https://source.developers.google.com/'
+                                        'projects/example-airflow/'
+                                        'repos/hello-world/moveable-aliases/master')
 ZIP_PATH = models.Variable.get('ZIP_PATH', '')
 ENTRYPOINT = models.Variable.get('ENTRYPOINT', '')
 FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(PROJECT_ID, LOCATION,
@@ -70,11 +73,7 @@ body = {
 
 # [START howto_operator_gcf_deploy_args]
 default_args = {
-    'start_date': dates.days_ago(1),
-    'project_id': PROJECT_ID,
-    'location': LOCATION,
-    'body': body,
-    'validate_body': VALIDATE_BODY
+    'start_date': dates.days_ago(1)
 }
 # [END howto_operator_gcf_deploy_args]
 
@@ -103,11 +102,15 @@ with models.DAG(
     # [START howto_operator_gcf_deploy]
     deploy_task = GcfFunctionDeployOperator(
         task_id="gcf_deploy_task",
-        name=FUNCTION_NAME
+        name=FUNCTION_NAME,
+        project_id=PROJECT_ID,
+        location=LOCATION,
+        body=body,
+        validate_body=VALIDATE_BODY
     )
     # [END howto_operator_gcf_deploy]
     delete_task = GcfFunctionDeleteOperator(
         task_id="gcf_delete_task",
-        name=FUNCTION_NAME
+        name=FUNCTION_NAME,
     )
     deploy_task >> delete_task
