@@ -46,13 +46,16 @@ from airflow.www import app as application
 
 
 class TestBase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         conf.load_test_config()
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.client = self.app.test_client()
+        cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
+        cls.app.config['WTF_CSRF_ENABLED'] = False
         settings.configure_orm()
-        self.session = Session
+        cls.session = Session
+
+    def setUp(self):
+        self.client = self.app.test_client()
         self.login()
 
     def login(self):
@@ -581,7 +584,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.endpoint = endpoint
 
     def setUp(self):
-        from airflow.www.views import dagbag
+        from airflow.www_rbac.views import dagbag
         from airflow.utils.state import State
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
@@ -1373,6 +1376,19 @@ class TestDagACLView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('"message":', resp)
         self.check_content_in_response('"metadata":', resp)
+
+
+class TestTaskInstanceView(TestBase):
+    TI_ENDPOINT = '/taskinstance/list/?_flt_0_execution_date={}'
+
+    def test_start_date_filter(self):
+        resp = self.client.get(self.TI_ENDPOINT.format(
+            self.percent_encode('2018-10-09 22:44:31')))
+        # We aren't checking the logic of the date filter itself (that is built
+        # in to FAB) but simply that our UTC conversion was run - i.e. it
+        # doesn't blow up!
+        self.check_content_in_response('List Task Instance', resp)
+        pass
 
 
 if __name__ == '__main__':
