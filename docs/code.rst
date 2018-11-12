@@ -190,13 +190,17 @@ Operators
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_base_operator.SageMakerBaseOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator
-.. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SagemakerTuningOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator
 .. autoclass:: airflow.contrib.operators.segment_track_event_operator.SegmentTrackEventOperator
 .. autoclass:: airflow.contrib.operators.sftp_operator.SFTPOperator
 .. autoclass:: airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator
 .. autoclass:: airflow.contrib.operators.snowflake_operator.SnowflakeOperator
+.. autoclass:: airflow.contrib.operators.sns_publish_operator.SnsPublishOperator
 .. autoclass:: airflow.contrib.operators.spark_jdbc_operator.SparkJDBCOperator
 .. autoclass:: airflow.contrib.operators.spark_sql_operator.SparkSqlOperator
 .. autoclass:: airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator
@@ -226,11 +230,13 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor
 .. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorFolder
 .. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex
+.. autoclass:: airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor
 .. autoclass:: airflow.contrib.sensors.jira_sensor.JiraSensor
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_base_sensor.SageMakerBaseSensor
+.. autoclass:: airflow.contrib.sensors.sagemaker_endpoint_sensor.SageMakerEndpointSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_training_sensor.SageMakerTrainingSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_transform_sensor.SageMakerTransformSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor
@@ -385,9 +391,10 @@ Community contributed hooks
 '''''''''''''''''''''''''''
 .. Alphabetize this list
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
+.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
-.. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
+.. autoclass:: airflow.contrib.hooks.aws_sns_hook.AwsSnsHook
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 .. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook

@@ -32,8 +32,8 @@ class EmrStepSensor(EmrBaseSensor):
     :type step_id: str
     """
 
-    NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-    FAILED_STATE = ['CANCELLED', 'FAILED']
+    NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE', 'CANCEL_PENDING']
+    FAILED_STATE = ['CANCELLED', 'FAILED', 'INTERRUPTED']
     template_fields = ['job_flow_id', 'step_id']
     template_ext = ()
 

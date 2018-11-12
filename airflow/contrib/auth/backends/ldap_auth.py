@@ -55,16 +55,18 @@ class LdapException(Exception):
 
 
 def get_ldap_connection(dn=None, password=None):
-    tls_configuration = None
-    use_ssl = False
     try:
         cacert = configuration.conf.get("ldap", "cacert")
-        tls_configuration = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cacert)
-        use_ssl = True
-    except Exception:
+    except AirflowConfigException:
         pass
 
-    server = Server(configuration.conf.get("ldap", "uri"), use_ssl, tls_configuration)
+    tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
+                            ca_certs_file=cacert)
+
+    server = Server(configuration.conf.get("ldap", "uri"),
+                    use_ssl=True,
+                    tls=tls_configuration)
+
     conn = Connection(server, native(dn), native(password))
 
     if not conn.bind():
