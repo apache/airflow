@@ -138,3 +138,9 @@ rat-results.txt
 *.generated
 *.tar.gz
 scripts/ci/kubernetes/kube/.generated/airflow.yaml
+
+# Airflow log files when airflow is run locally
+airflow-*.err
+airflow-*.out
+airflow-*.log
+airflow-*.pid
