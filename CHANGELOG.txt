@@ -24,6 +24,7 @@ Improvements:
 [AIRFLOW-2622] Add "confirm=False" option to SFTPOperator
 [AIRFLOW-2662] support affinity & nodeSelector policies for kubernetes executor/operator
 [AIRFLOW-2709] Improve error handling in Databricks hook
+[AIRFLOW-2723] Update lxml dependancy to >= 4.0.
 [AIRFLOW-2763] No precheck mechanism in place during worker initialisation for the connection to metadata database
 [AIRFLOW-2789] Add ability to create single node cluster to DataprocClusterCreateOperator
 [AIRFLOW-2797] Add ability to create Google Dataproc cluster with custom image
@@ -42,6 +43,7 @@ Improvements:
 [AIRFLOW-3025] Allow to specify dns and dns-search parameters for DockerOperator
 [AIRFLOW-3067] (www_rbac) Flask flash messages are not displayed properly (no background color)
 [AIRFLOW-3069] Decode output of S3 file transform operator
+[AIRFLOW-3072] Assign permission get_logs_with_metadata to viewer role
 [AIRFLOW-3090] INFO logs are too verbose
 [AIRFLOW-3103] Update Flask-Login
 [AIRFLOW-3112] Align SFTP hook with SSH hook
@@ -66,6 +68,8 @@ Doc-only changes:
 [AIRFLOW-3030] Command Line docs incorrect subdir
 [AIRFLOW-2990] Docstrings for Hooks/Operators are in incorrect format
 [AIRFLOW-3127] Celery SSL Documentation is out-dated
+[AIRFLOW-2779] Add license headers to doc files
+[AIRFLOW-2779] Add project version to license
 
 Bug fixes:
 

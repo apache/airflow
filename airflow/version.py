@@ -18,4 +18,4 @@
 # under the License.
 #
 
-version = '1.10.1b1'
+version = '1.10.1'
