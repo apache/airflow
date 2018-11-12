@@ -76,13 +76,13 @@ INSTANCE_GROUP_MANAGER_NAME = os.environ.get('INSTANCE_GROUP_MANAGER_NAME',
 
 SOURCE_TEMPLATE_URL = os.environ.get(
     'SOURCE_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/"
-    "example-project/global/instanceTemplates/instance-template-test")
+    "https://www.googleapis.com/compute/beta/projects/" + PROJECT_ID +
+    "/global/instanceTemplates/instance-template-test")
 
 DESTINATION_TEMPLATE_URL = os.environ.get(
     'DESTINATION_TEMPLATE_URL',
-    "https://www.googleapis.com/compute/beta/projects/"
-    "example-airflow/global/instanceTemplates/" + NEW_TEMPLATE_NAME)
+    "https://www.googleapis.com/compute/beta/projects/" + PROJECT_ID +
+    "/global/instanceTemplates/" + NEW_TEMPLATE_NAME)
 
 UPDATE_POLICY = {
     "type": "OPPORTUNISTIC",

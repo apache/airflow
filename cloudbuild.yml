@@ -1,0 +1,81 @@
+steps:
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['source', 'repos', 'clone', 'incubator-airflow-keys', '/keys']
+  volumes:
+  - name: 'keys'
+    path: '/keys'
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: '/bin/bash'
+  args: ['-c', './decrypt_all_files.bash']
+  dir: '/keys'
+  volumes:
+  - name: 'keys'
+    path: '/keys'
+- name: 'ubuntu'
+  id: 'tag'
+  args: ['bash', '-c', 'date -u +%Y%m%dT%H%M_$BUILD_ID | tee _TAG']
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:latest'
+  id: 'docs'
+  waitFor: ['tag']
+  env: ["PYTHON_VERSION=2", "HOME=/root"]
+  args: [ "/bin/bash", "-c", "/airflow/_init.sh /airflow/_build_docs.sh"]
+  volumes:
+  - name: 'output'
+    path: '/airflow/output'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:latest'
+  id: 'python2-test'
+  waitFor: ['tag']
+  env:
+    - "HOME=/root"
+    - "PYTHON_VERSION=2"
+    - "TEST_POSTFIX=python2"
+  args: [ "/bin/bash", "-c",
+          "/airflow/_init.sh /airflow/_run_ci_tests.sh"]
+  volumes:
+  - name: 'output'
+    path: '/airflow/output'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:latest'
+  id: 'python3-test'
+  env:
+    - "HOME=/root"
+    - "PYTHON_VERSION=3"
+    - "TEST_POSTFIX=python3"
+  args: [ "/bin/bash", "-c",
+          "/airflow/_init.sh /airflow/_run_ci_tests.sh"]
+  volumes:
+  - name: 'output'
+    path: '/airflow/output'
+  - name: 'keys'
+    path: '/root/.key'
+  waitFor: ['tag']
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:latest'
+  id: 'merge_tests'
+  waitFor: ['docs', 'python2-test', 'python3-test']
+  env: ["PYTHON_VERSION=2", "HOME=/root" ]
+  args: [ "/bin/bash", "-c", "/airflow/_init.sh /airflow/_merge_tests.sh python2 python3"]
+  volumes:
+  - name: 'output'
+    path: '/airflow/output'
+  - name: 'keys'
+    path: '/root/.key'
+- name: "gcr.io/cloud-builders/gsutil"
+  id: 'send_artifacts'
+  args: ['-m', 'cp', '-r', '.', 'gs://${PROJECT_ID}${_GCS_BUCKET_POSTFIX}/']
+  dir: '/output'
+  volumes:
+  - name: 'output'
+    path: '/output'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:latest'
+  id: 'verify_tests'
+  waitFor: ['send_artifacts']
+  env: ["PYTHON_VERSION=2", "HOME=/root" ]
+  args: [ "/bin/bash", "-c", "/airflow/_init.sh /airflow/_verify_tests.sh"]
+  volumes:
+  - name: 'output'
+    path: '/airflow/output'
+substitutions:
+  _GCS_BUCKET_POSTFIX: "-builds"
+options:
+  machineType: 'N1_HIGHCPU_8'
+timeout: 2800s

@@ -20,6 +20,7 @@ import json
 import os
 import subprocess
 import unittest
+from os.path import expanduser
 
 from airflow import models, settings, configuration, AirflowException
 from airflow.utils.timezone import datetime
@@ -41,10 +42,12 @@ CONTRIB_OPERATORS_EXAMPLES_DAG_FOLDER = os.path.join(
 OPERATORS_EXAMPLES_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 
-TESTS_DAG_FOLDER = os.path.join(
+AIRFLOW_HOME = os.environ.get('AIRFLOW_HOME',
+                              os.path.join(os.path.expanduser('~'), 'airflow'))
+UNIT_TEST_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "tests", "dags")
 
-GCP_FOLDER_ENVIRONMENT_VARIABLE = "GCP_SERVICE_ACCOUNT_KEY_FOLDER"
+DAG_FOLDER = os.path.join(AIRFLOW_HOME, "dags")
 
 GCP_COMPUTE_KEY = 'gcp_compute.json'
 GCP_FUNCTION_KEY = 'gcp_function.json'
@@ -53,9 +56,11 @@ GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 
 SKIP_TEST_WARNING = """
-The test is only run when there is GCP connection available! "
-Set GCP_SERVICE_ACCOUNT_KEY_FOLDER environment variable if "
-you want to run them".
+
+The test is only run when there is GCP connection available!
+
+Set GCP_SERVICE_ACCOUNT_KEY_FOLDER environment variable if you want to run them.
+
 """
 
 
@@ -75,13 +80,43 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
         self.project_extra = project_extra
         self.full_key_path = None
 
-    def _gcp_authenticate(self):
-        key_dir_path = os.environ['GCP_SERVICE_ACCOUNT_KEY_FOLDER']
-        self.full_key_path = os.path.join(key_dir_path, self.gcp_key)
+    @staticmethod
+    def execute_cmd(cmd):
+        print("Executing: '{}'".format(" ".join(cmd)))
+        return subprocess.call(cmd)
+
+    @staticmethod
+    def _get_key_path(key):
+        """
+        Returns key path - if GCP_SERVICE_ACCOUNT_KEY_FOLDER points to absolute
+            directory, it tries to find the key in this directory, otherwise it assumes
+            that the folder is sub-directory of the HOME directory.
+        :param key: name of the key file to find.
+        :return: path of the key file or None if the key is not found
+        :rtype: str
+        """
+        if "GCP_SERVICE_ACCOUNT_KEY_FOLDER" not in os.environ:
+            return None
+        key_folder = os.environ["GCP_SERVICE_ACCOUNT_KEY_FOLDER"]
+        if not key_folder.startswith("/"):
+            home_dir = expanduser("~")
+            key_folder = os.path.join(home_dir, key_folder)
+        if not os.path.isdir(key_folder):
+            return None
+        key_path = os.path.join(key_folder, key)
+        if not os.path.isfile(key_path):
+            return None
+        return key_path
+
+    def gcp_authenticate(self):
+        """
+        Authenticate with service account specified.
+        """
+        self.full_key_path = self._get_key_path(self.gcp_key)
 
         if not os.path.isfile(self.full_key_path):
             raise Exception("The key {} could not be found. Please copy it to the "
-                            "{} folder.".format(self.gcp_key, key_dir_path))
+                            "{} path.".format(self.gcp_key, self.full_key_path))
         print("Setting the GCP key to {}".format(self.full_key_path))
         # Checking if we can authenticate using service account credentials provided
         retcode = subprocess.call(['gcloud', 'auth', 'activate-service-account',
@@ -89,8 +124,13 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
         if retcode != 0:
             raise AirflowException("The gcloud auth method was not successful!")
         self.update_connection_with_key_path()
-        # Now we revoke all authentication here because we want to make sure
-        # that all works fine with the credentials retrieved from the gcp_connection
+
+    @staticmethod
+    def gcp_revoke_authentication():
+        """
+        Revoke default authentication. Tests should be run with default authentication
+        revoked because the authentication from Connection table should be used.
+        """
         subprocess.call(['gcloud', 'auth', 'revoke'])
 
     def update_connection_with_key_path(self):
@@ -135,8 +175,15 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
         finally:
             session.close()
 
+    @staticmethod
+    def _get_dag_folder():
+        if os.environ.get('AIRFLOW__CORE__UNIT_TEST_MODE'):
+            return UNIT_TEST_DAG_FOLDER
+        else:
+            return DAG_FOLDER
+
     def _symlink_dag(self):
-        target_path = os.path.join(TESTS_DAG_FOLDER, self.dag_name)
+        target_path = os.path.join(self._get_dag_folder(), self.dag_name)
         if os.path.exists(target_path):
             os.remove(target_path)
         os.symlink(
@@ -144,10 +191,11 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
             os.path.join(target_path))
 
     def _rm_symlink_dag(self):
-        os.remove(os.path.join(TESTS_DAG_FOLDER, self.dag_name))
+        os.remove(os.path.join(self._get_dag_folder(), self.dag_name))
 
     def _run_dag(self):
-        dag_bag = models.DagBag(dag_folder=TESTS_DAG_FOLDER, include_examples=False)
+        dag_bag = models.DagBag(dag_folder=self._get_dag_folder(),
+                                include_examples=False)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = dag_bag.get_dag(self.dag_id)
         dag.clear(reset_dag_runs=True)
@@ -155,7 +203,10 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
 
     def setUp(self):
         configuration.conf.load_test_config()
-        self._gcp_authenticate()
+        self.gcp_authenticate()
+        # We checked that authentication works - but then we revoke it to make
+        # sure we are not relying on the authentication
+        self.gcp_revoke_authentication()
         self._symlink_dag()
 
     def tearDown(self):
@@ -163,12 +214,5 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
 
     @staticmethod
     def skip_check(key):
-        if GCP_FOLDER_ENVIRONMENT_VARIABLE not in os.environ:
-            return True
-        key_folder = os.environ[GCP_FOLDER_ENVIRONMENT_VARIABLE]
-        if not os.path.isdir(key_folder):
-            return True
-        key_path = os.path.join(key_folder, key)
-        if not os.path.isfile(key_path):
-            return True
-        return False
+        key_path = BaseGcpIntegrationTestCase._get_key_path(key)
+        return key_path is None

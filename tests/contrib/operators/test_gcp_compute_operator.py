@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+import os
 import unittest
 from copy import deepcopy
 
@@ -29,6 +30,8 @@ from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOpera
     GceInstanceGroupManagerUpdateTemplateOperator
 from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
+from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
+    GCP_COMPUTE_KEY, SKIP_TEST_WARNING
 
 try:
     # noinspection PyProtectedMember
@@ -73,7 +76,7 @@ class GceInstanceStartTest(unittest.TestCase):
     # Setting all of the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
-    def test_instance_start_with_templates(self, mock_hook):
+    def test_instance_start_with_templates(self, _):
         dag_id = 'test_dag_id'
         configuration.load_test_config()
         args = {
@@ -161,7 +164,7 @@ class GceInstanceStopTest(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
-    def test_instance_stop_with_templates(self, mock_hook):
+    def test_instance_stop_with_templates(self, _):
         dag_id = 'test_dag_id'
         configuration.load_test_config()
         args = {
@@ -250,7 +253,7 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
     # Setting all of the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
-    def test_set_machine_type_with_templates(self, mock_hook):
+    def test_set_machine_type_with_templates(self, _):
         dag_id = 'test_dag_id'
         configuration.load_test_config()
         args = {
@@ -367,7 +370,8 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
             self, get_conn, _execute_set_machine_type, _check_zone_operation_status):
         get_conn.return_value = {}
         _execute_set_machine_type.return_value = {"name": "test-operation"}
-        _check_zone_operation_status.return_value = ast.literal_eval(self.MOCK_OP_RESPONSE)
+        _check_zone_operation_status.return_value = ast.literal_eval(
+            self.MOCK_OP_RESPONSE)
         with self.assertRaises(AirflowException) as cm:
             op = GceSetMachineTypeOperator(
                 project_id=PROJECT_ID,
@@ -1039,3 +1043,112 @@ class GceInstanceGroupManagerUpdateTest(unittest.TestCase):
                                           gcp_conn_id='google_cloud_default')
         mock_hook.return_value.patch_instance_group_manager.assert_not_called()
         self.assertTrue(result)
+
+
+ITEST_INSTANCE = os.environ.get('INSTANCE', 'testinstance')
+ITEST_PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
+ITEST_INSTANCE_GROUP_MANAGER_NAME = os.environ.get('INSTANCE_GROUP_MANAGER_NAME',
+                                                   'instance-group-test')
+ITEST_ZONE = os.environ.get('ZONE', 'europe-west1-b')
+ITEST_TEMPLATE_NAME = os.environ.get('TEMPLATE_NAME',
+                                     'instance-template-test')
+ITEST_NEW_TEMPLATE_NAME = os.environ.get('NEW_TEMPLATE_NAME',
+                                         'instance-template-test-new')
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
+class GcpComputeExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+
+    @staticmethod
+    def delete_instance():
+        BaseGcpIntegrationTestCase.execute_cmd([
+            'gcloud', 'beta', 'compute', '--project', ITEST_PROJECT_ID, '--quiet',
+            'instances', 'delete', ITEST_INSTANCE, '--zone', ITEST_ZONE,
+        ])
+
+    @staticmethod
+    def create_instance():
+        BaseGcpIntegrationTestCase.execute_cmd([
+            'gcloud', 'beta', 'compute', '--project', ITEST_PROJECT_ID, '--quiet',
+            'instances', 'create', ITEST_INSTANCE,
+            '--zone', ITEST_ZONE
+        ])
+
+    def setUp(self):
+        super(GcpComputeExampleDagsIntegrationTest, self).setUp()
+        self.gcp_authenticate()
+        self.delete_instance()
+        self.create_instance()
+        self.gcp_revoke_authentication()
+
+    def tearDown(self):
+        self.gcp_authenticate()
+        self.delete_instance()
+        self.gcp_revoke_authentication()
+        super(GcpComputeExampleDagsIntegrationTest, self).tearDown()
+
+    def __init__(self, method_name='runTest'):
+        super(GcpComputeExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_compute',
+            gcp_key=GCP_COMPUTE_KEY)
+
+    def test_run_example_dag_compute_igm(self):
+        self._run_dag()
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_COMPUTE_KEY), SKIP_TEST_WARNING)
+class GcpComputeIgmExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+
+    @staticmethod
+    def delete_instance_group_and_template():
+        BaseGcpIntegrationTestCase.execute_cmd([
+            'gcloud', 'beta', 'compute', '--project', ITEST_PROJECT_ID, '--quiet',
+            'instance-groups', 'managed', 'delete', ITEST_INSTANCE_GROUP_MANAGER_NAME,
+        ])
+        BaseGcpIntegrationTestCase.execute_cmd([
+            'gcloud', 'beta', 'compute', '--project', ITEST_PROJECT_ID, '--quiet',
+            'instance-templates', 'delete', ITEST_NEW_TEMPLATE_NAME
+        ])
+        BaseGcpIntegrationTestCase.execute_cmd([
+            'gcloud', 'beta', 'compute',
+            '--project', ITEST_PROJECT_ID, '--quiet',
+            'instance-templates', 'delete', ITEST_TEMPLATE_NAME
+        ])
+
+    @staticmethod
+    def create_instance_group_and_template():
+        BaseGcpIntegrationTestCase.execute_cmd([
+            'gcloud', 'beta', 'compute', '--project', ITEST_PROJECT_ID, '--quiet',
+            'instance-templates', 'create', ITEST_TEMPLATE_NAME
+        ])
+        BaseGcpIntegrationTestCase.execute_cmd([
+            'gcloud', 'beta', 'compute', '--project', ITEST_PROJECT_ID, '--quiet',
+            'instance-groups', 'managed', 'create', ITEST_INSTANCE_GROUP_MANAGER_NAME,
+            '--template', ITEST_TEMPLATE_NAME,
+            '--zone', ITEST_ZONE, '--size=1'
+        ])
+
+    def setUp(self):
+        super(GcpComputeIgmExampleDagsIntegrationTest, self).setUp()
+        self.gcp_authenticate()
+        self.delete_instance_group_and_template()
+        self.create_instance_group_and_template()
+        self.gcp_revoke_authentication()
+
+    def tearDown(self):
+        self.gcp_authenticate()
+        self.delete_instance_group_and_template()
+        self.gcp_revoke_authentication()
+        super(GcpComputeIgmExampleDagsIntegrationTest, self).tearDown()
+
+    def __init__(self, method_name='runTest'):
+        super(GcpComputeIgmExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_compute_igm',
+            gcp_key=GCP_COMPUTE_KEY)
+
+    def test_run_example_dag_compute_igm(self):
+        self._run_dag()

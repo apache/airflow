@@ -1,0 +1,3 @@
+tests.contrib.operators.test_gcp_compute_operator
+tests.contrib.operators.test_gcp_function_operator
+tests.contrib.operators.test_gcp_sql_operator

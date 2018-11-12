@@ -42,6 +42,7 @@ This DAG relies on the following OS environment variables
 
 import os
 import subprocess
+from os.path import expanduser
 
 from six.moves.urllib.parse import quote_plus
 
@@ -61,11 +62,11 @@ POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'password')
 POSTGRES_PUBLIC_IP = os.environ.get('POSTGRES_PUBLIC_IP', '0.0.0.0')
 POSTGRES_PUBLIC_PORT = os.environ.get('POSTGRES_PUBLIC_PORT', 5432)
 POSTGRES_CLIENT_CERT_FILE = os.environ.get('POSTGRES_CLIENT_CERT_FILE',
-                                           "/tmp/client-cert.pem")
+                                           ".key/client-cert.pem")
 POSTGRES_CLIENT_KEY_FILE = os.environ.get('POSTGRES_CLIENT_KEY_FILE',
-                                          "/tmp/client-key.pem")
+                                          ".key/client-key.pem")
 POSTGRES_SERVER_CA_FILE = os.environ.get('POSTGRES_SERVER_CA_FILE',
-                                         "/tmp/server-ca.pem")
+                                         ".key/server-ca.pem")
 
 MYSQL_INSTANCE_NAME = os.environ.get('MYSQL_INSTANCE_NAME', 'testmysql')
 MYSQL_DATABASE_NAME = os.environ.get('MYSQL_DATABASE_NAME', 'mysqldb')
@@ -74,11 +75,11 @@ MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'password')
 MYSQL_PUBLIC_IP = os.environ.get('MYSQL_PUBLIC_IP', '0.0.0.0')
 MYSQL_PUBLIC_PORT = os.environ.get('MYSQL_PUBLIC_PORT', 3306)
 MYSQL_CLIENT_CERT_FILE = os.environ.get('MYSQL_CLIENT_CERT_FILE',
-                                        "/tmp/client-cert.pem")
+                                        ".key/client-cert.pem")
 MYSQL_CLIENT_KEY_FILE = os.environ.get('MYSQL_CLIENT_KEY_FILE',
-                                       "/tmp/client-key.pem")
+                                       ".key/client-key.pem")
 MYSQL_SERVER_CA_FILE = os.environ.get('MYSQL_SERVER_CA_FILE',
-                                      "/tmp/server-ca.pem")
+                                      ".key/server-ca.pem")
 
 SQL = [
     'CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER)',
@@ -97,6 +98,16 @@ default_args = {
 
 # [START howto_operator_cloudsql_query_connections]
 
+HOME_DIR = expanduser("~")
+
+
+def get_absolute_path(path):
+    if path.startswith("/"):
+        return path
+    else:
+        return os.path.join(HOME_DIR, path)
+
+
 postgres_kwargs = dict(
     user=quote_plus(POSTGRES_USER),
     password=quote_plus(POSTGRES_PASSWORD),
@@ -106,9 +117,9 @@ postgres_kwargs = dict(
     location=quote_plus(LOCATION),
     instance=quote_plus(POSTGRES_INSTANCE_NAME),
     database=quote_plus(POSTGRES_DATABASE_NAME),
-    client_cert_file=quote_plus(POSTGRES_CLIENT_CERT_FILE),
-    client_key_file=quote_plus(POSTGRES_CLIENT_KEY_FILE),
-    server_ca_file=quote_plus(POSTGRES_SERVER_CA_FILE)
+    client_cert_file=quote_plus(get_absolute_path(POSTGRES_CLIENT_CERT_FILE)),
+    client_key_file=quote_plus(get_absolute_path(POSTGRES_CLIENT_KEY_FILE)),
+    server_ca_file=quote_plus(get_absolute_path(POSTGRES_SERVER_CA_FILE))
 )
 
 # The connections below are created using one of the standard approaches - via environment
@@ -169,9 +180,9 @@ mysql_kwargs = dict(
     location=quote_plus(LOCATION),
     instance=quote_plus(MYSQL_INSTANCE_NAME),
     database=quote_plus(MYSQL_DATABASE_NAME),
-    client_cert_file=quote_plus(MYSQL_CLIENT_CERT_FILE),
-    client_key_file=quote_plus(MYSQL_CLIENT_KEY_FILE),
-    server_ca_file=quote_plus(MYSQL_SERVER_CA_FILE)
+    client_cert_file=quote_plus(get_absolute_path(MYSQL_CLIENT_CERT_FILE)),
+    client_key_file=quote_plus(get_absolute_path(MYSQL_CLIENT_KEY_FILE)),
+    server_ca_file=quote_plus(get_absolute_path(MYSQL_SERVER_CA_FILE))
 )
 
 # MySQL: connect via proxy over TCP (specific proxy version)

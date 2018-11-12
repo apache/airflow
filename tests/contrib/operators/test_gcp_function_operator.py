@@ -29,6 +29,9 @@ from airflow.version import version
 
 from copy import deepcopy
 
+from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
+    GCP_FUNCTION_KEY, SKIP_TEST_WARNING
+
 try:
     # noinspection PyProtectedMember
     from unittest import mock
@@ -639,3 +642,29 @@ class GcfFunctionDeleteTest(unittest.TestCase):
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
         )
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_FUNCTION_KEY), SKIP_TEST_WARNING)
+class CloudFunctionsDeleteExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+    def __init__(self, method_name='runTest'):
+        super(CloudFunctionsDeleteExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_function_delete',
+            gcp_key=GCP_FUNCTION_KEY)
+
+    def test_run_example_dag_delete_query(self):
+        self._run_dag()
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_FUNCTION_KEY), SKIP_TEST_WARNING)
+class CloudFunctionsDeployDeleteExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+    def __init__(self, method_name='runTest'):
+        super(CloudFunctionsDeployDeleteExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_function_deploy_delete',
+            gcp_key=GCP_FUNCTION_KEY)
+
+    def test_run_example_dag_deploy_delete_query(self):
+        self._run_dag()

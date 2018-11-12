@@ -53,7 +53,7 @@ SOURCE_UPLOAD_URL = os.environ.get('SOURCE_UPLOAD_URL', '')
 SOURCE_REPOSITORY = os.environ.get(
     'SOURCE_REPOSITORY',
     'https://source.developers.google.com/'
-    'projects/example-project/repos/hello-world/moveable-aliases/master')
+    'projects/{}/repos/hello-world/moveable-aliases/master'.format(PROJECT_ID))
 ZIP_PATH = os.environ.get('ZIP_PATH', '')
 ENTRYPOINT = os.environ.get('ENTRYPOINT', 'helloWorld')
 FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(PROJECT_ID, LOCATION,

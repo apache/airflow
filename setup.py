@@ -161,6 +161,7 @@ cgroups = [
 ]
 # major update coming soon, clamp to 0.x
 cloudant = ['cloudant>=0.5.9,<2.0']
+coverage = ['coverage']
 crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
@@ -200,6 +201,7 @@ hive = [
 jdbc = ['jaydebeapi>=1.1.1']
 jenkins = ['python-jenkins>=0.4.15']
 jira = ['JIRA>1.0.7']
+junit2html = ['junit2html==22']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
@@ -233,6 +235,7 @@ statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
+xunitmerge = ['xunitmerge==1.0.4']
 zendesk = ['zdesk']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
@@ -268,7 +271,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + or
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake +
-             atlas)
+             atlas + coverage + junit2html + xunitmerge)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
