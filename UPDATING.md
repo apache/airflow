@@ -57,6 +57,8 @@ To delete a user:
 airflow users --delete --username jondoe
 ```
 
+## Airflow 1.10.1
+
 ### StatsD Metrics
 
 The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). Scheduler upness can be determined by graphing and alerting using a rate. If the scheduler goes down, the rate will drop to 0.
