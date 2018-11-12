@@ -86,8 +86,8 @@ template variables <macros>` and a ``templates_dict`` argument.
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <jinja-templating>`.
 
-Google Cloud Platform Operators
--------------------------------
+Google Cloud Storage Operators
+------------------------------
 
 GoogleCloudStorageToBigQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -102,22 +102,31 @@ to execute a BigQuery load job.
     :start-after: [START howto_operator_gcs_to_bq]
     :end-before: [END howto_operator_gcs_to_bq]
 
+
+Google Compute Engine Operators
+-------------------------------
+
 GceInstanceStartOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Allows to start an existing Google Compute Engine instance.
+Use the
+:class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator`
+to start an existing Google Compute Engine instance.
 
-In this example parameter values are extracted from Airflow variables.
-Moreover, the ``default_args`` dict is used to pass common arguments to all operators in a single DAG.
+
+Arguments
+"""""""""
+
+The following examples of OS environment variables show how you can build function name
+to use in the operator and build default args to pass them to multiple tasks:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
-    :start-after: [START howto_operator_gce_args]
-    :end-before: [END howto_operator_gce_args]
+    :start-after: [START howto_operator_gce_args_common]
+    :end-before: [END howto_operator_gce_args_common]
 
-
-Define the :class:`~airflow.contrib.operators.gcp_compute_operator
-.GceInstanceStartOperator` by passing the required arguments to the constructor.
+Using the operator
+""""""""""""""""""
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
@@ -125,15 +134,42 @@ Define the :class:`~airflow.contrib.operators.gcp_compute_operator
     :start-after: [START howto_operator_gce_start]
     :end-before: [END howto_operator_gce_start]
 
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_compute_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gce_instance_start_template_fields]
+    :end-before: [END gce_instance_start_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_
+
+
 GceInstanceStopOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Allows to stop an existing Google Compute Engine instance.
+Use the operator to stop Google Compute Engine instance.
 
-For parameter definition take a look at :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator` above.
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator`
 
-Define the :class:`~airflow.contrib.operators.gcp_compute_operator
-.GceInstanceStopOperator` by passing the required arguments to the constructor.
+Arguments
+"""""""""
+
+The following examples of OS environment variables show how you can build function name
+to use in the operator and build default args to pass them to multiple tasks:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+   :language: python
+   :start-after: [START howto_operator_gce_args_common]
+   :end-before: [END howto_operator_gce_args_common]
+
+Using the operator
+""""""""""""""""""
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
@@ -141,15 +177,48 @@ Define the :class:`~airflow.contrib.operators.gcp_compute_operator
     :start-after: [START howto_operator_gce_stop]
     :end-before: [END howto_operator_gce_stop]
 
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_compute_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gce_instance_stop_template_fields]
+    :end-before: [END gce_instance_stop_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_
+
+
 GceSetMachineTypeOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Allows to change the machine type for a stopped instance to the specified machine type.
+Use the operator to change machine type of a Google Compute Engine instance.
 
-For parameter definition take a look at :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator` above.
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator`
 
-Define the :class:`~airflow.contrib.operators.gcp_compute_operator
-.GceSetMachineTypeOperator` by passing the required arguments to the constructor.
+Arguments
+"""""""""
+
+The following examples of OS environment variables show how you can build function name
+to use in the operator and build default args to pass them to multiple tasks:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :start-after: [START howto_operator_gce_args_common]
+    :end-before: [END howto_operator_gce_args_common]
+
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :start-after: [START howto_operator_gce_args_set_machine_type]
+    :end-before: [END howto_operator_gce_args_set_machine_type]
+
+Using the operator
+""""""""""""""""""
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
@@ -157,25 +226,162 @@ Define the :class:`~airflow.contrib.operators.gcp_compute_operator
     :start-after: [START howto_operator_gce_set_machine_type]
     :end-before: [END howto_operator_gce_set_machine_type]
 
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_compute_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gce_instance_set_machine_type_template_fields]
+    :end-before: [END gce_instance_set_machine_type_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_
+
+
+GceInstanceTemplateCopyOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the operator to copy an existing Google Compute Engine instance template
+applying a patch to it.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator`.
+
+Arguments
+"""""""""
+
+The following examples of OS environment variables show how you can build parameters
+passed to the operator and build default args to pass them to multiple tasks:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :start-after: [START howto_operator_compute_igm_common_args]
+    :end-before: [END howto_operator_compute_igm_common_args]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :start-after: [START howto_operator_compute_template_copy_args]
+    :end-before: [END howto_operator_compute_template_copy_args]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_igm_copy_template]
+    :end-before: [END howto_operator_gce_igm_copy_template]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_compute_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gce_instance_template_copy_operator_template_fields]
+    :end-before: [END gce_instance_template_copy_operator_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_
+
+GceInstanceGroupManagerUpdateTemplateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the operator to update template in Google Compute Engine Instance Group Manager.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator`.
+
+Arguments
+"""""""""
+
+The following examples of OS environment variables show how you can build parameters
+passed to the operator and build default args to pass them to multiple tasks:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :start-after: [START howto_operator_compute_igm_common_args]
+    :end-before: [END howto_operator_compute_igm_common_args]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :start-after: [START howto_operator_compute_igm_update_template_args]
+    :end-before: [END howto_operator_compute_igm_update_template_args]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_igm_update_template]
+    :end-before: [END howto_operator_gce_igm_update_template]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_compute_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gce_igm_update_template_operator_template_fields]
+    :end-before: [END gce_igm_update_template_operator_template_fields]
+
+Troubleshooting
+"""""""""""""""
+
+You might find that your GceInstanceGroupManagerUpdateTemplateOperator fails with
+missing permissions. The service account has to have Service Account User role assigned
+via IAM permissions in order to execute the operation.
+
+More information
+""""""""""""""""
+
+See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_
+
+Google Cloud Functions Operators
+--------------------------------
 
 GcfFunctionDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use the ``default_args`` dict to pass arguments to the operator.
+Use the operator to delete a function from Google Cloud Functions.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator`.
+
+Arguments
+"""""""""
+
+The following examples of OS environment variables show how you can build function name
+to use in the operator and build default args to pass them to multiple tasks:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_delete.py
     :language: python
     :start-after: [START howto_operator_gcf_delete_args]
     :end-before: [END howto_operator_gcf_delete_args]
 
-
-Use the :class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator`
-to delete a function from Google Cloud Functions.
+Using the operator
+""""""""""""""""""
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_delete.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_gcf_delete]
     :end-before: [END howto_operator_gcf_delete]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_function_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gce_function_delete_template_operator_template_fields]
+    :end-before: [END gce_function_delete_template_operator_template_fields]
 
 Troubleshooting
 """""""""""""""
@@ -191,7 +397,6 @@ The typical way of assigning Cloud IAM permissions with `gcloud` is
 shown below. Just replace PROJECT_ID with ID of your Google Cloud Platform project
 and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
 
-
 .. code-block:: bash
 
   gcloud iam service-accounts add-iam-policy-binding \
@@ -202,13 +407,24 @@ and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
 
 See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details
 
+More information
+""""""""""""""""
+
+See `Google Cloud Functions API documentation <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_
+
 GcfFunctionDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use the :class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`
-to deploy a function from Google Cloud Functions.
+Use the operator to deploy a function to Google Cloud Functions.
 
-The following examples of Airflow variables show various variants and combinations
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`.
+
+
+Arguments
+"""""""""
+
+The following examples of OS environment variables show various variants and combinations
 of default_args that you can use. The variables are defined as follows:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
@@ -223,11 +439,12 @@ With those variables you can define the body of the request:
     :start-after: [START howto_operator_gcf_deploy_body]
     :end-before: [END howto_operator_gcf_deploy_body]
 
-When you create a DAG, the default_args dictionary can be used to pass the body and
-other arguments:
+When you create a DAG, the default_args dictionary can be used to pass
+arguments common with other tasks:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_gcf_deploy_args]
     :end-before: [END howto_operator_gcf_deploy_args]
 
@@ -235,10 +452,13 @@ Note that the neither the body nor the default args are complete in the above ex
 Depending on the set variables, there might be different variants on how to pass source
 code related fields. Currently, you can pass either sourceArchiveUrl, sourceRepository
 or sourceUploadUrl as described in the
-`CloudFunction API specification <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#CloudFunction>`_.
+`Cloud Functions API specification <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#CloudFunction>`_.
 Additionally, default_args might contain zip_path parameter to run the extra step of
 uploading the source code before deploying it. In the last case, you also need to
 provide an empty `sourceUploadUrl` parameter in the body.
+
+Using the operator
+""""""""""""""""""
 
 Based on the variables defined above, example logic of setting the source code
 related fields is shown here:
@@ -252,8 +472,19 @@ The code to create the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_gcf_deploy]
     :end-before: [END howto_operator_gcf_deploy]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_function_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gce_function_deploy_template_operator_template_fields]
+    :end-before: [END gce_function_deploy_template_operator_template_fields]
+
 
 Troubleshooting
 """""""""""""""
@@ -277,12 +508,19 @@ and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
     --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
     --role="roles/iam.serviceAccountUser"
 
-
 See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details
 
 If the source code for your function is in Google Source Repository, make sure that
 your service account has the Source Repository Viewer role so that the source code
 can be downloaded if necessary.
+
+More information
+""""""""""""""""
+
+See `Google Cloud Functions API documentation <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_
+
+Google Cloud Sql Operators
+--------------------------
 
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
