@@ -93,7 +93,7 @@ class GcfFunctionDeployOperator(BaseOperator):
         . Different API versions require different variants of the Cloud Functions
         dictionary.
     :type body: dict or google.cloud.functions.v1.CloudFunction
-    :param gcp_conn_id: The connection ID to use to connect to Google Cloud Platform.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
@@ -105,6 +105,9 @@ class GcfFunctionDeployOperator(BaseOperator):
     :param validate_body: If set to False, body validation is not performed.
     :type validate_body: bool
     """
+    # [START gce_function_deploy_template_operator_template_fields]
+    template_fields = ('project_id', 'location', 'gcp_conn_id', 'api_version')
+    # [END gce_function_deploy_template_operator_template_fields]
 
     @apply_defaults
     def __init__(self,
@@ -276,6 +279,9 @@ class GcfFunctionDeleteOperator(BaseOperator):
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
     """
+    # [START gce_function_delete_template_operator_template_fields]
+    template_fields = ('name', 'gcp_conn_id', 'api_version')
+    # [END gce_function_delete_template_operator_template_fields]
 
     @apply_defaults
     def __init__(self,

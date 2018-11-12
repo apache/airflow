@@ -116,28 +116,28 @@ field (see connection `wasb_default` for an example).
 .. _WasbBlobSensor:
 
 WasbBlobSensor
-"""""""""""""""
+""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
 
 .. _WasbPrefixSensor:
 
 WasbPrefixSensor
-"""""""""""""""""
+""""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor
 
 .. _FileToWasbOperator:
 
 FileToWasbOperator
-"""""""""""""""""""
+""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
 
 .. _WasbHook:
 
 WasbHook
-"""""""""
+""""""""
 
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 
@@ -538,6 +538,16 @@ Compute Engine Operators
 - :ref:`GceInstanceStartOperator` : start an existing Google Compute Engine instance.
 - :ref:`GceInstanceStopOperator` : stop an existing Google Compute Engine instance.
 - :ref:`GceSetMachineTypeOperator` : change the machine type for a stopped instance.
+- :ref:`GceInstanceTemplateCopyOperator` : copy the Instance Template, applying
+  specified changes.
+- :ref:`GceInstanceGroupManagerUpdateTemplateOperator` : patch the Instance Group Manager,
+  replacing source Instance Template URL with the destination one.
+
+The operators have common base operator:
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceBaseOperator
+
+They also use :ref:`GceHook` hook to communicate with Google Cloud Platform.
 
 .. _GceInstanceStartOperator:
 
@@ -560,6 +570,28 @@ GceSetMachineTypeOperator
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 
+.. _GceInstanceTemplateCopyOperator:
+
+GceInstanceTemplateCopyOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator
+
+.. _GceInstanceGroupManagerUpdateTemplateOperator:
+
+GceInstanceGroupManagerUpdateTemplateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator
+
+.. _GceHook:
+
+Compute Engine Hook
+"""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_compute_hook.GceHook
+:members:
+
 
 Cloud Functions
 '''''''''''''''
@@ -571,6 +603,8 @@ Cloud Functions Operators
 - :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in Google Cloud Platform
 
 .. autoclass:: airflow.contrib.operators.gcp_operator.GCP
+
+They also use :ref:`GcfHook` hook to communicate with Google Cloud Platform.
 
 .. _GcfFunctionDeployOperator:
 
@@ -587,6 +621,8 @@ GcfFunctionDeleteOperator
 
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
 
+
+.. _GcfHook:
 
 Cloud Functions Hook
 """"""""""""""""""""
@@ -697,7 +733,7 @@ DataprocClusterCreateOperator
 .. _DataprocClusterScaleOperator:
 
 DataprocClusterScaleOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 
