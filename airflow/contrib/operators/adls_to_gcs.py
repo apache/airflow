@@ -29,6 +29,7 @@ from airflow.utils.decorators import apply_defaults
 class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
     """
     Synchronizes an Azure Data Lake Storage path with a GCS bucket
+
     :param src_adls: The Azure Data Lake path to find the objects (templated)
     :type src_adls: str
     :param dest_gcs: The Google Cloud Storage bucket and prefix to
@@ -53,7 +54,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
         resulting gcs path will be ``gs://mybucket/hello/world.avro`` ::
             copy_single_file = AdlsToGoogleCloudStorageOperator(
                 task_id='copy_single_file',
-                path='hello/world.avro',
+                src_adls='hello/world.avro',
                 dest_gcs='gs://mybucket',
                 replace=False,
                 azure_data_lake_conn_id='azure_data_lake_default',
@@ -64,7 +65,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
         to the GCS bucket ``mybucket``. ::
             copy_all_files = AdlsToGoogleCloudStorageOperator(
                 task_id='copy_all_files',
-                path='*.parquet',
+                src_adls='*.parquet',
                 dest_gcs='gs://mybucket',
                 replace=False,
                 azure_data_lake_conn_id='azure_data_lake_default',
@@ -75,7 +76,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
          path ``/hello/world``to the GCS bucket ``mybucket``. ::
             copy_world_files = AdlsToGoogleCloudStorageOperator(
                 task_id='copy_world_files',
-                path='hello/world/*.parquet',
+                src_adls='hello/world/*.parquet',
                 dest_gcs='gs://mybucket',
                 replace=False,
                 azure_data_lake_conn_id='azure_data_lake_default',

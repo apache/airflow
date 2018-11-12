@@ -54,7 +54,7 @@ class AdlsToGoogleCloudStorageOperatorTest(unittest.TestCase):
         )
 
         self.assertEqual(operator.task_id, TASK_ID)
-        self.assertEqual(operator.path, ADLS_PATH_1)
+        self.assertEqual(operator.src_adls, ADLS_PATH_1)
         self.assertEqual(operator.dest_gcs, GCS_PATH)
         self.assertEqual(operator.replace, False)
         self.assertEqual(operator.google_cloud_storage_conn_id, GCS_CONN_ID)
