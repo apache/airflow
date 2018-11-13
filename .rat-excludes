@@ -11,8 +11,6 @@ requirements.txt
 .travis.yml
 .*pyc
 .*lock
-docs
-.*md
 dist
 build
 airflow.egg-info
@@ -29,7 +27,6 @@ CHANGELOG.txt
 kerberos_auth.py
 airflow_api_auth_backend_kerberos_auth_py.html
 licenses/*
-airflow/www/static/docs
 parallel.js
 underscore.js
 jquery.dataTables.min.js
@@ -41,3 +38,10 @@ d3.v3.min.js
 ace.js
 airflow/www_rbac/node_modules
 .*json
+airflow/www/static/coverage/*
+git_version
+flake8_diff.sh
+
+rat-results.txt
+apache-airflow-.*\+incubating-source.tar.gz.*
+apache-airflow-.*\+incubating-bin.tar.gz.*

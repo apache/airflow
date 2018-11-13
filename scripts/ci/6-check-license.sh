@@ -71,6 +71,9 @@ mkdir -p ${TMP_DIR}/lib
     exit 1
 }
 
+# This is the target of a symlink in airflow/www/static/docs - and rat exclude doesn't cope with the symlink target doesn't exist
+mkdir -p docs/_build/html/
+
 echo "Running license checks. This can take a while."
 $java_cmd -jar "$rat_jar" -E "$FWDIR"/.rat-excludes  -d "$FWDIR" > rat-results.txt
 
@@ -82,24 +85,9 @@ fi
 ERRORS="$(cat rat-results.txt | grep -e "??")"
 
 if test ! -z "$ERRORS"; then
-    echo "Could not find Apache license headers in the following files:"
-    echo "$ERRORS"
-    COUNT=`echo "${ERRORS}" | wc -l`
-    # due to old builds can be removed later
-    rm -rf ${TMP_DIR}/rat-error-count
-    if [ ! -f ${TMP_DIR}/rat-error-count-builds ]; then
-        [ "${TRAVIS_PULL_REQUEST}" = "false" ] && echo ${COUNT} > ${TMP_DIR}/rat-error-count-builds
-        OLD_COUNT=${COUNT}
-    else
-        typeset -i OLD_COUNT=$(cat ${TMP_DIR}/rat-error-count-builds)
-    fi
-    if [ ${COUNT} -gt ${OLD_COUNT} ]; then
-        echo "New missing licenses (${COUNT} vs ${OLD_COUNT}) detected. Please correct them by adding them to to header of your files"
-        exit 1
-    else
-        [ "${TRAVIS_PULL_REQUEST}" = "false" ] && echo ${COUNT} > ${TMP_DIR}/rat-error-count-builds
-    fi
-    exit 0
+    echo >&2 "Could not find Apache license headers in the following files:"
+    echo >&2 "$ERRORS"
+    exit 1
 else
     echo -e "RAT checks passed."
 fi
