@@ -117,8 +117,7 @@ to start an existing Google Compute Engine instance.
 Arguments
 """""""""
 
-The following examples of OS environment variables show how you can build function name
-to use in the operator and build default args to pass them to multiple tasks:
+The following examples of OS environment variables used to pass arguments to the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
@@ -160,8 +159,7 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables show how you can build function name
-to use in the operator and build default args to pass them to multiple tasks:
+The following examples of OS environment variables used to pass arguments to the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
    :language: python
@@ -203,8 +201,7 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables show how you can build function name
-to use in the operator and build default args to pass them to multiple tasks:
+The following examples of OS environment variables used to pass arguments to the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
@@ -253,8 +250,7 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables show how you can build parameters
-passed to the operator and build default args to pass them to multiple tasks:
+The following examples of OS environment variables used to pass arguments to the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
     :language: python
@@ -300,8 +296,7 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables show how you can build parameters
-passed to the operator and build default args to pass them to multiple tasks:
+The following examples of OS environment variables used to pass arguments to the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
     :language: python
@@ -358,7 +353,7 @@ Arguments
 """""""""
 
 The following examples of OS environment variables show how you can build function name
-to use in the operator and build default args to pass them to multiple tasks:
+to use in the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_delete.py
     :language: python
@@ -424,8 +419,8 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables show various variants and combinations
-of default_args that you can use. The variables are defined as follows:
+The following examples of OS environment variables show several variants of args you can
+use with the operator:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
     :language: python
@@ -444,18 +439,19 @@ arguments common with other tasks:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
     :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcf_deploy_args]
-    :end-before: [END howto_operator_gcf_deploy_args]
+    :start-after: [START howto_operator_gcf_default_args]
+    :end-before: [END howto_operator_gcf_default_args]
 
 Note that the neither the body nor the default args are complete in the above examples.
-Depending on the set variables, there might be different variants on how to pass source
+Depending on the variables set, there might be different variants on how to pass source
 code related fields. Currently, you can pass either sourceArchiveUrl, sourceRepository
 or sourceUploadUrl as described in the
 `Cloud Functions API specification <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#CloudFunction>`_.
-Additionally, default_args might contain zip_path parameter to run the extra step of
-uploading the source code before deploying it. In the last case, you also need to
-provide an empty `sourceUploadUrl` parameter in the body.
+
+Additionally, default_args or direct operator args might contain zip_path parameter
+to run the extra step of uploading the source code before deploying it.
+In this case, you also need to provide an empty `sourceUploadUrl`
+parameter in the body.
 
 Using the operator
 """"""""""""""""""
@@ -675,7 +671,7 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-Some arguments in the example DAG are taken from environment variables:
+Some arguments in the example DAG are taken from OS environment variables:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
@@ -722,7 +718,7 @@ will succeed.
 Arguments
 """""""""
 
-Some arguments in the example DAG are taken from environment variables:
+Some arguments in the example DAG are taken from OS environment variables:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
@@ -778,7 +774,7 @@ unchanged.
 Arguments
 """""""""
 
-Some arguments in the example DAG are taken from environment variables:
+Some arguments in the example DAG are taken from OS environment variables:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
@@ -815,3 +811,96 @@ More information
 
 See `Google Cloud SQL API documentation for patch <https://cloud.google
 .com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
+
+
+CloudSqlQueryOperator
+^^^^^^^^^^^^^^^^^^^^^
+
+Performs DDL or DML SQL queries in Google Cloud SQL instance. The DQL
+(retrieving data from Google Cloud SQL) is not supported - you might run the SELECT
+queries but results of those queries are discarded.
+
+You can specify various connectivity methods to connect to running instance -
+starting from public IP plain connection through public IP with SSL or both TCP and
+socket connection via Cloud Sql Proxy. The proxy is downloaded and started/stopped
+dynamically as needed by the operator.
+
+There is a *gcpcloudsql://* connection type that you should use to define what
+kind of connectivity you want the operator to use. The connection is a "meta"
+type of connection. It is not used to make an actual connectivity on its own, but it
+determines whether Cloud Sql Proxy should be started by `CloudSqlDatabaseHook`
+and what kind of the database connection (Postgres or MySQL) should be created
+dynamically - to either connect to Cloud SQL via public IP address or via the proxy.
+The 'CloudSqlDatabaseHook` uses
+:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner` to manage Cloud Sql
+Proxy lifecycle (each task has its own Cloud Sql Proxy)
+
+When you build connection, you should use connection parameters as described in
+:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook`. You can see
+examples of connections below for all the possible types of connectivity. Such connection
+can be reused between different tasks (instances of `CloudSqlQueryOperator`) - each
+task will get their own proxy started if needed with their own TCP or UNIX socket.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator`.
+
+Since query operator can run arbitrary query - it cannot be guaranteed to be
+idempotent. SQL query designer should design the queries to be idempotent. For example
+both Postgres and MySql support CREATE TABLE IF NOT EXISTS statements that can be
+used to create tables in an idempotent way.
+
+Arguments
+"""""""""
+
+If you define connection via `AIRFLOW_CONN_*` URL defined in an environment
+variable, make sure the URL components in the URL are URL-encoded.
+See examples below for details.
+
+Note that in case of SSL connections you need to have a mechanism to make the
+certificate/key files available in predefined locations for all the workers on
+which the operator can run. This can be provided for example by mounting
+NFS-like volumes in the same path for all the workers.
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql_query.py
+      :language: python
+      :start-after: [START howto_operator_cloudsql_query_arguments]
+      :end-before: [END howto_operator_cloudsql_query_arguments]
+
+Example connection definitions for all connectivity cases. Note that all the components
+of the connection URI should be URL-encoded:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql_query.py
+      :language: python
+      :start-after: [START howto_operator_cloudsql_query_connections]
+      :end-before: [END howto_operator_cloudsql_query_connections]
+
+Using the operator
+""""""""""""""""""
+
+Example operators below are using all connectivity options (note connection id
+from the operator matches the `AIRFLOW_CONN_*` postfix uppercase - this is
+standard AIRFLOW notation for defining connection via environment variables):
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql_query.py
+      :language: python
+      :start-after: [START howto_operator_cloudsql_query_operators]
+      :end-before: [END howto_operator_cloudsql_query_operators]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_sql_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_sql_query_template_fields]
+    :end-before: [END gcp_sql_query_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Sql Proxy documentation
+<https://cloud.google.com/sql/docs/postgres/sql-proxy>`_
+for details about Cloud Sql Proxy.
+
