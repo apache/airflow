@@ -1,18 +1,21 @@
+# Note: these patterns are applied to single files or directories, not full paths
+# coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
+
 .gitignore
 .gitattributes
+.airflowignore
 .coverage
 .coveragerc
 .codecov.yml
 .eslintrc
 .eslintignore
+.flake8
 .rat-excludes
 requirements.txt
 .*log
 .travis.yml
 .*pyc
 .*lock
-docs
-.*md
 dist
 build
 airflow.egg-info
@@ -20,16 +23,23 @@ apache_airflow.egg-info
 .idea
 metastore_db
 .*sql
+.*svg
 .*csv
 CHANGELOG.txt
 .*zip
 .*lock
+# Generated doc files
+.*html
+_build/*
+_static/*
+.buildinfo
+searchindex.js
+
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
 airflow_api_auth_backend_kerberos_auth_py.html
 licenses/*
-airflow/www/static/docs
 parallel.js
 underscore.js
 jquery.dataTables.min.js
@@ -39,5 +49,12 @@ bootstrap-toggle.min.js
 bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
-airflow/www_rbac/node_modules
+node_modules/*
 .*json
+coverage/*
+git_version
+flake8_diff.sh
+
+rat-results.txt
+apache-airflow-.*\+incubating-source.tar.gz.*
+apache-airflow-.*\+incubating-bin.tar.gz.*
