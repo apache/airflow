@@ -11,7 +11,6 @@ AIRFLOW 1.10.0, 2018-08-03
 [AIRFLOW-2710] Clarify fernet key value in documentation
 [AIRFLOW-2606] Fix DB schema and SQLAlchemy model
 [AIRFLOW-2646] Fix setup.py not to install snakebite on Python3
-[AIRFLOW-2512][AIRFLOW-2522] Use google-auth instead of oauth2client
 [AIRFLOW-2604] Add index to task_fail
 [AIRFLOW-2650] Mark SchedulerJob as succeed when hitting Ctrl-c
 [AIRFLOW-2678] Fix db schema unit test to remove checking fab models
