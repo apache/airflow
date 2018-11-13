@@ -9,6 +9,7 @@
 .codecov.yml
 .eslintrc
 .eslintignore
+.flake8
 .rat-excludes
 requirements.txt
 .*log
@@ -27,9 +28,13 @@ metastore_db
 CHANGELOG.txt
 .*zip
 .*lock
+# Generated doc files
 .*html
 _build/*
 _static/*
+.buildinfo
+searchindex.js
+
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
@@ -44,9 +49,9 @@ bootstrap-toggle.min.js
 bootstrap-toggle.min.css
 d3.v3.min.js
 ace.js
-airflow/www_rbac/node_modules
+node_modules/*
 .*json
-airflow/www/static/coverage/*
+coverage/*
 git_version
 flake8_diff.sh
 
