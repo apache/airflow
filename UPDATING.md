@@ -57,6 +57,8 @@ To delete a user:
 airflow users --delete --username jondoe
 ```
 
+## Airflow 1.10.1
+
 ### StatsD Metrics
 
 The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). Scheduler upness can be determined by graphing and alerting using a rate. If the scheduler goes down, the rate will drop to 0.
@@ -86,6 +88,17 @@ However prior to this release the "emr_default" sample connection that was creat
 configuration, so creating EMR clusters might fail until your connection is updated. (Ec2KeyName,
 Ec2SubnetId, TerminationProtection and KeepJobFlowAliveWhenNoSteps were all top-level keys when they
 should be inside the "Instances" dict)
+
+### LDAP Auth Backend now requires TLS
+
+Connecting to an LDAP serever over plain text is not supported anymore. The
+certificate presented by the LDAP server must be signed by a trusted
+certificiate, or you must provide the `cacert` option under `[ldap]` in the
+config file.
+
+If you want to use LDAP auth backend without TLS then you will habe to create a
+custom-auth backend based on
+https://github.com/apache/incubator-airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
 
 ## Airflow 1.10
 

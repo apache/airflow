@@ -206,7 +206,7 @@ kerberos = ['pykerberos>=1.1.13',
             'snakebite[kerberos]>=2.7.8']
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
-ldap = ['ldap3>=0.9.9.1']
+ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
 mysql = ['mysqlclient>=1.3.6']
 oracle = ['cx_Oracle>=5.1.2']
@@ -309,6 +309,7 @@ def do_setup():
             'gitpython>=2.0.2',
             'gunicorn>=19.4.0, <20.0',
             'iso8601>=0.1.12',
+            'json-merge-patch==0.2',
             'jinja2>=2.7.3, <2.9.0',
             'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',

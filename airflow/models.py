@@ -668,6 +668,7 @@ class Connection(Base, LoggingMixin):
         ('cassandra', 'Cassandra',),
         ('qubole', 'Qubole'),
         ('mongo', 'MongoDB'),
+        ('gcpcloudsql', 'Google Cloud SQL'),
     ]
 
     def __init__(
@@ -811,6 +812,9 @@ class Connection(Base, LoggingMixin):
             elif self.conn_type == 'mongo':
                 from airflow.contrib.hooks.mongo_hook import MongoHook
                 return MongoHook(conn_id=self.conn_id)
+            elif self.conn_type == 'gcpcloudsql':
+                from airflow.contrib.hooks.gcp_sql_hook import CloudSqlDatabaseHook
+                return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         except Exception:
             pass
 
@@ -2508,7 +2512,6 @@ class BaseOperator(LoggingMixin):
                     c=self.__class__.__name__, a=args, k=kwargs),
                 category=PendingDeprecationWarning
             )
-
         validate_key(task_id)
         self.task_id = task_id
         self.owner = owner
@@ -2906,14 +2909,24 @@ class BaseOperator(LoggingMixin):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if content is not None and \
-                    isinstance(content, six.string_types) and \
+            if content is None:
+                continue
+            elif isinstance(content, six.string_types) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.dag.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
                 except Exception as e:
                     self.log.exception(e)
+            elif isinstance(content, list):
+                env = self.dag.get_template_env()
+                for i in range(len(content)):
+                    if isinstance(content[i], six.string_types) and \
+                            any([content[i].endswith(ext) for ext in self.template_ext]):
+                        try:
+                            content[i] = env.loader.get_source(env, content[i])[0]
+                        except Exception as e:
+                            self.log.exception(e)
         self.prepare_template()
 
     @property

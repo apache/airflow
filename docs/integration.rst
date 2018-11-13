@@ -100,28 +100,28 @@ field (see connection `wasb_default` for an example).
 .. _WasbBlobSensor:
 
 WasbBlobSensor
-"""""""""""""""
+""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
 
 .. _WasbPrefixSensor:
 
 WasbPrefixSensor
-"""""""""""""""""
+""""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor
 
 .. _FileToWasbOperator:
 
 FileToWasbOperator
-"""""""""""""""""""
+""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
 
 .. _WasbHook:
 
 WasbHook
-"""""""""
+""""""""
 
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 
@@ -516,62 +516,82 @@ Cloud SQL Operators
 """""""""""""""""""
 
 - :ref:`CloudSqlInstanceDatabaseDeleteOperator` : deletes a database from a Cloud SQL
-instance.
+  instance.
 - :ref:`CloudSqlInstanceDatabaseCreateOperator` : creates a new database inside a Cloud
-SQL instance.
+  SQL instance.
 - :ref:`CloudSqlInstanceDatabasePatchOperator` : updates a database inside a Cloud
-SQL instance.
+  SQL instance.
 - :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
 - :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
 - :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
+- :ref:`CloudSqlQueryOperator` : run query in a Cloud SQL instance.
 
-.. CloudSqlInstanceDatabaseDeleteOperator:
+.. _CloudSqlInstanceDatabaseDeleteOperator:
 
 CloudSqlInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
 
-.. CloudSqlInstanceDatabaseCreateOperator:
+.. _CloudSqlInstanceDatabaseCreateOperator:
 
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
 
-.. CloudSqlInstanceDatabasePatchOperator:
+.. _CloudSqlInstanceDatabasePatchOperator:
 
 CloudSqlInstanceDatabasePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
 
-.. CloudSqlInstanceDeleteOperator:
+.. _CloudSqlInstanceDeleteOperator:
 
 CloudSqlInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
 
-.. CloudSqlInstanceCreateOperator:
+.. _CloudSqlInstanceCreateOperator:
 
 CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
 
-.. CloudSqlInstancePatchOperator:
+.. _CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
 
-Cloud SQL Hook
-""""""""""""""
+.. _CloudSqlQueryOperator:
+
+CloudSqlQueryOperator
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator
+
+Cloud SQL Hooks
+"""""""""""""""
+
+.. _CloudSqlHook:
 
 .. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
     :members:
+
+.. _CloudSqlDatabaseHook:
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook
+    :members:
+
+.. _CloudSqlProxyRunner:
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner
+    :members:
+
 
 Compute Engine
 ''''''''''''''
@@ -582,6 +602,16 @@ Compute Engine Operators
 - :ref:`GceInstanceStartOperator` : start an existing Google Compute Engine instance.
 - :ref:`GceInstanceStopOperator` : stop an existing Google Compute Engine instance.
 - :ref:`GceSetMachineTypeOperator` : change the machine type for a stopped instance.
+- :ref:`GceInstanceTemplateCopyOperator` : copy the Instance Template, applying
+  specified changes.
+- :ref:`GceInstanceGroupManagerUpdateTemplateOperator` : patch the Instance Group Manager,
+  replacing source Instance Template URL with the destination one.
+
+The operators have common base operator:
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceBaseOperator
+
+They also use :ref:`GceHook` hook to communicate with Google Cloud Platform.
 
 .. _GceInstanceStartOperator:
 
@@ -604,6 +634,28 @@ GceSetMachineTypeOperator
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 
+.. _GceInstanceTemplateCopyOperator:
+
+GceInstanceTemplateCopyOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator
+
+.. _GceInstanceGroupManagerUpdateTemplateOperator:
+
+GceInstanceGroupManagerUpdateTemplateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator
+
+.. _GceHook:
+
+Compute Engine Hook
+"""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_compute_hook.GceHook
+:members:
+
 
 Cloud Functions
 '''''''''''''''
@@ -615,6 +667,8 @@ Cloud Functions Operators
 - :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in Google Cloud Platform
 
 .. autoclass:: airflow.contrib.operators.gcp_operator.GCP
+
+They also use :ref:`GcfHook` hook to communicate with Google Cloud Platform.
 
 .. _GcfFunctionDeployOperator:
 
@@ -631,6 +685,8 @@ GcfFunctionDeleteOperator
 
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
 
+
+.. _GcfHook:
 
 Cloud Functions Hook
 """"""""""""""""""""
@@ -741,7 +797,7 @@ DataprocClusterCreateOperator
 .. _DataprocClusterScaleOperator:
 
 DataprocClusterScaleOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 

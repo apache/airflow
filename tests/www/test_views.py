@@ -770,5 +770,23 @@ class TestGanttView(unittest.TestCase):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
+class TestTaskInstanceView(unittest.TestCase):
+    TI_ENDPOINT = '/admin/taskinstance/?flt2_execution_date_greater_than={}'
+
+    def setUp(self):
+        super(TestTaskInstanceView, self).setUp()
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+
+    def test_start_date_filter(self):
+        resp = self.app.get(self.TI_ENDPOINT.format('2018-10-09+22:44:31'))
+        # We aren't checking the logic of the date filter itself (that is built
+        # in to flask-admin) but simply that our UTC conversion was run - i.e. it
+        # doesn't blow up!
+        self.assertEqual(resp.status_code, 200)
+
+
 if __name__ == '__main__':
     unittest.main()
