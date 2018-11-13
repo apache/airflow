@@ -1,5 +1,9 @@
+# Note: these patterns are applied to single files or directories, not full paths
+# coverage/* will ignore any coverage dir, but airflow/www/static/coverage/* will match nothing
+
 .gitignore
 .gitattributes
+.airflowignore
 .coverage
 .coveragerc
 .codecov.yml
@@ -18,10 +22,13 @@ apache_airflow.egg-info
 .idea
 metastore_db
 .*sql
+.*svg
 .*csv
 CHANGELOG.txt
 .*zip
 .*lock
+.*html
+_build/*
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
