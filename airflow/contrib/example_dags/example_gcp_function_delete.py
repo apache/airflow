@@ -19,13 +19,13 @@
 
 """
 Example Airflow DAG that deletes a Google Cloud Function.
-This DAG relies on the following Airflow variables
-https://airflow.apache.org/concepts.html#variables
+This DAG relies on the following OS environment variables
 * PROJECT_ID - Google Cloud Project where the Cloud Function exists.
 * LOCATION - Google Cloud Functions region where the function exists.
 * ENTRYPOINT - Name of the executable function in the source code.
 """
 
+import os
 import datetime
 
 import airflow
@@ -33,17 +33,18 @@ from airflow import models
 from airflow.contrib.operators.gcp_function_operator import GcfFunctionDeleteOperator
 
 # [START howto_operator_gcf_delete_args]
-PROJECT_ID = models.Variable.get('PROJECT_ID', 'example-airflow')
-LOCATION = models.Variable.get('LOCATION', 'europe-west1')
-ENTRYPOINT = models.Variable.get('ENTRYPOINT', 'helloWorld')
+PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
+LOCATION = os.environ.get('LOCATION', 'europe-west1')
+ENTRYPOINT = os.environ.get('ENTRYPOINT', 'helloWorld')
 # A fully-qualified name of the function to delete
 
 FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(PROJECT_ID, LOCATION,
                                                                ENTRYPOINT)
+# [END howto_operator_gcf_delete_args]
+
 default_args = {
     'start_date': airflow.utils.dates.days_ago(1)
 }
-# [END howto_operator_gcf_delete_args]
 
 with models.DAG(
     'example_gcp_function_delete',

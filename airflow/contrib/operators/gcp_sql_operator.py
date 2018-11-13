@@ -19,7 +19,7 @@
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_sql_hook import CloudSqlHook
+from airflow.contrib.hooks.gcp_sql_hook import CloudSqlHook, CloudSqlDatabaseHook
 from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -524,3 +524,81 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
         else:
             return self._hook.delete_database(self.project_id, self.instance,
                                               self.database)
+
+
+class CloudSqlQueryOperator(BaseOperator):
+    """
+    Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
+    cloud-sql-proxy to establish secure connection with the database.
+
+    :param sql: SQL query or list of queries to run (should be DML or DDL query -
+        this operator does not return any data from the database,
+        so it is useless to pass it DQL queries. Note that it is responsibility of the
+        author of the queries to make sure that the queries are idempotent. For example
+        you can use CREATE TABLE IF NOT EXISTS to create a table.
+    :type sql: str or [str]
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :type parameters: mapping or iterable
+    :param autocommit: if True, each command is automatically committed.
+        (default value: False)
+    :type autocommit: bool
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform for
+        cloud-sql-proxy authentication.
+    :type gcp_conn_id: str
+    :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
+       its schema should be gcpcloudsql://.
+       See :class:`~airflow.contrib.hooks.gcp_sql_hooks.CloudSqlDatabaseHook` for
+       details on how to define gcpcloudsql:// connection.
+    :type gcp_cloudsql_conn_id: str
+    """
+    # [START gcp_sql_query_template_fields]
+    template_fields = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
+    template_ext = ('.sql',)
+    # [END gcp_sql_query_template_fields]
+
+    @apply_defaults
+    def __init__(self,
+                 sql,
+                 autocommit=False,
+                 parameters=None,
+                 gcp_conn_id='google_cloud_default',
+                 gcp_cloudsql_conn_id='google_cloud_sql_default',
+                 *args, **kwargs):
+        super(CloudSqlQueryOperator, self).__init__(*args, **kwargs)
+        self.sql = sql
+        self.gcp_conn_id = gcp_conn_id
+        self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
+        self.autocommit = autocommit
+        self.parameters = parameters
+        self.cloudsql_db_hook = CloudSqlDatabaseHook(
+            gcp_cloudsql_conn_id=gcp_cloudsql_conn_id)
+        self.cloud_sql_proxy_runner = None
+        self.database_hook = None
+
+    def pre_execute(self, context):
+        self.cloudsql_db_hook.create_connection()
+        self.database_hook = self.cloudsql_db_hook.get_database_hook()
+        if self.cloudsql_db_hook.use_proxy:
+            self.cloud_sql_proxy_runner = self.cloudsql_db_hook.get_sqlproxy_runner()
+            self.cloudsql_db_hook.free_reserved_port()
+            # There is very, very slim chance that the socket will be taken over
+            # here by another bind(0). It's quite unlikely to happen though!
+            self.cloud_sql_proxy_runner.start_proxy()
+
+    def execute(self, context):
+        self.log.info('Executing: "%s"', self.sql)
+        self.database_hook.run(self.sql, self.autocommit, parameters=self.parameters)
+
+    def post_execute(self, context, result=None):
+        # Make sure that all the cleanups happen, no matter if there are some
+        # exceptions thrown
+        try:
+            self.cloudsql_db_hook.cleanup_database_hook()
+        finally:
+            try:
+                if self.cloud_sql_proxy_runner:
+                    self.cloud_sql_proxy_runner.stop_proxy()
+                    self.cloud_sql_proxy_runner = None
+            finally:
+                self.cloudsql_db_hook.delete_connection()
+                self.cloudsql_db_hook = None
