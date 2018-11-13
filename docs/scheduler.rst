@@ -119,7 +119,7 @@ interval series.
         'tutorial',
         default_args=default_args,
         description='A simple tutorial DAG',
-        schedule_interval='@hourly',
+        schedule_interval='@daily',
         catchup=False)
 
 In the example above, if the DAG is picked up by the scheduler daemon on 2016-01-02 at 6 AM, (or from the
