@@ -1,4 +1,4 @@
-AIRFLOW 1.10.1b1, 2018-11-09
+AIRFLOW 1.10.1, 2018-11-13
 
 New features:
 
