@@ -29,6 +29,7 @@ CHANGELOG.txt
 .*lock
 .*html
 _build/*
+_static/*
 # Apache Rat does not detect BSD-2 clause properly
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
