@@ -21,7 +21,8 @@
 Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and also
 creates, patches and deletes a database inside the instance, in Google Cloud Platform.
 
-This DAG relies on the following environment variables
+This DAG relies on the following OS environment variables
+https://airflow.apache.org/concepts.html#variables
 * PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance.
 * INSTANCE_NAME - Name of the Cloud SQL instance.
 * DB_NAME - Name of the database inside a Cloud SQL instance.
@@ -40,7 +41,7 @@ from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOpe
 
 # [START howto_operator_cloudsql_arguments]
 PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
-INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'testinstance')
+INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'testpostgres')
 DB_NAME = os.environ.get('DB_NAME', 'testdb')
 # [END howto_operator_cloudsql_arguments]
 
