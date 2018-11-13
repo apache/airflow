@@ -418,3 +418,22 @@ not set.
 
     [core]
     default_impersonation = airflow
+
+
+Flower Authentication
+---------------------
+
+Basic authentication for Celery Flower is supported.
+
+You can specify the details either as an optional argument in the Flower process launching
+command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
+`user:password` pairs separated by a comma.
+
+.. code-block:: bash
+
+    airflow flower --basic_auth=user1:password1,user2:password2
+
+.. code-block:: bash
+
+    [celery]
+    flower_basic_auth = user1:password1,user2:password2

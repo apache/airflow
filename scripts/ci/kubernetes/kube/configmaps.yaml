@@ -253,6 +253,11 @@ data:
     # This defines the port that Celery Flower runs on
     flower_port = 5555
 
+    # Securing Flower with Basic Authentication
+    # Accepts user:password pairs separated by a comma
+    # Example: flower_basic_auth = user1:password1,user2:password2
+    flower_basic_auth =
+
     # Default queue that tasks get assigned to and that worker listen on.
     default_queue = default
 
