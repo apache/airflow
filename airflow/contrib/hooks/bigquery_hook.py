@@ -1561,8 +1561,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
         try:
             self.log.info('Inserting {} row(s) into Table {}:{}.{}'.format(
-                          len(rows), project_id,
-                          dataset_id, table_id))
+                len(rows), project_id,
+                dataset_id, table_id))
 
             resp = self.service.tabledata().insertAll(
                 projectId=project_id, datasetId=dataset_id,
@@ -1571,11 +1571,11 @@ class BigQueryBaseCursor(LoggingMixin):
 
             if 'insertErrors' not in resp:
                 self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
-                              project_id, dataset_id, table_id))
+                    project_id, dataset_id, table_id))
             else:
                 error_msg = '{} insert error(s) occured: {}:{}.{}. Details: {}'.format(
-                              len(resp['insertErrors']),
-                              project_id, dataset_id, table_id, resp['insertErrors'])
+                    len(resp['insertErrors']),
+                    project_id, dataset_id, table_id, resp['insertErrors'])
                 if fail_on_error:
                     raise AirflowException(
                         'BigQuery job failed. Error was: {}'.format(error_msg)
