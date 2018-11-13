@@ -130,7 +130,7 @@ interval series.
         'email_on_retry': False,
         'retries': 1,
         'retry_delay': timedelta(minutes=5),
-        'schedule_interval': '@hourly',
+        'schedule_interval': '@daily',
     }
 
     dag = DAG('tutorial', catchup=False, default_args=default_args)
