@@ -51,7 +51,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.logs.return_value = ['container log']
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.wait.return_value = 0
+        client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
 
@@ -96,7 +96,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.logs.return_value = []
         client_mock.pull.return_value = []
-        client_mock.wait.return_value = 0
+        client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
         tls_mock = mock.Mock()
@@ -122,7 +122,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.logs.return_value = ['unicode container log 😁']
         client_mock.pull.return_value = []
-        client_mock.wait.return_value = 0
+        client_mock.wait.return_value = {"StatusCode": 0}
 
         client_class_mock.return_value = client_mock
 
@@ -144,7 +144,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.logs.return_value = []
         client_mock.pull.return_value = []
-        client_mock.wait.return_value = 1
+        client_mock.wait.return_value = {"StatusCode": 1}
 
         client_class_mock.return_value = client_mock
 
@@ -172,7 +172,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.logs.return_value = []
         client_mock.pull.return_value = []
-        client_mock.wait.return_value = 0
+        client_mock.wait.return_value = {"StatusCode": 0}
         operator_client_mock.return_value = client_mock
 
         # Create the DockerOperator
@@ -207,7 +207,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.logs.return_value = []
         client_mock.pull.return_value = []
-        client_mock.wait.return_value = 0
+        client_mock.wait.return_value = {"StatusCode": 0}
         operator_client_mock.return_value = client_mock
 
         # Create the DockerOperator

@@ -104,6 +104,9 @@ class DockerOperator(BaseOperator):
     :type xcom_all: bool
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
+    :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
+        greater than 0. If omitted uses system default.
+    :type shm_size: int
     """
     template_fields = ('command', 'environment',)
     template_ext = ('.sh', '.bash',)
@@ -134,6 +137,7 @@ class DockerOperator(BaseOperator):
             docker_conn_id=None,
             dns=None,
             dns_search=None,
+            shm_size=None,
             *args,
             **kwargs):
 
@@ -161,7 +165,7 @@ class DockerOperator(BaseOperator):
         self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
-        self.shm_size = kwargs.get('shm_size')
+        self.shm_size = shm_size
 
         self.cli = None
         self.container = None
@@ -191,7 +195,7 @@ class DockerOperator(BaseOperator):
         if self.force_pull or len(self.cli.images(name=self.image)) == 0:
             self.log.info('Pulling docker image %s', self.image)
             for l in self.cli.pull(self.image, stream=True):
-                output = json.loads(l.decode('utf-8'))
+                output = json.loads(l.decode('utf-8').strip())
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
@@ -223,9 +227,9 @@ class DockerOperator(BaseOperator):
                     line = line.decode('utf-8')
                 self.log.info(line)
 
-            exit_code = self.cli.wait(self.container['Id'])
-            if exit_code != 0:
-                raise AirflowException('docker container failed')
+            result = self.cli.wait(self.container['Id'])
+            if result['StatusCode'] != 0:
+                raise AirflowException('docker container failed: ' + repr(result))
 
             if self.xcom_push_flag:
                 return self.cli.logs(container=self.container['Id']) \
