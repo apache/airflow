@@ -229,6 +229,12 @@ class DagTest(unittest.TestCase):
 
         self.assertEquals(tuple(), dag.topological_sort())
 
+    def test_dag_naive_default_args_start_date(self):
+        dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
+        self.assertEqual(dag.timezone, settings.TIMEZONE)
+        dag = DAG('DAG', start_date=datetime.datetime(2018, 1, 1))
+        self.assertEqual(dag.timezone, settings.TIMEZONE)
+
     def test_dag_none_default_args_start_date(self):
         """
         Tests if a start_date of None in default_args
