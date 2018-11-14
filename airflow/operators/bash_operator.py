@@ -50,16 +50,16 @@ class BashOperator(BaseOperator):
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
 
-    On execution of the operator the task will up for retry
-    when exception is raised. However if a sub-command exists with non-zero
+    On execution of this operator the task will be up for retry
+    when exception is raised. However, if a sub-command exits with non-zero
     value Airflow will not recognize it as failure unless the whole shell exits
     with a failure. The easiest way of achieving this is to prefix the command
     with ``set -e;``
     Example:
-        bash_command = "python3 script.py '{{ next_execution_date }}'"
-        when executing command ``exit(1)`` the task will be set as success
+    
+    .. code-block:: python
+        
         bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
-        when executing command ``exit(1)`` the task will be set as up for retry
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
