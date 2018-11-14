@@ -56,9 +56,9 @@ class BashOperator(BaseOperator):
     with a failure. The easiest way of achieving this is to prefix the command
     with ``set -e;``
     Example:
-    
+
     .. code-block:: python
-        
+
         bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
     """
     template_fields = ('bash_command', 'env')
