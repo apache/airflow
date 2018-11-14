@@ -285,10 +285,10 @@ Variable                            Description
                                     if ``{{ ds }}`` is ``2016-01-01`` and ``schedule_interval`` is ``@weekly``,
                                     ``{{ next_ds }}`` will be ``2016-01-08``
 ``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
-``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
-``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
-``{{ tomorrow_ds }}``               tomorrow's date as ``YYYY-MM-DD``
-``{{ tomorrow_ds_nodash }}``        tomorrow's date as ``YYYYMMDD``
+``{{ yesterday_ds }}``              the day before the execution date as ``YYYY-MM-DD``
+``{{ yesterday_ds_nodash }}``       the day before the execution date as ``YYYYMMDD``
+``{{ tomorrow_ds }}``               the day after the execution date as ``YYYY-MM-DD``
+``{{ tomorrow_ds_nodash }}``        the day after the execution date as ``YYYYMMDD``
 ``{{ ts }}``                        same as ``execution_date.isoformat()``
 ``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
