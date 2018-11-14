@@ -35,7 +35,6 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 class BashOperator(BaseOperator):
     """
     Execute a Bash script, command or set of commands.
-
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
     :type bash_command: str
@@ -49,16 +48,17 @@ class BashOperator(BaseOperator):
     :type env: dict
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
-    
-    On execution of the operator the task will up for retry when exception is raised.
-    However if a sub-command exists with non-zero value Airflow will not recognize
-    it as failure unless the whole shell exits with a failure. The easiest way of 
-    achieving this is to prefix the command with ``set -e;`` 
+
+    On execution of the operator the task will up for retry
+    when exception is raised. However if a sub-command exists with non-zero
+    value Airflow will not recognize it as failure unless the whole shell exits
+    with a failure. The easiest way of achieving this is to prefix the command
+    with ``set -e;``
     Example:
         bash_command = "python3 script.py '{{ next_execution_date }}'"
-        when executing command exit(1) the task will be marked as success.
+        when executing command ``exit(1)`` the task will be set as success
         bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
-        when executing command ``exit(1)`` the task will be marked as up for retry.
+        when executing command ``exit(1)`` the task will be set as up for retry
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
@@ -89,7 +89,8 @@ class BashOperator(BaseOperator):
         # Prepare env for child process.
         if self.env is None:
             self.env = os.environ.copy()
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        airflow_context_vars = context_to_airflow_vars(context,
+                                                       in_env_var_format=True)
         self.log.info("Exporting the following env vars:\n" +
                       '\n'.join(["{}={}".format(k, v)
                                  for k, v in
