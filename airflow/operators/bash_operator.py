@@ -49,6 +49,17 @@ class BashOperator(BaseOperator):
     :type env: dict
     :param output_encoding: Output encoding of bash command
     :type output_encoding: str
+
+    On execution of this operator the task will be up for retry
+    when exception is raised. However, if a sub-command exits with non-zero
+    value Airflow will not recognize it as failure unless the whole shell exits
+    with a failure. The easiest way of achieving this is to prefix the command
+    with ``set -e;``
+    Example:
+    
+    .. code-block:: python
+        
+        bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
     """
     template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
@@ -79,7 +90,8 @@ class BashOperator(BaseOperator):
         # Prepare env for child process.
         if self.env is None:
             self.env = os.environ.copy()
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        airflow_context_vars = context_to_airflow_vars(context,
+                                                       in_env_var_format=True)
         self.log.info("Exporting the following env vars:\n" +
                       '\n'.join(["{}={}".format(k, v)
                                  for k, v in
