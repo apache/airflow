@@ -51,6 +51,7 @@ Improvements:
 [AIRFLOW-3137] Make ProxyFix middleware optional
 [AIRFLOW-3173] Add _cmd options for more password config options
 [AIRFLOW-3177] Change scheduler_heartbeat metric from gauge to counter
+[AIRFLOW-3193] Pin docker requirement version to v3
 [AIRFLOW-3195] Druid Hook: Log ingestion spec and task id
 [AIRFLOW-3197] EMR Hook is missing some parameters to valid on the AWS API
 [AIRFLOW-3232] Make documentation for GCF Functions operator more readable
