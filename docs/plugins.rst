@@ -109,7 +109,7 @@ you can invoke it using statement like
 
 .. code:: python
 
-    from airflow.{type, like "operators", "sensors"}.{name specificed inside the plugin class} import *
+    from airflow.{type, like "operators", "sensors"}.{name specified inside the plugin class} import *
 
 
 When you write your own plugins, make sure you understand them well.
