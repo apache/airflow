@@ -35,7 +35,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
-from mock import ANY, Mock, patch
+from mock import ANY, Mock, mock_open, patch
 from parameterized import parameterized
 
 from airflow import AirflowException, configuration, models, settings
@@ -2576,15 +2576,53 @@ class TaskInstanceTest(unittest.TestCase):
 
     @patch('airflow.models.send_email')
     def test_email_alert(self, mock_send_email):
-        task = DummyOperator(task_id='op', email='test@test.test')
-        ti = TI(task=task, execution_date=datetime.datetime.now())
-        ti.email_alert(RuntimeError('it broke'))
+        dag = models.DAG(dag_id='test_failure_email')
+        task = BashOperator(
+            task_id='test_email_alert',
+            dag=dag,
+            bash_command='exit 1',
+            start_date=DEFAULT_DATE,
+            email='to')
 
-        self.assertTrue(mock_send_email.called)
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+
+        try:
+            ti.run()
+        except AirflowException:
+            pass
+
         (email, title, body), _ = mock_send_email.call_args
-        self.assertEqual(email, 'test@test.test')
-        self.assertIn(repr(ti), title)
-        self.assertIn('it broke', body)
+        self.assertEqual(email, 'to')
+        self.assertIn('test_email_alert', title)
+        self.assertIn('test_email_alert', body)
+
+    @patch('airflow.models.send_email')
+    def test_email_alert_with_config(self, mock_send_email):
+        dag = models.DAG(dag_id='test_failure_email')
+        task = BashOperator(
+            task_id='test_email_alert_with_config',
+            dag=dag,
+            bash_command='exit 1',
+            start_date=DEFAULT_DATE,
+            email='to')
+
+        ti = TI(
+            task=task, execution_date=datetime.datetime.now())
+
+        configuration.set('email', 'SUBJECT_TEMPLATE', '/subject/path')
+        configuration.set('email', 'HTML_CONTENT_TEMPLATE', '/html_content/path')
+
+        opener = mock_open(read_data='template: {{ti.task_id}}')
+        with patch('airflow.models.open', opener, create=True):
+            try:
+                ti.run()
+            except AirflowException:
+                pass
+
+        (email, title, body), _ = mock_send_email.call_args
+        self.assertEqual(email, 'to')
+        self.assertEqual('template: test_email_alert_with_config', title)
+        self.assertEqual('template: test_email_alert_with_config', body)
 
     def test_set_duration(self):
         task = DummyOperator(task_id='op', email='test@test.test')

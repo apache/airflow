@@ -1978,21 +1978,40 @@ class TaskInstance(Base, LoggingMixin):
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):
-        task = self.task
-        title = "Airflow alert: {self}".format(**locals())
-        exception = str(exception).replace('\n', '<br>')
+        exception_html = str(exception).replace('\n', '<br>')
+        jinja_context = self.get_template_context()
+        jinja_context.update(dict(
+            exception=exception,
+            exception_html=exception_html,
+            try_number=self.try_number,
+            max_tries=self.max_tries))
+
+        jinja_env = self.task.get_template_env()
+
+        default_subject = 'Airflow alert: {{ti}}'
         # For reporting purposes, we report based on 1-indexed,
         # not 0-indexed lists (i.e. Try 1 instead of
         # Try 0 for the first attempt).
-        body = (
-            "Try {try_number} out of {max_tries}<br>"
-            "Exception:<br>{exception}<br>"
-            "Log: <a href='{self.log_url}'>Link</a><br>"
-            "Host: {self.hostname}<br>"
-            "Log file: {self.log_filepath}<br>"
-            "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
-        ).format(try_number=self.try_number, max_tries=self.max_tries + 1, **locals())
-        send_email(task.email, title, body)
+        default_html_content = (
+            'Try {{try_number}} out of {{max_tries + 1}}<br>'
+            'Exception:<br>{{exception_html}}<br>'
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            'Host: {{ti.hostname}}<br>'
+            'Log file: {{ti.log_filepath}}<br>'
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
+
+        def render(key, content):
+            if configuration.has_option('email', key):
+                path = configuration.get('email', key)
+                with open(path) as f:
+                    content = f.read()
+
+            return jinja_env.from_string(content).render(**jinja_context)
+
+        subject = render('subject_template', default_subject)
+        html_content = render('html_content_template', default_html_content)
+        send_email(self.task.email, subject, html_content)
 
     def set_duration(self):
         if self.end_date and self.start_date:
@@ -2880,9 +2899,7 @@ class BaseOperator(LoggingMixin):
         Renders a template either from a file or directly in a field, and returns
         the rendered result.
         """
-        jinja_env = self.dag.get_template_env() \
-            if hasattr(self, 'dag') \
-            else jinja2.Environment(cache_size=0)
+        jinja_env = self.get_template_env()
 
         exts = self.__class__.template_ext
         if (
@@ -2891,6 +2908,11 @@ class BaseOperator(LoggingMixin):
             return jinja_env.get_template(content).render(**context)
         else:
             return self.render_template_from_field(attr, content, context, jinja_env)
+
+    def get_template_env(self):
+        return self.dag.get_template_env() \
+            if hasattr(self, 'dag') \
+            else jinja2.Environment(cache_size=0)
 
     def prepare_template(self):
         """
@@ -2909,7 +2931,7 @@ class BaseOperator(LoggingMixin):
                 continue
             elif isinstance(content, six.string_types) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
-                env = self.dag.get_template_env()
+                env = self.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
                 except Exception as e:
