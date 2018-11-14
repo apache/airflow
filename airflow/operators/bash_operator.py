@@ -35,6 +35,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 class BashOperator(BaseOperator):
     """
     Execute a Bash script, command or set of commands.
+
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
     :type bash_command: str
