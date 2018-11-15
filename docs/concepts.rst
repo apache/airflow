@@ -250,6 +250,13 @@ is equivalent to:
 
 .. code:: python
 
+    op1 >> op2
+    op1 >> op3
+    
+and equivalent to:
+
+.. code:: python
+
     op1.set_downstream([op2, op3])
 
 Tasks
