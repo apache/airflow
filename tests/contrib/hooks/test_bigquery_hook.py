@@ -295,6 +295,14 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             "key_one", key_one, {"key_one": True}))
 
 
+class TestBigQueryCursor(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_execute_with_parameters(self, mocked_rwc):
+        hook.BigQueryCursor("test", "test").execute(
+            "SELECT %(foo)s", {"foo": "bar"})
+        mocked_rwc.assert_called_once()
+
+
 class TestLabelsInRunJob(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_with_arg(self, mocked_rwc):
