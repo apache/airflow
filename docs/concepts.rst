@@ -240,6 +240,25 @@ We can put this all together to build a simple pipeline:
                 python_callable=lambda: print("GOODBYE!"))
         )
 
+Bitshift can also be used with lists. For example:
+
+.. code:: python
+
+    op1 >> [op2, op3]
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> op2
+    op1 >> op3
+    
+and equivalent to:
+
+.. code:: python
+
+    op1.set_downstream([op2, op3])
+
 Tasks
 =====
 
@@ -908,4 +927,3 @@ would not be scanned by Airflow at all. This improves efficiency of DAG finding)
 The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
 You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
 would only be applicable for that subfolder.
-

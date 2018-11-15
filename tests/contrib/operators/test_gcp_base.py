@@ -51,6 +51,7 @@ GCP_FUNCTION_KEY = 'gcp_function.json'
 GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
 GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
+GCP_GCS_KEY = 'gcp_gcs.json'
 
 SKIP_TEST_WARNING = """
 The test is only run when there is GCP connection available! "
