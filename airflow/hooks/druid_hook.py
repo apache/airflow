@@ -35,7 +35,7 @@ class DruidHook(BaseHook):
 
     :param druid_ingest_conn_id: The connection id to the Druid overlord machine
                                  which accepts index jobs
-    :type druid_ingest_conn_id: string
+    :type druid_ingest_conn_id: str
     :param timeout: The interval between polling
                     the Druid job for the status of the ingestion job.
                     Must be greater than or equal to 1
@@ -68,6 +68,7 @@ class DruidHook(BaseHook):
     def submit_indexing_job(self, json_index_spec):
         url = self.get_conn_url()
 
+        self.log.info("Druid ingestion spec: {}".format(json_index_spec))
         req_index = requests.post(url, json=json_index_spec, headers=self.header)
         if req_index.status_code != 200:
             raise AirflowException('Did not get 200 when '
@@ -76,6 +77,7 @@ class DruidHook(BaseHook):
         req_json = req_index.json()
         # Wait until the job is completed
         druid_task_id = req_json['task']
+        self.log.info("Druid indexing task-id: {}".format(druid_task_id))
 
         running = True
 

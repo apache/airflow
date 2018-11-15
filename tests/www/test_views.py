@@ -31,7 +31,7 @@ import json
 from urllib.parse import quote_plus
 from werkzeug.test import Client
 
-from airflow import models, configuration, settings
+from airflow import models, configuration
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
@@ -67,7 +67,7 @@ class TestChartModelView(unittest.TestCase):
         self.chart = {
             'label': 'chart',
             'owner': 'airflow',
-            'conn_id': 'airflow_ci',
+            'conn_id': 'airflow_db',
         }
 
     def tearDown(self):
@@ -768,6 +768,24 @@ class TestGanttView(unittest.TestCase):
 
     def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_within(self):
         self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
+
+
+class TestTaskInstanceView(unittest.TestCase):
+    TI_ENDPOINT = '/admin/taskinstance/?flt2_execution_date_greater_than={}'
+
+    def setUp(self):
+        super(TestTaskInstanceView, self).setUp()
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+
+    def test_start_date_filter(self):
+        resp = self.app.get(self.TI_ENDPOINT.format('2018-10-09+22:44:31'))
+        # We aren't checking the logic of the date filter itself (that is built
+        # in to flask-admin) but simply that our UTC conversion was run - i.e. it
+        # doesn't blow up!
+        self.assertEqual(resp.status_code, 200)
 
 
 if __name__ == '__main__':

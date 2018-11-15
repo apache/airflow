@@ -39,20 +39,23 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
-from airflow.utils import timezone
+from airflow.utils import dates, timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www_rbac import app as application
 
 
 class TestBase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         conf.load_test_config()
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.client = self.app.test_client()
+        cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
+        cls.app.config['WTF_CSRF_ENABLED'] = False
         settings.configure_orm()
-        self.session = Session
+        cls.session = Session
+
+    def setUp(self):
+        self.client = self.app.test_client()
         self.login()
 
     def login(self):
@@ -173,7 +176,7 @@ class TestVariableModelView(TestBase):
         self.assertNotIn("<img src='' onerror='alert(1);'>",
                          resp.data.decode("utf-8"))
 
-    def test_import_variables(self):
+    def test_import_variables_failed(self):
         content = '{"str_key": "str_value"}'
 
         with mock.patch('airflow.models.Variable.set') as set_mock:
@@ -192,7 +195,7 @@ class TestVariableModelView(TestBase):
                                     follow_redirects=True)
             self.check_content_in_response('1 variable(s) failed to be updated.', resp)
 
-    def test_import_variables(self):
+    def test_import_variables_success(self):
         self.assertEqual(self.session.query(models.Variable).count(), 0)
 
         content = ('{"str_key": "str_value", "int_key": 60,'
@@ -267,8 +270,8 @@ class TestMountPoint(unittest.TestCase):
 
 
 class TestAirflowBaseViews(TestBase):
-    default_date = timezone.datetime(2018, 3, 1)
-    run_id = "test_{}".format(models.DagRun.id_for_date(default_date))
+    EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+    run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
 
     def setUp(self):
         super(TestAirflowBaseViews, self).setUp()
@@ -297,19 +300,19 @@ class TestAirflowBaseViews(TestBase):
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_id=self.run_id,
-            execution_date=self.default_date,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.sub_dagrun = self.sub_dag.create_dagrun(
             run_id=self.run_id,
-            execution_date=self.default_date,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
         self.xcom_dagrun = self.xcom_dag.create_dagrun(
             run_id=self.run_id,
-            execution_date=self.default_date,
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
             start_date=timezone.utcnow(),
             state=State.RUNNING)
 
@@ -327,19 +330,19 @@ class TestAirflowBaseViews(TestBase):
 
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Task Instance Details', resp)
 
     def test_xcom(self):
         url = ('xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
 
     def test_rendered(self):
         url = ('rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('Rendered Template', resp)
 
@@ -381,6 +384,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
+    def test_duration_missing(self):
+        url = 'duration?days=30&dag_id=missing_dag'
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('seems to be missing', resp)
+
     def test_tries(self):
         url = 'tries?days=30&dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
@@ -409,28 +417,28 @@ class TestAirflowBaseViews(TestBase):
     def test_failed(self):
         url = ('failed?task_id=run_this_last&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response('Wait a minute', resp)
 
     def test_success(self):
         url = ('success?task_id=run_this_last&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response('Wait a minute', resp)
 
     def test_clear(self):
         url = ('clear?task_id=runme_1&dag_id=example_bash_operator&'
                'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
 
     def test_run(self):
         url = ('run?task_id=runme_0&dag_id=example_bash_operator&ignore_all_deps=false&'
                'ignore_ti_state=true&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
+               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url)
         self.check_content_in_response('', resp, resp_code=302)
 
@@ -874,6 +882,17 @@ class TestDagACLView(TestBase):
                 role=role_admin,
                 password='test')
 
+        role_user = self.appbuilder.sm.find_role('User')
+        test_user = self.appbuilder.sm.find_user(username='test_user')
+        if not test_user:
+            self.appbuilder.sm.add_user(
+                username='test_user',
+                first_name='test_user',
+                last_name='test_user',
+                email='test_user@fab.org',
+                role=role_user,
+                password='test_user')
+
         dag_acl_role = self.appbuilder.sm.add_role('dag_acl_tester')
         dag_tester = self.appbuilder.sm.find_user(username='dag_tester')
         if not dag_tester:
@@ -945,6 +964,9 @@ class TestDagACLView(TestBase):
             find_permission_view_menu('can_dag_edit', 'all_dags')
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
+
+        role_user = self.appbuilder.sm.find_role('User')
+        self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
             find_permission_view_menu('can_dag_read', 'example_bash_operator')
@@ -1313,6 +1335,63 @@ class TestDagACLView(TestBase):
         url = 'tree?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('runme_1', resp)
+
+    def test_log_success(self):
+        self.logout()
+        self.login()
+        url = ('log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('Log by attempts', resp)
+        url = ('get_logs_with_metadata?task_id=runme_0&dag_id=example_bash_operator&'
+               'execution_date={}&try_number=1&metadata=null'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('"message":', resp)
+        self.check_content_in_response('"metadata":', resp)
+
+    def test_log_failure(self):
+        self.logout()
+        self.login(username='dag_faker',
+                   password='dag_faker')
+        url = ('log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_not_in_response('Log by attempts', resp)
+        url = ('get_logs_with_metadata?task_id=runme_0&dag_id=example_bash_operator&'
+               'execution_date={}&try_number=1&metadata=null'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_not_in_response('"message":', resp)
+        self.check_content_not_in_response('"metadata":', resp)
+
+    def test_log_success_for_user(self):
+        self.logout()
+        self.login(username='test_user',
+                   password='test_user')
+        url = ('log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('Log by attempts', resp)
+        url = ('get_logs_with_metadata?task_id=runme_0&dag_id=example_bash_operator&'
+               'execution_date={}&try_number=1&metadata=null'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('"message":', resp)
+        self.check_content_in_response('"metadata":', resp)
+
+
+class TestTaskInstanceView(TestBase):
+    TI_ENDPOINT = '/taskinstance/list/?_flt_0_execution_date={}'
+
+    def test_start_date_filter(self):
+        resp = self.client.get(self.TI_ENDPOINT.format(
+            self.percent_encode('2018-10-09 22:44:31')))
+        # We aren't checking the logic of the date filter itself (that is built
+        # in to FAB) but simply that our UTC conversion was run - i.e. it
+        # doesn't blow up!
+        self.check_content_in_response('List Task Instance', resp)
+        pass
 
 
 if __name__ == '__main__':

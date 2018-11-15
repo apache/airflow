@@ -33,8 +33,8 @@ class LocalExecutorTest(unittest.TestCase):
         executor.start()
 
         success_key = 'success {}'
-        success_command = ['true', ]
-        fail_command = ['false', ]
+        success_command = ['true', 'some_parameter']
+        fail_command = ['false', 'some_parameter']
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key, command = success_key.format(i), success_command
@@ -44,7 +44,7 @@ class LocalExecutorTest(unittest.TestCase):
         # errors are propagated for some reason
         try:
             executor.execute_async(key='fail', command=fail_command)
-        except:
+        except Exception:
             pass
 
         executor.running['fail'] = True

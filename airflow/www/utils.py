@@ -17,25 +17,29 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# flake8: noqa: E402
 import inspect
 from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
+standard_library.install_aliases()  # noqa: E402
+from builtins import str, object
 
 from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
+import io
 import json
+import os
+import re
 import time
-
-from flask import after_this_request, request, Response
-from flask_admin.contrib.sqla.filters import FilterConverter
-from flask_admin.model import filters
-from flask_login import current_user
 import wtforms
 from wtforms.compat import text_type
+import zipfile
+
+from flask import after_this_request, request, Response
+from flask_admin.model import filters
+import flask_admin.contrib.sqla.filters as sqlafilters
+from flask_login import current_user
 
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
@@ -69,8 +73,8 @@ class LoginMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or (
-                not current_user.is_anonymous() and
-                current_user.is_authenticated()
+                not current_user.is_anonymous and
+                current_user.is_authenticated
             )
         )
 
@@ -79,7 +83,7 @@ class SuperUserMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or
-            (not current_user.is_anonymous() and current_user.is_superuser())
+            (not current_user.is_anonymous and current_user.is_superuser())
         )
 
 
@@ -87,7 +91,7 @@ class DataProfilingMixin(object):
     def is_accessible(self):
         return (
             not AUTHENTICATE or
-            (not current_user.is_anonymous() and current_user.data_profiling())
+            (not current_user.is_anonymous and current_user.data_profiling())
         )
 
 
@@ -372,6 +376,22 @@ def gzipped(f):
     return view_func
 
 
+def open_maybe_zipped(f, mode='r'):
+    """
+    Opens the given file. If the path contains a folder with a .zip suffix, then
+    the folder is treated as a zip archive, opening the file inside the archive.
+
+    :return: a file object, as in `open`, or as in `ZipFile.open`.
+    """
+
+    _, archive, filename = re.search(
+        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    if archive and zipfile.is_zipfile(archive):
+        return zipfile.ZipFile(archive, mode=mode).open(filename)
+    else:
+        return io.open(f, mode=mode)
+
+
 def make_cache_key(*args, **kwargs):
     """
     Used by cache to get a unique key per URL
@@ -428,7 +448,43 @@ class AceEditorWidget(wtforms.widgets.TextArea):
         return wtforms.widgets.core.HTMLString(html)
 
 
-class UtcFilterConverter(FilterConverter):
+class UtcDateTimeFilterMixin(object):
+    def clean(self, value):
+        dt = super(UtcDateTimeFilterMixin, self).clean(value)
+        return timezone.make_aware(dt, timezone=timezone.utc)
+
+
+class UtcDateTimeEqualFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeEqualFilter):
+    pass
+
+
+class UtcDateTimeNotEqualFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeNotEqualFilter):
+    pass
+
+
+class UtcDateTimeGreaterFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeGreaterFilter):
+    pass
+
+
+class UtcDateTimeSmallerFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeSmallerFilter):
+    pass
+
+
+class UtcDateTimeBetweenFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeBetweenFilter):
+    pass
+
+
+class UtcDateTimeNotBetweenFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeNotBetweenFilter):
+    pass
+
+
+class UtcFilterConverter(sqlafilters.FilterConverter):
+
+    utcdatetime_filters = (UtcDateTimeEqualFilter, UtcDateTimeNotEqualFilter,
+                           UtcDateTimeGreaterFilter, UtcDateTimeSmallerFilter,
+                           UtcDateTimeBetweenFilter, UtcDateTimeNotBetweenFilter,
+                           sqlafilters.FilterEmpty)
+
     @filters.convert('utcdatetime')
     def conv_utcdatetime(self, column, name, **kwargs):
-        return self.conv_datetime(column, name, **kwargs)
+        return [f(column, name, **kwargs) for f in self.utcdatetime_filters]

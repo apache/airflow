@@ -19,18 +19,14 @@
 import flask_login
 
 # Need to expose these downstream
-# pylint: disable=unused-import
-from flask_login import (current_user,
-                         logout_user,
-                         login_required,
-                         login_user)
-# pylint: enable=unused-import
+# flake8: noqa: F401
+from flask_login import current_user, logout_user, login_required, login_user
 
 from flask import url_for, redirect, request
 
 from flask_oauthlib.client import OAuth
 
-from airflow import models, configuration, settings
+from airflow import models, configuration
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -46,14 +42,17 @@ class GoogleUser(models.User):
     def __init__(self, user):
         self.user = user
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False
@@ -113,8 +112,7 @@ class GoogleAuthBackend(object):
         log.debug('Redirecting user to Google login')
         return self.google_oauth.authorize(callback=url_for(
             'google_oauth_callback',
-            _external=True,
-            _scheme='https'),
+            _external=True),
             state=request.args.get('next') or request.referrer or None)
 
     def get_google_user_profile_info(self, google_token):

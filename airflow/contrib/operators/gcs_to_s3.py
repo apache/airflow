@@ -28,25 +28,36 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :type bucket: string
+    :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
-    :type prefix: string
+    :type prefix: str
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
-    :type delimiter: string
+    :type delimiter: str
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.
-    :type google_cloud_storage_conn_id: string
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param dest_aws_conn_id: The destination S3 connection
     :type dest_aws_conn_id: str
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)
     :type dest_s3_key: str
+    :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type dest_verify: bool or str
     """
     template_fields = ('bucket', 'prefix', 'delimiter', 'dest_s3_key')
     ui_color = '#f0eee4'
@@ -60,6 +71,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
                  delegate_to=None,
                  dest_aws_conn_id=None,
                  dest_s3_key=None,
+                 dest_verify=None,
                  replace=False,
                  *args,
                  **kwargs):
@@ -75,12 +87,13 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
         )
         self.dest_aws_conn_id = dest_aws_conn_id
         self.dest_s3_key = dest_s3_key
+        self.dest_verify = dest_verify
         self.replace = replace
 
     def execute(self, context):
         # use the super to list all files in an Google Cloud Storage bucket
         files = super(GoogleCloudStorageToS3Operator, self).execute(context)
-        s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id)
+        s3_hook = S3Hook(aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify)
 
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket

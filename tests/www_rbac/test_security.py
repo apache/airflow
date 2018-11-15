@@ -107,9 +107,24 @@ class TestSecurity(unittest.TestCase):
         self.assertIsNotNone(role)
         self.assertEqual(len(role_perms), len(role.permissions))
 
+    def test_update_and_verify_permission_role(self):
+        role_name = 'Test_Role'
+        self.security_manager.init_role(role_name, [], [])
+        role = self.security_manager.find_role(role_name)
+
+        perm = self.security_manager.\
+            find_permission_view_menu('can_edit', 'RoleModelView')
+        self.security_manager.add_permission_role(role, perm)
+        role_perms_len = len(role.permissions)
+
+        self.security_manager.init_role(role_name, [], [])
+        new_role_perms_len = len(role.permissions)
+
+        self.assertEqual(role_perms_len, new_role_perms_len)
+
     def test_get_user_roles(self):
         user = mock.MagicMock()
-        user.is_anonymous.return_value = False
+        user.is_anonymous = False
         roles = self.appbuilder.sm.find_role('Admin')
         user.roles = roles
         self.assertEqual(self.security_manager.get_user_roles(user), roles)
@@ -144,7 +159,7 @@ class TestSecurity(unittest.TestCase):
         self.security_manager.init_role(role_name, role_vms, role_perms)
         role = self.security_manager.find_role(role_name)
         user.roles = [role]
-        user.is_anonymous.return_value = False
+        user.is_anonymous = False
         mock_get_all_permissions_views.return_value = {('can_dag_read', 'dag_id')}
 
         mock_get_user_roles.return_value = [role]
@@ -154,7 +169,7 @@ class TestSecurity(unittest.TestCase):
     @mock.patch('airflow.www_rbac.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):
         user = mock.MagicMock()
-        user.is_anonymous.return_value = False
+        user.is_anonymous = False
         mock_has_view_access.return_value = True
         self.assertTrue(self.security_manager.has_access('perm', 'view', user))
 

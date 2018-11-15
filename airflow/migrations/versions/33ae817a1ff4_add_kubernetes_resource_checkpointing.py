@@ -25,6 +25,8 @@ Revises: 947454bf1dff
 Create Date: 2017-09-11 15:26:47.598494
 
 """
+from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '33ae817a1ff4'
@@ -32,20 +34,27 @@ down_revision = 'd2ae31099d61'
 branch_labels = None
 depends_on = None
 
-from alembic import op
-import sqlalchemy as sa
-
-
 RESOURCE_TABLE = "kube_resource_version"
 
 
 def upgrade():
+
+    columns_and_constraints = [
+        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
+        sa.Column("resource_version", sa.String(255))
+    ]
+
+    conn = op.get_bind()
+
+    # alembic creates an invalid SQL for mssql dialect
+    if conn.dialect.name not in ('mssql'):
+        columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id"))
+
     table = op.create_table(
         RESOURCE_TABLE,
-        sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
-        sa.Column("resource_version", sa.String(255)),
-        sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id")
+        *columns_and_constraints
     )
+
     op.bulk_insert(table, [
         {"resource_version": ""}
     ])
@@ -53,4 +62,3 @@ def upgrade():
 
 def downgrade():
     op.drop_table(RESOURCE_TABLE)
-

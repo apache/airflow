@@ -35,13 +35,12 @@ import nvd3
 import pendulum
 import sqlalchemy as sqla
 from flask import (
-    g, redirect, request, Markup, Response, render_template,
+    redirect, request, Markup, Response, render_template,
     make_response, flash, jsonify)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
-from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from past.builtins import unicode
 from pygments import highlight, lexers
@@ -301,17 +300,13 @@ class Airflow(AirflowBaseView):
                 if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                     payload[dag.safe_dag_id] = []
                     for state in State.dag_states:
-                        try:
-                            count = data[dag.dag_id][state]
-                        except Exception:
-                            count = 0
-                        d = {
+                        count = data.get(dag.dag_id, {}).get(state, 0)
+                        payload[dag.safe_dag_id].append({
                             'state': state,
                             'count': count,
                             'dag_id': dag.dag_id,
                             'color': State.color(state)
-                        }
-                        payload[dag.safe_dag_id].append(d)
+                        })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -379,17 +374,13 @@ class Airflow(AirflowBaseView):
             if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                 payload[dag.safe_dag_id] = []
                 for state in State.task_states:
-                    try:
-                        count = data[dag.dag_id][state]
-                    except Exception:
-                        count = 0
-                    d = {
+                    count = data.get(dag.dag_id, {}).get(state, 0)
+                    payload[dag.safe_dag_id].append({
                         'state': state,
                         'count': count,
                         'dag_id': dag.dag_id,
                         'color': State.color(state)
-                    }
-                    payload[dag.safe_dag_id].append(d)
+                    })
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -400,7 +391,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
         title = dag_id
         try:
-            with open(dag.fileloc, 'r') as f:
+            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
@@ -717,16 +708,25 @@ class Airflow(AirflowBaseView):
         ignore_task_deps = request.args.get('ignore_task_deps') == "true"
         ignore_ti_state = request.args.get('ignore_ti_state') == "true"
 
+        from airflow.executors import GetDefaultExecutor
+        executor = GetDefaultExecutor()
+        valid_celery_config = False
+        valid_kubernetes_config = False
+
         try:
-            from airflow.executors import GetDefaultExecutor
             from airflow.executors.celery_executor import CeleryExecutor
-            executor = GetDefaultExecutor()
-            if not isinstance(executor, CeleryExecutor):
-                flash("Only works with the CeleryExecutor, sorry", "error")
-                return redirect(origin)
+            valid_celery_config = isinstance(executor, CeleryExecutor)
         except ImportError:
-            # in case CeleryExecutor cannot be imported it is not active either
-            flash("Only works with the CeleryExecutor, sorry", "error")
+            pass
+
+        try:
+            from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+            valid_kubernetes_config = isinstance(executor, KubernetesExecutor)
+        except ImportError:
+            pass
+
+        if not valid_celery_config and not valid_kubernetes_config:
+            flash("Only works with the Celery or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
         ti = models.TaskInstance(task=task, execution_date=execution_date)
@@ -773,11 +773,12 @@ class Airflow(AirflowBaseView):
         try:
             delete_dag.delete_dag(dag_id)
         except DagNotFound:
-            flash("DAG with id {} not found. Cannot delete".format(dag_id))
+            flash("DAG with id {} not found. Cannot delete".format(dag_id), 'error')
             return redirect(request.referrer)
         except DagFileExists:
             flash("Dag id {} is still in DagBag. "
-                  "Remove the DAG file first.".format(dag_id))
+                  "Remove the DAG file first.".format(dag_id),
+                  'error')
             return redirect(request.referrer)
 
         flash("Deleting DAG with id {}. May take a couple minutes to fully"
@@ -828,7 +829,9 @@ class Airflow(AirflowBaseView):
             count = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
-                include_subdags=recursive)
+                include_subdags=recursive,
+                include_parentdag=recursive,
+            )
 
             flash("{0} task instances have been cleared".format(count))
             return redirect(origin)
@@ -837,7 +840,9 @@ class Airflow(AirflowBaseView):
             start_date=start_date,
             end_date=end_date,
             include_subdags=recursive,
-            dry_run=True)
+            include_parentdag=recursive,
+            dry_run=True,
+        )
         if not tis:
             flash("No task instances to clear", 'error')
             response = redirect(origin)
@@ -1338,6 +1343,10 @@ class Airflow(AirflowBaseView):
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
 
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/')
+
         if base_date:
             base_date = pendulum.parse(base_date)
         else:
@@ -1668,21 +1677,49 @@ class Airflow(AirflowBaseView):
                     TF.execution_date == ti.execution_date)
             .all()
         ) for ti in tis]))
-        tis_with_fails = sorted(tis + ti_fails, key=lambda ti: ti.start_date)
+        TR = models.TaskReschedule
+        ti_reschedules = list(itertools.chain(*[(
+            session
+            .query(TR)
+            .filter(TR.dag_id == ti.dag_id,
+                    TR.task_id == ti.task_id,
+                    TR.execution_date == ti.execution_date)
+            .all()
+        ) for ti in tis]))
+
+        # determine bars to show in the gantt chart
+        # all reschedules of one attempt are combinded into one bar
+        gantt_bar_items = []
+        for task_id, items in itertools.groupby(
+                sorted(tis + ti_fails + ti_reschedules, key=lambda ti: ti.task_id),
+                key=lambda ti: ti.task_id):
+            start_date = None
+            for i in sorted(items, key=lambda ti: ti.start_date):
+                start_date = start_date or i.start_date
+                end_date = i.end_date or timezone.utcnow()
+                if type(i) == models.TaskInstance:
+                    gantt_bar_items.append((task_id, start_date, end_date, i.state))
+                    start_date = None
+                elif type(i) == TF and (len(gantt_bar_items) == 0 or
+                                        end_date != gantt_bar_items[-1][2]):
+                    gantt_bar_items.append((task_id, start_date, end_date, State.FAILED))
+                    start_date = None
 
         tasks = []
-        for ti in tis_with_fails:
-            end_date = ti.end_date if ti.end_date else timezone.utcnow()
-            state = ti.state if type(ti) == models.TaskInstance else State.FAILED
+        for gantt_bar_item in gantt_bar_items:
+            task_id = gantt_bar_item[0]
+            start_date = gantt_bar_item[1]
+            end_date = gantt_bar_item[2]
+            state = gantt_bar_item[3]
             tasks.append({
-                'startDate': wwwutils.epoch(ti.start_date),
+                'startDate': wwwutils.epoch(start_date),
                 'endDate': wwwutils.epoch(end_date),
-                'isoStart': ti.start_date.isoformat()[:-4],
+                'isoStart': start_date.isoformat()[:-4],
                 'isoEnd': end_date.isoformat()[:-4],
-                'taskName': ti.task_id,
-                'duration': "{}".format(end_date - ti.start_date)[:-4],
+                'taskName': task_id,
+                'duration': "{}".format(end_date - start_date)[:-4],
                 'status': state,
-                'executionDate': ti.execution_date.isoformat(),
+                'executionDate': dttm.isoformat(),
             })
         states = {task['status']: task['status'] for task in tasks}
         data = {
@@ -1801,27 +1838,7 @@ class AirflowModelView(ModelView):
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
-    class CustomSQLAInterface(SQLAInterface):
-        """
-        FAB does not know how to handle columns with leading underscores because
-        they are not supported by WTForm. This hack will remove the leading
-        '_' from the key to lookup the column names.
-
-        """
-        def __init__(self, obj):
-            super(AirflowModelView.CustomSQLAInterface, self).__init__(obj)
-
-            self.session = settings.Session()
-
-            def clean_column_names():
-                if self.list_properties:
-                    self.list_properties = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_properties.items())
-                if self.list_columns:
-                    self.list_columns = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_columns.items())
-
-            clean_column_names()
+    CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
 
 class SlaMissModelView(AirflowModelView):
@@ -1912,6 +1929,11 @@ class ConnectionModelView(AirflowModelView):
             d = json.loads(form.data.get('extra', '{}'))
         except Exception:
             d = {}
+
+        if not hasattr(d, 'get'):
+            logging.warning('extra field for {} is not iterable'.format(
+                form.data.get('conn_id', '<unknown>')))
+            return
 
         for field in self.extra_fields:
             value = d.get(field, '')
@@ -2051,7 +2073,7 @@ class VariableModelView(AirflowModelView):
             else:
                 d = json.loads(out)
         except Exception:
-            flash("Missing file or syntax error.")
+            flash("Missing file or syntax error.", 'error')
         else:
             suc_count = fail_count = 0
             for k, v in d.items():
@@ -2062,9 +2084,9 @@ class VariableModelView(AirflowModelView):
                     fail_count += 1
                 else:
                     suc_count += 1
-            flash("{} variable(s) successfully updated.".format(suc_count), 'info')
+            flash("{} variable(s) successfully updated.".format(suc_count))
             if fail_count:
-                flash("{} variables(s) failed to be updated.".format(fail_count), 'error')
+                flash("{} variable(s) failed to be updated.".format(fail_count), 'error')
             self.update_redirect()
             return redirect(self.get_redirect())
 
@@ -2152,10 +2174,9 @@ class DagRunModelView(AirflowModelView):
                 dr.state = State.RUNNING
             models.DagStat.update(dirty_ids, session=session)
             session.commit()
-            flash(
-                "{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
-            flash(str(ex))
+            flash(str(ex), 'error')
             flash('Failed to set state', 'error')
         return redirect(self.route_base + '/list')
 
@@ -2307,7 +2328,7 @@ class TaskInstanceModelView(AirflowModelView):
             self.update_redirect()
             return redirect(self.get_redirect())
 
-        except Exception as ex:
+        except Exception:
             flash('Failed to clear task instances', 'error')
 
     @provide_session

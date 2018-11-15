@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -140,7 +140,7 @@ class FakeSession(object):
     def __init__(self):
         self.response = requests.Response()
         self.response.status_code = 200
-        self.response._content = 'airbnb/airflow'.encode('ascii', 'ignore')
+        self.response._content = 'apache/incubator-airflow'.encode('ascii', 'ignore')
 
     def send(self, request, **kwargs):
         return self.response
@@ -178,7 +178,7 @@ class HttpOpSensorTest(unittest.TestCase):
             method='GET',
             endpoint='/search',
             data={"client": "ubuntu", "q": "airflow"},
-            response_check=lambda response: ("airbnb/airflow" in response.text),
+            response_check=lambda response: ("apache/incubator-airflow" in response.text),
             headers={},
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -192,7 +192,7 @@ class HttpOpSensorTest(unittest.TestCase):
             request_params={"client": "ubuntu", "q": "airflow", 'date': '{{ds}}'},
             headers={},
             response_check=lambda response: (
-                "airbnb/airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d')
+                "apache/incubator-airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d')
                 in response.text),
             poke_interval=5,
             timeout=15,

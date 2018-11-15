@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,7 +20,6 @@
 import json
 import mock
 import os
-import socket
 import unittest
 
 from datetime import datetime
@@ -38,14 +37,14 @@ class ApiKerberosTests(unittest.TestCase):
         configuration.load_test_config()
         try:
             configuration.conf.add_section("api")
-        except:
+        except Exception:
             pass
         configuration.conf.set("api",
                                "auth_backend",
                                "airflow.api.auth.backend.kerberos_auth")
         try:
             configuration.conf.add_section("kerberos")
-        except:
+        except Exception:
             pass
         configuration.conf.set("kerberos",
                                "keytab",

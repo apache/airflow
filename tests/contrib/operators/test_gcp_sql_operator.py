@@ -1,0 +1,802 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+import json
+import os
+import time
+import unittest
+from uuid import uuid1
+
+from parameterized import parameterized
+
+from airflow import AirflowException
+from airflow.contrib.hooks.gcp_sql_hook import CloudSqlProxyRunner
+from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
+    CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
+    CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
+    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlQueryOperator
+from airflow.models import Connection
+from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
+    GCP_CLOUDSQL_KEY, SKIP_TEST_WARNING
+
+try:
+    # noinspection PyProtectedMember
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
+
+PROJECT_ID = os.environ.get('PROJECT_ID', 'project-id')
+INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'test-name')
+DB_NAME = os.environ.get('DB_NAME', 'db1')
+
+CREATE_BODY = {
+    "name": INSTANCE_NAME,
+    "settings": {
+        "tier": "db-n1-standard-1",
+        "backupConfiguration": {
+            "binaryLogEnabled": True,
+            "enabled": True,
+            "replicationLogArchivingEnabled": True,
+            "startTime": "05:00"
+        },
+        "activationPolicy": "ALWAYS",
+        "authorizedGaeApplications": [],
+        "crashSafeReplicationEnabled": True,
+        "dataDiskSizeGb": 30,
+        "dataDiskType": "PD_SSD",
+        "databaseFlags": [],
+        "ipConfiguration": {
+            "ipv4Enabled": True,
+            "authorizedNetworks": [
+                {
+                    "value": "192.168.100.0/24",
+                    "name": "network1",
+                    "expirationTime": "2012-11-15T16:19:00.094Z"
+                },
+            ],
+            "privateNetwork": "/vpc/resource/link",
+            "requireSsl": True
+        },
+        "locationPreference": {
+            "zone": "europe-west4-a",
+            "followGaeApplication": "/app/engine/application/to/follow"
+        },
+        "maintenanceWindow": {
+            "hour": 5,
+            "day": 7,
+            "updateTrack": "canary"
+        },
+        "pricingPlan": "PER_USE",
+        "replicationType": "ASYNCHRONOUS",
+        "storageAutoResize": False,
+        "storageAutoResizeLimit": 0,
+        "userLabels": {
+            "my-key": "my-value"
+        }
+    },
+    "databaseVersion": "MYSQL_5_7",
+    "failoverReplica": {
+        "name": "replica-1"
+    },
+    "masterInstanceName": "master-instance-1",
+    "onPremisesConfiguration": {},
+    "region": "europe-west4",
+    "replicaConfiguration": {
+        "mysqlReplicaConfiguration": {
+            "caCertificate": "cert-pem",
+            "clientCertificate": "cert-pem",
+            "clientKey": "cert-pem",
+            "connectRetryInterval": 30,
+            "dumpFilePath": "/path/to/dump",
+            "masterHeartbeatPeriod": 100,
+            "password": "secret_pass",
+            "sslCipher": "list-of-ciphers",
+            "username": "user",
+            "verifyServerCertificate": True
+        },
+    }
+}
+PATCH_BODY = {
+    "name": INSTANCE_NAME,
+    "settings": {
+        "tier": "db-n1-standard-2",
+        "dataDiskType": "PD_HDD"
+    },
+    "region": "europe-west4"
+}
+DATABASE_INSERT_BODY = {
+    "name": DB_NAME,            # The name of the database in the Cloud SQL instance.
+                                # This does not include the project ID or instance name.
+
+    "project": PROJECT_ID,      # The project ID of the project containing the Cloud SQL
+                                # database. The Google apps domain is prefixed if
+                                # applicable.
+
+    "instance": INSTANCE_NAME,  # The name of the Cloud SQL instance.
+                                # This does not include the project ID.
+}
+DATABASE_PATCH_BODY = {
+    "charset": "utf16",
+    "collation": "utf16_general_ci"
+}
+
+
+class CloudSqlTest(unittest.TestCase):
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_create(self, mock_hook, _check_if_instance_exists):
+        _check_if_instance_exists.return_value = False
+        mock_hook.return_value.create_instance.return_value = True
+        op = CloudSqlInstanceCreateOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            body=CREATE_BODY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.create_instance.assert_called_once_with(
+            PROJECT_ID, CREATE_BODY
+        )
+        self.assertTrue(result)
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_create_idempotent(self, mock_hook, _check_if_instance_exists):
+        _check_if_instance_exists.return_value = True
+        mock_hook.return_value.create_instance.return_value = True
+        op = CloudSqlInstanceCreateOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            body=CREATE_BODY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.create_instance.assert_not_called()
+        self.assertTrue(result)
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstanceCreateOperator(
+                project_id="",
+                body=CREATE_BODY,
+                instance=INSTANCE_NAME,
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("The required parameter 'project_id' is empty", str(err))
+        mock_hook.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_create_should_throw_ex_when_empty_body(self, mock_hook):
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstanceCreateOperator(
+                project_id=PROJECT_ID,
+                body={},
+                instance=INSTANCE_NAME,
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("The required parameter 'body' is empty", str(err))
+        mock_hook.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_create_should_throw_ex_when_empty_instance(self, mock_hook):
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstanceCreateOperator(
+                project_id=PROJECT_ID,
+                body=CREATE_BODY,
+                instance="",
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("The required parameter 'instance' is empty", str(err))
+        mock_hook.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_create_should_validate_list_type(self, mock_hook):
+        wrong_list_type_body = {
+            "name": INSTANCE_NAME,
+            "settings": {
+                "tier": "db-n1-standard-1",
+                "ipConfiguration": {
+                    "authorizedNetworks": {}  # Should be a list, not a dict.
+                    # Testing if the validation catches this.
+                }
+            }
+        }
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstanceCreateOperator(
+                project_id=PROJECT_ID,
+                body=wrong_list_type_body,
+                instance=INSTANCE_NAME,
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("The field 'settings.ipConfiguration.authorizedNetworks' "
+                      "should be of list type according to the specification", str(err))
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_create_should_validate_non_empty_fields(self, mock_hook):
+        empty_tier_body = {
+            "name": INSTANCE_NAME,
+            "settings": {
+                "tier": "",  # Field can't be empty (defined in CLOUD_SQL_VALIDATION).
+                # Testing if the validation catches this.
+            }
+        }
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstanceCreateOperator(
+                project_id=PROJECT_ID,
+                body=empty_tier_body,
+                instance=INSTANCE_NAME,
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("The body field 'settings.tier' can't be empty. "
+                      "Please provide a value.", str(err))
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_patch(self, mock_hook):
+        mock_hook.return_value.patch_instance.return_value = True
+        op = CloudSqlInstancePatchOperator(
+            project_id=PROJECT_ID,
+            body=PATCH_BODY,
+            instance=INSTANCE_NAME,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.patch_instance.assert_called_once_with(
+            PROJECT_ID, PATCH_BODY, INSTANCE_NAME
+        )
+        self.assertTrue(result)
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstancePatchOperator._check_if_instance_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_patch_should_bubble_up_ex_if_not_exists(self, mock_hook,
+                                                              _check_if_instance_exists):
+        _check_if_instance_exists.return_value = False
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstancePatchOperator(
+                project_id=PROJECT_ID,
+                body=PATCH_BODY,
+                instance=INSTANCE_NAME,
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn('specify another instance to patch', str(err))
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.patch_instance.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDeleteOperator._check_if_instance_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_delete(self, mock_hook, _check_if_instance_exists):
+        _check_if_instance_exists.return_value = True
+        op = CloudSqlInstanceDeleteOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            task_id="id"
+        )
+        result = op.execute(None)
+        self.assertTrue(result)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.delete_instance.assert_called_once_with(
+            PROJECT_ID, INSTANCE_NAME
+        )
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDeleteOperator._check_if_instance_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_delete_should_abort_and_succeed_if_not_exists(
+            self,
+            mock_hook,
+            _check_if_instance_exists):
+        _check_if_instance_exists.return_value = False
+        op = CloudSqlInstanceDeleteOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            task_id="id"
+        )
+        result = op.execute(None)
+        self.assertTrue(result)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.delete_instance.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDatabaseCreateOperator._check_if_db_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_db_create(self, mock_hook, _check_if_db_exists):
+        _check_if_db_exists.return_value = False
+        op = CloudSqlInstanceDatabaseCreateOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            body=DATABASE_INSERT_BODY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.create_database.assert_called_once_with(
+            PROJECT_ID, INSTANCE_NAME, DATABASE_INSERT_BODY
+        )
+        self.assertTrue(result)
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDatabaseCreateOperator._check_if_db_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_db_create_should_abort_and_succeed_if_exists(
+            self, mock_hook, _check_if_db_exists):
+        _check_if_db_exists.return_value = True
+        op = CloudSqlInstanceDatabaseCreateOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            body=DATABASE_INSERT_BODY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        self.assertTrue(result)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.create_database.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDatabasePatchOperator._check_if_db_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_db_patch(self, mock_hook, _check_if_db_exists):
+        _check_if_db_exists.return_value = True
+        op = CloudSqlInstanceDatabasePatchOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            database=DB_NAME,
+            body=DATABASE_PATCH_BODY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.patch_database.assert_called_once_with(
+            PROJECT_ID, INSTANCE_NAME, DB_NAME, DATABASE_PATCH_BODY
+        )
+        self.assertTrue(result)
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDatabasePatchOperator._check_if_db_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_db_patch_should_throw_ex_if_not_exists(
+            self, mock_hook, _check_if_db_exists):
+        _check_if_db_exists.return_value = False
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstanceDatabasePatchOperator(
+                project_id=PROJECT_ID,
+                instance=INSTANCE_NAME,
+                database=DB_NAME,
+                body=DATABASE_PATCH_BODY,
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("Cloud SQL instance with ID", str(err))
+        self.assertIn("does not contain database", str(err))
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.patch_database.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_db_patch_should_throw_ex_when_empty_database(self, mock_hook):
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlInstanceDatabasePatchOperator(
+                project_id=PROJECT_ID,
+                instance=INSTANCE_NAME,
+                database="",
+                body=DATABASE_INSERT_BODY,
+                task_id="id"
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("The required parameter 'database' is empty", str(err))
+        mock_hook.assert_not_called()
+        mock_hook.return_value.patch_database.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDatabaseDeleteOperator._check_if_db_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_db_delete(self, mock_hook, _check_if_db_exists):
+        _check_if_db_exists.return_value = True
+        op = CloudSqlInstanceDatabaseDeleteOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            database=DB_NAME,
+            task_id="id"
+        )
+        result = op.execute(None)
+        self.assertTrue(result)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.delete_database.assert_called_once_with(
+            PROJECT_ID, INSTANCE_NAME, DB_NAME
+        )
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator"
+                ".CloudSqlInstanceDatabaseDeleteOperator._check_if_db_exists")
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_db_delete_should_abort_and_succeed_if_not_exists(
+            self, mock_hook, _check_if_db_exists):
+        _check_if_db_exists.return_value = False
+        op = CloudSqlInstanceDatabaseDeleteOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            database=DB_NAME,
+            task_id="id"
+        )
+        result = op.execute(None)
+        self.assertTrue(result)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.delete_database.assert_not_called()
+
+
+class CloudSqlQueryValidationTest(unittest.TestCase):
+    @parameterized.expand([
+        ('', 'location', 'instance_name', 'postgres', False, False,
+         'SELECT * FROM TEST',
+         "The required extra 'project_id' is empty"),
+        ('project_id', '', 'instance_name', 'mysql', False, False,
+         'SELECT * FROM TEST',
+         "The required extra 'location' is empty"),
+        ('project_id', 'location', '', 'postgres', False, False,
+         'SELECT * FROM TEST',
+         "The required extra 'instance' is empty"),
+        ('project_id', 'location', 'instance_name', 'wrong', False, False,
+         'SELECT * FROM TEST',
+         "Invalid database type 'wrong'. Must be one of ['postgres', 'mysql']"),
+        ('project_id', 'location', 'instance_name', 'postgres', True, True,
+         'SELECT * FROM TEST',
+         "Cloud Sql Proxy does not support SSL connections. SSL is not needed as"
+         " Cloud Sql Proxy provides encryption on its own"),
+        ('project_id', 'location', 'instance_name', 'postgres', False, True,
+         'SELECT * FROM TEST',
+         "SSL connections requires sslcert to be set"),
+    ])
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_wrong_parameters(self,
+                                                   project_id,
+                                                   location,
+                                                   instance_name,
+                                                   database_type,
+                                                   use_proxy,
+                                                   use_ssl,
+                                                   sql,
+                                                   message,
+                                                   get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type={database_type}&"
+            "project_id={project_id}&location={location}&instance={instance_name}&"
+            "use_proxy={use_proxy}&use_ssl={use_ssl}".
+            format(database_type=database_type,
+                   project_id=project_id,
+                   location=location,
+                   instance_name=instance_name,
+                   use_proxy=use_proxy,
+                   use_ssl=use_ssl))
+        get_connections.return_value = [connection]
+        with self.assertRaises(AirflowException) as cm:
+            CloudSqlQueryOperator(
+                sql=sql,
+                task_id='task_id'
+            )
+        err = cm.exception
+        self.assertIn(message, str(err))
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_postgres(self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=postgres&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=False&use_ssl=False")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('8.8.8.8', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_postgres_ssl(self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=postgres&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=False&use_ssl=True&sslcert=/bin/bash&"
+            "sslkey=/bin/bash&sslrootcert=/bin/bash")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('8.8.8.8', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+        self.assertEqual('/bin/bash', conn.extra_dejson['sslkey'])
+        self.assertEqual('/bin/bash', conn.extra_dejson['sslcert'])
+        self.assertEqual('/bin/bash', conn.extra_dejson['sslrootcert'])
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_postgres_proxy_socket(
+            self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=postgres&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=True&sql_proxy_use_tcp=False")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertIn('/tmp', conn.host)
+        self.assertIn('example-project:europe-west1:testdb', conn.host)
+        self.assertIsNone(conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_postgres_proxy_tcp(self,
+                                                                        get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=postgres&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=True&sql_proxy_use_tcp=True")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertNotEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_mysql(self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=mysql&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=False&use_ssl=False")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('8.8.8.8', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_mysql_ssl(self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=mysql&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=False&use_ssl=True&sslcert=/bin/bash&"
+            "sslkey=/bin/bash&sslrootcert=/bin/bash")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('8.8.8.8', conn.host)
+        self.assertEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['cert'])
+        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['key'])
+        self.assertEqual('/bin/bash', json.loads(conn.extra_dejson['ssl'])['ca'])
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_mysql_proxy_socket(self,
+                                                                        get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=mysql&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=True&sql_proxy_use_tcp=False")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('localhost', conn.host)
+        self.assertIn('/tmp', conn.extra_dejson['unix_socket'])
+        self.assertIn('example-project:europe-west1:testdb',
+                      conn.extra_dejson['unix_socket'])
+        self.assertIsNone(conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_correct_parameters_mysql_tcp(self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=mysql&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=True&sql_proxy_use_tcp=True")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.mysql_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('mysql', conn.conn_type)
+        self.assertEqual('127.0.0.1', conn.host)
+        self.assertNotEqual(3200, conn.port)
+        self.assertEqual('testdb', conn.schema)
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_CLOUDSQL_KEY), SKIP_TEST_WARNING)
+class CloudSqlProxyIntegrationTest(BaseGcpIntegrationTestCase):
+    def __init__(self, method_name='runTest'):
+        super(CloudSqlProxyIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_sql_query',
+            gcp_key='gcp_cloudsql.json')
+
+    def test_start_proxy_fail_no_parameters(self):
+        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + str(uuid1()),
+                                     project_id=PROJECT_ID,
+                                     instance_specification='a')
+        with self.assertRaises(AirflowException) as cm:
+            runner.start_proxy()
+        err = cm.exception
+        self.assertIn("invalid instance name", str(err))
+        with self.assertRaises(AirflowException) as cm:
+            runner.start_proxy()
+        err = cm.exception
+        self.assertIn("invalid instance name", str(err))
+        self.assertIsNone(runner.sql_proxy_process)
+
+    def test_start_proxy_with_all_instances(self):
+        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + str(uuid1()),
+                                     project_id=PROJECT_ID,
+                                     instance_specification='')
+        try:
+            runner.start_proxy()
+            time.sleep(1)
+        finally:
+            runner.stop_proxy()
+        self.assertIsNone(runner.sql_proxy_process)
+
+    def test_start_proxy_with_all_instances_generated_credential_file(self):
+        self.update_connection_with_dictionary()
+        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + str(uuid1()),
+                                     project_id=PROJECT_ID,
+                                     instance_specification='')
+        try:
+            runner.start_proxy()
+            time.sleep(1)
+        finally:
+            runner.stop_proxy()
+        self.assertIsNone(runner.sql_proxy_process)
+
+    def test_start_proxy_with_all_instances_specific_version(self):
+        runner = CloudSqlProxyRunner(path_prefix='/tmp/' + str(uuid1()),
+                                     project_id=PROJECT_ID,
+                                     instance_specification='',
+                                     sql_proxy_version='v1.13')
+        try:
+            runner.start_proxy()
+            time.sleep(1)
+        finally:
+            runner.stop_proxy()
+        self.assertIsNone(runner.sql_proxy_process)
+        self.assertEqual(runner.get_proxy_version(), "1.13")
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_CLOUDSQL_KEY), SKIP_TEST_WARNING)
+class CloudSqlQueryExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+    def __init__(self, method_name='runTest'):
+        super(CloudSqlQueryExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_sql_query',
+            gcp_key=GCP_CLOUDSQL_KEY)
+
+    def test_run_example_dag_cloudsql_query(self):
+        self._run_dag()

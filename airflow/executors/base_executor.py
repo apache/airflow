@@ -141,7 +141,7 @@ class BaseExecutor(LoggingMixin):
                                    queue=queue,
                                    executor_config=ti.executor_config)
             else:
-                self.logger.info(
+                self.log.info(
                     'Task is already running, not sending to '
                     'executor: {}'.format(key))
 
@@ -175,7 +175,7 @@ class BaseExecutor(LoggingMixin):
             self.event_buffer = dict()
         else:
             for key in list(self.event_buffer.keys()):
-                dag_id, _, _ = key
+                dag_id, _, _, _ = key
                 if dag_id in dag_ids:
                     cleared_events[key] = self.event_buffer.pop(key)
 
@@ -193,7 +193,7 @@ class BaseExecutor(LoggingMixin):
 
     def end(self):  # pragma: no cover
         """
-        This method is called when the caller is done submitting job and is
+        This method is called when the caller is done submitting job and
         wants to wait synchronously for the job submitted previously to be
         all done.
         """

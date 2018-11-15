@@ -46,6 +46,13 @@ $(document).ready(function () {
         'login': 'Username',
       },
     },
+    qubole: {
+      hidden_fields: ['login', 'schema', 'port', 'extra'],
+      relabeling: {
+        'host': 'API Endpoint',
+        'password': 'Auth Token',
+      }
+    },
   };
 
   function connTypeChange(connectionType) {

@@ -57,12 +57,9 @@ def generate_fernet_key():
     try:
         from cryptography.fernet import Fernet
     except ImportError:
-        pass
-    try:
-        key = Fernet.generate_key().decode()
-    except NameError:
-        key = "cryptography_not_found_storing_passwords_in_plain_text"
-    return key
+        return ''
+    else:
+        return Fernet.generate_key().decode()
 
 
 def expand_env_var(env_var):
@@ -130,6 +127,10 @@ class AirflowConfigParser(ConfigParser):
         ('celery', 'result_backend'),
         # Todo: remove this in Airflow 1.11
         ('celery', 'celery_result_backend'),
+        ('atlas', 'password'),
+        ('smtp', 'smtp_password'),
+        ('ldap', 'bind_password'),
+        ('kubernetes', 'git_password'),
     }
 
     # A two-level mapping of (section -> new_name -> old_name). When reading
@@ -139,6 +140,7 @@ class AirflowConfigParser(ConfigParser):
         'celery': {
             # Remove these keys in Airflow 1.11
             'worker_concurrency': 'celeryd_concurrency',
+            'result_backend': 'celery_result_backend',
             'broker_url': 'celery_broker_url',
             'ssl_active': 'celery_ssl_active',
             'ssl_cert': 'celery_ssl_cert',
@@ -153,9 +155,9 @@ class AirflowConfigParser(ConfigParser):
     def __init__(self, default_config=None, *args, **kwargs):
         super(AirflowConfigParser, self).__init__(*args, **kwargs)
 
-        self.defaults = ConfigParser(*args, **kwargs)
+        self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
-            self.defaults.read_string(default_config)
+            self.airflow_defaults.read_string(default_config)
 
         self.is_validated = False
 
@@ -245,9 +247,9 @@ class AirflowConfigParser(ConfigParser):
                 return option
 
         # ...then the default config
-        if self.defaults.has_option(section, key):
+        if self.airflow_defaults.has_option(section, key):
             return expand_env_var(
-                self.defaults.get(section, key, **kwargs))
+                self.airflow_defaults.get(section, key, **kwargs))
 
         else:
             log.warning(
@@ -281,6 +283,10 @@ class AirflowConfigParser(ConfigParser):
         super(AirflowConfigParser, self).read(filenames)
         self._validate()
 
+    def read_dict(self, *args, **kwargs):
+        super(AirflowConfigParser, self).read_dict(*args, **kwargs)
+        self._validate()
+
     def has_option(self, section, option):
         try:
             # Using self.get() to avoid reimplementing the priority order
@@ -299,8 +305,8 @@ class AirflowConfigParser(ConfigParser):
         if super(AirflowConfigParser, self).has_option(section, option):
             super(AirflowConfigParser, self).remove_option(section, option)
 
-        if self.defaults.has_option(section, option) and remove_default:
-            self.defaults.remove_option(section, option)
+        if self.airflow_defaults.has_option(section, option) and remove_default:
+            self.airflow_defaults.remove_option(section, option)
 
     def getsection(self, section):
         """
@@ -309,10 +315,11 @@ class AirflowConfigParser(ConfigParser):
         :param section: section from the config
         :return: dict
         """
-        if section not in self._sections and section not in self.defaults._sections:
+        if (section not in self._sections and
+                section not in self.airflow_defaults._sections):
             return None
 
-        _section = copy.deepcopy(self.defaults._sections[section])
+        _section = copy.deepcopy(self.airflow_defaults._sections[section])
 
         if section in self._sections:
             _section.update(copy.deepcopy(self._sections[section]))
@@ -331,30 +338,35 @@ class AirflowConfigParser(ConfigParser):
             _section[key] = val
         return _section
 
-    def as_dict(self, display_source=False, display_sensitive=False):
+    def as_dict(
+            self, display_source=False, display_sensitive=False, raw=False):
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
         :param display_source: If False, the option value is returned. If True,
             a tuple of (option_value, source) is returned. Source is either
-            'airflow.cfg' or 'default'.
+            'airflow.cfg', 'default', 'env var', or 'cmd'.
         :type display_source: bool
         :param display_sensitive: If True, the values of options set by env
             vars and bash commands will be displayed. If False, those options
             are shown as '< hidden >'
         :type display_sensitive: bool
+        :param raw: Should the values be output as interpolated values, or the
+            "raw" form that can be fed back in to ConfigParser
+        :type raw: bool
         """
-        cfg = copy.deepcopy(self.defaults._sections)
-        cfg.update(copy.deepcopy(self._sections))
+        cfg = {}
+        configs = [
+            ('default', self.airflow_defaults),
+            ('airflow.cfg', self),
+        ]
 
-        # remove __name__ (affects Python 2 only)
-        for options in cfg.values():
-            options.pop('__name__', None)
-
-        # add source
-        if display_source:
-            for section in cfg:
-                for k, v in cfg[section].items():
-                    cfg[section][k] = (v, 'airflow config')
+        for (source_name, config) in configs:
+            for section in config.sections():
+                sect = cfg.setdefault(section, OrderedDict())
+                for (k, val) in config.items(section=section, raw=raw):
+                    if display_source:
+                        val = (val, source_name)
+                    sect[k] = val
 
         # add env vars and overwrite because they have priority
         for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
@@ -362,16 +374,15 @@ class AirflowConfigParser(ConfigParser):
                 _, section, key = ev.split('__')
                 opt = self._get_env_var_option(section, key)
             except ValueError:
-                opt = None
-            if opt:
-                if (
-                    not display_sensitive and
-                        ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
-                    opt = '< hidden >'
-                if display_source:
-                    opt = (opt, 'env var')
-                cfg.setdefault(section.lower(), OrderedDict()).update(
-                    {key.lower(): opt})
+                continue
+            if (not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
+                opt = '< hidden >'
+            elif raw:
+                opt = opt.replace('%', '%%')
+            if display_source:
+                opt = (opt, 'env var')
+            cfg.setdefault(section.lower(), OrderedDict()).update(
+                {key.lower(): opt})
 
         # add bash commands
         for (section, key) in self.as_command_stdout:
@@ -380,8 +391,11 @@ class AirflowConfigParser(ConfigParser):
                 if not display_sensitive:
                     opt = '< hidden >'
                 if display_source:
-                    opt = (opt, 'bash cmd')
+                    opt = (opt, 'cmd')
+                elif raw:
+                    opt = opt.replace('%', '%%')
                 cfg.setdefault(section, OrderedDict()).update({key: opt})
+                del cfg[section][key + '_cmd']
 
         return cfg
 

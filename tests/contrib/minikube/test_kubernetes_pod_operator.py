@@ -20,6 +20,7 @@ import os
 import shutil
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow import AirflowException
+from kubernetes.client.rest import ApiException
 from subprocess import check_call
 import mock
 import json
@@ -28,12 +29,15 @@ from airflow.contrib.kubernetes.volume_mount import VolumeMount
 from airflow.contrib.kubernetes.volume import Volume
 
 try:
-    check_call(["kubectl", "get", "pods"])
+    check_call(["/usr/local/bin/kubectl", "get", "pods"])
 except Exception as e:
-    raise unittest.SkipTest(
-        "Kubernetes integration tests require a minikube cluster;"
-        "Skipping tests {}".format(e)
-    )
+    if os.environ.get('KUBERNETES_VERSION'):
+        raise e
+    else:
+        raise unittest.SkipTest(
+            "Kubernetes integration tests require a minikube cluster;"
+            "Skipping tests {}".format(e)
+        )
 
 
 class KubernetesPodOperatorTest(unittest.TestCase):
@@ -90,6 +94,34 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task"
+        )
+        k.execute(None)
+
+    @staticmethod
+    def test_delete_operator_pod():
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            is_delete_operator_pod=True
+        )
+        k.execute(None)
+
+    @staticmethod
+    def test_pod_hostnetwork():
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            hostnetwork=True
         )
         k.execute(None)
 
@@ -200,10 +232,24 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             task_id="task",
             startup_timeout_seconds=5
         )
-        with self.assertRaises(AirflowException) as cm:
-            k.execute(None),
+        with self.assertRaises(AirflowException):
+            k.execute(None)
 
-        print("exception: {}".format(cm))
+    def test_faulty_service_account(self):
+        bad_service_account_name = "foobar"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            startup_timeout_seconds=5,
+            service_account_name=bad_service_account_name
+        )
+        with self.assertRaises(ApiException):
+            k.execute(None)
 
     def test_pod_failure(self):
         """

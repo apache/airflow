@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -169,14 +169,18 @@ class TestFilenameRendering(unittest.TestCase):
         self.ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
 
     def test_python_formatting(self):
-        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        expected_filename = \
+            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
+            % DEFAULT_DATE.isoformat()
 
         fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
         rendered_filename = fth._render_filename(self.ti, 42)
         self.assertEqual(expected_filename, rendered_filename)
 
     def test_jinja_rendering(self):
-        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        expected_filename = \
+            'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' \
+            % DEFAULT_DATE.isoformat()
 
         fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
         rendered_filename = fth._render_filename(self.ti, 42)

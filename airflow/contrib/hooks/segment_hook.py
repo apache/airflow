@@ -54,7 +54,7 @@ class SegmentHook(BaseHook, LoggingMixin):
         :type segment_conn_id: str
         :param segment_debug_mode: Determines whether Segment should run in debug mode.
         Defaults to False
-        :type segment_debug_mode: boolean
+        :type segment_debug_mode: bool
         .. note::
             You must include a JSON structure in the `Extras` field.
             We need a user's security token to connect to Segment.

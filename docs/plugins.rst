@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Plugins
 =======
 
@@ -72,10 +89,15 @@ looks like:
         # A list of objects created from a class derived
         # from flask_admin.BaseView
         admin_views = []
-        # A list of Blueprint object created from flask.Blueprint
+        # A list of Blueprint object created from flask.Blueprint. For use with the flask_admin based GUI
         flask_blueprints = []
-        # A list of menu links (flask_admin.base.MenuLink)
+        # A list of menu links (flask_admin.base.MenuLink). For use with the flask_admin based GUI
         menu_links = []
+        # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
+        appbuilder_views = []
+        # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
+        appbuilder_menu_items = []
+
 
 
 You can derive it by inheritance (please refer to the example below).
@@ -87,7 +109,7 @@ you can invoke it using statement like
 
 .. code:: python
 
-    from airflow.{type, like "operators", "sensors"}.{name specificed inside the plugin class} import *
+    from airflow.{type, like "operators", "sensors"}.{name specified inside the plugin class} import *
 
 
 When you write your own plugins, make sure you understand them well.
@@ -159,6 +181,22 @@ definitions in Airflow.
         name='Test Menu Link',
         url='https://airflow.incubator.apache.org/')
 
+    # Creating a flask appbuilder BaseView
+    class TestAppBuilderBaseView(AppBuilderBaseView):
+        @expose("/")
+        def test(self):
+            return self.render("test_plugin/test.html", content="Hello galaxy!")
+    v_appbuilder_view = TestAppBuilderBaseView()
+    v_appbuilder_package = {"name": "Test View",
+                            "category": "Test Plugin",
+                            "view": v_appbuilder_view}
+
+    # Creating a flask appbuilder Menu Item
+    appbuilder_mitem = {"name": "Google",
+                        "category": "Search",
+                        "category_icon": "fa-th",
+                        "href": "https://www.google.com"}
+
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
@@ -170,3 +208,13 @@ definitions in Airflow.
         admin_views = [v]
         flask_blueprints = [bp]
         menu_links = [ml]
+        appbuilder_views = [v_appbuilder_package]
+        appbuilder_menu_items = [appbuilder_mitem]
+
+
+Note on role based views
+------------------------
+
+Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
+rbac = True. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
+the fields appbuilder_views and appbuilder_menu_items were added to the AirflowTestPlugin class.

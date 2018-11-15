@@ -82,13 +82,15 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary environment variables for the pod executor"""
         env = {
             "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
-            "AIRFLOW__CORE__SQL_ALCHEMY_CONN": conf.get("core", "SQL_ALCHEMY_CONN"),
         }
 
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
         if self.kube_config.worker_dags_folder:
             env['AIRFLOW__CORE__DAGS_FOLDER'] = self.kube_config.worker_dags_folder
+        if (not self.kube_config.airflow_configmap and
+                'AIRFLOW__CORE__SQL_ALCHEMY_CONN' not in self.kube_config.kube_secrets):
+            env['AIRFLOW__CORE__SQL_ALCHEMY_CONN'] = conf.get("core", "SQL_ALCHEMY_CONN")
         return env
 
     def _get_secrets(self):
@@ -184,6 +186,8 @@ class WorkerConfiguration(LoggingMixin):
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  airflow_command, kube_executor_config):
         volumes, volume_mounts = self.init_volumes_and_mounts()
+        volumes += kube_executor_config.volumes
+        volume_mounts += kube_executor_config.volume_mounts
         worker_init_container_spec = self._get_init_containers(
             copy.deepcopy(volume_mounts))
         resources = Resources(

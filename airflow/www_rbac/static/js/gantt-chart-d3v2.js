@@ -129,7 +129,7 @@ d3.gantt = function() {
       call_modal(d.taskName, d.executionDate);
     })
     .attr("class", function(d){
-      if(taskStatus[d.status] == null){ return "bar";}
+      if(taskStatus[d.status] == null){ return "null";}
       return taskStatus[d.status];
     })
     .attr("y", 0)

@@ -72,7 +72,7 @@ class TestMarkTasks(unittest.TestCase):
     def snapshot_state(self, dag, execution_dates):
         TI = models.TaskInstance
         tis = self.session.query(TI).filter(
-            TI.dag_id==dag.dag_id,
+            TI.dag_id == dag.dag_id,
             TI.execution_date.in_(execution_dates)
         ).all()
 
@@ -84,7 +84,7 @@ class TestMarkTasks(unittest.TestCase):
         TI = models.TaskInstance
 
         tis = self.session.query(TI).filter(
-            TI.dag_id==dag.dag_id,
+            TI.dag_id == dag.dag_id,
             TI.execution_date.in_(execution_dates)
         ).all()
 
@@ -95,9 +95,8 @@ class TestMarkTasks(unittest.TestCase):
                 self.assertEqual(ti.state, state)
             else:
                 for old_ti in old_tis:
-                    if (old_ti.task_id == ti.task_id
-                            and old_ti.execution_date == ti.execution_date):
-                            self.assertEqual(ti.state, old_ti.state)
+                    if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
+                        self.assertEqual(ti.state, old_ti.state)
 
     def test_mark_tasks_now(self):
         # set one task to success but do not commit
@@ -435,19 +434,19 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_task_instance_states_remain_default(dr)
 
     def test_set_state_with_multiple_dagruns(self):
-        dr1 = self.dag2.create_dagrun(
+        self.dag2.create_dagrun(
             run_id='manual__' + datetime.now().isoformat(),
             state=State.FAILED,
             execution_date=self.execution_dates[0],
             session=self.session
         )
-        dr2 = self.dag2.create_dagrun(
+        self.dag2.create_dagrun(
             run_id='manual__' + datetime.now().isoformat(),
             state=State.FAILED,
             execution_date=self.execution_dates[1],
             session=self.session
         )
-        dr3 = self.dag2.create_dagrun(
+        self.dag2.create_dagrun(
             run_id='manual__' + datetime.now().isoformat(),
             state=State.RUNNING,
             execution_date=self.execution_dates[2],
@@ -468,13 +467,11 @@ class TestMarkDAGRun(unittest.TestCase):
         self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed
-        dr1 = models.DagRun.find(dag_id=self.dag2.dag_id,
-                                 execution_date=self.execution_dates[0])
-        dr1 = dr1[0]
+        models.DagRun.find(dag_id=self.dag2.dag_id,
+                           execution_date=self.execution_dates[0])
         self._verify_dag_run_state(self.dag2, self.execution_dates[0], State.FAILED)
-        dr3 = models.DagRun.find(dag_id=self.dag2.dag_id,
-                                 execution_date=self.execution_dates[2])
-        dr3 = dr3[0]
+        models.DagRun.find(dag_id=self.dag2.dag_id,
+                           execution_date=self.execution_dates[2])
         self._verify_dag_run_state(self.dag2, self.execution_dates[2], State.RUNNING)
 
     def test_set_dag_run_state_edge_cases(self):

@@ -33,14 +33,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
     It requires that the "spark-submit" binary is in the PATH or the spark_home to be
     supplied.
+
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
     :param conn_id: The connection id as configured in Airflow administration. When an
-                    invalid connection_id is supplied, it will default to yarn.
+        invalid connection_id is supplied, it will default to yarn.
     :type conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
-                  comma. Files will be placed in the working directory of each executor.
-                  For example, serialized objects.
+        comma. Files will be placed in the working directory of each executor.
+        For example, serialized objects.
     :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
     :type py_files: str
@@ -51,19 +52,19 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param java_class: the main class of the Java application
     :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the
-    driver and executor classpaths
+        driver and executor classpaths
     :type packages: str
     :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
-    while resolving the dependencies provided in 'packages'
+        while resolving the dependencies provided in 'packages'
     :type exclude_packages: str
     :param repositories: Comma-separated list of additional remote repositories to search
-    for the maven coordinates given with 'packages'
+        for the maven coordinates given with 'packages'
     :type repositories: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
-    (Default: all the available cores on the worker)
+        (Default: all the available cores on the worker)
     :type total_executor_cores: int
     :param executor_cores: (Standalone, YARN and Kubernetes only) Number of cores per
-    executor (Default: 2)
+        executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -80,7 +81,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param application_args: Arguments for the application being submitted
     :type application_args: list
     :param env_vars: Environment variables for spark-submit. It
-                     supports yarn and k8s mode too.
+        supports yarn and k8s mode too.
     :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
