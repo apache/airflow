@@ -921,3 +921,92 @@ See `Google Cloud Sql Proxy documentation
 <https://cloud.google.com/sql/docs/postgres/sql-proxy>`_
 for details about Cloud Sql Proxy.
 
+Google Cloud Storage Operators
+------------------------------
+
+GoogleCloudStorageBucketCreateAclEntryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates a new ACL entry on the specified bucket.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcs_acl.py
+      :language: python
+      :start-after: [START howto_operator_gcs_acl_args_common]
+      :end-before: [END howto_operator_gcs_acl_args_common]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcs_acl.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_gcs_bucket_create_acl_entry_task]
+      :end-before: [END howto_operator_gcs_bucket_create_acl_entry_task]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcs_acl_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcs_bucket_create_acl_template_fields]
+    :end-before: [END gcs_bucket_create_acl_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Storage BucketAccessControls insert documentation
+<https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_
+for details.
+
+GoogleCloudStorageObjectCreateAclEntryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates a new ACL entry on the specified object.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcs_acl.py
+      :language: python
+      :start-after: [START howto_operator_gcs_acl_args_common]
+      :end-before: [END howto_operator_gcs_acl_args_common]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcs_acl.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_gcs_object_create_acl_entry_task]
+      :end-before: [END howto_operator_gcs_object_create_acl_entry_task]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcs_acl_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcs_object_create_acl_template_fields]
+    :end-before: [END gcs_object_create_acl_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Storage ObjectAccessControls insert documentation
+<https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_
+for details.
+

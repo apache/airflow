@@ -568,6 +568,104 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 'Bucket creation failed. Error was: {}'.format(ex.content)
             )
 
+    def insert_bucket_acl(self, bucket, entity, role, user_project):
+        # type: (str, str, str, str) -> None
+        """
+        Creates a new ACL entry on the specified bucket.
+        See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
+
+        :param bucket: Name of a bucket.
+        :type bucket: str
+        :param entity: The entity holding the permission, in one of the following forms:
+        - user-userId
+        - user-email
+        - group-groupId
+        - group-email
+        - domain-domain
+        - project-team-projectId
+        - allUsers
+        - allAuthenticatedUsers
+        :type entity: str
+        :param role: The access permission for the entity.
+            Acceptable values are: "OWNER", "READER", "WRITER".
+        :type role: str
+        :param user_project: (Optional) The project to be billed for this request.
+            Required for Requester Pays buckets.
+        :type user_project: str
+        """
+        self.log.info('Creating a new ACL entry in bucket: %s', bucket)
+        service = self.get_conn()
+        try:
+            response = service.bucketAccessControls().insert(
+                bucket=bucket,
+                body={
+                    "entity": entity,
+                    "role": role
+                },
+                userProject=user_project
+            ).execute()
+            if response:
+                self.log.info('A new ACL entry created in bucket: %s', bucket)
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Bucket ACL entry creation failed. Error was: {}'.format(ex.content)
+            )
+
+    def insert_object_acl(self, bucket, object_name, entity, role, generation,
+                          user_project):
+        # type: (str, str, str, str, str, str) -> None
+        """
+        Creates a new ACL entry on the specified object.
+        See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
+
+        :param bucket: Name of a bucket.
+        :type bucket: str
+        :param object_name: Name of the object. For information about how to URL encode
+            object names to be path safe, see:
+            https://cloud.google.com/storage/docs/json_api/#encoding
+        :type object_name: str
+        :param entity: The entity holding the permission, in one of the following forms:
+            - user-userId
+            - user-email
+            - group-groupId
+            - group-email
+            - domain-domain
+            - project-team-projectId
+            - allUsers
+            - allAuthenticatedUsers
+        :type entity: str
+        :param role: The access permission for the entity.
+            Acceptable values are: "OWNER", "READER".
+        :type role: str
+        :param generation: (Optional) If present, selects a specific revision of this
+            object (as opposed to the latest version, the default).
+        :type generation: str
+        :param user_project: (Optional) The project to be billed for this request.
+            Required for Requester Pays buckets.
+        :type user_project: str
+        """
+        self.log.info('Creating a new ACL entry for object: %s in bucket: %s',
+                      object_name, bucket)
+        service = self.get_conn()
+        try:
+            response = service.objectAccessControls().insert(
+                bucket=bucket,
+                object=object_name,
+                body={
+                    "entity": entity,
+                    "role": role
+                },
+                generation=generation,
+                userProject=user_project
+            ).execute()
+            if response:
+                self.log.info('A new ACL entry created for object: %s in bucket: %s',
+                              object_name, bucket)
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Object ACL entry creation failed. Error was: {}'.format(ex.content)
+            )
+
 
 def _parse_gcs_url(gsurl):
     """
