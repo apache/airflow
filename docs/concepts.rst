@@ -250,8 +250,7 @@ is equivalent to:
 
 .. code:: python
 
-    op1.set_downstream(op2)
-    op1.set_downstream(op3)
+    op1.set_downstream([op2, op3])
 
 Tasks
 =====
