@@ -29,7 +29,7 @@ class GrpcHook(BaseHook):
     :param grpc_conn_id: The connection ID to use when fetching connection info.
     :type grpc_conn_id: str
     :param interceptors: a list of gRPC interceptor objects which would be applied
-        to the connected gRPC channle. None by default.
+        to the connected gRPC channel. None by default.
     :type interceptors: a list of gRPC interceptors based on or extends the four
         official gRPC interceptors, eg, UnaryUnaryClientInterceptor, UnaryStreamClientInterceptor,
         StreamUnaryClientInterceptor, StreamStreamClientInterceptor.
@@ -46,15 +46,10 @@ class GrpcHook(BaseHook):
         self.custom_connection_func = custom_connection_func
 
     def get_conn(self):
-        if "://" in self.conn.host:
-            base_url = self.conn.host
-        else:
-            # schema defaults to HTTP
-            schema = self.conn.schema if self.conn.schema else "http"
-            base_url = schema + "://" + self.conn.host
+        base_url = self.conn.host
 
         if self.conn.port:
-            base_url = base_url + ":" + str(self.conn.port) + "/"
+            base_url = base_url + ":" + str(self.conn.port)
 
         auth_type = self._get_field("auth_type")
 
@@ -81,6 +76,10 @@ class GrpcHook(BaseHook):
                 raise AirflowConfigException(
                     "Customized connection function not set, not able to establish a channel")
             channel = self.custom_connection_func(self.conn)
+        else:
+            raise AirflowConfigException(
+                "auth_type not supported or not provided, channel cannot be established,\
+                given value: %s" % str(auth_type))
 
         if self.interceptors:
             for interceptor in self.interceptors:
@@ -93,16 +92,19 @@ class GrpcHook(BaseHook):
         with self.get_conn() as channel:
             stub = stub_class(channel)
             try:
-                response = stub.call_func(**data)
+                rpc_func = getattr(stub, call_func)
+                response = rpc_func(**data)
                 if not streaming:
-                    return response
-
-                for single_response in response:
-                    yield single_response
-            except grpc.FutureTimeoutError:
+                    yield response
+                else:
+                    for single_response in response:
+                        yield single_response
+            except grpc.RpcError as ex:
                 self.log.exception(
-                    "Timeout when calling the grpc service: %s, method: %s" %
-                    (stub_class.__name__, call_func.__name__))
+                    "Error occured when calling the grpc service: {0}, method: {1} \
+                    status code: {2}, error details: {3}"
+                    .format(stub.__class__.__name__, call_func, ex.code(), ex.details()))
+                raise ex
 
     def _get_field(self, field_name, default=None):
         """
