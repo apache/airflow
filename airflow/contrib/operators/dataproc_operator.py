@@ -398,9 +398,8 @@ class DataprocClusterCreateOperator(BaseOperator):
             cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] =\
                 self.service_account_scopes
         if self.customer_managed_key:
-            cluster_data['config']['encryptionConfig'] = {
-                'gcePdKmsKeyName': self.customer_managed_key
-                }
+            cluster_data['config']['encryptionConfig'] =\
+                {'gcePdKmsKeyName': self.customer_managed_key}
         return cluster_data
 
     def execute(self, context):
