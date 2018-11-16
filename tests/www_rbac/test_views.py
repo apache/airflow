@@ -454,7 +454,8 @@ class TestConfigurationView(TestBase):
         conf.set("webserver", "expose_config", "False")
         resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
-            ['Airflow Configuration', 'Running Configuration'], resp)
+            ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
+                                      'most likely for security reasons.'], resp)
 
     def test_configuration_expose_config(self):
         self.logout()
@@ -462,8 +463,7 @@ class TestConfigurationView(TestBase):
         conf.set("webserver", "expose_config", "True")
         resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
-            ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
-                                      'most likely for security reasons.'], resp)
+            ['Airflow Configuration', 'Running Configuration'], resp)
 
 
 class TestLogView(TestBase):
