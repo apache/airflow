@@ -54,6 +54,10 @@ class Pod:
     :type result: any
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
+    :param image_pull_secrets: Any image pull secrets to be given to the pod.
+                               If more than one secret is required, provide a
+                               comma separated list: secret_a,secret_b
+    :type image_pull_secrets: str
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
     """
