@@ -238,6 +238,7 @@ AWS S3
 - :ref:`S3FileTransformOperator` : Copies data from a source S3 location to a temporary location on the local filesystem.
 - :ref:`S3ListOperator` : Lists the files matching a key prefix from a S3 location.
 - :ref:`S3ToGoogleCloudStorageOperator` : Syncs an S3 location with a Google Cloud Storage bucket.
+- :ref:`S3ToGoogleCloudStorageTransferOperator` : Syncs an S3 bucket with a Google Cloud Storage bucket using the GCP Storage Transfer Service.
 - :ref:`S3ToHiveTransfer` : Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
 
 .. _S3Hook:
@@ -267,6 +268,13 @@ S3ToGoogleCloudStorageOperator
 """"""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
+
+.. _S3ToGoogleCloudStorageTransferOperator:
+
+S3ToGoogleCloudStorageTransferOperator
+""""""""""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageTransferOperator
 
 .. _S3ToHiveTransfer:
 
@@ -1041,6 +1049,12 @@ GoogleCloudStorageHook
 """"""""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+    :members:
+
+GCPTransferServiceHook
+""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
     :members:
 
 Google Kubernetes Engine
