@@ -84,6 +84,29 @@ class KubernetesPodOperatorTest(unittest.TestCase):
                                        cluster_context='default',
                                        config_file=file_path)
 
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_image_pull_secrets_correctly_set(self, client_mock, launcher_mock):
+        from airflow.utils.state import State
+
+        fake_pull_secrets = "fakeSecret"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            image_pull_secrets=fake_pull_secrets,
+            in_cluster=False,
+            cluster_context='default'
+        )
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        self.assertEqual(launcher_mock.call_args[0][0].image_pull_secrets,
+                         fake_pull_secrets)
+
     @staticmethod
     def test_working_pod():
         k = KubernetesPodOperator(
