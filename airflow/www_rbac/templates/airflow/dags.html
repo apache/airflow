@@ -216,9 +216,9 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=False">Hide Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=False, search=request.args.get('search', None)) }}">Hide Paused DAGs</a>
     {% else %}
-    <a href="{{ url_for('Airflow.index') }}?showPaused=True">Show Paused DAGs</a>
+    <a href="{{ url_for('Airflow.index', showPaused=True, search=request.args.get('search', None)) }}">Show Paused DAGs</a>
     {% endif %}
   </div>
 {% endblock %}
@@ -235,11 +235,32 @@
       const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
       const ENTER_KEY_CODE = 13;
 
+      function createOrAppendToQueryString(parameter, value) {
+        var query_string_parameters = {};
+        if (typeof window.location.search !== "undefined") {
+          window.location.search.substr(1).split('&').forEach(function (query_string_parameter) {
+            query_string_parameter_delimeted = query_string_parameter.split('=');
+            query_string_key = query_string_parameter_delimeted.shift();
+            query_string_value = query_string_parameter_delimeted.join('=');
+            query_string_parameters[query_string_key] = query_string_value
+          });
+        }
+        if (window.location.search == "") {
+          query_string_parameters = {};
+        }
+        query_string_parameters[parameter] = encodeURI(value);
+        var query_string = Object.keys(query_string_parameters).map(function(key) {
+          return key + "=" + query_string_parameters[key];
+        }).join("&");
+        return query_string
+      }
+
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
         if (e.which === ENTER_KEY_CODE) {
           search_query = $('#dag_query').val();
-          window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+          var query_string = createOrAppendToQueryString("search", encodeURI(search_query));
+          window.location = DAGS_INDEX + "?" + query_string;
           e.preventDefault();
         }
       });
@@ -285,7 +306,8 @@
         afterSelect: function(value) {
           search_query = value.trim()
           if (search_query) {
-            window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+            var query_string = createOrAppendToQueryString("search", encodeURI(search_query));
+            window.location = DAGS_INDEX + "?" + query_string;
           }
         }
       });
