@@ -272,7 +272,7 @@ S3ToGoogleCloudStorageOperator
 .. _S3ToGoogleCloudStorageTransferOperator:
 
 S3ToGoogleCloudStorageTransferOperator
-""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageTransferOperator
 
