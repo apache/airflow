@@ -35,7 +35,7 @@ class TestRedisHook(unittest.TestCase):
         self.assertEqual(
             repr(hook.get_conn()),
             (
-                'Redis<ConnectionPool'
+                'StrictRedis<ConnectionPool'
                 '<Connection<host=localhost,port=6379,db=0>>>'
             )
         )
