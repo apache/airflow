@@ -52,6 +52,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           DagFileProcessorAgent,
                                           SimpleDag,
                                           SimpleDagBag,
+                                          SimpleTaskInstance,
                                           list_py_file_paths)
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.email import get_email_address_list, send_email
@@ -598,6 +599,7 @@ class SchedulerJob(BaseJob):
                                             'run_duration')
 
         self.processor_agent = None
+        self._last_loop = False
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
@@ -1228,13 +1230,13 @@ class SchedulerJob(BaseJob):
                                                     acceptable_states, session=None):
         """
         Changes the state of task instances in the list with one of the given states
-        to QUEUED atomically, and returns the TIs changed.
+        to QUEUED atomically, and returns the TIs changed in SimpleTaskInstance format.
 
         :param task_instances: TaskInstances to change the state of
         :type task_instances: List[TaskInstance]
         :param acceptable_states: Filters the TaskInstances updated to be in these states
         :type acceptable_states: Iterable[State]
-        :return: List[TaskInstance]
+        :return: List[SimpleTaskInstance]
         """
         if len(task_instances) == 0:
             session.commit()
@@ -1276,81 +1278,57 @@ class SchedulerJob(BaseJob):
                                          else task_instance.queued_dttm)
             session.merge(task_instance)
 
-        # save which TIs we set before session expires them
-        filter_for_ti_enqueue = ([and_(TI.dag_id == ti.dag_id,
-                                  TI.task_id == ti.task_id,
-                                  TI.execution_date == ti.execution_date)
-                                  for ti in tis_to_set_to_queued])
+        # Generate a list of SimpleTaskInstance for the use of queuing
+        # them in the executor.
+        simple_task_instances = [SimpleTaskInstance(ti) for ti in
+                                 tis_to_set_to_queued]
+
+        task_instance_str = "\n\t".join(
+            ["{}".format(x) for x in tis_to_set_to_queued])
+
         session.commit()
+        self.log.info("Setting the following {} tasks to queued state:\n\t{}"
+                      .format(len(tis_to_set_to_queued), task_instance_str))
+        return simple_task_instances
 
-        # requery in batches since above was expired by commit
-
-        def query(result, items):
-            tis_to_be_queued = (
-                session
-                .query(TI)
-                .filter(or_(*items))
-                .all())
-            task_instance_str = "\n\t".join(
-                ["{}".format(x) for x in tis_to_be_queued])
-            self.log.info("Setting the following {} tasks to queued state:\n\t{}"
-                          .format(len(tis_to_be_queued),
-                                  task_instance_str))
-            return result + tis_to_be_queued
-
-        tis_to_be_queued = helpers.reduce_in_chunks(query,
-                                                    filter_for_ti_enqueue,
-                                                    [],
-                                                    self.max_tis_per_query)
-
-        return tis_to_be_queued
-
-    def _enqueue_task_instances_with_queued_state(self, simple_dag_bag, task_instances):
+    def _enqueue_task_instances_with_queued_state(self, simple_dag_bag,
+                                                  simple_task_instances):
         """
         Takes task_instances, which should have been set to queued, and enqueues them
         with the executor.
 
-        :param task_instances: TaskInstances to enqueue
-        :type task_instances: List[TaskInstance]
+        :param simple_task_instances: TaskInstances to enqueue
+        :type simple_task_instances: List[SimpleTaskInstance]
         :param simple_dag_bag: Should contains all of the task_instances' dags
         :type simple_dag_bag: SimpleDagBag
         """
         TI = models.TaskInstance
         # actually enqueue them
-        for task_instance in task_instances:
-            simple_dag = simple_dag_bag.get_dag(task_instance.dag_id)
+        for simple_task_instance in simple_task_instances:
+            simple_dag = simple_dag_bag.get_dag(simple_task_instance.dag_id)
             command = TI.generate_command(
-                task_instance.dag_id,
-                task_instance.task_id,
-                task_instance.execution_date,
+                simple_task_instance.dag_id,
+                simple_task_instance.task_id,
+                simple_task_instance.execution_date,
                 local=True,
                 mark_success=False,
                 ignore_all_deps=False,
                 ignore_depends_on_past=False,
                 ignore_task_deps=False,
                 ignore_ti_state=False,
-                pool=task_instance.pool,
+                pool=simple_task_instance.pool,
                 file_path=simple_dag.full_filepath,
                 pickle_id=simple_dag.pickle_id)
 
-            priority = task_instance.priority_weight
-            queue = task_instance.queue
+            priority = simple_task_instance.priority_weight
+            queue = simple_task_instance.queue
             self.log.info(
                 "Sending %s to executor with priority %s and queue %s",
-                task_instance.key, priority, queue
+                simple_task_instance.key, priority, queue
             )
 
-            # save attributes so sqlalchemy doesnt expire them
-            copy_dag_id = task_instance.dag_id
-            copy_task_id = task_instance.task_id
-            copy_execution_date = task_instance.execution_date
-            make_transient(task_instance)
-            task_instance.dag_id = copy_dag_id
-            task_instance.task_id = copy_task_id
-            task_instance.execution_date = copy_execution_date
-
             self.executor.queue_command(
-                task_instance,
+                simple_task_instance,
                 command,
                 priority=priority,
                 queue=queue)
@@ -1374,23 +1352,64 @@ class SchedulerJob(BaseJob):
         :type simple_dag_bag: SimpleDagBag
         :param states: Execute TaskInstances in these states
         :type states: Tuple[State]
-        :return: None
+        :return: Number of task instance with state changed.
         """
         executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
                                                               session=session)
 
         def query(result, items):
-            tis_with_state_changed = self._change_state_for_executable_task_instances(
-                items,
-                states,
-                session=session)
+            simple_tis_with_state_changed = \
+                self._change_state_for_executable_task_instances(items,
+                                                                 states,
+                                                                 session=session)
             self._enqueue_task_instances_with_queued_state(
                 simple_dag_bag,
-                tis_with_state_changed)
+                simple_tis_with_state_changed)
             session.commit()
-            return result + len(tis_with_state_changed)
+            return result + len(simple_tis_with_state_changed)
 
         return helpers.reduce_in_chunks(query, executable_tis, 0, self.max_tis_per_query)
+
+    @provide_session
+    def _change_state_for_tasks_failed_to_execute(self, session):
+        """
+        If there are tasks left over in the executor,
+        we set them back to SCHEDULED to avoid creating hanging tasks.
+
+        :param session: session for ORM operations
+        """
+        if self.executor.queued_tasks:
+            TI = models.TaskInstance
+            filter_for_ti_state_change = (
+                [and_(
+                    TI.dag_id == dag_id,
+                    TI.task_id == task_id,
+                    TI.execution_date == execution_date,
+                    # The TI.try_number will return raw try_number+1 since the
+                    # ti is not running. And we need to -1 to match the DB record.
+                    TI._try_number == try_number - 1,
+                    TI.state == State.QUEUED)
+                    for dag_id, task_id, execution_date, try_number
+                    in self.executor.queued_tasks.keys()])
+            ti_query = (session.query(TI)
+                        .filter(or_(*filter_for_ti_state_change)))
+            tis_to_set_to_scheduled = (ti_query
+                                       .with_for_update()
+                                       .all())
+            if len(tis_to_set_to_scheduled) == 0:
+                session.commit()
+                return
+
+            # set TIs to queued state
+            for task_instance in tis_to_set_to_scheduled:
+                task_instance.state = State.SCHEDULED
+
+            task_instance_str = "\n\t".join(
+                ["{}".format(x) for x in tis_to_set_to_scheduled])
+
+            session.commit()
+            self.log.info("Set the follow tasks to scheduled state:\n\t{}"
+                          .format(task_instance_str))
 
     def _process_dags(self, dagbag, dags, tis_out):
         """
@@ -1507,6 +1526,8 @@ class SchedulerJob(BaseJob):
 
         try:
             self._execute_helper()
+        except Exception:
+            self.log.exception("Exception when executing execute_helper")
         finally:
             self.processor_agent.end()
             self.log.info("Exited execute loop")
@@ -1557,6 +1578,7 @@ class SchedulerJob(BaseJob):
 
             self.log.info("Harvesting DAG parsing results")
             simple_dags = self.processor_agent.harvest_simple_dags()
+            self.log.debug("Harvested {} SimpleDAGs".format(len(simple_dags)))
 
             # Send tasks for execution if available
             simple_dag_bag = SimpleDagBag(simple_dags)
@@ -1593,6 +1615,8 @@ class SchedulerJob(BaseJob):
             self.log.debug("Heartbeating the executor")
             self.executor.heartbeat()
 
+            self._change_state_for_tasks_failed_to_execute()
+
             # Process events from the executor
             self._process_executor_events(simple_dag_bag)
 
@@ -1612,8 +1636,13 @@ class SchedulerJob(BaseJob):
             self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
             time.sleep(self._processor_poll_interval)
 
-            # Exit early for a test mode
+            # Exit early for a test mode, run one additional scheduler loop
+            # to reduce the possibility that parsed DAG was put into the queue
+            # by the DAG manager but not yet received by DAG agent.
             if self.processor_agent.done:
+                self._last_loop = True
+
+            if self._last_loop:
                 self.log.info("Exiting scheduler loop as all files"
                               " have been processed {} times".format(self.num_runs))
                 break
