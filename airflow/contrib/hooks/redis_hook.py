@@ -20,7 +20,7 @@
 """
 RedisHook module
 """
-from redis import Redis
+from redis import StrictRedis
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -69,7 +69,7 @@ class RedisHook(BaseHook, LoggingMixin):
                 self.redis_conn_id, self.host, self.port, self.db
             )
             try:
-                self.client = Redis(
+                self.client = StrictRedis(
                     host=self.host,
                     port=self.port,
                     password=self.password,
