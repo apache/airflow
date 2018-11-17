@@ -24,6 +24,14 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### RedisPy dependency updated to v3 series
+
+If you are using the Redis Sensor or Hook you may have to update your code. See
+[redis-py porting instructions] to check if your code might be affected (MSET,
+MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
+
+[redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
+
 ### New `dag_discovery_safe_mode` config option
 
 If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
