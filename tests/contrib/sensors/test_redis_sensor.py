@@ -55,7 +55,7 @@ class TestRedisSensor(unittest.TestCase):
         key_exists.return_value = False
         self.assertFalse(self.sensor.poke(None))
 
-    @patch("airflow.contrib.hooks.redis_hook.Redis.exists")
+    @patch("airflow.contrib.hooks.redis_hook.StrictRedis.exists")
     def test_existing_key_called(self, redis_client_exists):
         self.sensor.run(
             start_date=DEFAULT_DATE,
