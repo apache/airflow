@@ -294,6 +294,56 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_insert_all_succeed(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        rows = [
+            {"json": {"a_key": "a_value_0"}}
+        ]
+        body = {
+            "rows": rows,
+            "ignoreUnknownValues": False,
+            "kind": "bigquery#tableDataInsertAllRequest",
+            "skipInvalidRows": False,
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tabledata.return_value.insertAll)
+        method.return_value.execute.return_value = {
+            "kind": "bigquery#tableDataInsertAllResponse"
+        }
+        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        cursor.insert_all(project_id, dataset_id, table_id, rows)
+        method.assert_called_with(projectId=project_id, datasetId=dataset_id,
+                                  tableId=table_id, body=body)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_insert_all_fail(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        rows = [
+            {"json": {"a_key": "a_value_0"}}
+        ]
+
+        mock_service = mock.Mock()
+        method = (mock_service.tabledata.return_value.insertAll)
+        method.return_value.execute.return_value = {
+            "kind": "bigquery#tableDataInsertAllResponse",
+            "insertErrors": [
+                {
+                    "index": 1,
+                    "errors": []
+                }
+            ]
+        }
+        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        with self.assertRaises(Exception):
+            cursor.insert_all(project_id, dataset_id, table_id,
+                              rows, fail_on_error=True)
+
 
 class TestBigQueryCursor(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
