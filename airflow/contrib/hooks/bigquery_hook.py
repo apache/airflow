@@ -1516,6 +1516,79 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
+    def insert_all(self, project_id, dataset_id, table_id,
+                   rows, ignore_unknown_values=False,
+                   skip_invalid_rows=False, fail_on_error=False):
+        """
+        Method to stream data into BigQuery one record at a time without needing
+        to run a load job
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+
+        :param project_id: The name of the project where we have the table
+        :type project_id: str
+        :param dataset_id: The name of the dataset where we have the table
+        :type dataset_id: str
+        :param table_id: The name of the table
+        :type table_id: str
+        :param rows: the rows to insert
+        :type rows: list
+
+        **Example or rows**:
+            rows=[{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
+
+        :param ignore_unknown_values: [Optional] Accept rows that contain values
+            that do not match the schema. The unknown values are ignored.
+            The default value  is false, which treats unknown values as errors.
+        :type ignore_unknown_values: bool
+        :param skip_invalid_rows: [Optional] Insert all valid rows of a request,
+            even if invalid rows exist. The default value is false, which causes
+            the entire request to fail if any invalid rows exist.
+        :type skip_invalid_rows: bool
+        :param fail_on_error: [Optional] Force the task to fail if any errors occur.
+            The default value is false, which indicates the task should not fail
+            even if any insertion errors occur.
+        :type fail_on_error: bool
+        """
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        body = {
+            "rows": rows,
+            "ignoreUnknownValues": ignore_unknown_values,
+            "kind": "bigquery#tableDataInsertAllRequest",
+            "skipInvalidRows": skip_invalid_rows,
+        }
+
+        try:
+            self.log.info('Inserting {} row(s) into Table {}:{}.{}'.format(
+                len(rows), dataset_project_id,
+                dataset_id, table_id))
+
+            resp = self.service.tabledata().insertAll(
+                projectId=dataset_project_id, datasetId=dataset_id,
+                tableId=table_id, body=body
+            ).execute()
+
+            if 'insertErrors' not in resp:
+                self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
+                    dataset_project_id, dataset_id, table_id))
+            else:
+                error_msg = '{} insert error(s) occured: {}:{}.{}. Details: {}'.format(
+                    len(resp['insertErrors']),
+                    dataset_project_id, dataset_id, table_id, resp['insertErrors'])
+                if fail_on_error:
+                    raise AirflowException(
+                        'BigQuery job failed. Error was: {}'.format(error_msg)
+                    )
+                self.log.info(error_msg)
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
