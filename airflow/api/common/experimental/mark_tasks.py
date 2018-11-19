@@ -1,26 +1,32 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
-import datetime
+from sqlalchemy import or_
 
 from airflow.jobs import BackfillJob
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.settings import Session
+from airflow.utils import timezone
+from airflow.utils.db import provide_session
 from airflow.utils.state import State
 
-from sqlalchemy import or_
 
 def _create_dagruns(dag, execution_dates, state, run_id_template):
     """
@@ -39,7 +45,7 @@ def _create_dagruns(dag, execution_dates, state, run_id_template):
         dr = dag.create_dagrun(
             run_id=run_id_template.format(date.isoformat()),
             execution_date=date,
-            start_date=datetime.datetime.utcnow(),
+            start_date=timezone.utcnow(),
             external_trigger=False,
             state=state,
         )
@@ -67,7 +73,7 @@ def set_state(task, execution_date, upstream=False, downstream=False,
     :param commit: Commit tasks to be altered to the database
     :return: list of tasks that have been created and updated
     """
-    assert isinstance(execution_date, datetime.datetime)
+    assert timezone.is_localized(execution_date)
 
     # microseconds are supported by the database, but is not handled
     # correctly by airflow on e.g. the filesystem and in other places
@@ -152,7 +158,7 @@ def set_state(task, execution_date, upstream=False, downstream=False,
 
     # get all tasks of the main dag that will be affected by a state change
     qry_dag = session.query(TI).filter(
-        TI.dag_id==dag.dag_id,
+        TI.dag_id == dag.dag_id,
         TI.execution_date.in_(confirmed_dates),
         TI.task_id.in_(task_ids)).filter(
         or_(TI.state.is_(None),
@@ -185,15 +191,41 @@ def set_state(task, execution_date, upstream=False, downstream=False,
 
     return tis_altered
 
-def set_dag_run_state(dag, execution_date, state=State.SUCCESS, commit=False):
+
+def _set_dag_run_state(dag_id, execution_date, state, session=None):
     """
-    Set the state of a dag run and all task instances associated with the dag
-    run for a specific execution date.
+    Helper method that set dag run state in the DB.
+    :param dag_id: dag_id of target dag run
+    :param execution_date: the execution date from which to start looking
+    :param state: target state
+    :param session: database session
+    """
+    DR = DagRun
+    dr = session.query(DR).filter(
+        DR.dag_id == dag_id,
+        DR.execution_date == execution_date
+    ).one()
+    dr.state = state
+    if state == State.RUNNING:
+        dr.start_date = timezone.utcnow()
+        dr.end_date = None
+    else:
+        dr.end_date = timezone.utcnow()
+    session.commit()
+
+
+@provide_session
+def set_dag_run_state_to_success(dag, execution_date, commit=False,
+                                 session=None):
+    """
+    Set the dag run for a specific execution date and its task instances
+    to success.
     :param dag: the DAG of which to alter state
     :param execution_date: the execution date from which to start looking
-    :param state: the state to which the DAG need to be set
     :param commit: commit DAG and tasks to be altered to the database
-    :return: list of tasks that have been created and updated
+    :param session: database session
+    :return: If commit is true, list of tasks that have been updated,
+             otherwise list of tasks that will be updated
     :raises: AssertionError if dag or execution_date is invalid
     """
     res = []
@@ -201,18 +233,81 @@ def set_dag_run_state(dag, execution_date, state=State.SUCCESS, commit=False):
     if not dag or not execution_date:
         return res
 
-    # Mark all task instances in the dag run
+    # Mark the dag run to success.
+    if commit:
+        _set_dag_run_state(dag.dag_id, execution_date, State.SUCCESS, session)
+
+    # Mark all task instances of the dag run to success.
     for task in dag.tasks:
         task.dag = dag
         new_state = set_state(task=task, execution_date=execution_date,
-                              state=state, commit=commit)
+                              state=State.SUCCESS, commit=commit)
         res.extend(new_state)
 
-    # Mark the dag run
-    if commit:
-        drs = DagRun.find(dag.dag_id, execution_date=execution_date)
-        for dr in drs:
-            dr.dag = dag
-            dr.update_state()
+    return res
 
+
+@provide_session
+def set_dag_run_state_to_failed(dag, execution_date, commit=False,
+                                session=None):
+    """
+    Set the dag run for a specific execution date and its running task instances
+    to failed.
+    :param dag: the DAG of which to alter state
+    :param execution_date: the execution date from which to start looking
+    :param commit: commit DAG and tasks to be altered to the database
+    :param session: database session
+    :return: If commit is true, list of tasks that have been updated,
+             otherwise list of tasks that will be updated
+    :raises: AssertionError if dag or execution_date is invalid
+    """
+    res = []
+
+    if not dag or not execution_date:
+        return res
+
+    # Mark the dag run to failed.
+    if commit:
+        _set_dag_run_state(dag.dag_id, execution_date, State.FAILED, session)
+
+    # Mark only RUNNING task instances.
+    TI = TaskInstance
+    task_ids = [task.task_id for task in dag.tasks]
+    tis = session.query(TI).filter(
+        TI.dag_id == dag.dag_id,
+        TI.execution_date == execution_date,
+        TI.task_id.in_(task_ids)).filter(TI.state == State.RUNNING)
+    task_ids_of_running_tis = [ti.task_id for ti in tis]
+    for task in dag.tasks:
+        if task.task_id not in task_ids_of_running_tis:
+            continue
+        task.dag = dag
+        new_state = set_state(task=task, execution_date=execution_date,
+                              state=State.FAILED, commit=commit)
+        res.extend(new_state)
+
+    return res
+
+
+@provide_session
+def set_dag_run_state_to_running(dag, execution_date, commit=False,
+                                 session=None):
+    """
+    Set the dag run for a specific execution date to running.
+    :param dag: the DAG of which to alter state
+    :param execution_date: the execution date from which to start looking
+    :param commit: commit DAG and tasks to be altered to the database
+    :param session: database session
+    :return: If commit is true, list of tasks that have been updated,
+             otherwise list of tasks that will be updated
+    """
+    res = []
+    if not dag or not execution_date:
+        return res
+
+    # Mark the dag run to running.
+    if commit:
+        _set_dag_run_state(dag.dag_id, execution_date, State.RUNNING, session)
+
+    # To keep the return type consistent with the other similar functions.
     return res

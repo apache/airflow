@@ -18,20 +18,8 @@
 
 import re
 import socket
-import airflow.configuration as conf
 
-# Pattern to replace with hostname
-HOSTNAME_PATTERN = '_HOST'
-
-
-def get_kerberos_principal(principal, host):
-    components = get_components(principal)
-    if not components or len(components) != 3 or components[1] != HOSTNAME_PATTERN:
-        return principal
-    else:
-        if not host:
-            raise IOError("Can't replace %s pattern since host is null." % HOSTNAME_PATTERN)
-        return replace_hostname_pattern(components, host)
+from airflow.utils.net import get_hostname
 
 
 def get_components(principal):
@@ -48,12 +36,8 @@ def get_components(principal):
 def replace_hostname_pattern(components, host=None):
     fqdn = host
     if not fqdn or fqdn == '0.0.0.0':
-        fqdn = get_localhost_name()
+        fqdn = get_hostname()
     return '%s/%s@%s' % (components[0], fqdn.lower(), components[2])
-
-
-def get_localhost_name():
-    return socket.getfqdn()
 
 
 def get_fqdn(hostname_or_ip=None):
@@ -61,20 +45,18 @@ def get_fqdn(hostname_or_ip=None):
     try:
         if hostname_or_ip:
             fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
+            if fqdn == 'localhost':
+                fqdn = get_hostname()
         else:
-            fqdn = get_localhost_name()
+            fqdn = get_hostname()
     except IOError:
         fqdn = hostname_or_ip
-
-    if fqdn == 'localhost':
-        fqdn = get_localhost_name()
 
     return fqdn
 
 
-def principal_from_username(username):
-    realm = conf.get("security", "default_realm")
-    if '@' not in username and realm:
+def principal_from_username(username, realm):
+    if ('@' not in username) and realm:
         username = "{}@{}".format(username, realm)
 
     return username

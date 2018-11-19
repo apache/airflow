@@ -1,26 +1,31 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 """
 ### Example HTTP operator and sensor
 """
+import json
+from datetime import timedelta
+
 import airflow
 from airflow import DAG
 from airflow.operators.http_operator import SimpleHttpOperator
-from airflow.operators.sensors import HttpSensor
-from datetime import timedelta
-import json
-
+from airflow.sensors.http_sensor import HttpSensor
 
 default_args = {
     'owner': 'airflow',
@@ -44,14 +49,16 @@ t1 = SimpleHttpOperator(
     data=json.dumps({"priority": 5}),
     headers={"Content-Type": "application/json"},
     response_check=lambda response: True if len(response.json()) == 0 else False,
-    dag=dag)
+    dag=dag,
+)
 
 t5 = SimpleHttpOperator(
     task_id='post_op_formenc',
     endpoint='nodes/url',
     data="name=Joe",
     headers={"Content-Type": "application/x-www-form-urlencoded"},
-    dag=dag)
+    dag=dag,
+)
 
 t2 = SimpleHttpOperator(
     task_id='get_op',
@@ -59,7 +66,8 @@ t2 = SimpleHttpOperator(
     endpoint='api/v1.0/nodes',
     data={"param1": "value1", "param2": "value2"},
     headers={},
-    dag=dag)
+    dag=dag,
+)
 
 t3 = SimpleHttpOperator(
     task_id='put_op',
@@ -67,7 +75,8 @@ t3 = SimpleHttpOperator(
     endpoint='api/v1.0/nodes',
     data=json.dumps({"priority": 5}),
     headers={"Content-Type": "application/json"},
-    dag=dag)
+    dag=dag,
+)
 
 t4 = SimpleHttpOperator(
     task_id='del_op',
@@ -75,7 +84,8 @@ t4 = SimpleHttpOperator(
     endpoint='api/v1.0/nodes',
     data="some=data",
     headers={"Content-Type": "application/x-www-form-urlencoded"},
-    dag=dag)
+    dag=dag,
+)
 
 sensor = HttpSensor(
     task_id='http_sensor_check',
@@ -84,10 +94,7 @@ sensor = HttpSensor(
     request_params={},
     response_check=lambda response: True if "Google" in response.content else False,
     poke_interval=5,
-    dag=dag)
+    dag=dag,
+)
 
-t1.set_upstream(sensor)
-t2.set_upstream(t1)
-t3.set_upstream(t2)
-t4.set_upstream(t3)
-t5.set_upstream(t4)
+sensor >> t1 >> t2 >> t3 >> t4 >> t5

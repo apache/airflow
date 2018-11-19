@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from jira import JIRA
 from jira.exceptions import JIRAError
 
@@ -24,12 +29,14 @@ class JiraHook(BaseHook, LoggingMixin):
     Jira interaction hook, a Wrapper around JIRA Python SDK.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: string
+    :type jira_conn_id: str
     """
     def __init__(self,
-                 jira_conn_id='jira_default'):
+                 jira_conn_id='jira_default',
+                 proxies=None):
         super(JiraHook, self).__init__(jira_conn_id)
         self.jira_conn_id = jira_conn_id
+        self.proxies = proxies
         self.client = None
         self.get_conn()
 
@@ -68,7 +75,8 @@ class JiraHook(BaseHook, LoggingMixin):
                                        options=extra_options,
                                        basic_auth=(conn.login, conn.password),
                                        get_server_info=get_server_info,
-                                       validate=validate)
+                                       validate=validate,
+                                       proxies=self.proxies)
                 except JIRAError as jira_error:
                     raise AirflowException('Failed to create jira client, jira error: %s'
                                            % str(jira_error))

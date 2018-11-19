@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import json
-import logging
 
 from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 from airflow.hooks.hive_hooks import HiveServer2Hook
@@ -27,7 +31,7 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
     into memory before being pushed to DynamoDB, so this operator should
     be used for smallish amount of data.
 
-    :param sql: SQL query to execute against the hive database
+    :param sql: SQL query to execute against the hive database. (templated)
     :type sql: str
     :param table_name: target DynamoDB table
     :type table_name: str
@@ -82,20 +86,24 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
-        logging.info('Extracting data from Hive')
-        logging.info(self.sql)
+        self.log.info('Extracting data from Hive')
+        self.log.info(self.sql)
 
         data = hive.get_pandas_df(self.sql, schema=self.schema)
         dynamodb = AwsDynamoDBHook(aws_conn_id=self.aws_conn_id,
-                                   table_name=self.table_name, table_keys=self.table_keys, region_name=self.region_name)
+                                   table_name=self.table_name,
+                                   table_keys=self.table_keys,
+                                   region_name=self.region_name)
 
-        logging.info('Inserting rows into dynamodb')
+        self.log.info('Inserting rows into dynamodb')
 
         if self.pre_process is None:
             dynamodb.write_batch_data(
                 json.loads(data.to_json(orient='records')))
         else:
             dynamodb.write_batch_data(
-                self.pre_process(data=data, args=self.pre_process_args, kwargs=self.pre_process_kwargs))
+                self.pre_process(data=data,
+                                 args=self.pre_process_args,
+                                 kwargs=self.pre_process_kwargs))
 
-        logging.info('Done.')
+        self.log.info('Done.')

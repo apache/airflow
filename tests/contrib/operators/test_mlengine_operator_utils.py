@@ -26,15 +26,16 @@ from airflow import configuration, DAG
 from airflow.contrib.operators import mlengine_operator_utils
 from airflow.contrib.operators.mlengine_operator_utils import create_evaluate_ops
 from airflow.exceptions import AirflowException
+from airflow.version import version
 
 from mock import ANY
 from mock import patch
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
+TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
 
 
 class CreateEvaluateOpsTest(unittest.TestCase):
-
     INPUT_MISSING_ORIGIN = {
         'dataFormat': 'TEXT',
         'inputPaths': ['gs://legal-bucket/fake-input-path/*'],
@@ -87,7 +88,6 @@ class CreateEvaluateOpsTest(unittest.TestCase):
 
         with patch('airflow.contrib.operators.mlengine_operator.'
                    'MLEngineHook') as mock_mlengine_hook:
-
             success_message = self.SUCCESS_MESSAGE_MISSING_INPUT.copy()
             success_message['predictionInput'] = input_with_model
             hook_instance = mock_mlengine_hook.return_value
@@ -105,16 +105,16 @@ class CreateEvaluateOpsTest(unittest.TestCase):
 
         with patch('airflow.contrib.operators.dataflow_operator.'
                    'DataFlowHook') as mock_dataflow_hook:
-
             hook_instance = mock_dataflow_hook.return_value
             hook_instance.start_python_dataflow.return_value = None
             summary.execute(None)
             mock_dataflow_hook.assert_called_with(
                 gcp_conn_id='google_cloud_default', delegate_to=None, poll_sleep=10)
             hook_instance.start_python_dataflow.assert_called_once_with(
-                'eval-test-summary',
+                '{{task.task_id}}',
                 {
                     'prediction_path': 'gs://legal-bucket/fake-output-path',
+                    'labels': {'airflow-version': TEST_VERSION},
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },
@@ -123,7 +123,6 @@ class CreateEvaluateOpsTest(unittest.TestCase):
 
         with patch('airflow.contrib.operators.mlengine_operator_utils.'
                    'GoogleCloudStorageHook') as mock_gcs_hook:
-
             hook_instance = mock_gcs_hook.return_value
             hook_instance.download.return_value = '{"err": 0.9, "count": 9}'
             result = validate.execute({})
@@ -155,28 +154,26 @@ class CreateEvaluateOpsTest(unittest.TestCase):
             'dag': dag,
         }
 
-        with self.assertRaisesRegexp(ValueError, 'Missing model origin'):
-            _ = create_evaluate_ops(**other_params_but_models)
+        with self.assertRaisesRegexp(AirflowException, 'Missing model origin'):
+            create_evaluate_ops(**other_params_but_models)
 
-        with self.assertRaisesRegexp(ValueError, 'Ambiguous model origin'):
-            _ = create_evaluate_ops(model_uri='abc', model_name='cde',
-                                    **other_params_but_models)
+        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
+            create_evaluate_ops(model_uri='abc', model_name='cde', **other_params_but_models)
 
-        with self.assertRaisesRegexp(ValueError, 'Ambiguous model origin'):
-            _ = create_evaluate_ops(model_uri='abc', version_name='vvv',
-                                    **other_params_but_models)
+        with self.assertRaisesRegexp(AirflowException, 'Ambiguous model origin'):
+            create_evaluate_ops(model_uri='abc', version_name='vvv', **other_params_but_models)
 
         with self.assertRaisesRegexp(AirflowException,
                                      '`metric_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['metric_fn_and_keys'] = (None, ['abc'])
-            _ = create_evaluate_ops(model_uri='gs://blah', **params)
+            create_evaluate_ops(model_uri='gs://blah', **params)
 
         with self.assertRaisesRegexp(AirflowException,
                                      '`validate_fn` param must be callable'):
             params = other_params_but_models.copy()
             params['validate_fn'] = None
-            _ = create_evaluate_ops(model_uri='gs://blah', **params)
+            create_evaluate_ops(model_uri='gs://blah', **params)
 
 
 if __name__ == '__main__':

@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 FAQ
 ========
 
@@ -12,8 +29,13 @@ Here are some of the common causes:
   confirm that your DAG shows up in the list. You can also run
   ``airflow list_tasks foo_dag_id --tree`` and confirm that your task
   shows up in the list as expected. If you use the CeleryExecutor, you
-  may way to confirm that this works both where the scheduler runs as well
+  may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
+
+- Does the file containing your DAG contain the string "airflow" and "DAG" somewhere
+  in the contents? When searching the DAG directory, Airflow ignores files not containing
+  "airflow" and "DAG" in order to prevent the DagBag parsing from importing all python
+  files collocated with user's DAGs.
 
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
   task soon after the ``start_date + scheduler_interval`` is passed.
@@ -46,7 +68,7 @@ Here are some of the common causes:
   running. You can bulk view the list of DagRuns and alter states by clicking
   on the schedule tag for a DAG.
 
-- Is the ``concurrency`` parameter of your DAG reached? ``concurency`` defines
+- Is the ``concurrency`` parameter of your DAG reached? ``concurrency`` defines
   how many ``running`` task instances a DAG is allowed to have, beyond which
   point things get queued.
 
@@ -61,13 +83,13 @@ How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
 Check out the ``Trigger Rule`` section in the Concepts section of the
-documentation
+documentation.
 
 Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]?
 ------------------------------------------------------------------------------------------------------
 
-Check out the ``Connections`` section in the Configuration section of the
-documentation
+Check out the ``Securing Connections`` section in the How-to Guides section of the
+documentation.
 
 What's the deal with ``start_date``?
 ------------------------------------
@@ -116,7 +138,7 @@ actually start, if that wasn't the case, the backfill just wouldn't start.
 How can I create DAGs dynamically?
 ----------------------------------
 
-Airflow looks in you ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
+Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
 in their global namespace, and adds the objects it finds in the
 ``DagBag``. Knowing this all we need is a way to dynamically assign
 variable in the global namespace, which is easily done in python using the
@@ -136,12 +158,44 @@ What are all the ``airflow run`` commands in my process list?
 There are many layers of ``airflow run`` commands, meaning it can call itself.
 
 - Basic ``airflow run``: fires up an executor, and tell it to run an
-  ``airflow run --local`` command. if using Celery, this means it puts a
-  command in the queue for it to run remote, on the worker. If using
+  ``airflow run --local`` command. If using Celery, this means it puts a
+  command in the queue for it to run remotely on the worker. If using
   LocalExecutor, that translates into running it in a subprocess pool.
 - Local ``airflow run --local``: starts an ``airflow run --raw``
   command (described below) as a subprocess and is in charge of
   emitting heartbeats, listening for external kill signals
-  and ensures some cleanup takes place if the subprocess fails
+  and ensures some cleanup takes place if the subprocess fails.
 - Raw ``airflow run --raw`` runs the actual operator's execute method and
-  performs the actual work
+  performs the actual work.
+
+
+How can my airflow dag run faster?
+----------------------------------
+
+There are three variables we could control to improve airflow dag performance:
+
+- ``parallelism``: This variable controls the number of task instances that the airflow worker can run simultaneously. User could increase the parallelism variable in the ``airflow.cfg``.
+- ``concurrency``: The Airflow scheduler will run no more than ``$concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
+- ``max_active_runs``: the Airflow scheduler will run no more than ``max_active_runs`` DagRuns of your DAG at a given time. If you do not set the ``max_active_runs`` in your DAG, the scheduler will use the default value from the ``max_active_runs_per_dag`` entry in your ``airflow.cfg``.
+
+
+How can we reduce the airflow UI page load time?
+------------------------------------------------
+
+If your dag takes long time to load, you could reduce the value of ``default_dag_run_display_number`` configuration in ``airflow.cfg`` to a smaller value. This configurable controls the number of dag run to show in UI with default value 25.
+
+
+How to fix Exception: Global variable explicit_defaults_for_timestamp needs to be on (1)?
+-----------------------------------------------------------------------------------------
+
+This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server and you need to enable it by:
+
+#. Set ``explicit_defaults_for_timestamp = 1`` under the mysqld section in your my.cnf file.
+#. Restart the Mysql server.
+
+
+How to reduce airflow dag scheduling latency in production?
+-----------------------------------------------------------
+
+- ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value(e.g numbers of cpus where scheduler runs - 1) in production.
+- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value(e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.

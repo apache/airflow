@@ -1,10 +1,28 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Scheduling & Triggers
 =====================
 
 The Airflow scheduler monitors all tasks and all DAGs, and triggers the
 task instances whose dependencies have been met. Behind the scenes,
-it monitors and stays in sync with a folder for all DAG objects it may contain,
-and periodically (every minute or so) inspects active tasks to see whether
+it spins up a subprocess, which monitors and stays in sync with a folder
+for all DAG objects it may contain, and periodically (every minute or so)
+collects DAG parsing results and inspects active tasks to see whether
 they can be triggered.
 
 The Airflow scheduler is designed to run as a persistent service in an
@@ -13,7 +31,7 @@ execute ``airflow scheduler``. It will use the configuration specified in
 ``airflow.cfg``.
 
 Note that if you run a DAG on a ``schedule_interval`` of one day,
-the run stamped ``2016-01-01`` will be trigger soon after ``2016-01-01T23:59``.
+the run stamped ``2016-01-01`` will be triggered soon after ``2016-01-01T23:59``.
 In other words, the job instance is started once the period it covers
 has ended.
 
@@ -22,7 +40,7 @@ start date, at the END of the period.
 
 The scheduler starts an instance of the executor specified in the your
 ``airflow.cfg``. If it happens to be the ``LocalExecutor``, tasks will be
-executed as subprocesses; in the case of ``CeleryExecutor`` and
+executed as subprocesses; in the case of ``CeleryExecutor``, ``DaskExecutor``, and
 ``MesosExecutor``, tasks are executed remotely.
 
 To start a scheduler, simply run the command:
@@ -45,7 +63,7 @@ a ``str``, or a ``datetime.timedelta`` object. Alternatively, you can also
 use one of these cron "preset":
 
 +--------------+----------------------------------------------------------------+---------------+
-| preset       | Run once a year at midnight of January 1                       | cron          |
+| preset       | meaning                                                        | cron          |
 +==============+================================================================+===============+
 | ``None``     | Don't schedule, use for exclusively "externally triggered"     |               |
 |              | DAGs                                                           |               |
@@ -63,6 +81,8 @@ use one of these cron "preset":
 | ``@yearly``  | Run once a year at midnight of January 1                       | ``0 0 1 1 *`` |
 +--------------+----------------------------------------------------------------+---------------+
 
+**Note**: Use ``schedule_interval=None`` and not ``schedule_interval='None'`` when
+you don't want to schedule your DAG.
 
 Your DAG will be instantiated
 for each schedule, while creating a ``DAG Run`` entry for each schedule.
@@ -94,7 +114,7 @@ interval series.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -109,11 +129,15 @@ interval series.
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        'schedule_interval': '@hourly',
+        'retry_delay': timedelta(minutes=5)
     }
 
-    dag = DAG('tutorial', catchup=False, default_args=default_args)
+    dag = DAG(
+        'tutorial',
+        default_args=default_args,
+        description='A simple tutorial DAG',
+        schedule_interval='@daily',
+        catchup=False)
 
 In the example above, if the DAG is picked up by the scheduler daemon on 2016-01-02 at 6 AM, (or from the
 command line), a single DAG Run will be created, with an ``execution_date`` of 2016-01-01, and the next
@@ -133,6 +157,8 @@ running an ``airflow trigger_dag`` command, where you can define a
 specific ``run_id``. The ``DAG Runs`` created externally to the
 scheduler get associated to the trigger's timestamp, and will be displayed
 in the UI alongside scheduled ``DAG runs``.
+
+In addition, you can also manually trigger a ``DAG Run`` using the web UI (tab "DAGs" -> column "Links" -> button "Trigger Dag").
 
 
 To Keep in Mind
@@ -158,6 +184,7 @@ Here are some of the ways you can **unblock tasks**:
   states (``failed``, or ``success``)
 * Clearing a task instance will no longer delete the task instance record. Instead it updates
   max_tries and set the current task instance state to be None.
+* Marking task instances as failed can be done through the UI. This can be used to stop running task instances.
 * Marking task instances as successful can be done through the UI. This is mostly to fix false negatives,
   or for instance when the fix has been applied outside of Airflow.
 * The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import str
 
@@ -77,9 +82,9 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     Send notification to a specific HipChat room.
     More info: https://www.hipchat.com/docs/apiv2/method/send_room_notification
 
-    :param room_id: Room in which to send notification on HipChat
+    :param room_id: Room in which to send notification on HipChat. (templated)
     :type room_id: str
-    :param message: The message body
+    :param message: The message body. (templated)
     :type message: str
     :param frm: Label to be shown in addition to sender's name
     :type frm: str
@@ -94,24 +99,23 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     :param card: HipChat-defined card object
     :type card: dict
     """
-    template_fields = ('token', 'room_id', 'message')
+    template_fields = ('token', 'room_id', 'message', 'message_format',
+                       'color', 'frm', 'attach_to', 'notify', 'card')
     ui_color = '#2980b9'
 
     @apply_defaults
-    def __init__(self, room_id, message, *args, **kwargs):
+    def __init__(self, room_id, message, message_format='html',
+                 color='yellow', frm='airflow', attach_to=None,
+                 notify=False, card=None, *args, **kwargs):
         super(HipChatAPISendRoomNotificationOperator, self).__init__(*args, **kwargs)
         self.room_id = room_id
         self.message = message
-        default_options = {
-            'message_format': 'html',
-            'color': 'yellow',
-            'frm': 'airflow',
-            'attach_to': None,
-            'notify': False,
-            'card': None
-        }
-        for (prop, default) in default_options.items():
-            setattr(self, prop, kwargs.get(prop, default))
+        self.message_format = message_format
+        self.color = color
+        self.frm = frm
+        self.attach_to = attach_to
+        self.notify = notify
+        self.card = card
 
     def prepare_request(self):
         params = {

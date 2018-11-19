@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 import requests
 
@@ -19,6 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
+from time import sleep
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -27,7 +33,11 @@ try:
 except ImportError:
     import urlparse
 
+RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
+START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
+RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
@@ -42,24 +52,31 @@ class DatabricksHook(BaseHook, LoggingMixin):
             self,
             databricks_conn_id='databricks_default',
             timeout_seconds=180,
-            retry_limit=3):
+            retry_limit=3,
+            retry_delay=1.0):
         """
         :param databricks_conn_id: The name of the databricks connection to use.
-        :type databricks_conn_id: string
+        :type databricks_conn_id: str
         :param timeout_seconds: The amount of time in seconds the requests library
             will wait before timing-out.
         :type timeout_seconds: int
         :param retry_limit: The number of times to retry the connection in case of
             service outages.
         :type retry_limit: int
+        :param retry_delay: The number of seconds to wait between retries (it
+            might be a floating point number).
+        :type retry_delay: float
         """
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
-        assert retry_limit >= 1, 'Retry limit must be greater than equal to 1'
+        if retry_limit < 1:
+            raise ValueError('Retry limit must be greater than equal to 1')
         self.retry_limit = retry_limit
+        self.retry_delay = retry_delay
 
-    def _parse_host(self, host):
+    @staticmethod
+    def _parse_host(host):
         """
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
@@ -112,7 +129,8 @@ class DatabricksHook(BaseHook, LoggingMixin):
         else:
             raise AirflowException('Unexpected HTTP Method: ' + method)
 
-        for attempt_num in range(1, self.retry_limit+1):
+        attempt_num = 1
+        while True:
             try:
                 response = request_func(
                     url,
@@ -120,21 +138,41 @@ class DatabricksHook(BaseHook, LoggingMixin):
                     auth=auth,
                     headers=USER_AGENT_HEADER,
                     timeout=self.timeout_seconds)
-                if response.status_code == requests.codes.ok:
-                    return response.json()
-                else:
+                response.raise_for_status()
+                return response.json()
+            except requests_exceptions.RequestException as e:
+                if not _retryable_error(e):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
                     raise AirflowException('Response: {0}, Status Code: {1}'.format(
-                        response.content, response.status_code))
-            except (requests_exceptions.ConnectionError,
-                    requests_exceptions.Timeout) as e:
-                self.log.error(
-                    'Attempt %s API Request to Databricks failed with reason: %s',
-                    attempt_num, e
-                )
-        raise AirflowException(('API requests to Databricks failed {} times. ' +
-                               'Giving up.').format(self.retry_limit))
+                        e.response.content, e.response.status_code))
+
+                self._log_request_error(attempt_num, e)
+
+            if attempt_num == self.retry_limit:
+                raise AirflowException(('API requests to Databricks failed {} times. ' +
+                                        'Giving up.').format(self.retry_limit))
+
+            attempt_num += 1
+            sleep(self.retry_delay)
+
+    def _log_request_error(self, attempt_num, error):
+        self.log.error(
+            'Attempt %s API Request to Databricks failed with reason: %s',
+            attempt_num, error
+        )
+
+    def run_now(self, json):
+        """
+        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+
+        :param json: The data used in the body of the request to the ``run-now`` endpoint.
+        :type json: dict
+        :return: the run_id as a string
+        :rtype: str
+        """
+        response = self._do_api_call(RUN_NOW_ENDPOINT, json)
+        return response['run_id']
 
     def submit_run(self, json):
         """
@@ -143,7 +181,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :type json: dict
         :return: the run_id as a string
-        :rtype: string
+        :rtype: str
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']
@@ -166,6 +204,21 @@ class DatabricksHook(BaseHook, LoggingMixin):
     def cancel_run(self, run_id):
         json = {'run_id': run_id}
         self._do_api_call(CANCEL_RUN_ENDPOINT, json)
+
+    def restart_cluster(self, json):
+        self._do_api_call(RESTART_CLUSTER_ENDPOINT, json)
+
+    def start_cluster(self, json):
+        self._do_api_call(START_CLUSTER_ENDPOINT, json)
+
+    def terminate_cluster(self, json):
+        self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
+
+
+def _retryable_error(exception):
+    return isinstance(exception, requests_exceptions.ConnectionError) \
+        or isinstance(exception, requests_exceptions.Timeout) \
+        or exception.response is not None and exception.response.status_code >= 500
 
 
 RUN_LIFE_CYCLE_STATES = [
@@ -190,10 +243,11 @@ class RunState:
     @property
     def is_terminal(self):
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise AirflowException(('Unexpected life cycle state: {}: If the state has '
-                            'been introduced recently, please check the Databricks user '
-                            'guide for troubleshooting information').format(
-                                self.life_cycle_state))
+            raise AirflowException(
+                ('Unexpected life cycle state: {}: If the state has '
+                 'been introduced recently, please check the Databricks user '
+                 'guide for troubleshooting information').format(
+                    self.life_cycle_state))
         return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
 
     @property

@@ -1,28 +1,34 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import unittest
-import datetime
-import sys
 
 from airflow import DAG, configuration
 from airflow.models import TaskInstance
 
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
+from airflow.utils import timezone
 
-DEFAULT_DATE = datetime.datetime(2017, 1, 1)
+from datetime import timedelta
+
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestSparkSubmitOperator(unittest.TestCase):
@@ -33,11 +39,12 @@ class TestSparkSubmitOperator(unittest.TestCase):
         },
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
+        'driver_classpath': 'parquet.jar',
         'jars': 'parquet.jar',
         'packages': 'com.databricks:spark-avro_2.11:3.2.0',
         'exclude_packages': 'org.bad.dependency:1.0.0',
         'repositories': 'http://myrepo.org',
-        'total_executor_cores':4,
+        'total_executor_cores': 4,
         'executor_cores': 4,
         'executor_memory': '22g',
         'keytab': 'privileged_user.keytab',
@@ -58,11 +65,6 @@ class TestSparkSubmitOperator(unittest.TestCase):
     }
 
     def setUp(self):
-
-        if sys.version_info[0] == 3:
-            raise unittest.SkipTest('TestSparkSubmitOperator won\'t work with '
-                                    'python3. No need to test anything here')
-
         configuration.load_test_config()
         args = {
             'owner': 'airflow',
@@ -86,6 +88,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
             },
             'files': 'hive-site.xml',
             'py_files': 'sample_library.py',
+            'driver_classpath': 'parquet.jar',
             'jars': 'parquet.jar',
             'packages': 'com.databricks:spark-avro_2.11:3.2.0',
             'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -108,7 +111,6 @@ class TestSparkSubmitOperator(unittest.TestCase):
                 '--end', '{{ ds }}',
                 '--with-spaces', 'args should keep embdedded spaces',
             ]
-
         }
 
         self.assertEqual(conn_id, operator._conn_id)
@@ -116,11 +118,13 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['conf'], operator._conf)
         self.assertEqual(expected_dict['files'], operator._files)
         self.assertEqual(expected_dict['py_files'], operator._py_files)
+        self.assertEqual(expected_dict['driver_classpath'], operator._driver_classpath)
         self.assertEqual(expected_dict['jars'], operator._jars)
         self.assertEqual(expected_dict['packages'], operator._packages)
         self.assertEqual(expected_dict['exclude_packages'], operator._exclude_packages)
         self.assertEqual(expected_dict['repositories'], operator._repositories)
-        self.assertEqual(expected_dict['total_executor_cores'], operator._total_executor_cores)
+        self.assertEqual(expected_dict['total_executor_cores'],
+                         operator._total_executor_cores)
         self.assertEqual(expected_dict['executor_cores'], operator._executor_cores)
         self.assertEqual(expected_dict['executor_memory'], operator._executor_memory)
         self.assertEqual(expected_dict['keytab'], operator._keytab)
@@ -134,7 +138,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
 
     def test_render_template(self):
         # Given
-        operator = SparkSubmitOperator(task_id='spark_submit_job', dag=self.dag, **self._config)
+        operator = SparkSubmitOperator(task_id='spark_submit_job',
+                                       dag=self.dag, **self._config)
         ti = TaskInstance(operator, DEFAULT_DATE)
 
         # When
@@ -143,13 +148,17 @@ class TestSparkSubmitOperator(unittest.TestCase):
         # Then
         expected_application_args = [u'-f', 'foo',
                                      u'--bar', 'bar',
-                                     u'--start', (DEFAULT_DATE - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+                                     u'--start', (DEFAULT_DATE - timedelta(days=1))
+                                     .strftime("%Y-%m-%d"),
                                      u'--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
-                                     u'--with-spaces', u'args should keep embdedded spaces',
+                                     u'--with-spaces',
+                                     u'args should keep embdedded spaces',
                                      ]
         expected_name = "spark_submit_job"
-        self.assertListEqual(expected_application_args, getattr(operator, '_application_args'))
+        self.assertListEqual(expected_application_args,
+                             getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))
+
 
 if __name__ == '__main__':
     unittest.main()

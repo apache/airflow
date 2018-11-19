@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 """This example illustrates the use of the TriggerDagRunOperator. There are 2
 entities at work in this scenario:
 1. The Controller DAG - the DAG that conditionally executes the trigger
@@ -28,18 +33,18 @@ This example illustrates the following features :
 2. A Target DAG : c.f. example_trigger_target_dag.py
 """
 
-from airflow import DAG
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
+import pprint
 from datetime import datetime
 
-import pprint
+from airflow import DAG
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 pp = pprint.PrettyPrinter(indent=4)
 
 
 def conditionally_trigger(context, dag_run_obj):
     """This function decides whether or not to Trigger the remote DAG"""
-    c_p =context['params']['condition_param']
+    c_p = context['params']['condition_param']
     print("Controller DAG : conditionally_trigger = {}".format(c_p))
     if context['params']['condition_param']:
         dag_run_obj.payload = {'message': context['params']['message']}
@@ -48,16 +53,20 @@ def conditionally_trigger(context, dag_run_obj):
 
 
 # Define the DAG
-dag = DAG(dag_id='example_trigger_controller_dag',
-          default_args={"owner": "airflow",
-                        "start_date": datetime.utcnow()},
-          schedule_interval='@once')
-
+dag = DAG(
+    dag_id='example_trigger_controller_dag',
+    default_args={
+        "owner": "airflow",
+        "start_date": datetime.utcnow(),
+    },
+    schedule_interval='@once',
+)
 
 # Define the single task in this controller example DAG
-trigger = TriggerDagRunOperator(task_id='test_trigger_dagrun',
-                                trigger_dag_id="example_trigger_target_dag",
-                                python_callable=conditionally_trigger,
-                                params={'condition_param': True,
-                                        'message': 'Hello World'},
-                                dag=dag)
+trigger = TriggerDagRunOperator(
+    task_id='test_trigger_dagrun',
+    trigger_dag_id="example_trigger_target_dag",
+    python_callable=conditionally_trigger,
+    params={'condition_param': True, 'message': 'Hello World'},
+    dag=dag,
+)

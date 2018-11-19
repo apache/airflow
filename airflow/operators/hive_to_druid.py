@@ -1,16 +1,22 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.druid_hook import DruidHook
 from airflow.models import BaseOperator
@@ -26,7 +32,7 @@ class HiveToDruidTransfer(BaseOperator):
     into memory before being pushed to Druid, so this operator should
     be used for smallish amount of data.[/del]
 
-    :param sql: SQL query to execute against the Druid database
+    :param sql: SQL query to execute against the Druid database. (templated)
     :type sql: str
     :param druid_datasource: the datasource you want to ingest into in druid
     :type druid_datasource: str
@@ -43,12 +49,14 @@ class HiveToDruidTransfer(BaseOperator):
     :param hadoop_dependency_coordinates: list of coordinates to squeeze
         int the ingest json
     :type hadoop_dependency_coordinates: list of str
-    :param intervals: list of time intervals that defines segments, this
-        is passed as is to the json object
+    :param intervals: list of time intervals that defines segments,
+        this is passed as is to the json object. (templated)
     :type intervals: list
     :param hive_tblproperties: additional properties for tblproperties in
         hive for the staging table
     :type hive_tblproperties: dict
+    :param job_properties: additional properties for job
+    :type job_properties: dict
     """
 
     template_fields = ('sql', 'intervals')
@@ -71,6 +79,7 @@ class HiveToDruidTransfer(BaseOperator):
             query_granularity="NONE",
             segment_granularity="DAY",
             hive_tblproperties=None,
+            job_properties=None,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -89,13 +98,16 @@ class HiveToDruidTransfer(BaseOperator):
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.metastore_conn_id = metastore_conn_id
         self.hive_tblproperties = hive_tblproperties
+        self.job_properties = job_properties
 
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
-        tblproperties = ''.join([", '{}' = '{}'".format(k, v) for k, v in self.hive_tblproperties.items()])
+        tblproperties = ''.join([", '{}' = '{}'"
+                                .format(k, v)
+                                 for k, v in self.hive_tblproperties.items()])
         hql = """\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
@@ -117,9 +129,7 @@ class HiveToDruidTransfer(BaseOperator):
         columns = [col.name for col in t.sd.cols]
 
         # Get the path on hdfs
-        hdfs_uri = m.get_table(hive_table).sd.location
-        pos = hdfs_uri.find('/user')
-        static_path = hdfs_uri[pos:]
+        static_path = m.get_table(hive_table).sd.location
 
         schema, table = hive_table.split('.')
 
@@ -154,7 +164,8 @@ class HiveToDruidTransfer(BaseOperator):
         :type columns: list
         """
 
-        # backward compatibilty for num_shards, but target_partition_size is the default setting
+        # backward compatibility for num_shards,
+        # but target_partition_size is the default setting
         # and overwrites the num_shards
         num_shards = self.num_shards
         target_partition_size = self.target_partition_size
@@ -166,7 +177,8 @@ class HiveToDruidTransfer(BaseOperator):
 
         metric_names = [m['fieldName'] for m in self.metric_spec if m['type'] != 'count']
 
-        # Take all the columns, which are not the time dimension or a metric, as the dimension columns
+        # Take all the columns, which are not the time dimension
+        # or a metric, as the dimension columns
         dimensions = [c for c in columns if c not in metric_names and c != self.ts_dim]
 
         ingest_query_dict = {
@@ -221,7 +233,12 @@ class HiveToDruidTransfer(BaseOperator):
             }
         }
 
+        if self.job_properties:
+            ingest_query_dict['spec']['tuningConfig']['jobProperties'] \
+                .update(self.job_properties)
+
         if self.hadoop_dependency_coordinates:
-            ingest_query_dict['hadoopDependencyCoordinates'] = self.hadoop_dependency_coordinates
+            ingest_query_dict['hadoopDependencyCoordinates'] \
+                = self.hadoop_dependency_coordinates
 
         return ingest_query_dict

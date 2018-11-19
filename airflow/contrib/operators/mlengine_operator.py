@@ -15,75 +15,15 @@
 # limitations under the License.
 import re
 
-from airflow import settings
-from airflow.contrib.hooks.gcp_mlengine_hook import MLEngineHook
-from airflow.exceptions import AirflowException
-from airflow.operators import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from apiclient import errors
 
+from airflow.contrib.hooks.gcp_mlengine_hook import MLEngineHook
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
-
-
-def _create_prediction_input(project_id,
-                             region,
-                             data_format,
-                             input_paths,
-                             output_path,
-                             model_name=None,
-                             version_name=None,
-                             uri=None,
-                             max_worker_count=None,
-                             runtime_version=None):
-    """
-    Create the batch prediction input from the given parameters.
-
-    Args:
-        A subset of arguments documented in __init__ method of class
-        MLEngineBatchPredictionOperator
-
-    Returns:
-        A dictionary representing the predictionInput object as documented
-        in https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs.
-
-    Raises:
-        ValueError: if a unique model/version origin cannot be determined.
-    """
-    prediction_input = {
-        'dataFormat': data_format,
-        'inputPaths': input_paths,
-        'outputPath': output_path,
-        'region': region
-    }
-
-    if uri:
-        if model_name or version_name:
-            log.error(
-                'Ambiguous model origin: Both uri and model/version name are provided.'
-            )
-            raise ValueError('Ambiguous model origin.')
-        prediction_input['uri'] = uri
-    elif model_name:
-        origin_name = 'projects/{}/models/{}'.format(project_id, model_name)
-        if not version_name:
-            prediction_input['modelName'] = origin_name
-        else:
-            prediction_input['versionName'] = \
-                origin_name + '/versions/{}'.format(version_name)
-    else:
-        log.error(
-            'Missing model origin: Batch prediction expects a model, '
-            'a model & version combination, or a URI to savedModel.')
-        raise ValueError('Missing model origin.')
-
-    if max_worker_count:
-        prediction_input['maxWorkerCount'] = max_worker_count
-    if runtime_version:
-        prediction_input['runtimeVersion'] = runtime_version
-
-    return prediction_input
 
 
 def _normalize_mlengine_job_id(job_id):
@@ -99,10 +39,27 @@ def _normalize_mlengine_job_id(job_id):
     Returns:
         A valid job_id representation.
     """
-    match = re.search(r'\d', job_id)
+
+    # Add a prefix when a job_id starts with a digit or a template
+    match = re.search(r'\d|\{{2}', job_id)
     if match and match.start() is 0:
-        job_id = 'z_{}'.format(job_id)
-    return re.sub('[^0-9a-zA-Z]+', '_', job_id)
+        job = 'z_{}'.format(job_id)
+    else:
+        job = job_id
+
+    # Clean up 'bad' characters except templates
+    tracker = 0
+    cleansed_job_id = ''
+    for m in re.finditer(r'\{{2}.+?\}{2}', job):
+        cleansed_job_id += re.sub(r'[^0-9a-zA-Z]+', '_',
+                                  job[tracker:m.start()])
+        cleansed_job_id += job[m.start():m.end()]
+        tracker = m.end()
+
+    # Clean up last substring or the full string if no templates
+    cleansed_job_id += re.sub(r'[^0-9a-zA-Z]+', '_', job[tracker:])
+
+    return cleansed_job_id
 
 
 class MLEngineBatchPredictionOperator(BaseOperator):
@@ -120,56 +77,62 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     In options 2 and 3, both model and version name should contain the
     minimal identifier. For instance, call
+
+    ::
+
         MLEngineBatchPredictionOperator(
             ...,
             model_name='my_model',
             version_name='my_version',
             ...)
+
     if the desired model version is
     "projects/my_project/models/my_model/versions/my_version".
 
+    See https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs
+    for further documentation on the parameters.
 
     :param project_id: The Google Cloud project name where the
-        prediction job is submitted.
-    :type project_id: string
+        prediction job is submitted. (templated)
+    :type project_id: str
 
     :param job_id: A unique id for the prediction job on Google Cloud
-        ML Engine.
-    :type job_id: string
+        ML Engine. (templated)
+    :type job_id: str
 
     :param data_format: The format of the input data.
         It will default to 'DATA_FORMAT_UNSPECIFIED' if is not provided
         or is not one of ["TEXT", "TF_RECORD", "TF_RECORD_GZIP"].
-    :type data_format: string
+    :type data_format: str
 
     :param input_paths: A list of GCS paths of input data for batch
-        prediction. Accepting wildcard operator *, but only at the end.
+        prediction. Accepting wildcard operator *, but only at the end. (templated)
     :type input_paths: list of string
 
     :param output_path: The GCS path where the prediction results are
-        written to.
-    :type output_path: string
+        written to. (templated)
+    :type output_path: str
 
     :param region: The Google Compute Engine region to run the
-        prediction job in.:
-    :type region: string
+        prediction job in. (templated)
+    :type region: str
 
     :param model_name: The Google Cloud ML Engine model to use for prediction.
         If version_name is not provided, the default version of this
         model will be used.
         Should not be None if version_name is provided.
-        Should be None if uri is provided.
-    :type model_name: string
+        Should be None if uri is provided. (templated)
+    :type model_name: str
 
     :param version_name: The Google Cloud ML Engine model version to use for
         prediction.
-        Should be None if uri is provided.
-    :type version_name: string
+        Should be None if uri is provided. (templated)
+    :type version_name: str
 
     :param uri: The GCS path of the saved model to use for prediction.
         Should be None if model_name is provided.
-        It should be a GCS path pointing to a tensorflow SavedModel.
-    :type uri: string
+        It should be a GCS path pointing to a tensorflow SavedModel. (templated)
+    :type uri: str
 
     :param max_worker_count: The maximum number of workers to be used
         for parallel processing. Defaults to 10 if not specified.
@@ -177,23 +140,30 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
-    :type runtime_version: string
+    :type runtime_version: str
 
     :param gcp_conn_id: The connection ID used for connection to Google
         Cloud Platform.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must
         have doamin-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
 
     Raises:
-        ValueError: if a unique model/version origin cannot be determined.
+        ``ValueError``: if a unique model/version origin cannot be determined.
     """
 
     template_fields = [
-        "prediction_job_request",
+        '_project_id',
+        '_job_id',
+        '_region',
+        '_input_paths',
+        '_output_path',
+        '_model_name',
+        '_version_name',
+        '_uri',
     ]
 
     @apply_defaults
@@ -215,45 +185,91 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                  **kwargs):
         super(MLEngineBatchPredictionOperator, self).__init__(*args, **kwargs)
 
-        self.project_id = project_id
-        self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
+        self._project_id = project_id
+        self._job_id = job_id
+        self._region = region
+        self._data_format = data_format
+        self._input_paths = input_paths
+        self._output_path = output_path
+        self._model_name = model_name
+        self._version_name = version_name
+        self._uri = uri
+        self._max_worker_count = max_worker_count
+        self._runtime_version = runtime_version
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
 
-        try:
-            prediction_input = _create_prediction_input(
-                project_id, region, data_format, input_paths, output_path,
-                model_name, version_name, uri, max_worker_count,
-                runtime_version)
-        except ValueError as e:
-            self.log.error(
-                'Cannot create batch prediction job request due to: %s',
-                e
-            )
-            raise
+        if not self._project_id:
+            raise AirflowException('Google Cloud project id is required.')
+        if not self._job_id:
+            raise AirflowException(
+                'An unique job id is required for Google MLEngine prediction '
+                'job.')
 
-        self.prediction_job_request = {
-            'jobId': _normalize_mlengine_job_id(job_id),
-            'predictionInput': prediction_input
-        }
+        if self._uri:
+            if self._model_name or self._version_name:
+                raise AirflowException('Ambiguous model origin: Both uri and '
+                                       'model/version name are provided.')
+
+        if self._version_name and not self._model_name:
+            raise AirflowException(
+                'Missing model: Batch prediction expects '
+                'a model name when a version name is provided.')
+
+        if not (self._uri or self._model_name):
+            raise AirflowException(
+                'Missing model origin: Batch prediction expects a model, '
+                'a model & version combination, or a URI to a savedModel.')
 
     def execute(self, context):
-        hook = MLEngineHook(self.gcp_conn_id, self.delegate_to)
+        job_id = _normalize_mlengine_job_id(self._job_id)
+        prediction_request = {
+            'jobId': job_id,
+            'predictionInput': {
+                'dataFormat': self._data_format,
+                'inputPaths': self._input_paths,
+                'outputPath': self._output_path,
+                'region': self._region
+            }
+        }
 
+        if self._uri:
+            prediction_request['predictionInput']['uri'] = self._uri
+        elif self._model_name:
+            origin_name = 'projects/{}/models/{}'.format(
+                self._project_id, self._model_name)
+            if not self._version_name:
+                prediction_request['predictionInput'][
+                    'modelName'] = origin_name
+            else:
+                prediction_request['predictionInput']['versionName'] = \
+                    origin_name + '/versions/{}'.format(self._version_name)
+
+        if self._max_worker_count:
+            prediction_request['predictionInput'][
+                'maxWorkerCount'] = self._max_worker_count
+
+        if self._runtime_version:
+            prediction_request['predictionInput'][
+                'runtimeVersion'] = self._runtime_version
+
+        hook = MLEngineHook(self._gcp_conn_id, self._delegate_to)
+
+        # Helper method to check if the existing job's prediction input is the
+        # same as the request we get here.
         def check_existing_job(existing_job):
             return existing_job.get('predictionInput', None) == \
-                self.prediction_job_request['predictionInput']
+                prediction_request['predictionInput']
+
         try:
             finished_prediction_job = hook.create_job(
-                self.project_id,
-                self.prediction_job_request,
-                check_existing_job)
+                self._project_id, prediction_request, check_existing_job)
         except errors.HttpError:
             raise
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
-            self.log.error(
-                'Batch prediction job failed: %s',
-                str(finished_prediction_job))
+            self.log.error('MLEngine batch prediction job failed: {}'.format(
+                str(finished_prediction_job)))
             raise RuntimeError(finished_prediction_job['errorMessage'])
 
         return finished_prediction_job['predictionOutput']
@@ -264,9 +280,8 @@ class MLEngineModelOperator(BaseOperator):
     Operator for managing a Google Cloud ML Engine model.
 
     :param project_id: The Google Cloud project name to which MLEngine
-        model belongs.
-    :type project_id: string
-
+        model belongs. (templated)
+    :type project_id: str
     :param model: A dictionary containing the information about the model.
         If the `operation` is `create`, then the `model` parameter should
         contain all the information about this model such as `name`.
@@ -274,18 +289,17 @@ class MLEngineModelOperator(BaseOperator):
         If the `operation` is `get`, the `model` parameter
         should contain the `name` of the model.
     :type model: dict
-
     :param operation: The operation to perform. Available operations are:
-        'create': Creates a new model as provided by the `model` parameter.
-        'get': Gets a particular model where the name is specified in `model`.
 
+        * ``create``: Creates a new model as provided by the `model` parameter.
+        * ``get``: Gets a particular model where the name is specified in `model`.
+    :type operation: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
-
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     """
 
     template_fields = [
@@ -325,52 +339,54 @@ class MLEngineVersionOperator(BaseOperator):
 
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs.
-    :type project_id: string
+    :type project_id: str
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
-        belongs to.
-    :type model_name: string
+        belongs to. (templated)
+    :type model_name: str
 
-    :param version_name: A name to use for the version being operated upon. If
-        not None and the `version` argument is None or does not have a value for
+    :param version_name: A name to use for the version being operated upon.
+        If not None and the `version` argument is None or does not have a value for
         the `name` key, then this will be populated in the payload for the
-        `name` key.
-    :type version_name: string
+        `name` key. (templated)
+    :type version_name: str
 
     :param version: A dictionary containing the information about the version.
         If the `operation` is `create`, `version` should contain all the
         information about this version such as name, and deploymentUrl.
         If the `operation` is `get` or `delete`, the `version` parameter
         should contain the `name` of the version.
-        If it is None, the only `operation` possible would be `list`.
+        If it is None, the only `operation` possible would be `list`. (templated)
     :type version: dict
 
     :param operation: The operation to perform. Available operations are:
-        'create': Creates a new version in the model specified by `model_name`,
+
+        *   ``create``: Creates a new version in the model specified by `model_name`,
             in which case the `version` parameter should contain all the
             information to create that version
             (e.g. `name`, `deploymentUrl`).
-        'get': Gets full information of a particular version in the model
+
+        *   ``get``: Gets full information of a particular version in the model
             specified by `model_name`.
             The name of the version should be specified in the `version`
             parameter.
 
-        'list': Lists all available versions of the model specified
+        *   ``list``: Lists all available versions of the model specified
             by `model_name`.
 
-        'delete': Deletes the version specified in `version` parameter from the
+        *   ``delete``: Deletes the version specified in `version` parameter from the
             model specified by `model_name`).
             The name of the version should be specified in the `version`
             parameter.
-     :type operation: string
+    :type operation: str
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     """
 
     template_fields = [
@@ -408,13 +424,14 @@ class MLEngineVersionOperator(BaseOperator):
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
 
         if self._operation == 'create':
-            assert self._version is not None
+            if not self._version:
+                raise ValueError("version attribute of {} could not "
+                                 "be empty".format(self.__class__.__name__))
             return hook.create_version(self._project_id, self._model_name,
                                        self._version)
         elif self._operation == 'set_default':
-            return hook.set_default_version(
-                self._project_id, self._model_name,
-                self._version['name'])
+            return hook.set_default_version(self._project_id, self._model_name,
+                                            self._version['name'])
         elif self._operation == 'list':
             return hook.list_versions(self._project_id, self._model_name)
         elif self._operation == 'delete':
@@ -429,46 +446,57 @@ class MLEngineTrainingOperator(BaseOperator):
     Operator for launching a MLEngine training job.
 
     :param project_id: The Google Cloud project name within which MLEngine
-        training job should run. This field could be templated.
-    :type project_id: string
+        training job should run (templated).
+    :type project_id: str
 
     :param job_id: A unique templated id for the submitted Google MLEngine
-        training job.
-    :type job_id: string
+        training job. (templated)
+    :type job_id: str
 
     :param package_uris: A list of package locations for MLEngine training job,
         which should include the main training program + any additional
-        dependencies.
-    :type package_uris: string
+        dependencies. (templated)
+    :type package_uris: str
 
     :param training_python_module: The Python module name to run within MLEngine
-        training job after installing 'package_uris' packages.
-    :type training_python_module: string
+        training job after installing 'package_uris' packages. (templated)
+    :type training_python_module: str
 
     :param training_args: A list of templated command line arguments to pass to
-        the MLEngine training program.
-    :type training_args: string
+        the MLEngine training program. (templated)
+    :type training_args: str
 
     :param region: The Google Compute Engine region to run the MLEngine training
-        job in. This field could be templated.
-    :type region: string
+        job in (templated).
+    :type region: str
 
-    :param scale_tier: Resource tier for MLEngine training job.
-    :type scale_tier: string
+    :param scale_tier: Resource tier for MLEngine training job. (templated)
+    :type scale_tier: str
+
+    :param runtime_version: The Google Cloud ML runtime version to use for
+        training. (templated)
+    :type runtime_version: str
+
+    :param python_version: The version of Python used in training. (templated)
+    :type python_version: str
+
+    :param job_dir: A Google Cloud Storage path in which to store training
+        outputs and other data needed for training. (templated)
+    :type job_dir: str
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
 
     :param mode: Can be one of 'DRY_RUN'/'CLOUD'. In 'DRY_RUN' mode, no real
         training job will be launched, but the MLEngine training job request
         will be printed out. In 'CLOUD' mode, a real MLEngine training job
         creation request will be issued.
-    :type mode: string
+    :type mode: str
     """
 
     template_fields = [
@@ -479,6 +507,9 @@ class MLEngineTrainingOperator(BaseOperator):
         '_training_args',
         '_region',
         '_scale_tier',
+        '_runtime_version',
+        '_python_version',
+        '_job_dir'
     ]
 
     @apply_defaults
@@ -490,6 +521,9 @@ class MLEngineTrainingOperator(BaseOperator):
                  training_args,
                  region,
                  scale_tier=None,
+                 runtime_version=None,
+                 python_version=None,
+                 job_dir=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  mode='PRODUCTION',
@@ -503,6 +537,9 @@ class MLEngineTrainingOperator(BaseOperator):
         self._training_args = training_args
         self._region = region
         self._scale_tier = scale_tier
+        self._runtime_version = runtime_version
+        self._python_version = python_version
+        self._job_dir = job_dir
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._mode = mode
@@ -537,9 +574,19 @@ class MLEngineTrainingOperator(BaseOperator):
             }
         }
 
+        if self._runtime_version:
+            training_request['trainingInput']['runtimeVersion'] = self._runtime_version
+
+        if self._python_version:
+            training_request['trainingInput']['pythonVersion'] = self._python_version
+
+        if self._job_dir:
+            training_request['trainingInput']['jobDir'] = self._job_dir
+
         if self._mode == 'DRY_RUN':
             self.log.info('In dry_run mode.')
-            self.log.info('MLEngine Training job request is: {}'.format(training_request))
+            self.log.info('MLEngine Training job request is: {}'.format(
+                training_request))
             return
 
         hook = MLEngineHook(
@@ -550,6 +597,7 @@ class MLEngineTrainingOperator(BaseOperator):
         def check_existing_job(existing_job):
             return existing_job.get('trainingInput', None) == \
                 training_request['trainingInput']
+
         try:
             finished_training_job = hook.create_job(
                 self._project_id, training_request, check_existing_job)

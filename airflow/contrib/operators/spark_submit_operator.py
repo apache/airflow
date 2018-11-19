@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 from airflow.models import BaseOperator
@@ -24,31 +29,40 @@ class SparkSubmitOperator(BaseOperator):
     It requires that the "spark-submit" binary is in the PATH or the spark-home is set
     in the extra on the connection.
 
-    :param application: The application that submitted as a job, either jar or py file.
+    :param application: The application that submitted as a job, either jar or
+        py file. (templated)
     :type application: str
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
     :param conn_id: The connection id as configured in Airflow administration. When an
                     invalid connection_id is supplied, it will default to yarn.
     :type conn_id: str
-    :param files: Upload additional files to the container running the job, separated by a
-                  comma. For example hive-site.xml.
+    :param files: Upload additional files to the executor running the job, separated by a
+                  comma. Files will be placed in the working directory of each executor.
+                  For example, serialized objects.
     :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
+    :param driver_classpath: Additional, driver-specific, classpath settings.
+    :type driver_classpath: str
     :type jars: str
     :param java_class: the main class of the Java application
     :type java_class: str
-    :param packages: Comma-separated list of maven coordinates of jars to include on the driver and executor classpaths
+    :param packages: Comma-separated list of maven coordinates of jars to include on the
+                     driver and executor classpaths. (templated)
     :type packages: str
-    :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude while resolving the dependencies provided in 'packages'
+    :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
+                             while resolving the dependencies provided in 'packages'
     :type exclude_packages: str
-    :param repositories: Comma-separated list of additional remote repositories to search for the maven coordinates given with 'packages'
+    :param repositories: Comma-separated list of additional remote repositories to search
+                         for the maven coordinates given with 'packages'
     :type repositories: str
-    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
+    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
+                                 (Default: all the available cores on the worker)
     :type total_executor_cores: int
-    :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
+    :param executor_cores: (Standalone & YARN only) Number of cores per executor
+                           (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -58,16 +72,19 @@ class SparkSubmitOperator(BaseOperator):
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
     :type principal: str
-    :param name: Name of the job (default airflow-spark)
+    :param name: Name of the job (default airflow-spark). (templated)
     :type name: str
     :param num_executors: Number of executors to launch
     :type num_executors: int
     :param application_args: Arguments for the application being submitted
     :type application_args: list
+    :param env_vars: Environment variables for spark-submit. It
+                     supports yarn and k8s mode too.
+    :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
     """
-    template_fields = ('_name', '_application_args','_packages')
+    template_fields = ('_name', '_application_args', '_packages')
     ui_color = WEB_COLORS['LIGHTORANGE']
 
     @apply_defaults
@@ -77,6 +94,7 @@ class SparkSubmitOperator(BaseOperator):
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
+                 driver_classpath=None,
                  jars=None,
                  java_class=None,
                  packages=None,
@@ -91,6 +109,7 @@ class SparkSubmitOperator(BaseOperator):
                  name='airflow-spark',
                  num_executors=None,
                  application_args=None,
+                 env_vars=None,
                  verbose=False,
                  *args,
                  **kwargs):
@@ -99,6 +118,7 @@ class SparkSubmitOperator(BaseOperator):
         self._conf = conf
         self._files = files
         self._py_files = py_files
+        self._driver_classpath = driver_classpath
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
@@ -113,6 +133,7 @@ class SparkSubmitOperator(BaseOperator):
         self._name = name
         self._num_executors = num_executors
         self._application_args = application_args
+        self._env_vars = env_vars
         self._verbose = verbose
         self._hook = None
         self._conn_id = conn_id
@@ -126,6 +147,7 @@ class SparkSubmitOperator(BaseOperator):
             conn_id=self._conn_id,
             files=self._files,
             py_files=self._py_files,
+            driver_classpath=self._driver_classpath,
             jars=self._jars,
             java_class=self._java_class,
             packages=self._packages,
@@ -140,6 +162,7 @@ class SparkSubmitOperator(BaseOperator):
             name=self._name,
             num_executors=self._num_executors,
             application_args=self._application_args,
+            env_vars=self._env_vars,
             verbose=self._verbose
         )
         self._hook.submit(self._application)

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import chr
 from collections import OrderedDict
@@ -38,10 +43,10 @@ class MySqlToHiveTransfer(BaseOperator):
     stage the data into a temporary table before loading it into its
     final destination using a ``HiveOperator``.
 
-    :param sql: SQL query to execute against the MySQL database
+    :param sql: SQL query to execute against the MySQL database. (templated)
     :type sql: str
     :param hive_table: target Hive table, use dot notation to target a
-        specific database
+        specific database. (templated)
     :type hive_table: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
@@ -49,7 +54,7 @@ class MySqlToHiveTransfer(BaseOperator):
         execution
     :type recreate: bool
     :param partition: target partition as a dict of partition columns
-        and values
+        and values. (templated)
     :type partition: dict
     :param delimiter: field delimiter in the file
     :type delimiter: str
@@ -99,10 +104,12 @@ class MySqlToHiveTransfer(BaseOperator):
             t.DOUBLE: 'DOUBLE',
             t.FLOAT: 'DOUBLE',
             t.INT24: 'INT',
-            t.LONG: 'INT',
-            t.LONGLONG: 'BIGINT',
+            t.LONG: 'BIGINT',
+            t.LONGLONG: 'DECIMAL(38,0)',
             t.SHORT: 'INT',
+            t.TINY: 'SMALLINT',
             t.YEAR: 'INT',
+            t.TIMESTAMP: 'TIMESTAMP',
         }
         return d[mysql_type] if mysql_type in d else 'STRING'
 

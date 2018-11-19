@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 """
@@ -21,6 +26,7 @@ import subprocess
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+from copy import deepcopy
 
 
 class SqoopHook(BaseHook, LoggingMixin):
@@ -30,13 +36,14 @@ class SqoopHook(BaseHook, LoggingMixin):
 
     Additional arguments that can be passed via the 'extra' JSON field of the
     sqoop connection:
-    * job_tracker: Job tracker local|jobtracker:port.
-    * namenode: Namenode.
-    * lib_jars: Comma separated jar files to include in the classpath.
-    * files: Comma separated files to be copied to the map reduce cluster.
-    * archives: Comma separated archives to be unarchived on the compute
-        machines.
-    * password_file: Path to file containing the password.
+
+        * ``job_tracker``: Job tracker local|jobtracker:port.
+        * ``namenode``: Namenode.
+        * ``lib_jars``: Comma separated jar files to include in the classpath.
+        * ``files``: Comma separated files to be copied to the map reduce cluster.
+        * ``archives``: Comma separated archives to be unarchived on the compute
+            machines.
+        * ``password_file``: Path to file containing the password.
 
     :param conn_id: Reference to the sqoop connection.
     :type conn_id: str
@@ -65,12 +72,17 @@ class SqoopHook(BaseHook, LoggingMixin):
         self.verbose = verbose
         self.num_mappers = num_mappers
         self.properties = properties or {}
-        self.log.info("Using connection to: {}:{}/{}".format(self.conn.host, self.conn.port, self.conn.schema))
+        self.log.info(
+            "Using connection to: {}:{}/{}".format(
+                self.conn.host, self.conn.port, self.conn.schema
+            )
+        )
 
     def get_conn(self):
         return self.conn
 
-    def cmd_mask_password(self, cmd):
+    def cmd_mask_password(self, cmd_orig):
+        cmd = deepcopy(cmd_orig)
         try:
             password_index = cmd.index('--password')
             cmd[password_index + 1] = 'MASKED'
@@ -86,21 +98,23 @@ class SqoopHook(BaseHook, LoggingMixin):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        self.log.info("Executing command: {}".format(' '.join(self.cmd_mask_password(cmd))))
-        sp = subprocess.Popen(cmd,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT,
-                              **kwargs)
+        masked_cmd = ' '.join(self.cmd_mask_password(cmd))
+        self.log.info("Executing command: {}".format(masked_cmd))
+        self.sp = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            **kwargs)
 
-        for line in iter(sp.stdout):
+        for line in iter(self.sp.stdout):
             self.log.info(line.strip())
 
-        sp.wait()
+        self.sp.wait()
 
-        self.log.info("Command exited with return code %s", sp.returncode)
+        self.log.info("Command exited with return code %s", self.sp.returncode)
 
-        if sp.returncode:
-            raise AirflowException("Sqoop command failed: {}".format(' '.join(self.cmd_mask_password(cmd))))
+        if self.sp.returncode:
+            raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
 
     def _prepare_command(self, export=False):
         sqoop_cmd_type = "export" if export else "import"
@@ -181,7 +195,8 @@ class SqoopHook(BaseHook, LoggingMixin):
         if extra_import_options:
             for key, value in extra_import_options.items():
                 cmd += ['--{}'.format(key)]
-                if value: cmd += [value]
+                if value:
+                    cmd += [value]
 
         return cmd
 
@@ -191,6 +206,7 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
+
         :param table: Table to read
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
@@ -221,6 +237,7 @@ class SqoopHook(BaseHook, LoggingMixin):
                      split_by=None, direct=None, driver=None, extra_import_options=None):
         """
         Imports a specific query from the rdbms to hdfs
+
         :param query: Free format query to run
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
@@ -287,7 +304,8 @@ class SqoopHook(BaseHook, LoggingMixin):
         if extra_export_options:
             for key, value in extra_export_options.items():
                 cmd += ['--{}'.format(key)]
-                if value: cmd += [value]
+                if value:
+                    cmd += [value]
 
         # The required option
         cmd += ["--table", table]
@@ -304,6 +322,7 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
+
         :param table: Table remote destination
         :param export_dir: Hive table to export
         :param input_null_string: The string to be interpreted as null for

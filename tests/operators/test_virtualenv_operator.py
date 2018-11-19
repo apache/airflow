@@ -1,20 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import print_function, unicode_literals
 
 import datetime
+
 import funcsigs
 import sys
 import unittest
@@ -22,18 +28,15 @@ import unittest
 from subprocess import CalledProcessError
 
 from airflow import configuration, DAG
-from airflow.models import TaskInstance
 from airflow.operators.python_operator import PythonVirtualenvOperator
-from airflow.settings import Session
-from airflow.utils.state import State
+from airflow.utils import timezone
 
 from airflow.exceptions import AirflowException
-import logging
 
-DEFAULT_DATE = datetime.datetime(2016, 1, 1)
-END_DATE = datetime.datetime(2016, 1, 2)
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+END_DATE = timezone.datetime(2016, 1, 2)
 INTERVAL = datetime.timedelta(hours=12)
-FROZEN_NOW = datetime.datetime(2016, 1, 2, 12, 1, 1)
+FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 
 
 class TestPythonVirtualenvOperator(unittest.TestCase):
@@ -49,9 +52,10 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             schedule_interval=INTERVAL)
         self.addCleanup(self.dag.clear)
 
-    def _run_as_operator(self, fn, **kwargs):
+    def _run_as_operator(self, fn, python_version=sys.version_info[0], **kwargs):
         task = PythonVirtualenvOperator(
             python_callable=fn,
+            python_version=python_version,
             task_id='task',
             dag=self.dag,
             **kwargs)
@@ -77,7 +81,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_no_system_site_packages(self):
         def f():
             try:
-                import funcsigs
+                import funcsigs  # noqa: F401
             except ImportError:
                 return True
             raise Exception
@@ -85,26 +89,31 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_system_site_packages(self):
         def f():
-            import funcsigs
+            import funcsigs  # noqa: F401
         self._run_as_operator(f, requirements=['funcsigs'], system_site_packages=True)
 
     def test_with_requirements_pinned(self):
-        self.assertNotEqual('0.4', funcsigs.__version__, 'Please update this string if this fails')
+        self.assertNotEqual(
+            '0.4', funcsigs.__version__, 'Please update this string if this fails')
+
         def f():
-            import funcsigs
+            import funcsigs  # noqa: F401
             if funcsigs.__version__ != '0.4':
                 raise Exception
+
         self._run_as_operator(f, requirements=['funcsigs==0.4'])
 
     def test_unpinned_requirements(self):
         def f():
-            import funcsigs
-        self._run_as_operator(f, requirements=['funcsigs', 'dill'], system_site_packages=False)
+            import funcsigs  # noqa: F401
+        self._run_as_operator(
+            f, requirements=['funcsigs', 'dill'], system_site_packages=False)
 
     def test_range_requirements(self):
         def f():
-            import funcsigs
-        self._run_as_operator(f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
+            import funcsigs  # noqa: F401
+        self._run_as_operator(
+            f, requirements=['funcsigs>1.0', 'dill'], system_site_packages=False)
 
     def test_fail(self):
         def f():
@@ -134,7 +143,8 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             raise Exception
         self._run_as_operator(f, python_version=3, use_dill=False, requirements=['dill'])
 
-    def _invert_python_major_version(self):
+    @staticmethod
+    def _invert_python_major_version():
         if sys.version_info[0] == 2:
             return 3
         else:
@@ -145,8 +155,10 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
             version = 3
         else:
             version = 2
+
         def f():
             pass
+
         with self.assertRaises(AirflowException):
             self._run_as_operator(f, python_version=version, op_args=[1])
 
@@ -157,14 +169,16 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_string_args(self):
         def f():
+            global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
-        self._run_as_operator(f, python_version=self._invert_python_major_version(), string_args=[1,2,1])
+        self._run_as_operator(
+            f, python_version=self._invert_python_major_version(), string_args=[1, 2, 1])
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
-            if a==0 and b==1 and c and not d:
+            if a == 0 and b == 1 and c and not d:
                 return True
             else:
                 raise Exception
@@ -185,10 +199,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
     def test_nonimported_as_arg(self):
         def f(a):
             return None
-        self._run_as_operator(f, op_args=[datetime.datetime.now()])
+        self._run_as_operator(f, op_args=[datetime.datetime.utcnow()])
 
     def test_context(self):
         def f(**kwargs):
             return kwargs['templates_dict']['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
-
