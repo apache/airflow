@@ -763,21 +763,35 @@ class Airflow(AirflowBaseView):
         return redirect(origin)
 
     def _clear_dag_tis(self, dag, start_date, end_date, origin,
-                       recursive=False, confirmed=False):
+                       recursive=False, confirmed=False, cancel=False):
         if confirmed:
-            count = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive)
+            if cancel:
+                count = dag.cancel(
+                    start_date=start_date,
+                    end_date=end_date,
+                    include_subdags=recursive)
+            else:
+                count = dag.clear(
+                    start_date=start_date,
+                    end_date=end_date,
+                    include_subdags=recursive)
 
-            flash("{0} task instances have been cleared".format(count))
+            flash("{0} task instances have been {1}".format(count, 'cleared' if not cancel else 'cancelled'))
             return redirect(origin)
 
-        tis = dag.clear(
-            start_date=start_date,
-            end_date=end_date,
-            include_subdags=recursive,
-            dry_run=True)
+        if cancel:
+            tis = dag.cancel(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive,
+                dry_run=True)
+        else:
+            tis = dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive,
+                dry_run=True)
+
         if not tis:
             flash("No task instances to clear", 'error')
             response = redirect(origin)
@@ -787,7 +801,7 @@ class Airflow(AirflowBaseView):
             response = self.render(
                 'airflow/confirm.html',
                 message=("Here's the list of task instances you are about "
-                         "to clear:"),
+                         "to {0}:".format('clear' if not cancel else 'cancel')),
                 details=details)
 
         return response
@@ -837,6 +851,21 @@ class Airflow(AirflowBaseView):
 
         return self._clear_dag_tis(dag, start_date, end_date, origin,
                                    recursive=True, confirmed=confirmed)
+
+
+    @expose('/dagrun_cancel')
+    @has_access
+    @action_logging
+    def dagrun_cancel(self):
+        dag_id = request.args.get('dag_id')
+        origin = request.args.get('origin') or "/"
+        confirmed = request.args.get('confirmed') == "true"
+
+        dag = dagbag.get_dag(dag_id)
+
+        return self._clear_dag_tis(dag, None, None, origin,
+                                   recursive=True, confirmed=confirmed, cancel=True)
+
 
     @expose('/blocked')
     @has_access
@@ -2061,6 +2090,33 @@ class TaskInstanceModelView(AirflowModelView):
 
         except Exception as ex:
             flash('Failed to clear task instances', 'error')
+
+    @provide_session
+    @action('cancel', lazy_gettext('Cancel'),
+            lazy_gettext('Are you sure you want to cancel the state of the selected task'
+                         ' instance(s)?'),
+            single=False)
+    def action_cancel(self, tis, session=None):
+        try:
+            dag_to_tis = {}
+
+            for ti in tis:
+                dag = dagbag.get_dag(ti.dag_id)
+                tis = dag_to_tis.setdefault(dag, [])
+                tis.append(ti)
+
+            for dag, tis in dag_to_tis.items():
+                models.cancel_task_instances(tis, session, dag=dag)
+
+            session.commit()
+            flash("{0} task instances have been cancelled".format(len(tis)))
+            self.update_redirect()
+            return redirect(self.get_redirect())
+
+        except Exception as ex:
+            flash('Failed to clear task instances', 'error')
+
+
 
     @provide_session
     def set_task_instance_state(self, tis, target_state, session=None):

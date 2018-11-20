@@ -217,6 +217,42 @@ def clear_task_instances(tis,
             dr.start_date = timezone.utcnow()
 
 
+def cancel_task_instances(tis,
+                          session,
+                          dag=None,
+                          ):
+    """
+    Cancels a set of task instances, making sure running ones get killed and will not be run again..
+
+    :param tis: a list of task instances
+    :param session: current session
+    :param dag: DAG object
+    """
+    job_ids = []
+    for ti in tis:
+        ti.max_tries = 0
+        ti._try_number = 1
+        if ti.state == State.RUNNING:
+            if ti.job_id:
+                ti.state = State.SHUTDOWN
+                job_ids.append(ti.job_id)
+        else:
+            ti.state = State.UP_FOR_RETRY
+            session.merge(ti)
+
+    if job_ids:
+        from airflow.jobs import BaseJob as BJ
+        for job in session.query(BJ).filter(BJ.id.in_(job_ids)).all():
+            job.state = State.SHUTDOWN
+
+    drs = session.query(DagRun).filter(
+        DagRun.dag_id.in_({ti.dag_id for ti in tis}),
+        DagRun.execution_date.in_({ti.execution_date for ti in tis}),
+    ).all()
+    for dr in drs:
+        dr.state = State.FAILED
+
+
 class DagBag(BaseDagBag, LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
@@ -2842,6 +2878,46 @@ class BaseOperator(LoggingMixin):
 
         return count
 
+    @provide_session
+    def cancel(self,
+               start_date=None,
+               end_date=None,
+               upstream=False,
+               downstream=False,
+               session=None):
+        """
+        Cancels the state of task instances associated with the task, following
+        the parameters specified.
+        """
+        TI = TaskInstance
+        qry = session.query(TI).filter(TI.dag_id == self.dag_id)
+
+        if start_date:
+            qry = qry.filter(TI.execution_date >= start_date)
+        if end_date:
+            qry = qry.filter(TI.execution_date <= end_date)
+
+        qry = qry.filter(~TI.state.in_(State.finished()))
+        tasks = [self.task_id]
+
+        if upstream:
+            tasks += [
+                t.task_id for t in self.get_flat_relatives(upstream=True)]
+
+        if downstream:
+            tasks += [
+                t.task_id for t in self.get_flat_relatives(upstream=False)]
+
+        qry = qry.filter(TI.task_id.in_(tasks))
+
+        count = qry.count()
+
+        cancel_task_instances(qry.all(), session, dag=self.dag)
+
+        session.commit()
+
+        return count
+
     def get_task_instances(self, session, start_date=None, end_date=None):
         """
         Get a set of task instance related to this task for a specific date
@@ -3816,6 +3892,69 @@ class DAG(BaseDag, LoggingMixin):
         else:
             count = 0
             print("Bail. Nothing was cleared.")
+
+        session.commit()
+        return count
+
+    @provide_session
+    def cancel(
+            self, start_date=None, end_date=None,
+            confirm_prompt=False,
+            include_subdags=True,
+            dry_run=False,
+            session=None,
+    ):
+        """
+        Clears a set of task instances associated with the current dag for
+        a specified date range.
+        """
+        TI = TaskInstance
+        tis = session.query(TI)
+        if include_subdags:
+            # Crafting the right filter for dag_id and task_ids combo
+            conditions = []
+            for dag in self.subdags + [self]:
+                conditions.append(
+                    TI.dag_id.like(dag.dag_id) &
+                    TI.task_id.in_(dag.task_ids)
+                )
+            tis = tis.filter(or_(*conditions))
+        else:
+            tis = session.query(TI).filter(TI.dag_id == self.dag_id)
+            tis = tis.filter(TI.task_id.in_(self.task_ids))
+
+        if start_date:
+            tis = tis.filter(TI.execution_date >= start_date)
+        if end_date:
+            tis = tis.filter(TI.execution_date <= end_date)
+
+        tis = tis.filter(~TI.state.in_(State.finished()))
+
+        if dry_run:
+            tis = tis.all()
+            session.expunge_all()
+            return tis
+
+        count = tis.count()
+        do_it = True
+        if count == 0:
+            return 0
+        if confirm_prompt:
+            ti_list = "\n".join([str(t) for t in tis])
+            question = (
+                "You are about to cancel these {count} tasks:\n"
+                "{ti_list}\n\n"
+                "Are you sure? (yes/no): ").format(**locals())
+            do_it = utils.helpers.ask_yesno(question)
+
+        if do_it:
+            cancel_task_instances(tis.all(),
+                                  session,
+                                  dag=self,
+                                  )
+        else:
+            count = 0
+            print("Bail. Nothing was cancelled.")
 
         session.commit()
         return count
