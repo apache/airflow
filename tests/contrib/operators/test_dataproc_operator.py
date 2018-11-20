@@ -389,7 +389,8 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                             'diskConfig': {'bootDiskType': 'pd-standard', 'bootDiskSizeGb': 500}},
                         'secondaryWorkerConfig': {},
                         'softwareConfig': {},
-                        'lifecycleConfig': {}},
+                        'lifecycleConfig': {},
+                        'encryptionConfig': {}},
                     'labels': {'airflow-version': mock.ANY}})
             hook.wait.assert_called_once_with(self.operation)
 
