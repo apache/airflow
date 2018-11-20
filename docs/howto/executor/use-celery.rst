@@ -61,7 +61,7 @@ Please note that you must have the ``flower`` python library already installed o
 
 .. code-block:: bash
 
-    pip install 'airflow[celery]'
+    pip install 'apache-airflow[celery]'
 
 
 Some caveats:
