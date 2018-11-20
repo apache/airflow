@@ -34,7 +34,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :type emr_conn_id: str
     :param job_flow_overrides: boto3 style arguments to override
        emr_connection extra. (templated)
-    :type steps: dict
+    :type job_flow_overrides: dict
     """
     template_fields = ['job_flow_overrides']
     template_ext = ()
