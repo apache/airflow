@@ -218,8 +218,8 @@ class BigQueryBaseCursor(LoggingMixin):
                            table_id,
                            schema_fields=None,
                            time_partitioning=None,
-                           labels=None
-                           ):
+                           labels=None,
+                           view=None):
         """
         Creates a new, empty table in the dataset.
 
@@ -246,6 +246,16 @@ class BigQueryBaseCursor(LoggingMixin):
             .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
+        :param view: [Optional] a dictionary containing definition for the view:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+        :type view: dict
+
+        **Example**: ::
+
+            view = {
+                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 1000",
+                "useLegacySql": False
+            }
 
         :return:
         """
@@ -266,6 +276,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if labels:
             table_resource['labels'] = labels
+
+        if view:
+            table_resource['view'] = view
 
         self.log.info('Creating Table %s:%s.%s',
                       project_id, dataset_id, table_id)
