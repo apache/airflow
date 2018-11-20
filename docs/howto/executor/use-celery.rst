@@ -57,6 +57,13 @@ Note that you can also run "Celery Flower", a web UI built on top of Celery,
 to monitor your workers. You can use the shortcut command ``airflow flower``
 to start a Flower web server.
 
+Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
+
+.. code-block:: bash
+
+    pip install 'apache-airflow[celery]'
+
+
 Some caveats:
 
 - Make sure to use a database backed result backend
