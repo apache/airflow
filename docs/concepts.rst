@@ -500,8 +500,8 @@ that happened in an upstream task. One way to do this is by using the
 ``BranchPythonOperator``.
 
 The ``BranchPythonOperator`` is much like the PythonOperator except that it
-expects a python_callable that returns a task_id. The task_id returned
-is followed, and all of the other paths are skipped.
+expects a python_callable that returns a task_id (or list of task_ids). The
+task_id returned is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to be referencing a task
 directly downstream from the BranchPythonOperator task.
 
