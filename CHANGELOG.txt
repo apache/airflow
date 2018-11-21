@@ -1,3 +1,137 @@
+AIRFLOW 1.10.1, 2018-11-13
+
+New features:
+
+[AIRFLOW-2524] Airflow integration with AWS Sagemaker
+[AIRFLOW-2657] Add ability to delete DAG from web ui
+[AIRFLOW-2780] Adds IMAP Hook to interact with a mail server
+[AIRFLOW-2794] Add delete support for Azure blob
+[AIRFLOW-2912] Add operators for Google Cloud Functions
+[AIRFLOW-2974] Add Start/Restart/Terminate methods Databricks Hook
+[AIRFLOW-2989] No Parameter to change bootDiskType for DataprocClusterCreateOperator
+[AIRFLOW-3078] Basic operators for Google Compute Engine
+[AIRFLOW-3147] Update Flask-AppBuilder version
+[AIRFLOW-3231] Basic operators for Google Cloud SQL (deploy / patch / delete)
+[AIRFLOW-3276] Google Cloud SQL database create / patch / delete operators
+
+Improvements:
+
+[AIRFLOW-393] Add progress callbacks for FTP downloads
+[AIRFLOW-520] Show Airflow version on web page
+[AIRFLOW-843] Exceptions now available in context during on_failure_callback
+[AIRFLOW-2476] Update tabulate dependency to v0.8.2
+[AIRFLOW-2592] Bump Bleach dependency
+[AIRFLOW-2622] Add "confirm=False" option to SFTPOperator
+[AIRFLOW-2662] support affinity & nodeSelector policies for kubernetes executor/operator
+[AIRFLOW-2709] Improve error handling in Databricks hook
+[AIRFLOW-2723] Update lxml dependancy to >= 4.0.
+[AIRFLOW-2763] No precheck mechanism in place during worker initialisation for the connection to metadata database
+[AIRFLOW-2789] Add ability to create single node cluster to DataprocClusterCreateOperator
+[AIRFLOW-2797] Add ability to create Google Dataproc cluster with custom image
+[AIRFLOW-2854] kubernetes_pod_operator add more configuration items
+[AIRFLOW-2855] Need to Check Validity of Cron Expression When Process DAG File/Zip File
+[AIRFLOW-2904] Clean an unnecessary line in airflow/executors/celery_executor.py
+[AIRFLOW-2921] A trivial incorrectness in CeleryExecutor()
+[AIRFLOW-2922] Potential deal-lock bug in CeleryExecutor()
+[AIRFLOW-2932] GoogleCloudStorageHook - allow compression of file
+[AIRFLOW-2949] Syntax Highlight for Single Quote
+[AIRFLOW-2951] dag_run end_date Null after a dag is finished
+[AIRFLOW-2956] Kubernetes tolerations for pod operator
+[AIRFLOW-2997] Support for clustered tables in Bigquery hooks/operators
+[AIRFLOW-3006] Fix error when schedule_interval="None"
+[AIRFLOW-3008] Move Kubernetes related example DAGs to contrib/example_dags
+[AIRFLOW-3025] Allow to specify dns and dns-search parameters for DockerOperator
+[AIRFLOW-3067] (www_rbac) Flask flash messages are not displayed properly (no background color)
+[AIRFLOW-3069] Decode output of S3 file transform operator
+[AIRFLOW-3072] Assign permission get_logs_with_metadata to viewer role
+[AIRFLOW-3090] INFO logs are too verbose
+[AIRFLOW-3103] Update Flask-Login
+[AIRFLOW-3112] Align SFTP hook with SSH hook
+[AIRFLOW-3119] Enable loglevel on celery worker and inherit from airflow.cfg
+[AIRFLOW-3137] Make ProxyFix middleware optional
+[AIRFLOW-3173] Add _cmd options for more password config options
+[AIRFLOW-3177] Change scheduler_heartbeat metric from gauge to counter
+[AIRFLOW-3193] Pin docker requirement version to v3
+[AIRFLOW-3195] Druid Hook: Log ingestion spec and task id
+[AIRFLOW-3197] EMR Hook is missing some parameters to valid on the AWS API
+[AIRFLOW-3232] Make documentation for GCF Functions operator more readable
+[AIRFLOW-3262] Can't get log containing Response when using SimpleHttpOperator
+[AIRFLOW-3265] Add support for "unix_socket" in connection extra for Mysql Hook
+
+Doc-only changes:
+
+[AIRFLOW-1441] Tutorial Inconsistencies Between Example Pipeline Definition and Recap
+[AIRFLOW-2682] Add how-to guide(s) for how to use basic operators like BashOperator and PythonOperator
+[AIRFLOW-3104] .airflowignore feature is not mentioned at all in documentation
+[AIRFLOW-3237] Refactor example DAGs
+[AIRFLOW-3187] Update airflow.gif file with a slower version
+[AIRFLOW-3159] Update Airflow documentation on GCP Logging
+[AIRFLOW-3030] Command Line docs incorrect subdir
+[AIRFLOW-2990] Docstrings for Hooks/Operators are in incorrect format
+[AIRFLOW-3127] Celery SSL Documentation is out-dated
+[AIRFLOW-2779] Add license headers to doc files
+[AIRFLOW-2779] Add project version to license
+
+Bug fixes:
+
+[AIRFLOW-839] docker_operator.py attempts to log status key without first checking existence
+[AIRFLOW-1104] Concurrency check in scheduler should count queued tasks as well as running
+[AIRFLOW-1163] Add support for x-forwarded-* headers to support access behind AWS ELB
+[AIRFLOW-1195] Cleared tasks in SubDagOperator do not trigger Parent dag_runs
+[AIRFLOW-1508] Skipped state not part of State.task_states
+[AIRFLOW-1762] Use key_file in SSHHook.create_tunnel()
+[AIRFLOW-1837] Differing start_dates on tasks not respected by scheduler.
+[AIRFLOW-1874] Support standard SQL in Check, ValueCheck and IntervalCheck BigQuery operators
+[AIRFLOW-1917] print() from python operators end up with extra new line
+[AIRFLOW-1970] Database cannot be initialized if an invalid fernet key is provided
+[AIRFLOW-2145] Deadlock after clearing a running task
+[AIRFLOW-2216] Cannot specify a profile for AWS Hook to load with s3 config file
+[AIRFLOW-2574] initdb fails when mysql password contains percent sign
+[AIRFLOW-2707] Error accessing log files from web UI
+[AIRFLOW-2716] Replace new Python 3.7 keywords
+[AIRFLOW-2744] RBAC app doesn't integrate plugins (blueprints etc)
+[AIRFLOW-2772] BigQuery hook does not allow specifying both the partition field name and table name at the same time
+[AIRFLOW-2778] Bad Import in collect_dag in DagBag
+[AIRFLOW-2786] Variables view fails to render if a variable has an empty key
+[AIRFLOW-2799] Filtering UI objects by datetime is broken
+[AIRFLOW-2800] Remove airflow/ low-hanging linting errors
+[AIRFLOW-2825] S3ToHiveTransfer operator may not may able to handle GZIP file with uppercase ext in S3
+[AIRFLOW-2848] dag_id is missing in metadata table "job" for LocalTaskJob
+[AIRFLOW-2860] DruidHook: time variable is not updated correctly when checking for timeout
+[AIRFLOW-2865] Race condition between on_success_callback and LocalTaskJob's cleanup
+[AIRFLOW-2893] Stuck dataflow job due to jobName mismatch.
+[AIRFLOW-2895] Prevent scheduler from spamming heartbeats/logs
+[AIRFLOW-2900] Code not visible for Packaged DAGs
+[AIRFLOW-2905] Switch to regional dataflow job service.
+[AIRFLOW-2907] Sendgrid - Attachments - ERROR - Object of type 'bytes' is not JSON serializable
+[AIRFLOW-2938] Invalid 'extra' field in connection can raise an AttributeError when attempting to edit
+[AIRFLOW-2979] Deprecated Celery Option not in Options list
+[AIRFLOW-2981] TypeError in dataflow operators when using GCS jar or py_file
+[AIRFLOW-2984] Cannot convert naive_datetime when task has a naive start_date/end_date
+[AIRFLOW-2994] flatten_results in BigQueryOperator/BigQueryHook should default to None
+[AIRFLOW-3002] ValueError in dataflow operators when using GCS jar or py_file
+[AIRFLOW-3012] Email on sla miss is send only to first address on the list
+[AIRFLOW-3046] ECS Operator mistakenly reports success when task is killed due to EC2 host termination
+[AIRFLOW-3064] No output from `airflow test` due to default logging config
+[AIRFLOW-3072] Only admin can view logs in RBAC UI
+[AIRFLOW-3079] Improve initdb to support MSSQL Server
+[AIRFLOW-3089] Google auth doesn't work under http
+[AIRFLOW-3099] Errors raised when some blocs are missing in airflow.cfg
+[AIRFLOW-3109] Default user permission should contain 'can_clear'
+[AIRFLOW-3111] Confusing comments and instructions for log templates in UPDATING.md and default_airflow.cfg
+[AIRFLOW-3124] Broken webserver debug mode (RBAC)
+[AIRFLOW-3136] Scheduler Failing the Task retries run while processing Executor Events
+[AIRFLOW-3138] Migration cc1e65623dc7 creates issues with postgres
+[AIRFLOW-3161] Log Url link does not link to task instance logs in RBAC UI
+[AIRFLOW-3162] HttpHook fails to parse URL when port is specified
+[AIRFLOW-3183] Potential Bug in utils/dag_processing/DagFileProcessorManager.max_runs_reached()
+[AIRFLOW-3203] Bugs in DockerOperator & Some operator test scripts were named incorrectly
+[AIRFLOW-3238] Dags, removed from the filesystem, are not deactivated on initdb
+[AIRFLOW-3268] Cannot pass SSL dictionary to mysql connection via URL
+[AIRFLOW-3277] Invalid timezone transition handling for cron schedules
+[AIRFLOW-3295] Require encryption in DaskExecutor when certificates are configured.
+[AIRFLOW-3297] EmrStepSensor marks cancelled step as successful
+
 AIRFLOW 1.10.0, 2018-08-03
 --------------------------
 [AIRFLOW-2870] Use abstract TaskInstance for migration
