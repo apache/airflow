@@ -19,12 +19,21 @@
 
 # Using `from elasticsearch import *` breaks es mocking in unit test.
 import elasticsearch
+<<<<<<< HEAD
 import json
 import logging
+=======
+import io
+import json
+import logging
+import os
+import requests
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
 import sys
 
 import pendulum
 from elasticsearch_dsl import Search
+from jinja2 import Template
 
 from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
@@ -94,6 +103,25 @@ class JsonFormatter(logging.Formatter):
         recordObj = {**recordObj, **self.processedTask}
         return json.dumps(recordObj)
 
+RECORD_LABELS = ['asctime', 'levelname', 'filename', 'lineno', 'message']
+
+class parentStdout():
+    """
+    Keep track of the parent stdout context when running task in child process
+    """
+    def __init__(self):
+        self.closed = False
+    def write(self, string):
+        sys.__stdout__.write(string)
+
+class JsonFormatter(logging.Formatter):
+    def __init__(self, processedTask=None):
+        super(JsonFormatter, self).__init__()
+        self.processedTask = processedTask
+    def format(self, record):
+        recordObject = {label: getattr(record, label) for label in RECORD_LABELS}
+        recordObject = {**recordObject, **self.processedTask}
+        return json.dumps(recordObject)
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     PAGE = 0
@@ -117,8 +145,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
+<<<<<<< HEAD
                  write_stdout=None, json_format=None,
                  record_labels=None, host='localhost:9200'):
+=======
+                 host='localhost:9200', write_stdout):
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
         """
         :param base_log_folder: base folder to store logs locally
         :param log_id_template: log id template
@@ -129,8 +161,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         self.closed = False
         self.write_stdout = write_stdout
+<<<<<<< HEAD
         self.json_format = json_format
         self.record_labels = record_labels
+=======
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
 
         self.handler = None
         self.taskInstance = None
@@ -145,6 +180,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.end_of_log_mark = end_of_log_mark
 
     def set_context(self, ti):
+<<<<<<< HEAD
         if self.write_stdout:
             self.writer = ParentStdout()
             sys.stdout = self.writer
@@ -161,11 +197,25 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             self.handler.setLevel(self.level)
 
         elif not self.write_stdout:
+=======
+        if self.write_stdout == True:
+            self.writer = parentStdout()
+            sys.stdout = self.writer
+            self.taskInstance = self._process_taskInstance(ti)
+            self.handler = logging.StreamHandler(stream=sys.stdout)
+            self.handler.setFormatter(JsonFormatter(self.taskInstance))
+            self.handler.setLevel(self.level)
+        elif self.write_stdout == False:
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
             super(ElasticsearchTaskHandler, self).set_context(ti)
         self.mark_end_on_close = not ti.raw
 
     def emit(self, record):
+<<<<<<< HEAD
         if self.write_stdout:
+=======
+        if self.write_stdout == True:
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
             self.formatter.format(record)
             if self.handler is not None:
                 self.handler.emit(record)
@@ -176,28 +226,47 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         if self.handler is not None:
             self.handler.flush()
 
+<<<<<<< HEAD
     def _process_task_instance(self, ti):
         ti_info = {'dag_id': str(ti.dag_id),
                    'task_id': str(ti.task_id),
                    'execution_date': str(ti.execution_date),
                    'try_number': str(ti.try_number)}
+=======
+    def _process_taskInstance(self, ti):
+        ti_info =  {'dag_id': str(ti.dag_id),
+                    'task_id': str(ti.task_id),
+                    'execution_date': str(ti.execution_date),
+                    'try_number': str(ti.try_number)}
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
         return ti_info
 
     def read(self, task_instance, try_number=None, metadata=None):
             """
             Read logs of a given task instance from elasticsearch.
             :param task_instance: task instance object
+<<<<<<< HEAD
             :param try_number: task instance try_number to read logs from.
             If None,it will start at 1.
             """
             if self.write_stdout:
+=======
+            :param try_number: task instance try_number to read logs from. If None,
+                               it will start at 1.
+            """
+            if self.write_stdout == True:
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
                 if try_number is None:
                     next_try = task_instance.next_try_number
                     try_numbers = list(range(1, next_try))
                 elif try_number < 1:
                     logs = [
+<<<<<<< HEAD
                         'Error fetching the logs. \
                          Try number {} is invalid.'.format(try_number),
+=======
+                        'Error fetching the logs. Try number {} is invalid.'.format(try_number),
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
                     ]
                     return logs
                 else:
@@ -206,6 +275,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 logs = [''] * len(try_numbers)
                 metadatas = [{}] * len(try_numbers)
                 for i, try_number in enumerate(try_numbers):
+<<<<<<< HEAD
                     log, metadata = self._read(task_instance,
                                                try_number,
                                                metadata)
@@ -216,12 +286,21 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                     # metadata. This will prevent the recursion from happening
                     # in the ti_log.html script and will therefore prevent
                     # constantly checking ES for updates, since we've
+=======
+                    log, metadata = self._read(task_instance, try_number, metadata)
+
+                    # If there's a log, then we don't want to keep checking. Set end_of_log
+                    # to True, set the mark_end_on_close to False and return the log and metadata
+                    # This will prevent the recursion from happening in the ti_log.html script
+                    # and will therefore prevent constantly checking ES for updates, since we've
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
                     # fetched what we're looking for
                     if log:
                         logs[i] += log
                         metadata['end_of_log'] = True
                         self.mark_end_on_close = False
                         metadatas[i] = metadata
+<<<<<<< HEAD
                     elif not log:
                         metadata['end_of_log'] = False
                         metadatas[i] = metadata
@@ -231,6 +310,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 return super(ElasticsearchTaskHandler, self).read(task_instance,
                                                                   try_number,
                                                                   metadata)
+=======
+
+                return logs, metadatas
+            elif not self.write_stdout:
+                super(ElasticsearchTaskHandler, self).read(task_instance, try_number, metadata)
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
 
     def _render_log_id(self, ti, try_number):
         # Using Jinja2 templating
@@ -316,6 +401,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param offset: the offset start to read log from.
         :type offset: str
         """
+<<<<<<< HEAD
+=======
+
+        log_components = log_id.split("-")
+        dag_id = log_components[0]
+        task_id = log_components[1]
+        execution_date = '_'.join(log_components[2:5]).replace(":", "_").replace("-", "_").replace("+", "_")
+        try_number = str(int(log_components[5]))
+
+        new_log_id = f"{dag_id}_{task_id}_{execution_date}_{try_number}"
+
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
         # Offset is the unique key for sorting logs given log_id.
         s = Search(using=self.client) \
             .query('match', log_id=log_id) \
@@ -360,6 +457,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
+<<<<<<< HEAD
         # Don't need to do this if using write_stdout, this is handled in read
         if not self.write_stdout:
             self.handler.stream.write(self.end_of_log_mark)
@@ -371,6 +469,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 sys.stdout = sys.__stdout__
 
         elif not self.write_stdout:
+=======
+        # self.handler.stream.write(self.end_of_log_mark)
+
+        if self.write_stdout == True:
+            if self.handler is not None:
+                self.writer.closed = True
+                self.handler.close()
+                sys.stdout = sys.__stdout__
+
+        if not self.write_stdout:
+>>>>>>> 31f18134... [AIRFLOW-3370] Add stdout and JSON functionality to ES task handler
             super(ElasticsearchTaskHandler, self).close()
 
         self.closed = True
