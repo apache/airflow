@@ -221,7 +221,8 @@ class BigQueryBaseCursor(LoggingMixin):
                            labels=None,
                            view=None):
         """
-        Creates a new, empty table in the dataset.
+        Creates a new, empty table in the dataset. 
+        To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
 
         :param project_id: The project to create the table into.
         :type project_id: str
@@ -246,7 +247,8 @@ class BigQueryBaseCursor(LoggingMixin):
             .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
-        :param view: [Optional] a dictionary containing definition for the view:
+        :param view: [Optional] A dictionary containing definition for the view.
+            If set, it will create a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
         :type view: dict
 
