@@ -41,6 +41,8 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = 'dag_for_testing_file_task_handler-task_for_testing' \
              '_file_log_handler-2016-01-01T00:00:00+00:00-1'
+    LOG_ID_JSON = 'dag_for_testing_file_task_handler_task_for_testing' \
+                  '_file_log_handler_2016_01_01T00_00_00_00_00_1'
 
     @elasticmock
     def setUp(self):
@@ -49,14 +51,23 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.filename_template = '{try_number}.log'
         self.log_id_template = '{dag_id}-{task_id}-{execution_date}-{try_number}'
         self.end_of_log_mark = 'end_of_log\n'
+        self.write_stdout = None
+        self.json_format = None
+        self.record_labels = ['asctime', 'levelname', 'filename', 'lineno', 'message']
+        self.host = "10.31.255.146:9200"
+
         self.es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
             self.filename_template,
             self.log_id_template,
-            self.end_of_log_mark
+            self.end_of_log_mark,
+            self.write_stdout,
+            self.json_format,
+            self.record_labels,
+            self.host,
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
+        self.es = elasticsearch.Elasticsearch(hosts=[{'host': '10.31.255.146', 'port': 9200}])
         self.index_name = 'test_index'
         self.doc_type = 'log'
         self.test_message = 'some random stuff'
@@ -94,7 +105,25 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertEqual(1, metadatas[0]['offset'])
         self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
 
-    def test_read_with_none_meatadata(self):
+    def test_read_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        ts = pendulum.now()
+        logs, metadatas = self.es_task_handler.read(self.ti,
+                                                    1,
+                                                    {'offset': 0,
+                                                     'last_log_timestamp': str(ts),
+                                                     'end_of_log': False})
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual(self.test_message, logs[0])
+        # Testing for preventing the autotailing condition here
+        self.assertTrue(metadatas[0]['end_of_log'])
+        self.assertEqual(1, metadatas[0]['offset'])
+        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+
+    def test_read_with_none_metadata(self):
         logs, metadatas = self.es_task_handler.read(self.ti, 1)
         self.assertEqual(1, len(logs))
         self.assertEqual(len(logs), len(metadatas))
@@ -104,11 +133,44 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertTrue(
             timezone.parse(metadatas[0]['last_log_timestamp']) < pendulum.now())
 
+    def test_read_with_none_metadata_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        logs, metadatas = self.es_task_handler.read(self.ti, 1)
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual(self.test_message, logs[0])
+        # Handle the stopping condition for auto-tailing here
+        self.assertTrue(metadatas[0]['end_of_log'])
+        self.assertEqual(1, metadatas[0]['offset'])
+        self.assertTrue(
+            timezone.parse(metadatas[0]['last_log_timestamp']) < pendulum.now())
+
     def test_read_nonexistent_log(self):
         ts = pendulum.now()
         # In ElasticMock, search is going to return all documents with matching index
         # and doc_type regardless of match filters, so we delete the log entry instead
         # of making a new TaskInstance to query.
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+        logs, metadatas = self.es_task_handler.read(self.ti,
+                                                    1,
+                                                    {'offset': 0,
+                                                     'last_log_timestamp': str(ts),
+                                                     'end_of_log': False})
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual([''], logs)
+        self.assertFalse(metadatas[0]['end_of_log'])
+        self.assertEqual(0, metadatas[0]['offset'])
+        # last_log_timestamp won't change if no log lines read.
+        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) == ts)
+
+    def test_read_nonexistent_log_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        ts = pendulum.now()
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
         logs, metadatas = self.es_task_handler.read(self.ti,
                                                     1,
@@ -149,6 +211,24 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         # if not last_log_timestamp is provided.
         self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
 
+    def test_read_with_empty_metadata_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        ts = pendulum.now()
+        logs, metadatas = self.es_task_handler.read(self.ti, 1, {})
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual(self.test_message, logs[0])
+        # Assertion should be True if a log message is present, as it prevents
+        # collecting more messages than necessary (just 1)
+        self.assertTrue(metadatas[0]['end_of_log'])
+        # offset should be initialized to 0 if not provided
+        self.assertEqual(1, metadatas[0]['offset'])
+        # last_log_timestamp will be initalized using log reading time
+        # if not last_log_timestamp is provided
+        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+
     def test_read_timeout(self):
         ts = pendulum.now().subtract(minutes=5)
 
@@ -162,6 +242,27 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertEqual(len(logs), len(metadatas))
         self.assertEqual([''], logs)
         self.assertTrue(metadatas[0]['end_of_log'])
+        # offset should be initialized to 0 if not provided.
+        self.assertEqual(0, metadatas[0]['offset'])
+        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) == ts)
+
+    def test_read_timeout_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        ts = pendulum.now().subtract(minutes=5)
+
+        self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+        logs, metadatas = self.es_task_handler.read(self.ti,
+                                                    1,
+                                                    {'offset': 0,
+                                                     'last_log_timestamp': str(ts),
+                                                     'end_of_log': False})
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual([''], logs)
+        # Assertion should be false if a log message is not present, to keep querying ES
+        self.assertFalse(metadatas[0]['end_of_log'])
         # offset should be initialized to 0 if not provided.
         self.assertEqual(0, metadatas[0]['offset'])
         self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) == ts)
@@ -182,7 +283,32 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertFalse(metadatas[0]['end_of_log'])
         self.assertEqual(0, metadatas[0]['offset'])
 
+    def test_read_raises_stdout_logs_json_true(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+        with mock.patch.object(self.es_task_handler.log, 'exception') as mock_exception:
+            with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
+                mock_execute.side_effect = Exception('Failed to read')
+                logs, metadatas = self.es_task_handler.read(self.ti, 1)
+            msg = "Could not read log with log_id: {}".format(self.LOG_ID_JSON)
+            mock_exception.assert_called_once()
+            args, kwargs = mock_exception.call_args
+            self.assertIn(msg, args[0])
+
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual([''], logs)
+        self.assertFalse(metadatas[0]['end_of_log'])
+        self.assertEqual(0, metadatas[0]['offset'])
+
     def test_set_context(self):
+        self.es_task_handler.set_context(self.ti)
+        self.assertTrue(self.es_task_handler.mark_end_on_close)
+
+    def test_set_context_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
         self.es_task_handler.set_context(self.ti)
         self.assertTrue(self.es_task_handler.mark_end_on_close)
 
@@ -195,6 +321,14 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.assertIn(self.end_of_log_mark, log_file.read())
         self.assertTrue(self.es_task_handler.closed)
 
+    def test_close_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.close()
+        self.assertTrue(self.es_task_handler.closed)
+
     def test_close_no_mark_end(self):
         self.ti.raw = True
         self.es_task_handler.set_context(self.ti)
@@ -203,6 +337,15 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
                                self.filename_template.format(try_number=1)),
                   'r') as log_file:
             self.assertNotIn(self.end_of_log_mark, log_file.read())
+        self.assertTrue(self.es_task_handler.closed)
+
+    def test_close_no_mark_end_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        self.ti.raw = True
+        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.close()
         self.assertTrue(self.es_task_handler.closed)
 
     def test_close_closed(self):
@@ -214,6 +357,17 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
                   'r') as log_file:
             self.assertEqual(0, len(log_file.read()))
 
+    def test_close_closed_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        self.es_task_handler.closed = True
+        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.close()
+
+        self.assertTrue(self.es_task_handler.closed)
+
+
     def test_close_with_no_handler(self):
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.handler = None
@@ -222,6 +376,16 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
                                self.filename_template.format(try_number=1)),
                   'r') as log_file:
             self.assertEqual(0, len(log_file.read()))
+        self.assertTrue(self.es_task_handler.closed)
+
+    def test_close_with_no_handler_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.handler = None
+        self.es_task_handler.close()
+
         self.assertTrue(self.es_task_handler.closed)
 
     def test_close_with_no_stream(self):
@@ -243,6 +407,22 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.assertIn(self.end_of_log_mark, log_file.read())
         self.assertTrue(self.es_task_handler.closed)
 
+    def test_close_with_no_stream_stdout_logs(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.handler.stream = None
+        self.es_task_handler.close()
+
+        self.assertTrue(self.es_task_handler.closed)
+
+        self.es_task_handler.set_context(self.ti)
+        self.es_task_handler.handler.stream.close()
+        self.es_task_handler.close()
+
+        self.assertTrue(self.es_task_handler.closed)
+
     def test_render_log_id(self):
         expected_log_id = 'dag_for_testing_file_task_handler-' \
                           'task_for_testing_file_log_handler-2016-01-01T00:00:00+00:00-1'
@@ -258,3 +438,27 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         )
         log_id = self.es_task_handler._render_log_id(self.ti, 1)
         self.assertEqual(expected_log_id, log_id)
+
+    def test_render_log_id_json_true(self):
+        self.es_task_handler.write_stdout = True
+        self.es_task_handler.json_format = True
+
+        expected_log_id = 'dag_for_testing_file_task_handler_' \
+                          'task_for_testing_file_log_handler_2016_01_01T00_00_00_00_00_1'
+        log_id = self.es_task_handler._render_log_id(self.ti, 1)
+        self.assertEqual(expected_log_id, log_id)
+
+        # Switch to use jinja template
+        self.es_task_handler.write_stdout = None
+        self.es_task_handler.json_format = None
+
+        jinja_expected_log_id = 'dag_for_testing_file_task_handler-' \
+                                'task_for_testing_file_log_handler-2016-01-01T00:00:00+00:00-1'
+        self.es_task_handler = ElasticsearchTaskHandler(
+            self.local_log_location,
+            self.filename_template,
+            '{{ ti.dag_id }}-{{ ti.task_id }}-{{ ts }}-{{ try_number }}',
+            self.end_of_log_mark
+        )
+        jinja_log_id = self.es_task_handler._render_log_id(self.ti, 1)
+        self.assertEqual(jinja_expected_log_id, jinja_log_id)

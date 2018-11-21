@@ -135,3 +135,33 @@ example:
         [2017-10-03 21:57:51,306] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,306] {models.py:186} INFO - Filling up the DagBag from /airflow/dags/example_dags/example_bash_operator.py
 
 Note the top line that says it's reading from the remote log file.
+
+Writing Logs to Elasticsearch
+-----------------------------
+
+Airflow can be configured to read and write task logs to Elasticsearch.
+
+To enable this feature, a custom log configuration file must be added, as detailed by the following steps:
+
+#. Airflow's logging system requires a custom .py file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file. ``$AIRFLOW_HOME/config`` is recommended.
+#. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
+#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file that was just created in the step above.
+#. Customize the following portions of the template:
+
+In addition, ``airflow.cfg`` must be configured as such:
+
+.. code-block:: bash
+
+  [core]
+  # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+  # Users must supply an Airflow connection id that provides access to the storage
+  # location. If remote_logging is set to true, see UPDATING.md for additional
+  # configuration requirements.
+  remote_logging = True
+  task_log_reader = elasticsearch
+  logging_config_class = airflow.path.to.config.LOGGING_CONFIG
+
+  [elasticsearch]
+  elasticsearch_host = {{ host }}:{{ port }}
+  elasticsearch_write_stdout = True
+  elasticsearch_json_format = True
