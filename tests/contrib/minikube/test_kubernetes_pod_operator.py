@@ -107,6 +107,27 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         self.assertEqual(launcher_mock.call_args[0][0].image_pull_secrets,
                          fake_pull_secrets)
 
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.delete_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_pod_delete_even_on_launcher_error(self, client_mock, delete_pod_mock, run_pod_mock):
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            cluster_context='default',
+            is_delete_operator_pod=True
+        )
+        run_pod_mock.side_effect = AirflowException('fake failure')
+        with self.assertRaises(AirflowException):
+            k.execute(None)
+        delete_pod_mock.assert_called()
+
     @staticmethod
     def test_working_pod():
         k = KubernetesPodOperator(
