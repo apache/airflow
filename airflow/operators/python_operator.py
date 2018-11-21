@@ -114,14 +114,14 @@ class PythonOperator(BaseOperator):
 
 class BranchPythonOperator(PythonOperator, SkipMixin):
     """
-    Allows a workflow to "branch" or follow a single path following the
-    execution of this task.
+    Allows a workflow to "branch" or follow a path following the execution
+    of this task.
 
     It derives the PythonOperator and expects a Python function that returns
-    the task_id to follow. The task_id returned should point to a task
-    directly downstream from {self}. All other "branches" or
-    directly downstream tasks are marked with a state of ``skipped`` so that
-    these paths can't move forward. The ``skipped`` states are propageted
+    a single task_id or list of task_ids to follow. The task_id(s) returned
+    should point to a task directly downstream from {self}. All other "branches"
+    or directly downstream tasks are marked with a state of ``skipped`` so that
+    these paths can't move forward. The ``skipped`` states are propagated
     downstream to allow for the DAG state to fill up and the DAG run's state
     to be inferred.
 
@@ -133,13 +133,15 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
+        if isinstance(branch, str):
+            branch = [branch]
         self.log.info("Following branch %s", branch)
         self.log.info("Marking other directly downstream tasks as skipped")
 
         downstream_tasks = context['task'].downstream_list
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
-        skip_tasks = [t for t in downstream_tasks if t.task_id != branch]
+        skip_tasks = [t for t in downstream_tasks if t.task_id not in branch]
         if downstream_tasks:
             self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
 
