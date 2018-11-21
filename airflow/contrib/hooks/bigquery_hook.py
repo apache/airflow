@@ -221,7 +221,7 @@ class BigQueryBaseCursor(LoggingMixin):
                            labels=None,
                            view=None):
         """
-        Creates a new, empty table in the dataset. 
+        Creates a new, empty table in the dataset.
         To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
 
         :param project_id: The project to create the table into.
