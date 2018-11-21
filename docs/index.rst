@@ -103,6 +103,7 @@ Content
     timezone
     api
     integration
+    metrics
     lineage
     faq
     code
