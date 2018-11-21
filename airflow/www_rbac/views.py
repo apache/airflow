@@ -41,7 +41,6 @@ from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
-from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from past.builtins import unicode
 from pygments import highlight, lexers
@@ -382,33 +381,6 @@ class Airflow(AirflowBaseView):
                         'dag_id': dag.dag_id,
                         'color': State.color(state)
                     })
-        return wwwutils.json_response(payload)
-
-    @expose('/last_dagruns')
-    @has_access
-    @provide_session
-    def last_dagruns(self, session=None):
-        DagRun = models.DagRun
-
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-
-        if not filter_dag_ids:
-            return
-
-        dags_to_latest_runs = dict(session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-            .group_by(DagRun.dag_id).all())
-
-        payload = {}
-        for dag in dagbag.dags.values():
-            dag_accessible = 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids
-            if (dag_accessible and dag.dag_id in dags_to_latest_runs and
-                    dags_to_latest_runs[dag.dag_id]):
-                payload[dag.safe_dag_id] = {
-                    'dag_id': dag.dag_id,
-                    'last_run': dags_to_latest_runs[dag.dag_id].strftime("%Y-%m-%d %H:%M")
-                }
-
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -1826,11 +1798,18 @@ class ConfigurationView(AirflowBaseView):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
         subtitle = conf.AIRFLOW_CONFIG
-        with open(conf.AIRFLOW_CONFIG, 'r') as f:
-            config = f.read()
-        table = [(section, key, value, source)
-                 for section, parameters in conf.as_dict(True, True).items()
-                 for key, (value, source) in parameters.items()]
+        # Don't show config when expose_config variable is False in airflow config
+        if conf.getboolean("webserver", "expose_config"):
+            with open(conf.AIRFLOW_CONFIG, 'r') as f:
+                config = f.read()
+            table = [(section, key, value, source)
+                     for section, parameters in conf.as_dict(True, True).items()
+                     for key, (value, source) in parameters.items()]
+        else:
+            config = (
+                "# Your Airflow administrator chose not to expose the "
+                "configuration, most likely for security reasons.")
+            table = None
 
         if raw:
             return Response(
@@ -1866,27 +1845,7 @@ class AirflowModelView(ModelView):
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
-    class CustomSQLAInterface(SQLAInterface):
-        """
-        FAB does not know how to handle columns with leading underscores because
-        they are not supported by WTForm. This hack will remove the leading
-        '_' from the key to lookup the column names.
-
-        """
-        def __init__(self, obj):
-            super(AirflowModelView.CustomSQLAInterface, self).__init__(obj)
-
-            self.session = settings.Session()
-
-            def clean_column_names():
-                if self.list_properties:
-                    self.list_properties = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_properties.items())
-                if self.list_columns:
-                    self.list_columns = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_columns.items())
-
-            clean_column_names()
+    CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
 
 class SlaMissModelView(AirflowModelView):

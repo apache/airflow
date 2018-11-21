@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Integration
 ===========
 
@@ -100,28 +117,28 @@ field (see connection `wasb_default` for an example).
 .. _WasbBlobSensor:
 
 WasbBlobSensor
-"""""""""""""""
+""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
 
 .. _WasbPrefixSensor:
 
 WasbPrefixSensor
-"""""""""""""""""
+""""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor
 
 .. _FileToWasbOperator:
 
 FileToWasbOperator
-"""""""""""""""""""
+""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
 
 .. _WasbHook:
 
 WasbHook
-"""""""""
+""""""""
 
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 
@@ -221,6 +238,7 @@ AWS S3
 - :ref:`S3FileTransformOperator` : Copies data from a source S3 location to a temporary location on the local filesystem.
 - :ref:`S3ListOperator` : Lists the files matching a key prefix from a S3 location.
 - :ref:`S3ToGoogleCloudStorageOperator` : Syncs an S3 location with a Google Cloud Storage bucket.
+- :ref:`S3ToGoogleCloudStorageTransferOperator` : Syncs an S3 bucket with a Google Cloud Storage bucket using the GCP Storage Transfer Service.
 - :ref:`S3ToHiveTransfer` : Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
 
 .. _S3Hook:
@@ -250,6 +268,13 @@ S3ToGoogleCloudStorageOperator
 """"""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
+
+.. _S3ToGoogleCloudStorageTransferOperator:
+
+S3ToGoogleCloudStorageTransferOperator
+""""""""""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageTransferOperator
 
 .. _S3ToHiveTransfer:
 
@@ -516,62 +541,82 @@ Cloud SQL Operators
 """""""""""""""""""
 
 - :ref:`CloudSqlInstanceDatabaseDeleteOperator` : deletes a database from a Cloud SQL
-instance.
+  instance.
 - :ref:`CloudSqlInstanceDatabaseCreateOperator` : creates a new database inside a Cloud
-SQL instance.
+  SQL instance.
 - :ref:`CloudSqlInstanceDatabasePatchOperator` : updates a database inside a Cloud
-SQL instance.
+  SQL instance.
 - :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
 - :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
 - :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
+- :ref:`CloudSqlQueryOperator` : run query in a Cloud SQL instance.
 
-.. CloudSqlInstanceDatabaseDeleteOperator:
+.. _CloudSqlInstanceDatabaseDeleteOperator:
 
 CloudSqlInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
 
-.. CloudSqlInstanceDatabaseCreateOperator:
+.. _CloudSqlInstanceDatabaseCreateOperator:
 
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
 
-.. CloudSqlInstanceDatabasePatchOperator:
+.. _CloudSqlInstanceDatabasePatchOperator:
 
 CloudSqlInstanceDatabasePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
 
-.. CloudSqlInstanceDeleteOperator:
+.. _CloudSqlInstanceDeleteOperator:
 
 CloudSqlInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
 
-.. CloudSqlInstanceCreateOperator:
+.. _CloudSqlInstanceCreateOperator:
 
 CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
 
-.. CloudSqlInstancePatchOperator:
+.. _CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
 
-Cloud SQL Hook
-""""""""""""""
+.. _CloudSqlQueryOperator:
+
+CloudSqlQueryOperator
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator
+
+Cloud SQL Hooks
+"""""""""""""""
+
+.. _CloudSqlHook:
 
 .. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
     :members:
+
+.. _CloudSqlDatabaseHook:
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook
+    :members:
+
+.. _CloudSqlProxyRunner:
+
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner
+    :members:
+
 
 Compute Engine
 ''''''''''''''
@@ -582,6 +627,16 @@ Compute Engine Operators
 - :ref:`GceInstanceStartOperator` : start an existing Google Compute Engine instance.
 - :ref:`GceInstanceStopOperator` : stop an existing Google Compute Engine instance.
 - :ref:`GceSetMachineTypeOperator` : change the machine type for a stopped instance.
+- :ref:`GceInstanceTemplateCopyOperator` : copy the Instance Template, applying
+  specified changes.
+- :ref:`GceInstanceGroupManagerUpdateTemplateOperator` : patch the Instance Group Manager,
+  replacing source Instance Template URL with the destination one.
+
+The operators have common base operator:
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceBaseOperator
+
+They also use :ref:`GceHook` hook to communicate with Google Cloud Platform.
 
 .. _GceInstanceStartOperator:
 
@@ -604,6 +659,28 @@ GceSetMachineTypeOperator
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 
+.. _GceInstanceTemplateCopyOperator:
+
+GceInstanceTemplateCopyOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator
+
+.. _GceInstanceGroupManagerUpdateTemplateOperator:
+
+GceInstanceGroupManagerUpdateTemplateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator
+
+.. _GceHook:
+
+Compute Engine Hook
+"""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_compute_hook.GceHook
+:members:
+
 
 Cloud Functions
 '''''''''''''''
@@ -615,6 +692,8 @@ Cloud Functions Operators
 - :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in Google Cloud Platform
 
 .. autoclass:: airflow.contrib.operators.gcp_operator.GCP
+
+They also use :ref:`GcfHook` hook to communicate with Google Cloud Platform.
 
 .. _GcfFunctionDeployOperator:
 
@@ -631,6 +710,8 @@ GcfFunctionDeleteOperator
 
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
 
+
+.. _GcfHook:
 
 Cloud Functions Hook
 """"""""""""""""""""
@@ -741,7 +822,7 @@ DataprocClusterCreateOperator
 .. _DataprocClusterScaleOperator:
 
 DataprocClusterScaleOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 
@@ -900,9 +981,11 @@ Storage Operators
 """""""""""""""""
 
 - :ref:`FileToGoogleCloudStorageOperator` : Uploads a file to Google Cloud Storage.
+- :ref:`GoogleCloudStorageBucketCreateAclEntryOperator` : Creates a new ACL entry on the specified bucket.
 - :ref:`GoogleCloudStorageCreateBucketOperator` : Creates a new cloud storage bucket.
-- :ref:`GoogleCloudStorageListOperator` : List all objects from the bucket with the give string prefix and delimiter in name.
 - :ref:`GoogleCloudStorageDownloadOperator` : Downloads a file from Google Cloud Storage.
+- :ref:`GoogleCloudStorageListOperator` : List all objects from the bucket with the give string prefix and delimiter in name.
+- :ref:`GoogleCloudStorageObjectCreateAclEntryOperator` : Creates a new ACL entry on the specified object.
 - :ref:`GoogleCloudStorageToBigQueryOperator` : Loads files from Google cloud storage into BigQuery.
 - :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies objects from a bucket to another, with renaming if requested.
 
@@ -914,6 +997,13 @@ FileToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
 
 .. _GoogleCloudStorageCreateBucketOperator:
+
+GoogleCloudStorageBucketCreateAclEntryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator
+
+.. _GoogleCloudStorageBucketCreateAclEntryOperator:
 
 GoogleCloudStorageCreateBucketOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -936,6 +1026,13 @@ GoogleCloudStorageListOperator
 
 .. _GoogleCloudStorageToBigQueryOperator:
 
+GoogleCloudStorageObjectCreateAclEntryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator
+
+.. _GoogleCloudStorageObjectCreateAclEntryOperator:
+
 GoogleCloudStorageToBigQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -952,6 +1049,12 @@ GoogleCloudStorageHook
 """"""""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+    :members:
+
+GCPTransferServiceHook
+""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
     :members:
 
 Google Kubernetes Engine

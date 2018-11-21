@@ -27,7 +27,7 @@ class MongoHook(BaseHook):
     ex.
         {replicaSet: test, ssl: True, connectTimeoutMS: 30000}
     """
-    conn_type = 'MongoDb'
+    conn_type = 'mongo'
 
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
         super(MongoHook, self).__init__(source='mongo')

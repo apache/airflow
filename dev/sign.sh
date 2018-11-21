@@ -26,4 +26,3 @@ NAME=${1}
 
 gpg --armor --output ${NAME}.asc --detach-sig ${NAME}
 gpg --print-md SHA512 ${NAME} > ${NAME}.sha512
-gpg --print-md MD5 ${NAME} > ${NAME}.md5

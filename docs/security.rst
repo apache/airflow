@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Security
 ========
 
@@ -66,8 +83,7 @@ LDAP
 ''''
 
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
-an encrypted connection to the ldap server as you probably do not want passwords be readable on the network level.
-It is however possible to configure without encryption if you really want to.
+an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
 
 Additionally, if you are using Active Directory, and are not explicitly specifying an OU that your users are in,
 you will need to change ``search_scope`` to "SUBTREE".
@@ -402,3 +418,22 @@ not set.
 
     [core]
     default_impersonation = airflow
+
+
+Flower Authentication
+---------------------
+
+Basic authentication for Celery Flower is supported.
+
+You can specify the details either as an optional argument in the Flower process launching
+command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
+`user:password` pairs separated by a comma.
+
+.. code-block:: bash
+
+    airflow flower --basic_auth=user1:password1,user2:password2
+
+.. code-block:: bash
+
+    [celery]
+    flower_basic_auth = user1:password1,user2:password2

@@ -488,7 +488,7 @@ class Airflow(BaseView):
                 else:
                     # User provides columns (x, y, metric1, metric2, ...)
                     df.index = df[df.columns[0]]
-                    df = df.sort(df.columns[0])
+                    df = df.sort_values(by=df.columns[0])
                     del df[df.columns[0]]
                     for col in df.columns:
                         df[col] = df[col].astype(np.float)
@@ -643,26 +643,6 @@ class Airflow(BaseView):
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
                 })
-        return wwwutils.json_response(payload)
-
-    @expose('/last_dagruns')
-    @login_required
-    @provide_session
-    def last_dagruns(self, session=None):
-        DagRun = models.DagRun
-
-        dags_to_latest_runs = dict(session.query(
-            DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-            .group_by(DagRun.dag_id).all())
-
-        payload = {}
-        for dag in dagbag.dags.values():
-            if dag.dag_id in dags_to_latest_runs and dags_to_latest_runs[dag.dag_id]:
-                payload[dag.safe_dag_id] = {
-                    'dag_id': dag.dag_id,
-                    'last_run': dags_to_latest_runs[dag.dag_id].strftime("%Y-%m-%d %H:%M")
-                }
-
         return wwwutils.json_response(payload)
 
     @expose('/code')
