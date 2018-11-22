@@ -333,7 +333,7 @@ login, separated with a comma, to only members of those domains.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = "example1.com,example2.com"
+    domain = example1.com,example2.com
 
 To use Google authentication, you must install Airflow with the `google_auth` extras group:
 
