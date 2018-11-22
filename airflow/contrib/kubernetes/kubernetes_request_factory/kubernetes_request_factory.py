@@ -135,7 +135,11 @@ class KubernetesRequestFactory:
         if len(pod.envs) > 0 or len(env_secrets) > 0:
             env = []
             for k in pod.envs.keys():
-                env.append({'name': k, 'value': pod.envs[k]})
+                value = pod.envs[k]
+                if isinstance(value, dict) and 'valueFrom' in value:
+                    env.append({'name': k, 'valueFrom': value['valueFrom']})
+                else:
+                    env.append({'name': k, 'value': value})
             for secret in env_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
             req['spec']['containers'][0]['env'] = env
