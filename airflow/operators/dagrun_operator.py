@@ -50,7 +50,7 @@ class TriggerDagRunOperator(BaseOperator):
     :param execution_date: Execution date for the dag
     :type execution_date: datetime.datetime
     """
-    template_fields = tuple()
+    template_fields = ('trigger_dag_id',)
     template_ext = tuple()
     ui_color = '#ffefeb'
 
