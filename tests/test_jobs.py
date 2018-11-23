@@ -42,6 +42,7 @@ from airflow.utils.db import create_session
 from airflow import AirflowException, settings, models
 from airflow import configuration
 from airflow.bin import cli
+import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
@@ -3335,7 +3336,18 @@ class SchedulerJobTest(unittest.TestCase):
                 if file_name not in ignored_files:
                     expected_files.add(
                         '{}/{}'.format(TEST_DAGS_FOLDER, file_name))
-        for file_path in list_py_file_paths(TEST_DAGS_FOLDER):
+        for file_path in list_py_file_paths(TEST_DAGS_FOLDER, include_examples=False):
+            detected_files.add(file_path)
+        self.assertEqual(detected_files, expected_files)
+
+        example_dag_folder = airflow.example_dags.__path__[0]
+        for root, dirs, files in os.walk(example_dag_folder):
+            for file_name in files:
+                if file_name.endswith('.py') or file_name.endswith('.zip'):
+                    if file_name not in ['__init__.py']:
+                        expected_files.add(os.path.join(root, file_name))
+        detected_files.clear()
+        for file_path in list_py_file_paths(TEST_DAGS_FOLDER, include_examples=True):
             detected_files.add(file_path)
         self.assertEqual(detected_files, expected_files)
 
