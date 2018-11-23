@@ -34,13 +34,13 @@ class TestDbApiHook(unittest.TestCase):
         self.conn.cursor.return_value = self.cur
         conn = self.conn
 
-        class TestDBApiHook(DbApiHook):
+        class UnitTestDbApiHook(DbApiHook):
             conn_name_attr = 'test_conn_id'
 
             def get_conn(self):
                 return conn
 
-        self.db_hook = TestDBApiHook()
+        self.db_hook = UnitTestDbApiHook()
 
     def test_get_records(self):
         statement = "SQL"
