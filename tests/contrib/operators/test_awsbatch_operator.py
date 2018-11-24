@@ -64,6 +64,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.job_definition, 'hello-world')
         self.assertEqual(self.batch.max_retries, 5)
         self.assertEqual(self.batch.overrides, {})
+        self.assertEqual(self.batch.parameters, None)
         self.assertEqual(self.batch.region_name, 'eu-west-1')
         self.assertEqual(self.batch.aws_conn_id, None)
         self.assertEqual(self.batch.hook, self.aws_hook_mock.return_value)
@@ -71,7 +72,8 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
 
     def test_template_fields_overrides(self):
-        self.assertEqual(self.batch.template_fields, ('job_name', 'overrides',))
+        self.assertEqual(self.batch.template_fields,
+                         ('job_name', 'overrides', 'parameters'))
 
     @mock.patch.object(AWSBatchOperator, '_wait_for_task_ended')
     @mock.patch.object(AWSBatchOperator, '_check_success_task')
@@ -80,9 +82,11 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
         client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
 
+        self.batch.parameters = None
         self.batch.execute(None)
 
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('batch', region_name='eu-west-1')
+        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with(
+            'batch', region_name='eu-west-1')
         client_mock.submit_job.assert_called_once_with(
             jobQueue='queue',
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
@@ -102,7 +106,8 @@ class TestAWSBatchOperator(unittest.TestCase):
         with self.assertRaises(AirflowException):
             self.batch.execute(None)
 
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('batch', region_name='eu-west-1')
+        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with(
+            'batch', region_name='eu-west-1')
         client_mock.submit_job.assert_called_once_with(
             jobQueue='queue',
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
@@ -122,7 +127,8 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
             jobs=['8ba9d676-4108-4474-9dca-8bbac1da9b19']
         )
-        self.assertEquals(sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
+        self.assertEquals(
+            sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
 
     def test_check_success_tasks_raises(self):
         client_mock = mock.Mock()
@@ -214,7 +220,8 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.batch._check_success_task()
 
         # Ordering of str(dict) is not guaranteed.
-        client_mock.describe_jobs.assert_called_once_with(jobs=['8ba9d676-4108-4474-9dca-8bbac1da9b19'])
+        client_mock.describe_jobs.assert_called_once_with(
+            jobs=['8ba9d676-4108-4474-9dca-8bbac1da9b19'])
 
 
 if __name__ == '__main__':
