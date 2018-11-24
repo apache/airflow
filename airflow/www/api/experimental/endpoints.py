@@ -23,6 +23,7 @@ from flask import (
 import airflow.api
 from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
+from airflow.api.common.experimental import connection as conn_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
@@ -253,3 +254,62 @@ def delete_pool(name):
         return response
     else:
         return jsonify(pool.to_json())
+
+
+@api_experimental.route('/connections/<string:conn_id>', methods=['GET'])
+@requires_authentication
+def get_connection(conn_id):
+    """Get connection by a given ID."""
+    try:
+        conn = conn_api.get_connection(conn_id=conn_id)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    return jsonify(conn.to_json())
+
+
+@api_experimental.route('/connections', methods=['GET'])
+@requires_authentication
+def get_connections():
+    """Get all connections."""
+    try:
+        connections = conn_api.get_connections()
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    return jsonify([conn.to_json() for conn in connections])
+
+
+@csrf.exempt
+@api_experimental.route('/connections', methods=['POST'])
+@requires_authentication
+def create_connection():
+    """Create a connection."""
+    params = request.get_json(force=True)
+    try:
+        conn = conn_api.create_connection(**params)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    return jsonify(conn.to_json())
+
+
+@csrf.exempt
+@api_experimental.route('/connections/<string:conn_id>', methods=['DELETE'])
+@requires_authentication
+def delete_connection(conn_id):
+    """Delete connection."""
+    try:
+        conn = conn_api.delete_connection(conn_id=conn_id)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    return jsonify(conn.to_json())

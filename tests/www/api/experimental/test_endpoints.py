@@ -24,7 +24,7 @@ from urllib.parse import quote_plus
 
 from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagBag, DagModel, DagRun, Pool, TaskInstance
+from airflow.models import DagBag, DagModel, DagRun, Pool, Connection, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, utcnow
 from airflow.www import app as application
@@ -321,6 +321,115 @@ class TestPoolApiExperimental(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(json.loads(response.data.decode('utf-8'))['error'],
                          "Pool 'foo' doesn't exist")
+
+
+class TestConnectionApiExperimental(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestConnectionApiExperimental, cls).setUpClass()
+        session = Session()
+        session.query(Connection).delete()
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestConnectionApiExperimental, self).setUp()
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        self.app = app.test_client()
+        self.session = Session()
+        self.conns = []
+        for i in range(2):
+            conn_id = 'experimental_%s' % (i + 1)
+            conn = Connection(
+                conn_id=conn_id,
+                password=str(i),
+            )
+            self.session.add(conn)
+            self.conns.append(conn)
+        self.session.commit()
+        self.conn = self.conns[0]
+
+    def tearDown(self):
+        self.session.query(Connection).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestConnectionApiExperimental, self).tearDown()
+
+    def _get_connection_count(self):
+        response = self.app.get('/api/experimental/connections')
+        self.assertEqual(response.status_code, 200)
+        return len(json.loads(response.data.decode('utf-8')))
+
+    def test_get_connection(self):
+        response = self.app.get(
+            '/api/experimental/connections/{}'.format(self.conn.conn_id),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data.decode('utf-8')),
+                         self.conn.to_json())
+
+    def test_get_connection_non_existing(self):
+        response = self.app.get('/api/experimental/connections/foo')
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(json.loads(response.data.decode('utf-8'))['error'],
+                         "Connection 'foo' doesn't exist")
+
+    def test_get_connections(self):
+        response = self.app.get('/api/experimental/connections')
+        self.assertEqual(response.status_code, 200)
+        conns = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(len(conns), 2)
+        for i, connection in enumerate(sorted(conns, key=lambda p: p['conn_id'])):
+            self.assertDictEqual(connection, self.conns[i].to_json())
+
+    def test_create_connection(self):
+        response = self.app.post(
+            '/api/experimental/connections',
+            data=json.dumps({
+                'conn_id': 'foo',
+                'password': '1',
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        connection = json.loads(response.data.decode('utf-8'))
+        self.assertEqual(connection['conn_id'], 'foo')
+        self.assertEqual(self._get_connection_count(), 3)
+
+    def test_create_connection_with_bad_name(self):
+        for name in ('', '    '):
+            response = self.app.post(
+                '/api/experimental/connections',
+                data=json.dumps({
+                    'conn_id': name,
+                }),
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                json.loads(response.data.decode('utf-8'))['error'],
+                "Connection ID shouldn't be empty",
+            )
+        self.assertEqual(self._get_connection_count(), 2)
+
+    def test_delete_connection(self):
+        response = self.app.delete(
+            '/api/experimental/connections/{}'.format(self.conn.conn_id),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json.loads(response.data.decode('utf-8')),
+                         self.conn.to_json())
+        self.assertEqual(self._get_connection_count(), 1)
+
+    def test_delete_connection_non_existing(self):
+        response = self.app.delete(
+            '/api/experimental/connections/foo',
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(json.loads(response.data.decode('utf-8'))['error'],
+                         "Connection 'foo' doesn't exist")
 
 
 if __name__ == '__main__':

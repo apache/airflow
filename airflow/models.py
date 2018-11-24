@@ -827,6 +827,16 @@ class Connection(Base, LoggingMixin):
     def __repr__(self):
         return self.conn_id
 
+    def to_json(self):
+        return {
+            'conn_id': self.conn_id,
+            'conn_type': self.conn_type,
+            'host': self.host,
+            'port': self.port,
+            'is_encrypted': self.is_encrypted,
+            'is_extra_encrypted': self.is_extra_encrypted,
+        }
+
     def debug_info(self):
         return ("id: {}. Host: {}, Port: {}, Schema: {}, "
                 "Login: {}, Password: {}, extra: {}".
