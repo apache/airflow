@@ -46,6 +46,10 @@ class AWSBatchOperator(BaseOperator):
         containerOverrides (templated):
         http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
     :type overrides: dict
+    :param parameters: the same parameter that boto3 will receive on
+        parameters (templated):
+        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
+    :type parameters: dict
     :param max_retries: exponential backoff retries while waiter is not
         merged, 4200 = 48 hours
     :type max_retries: int
@@ -61,10 +65,11 @@ class AWSBatchOperator(BaseOperator):
     ui_color = '#c3dae0'
     client = None
     arn = None
-    template_fields = ('job_name', 'overrides',)
+    template_fields = ('job_name', 'overrides', 'parameters',)
 
     @apply_defaults
-    def __init__(self, job_name, job_definition, job_queue, overrides, max_retries=4200,
+    def __init__(self, job_name, job_definition, job_queue, overrides,
+                 parameters=None, max_retries=4200,
                  aws_conn_id=None, region_name=None, **kwargs):
         super(AWSBatchOperator, self).__init__(**kwargs)
 
@@ -74,6 +79,7 @@ class AWSBatchOperator(BaseOperator):
         self.job_definition = job_definition
         self.job_queue = job_queue
         self.overrides = overrides
+        self.parameters = parameters
         self.max_retries = max_retries
 
         self.jobId = None
@@ -94,11 +100,21 @@ class AWSBatchOperator(BaseOperator):
         )
 
         try:
-            response = self.client.submit_job(
-                jobName=self.job_name,
-                jobQueue=self.job_queue,
-                jobDefinition=self.job_definition,
-                containerOverrides=self.overrides)
+            if self.parameters is None:
+                response = self.client.submit_job(
+                    jobName=self.job_name,
+                    jobQueue=self.job_queue,
+                    jobDefinition=self.job_definition,
+                    containerOverrides=self.overrides,
+                )
+            else:
+                response = self.client.submit_job(
+                    jobName=self.job_name,
+                    jobQueue=self.job_queue,
+                    jobDefinition=self.job_definition,
+                    containerOverrides=self.overrides,
+                    parameters=self.parameters,
+                )
 
             self.log.info('AWS Batch Job started: %s', response)
 
@@ -109,7 +125,8 @@ class AWSBatchOperator(BaseOperator):
 
             self._check_success_task()
 
-            self.log.info('AWS Batch Job has been successfully executed: %s', response)
+            self.log.info('AWS Batch Job has been successfully executed: %s',
+                          response)
         except Exception as e:
             self.log.info('AWS Batch Job has failed executed')
             raise AirflowException(e)
