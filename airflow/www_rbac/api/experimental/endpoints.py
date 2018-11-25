@@ -168,18 +168,21 @@ def task_instance_info(dag_id, execution_date, task_id):
     """
     Returns a JSON with a task instance's public instance variables.
     The format for the exec_date is expected to be
-    "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
+    "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15" or
+    "YYYY-mm-DDTHH:MM:SS.f", for example: "2016-11-16T11:34:15.680399". This will
     of course need to have been encoded for URL in the request.
     """
 
     # Convert string datetime into actual datetime
     try:
-        execution_date = timezone.parse(execution_date)
+        execution_date = datetime.strptime(
+            execution_date, '%Y-%m-%dT%H:%M:%S.%f' if '.' in execution_date
+            else '%Y-%m-%dT%H:%M:%S')
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-            .format(execution_date))
+            'as a date. Example date format: 2015-11-16T14:34:15 or '
+            '2015-11-16T14:34:15.680399'.format(execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -209,17 +212,21 @@ def dag_run_status(dag_id, execution_date):
     """
     Returns a JSON with a dag_run's public instance variables.
     The format for the exec_date is expected to be
-    "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
+    "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15" or
+    "YYYY-mm-DDTHH:MM:SS.f", for example: "2016-11-16T11:34:15.680399". This will
     of course need to have been encoded for URL in the request.
     """
 
     # Convert string datetime into actual datetime
     try:
-        execution_date = timezone.parse(execution_date)
+        execution_date = datetime.strptime(
+            execution_date, '%Y-%m-%dT%H:%M:%S.%f' if '.' in execution_date
+            else '%Y-%m-%dT%H:%M:%S')
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00 or '
+            '2015-11-16T14:34:15.680399'.format(
                 execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
