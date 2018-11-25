@@ -220,6 +220,7 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def start_template_dataflow(self, job_name, variables, parameters, dataflow_template,
                                 append_job_name=True):
+        variables = self._set_variables(variables)
         name = self._build_dataflow_job_name(job_name, append_job_name)
         self._start_template_dataflow(
             name, variables, parameters, dataflow_template)
@@ -278,8 +279,9 @@ class DataFlowHook(GoogleCloudBaseHook):
                 "parameters": parameters,
                 "environment": environment}
         service = self.get_conn()
-        request = service.projects().templates().launch(
+        request = service.projects().locations().templates().launch(
             projectId=variables['project'],
+            location=variables['region'],
             gcsPath=dataflow_template,
             body=body
         )
