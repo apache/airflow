@@ -89,10 +89,11 @@ def convert_to_utc(value):
     if not value:
         return value
 
-    if not is_localized(value):
-        value = pendulum.instance(value, TIMEZONE)
-
-    return value.astimezone(utc)
+    return (
+        pendulum.instance(value, TIMEZONE)
+        if not is_localized(value)
+        else pendulum.instance(value)
+    ).in_timezone(utc)
 
 
 def make_aware(value, timezone=None):
@@ -164,9 +165,9 @@ def datetime(*args, **kwargs):
     return dt.datetime(*args, **kwargs)
 
 
-def parse(string, timezone=None):
+def parse(string, strict=False, timezone=None):
     """
     Parse a time string and return an aware datetime
     :param string: time string
     """
-    return pendulum.parse(string, tz=timezone or TIMEZONE)
+    return pendulum.parse(string, strict=strict, tz=timezone or TIMEZONE)

@@ -68,7 +68,7 @@ from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
 from jinja2.sandbox import SecurityError
 from jinja2 import UndefinedError
-from pendulum import utcnow
+import pendulum
 
 import six
 
@@ -311,7 +311,7 @@ class CoreTest(unittest.TestCase):
         """
         session = settings.Session()
         delta = timedelta(days=1)
-        now = utcnow()
+        now = pendulum.now(tz='UTC')
         start_date = now.subtract(weeks=1)
 
         runs = (now - start_date).days

@@ -18,6 +18,7 @@
 # under the License.
 #
 
+import os
 from six import StringIO
 import sys
 import unittest
@@ -29,6 +30,8 @@ import psutil
 import pytz
 import subprocess
 from argparse import Namespace
+import pendulum
+
 from airflow import settings
 import airflow.bin.cli as cli
 from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
@@ -37,8 +40,6 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
-
-import os
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 
@@ -243,8 +244,8 @@ class TestCLI(unittest.TestCase):
             )
         )
         next_execution_time_for_dag2 = now + timedelta(hours=4)
-        expected_output = [str(next_execution_time_for_dag1),
-                           str(next_execution_time_for_dag2),
+        expected_output = [str(pendulum.instance(next_execution_time_for_dag1)),
+                           str(pendulum.instance(next_execution_time_for_dag2)),
                            "None",
                            "None"]
 
