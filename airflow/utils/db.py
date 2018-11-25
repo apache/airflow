@@ -208,7 +208,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='redis_default', conn_type='redis',
-            host='localhost', port=6379,
+            host='redis', port=6379,
             extra='{"db": 0}'))
     merge_conn(
         models.Connection(
