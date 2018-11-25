@@ -187,6 +187,7 @@ class DataflowTemplateOperator(BaseOperator):
        default_args = {
            'dataflow_default_options': {
                'project': 'my-gcp-project',
+               'region': 'europe-west1',
                'zone': 'europe-west1-d',
                'tempLocation': 'gs://my-staging-bucket/staging/',
                }
