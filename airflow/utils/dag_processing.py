@@ -215,7 +215,8 @@ class SimpleDagBag(BaseDagBag):
         return self.dag_id_to_simple_dag[dag_id]
 
 
-def list_py_file_paths(directory, safe_mode=True):
+def list_py_file_paths(directory, safe_mode=True,
+                       include_examples=conf.getboolean('core', 'LOAD_EXAMPLES')):
     """
     Traverse a directory and look for Python files.
 
@@ -284,6 +285,10 @@ def list_py_file_paths(directory, safe_mode=True):
                 except Exception:
                     log = LoggingMixin().log
                     log.exception("Error while examining %s", f)
+    if include_examples:
+        import airflow.example_dags
+        example_dag_folder = airflow.example_dags.__path__[0]
+        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
     return file_paths
 
 

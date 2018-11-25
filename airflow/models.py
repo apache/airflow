@@ -292,12 +292,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors = {}
         self.has_logged = False
 
-        if include_examples:
-            example_dag_folder = os.path.join(
-                os.path.dirname(__file__),
-                'example_dags')
-            self.collect_dags(example_dag_folder)
-        self.collect_dags(dag_folder)
+        self.collect_dags(dag_folder, include_examples)
 
     def size(self):
         """
@@ -531,7 +526,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     def collect_dags(
             self,
             dag_folder=None,
-            only_if_updated=True):
+            only_if_updated=True,
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -551,7 +547,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        for filepath in list_py_file_paths(dag_folder):
+        for filepath in list_py_file_paths(dag_folder, include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
