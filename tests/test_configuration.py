@@ -165,7 +165,7 @@ key1 = hello
 key1 = awesome
 key2 = airflow
 
-[another]
+[testsection]
 key3 = value3
 '''
         test_conf = AirflowConfigParser(
@@ -177,18 +177,18 @@ key3 = value3
             test_conf.getsection('test')
         )
         self.assertEqual(
-            OrderedDict([('key3', 'value3')]),
-            test_conf.getsection('another')
+            OrderedDict([
+                ('key3', 'value3'),
+                ('testkey', 'testvalue'),
+                ('testpercent', 'with%percent')]),
+            test_conf.getsection('testsection')
         )
 
     def test_broker_transport_options(self):
         section_dict = conf.getsection("celery_broker_transport_options")
         self.assertTrue(isinstance(section_dict['visibility_timeout'], int))
-
         self.assertTrue(isinstance(section_dict['_test_only_bool'], bool))
-
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
-
         self.assertTrue(isinstance(section_dict['_test_only_string'], six.string_types))
 
     def test_deprecated_options(self):
