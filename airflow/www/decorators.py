@@ -32,7 +32,6 @@ def action_logging(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-
         with create_session() as session:
             if g.user.is_anonymous:
                 user = 'anonymous'
@@ -49,7 +48,8 @@ def action_logging(f):
 
             if 'execution_date' in request.args:
                 log.execution_date = pendulum.parse(
-                    request.args.get('execution_date'))
+                    request.args.get('execution_date'),
+                    strict=False)
 
             session.add(log)
 

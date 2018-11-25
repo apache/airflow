@@ -62,7 +62,8 @@ from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
-from pendulum import utcnow
+
+import pendulum
 
 import six
 
@@ -299,7 +300,7 @@ class CoreTest(unittest.TestCase):
         """
         session = settings.Session()
         delta = timedelta(days=1)
-        now = utcnow()
+        now = pendulum.now(tz='UTC')
         start_date = now.subtract(weeks=1)
 
         runs = (now - start_date).days

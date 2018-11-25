@@ -361,10 +361,11 @@ class DAG(BaseDag, LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
+
+        dttm = pendulum.instance(dttm)
         if isinstance(self._schedule_interval, six.string_types):
             # we don't want to rely on the transitions created by
             # croniter as they are not always correct
-            dttm = pendulum.instance(dttm)
             naive = timezone.make_naive(dttm, self.timezone)
             cron = croniter(self._schedule_interval, naive)
 
@@ -372,7 +373,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = cron.get_next(datetime) - naive
-                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
+                following = dttm.in_timezone(self.timezone) + delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_next(datetime)
@@ -400,7 +401,7 @@ class DAG(BaseDag, LoggingMixin):
             if not self.is_fixed_time_schedule():
                 # relative offset (eg. every 5 minutes)
                 delta = naive - cron.get_prev(datetime)
-                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
+                previous = dttm.in_timezone(self.timezone) - delta
             else:
                 # absolute (e.g. 3 AM)
                 naive = cron.get_prev(datetime)
