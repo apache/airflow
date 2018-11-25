@@ -38,6 +38,7 @@ import re
 import signal
 
 from jinja2 import Template
+from zope.deprecation import deprecate
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -156,6 +157,7 @@ def as_flattened_list(iterable):
     return [e for i in iterable for e in i]
 
 
+@deprecate("chain will be removed in Airflow 2.0")
 def chain(*tasks):
     """
     Given a number of tasks, builds a dependency chain.

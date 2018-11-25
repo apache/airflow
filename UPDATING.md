@@ -117,6 +117,11 @@ if foo is None:
 
 This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument.
 
+### Deprecation chain function
+
+Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
+The `airflow.utlis.helpers.chain` function is deprecated and will be removed in Airflow 2.0.
+
 ## Airflow 1.10.2
 
 ### DAG level Access Control for new RBAC UI
