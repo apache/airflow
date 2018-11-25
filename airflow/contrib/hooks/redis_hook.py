@@ -21,15 +21,13 @@
 RedisHook module
 """
 from redis import StrictRedis
-
-from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class RedisHook(BaseHook, LoggingMixin):
     """
-    Hook to interact with Redis database
+    Wrapper for connection to interact with Redis in-memory data structure store
     """
     def __init__(self, redis_conn_id='redis_default'):
         """
@@ -39,55 +37,31 @@ class RedisHook(BaseHook, LoggingMixin):
                             we need to connect to Redis.
         """
         self.redis_conn_id = redis_conn_id
-        self.client = None
-        conn = self.get_connection(self.redis_conn_id)
-        self.host = conn.host
-        self.port = int(conn.port)
-        self.password = conn.password
-        self.db = int(conn.extra_dejson.get('db', 0))
-
-        self.log.debug(
-            '''Connection "{conn}":
-            \thost: {host}
-            \tport: {port}
-            \textra: {extra}
-            '''.format(
-                conn=self.redis_conn_id,
-                host=self.host,
-                port=self.port,
-                extra=conn.extra_dejson
-            )
-        )
+        self.redis = None
+        self.host = None
+        self.port = None
+        self.password = None
+        self.db = None
 
     def get_conn(self):
         """
         Returns a Redis connection.
         """
-        if not self.client:
+        conn = self.get_connection(self.redis_conn_id)
+        self.host = conn.host
+        self.port = conn.port
+        self.password = None if str(conn.password).lower() in ['none', 'false', ''] else conn.password
+        self.db = conn.extra_dejson.get('db', None)
+
+        if not self.redis:
             self.log.debug(
-                'generating Redis client for conn_id "%s" on %s:%s:%s',
+                'Initializing redis object for conn_id "%s" on %s:%s:%s',
                 self.redis_conn_id, self.host, self.port, self.db
             )
-            try:
-                self.client = StrictRedis(
-                    host=self.host,
-                    port=self.port,
-                    password=self.password,
-                    db=self.db)
-            except Exception as general_error:
-                raise AirflowException(
-                    'Failed to create Redis client, error: {error}'.format(
-                        error=str(general_error)
-                    )
-                )
+            self.redis = StrictRedis(
+                host=self.host,
+                port=self.port,
+                password=self.password,
+                db=self.db)
 
-        return self.client
-
-    def key_exists(self, key):
-        """
-        Checks if a key exists in Redis database
-
-        :param key: The key to check the existence.
-        :type key: str
-        """
-        return self.get_conn().exists(key)
+        return self.redis
