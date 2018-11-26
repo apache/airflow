@@ -124,13 +124,14 @@ class KubernetesPodOperator(BaseOperator):
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.xcom_push)
-            (final_state, result) = launcher.run_pod(
-                pod,
-                startup_timeout=self.startup_timeout_seconds,
-                get_logs=self.get_logs)
-
-            if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
+            try:
+                (final_state, result) = launcher.run_pod(
+                    pod,
+                    startup_timeout=self.startup_timeout_seconds,
+                    get_logs=self.get_logs)
+            finally:
+                if self.is_delete_operator_pod:
+                    launcher.delete_pod(pod)
 
             if final_state != State.SUCCESS:
                 raise AirflowException(
