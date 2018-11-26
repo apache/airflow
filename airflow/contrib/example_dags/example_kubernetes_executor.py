@@ -32,6 +32,31 @@ dag = DAG(
     schedule_interval=None
 )
 
+affinity = {
+    'podAntiAffinity': {
+        'requiredDuringSchedulingIgnoredDuringExecution': [
+            {
+                'topologyKey': 'kubernetes.io/hostname',
+                'labelSelector': {
+                    'matchExpressions': [
+                        {
+                            'key': 'app',
+                            'operator': 'In',
+                            'values': ['airflow']
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+
+tolerations = [{
+    'key': 'dedicated',
+    'operator': 'Equal',
+    'value': 'airflow'
+}]
+
 
 def print_stuff():
     print("stuff!")
@@ -59,11 +84,14 @@ two_task = PythonOperator(
     executor_config={"KubernetesExecutor": {"image": "airflow/ci_zip:latest"}}
 )
 
-# Limit resources on this operator/task
+# Limit resources on this operator/task with node affinity & tolerations
 three_task = PythonOperator(
     task_id="three_task", python_callable=print_stuff, dag=dag,
     executor_config={
-        "KubernetesExecutor": {"request_memory": "128Mi", "limit_memory": "128Mi"}}
+        "KubernetesExecutor": {"request_memory": "128Mi",
+                               "limit_memory": "128Mi",
+                               "tolerations": tolerations,
+                               "affinity": affinity}}
 )
 
 start_task.set_downstream([one_task, two_task, three_task])
