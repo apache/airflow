@@ -172,6 +172,7 @@ doc = [
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
     'sphinx-rtd-theme>=0.1.6',
+    'sphinxcontrib-httpdomain>=1.7.0',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
 docker = ['docker~=3.0']
