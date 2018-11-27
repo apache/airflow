@@ -24,8 +24,6 @@ from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
 
-# our own implementation of athena step sensor, including multiple failure states.
-
 class AthenaSensor(BaseSensorOperator):
     INTERMEDIATE_STATES = ('QUEUED', 'RUNNING',)
     FAILURE_STATES = ('FAILED', 'CANCELLED',)
