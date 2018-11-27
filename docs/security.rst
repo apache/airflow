@@ -258,7 +258,7 @@ To use kerberos authentication, you must install Airflow with the `kerberos` ext
 
 .. code-block:: base
 
-   pip install airflow[kerberos]
+   pip install apache-airflow[kerberos]
 
 OAuth Authentication
 --------------------
@@ -291,7 +291,7 @@ To use GHE authentication, you must install Airflow with the `github_enterprise`
 
 .. code-block:: base
 
-   pip install airflow[github_enterprise]
+   pip install apache-airflow[github_enterprise]
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -339,7 +339,7 @@ To use Google authentication, you must install Airflow with the `google_auth` ex
 
 .. code-block:: base
 
-   pip install airflow[google_auth]
+   pip install apache-airflow[google_auth]
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
