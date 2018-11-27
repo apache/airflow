@@ -42,19 +42,16 @@ class TestAthenaSensor(unittest.TestCase):
                                    max_retires=1,
                                    aws_conn_id='aws_default')
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
     @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("SUCCEEDED",))
-    def test_poke_success(self, my_conn, mock_poll_query_status):
+    def test_poke_success(self, mock_poll_query_status):
         self.assertTrue(self.sensor.poke(None))
 
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
     @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("RUNNING",))
-    def test_poke_running(self, my_conn, mock_poll_query_status):
+    def test_poke_running(self, mock_poll_query_status):
         self.assertFalse(self.sensor.poke(None))
 
     @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("QUEUED",))
-    @mock.patch.object(AWSAthenaHook, 'get_conn')
-    def test_poke_queued(self, my_conn, mock_poll_query_status):
+    def test_poke_queued(self, mock_poll_query_status):
         self.assertFalse(self.sensor.poke(None))
 
     @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("FAILED",))
