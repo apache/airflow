@@ -21,7 +21,7 @@
 from airflow.exceptions import AirflowException
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
-from airflow.operators.sensors import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
 
 # our own implementation of athena step sensor, including multiple failure states.
@@ -58,7 +58,7 @@ class AthenaSensor(BaseSensorOperator):
             raise AirflowException('Athena sensor failed')
 
         if state in self.INTERMEDIATE_STATES:
-            raise False
+            return False
         return True
 
     def get_hook(self):

@@ -42,26 +42,29 @@ class TestAthenaSensor(unittest.TestCase):
                                    max_retires=1,
                                    aws_conn_id='aws_default')
 
-    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("SUCCEEDED"))
-    def test_poke_success(self):
+    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("SUCCEEDED",))
+    def test_poke_success(self, my_conn, mock_poll_query_status):
         self.assertTrue(self.sensor.poke(None))
 
-    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("RUNNING"))
-    def test_poke_running(self):
-        self.assetFalse(self.sensor.poke(None))
-
-    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("QUEUED"))
-    def test_poke_queued(self):
+    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("RUNNING",))
+    def test_poke_running(self, my_conn, mock_poll_query_status):
         self.assertFalse(self.sensor.poke(None))
 
-    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("FAILED"))
-    def test_poke_failed(self):
+    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("QUEUED",))
+    @mock.patch.object(AWSAthenaHook, 'get_conn')
+    def test_poke_queued(self, my_conn, mock_poll_query_status):
+        self.assertFalse(self.sensor.poke(None))
+
+    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("FAILED",))
+    def test_poke_failed(self, mock_poll_query_status):
         with self.assertRaises(AirflowException) as context:
             self.sensor.poke(None)
         self.assertIn('Athena sensor failed', str(context.exception))
 
-    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("CANCELLED"))
-    def test_poke_cancelled(self):
+    @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("CANCELLED",))
+    def test_poke_cancelled(self, mock_poll_query_status):
         with self.assertRaises(AirflowException) as context:
             self.sensor.poke(None)
         self.assertIn('Athena sensor failed', str(context.exception))
