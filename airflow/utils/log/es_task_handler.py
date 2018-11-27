@@ -225,7 +225,7 @@ class ElasticsearchTaskHandler(FileTaskHandler):
 >>>>>>> fc278da4... [AIRFLOW-3370] Fix class name, reformat ENV conditionals, add string replacements for log_id
             sys.stdout = self.writer
 
-            self.taskInstance = self._process_taskInstance(ti)
+            self.taskInstance = self._process_task_instance(ti)
 
             self.handler = logging.StreamHandler(stream=sys.stdout)
 
@@ -268,6 +268,7 @@ class ElasticsearchTaskHandler(FileTaskHandler):
             self.handler.flush()
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     def _process_task_instance(self, ti):
         ti_info = {'dag_id': str(ti.dag_id),
                    'task_id': str(ti.task_id),
@@ -275,6 +276,9 @@ class ElasticsearchTaskHandler(FileTaskHandler):
                    'try_number': str(ti.try_number)}
 =======
     def _process_taskInstance(self, ti):
+=======
+    def _process_task_instance(self, ti):
+>>>>>>> 23e0518e... [AIRFLOW-3370] Switch to snakecase
         ti_info =  {'dag_id': str(ti.dag_id),
                     'task_id': str(ti.task_id),
                     'execution_date': str(ti.execution_date),
