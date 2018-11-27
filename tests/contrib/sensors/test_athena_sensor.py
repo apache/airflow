@@ -21,6 +21,7 @@ import unittest
 from airflow import configuration, AirflowException
 from airflow.contrib.sensors.aws_athena_senseor import AthenaSensor
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
+
 try:
     from unittest import mock
 except ImportError:
@@ -29,17 +30,17 @@ except ImportError:
     except ImportError:
         mock = None
 
+
 class TestAthenaSensor(unittest.TestCase):
 
     def setUp(self):
         configuration.load_test_config()
 
         self.sensor = AthenaSensor(task_id='test_athena_sensor',
-                              query_execution_id='abc',
-                              sleep_time=5,
-                              max_retires=1,
-                              aws_conn_id='aws_default')
-
+                                   query_execution_id='abc',
+                                   sleep_time=5,
+                                   max_retires=1,
+                                   aws_conn_id='aws_default')
 
     @mock.patch.object(AWSAthenaHook, 'poll_query_status', side_effect=("SUCCEEDED"))
     def test_poke_success(self):
@@ -64,8 +65,6 @@ class TestAthenaSensor(unittest.TestCase):
         with self.assertRaises(AirflowException) as context:
             self.sensor.poke(None)
         self.assertIn('Athena sensor failed', str(context.exception))
-
-
 
 
 if __name__ == '__main__':
