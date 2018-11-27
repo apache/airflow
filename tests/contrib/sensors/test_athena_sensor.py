@@ -19,9 +19,15 @@
 
 import unittest
 from airflow import configuration, AirflowException
-from mock import Mock
 from airflow.contrib.sensors.aws_athena_senseor import AthenaSensor
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
 
 class TestAthenaSensor(unittest.TestCase):
 
