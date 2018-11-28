@@ -61,6 +61,12 @@
             'password': 'Auth Token',
           }
         },
+        ssh: {
+          hidden_fields: ['schema'],
+          relabeling: {
+            'login': 'Username',
+          }
+        },
       }
       function connTypeChange(connectionType) {
         $("div.form-group").removeClass("hide");
