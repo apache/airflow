@@ -27,6 +27,7 @@ import subprocess
 import time
 import uuid
 from os.path import isfile
+from googleapiclient import errors
 from subprocess import Popen, PIPE
 from six.moves.urllib.parse import quote_plus
 
@@ -253,6 +254,64 @@ class CloudSqlHook(GoogleCloudBaseHook):
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
         return self._wait_for_operation_to_complete(project, operation_name)
+
+    def export_instance(self, project_id, instance_id, body):
+        """
+        Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
+        or CSV file.
+
+        :param project_id: Project ID of the project where the instance exists.
+        :type project_id: str
+        :param instance_id: Name of the Cloud SQL instance. This does not include the
+            project ID.
+        :type instance_id: str
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
+        :type body: dict
+        :return: True if the operation succeeded, raises an error otherwise
+        :rtype: bool
+        """
+        try:
+            response = self.get_conn().instances().export(
+                project=project_id,
+                instance=instance_id,
+                body=body
+            ).execute(num_retries=NUM_RETRIES)
+            operation_name = response["name"]
+            return self._wait_for_operation_to_complete(project_id, operation_name)
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Exporting instance {} failed: {}'.format(instance_id, ex.content)
+            )
+
+    def import_instance(self, project_id, instance_id, body):
+        """
+        Imports data into a Cloud SQL instance from a SQL dump or CSV file in
+        Cloud Storage.
+
+        :param project_id: Project ID of the project where the instance exists.
+        :type project_id: str
+        :param instance_id: Name of the Cloud SQL instance. This does not include the
+            project ID.
+        :type instance_id: str
+        :param body: The request body, as described in
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
+        :type body: dict
+        :return: True if the operation succeeded, raises an error otherwise
+        :rtype: bool
+        """
+        try:
+            response = self.get_conn().instances().import_(
+                project=project_id,
+                instance=instance_id,
+                body=body
+            ).execute(num_retries=NUM_RETRIES)
+            operation_name = response["name"]
+            return self._wait_for_operation_to_complete(project_id, operation_name)
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Importing instance {} failed: {}'.format(instance_id, ex.content)
+            )
 
     def _wait_for_operation_to_complete(self, project_id, operation_name):
         """

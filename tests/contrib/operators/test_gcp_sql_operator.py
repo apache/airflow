@@ -18,17 +18,18 @@
 # under the License.
 import json
 import os
-import time
 import unittest
-from uuid import uuid1
 
+import time
 from parameterized import parameterized
+from uuid import uuid1
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_sql_hook import CloudSqlProxyRunner
 from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
     CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
     CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
+    CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator, \
     CloudSqlInstanceDatabaseDeleteOperator, CloudSqlQueryOperator
 from airflow.models import Connection
 from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
@@ -137,6 +138,36 @@ DATABASE_PATCH_BODY = {
     "charset": "utf16",
     "collation": "utf16_general_ci"
 }
+EXPORT_BODY = {
+    "exportContext": {
+        "fileType": "CSV",
+        "uri": "gs://bucketName/fileName",
+        "databases": [],
+        "sqlExportOptions": {
+            "tables": [
+                "table1", "table2"
+            ],
+            "schemaOnly": False
+        },
+        "csvExportOptions": {
+            "selectQuery": "SELECT * FROM ..."
+        }
+    }
+}
+IMPORT_BODY = {
+    "importContext": {
+        "fileType": "CSV",
+        "uri": "gs://bucketName/fileName",
+        "database": "db1",
+        "importUser": "",
+        "csvImportOptions": {
+            "table": "my_table",
+            "columns": [
+                "col1", "col2"
+            ]
+        }
+    }
+}
 
 
 class CloudSqlTest(unittest.TestCase):
@@ -152,13 +183,15 @@ class CloudSqlTest(unittest.TestCase):
             body=CREATE_BODY,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context={
+            'task_instance': mock.Mock()
+        })
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
             PROJECT_ID, CREATE_BODY
         )
-        self.assertTrue(result)
+        self.assertIsNone(result)
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator"
                 ".CloudSqlInstanceCreateOperator._check_if_instance_exists")
@@ -172,11 +205,13 @@ class CloudSqlTest(unittest.TestCase):
             body=CREATE_BODY,
             task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context={
+            'task_instance': mock.Mock()
+        })
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_not_called()
-        self.assertTrue(result)
+        self.assertIsNone(result)
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
     def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):
@@ -474,6 +509,40 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_database.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_export(self, mock_hook):
+        mock_hook.return_value.export_instance.return_value = True
+        op = CloudSqlInstanceExportOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            body=EXPORT_BODY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.export_instance.assert_called_once_with(
+            PROJECT_ID, INSTANCE_NAME, EXPORT_BODY
+        )
+        self.assertTrue(result)
+
+    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
+    def test_instance_import(self, mock_hook):
+        mock_hook.return_value.export_instance.return_value = True
+        op = CloudSqlInstanceImportOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            body=IMPORT_BODY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(api_version="v1beta4",
+                                          gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.import_instance.assert_called_once_with(
+            PROJECT_ID, INSTANCE_NAME, IMPORT_BODY
+        )
+        self.assertTrue(result)
 
 
 class CloudSqlQueryValidationTest(unittest.TestCase):
@@ -787,6 +856,19 @@ class CloudSqlProxyIntegrationTest(BaseGcpIntegrationTestCase):
             runner.stop_proxy()
         self.assertIsNone(runner.sql_proxy_process)
         self.assertEqual(runner.get_proxy_version(), "1.13")
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_CLOUDSQL_KEY), SKIP_TEST_WARNING)
+class CloudSqlExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+    def __init__(self, method_name='runTest'):
+        super(CloudSqlExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_sql',
+            gcp_key=GCP_CLOUDSQL_KEY)
+
+    def test_run_example_dag_cloudsql_query(self):
+        self._run_dag()
 
 
 @unittest.skipIf(
