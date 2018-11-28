@@ -385,7 +385,7 @@ Extra (optional)
        {
           "timeout": "10",
           "compress": "false",
-          "no_host_key_check": "true",
+          "no_host_key_check": "false",
           "allow_host_key_change": "false"
        }
 
