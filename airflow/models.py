@@ -22,11 +22,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future.standard_library import install_aliases
-
-from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
 from collections import namedtuple, defaultdict, OrderedDict
+
+from builtins import ImportError as BuiltinImportError, bytes, object, str
+from future.standard_library import install_aliases
+
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Hashable
