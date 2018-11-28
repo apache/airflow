@@ -35,7 +35,7 @@ echo "Airflow directory $AIRFLOW_ROOT"
 echo "Airflow Docker directory $DIRNAME"
 
 cd $AIRFLOW_ROOT
-python setup.py sdist -q
+python setup.py compile_assets sdist -q
 echo "Copy distro $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
 cp $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz
 cd $DIRNAME && docker build --pull $DIRNAME --tag=${IMAGE}:${TAG}
