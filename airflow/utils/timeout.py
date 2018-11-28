@@ -23,6 +23,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import signal
+import os
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -35,10 +36,10 @@ class timeout(LoggingMixin):
 
     def __init__(self, seconds=1, error_message='Timeout'):
         self.seconds = seconds
-        self.error_message = error_message
+        self.error_message = error_message + ', PID: ' + str(os.getpid())
 
     def handle_timeout(self, signum, frame):
-        self.log.error("Process timed out")
+        self.log.error("Process timed out, PID: " + str(os.getpid()))
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
