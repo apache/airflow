@@ -146,6 +146,21 @@ class SimpleTaskInstance(object):
         self._end_date = ti.end_date
         self._try_number = ti.try_number
         self._state = ti.state
+        self._executor_config = ti.executor_config
+        if hasattr(ti, 'run_as_user'):
+            self._run_as_user = ti.run_as_user
+        else:
+            self._run_as_user = None
+        if hasattr(ti, 'pool'):
+            self._pool = ti.pool
+        else:
+            self._pool = None
+        if hasattr(ti, 'priority_weight'):
+            self._priority_weight = ti.priority_weight
+        else:
+            self._priority_weight = None
+        self._queue = ti.queue
+        self._key = ti.key
 
     @property
     def dag_id(self):
@@ -174,6 +189,49 @@ class SimpleTaskInstance(object):
     @property
     def state(self):
         return self._state
+
+    @property
+    def pool(self):
+        return self._pool
+
+    @property
+    def priority_weight(self):
+        return self._priority_weight
+
+    @property
+    def queue(self):
+        return self._queue
+
+    @property
+    def key(self):
+        return self._key
+
+    @property
+    def executor_config(self):
+        return self._executor_config
+
+    @provide_session
+    def construct_task_instance(self, session=None, lock_for_update=False):
+        """
+        Construct a TaskInstance from the database based on the primary key
+
+        :param session: DB session.
+        :param lock_for_update: if True, indicates that the database should
+            lock the TaskInstance (issuing a FOR UPDATE clause) until the
+            session is committed.
+        """
+        TI = airflow.models.TaskInstance
+
+        qry = session.query(TI).filter(
+            TI.dag_id == self._dag_id,
+            TI.task_id == self._task_id,
+            TI.execution_date == self._execution_date)
+
+        if lock_for_update:
+            ti = qry.with_for_update().first()
+        else:
+            ti = qry.first()
+        return ti
 
 
 class SimpleDagBag(BaseDagBag):
@@ -571,11 +629,16 @@ class DagFileProcessorAgent(LoggingMixin):
         Terminate (and then kill) the manager process launched.
         :return:
         """
-        if not self._process or not self._process.is_alive():
+        if not self._process:
             self.log.warn('Ending without manager process.')
             return
         this_process = psutil.Process(os.getpid())
-        manager_process = psutil.Process(self._process.pid)
+        try:
+            manager_process = psutil.Process(self._process.pid)
+        except psutil.NoSuchProcess:
+            self.log.info("Manager process not running.")
+            return
+
         # First try SIGTERM
         if manager_process.is_running() \
                 and manager_process.pid in [x.pid for x in this_process.children()]:
