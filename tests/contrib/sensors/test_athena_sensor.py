@@ -19,7 +19,7 @@
 
 import unittest
 from airflow import configuration, AirflowException
-from airflow.contrib.sensors.aws_athena_senseor import AthenaSensor
+from airflow.contrib.sensors.aws_athena_sensor import AthenaSensor
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
 
 try:

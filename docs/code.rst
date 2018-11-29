@@ -224,6 +224,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
 .. autoclass:: airflow.contrib.sensors.sftp_sensor.SFTPSensor
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
+.. autoclass:: airflow.contrib.sensors.aws_athena_sensor.AthenaSensor
 
 .. _macros:
 
