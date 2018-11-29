@@ -201,6 +201,7 @@ Operators
 Sensors
 ^^^^^^^
 
+.. autoclass:: airflow.contrib.sensors.aws_athena_sensor.AthenaSensor
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
@@ -224,7 +225,6 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
 .. autoclass:: airflow.contrib.sensors.sftp_sensor.SFTPSensor
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
-.. autoclass:: airflow.contrib.sensors.aws_athena_sensor.AthenaSensor
 
 .. _macros:
 
