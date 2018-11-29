@@ -261,7 +261,7 @@ try:
 except Exception:
     pass
 
-configure_logging()
+logging_class_path = configure_logging()
 configure_vars()
 configure_adapters()
 # The webservers import this file from models.py with the default settings.
