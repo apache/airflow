@@ -28,14 +28,14 @@ class AthenaSensor(BaseSensorOperator):
     """
     Asks for the state of the Query until it reaches a failure state or success state.
     If it fails, failing the task.
-    
+
     :param query_execution_id: query_execution_id to check the state of
     :type query_execution_id: string
-    :param max_retires: Number of times to poll for query state before returning the current state
+    :param max_retires: Number of times to poll for query state before returning the current state, defaults to None
     :type max_retires: int
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :type aws_conn_id: str
-    :param sleep_time: Time to wait between two consecutive call to check query status on athena
+    :param sleep_time: Time to wait between two consecutive call to check query status on athena, defaults to 10
     :type sleep_time: int
     """
 
