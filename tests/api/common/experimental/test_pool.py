@@ -28,7 +28,6 @@ from airflow.exceptions import AirflowBadRequest, PoolNotFound
 class TestPool(unittest.TestCase):
 
     def setUp(self):
-        super(TestPool, self).setUp()
         self.session = settings.Session()
         self.pools = []
         for i in range(2):
@@ -46,7 +45,6 @@ class TestPool(unittest.TestCase):
         self.session.query(models.Pool).delete()
         self.session.commit()
         self.session.close()
-        super(TestPool, self).tearDown()
 
     def test_get_pool(self):
         pool = pool_api.get_pool(name=self.pools[0].pool, session=self.session)
