@@ -37,7 +37,6 @@ import bleach
 import markdown
 import nvd3
 import pendulum
-import pkg_resources
 import sqlalchemy as sqla
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
@@ -489,7 +488,7 @@ class Airflow(BaseView):
                 else:
                     # User provides columns (x, y, metric1, metric2, ...)
                     df.index = df[df.columns[0]]
-                    df = df.sort(df.columns[0])
+                    df = df.sort_values(by=df.columns[0])
                     del df[df.columns[0]]
                     for col in df.columns:
                         df[col] = df[col].astype(np.float)
@@ -570,17 +569,13 @@ class Airflow(BaseView):
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
             for state in State.dag_states:
-                try:
-                    count = data[dag.dag_id][state]
-                except Exception:
-                    count = 0
-                d = {
+                count = data.get(dag.dag_id, {}).get(state, 0)
+                payload[dag.safe_dag_id].append({
                     'state': state,
                     'count': count,
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
-                }
-                payload[dag.safe_dag_id].append(d)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -641,17 +636,13 @@ class Airflow(BaseView):
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
             for state in State.task_states:
-                try:
-                    count = data[dag.dag_id][state]
-                except Exception:
-                    count = 0
-                d = {
+                count = data.get(dag.dag_id, {}).get(state, 0)
+                payload[dag.safe_dag_id].append({
                     'state': state,
                     'count': count,
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
-                }
-                payload[dag.safe_dag_id].append(d)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -682,12 +673,12 @@ class Airflow(BaseView):
         title = "DAG details"
 
         TI = models.TaskInstance
-        states = (
-            session.query(TI.state, sqla.func.count(TI.dag_id))
-                .filter(TI.dag_id == dag_id)
-                .group_by(TI.state)
-                .all()
-        )
+        states = session\
+            .query(TI.state, sqla.func.count(TI.dag_id))\
+            .filter(TI.dag_id == dag_id)\
+            .group_by(TI.state)\
+            .all()
+
         return self.render(
             'airflow/dag_details.html',
             dag=dag, title=title, states=states, State=State)
@@ -1192,12 +1183,12 @@ class Airflow(BaseView):
     @provide_session
     def blocked(self, session=None):
         DR = models.DagRun
-        dags = (
-            session.query(DR.dag_id, sqla.func.count(DR.id))
-                .filter(DR.state == State.RUNNING)
-                .group_by(DR.dag_id)
-                .all()
-        )
+        dags = session\
+            .query(DR.dag_id, sqla.func.count(DR.id))\
+            .filter(DR.state == State.RUNNING)\
+            .group_by(DR.dag_id)\
+            .all()
+
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
@@ -1454,8 +1445,8 @@ class Airflow(BaseView):
                 children_key = "_children"
 
             def set_duration(tid):
-                if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
-                            tid["start_date"] is not None):
+                if isinstance(tid, dict) and tid.get("state") == State.RUNNING \
+                        and tid["start_date"] is not None:
                     d = timezone.utcnow() - pendulum.parse(tid["start_date"], strict=False)
                     tid["duration"] = d.total_seconds()
                 return tid
@@ -1482,9 +1473,7 @@ class Airflow(BaseView):
         data = {
             'name': '[DAG]',
             'children': [recurse_nodes(t, set()) for t in dag.roots],
-            'instances': [
-                dag_runs.get(d) or {'execution_date': d.isoformat()}
-                for d in dates],
+            'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
         }
 
         # minimize whitespace as this can be huge for bigger dags
@@ -1611,6 +1600,10 @@ class Airflow(BaseView):
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
+
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/admin/')
 
         if base_date:
             base_date = pendulum.parse(base_date, strict=False)
@@ -1883,6 +1876,8 @@ class Airflow(BaseView):
             orm_dag.last_expired = timezone.utcnow()
             session.merge(orm_dag)
         session.commit()
+
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
 
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
@@ -2338,13 +2333,10 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
 
 @provide_session
 def _connection_ids(session=None):
-    return [
-            (c.conn_id, c.conn_id)
-            for c in (
-                session.query(models.Connection.conn_id)
-                    .group_by(models.Connection.conn_id)
-            )
-    ]
+    return [(c.conn_id, c.conn_id) for c in (
+        session
+            .query(models.Connection.conn_id)
+            .group_by(models.Connection.conn_id))]
 
 
 class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
@@ -3053,7 +3045,7 @@ class VersionView(wwwutils.SuperUserMixin, BaseView):
     def version(self):
         # Look at the version from setup.py
         try:
-            airflow_version = pkg_resources.require("apache-airflow")[0].version
+            airflow_version = airflow.__version__
         except Exception as e:
             airflow_version = None
             logging.error(e)
@@ -3144,20 +3136,16 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
         """
         Default filters for model
         """
-        return (
-            super(DagModelView, self)
-                .get_query()
-                .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))
-                .filter(~models.DagModel.is_subdag)
-        )
+        return super(DagModelView, self)\
+            .get_query()\
+            .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
+            .filter(~models.DagModel.is_subdag)
 
     def get_count_query(self):
         """
         Default filters for model
         """
-        return (
-            super(DagModelView, self)
-                .get_count_query()
-                .filter(models.DagModel.is_active)
-                .filter(~models.DagModel.is_subdag)
-        )
+        return super(DagModelView, self)\
+            .get_count_query()\
+            .filter(models.DagModel.is_active)\
+            .filter(~models.DagModel.is_subdag)

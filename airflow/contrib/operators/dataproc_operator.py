@@ -52,7 +52,8 @@ class DataprocClusterCreateOperator(BaseOperator):
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
     :type project_id: str
-    :param num_workers: The # of workers to spin up
+    :param num_workers: The # of workers to spin up. If set to zero will
+        spin up cluster in a single node mode
     :type num_workers: int
     :param storage_bucket: The storage bucket to use, setting to None lets dataproc
         generate a custom one for you
@@ -70,7 +71,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type image_version: str
     :param custom_image: custom Dataproc image for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
-    :type: custom_image: str
+    :type custom_image: str
     :param properties: dict of properties to set on
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
@@ -133,6 +134,9 @@ class DataprocClusterCreateOperator(BaseOperator):
         auto-deleted at the end of this duration.
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
     :type auto_delete_ttl: int
+    :param customer_managed_key: The customer-managed key used for disk encryption
+        (projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME])
+    :type customer_managed_key: str
     """
 
     template_fields = ['cluster_name', 'project_id', 'zone', 'region']
@@ -170,6 +174,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  idle_delete_ttl=None,
                  auto_delete_time=None,
                  auto_delete_ttl=None,
+                 customer_managed_key=None,
                  *args,
                  **kwargs):
 
@@ -186,7 +191,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.metadata = metadata
         self.custom_image = custom_image
         self.image_version = image_version
-        self.properties = properties
+        self.properties = properties or dict()
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
@@ -205,9 +210,17 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.idle_delete_ttl = idle_delete_ttl
         self.auto_delete_time = auto_delete_time
         self.auto_delete_ttl = auto_delete_ttl
+        self.customer_managed_key = customer_managed_key
+        self.single_node = num_workers == 0
 
         assert not (self.custom_image and self.image_version), \
             "custom_image and image_version can't be both set"
+
+        assert (
+            not self.single_node or (
+                self.single_node and self.num_preemptible_workers == 0
+            )
+        ), "num_workers == 0 means single node mode - no preemptibles allowed"
 
     def _get_cluster_list_for_project(self, service):
         result = service.projects().regions().clusters().list(
@@ -308,7 +321,8 @@ class DataprocClusterCreateOperator(BaseOperator):
                 },
                 'secondaryWorkerConfig': {},
                 'softwareConfig': {},
-                'lifecycleConfig': {}
+                'lifecycleConfig': {},
+                'encryptionConfig': {}
             }
         }
         if self.num_preemptible_workers > 0:
@@ -351,7 +365,12 @@ class DataprocClusterCreateOperator(BaseOperator):
                                '{}/global/images/{}'.format(self.project_id,
                                                             self.custom_image)
             cluster_data['config']['masterConfig']['imageUri'] = custom_image_url
-            cluster_data['config']['workerConfig']['imageUri'] = custom_image_url
+            if not self.single_node:
+                cluster_data['config']['workerConfig']['imageUri'] = custom_image_url
+
+        if self.single_node:
+            self.properties["dataproc:dataproc.allow.zero.workers"] = "true"
+
         if self.properties:
             cluster_data['config']['softwareConfig']['properties'] = self.properties
         if self.idle_delete_ttl:
@@ -378,6 +397,9 @@ class DataprocClusterCreateOperator(BaseOperator):
         if self.service_account_scopes:
             cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] =\
                 self.service_account_scopes
+        if self.customer_managed_key:
+            cluster_data['config']['encryptionConfig'] =\
+                {'gcePdKmsKeyName': self.customer_managed_key}
         return cluster_data
 
     def execute(self, context):

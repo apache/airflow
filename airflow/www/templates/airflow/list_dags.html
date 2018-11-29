@@ -153,10 +153,10 @@
               <a href="{{ url_for("airflow.graph", dag_id=row.dag_id) }}" title="Graph View">
                   <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
                 </a>
-              <a href="{{ url_for("airflow.duration", dag_id=row.dag_id) }}" title="Task Tries">
+              <a href="{{ url_for("airflow.tries", dag_id=row.dag_id) }}" title="Task Tries">
                   <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
               </a>
-              <a href="{{ url_for("airflow.tries", dag_id=row.dag_id) }}" title="Tasks Duration">
+              <a href="{{ url_for("airflow.duration", dag_id=row.dag_id) }}" title="Tasks Duration">
                   <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
               </a>
               <a href="{{ url_for("airflow.landing_times", dag_id=row.dag_id) }}" title="Landing Times">

@@ -181,13 +181,17 @@ class AirflowSecurityManager(SecurityManager):
         if not role:
             role = self.add_role(role_name)
 
-        role_pvms = []
-        for pvm in pvms:
-            if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
-                role_pvms.append(pvm)
-        role.permissions = list(set(role_pvms))
-        self.get_session.merge(role)
-        self.get_session.commit()
+        if len(role.permissions) == 0:
+            logging.info('Initializing permissions for role:%s in the database.', role_name)
+            role_pvms = []
+            for pvm in pvms:
+                if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
+                    role_pvms.append(pvm)
+            role.permissions = list(set(role_pvms))
+            self.get_session.merge(role)
+            self.get_session.commit()
+        else:
+            logging.info('Existing permissions for the role:%s within the database will persist.', role_name)
 
     def get_user_roles(self, user=None):
         """

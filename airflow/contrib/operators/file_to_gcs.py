@@ -25,7 +25,8 @@ from airflow.utils.decorators import apply_defaults
 
 class FileToGoogleCloudStorageOperator(BaseOperator):
     """
-    Uploads a file to Google Cloud Storage
+    Uploads a file to Google Cloud Storage.
+    Optionally can compress the file for upload.
 
     :param src: Path to the local file. (templated)
     :type src: str
@@ -39,6 +40,8 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     :type mime_type: str
     :param delegate_to: The account to impersonate, if any
     :type delegate_to: str
+    :param gzip: Allows for file to be compressed and uploaded as gzip
+    :type gzip: bool
     """
     template_fields = ('src', 'dst', 'bucket')
 
@@ -50,6 +53,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
                  google_cloud_storage_conn_id='google_cloud_default',
                  mime_type='application/octet-stream',
                  delegate_to=None,
+                 gzip=False,
                  *args,
                  **kwargs):
         super(FileToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
@@ -59,6 +63,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.mime_type = mime_type
         self.delegate_to = delegate_to
+        self.gzip = gzip
 
     def execute(self, context):
         """
@@ -72,4 +77,6 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
             bucket=self.bucket,
             object=self.dst,
             mime_type=self.mime_type,
-            filename=self.src)
+            filename=self.src,
+            gzip=self.gzip,
+        )

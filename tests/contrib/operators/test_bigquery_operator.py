@@ -18,11 +18,9 @@
 # under the License.
 
 import unittest
-import warnings
 
 from airflow.contrib.operators.bigquery_operator import \
-    BigQueryCreateExternalTableOperator, \
-    BigQueryOperator, BigQueryCreateEmptyTableOperator, \
+    BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
     BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator
 
 try:
@@ -40,18 +38,6 @@ TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
-
-
-class BigQueryOperatorTest(unittest.TestCase):
-    def test_bql_deprecation_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            BigQueryOperator(
-                task_id='test_deprecation_warning_for_bql',
-                bql='select * from test_table'
-            )
-        self.assertIn(
-            'Deprecated parameter `bql`',
-            w[0].message.args[0])
 
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):

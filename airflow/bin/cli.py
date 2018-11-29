@@ -19,7 +19,6 @@
 # under the License.
 
 from __future__ import print_function
-from backports.configparser import NoSectionError
 import logging
 
 import os
@@ -488,24 +487,6 @@ def _run(args, dag, ti):
 
 @cli_utils.action_logging
 def run(args, dag=None):
-    # Optional sections won't log an error if they're missing in airflow.cfg.
-    OPTIONAL_AIRFLOW_CFG_SECTIONS = [
-        'atlas',
-        'celery',
-        'celery_broker_transport_options',
-        'dask',
-        'elasticsearch',
-        'github_enterprise',
-        'hive',
-        'kerberos',
-        'kubernetes',
-        'kubernetes_node_selectors',
-        'kubernetes_secrets',
-        'ldap',
-        'lineage',
-        'mesos',
-    ]
-
     if dag:
         args.dag_id = dag.dag_id
 
@@ -519,25 +500,7 @@ def run(args, dag=None):
         if os.path.exists(args.cfg_path):
             os.remove(args.cfg_path)
 
-        # Do not log these properties since some may contain passwords.
-        # This may also set default values for database properties like
-        # core.sql_alchemy_pool_size
-        # core.sql_alchemy_pool_recycle
-        for section, config in conf_dict.items():
-            for option, value in config.items():
-                try:
-                    conf.set(section, option, value)
-                except NoSectionError:
-                    no_section_msg = (
-                        'Section {section} Option {option} '
-                        'does not exist in the config!'
-                    ).format(section=section, option=option)
-
-                    if section in OPTIONAL_AIRFLOW_CFG_SECTIONS:
-                        log.debug(no_section_msg)
-                    else:
-                        log.error(no_section_msg)
-
+        conf.conf.read_dict(conf_dict, source=args.cfg_path)
         settings.configure_vars()
 
     # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
@@ -678,6 +641,11 @@ def list_tasks(args, dag=None):
 
 @cli_utils.action_logging
 def test(args, dag=None):
+    # We want log outout from operators etc to show up here. Normally
+    # airflow.task would redirect to a file, but here we want it to propagate
+    # up to the normal airflow handler.
+    logging.getLogger('airflow.task').propagate = True
+
     dag = dag or get_dag(args)
 
     task = dag.get_task(task_id=args.task_id)
@@ -1042,7 +1010,7 @@ def serve_logs(args):
     flask_app = flask.Flask(__name__)
 
     @flask_app.route('/log/<path:filename>')
-    def serve_logs(filename):  # noqa
+    def serve_logs(filename):
         log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
         return flask.send_from_directory(
             log,
@@ -1070,13 +1038,18 @@ def worker(args):
     from airflow.executors.celery_executor import app as celery_app
     from celery.bin import worker
 
+    autoscale = args.autoscale
+    if autoscale is None and conf.has_option("celery", "worker_autoscale"):
+        autoscale = conf.get("celery", "worker_autoscale")
     worker = worker.worker(app=celery_app)
     options = {
         'optimization': 'fair',
         'O': 'fair',
         'queues': args.queues,
         'concurrency': args.concurrency,
+        'autoscale': autoscale,
         'hostname': args.celery_hostname,
+        'loglevel': conf.get('core', 'LOGGING_LEVEL'),
     }
 
     if args.daemon:
@@ -1112,7 +1085,7 @@ def worker(args):
         sp.kill()
 
 
-def initdb(args):  # noqa
+def initdb(args):
     print("DB: " + repr(settings.engine.url))
     db_utils.initdb(settings.RBAC)
     print("Done.")
@@ -1129,7 +1102,7 @@ def resetdb(args):
 
 
 @cli_utils.action_logging
-def upgradedb(args):  # noqa
+def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
     db_utils.upgradedb()
 
@@ -1147,7 +1120,7 @@ def upgradedb(args):  # noqa
 
 
 @cli_utils.action_logging
-def version(args):  # noqa
+def version(args):
     print(settings.HEADER + "  v" + airflow.__version__)
 
 
@@ -1303,6 +1276,10 @@ def flower(args):
     if args.url_prefix:
         url_prefix = '--url-prefix=' + args.url_prefix
 
+    basic_auth = ''
+    if args.basic_auth:
+        basic_auth = '--basic_auth=' + args.basic_auth
+
     flower_conf = ''
     if args.flower_conf:
         flower_conf = '--conf=' + args.flower_conf
@@ -1324,7 +1301,7 @@ def flower(args):
 
         with ctx:
             os.execvp("flower", ['flower', '-b',
-                                 broka, address, port, api, flower_conf, url_prefix])
+                                 broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
         stdout.close()
         stderr.close()
@@ -1333,11 +1310,11 @@ def flower(args):
         signal.signal(signal.SIGTERM, sigint_handler)
 
         os.execvp("flower", ['flower', '-b',
-                             broka, address, port, api, flower_conf, url_prefix])
+                             broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
 
 @cli_utils.action_logging
-def kerberos(args):  # noqa
+def kerberos(args):
     print(settings.HEADER)
     import airflow.security.kerberos
 
@@ -1490,7 +1467,7 @@ def list_dag_runs(args, dag=None):
 
 
 @cli_utils.action_logging
-def sync_perm(args): # noqa
+def sync_perm(args):
     if settings.RBAC:
         appbuilder = cached_appbuilder()
         print('Update permission, view-menu for all existing roles')
@@ -1850,6 +1827,12 @@ class CLIFactory(object):
             ("-u", "--url_prefix"),
             default=conf.get('celery', 'FLOWER_URL_PREFIX'),
             help="URL prefix for Flower"),
+        'flower_basic_auth': Arg(
+            ("-ba", "--basic_auth"),
+            default=conf.get('celery', 'FLOWER_BASIC_AUTH'),
+            help=("Securing Flower with Basic Authentication. "
+                  "Accepts user:password pairs separated by a comma. "
+                  "Example: flower_basic_auth = user1:password1,user2:password2")),
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
@@ -1947,6 +1930,9 @@ class CLIFactory(object):
             ('-d', '--delete'),
             help='Delete a user',
             action='store_true'),
+        'autoscale': Arg(
+            ('-a', '--autoscale'),
+            help="Minimum and Maximum number of worker to autoscale"),
 
     }
     subparsers = (
@@ -2089,12 +2075,12 @@ class CLIFactory(object):
             'func': worker,
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'autoscale'),
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
-                     'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+                     'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
             'help': "Show the version",

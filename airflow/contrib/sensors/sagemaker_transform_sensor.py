@@ -30,8 +30,6 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
 
     :param job_name: job_name of the transform job instance to check the state of
     :type job_name: string
-    :param region_name: The AWS region_name
-    :type region_name: string
     """
 
     template_fields = ['job_name']
@@ -40,12 +38,10 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
     @apply_defaults
     def __init__(self,
                  job_name,
-                 region_name=None,
                  *args,
                  **kwargs):
         super(SageMakerTransformSensor, self).__init__(*args, **kwargs)
         self.job_name = job_name
-        self.region_name = region_name
 
     def non_terminal_states(self):
         return SageMakerHook.non_terminal_states
@@ -54,10 +50,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
         return SageMakerHook.failed_states
 
     def get_sagemaker_response(self):
-        sagemaker = SageMakerHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region_name
-        )
+        sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id)
 
         self.log.info('Poking Sagemaker Transform Job %s', self.job_name)
         return sagemaker.describe_transform_job(self.job_name)

@@ -52,4 +52,3 @@ class TaskConcurrencyDepTest(unittest.TestCase):
         self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
         ti.get_num_running_task_instances = lambda x: 2
         self.assertFalse(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
-

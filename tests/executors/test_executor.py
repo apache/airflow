@@ -26,6 +26,7 @@ class TestExecutor(BaseExecutor):
     """
     TestExecutor is used for unit testing purposes.
     """
+
     def __init__(self, do_update=False, *args, **kwargs):
         self.do_update = do_update
         self._running = []
@@ -45,7 +46,8 @@ class TestExecutor(BaseExecutor):
                 ti = self._running.pop()
                 ti.set_state(State.SUCCESS, session)
             for key, val in list(self.queued_tasks.items()):
-                (command, priority, queue, ti) = val
+                (command, priority, queue, simple_ti) = val
+                ti = simple_ti.construct_task_instance()
                 ti.set_state(State.RUNNING, session)
                 self._running.append(ti)
                 self.queued_tasks.pop(key)
@@ -58,4 +60,3 @@ class TestExecutor(BaseExecutor):
 
     def end(self):
         self.sync()
-

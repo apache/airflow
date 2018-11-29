@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Security
 ========
 
@@ -12,9 +29,10 @@ Be sure to checkout :doc:`api` for securing the API.
 
 .. note::
 
-   Airflow uses the config parser of Python. This config parser interpolates '%'-signs.
-   Make sure not to have those in your passwords if they do not make sense, otherwise
-   Airflow might leak these passwords on a config parser exception to a log.
+   Airflow uses the config parser of Python. This config parser interpolates
+   '%'-signs.  Make sure escape any ``%`` signs in your config file (but not
+   environment variables) as ``%%``, otherwise Airflow might leak these
+   passwords on a config parser exception to a log.
 
 Web Authentication
 ------------------
@@ -65,8 +83,7 @@ LDAP
 ''''
 
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
-an encrypted connection to the ldap server as you probably do not want passwords be readable on the network level.
-It is however possible to configure without encryption if you really want to.
+an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
 
 Additionally, if you are using Active Directory, and are not explicitly specifying an OU that your users are in,
 you will need to change ``search_scope`` to "SUBTREE".
@@ -241,7 +258,7 @@ To use kerberos authentication, you must install Airflow with the `kerberos` ext
 
 .. code-block:: base
 
-   pip install airflow[kerberos]
+   pip install apache-airflow[kerberos]
 
 OAuth Authentication
 --------------------
@@ -274,7 +291,7 @@ To use GHE authentication, you must install Airflow with the `github_enterprise`
 
 .. code-block:: base
 
-   pip install airflow[github_enterprise]
+   pip install apache-airflow[github_enterprise]
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -316,13 +333,13 @@ login, separated with a comma, to only members of those domains.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = "example1.com,example2.com"
+    domain = example1.com,example2.com
 
 To use Google authentication, you must install Airflow with the `google_auth` extras group:
 
 .. code-block:: base
 
-   pip install airflow[google_auth]
+   pip install apache-airflow[google_auth]
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -401,3 +418,22 @@ not set.
 
     [core]
     default_impersonation = airflow
+
+
+Flower Authentication
+---------------------
+
+Basic authentication for Celery Flower is supported.
+
+You can specify the details either as an optional argument in the Flower process launching
+command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
+`user:password` pairs separated by a comma.
+
+.. code-block:: bash
+
+    airflow flower --basic_auth=user1:password1,user2:password2
+
+.. code-block:: bash
+
+    [celery]
+    flower_basic_auth = user1:password1,user2:password2

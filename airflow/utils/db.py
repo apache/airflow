@@ -183,7 +183,7 @@ def initdb(rbac=False):
             conn_id='sftp_default', conn_type='sftp',
             host='localhost', port=22, login='airflow',
             extra='''
-                {"private_key": "~/.ssh/id_rsa", "ignore_hostkey_verification": true}
+                {"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}
             '''))
     merge_conn(
         models.Connection(
@@ -208,7 +208,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='redis_default', conn_type='redis',
-            host='localhost', port=6379,
+            host='redis', port=6379,
             extra='{"db": 0}'))
     merge_conn(
         models.Connection(
@@ -222,6 +222,8 @@ def initdb(rbac=False):
                     "LogUri": "s3://my-emr-log-bucket/default_job_flow_location",
                     "ReleaseLabel": "emr-4.6.0",
                     "Instances": {
+                        "Ec2KeyName": "mykey",
+                        "Ec2SubnetId": "somesubnet",
                         "InstanceGroups": [
                             {
                                 "Name": "Master nodes",
@@ -237,12 +239,10 @@ def initdb(rbac=False):
                                 "InstanceType": "r3.2xlarge",
                                 "InstanceCount": 1
                             }
-                        ]
+                        ],
+                        "TerminationProtected": false,
+                        "KeepJobFlowAliveWhenNoSteps": false
                     },
-                    "Ec2KeyName": "mykey",
-                    "KeepJobFlowAliveWhenNoSteps": false,
-                    "TerminationProtected": false,
-                    "Ec2SubnetId": "somesubnet",
                     "Applications":[
                         { "Name": "Spark" }
                     ],
@@ -268,7 +268,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='qubole_default', conn_type='qubole',
-            host= 'localhost'))
+            host='localhost'))
     merge_conn(
         models.Connection(
             conn_id='segment_default', conn_type='segment',

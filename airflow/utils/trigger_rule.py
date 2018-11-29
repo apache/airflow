@@ -29,8 +29,10 @@ class TriggerRule(object):
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
     DUMMY = 'dummy'
+    NONE_FAILED = 'none_failed'
 
     _ALL_TRIGGER_RULES = {}
+
     @classmethod
     def is_valid(cls, trigger_rule):
         return trigger_rule in cls.all_triggers()

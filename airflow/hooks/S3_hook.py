@@ -69,6 +69,26 @@ class S3Hook(AwsHook):
         s3 = self.get_resource_type('s3')
         return s3.Bucket(bucket_name)
 
+    def create_bucket(self, bucket_name, region_name=None):
+        """
+        Creates an Amazon S3 bucket.
+
+        :param bucket_name: The name of the bucket
+        :type bucket_name: str
+        :param region_name: The name of the aws region in which to create the bucket.
+        :type region_name: str
+        """
+        s3_conn = self.get_conn()
+        if not region_name:
+            region_name = s3_conn.meta.region_name
+        if region_name == 'us-east-1':
+            self.get_conn().create_bucket(Bucket=bucket_name)
+        else:
+            self.get_conn().create_bucket(Bucket=bucket_name,
+                                          CreateBucketConfiguration={
+                                              'LocationConstraint': region_name
+                                          })
+
     def check_for_prefix(self, bucket_name, prefix, delimiter):
         """
         Checks that a prefix exists in a bucket
@@ -400,6 +420,41 @@ class S3Hook(AwsHook):
 
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)
+
+    def load_file_obj(self,
+                      file_obj,
+                      key,
+                      bucket_name=None,
+                      replace=False,
+                      encrypt=False):
+        """
+        Loads a file object to S3
+
+        :param file_obj: The file-like object to set as the content for the S3 key.
+        :type file_obj: file-like object
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which to store the file
+        :type bucket_name: str
+        :param replace: A flag that indicates whether to overwrite the key
+            if it already exists.
+        :type replace: bool
+        :param encrypt: If True, S3 encrypts the file on the server,
+            and the file is stored in encrypted form at rest in S3.
+        :type encrypt: bool
+        """
+        if not bucket_name:
+            (bucket_name, key) = self.parse_s3_url(key)
+
+        if not replace and self.check_for_key(key, bucket_name):
+            raise ValueError("The key {key} already exists.".format(key=key))
+
+        extra_args = {}
+        if encrypt:
+            extra_args['ServerSideEncryption'] = "AES256"
+
+        client = self.get_conn()
+        client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
 
     def copy_object(self,
                     source_bucket_key,

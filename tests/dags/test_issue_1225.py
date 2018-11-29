@@ -37,8 +37,10 @@ default_args = dict(
     start_date=DEFAULT_DATE,
     owner='airflow')
 
+
 def fail():
     raise ValueError('Expected failure.')
+
 
 def delayed_fail():
     """
@@ -49,6 +51,7 @@ def delayed_fail():
     """
     time.sleep(5)
     raise ValueError('Expected failure.')
+
 
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it

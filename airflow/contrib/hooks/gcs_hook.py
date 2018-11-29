@@ -24,7 +24,10 @@ from googleapiclient import errors
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
 
+import gzip as gz
+import shutil
 import re
+import os
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -110,6 +113,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type destination_bucket: str
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
+        :type destination_object: str
         """
         destination_object = destination_object or source_object
         if (source_bucket == destination_bucket and
@@ -172,7 +176,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         return downloaded_file_bytes
 
     # pylint:disable=redefined-builtin
-    def upload(self, bucket, object, filename, mime_type='application/octet-stream'):
+    def upload(self, bucket, object, filename,
+               mime_type='application/octet-stream', gzip=False,
+               multipart=False, num_retries=0):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -184,19 +190,65 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type filename: str
         :param mime_type: The MIME type to set when uploading the file.
         :type mime_type: str
+        :param gzip: Option to compress file for upload
+        :type gzip: bool
+        :param multipart: If True, the upload will be split into multiple HTTP requests. The
+                          default size is 256MiB per request. Pass a number instead of True to
+                          specify the request size, which must be a multiple of 262144 (256KiB).
+        :type multipart: bool or int
+        :param num_retries: The number of times to attempt to re-upload the file (or individual
+                            chunks, in the case of multipart uploads). Retries are attempted
+                            with exponential backoff.
+        :type num_retries: int
         """
         service = self.get_conn()
-        media = MediaFileUpload(filename, mime_type)
+
+        if gzip:
+            filename_gz = filename + '.gz'
+
+            with open(filename, 'rb') as f_in:
+                with gz.open(filename_gz, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
+
         try:
-            service \
-                .objects() \
-                .insert(bucket=bucket, name=object, media_body=media) \
-                .execute()
-            return True
+            if multipart:
+                if multipart is True:
+                    chunksize = 256 * 1024 * 1024
+                else:
+                    chunksize = multipart
+
+                if chunksize % (256 * 1024) > 0 or chunksize < 0:
+                    raise ValueError("Multipart size is not a multiple of 262144 (256KiB)")
+
+                media = MediaFileUpload(filename, mimetype=mime_type,
+                                        chunksize=chunksize, resumable=True)
+
+                request = service.objects().insert(bucket=bucket, name=object, media_body=media)
+                response = None
+                while response is None:
+                    status, response = request.next_chunk(num_retries=num_retries)
+                    if status:
+                        self.log.info("Upload progress %.1f%%", status.progress() * 100)
+
+            else:
+                media = MediaFileUpload(filename, mime_type)
+
+                service \
+                    .objects() \
+                    .insert(bucket=bucket, name=object, media_body=media) \
+                    .execute(num_retries=num_retries)
+
         except errors.HttpError as ex:
             if ex.resp['status'] == '404':
                 return False
             raise
+
+        finally:
+            if gzip:
+                os.remove(filename)
+
+        return True
 
     # pylint:disable=redefined-builtin
     def exists(self, bucket, object):
@@ -514,6 +566,104 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         except errors.HttpError as ex:
             raise AirflowException(
                 'Bucket creation failed. Error was: {}'.format(ex.content)
+            )
+
+    def insert_bucket_acl(self, bucket, entity, role, user_project):
+        # type: (str, str, str, str) -> None
+        """
+        Creates a new ACL entry on the specified bucket.
+        See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
+
+        :param bucket: Name of a bucket.
+        :type bucket: str
+        :param entity: The entity holding the permission, in one of the following forms:
+        - user-userId
+        - user-email
+        - group-groupId
+        - group-email
+        - domain-domain
+        - project-team-projectId
+        - allUsers
+        - allAuthenticatedUsers
+        :type entity: str
+        :param role: The access permission for the entity.
+            Acceptable values are: "OWNER", "READER", "WRITER".
+        :type role: str
+        :param user_project: (Optional) The project to be billed for this request.
+            Required for Requester Pays buckets.
+        :type user_project: str
+        """
+        self.log.info('Creating a new ACL entry in bucket: %s', bucket)
+        service = self.get_conn()
+        try:
+            response = service.bucketAccessControls().insert(
+                bucket=bucket,
+                body={
+                    "entity": entity,
+                    "role": role
+                },
+                userProject=user_project
+            ).execute()
+            if response:
+                self.log.info('A new ACL entry created in bucket: %s', bucket)
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Bucket ACL entry creation failed. Error was: {}'.format(ex.content)
+            )
+
+    def insert_object_acl(self, bucket, object_name, entity, role, generation,
+                          user_project):
+        # type: (str, str, str, str, str, str) -> None
+        """
+        Creates a new ACL entry on the specified object.
+        See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
+
+        :param bucket: Name of a bucket.
+        :type bucket: str
+        :param object_name: Name of the object. For information about how to URL encode
+            object names to be path safe, see:
+            https://cloud.google.com/storage/docs/json_api/#encoding
+        :type object_name: str
+        :param entity: The entity holding the permission, in one of the following forms:
+            - user-userId
+            - user-email
+            - group-groupId
+            - group-email
+            - domain-domain
+            - project-team-projectId
+            - allUsers
+            - allAuthenticatedUsers
+        :type entity: str
+        :param role: The access permission for the entity.
+            Acceptable values are: "OWNER", "READER".
+        :type role: str
+        :param generation: (Optional) If present, selects a specific revision of this
+            object (as opposed to the latest version, the default).
+        :type generation: str
+        :param user_project: (Optional) The project to be billed for this request.
+            Required for Requester Pays buckets.
+        :type user_project: str
+        """
+        self.log.info('Creating a new ACL entry for object: %s in bucket: %s',
+                      object_name, bucket)
+        service = self.get_conn()
+        try:
+            response = service.objectAccessControls().insert(
+                bucket=bucket,
+                object=object_name,
+                body={
+                    "entity": entity,
+                    "role": role
+                },
+                generation=generation,
+                userProject=user_project
+            ).execute()
+            if response:
+                self.log.info('A new ACL entry created for object: %s in bucket: %s',
+                              object_name, bucket)
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Object ACL entry creation failed. Error was: {}'.format(ex.content)
             )
 
 

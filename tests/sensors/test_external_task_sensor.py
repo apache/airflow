@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import unittest
-
 from datetime import timedelta, time
 
 from airflow import DAG, configuration, settings
@@ -67,6 +66,30 @@ class ExternalTaskSensorTests(unittest.TestCase):
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
             external_task_id=TEST_TASK_ID,
+            dag=self.dag
+        )
+        t.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True
+        )
+
+    def test_external_dag_sensor(self):
+
+        other_dag = DAG(
+            'other_dag',
+            default_args=self.args,
+            end_date=DEFAULT_DATE,
+            schedule_interval='@once')
+        other_dag.create_dagrun(
+            run_id='test',
+            start_date=DEFAULT_DATE,
+            execution_date=DEFAULT_DATE,
+            state=State.SUCCESS)
+        t = ExternalTaskSensor(
+            task_id='test_external_dag_sensor_check',
+            external_dag_id='other_dag',
+            external_task_id=None,
             dag=self.dag
         )
         t.run(
