@@ -25,6 +25,20 @@ from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
 
 class AthenaSensor(BaseSensorOperator):
+    """
+   Asks for the state of the Query until it reaches a failure state or success state.
+   If it fails, failing the task.
+
+   :param query_execution_id: query_execution_id to check the state of
+   :type query_execution_id: string
+   :param max_retires: Number of times to poll for query state before returning the current state
+   :type max_retires: int
+   :param aws_conn_id: aws connection to use
+   :type aws_conn_id: str
+   :param sleep_time: Time to wait between two consecutive call to check query status on athena
+   :type sleep_time: int
+   """
+
     INTERMEDIATE_STATES = ('QUEUED', 'RUNNING',)
     FAILURE_STATES = ('FAILED', 'CANCELLED',)
     SUCCESS_STATES = ('SUCCEEDED',)
