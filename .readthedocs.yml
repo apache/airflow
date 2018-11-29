@@ -28,6 +28,7 @@ python:
         - s3
         - salesforce
         - sendgrid
+        - ses
         - ssh
         - slack
         - qds

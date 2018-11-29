@@ -43,42 +43,46 @@ def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
     2. configure SES specific setting in airflow.cfg, e.g.:
     [ses]
     aws_region = eu-west-1
-    mail_from = airflow@example.com
     """
-    mail_from = configuration.get('ses', 'MAIL_FROM') or configuration.get('smtp', 'SMTP_MAIL_FROM')
-    to = get_email_address_list(to)
+    mail_from = configuration.get('smtp', 'SMTP_MAIL_FROM')
+    to = _get_email_address_list(to)
 
-    msg = MIMEMultipart(mime_subtype)
-    msg['Subject'] = subject
-    msg['From'] = mail_from
-    msg['To'] = ", ".join(to)
+    message = MIMEMultipart(mime_subtype)
+    message['Subject'] = subject
+    message['From'] = mail_from
+    message['To'] = ", ".join(to)
     if cc:
-        cc = get_email_address_list(cc)
-        msg['CC'] = ", ".join(cc)
+        cc = _get_email_address_list(cc)
+        message['Cc'] = ", ".join(cc)
     if bcc:
-        logging.warning('bcc recipients are not supported')
+        bcc = _get_email_address_list(bcc)
+        message['Bcc'] = ", ".join(bcc)
 
-    msg['Date'] = formatdate(localtime=True)
+    message['Date'] = formatdate(localtime=True)
     mime_text = MIMEText(html_content, 'html')
-    msg.attach(mime_text)
+    message.attach(mime_text)
 
     for file_name in files or []:
         basename = os.path.basename(file_name)
         with open(file_name, "rb") as f:
-            msg.attach(MIMEApplication(
+            message.attach(MIMEApplication(
                 f.read(),
                 Content_Disposition='attachment; filename="{}"'.format(basename),
                 Name=basename
             ))
 
     if not dryrun:
+        _ses_send_raw_email(message)
+
+
+def _ses_send_raw_email(message):
         aws_region = configuration.get('ses', 'REGION')
-        data = msg.as_string()
         ses = boto3.client('ses', region_name=aws_region)
+        data = message.as_string()
         ses.send_raw_email(RawMessage={'Data': data})
 
 
-def get_email_address_list(address_string):
+def _get_email_address_list(address_string):
     if isinstance(address_string, str):
         if ',' in address_string:
             return address_string.split(',')
