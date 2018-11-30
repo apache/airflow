@@ -428,7 +428,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def terminate(self, sigkill=False):
         """
         Terminate (and then kill) the process launched to process the file.
-        
+
         :param sigkill: whether to issue a SIGKILL if SIGTERM doesn't work.
         :type sigkill: bool
         """
@@ -457,7 +457,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def exit_code(self):
         """
         After the process is finished, this can be called to get the return code
-        
+
         :return: the exit code of the process
         :rtype: int
         """
@@ -469,7 +469,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def done(self):
         """
         Check if the process launched to process this file is done.
-        
+
         :return: whether the process is finished running
         :rtype: bool
         """
@@ -1899,7 +1899,7 @@ class BackfillJob(BaseJob):
         """
         Updates the counters per state of the tasks that were running. Can re-add
         to tasks to run in case required.
-        
+
         :param ti_status: the internal status of the backfill job tasks
         :type ti_status: BackfillJob._DagRunTaskStatus
         """
@@ -1944,7 +1944,7 @@ class BackfillJob(BaseJob):
         """
         Checks if the executor agrees with the state of task instances
         that are running
-        
+
         :param running: dict of key, task to verify
         """
         executor = self.executor
@@ -1976,7 +1976,7 @@ class BackfillJob(BaseJob):
         Returns a dag run for the given run date, which will be matched to an existing
         dag run if available or create a new dag run otherwise. If the max_active_runs
         limit is reached, this function will return None.
-        
+
         :param run_date: the execution date for the dag run
         :type run_date: datetime
         :param session: the database session object
@@ -2036,7 +2036,7 @@ class BackfillJob(BaseJob):
         """
         Returns a map of task instance key to task instance object for the tasks to
         run in the given dag run.
-        
+
         :param dag_run: the dag run to get the tasks from
         :type dag_run: models.DagRun
         :param session: the database session object
@@ -2102,7 +2102,7 @@ class BackfillJob(BaseJob):
         Process a set of task instances from a set of dag runs. Special handling is done
         to account for different task instance states that could be present when running
         them in a backfill process.
-        
+
         :param ti_status: the internal status of the job
         :type ti_status: BackfillJob._DagRunTaskStatus
         :param executor: the executor to run the task instances
@@ -2340,7 +2340,7 @@ class BackfillJob(BaseJob):
         Computes the dag runs and their respective task instances for
         the given run dates and executes the task instances.
         Returns a list of execution dates of the dag runs that were executed.
-        
+
         :param run_dates: Execution dates for dag runs
         :type run_dates: list
         :param ti_status: internal BackfillJob status structure to tis track progress
