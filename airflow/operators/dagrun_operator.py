@@ -65,6 +65,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
         self.execution_date = execution_date
+        self.run_id = None
 
     def execute(self, context):
         dro = DagRunOrder(run_id='trig__' + timezone.utcnow().isoformat())
@@ -76,5 +77,6 @@ class TriggerDagRunOperator(BaseOperator):
                         conf=json.dumps(dro.payload),
                         execution_date=self.execution_date,
                         replace_microseconds=False)
+            self.run_id = dro.run_id
         else:
             self.log.info("Criteria not met, moving on")
