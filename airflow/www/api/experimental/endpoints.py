@@ -26,6 +26,7 @@ from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.api.common.experimental.get_dag_runs import format_dag_run
 from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -51,6 +52,10 @@ def trigger_dag(dag_id):
     run_id = None
     if 'run_id' in data:
         run_id = data['run_id']
+
+    detailed_output = None
+    if 'detailed_output' in data:
+        detailed_output = data['detailed_output']
 
     conf = None
     if 'conf' in data:
@@ -84,8 +89,11 @@ def trigger_dag(dag_id):
 
     if getattr(g, 'user', None):
         _log.info("User {} created {}".format(g.user, dr))
-
-    response = jsonify(message="Created {}".format(dr))
+    if detailed_output :
+        dr = format_dag_run(dr)
+        response = jsonify(**dr)
+    else:
+        response = jsonify(message="Created {}".format(dr))
     return response
 
 

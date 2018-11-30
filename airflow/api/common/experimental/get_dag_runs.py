@@ -53,3 +53,16 @@ def get_dag_runs(dag_id, state=None):
         })
 
     return dag_runs
+
+def format_dag_run(run):
+    return {
+            'id': run.id,
+            'run_id': run.run_id,
+            'state': run.state,
+            'dag_id': run.dag_id,
+            'execution_date': run.execution_date.isoformat(),
+            'start_date': ((run.start_date or '') and
+                           run.start_date.isoformat()),
+            'dag_run_url': url_for('airflow.graph', dag_id=run.dag_id,
+                                   execution_date=run.execution_date)
+        }
