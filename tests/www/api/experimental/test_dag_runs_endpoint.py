@@ -87,12 +87,12 @@ class TestDagRunsEndpoint(unittest.TestCase):
         dag_run = trigger_dag(
             dag_id=dag_id,
             run_id='test_get_dag_runs',
-            execution_date=datetime.datetime.fromtimestamp('1539097214'),
+            execution_date=datetime.datetime.fromtimestamp(1539097214),
         )
         trigger_dag(
             dag_id=dag_id,
             run_id='other_get_dag_runs',
-            execution_date=datetime.datetime.fromtimestamp('1539097218'),
+            execution_date=datetime.datetime.fromtimestamp(1539097218),
         )
 
         response = self.app.get(url_template.format(dag_id))
