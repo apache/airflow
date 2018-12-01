@@ -105,7 +105,7 @@ class BigQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql=None,
+                 sql,
                  destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
@@ -149,10 +149,6 @@ class BigQueryOperator(BaseOperator):
         if api_resource_configs is None:
             self.api_resource_configs = {}
         self.cluster_fields = cluster_fields
-
-        if self.sql is None:
-            raise TypeError('{} missing 1 required positional '
-                            'argument: `sql`'.format(self.task_id))
 
     def execute(self, context):
         if self.bq_cursor is None:
