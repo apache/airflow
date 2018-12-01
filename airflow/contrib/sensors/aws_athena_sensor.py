@@ -30,7 +30,7 @@ class AthenaSensor(BaseSensorOperator):
     If it fails, failing the task.
 
     :param query_execution_id: query_execution_id to check the state of
-    :type query_execution_id: string
+    :type query_execution_id: str
     :param max_retires: Number of times to poll for query state before
         returning the current state, defaults to None
     :type max_retires: int
