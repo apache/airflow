@@ -75,7 +75,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         key_path = self._get_field('key_path', False)
         keyfile_dict = self._get_field('keyfile_dict', False)
         scope = self._get_field('scope', None)
-        if scope is not None:
+        if scope:
             scopes = [s.strip() for s in scope.split(',')]
         else:
             scopes = _DEFAULT_SCOPES
