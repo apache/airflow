@@ -233,6 +233,7 @@ Operators
 Sensors
 ^^^^^^^
 
+.. autoclass:: airflow.contrib.sensors.aws_athena_sensor.AthenaSensor
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
