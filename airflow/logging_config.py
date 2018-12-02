@@ -57,9 +57,9 @@ def configure_logging():
                 .format(logging_class_path, err)
             )
     else:
-        from airflow.config_templates.airflow_local_settings import (
-            DEFAULT_LOGGING_CONFIG as logging_config
-        )
+        logging_class_path = 'airflow.config_templates.' \
+                             'airflow_local_settings.DEFAULT_LOGGING_CONFIG'
+        logging_config = import_string(logging_class_path)
         log.debug('Unable to load custom logging, using default config instead')
 
     try:
@@ -73,7 +73,7 @@ def configure_logging():
 
     validate_logging_config(logging_config)
 
-    return logging_config
+    return logging_class_path
 
 
 def validate_logging_config(logging_config):

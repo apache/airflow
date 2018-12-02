@@ -34,6 +34,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from collections import namedtuple
 from datetime import timedelta
+from importlib import import_module
 
 import psutil
 from six.moves import range, reload_module
@@ -45,6 +46,7 @@ import airflow.models
 from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+from airflow.settings import logging_class_path
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -539,7 +541,9 @@ class DagFileProcessorAgent(LoggingMixin):
             # e.g. RotatingFileHandler. And it can cause connection corruption if we
             # do not recreate the SQLA connection pool.
             os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
-            reload_module(airflow.config_templates.airflow_local_settings)
+            # Replicating the behavior of how logging module was loaded
+            # in logging_config.py
+            reload_module(import_module(logging_class_path.rsplit('.', 1)[0]))
             reload_module(airflow.settings)
             del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
             processor_manager = DagFileProcessorManager(dag_directory,
