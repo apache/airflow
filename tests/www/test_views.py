@@ -788,5 +788,38 @@ class TestTaskInstanceView(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
 
+class TestDeleteDag(unittest.TestCase):
+
+    def setUp(self):
+        conf.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+
+    def test_delete_dag_button_normal(self):
+        resp = self.app.get('/', follow_redirects=True)
+        self.assertIn('/delete?dag_id=example_bash_operator', resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+
+    def test_delete_dag_button_for_dag_on_scheduler_only(self):
+        # Test for JIRA AIRFLOW-3233 (PR 4069):
+        # The delete-dag URL should be generated correctly for DAGs
+        # that exist on the scheduler (DB) but not the webserver DagBag
+
+        test_dag_id = "non_existent_dag"
+
+        session = Session()
+        DM = models.DagModel
+        session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        session.commit()
+
+        resp = self.app.get('/', follow_redirects=True)
+        self.assertIn('/delete?dag_id={}'.format(test_dag_id), resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag('{}')".format(test_dag_id), resp.data.decode('utf-8'))
+
+        session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        session.commit()
+
+
 if __name__ == '__main__':
     unittest.main()

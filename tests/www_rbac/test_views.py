@@ -446,6 +446,29 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
 
+    def test_delete_dag_button_normal(self):
+        resp = self.client.get('/', follow_redirects=True)
+        self.check_content_in_response('/delete?dag_id=example_bash_operator', resp)
+        self.check_content_in_response("return confirmDeleteDag('example_bash_operator')", resp)
+
+    def test_delete_dag_button_for_dag_on_scheduler_only(self):
+        # Test for JIRA AIRFLOW-3233 (PR 4069):
+        # The delete-dag URL should be generated correctly for DAGs
+        # that exist on the scheduler (DB) but not the webserver DagBag
+
+        test_dag_id = "non_existent_dag"
+
+        DM = models.DagModel
+        self.session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        self.session.commit()
+
+        resp = self.client.get('/', follow_redirects=True)
+        self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
+        self.check_content_in_response("return confirmDeleteDag('{}')".format(test_dag_id), resp)
+
+        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        self.session.commit()
+
 
 class TestConfigurationView(TestBase):
     def test_configuration_do_not_expose_config(self):
