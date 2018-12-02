@@ -38,6 +38,39 @@ PY3 = sys.version_info[0] == 3
 class MySqlToGoogleCloudStorageOperator(BaseOperator):
     """
     Copy data from MySQL to Google cloud storage in JSON format.
+
+    :param sql: The SQL to execute on the MySQL table.
+    :type sql: str
+    :param bucket: The bucket to upload to.
+    :type bucket: str
+    :param filename: The filename to use as the object name when uploading
+        to Google cloud storage. A {} should be specified in the filename
+        to allow the operator to inject file numbers in cases where the
+        file is split due to size.
+    :type filename: str
+    :param schema_filename: If set, the filename to use as the object name
+        when uploading a .json file containing the BigQuery schema fields
+        for the table that was dumped from MySQL.
+    :type schema_filename: str
+    :param approx_max_file_size_bytes: This operator supports the ability
+        to split large table dumps into multiple files (see notes in the
+        filenamed param docs above). Google cloud storage allows for files
+        to be a maximum of 4GB. This param allows developers to specify the
+        file size of the splits.
+    :type approx_max_file_size_bytes: long
+    :param mysql_conn_id: Reference to a specific MySQL hook.
+    :type mysql_conn_id: str
+    :param google_cloud_storage_conn_id: Reference to a specific Google
+        cloud storage hook.
+    :type google_cloud_storage_conn_id: str
+    :param schema: The schema to use, if any. Should be a list of dict or
+        a str. Pass a string if using Jinja template, otherwise, pass a list of
+        dict. Examples could be seen: https://cloud.google.com/bigquery/docs
+        /schemas#specifying_a_json_schema_file
+    :type schema: str or list
+    :param delegate_to: The account to impersonate, if any. For this to
+        work, the service account making the request must have domain-wide
+        delegation enabled.
     """
     template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema')
     template_ext = ('.sql',)
@@ -56,40 +89,6 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        """
-        :param sql: The SQL to execute on the MySQL table.
-        :type sql: str
-        :param bucket: The bucket to upload to.
-        :type bucket: str
-        :param filename: The filename to use as the object name when uploading
-            to Google cloud storage. A {} should be specified in the filename
-            to allow the operator to inject file numbers in cases where the
-            file is split due to size.
-        :type filename: str
-        :param schema_filename: If set, the filename to use as the object name
-            when uploading a .json file containing the BigQuery schema fields
-            for the table that was dumped from MySQL.
-        :type schema_filename: str
-        :param approx_max_file_size_bytes: This operator supports the ability
-            to split large table dumps into multiple files (see notes in the
-            filenamed param docs above). Google cloud storage allows for files
-            to be a maximum of 4GB. This param allows developers to specify the
-            file size of the splits.
-        :type approx_max_file_size_bytes: long
-        :param mysql_conn_id: Reference to a specific MySQL hook.
-        :type mysql_conn_id: str
-        :param google_cloud_storage_conn_id: Reference to a specific Google
-            cloud storage hook.
-        :type google_cloud_storage_conn_id: str
-        :param schema: The schema to use, if any. Should be a list of dict or
-            a str. Pass a string if using Jinja template, otherwise, pass a list of
-            dict. Examples could be seen: https://cloud.google.com/bigquery/docs
-            /schemas#specifying_a_json_schema_file
-        :type schema: str or list
-        :param delegate_to: The account to impersonate, if any. For this to
-            work, the service account making the request must have domain-wide
-            delegation enabled.
-        """
         super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
         self.sql = sql
         self.bucket = bucket
