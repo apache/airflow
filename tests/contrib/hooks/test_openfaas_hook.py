@@ -18,10 +18,7 @@
 # under the License.
 #
 
-import unittest
-import requests
 import requests_mock
-from airflow import configuration
 from airflow.models import Connection
 from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
 from airflow.hooks.base_hook import BaseHook
