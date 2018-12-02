@@ -33,43 +33,42 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
     :param config:
         The configuration necessary to create an endpoint.
 
-        If you need to create a SageMaker endpoint based on an existed SageMaker model and an existed SageMaker
-        endpoint config,
+        If you need to create a SageMaker endpoint based on an existed
+        SageMaker model and an existed SageMaker endpoint config::
 
             config = endpoint_configuration;
 
-        If you need to create all of SageMaker model, SageMaker endpoint-config and SageMaker endpoint,
+        If you need to create all of SageMaker model, SageMaker endpoint-config and SageMaker endpoint::
 
             config = {
                 'Model': model_configuration,
-
                 'EndpointConfig': endpoint_config_configuration,
-
                 'Endpoint': endpoint_configuration
             }
 
-        For details of the configuration parameter of model_configuration, See:
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model
+        For details of the configuration parameter of model_configuration see
+        :py:meth:`SageMaker.Client.create_model`
 
-        For details of the configuration parameter of endpoint_config_configuration, See:
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_endpoint_config
+        For details of the configuration parameter of endpoint_config_configuration see
+        :py:meth:`SageMaker.Client.create_endpoint_config`
 
-        For details of the configuration parameter of endpoint_configuration, See:
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_endpoint
+        For details of the configuration parameter of endpoint_configuration see
+        :py:meth:`SageMaker.Client.create_endpoint`
+
     :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
     :type aws_conn_id: str
     :param wait_for_completion: Whether the operator should wait until the endpoint creation finishes.
     :type wait_for_completion: bool
-    :param check_interval: If wait is set to True, this is the time interval, in seconds, that this operation waits
-        before polling the status of the endpoint creation.
+    :param check_interval: If wait is set to True, this is the time interval, in seconds, that this operation
+        waits before polling the status of the endpoint creation.
     :type check_interval: int
-    :param max_ingestion_time: If wait is set to True, this operation fails if the endpoint creation doesn't finish
-        within max_ingestion_time seconds. If you set this parameter to None it never times out.
+    :param max_ingestion_time: If wait is set to True, this operation fails if the endpoint creation doesn't
+        finish within max_ingestion_time seconds. If you set this parameter to None it never times out.
     :type max_ingestion_time: int
     :param operation: Whether to create an endpoint or update an endpoint. Must be either 'create or 'update'.
     :type operation: str
-    """  # noqa: E501
+    """
 
     @apply_defaults
     def __init__(self,
