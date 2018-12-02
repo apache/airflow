@@ -32,12 +32,11 @@ class SageMakerModelOperator(SageMakerBaseOperator):
 
     :param config: The configuration necessary to create a model.
 
-        For details of the configuration parameter, See:
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_model
+        For details of the configuration parameter see :py:meth:`SageMaker.Client.create_model`
     :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
     :type aws_conn_id: str
-    """  # noqa: E501
+    """
 
     @apply_defaults
     def __init__(self,
