@@ -50,7 +50,8 @@ class TestOpenFaasHook(unittest.TestCase):
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
     def test_is_function_exist_false(self, mock_get_connection, m):
-        m.get("http://open-faas.io" + self.GET_FUNCTION + FUNCTION_NAME, json=self.mock_response, status_code=404)
+        m.get("http://open-faas.io" + self.GET_FUNCTION + FUNCTION_NAME,
+              json=self.mock_response, status_code=404)
         mock_connection = Connection(host="http://open-faas.io")
 
         mock_get_connection.return_value = mock_connection
@@ -60,7 +61,8 @@ class TestOpenFaasHook(unittest.TestCase):
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
     def test_is_function_exist_true(self, mock_get_connection, m):
-        m.get("http://open-faas.io" + self.GET_FUNCTION + FUNCTION_NAME, json=self.mock_response, status_code=202)
+        m.get("http://open-faas.io" + self.GET_FUNCTION + FUNCTION_NAME,
+              json=self.mock_response, status_code=202)
         mock_connection = Connection(host="http://open-faas.io")
 
         mock_get_connection.return_value = mock_connection
