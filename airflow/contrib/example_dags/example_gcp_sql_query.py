@@ -188,7 +188,7 @@ os.environ['AIRFLOW_CONN_PROXY_MYSQL_TCP'] = \
 # MySQL: connect via proxy over UNIX socket using pre-downloaded Cloud Sql Proxy binary
 try:
     sql_proxy_binary_path = subprocess.check_output(
-        ['which', 'cloud_sql_proxy']).rstrip()
+        ['which', 'cloud_sql_proxy']).decode('utf-8').rstrip()
 except subprocess.CalledProcessError:
     sql_proxy_binary_path = "/tmp/anyhow_download_cloud_sql_proxy"
 
