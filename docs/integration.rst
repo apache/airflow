@@ -557,10 +557,11 @@ BigQuery Operators
 - :ref:`BigQueryValueCheckOperator` : Performs a simple value check using SQL code.
 - :ref:`BigQueryIntervalCheckOperator` : Checks that the values of metrics given as SQL expressions are within a certain tolerance of the ones from days_back before.
 - :ref:`BigQueryGetDataOperator` : Fetches the data from a BigQuery table and returns data in a python list
+- :ref:`BigQueryCreateEmptyDatasetOperator` : Creates an empty BigQuery dataset.
 - :ref:`BigQueryCreateEmptyTableOperator` : Creates a new, empty table in the specified BigQuery dataset optionally with schema.
 - :ref:`BigQueryCreateExternalTableOperator` : Creates a new, external table in the dataset with the data in Google Cloud Storage.
 - :ref:`BigQueryDeleteDatasetOperator` : Deletes an existing BigQuery dataset.
-- :ref:`BigQueryCreateEmptyDatasetOperator` : Creates an empty BigQuery dataset.
+- :ref:`BigQueryTableDeleteOperator` : Deletes an existing BigQuery table.
 - :ref:`BigQueryOperator` : Executes BigQuery SQL queries in a specific BigQuery database.
 - :ref:`BigQueryToBigQueryOperator` : Copy a BigQuery table to another BigQuery table.
 - :ref:`BigQueryToCloudStorageOperator` : Transfers a BigQuery table to a Google Cloud Storage bucket
@@ -608,13 +609,6 @@ BigQueryCreateExternalTableOperator
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator
 
-.. _BigQueryDeleteDatasetOperator:
-
-BigQueryDeleteDatasetOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
-
 .. _BigQueryCreateEmptyDatasetOperator:
 
 BigQueryCreateEmptyDatasetOperator
@@ -622,12 +616,12 @@ BigQueryCreateEmptyDatasetOperator
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator
 
-.. _BigQueryOperator:
+.. _BigQueryDeleteDatasetOperator:
 
-BigQueryOperator
-^^^^^^^^^^^^^^^^
+BigQueryDeleteDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
 
 .. _BigQueryTableDeleteOperator:
 
@@ -635,6 +629,13 @@ BigQueryTableDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator
+
+.. _BigQueryOperator:
+
+BigQueryOperator
+^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
 
 .. _BigQueryToBigQueryOperator:
 
@@ -1242,6 +1243,7 @@ Storage Operators
 - :ref:`GoogleCloudStorageObjectCreateAclEntryOperator` : Creates a new ACL entry on the specified object.
 - :ref:`GoogleCloudStorageToBigQueryOperator` : Loads files from Google cloud storage into BigQuery.
 - :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies objects from a bucket to another, with renaming if requested.
+- :ref:`MySqlToGoogleCloudStorageOperator`: Copy data from any MySQL Database to Google cloud storage in JSON format.
 
 .. _FileToGoogleCloudStorageOperator:
 
@@ -1298,6 +1300,13 @@ GoogleCloudStorageToGoogleCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+
+.. _MySqlToGoogleCloudStorageOperator:
+
+MySqlToGoogleCloudStorageOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator
 
 GoogleCloudStorageHook
 """"""""""""""""""""""
