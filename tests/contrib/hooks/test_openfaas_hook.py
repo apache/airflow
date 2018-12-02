@@ -18,6 +18,7 @@
 # under the License.
 #
 
+import unittest
 import requests_mock
 from airflow.models import Connection
 from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
@@ -53,8 +54,8 @@ class TestOpenFaasHook(unittest.TestCase):
         mock_connection = Connection(host="http://open-faas.io")
 
         mock_get_connection.return_value = mock_connection
-        is_function_exist = self.hook.is_function_exist()
-        self.assertFalse(is_function_exist)
+        does_function_exist = self.hook.does_function_exist()
+        self.assertFalse(does_function_exist)
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -63,8 +64,8 @@ class TestOpenFaasHook(unittest.TestCase):
         mock_connection = Connection(host="http://open-faas.io")
 
         mock_get_connection.return_value = mock_connection
-        is_function_exist = self.hook.is_function_exist()
-        self.assertTrue(is_function_exist)
+        does_function_exist = self.hook.does_function_exist()
+        self.assertTrue(does_function_exist)
 
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
@@ -111,7 +112,7 @@ class TestOpenFaasHook(unittest.TestCase):
     @mock.patch.object(BaseHook, 'get_connection')
     @requests_mock.mock()
     def test_deploy_function_function_already_exist(self, mock_get_connection, m):
-        m.post("http://open-faas.io/" + self.DEPLOY_FUNCTION, json=self.mock_response, status_code=202)
+        m.put("http://open-faas.io/" + self.UPDATE_FUNCTION, json=self.mock_response, status_code=202)
         mock_connection = Connection(host="http://open-faas.io/")
         mock_get_connection.return_value = mock_connection
         self.assertEqual(self.hook.deploy_function(True, {}), None)
@@ -122,7 +123,7 @@ class TestOpenFaasHook(unittest.TestCase):
         m.post("http://open-faas.io" + self.DEPLOY_FUNCTION, json={}, status_code=202)
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
-        self.assertEqual(self.hook.deploy_function(True, {}), None)
+        self.assertEqual(self.hook.deploy_function(False, {}), None)
 
 
 if __name__ == '__main__':
