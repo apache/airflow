@@ -399,7 +399,6 @@ def do_setup():
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 2.7',
-            'Programming Language :: Python :: 3.4',
             'Programming Language :: Python :: 3.5',
             'Topic :: System :: Monitoring',
         ],
@@ -413,7 +412,7 @@ def do_setup():
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
-        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
     )
 
 
