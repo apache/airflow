@@ -76,7 +76,8 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
     'sphinxarg.ext',
-    'sphinxcontrib.httpdomain'
+    'sphinxcontrib.httpdomain',
+    'sphinx.ext.intersphinx',
 ]
 
 autodoc_default_flags = ['show-inheritance', 'members']
@@ -146,6 +147,10 @@ pygments_style = 'sphinx'
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
+
+intersphinx_mapping = {
+    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest', None),
+}
 
 # -- Options for HTML output ----------------------------------------------
 
