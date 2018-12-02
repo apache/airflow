@@ -160,7 +160,7 @@ class SageMakerHook(AwsHook):
 
         :param config: config of SageMaker operation
         :type config: dict
-        :return: dict
+        :rtype: dict
         """
         s3_operations = config.pop('S3Operations', None)
 
@@ -182,8 +182,8 @@ class SageMakerHook(AwsHook):
         Check if an S3 URL exists
 
         :param s3url: S3 url
-        :type s3url:str
-        :return: bool
+        :type s3url: str
+        :rtype: bool
         """
         bucket, key = S3Hook.parse_s3_url(s3url)
         if not self.s3_hook.check_for_bucket(bucket_name=bucket):
@@ -226,7 +226,7 @@ class SageMakerHook(AwsHook):
         """
         Establish an AWS connection for SageMaker
 
-        :return: a boto3 SageMaker client
+        :rtype: :py:class:`SageMaker.Client`
         """
         return self.get_client_type('sagemaker')
 
@@ -234,7 +234,7 @@ class SageMakerHook(AwsHook):
         """
         Establish an AWS connection for retrieving logs during training
 
-        :return: a boto3 CloudWatchLog client
+        :rtype: :py:class:`CloudWatchLog.Client`
         """
         config = botocore.config.Config(retries={'max_attempts': 15})
         return self.get_client_type('logs', config=config)
@@ -253,10 +253,11 @@ class SageMakerHook(AwsHook):
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
         :type skip: int
-        :return:A CloudWatch log event with the following key-value pairs:
-            'timestamp' (int): The time in milliseconds of the event.
-            'message' (str): The log event data.
-            'ingestionTime' (int): The time in milliseconds the event was ingested.
+        :rtype: dict
+        :return: | A CloudWatch log event with the following key-value pairs:
+                 |   'timestamp' (int): The time in milliseconds of the event.
+                 |   'message' (str): The log event data.
+                 |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
 
         next_token = None

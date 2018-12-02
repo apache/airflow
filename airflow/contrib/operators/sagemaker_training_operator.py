@@ -31,8 +31,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
     :param config: The configuration necessary to start a training job (templated).
 
-        For details of the configuration parameter, See:
-        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html#SageMaker.Client.create_training_job
+        For details of the configuration parameter see :py:meth:`SageMaker.Client.create_training_job`
     :type config: dict
     :param aws_conn_id: The AWS connection ID to use.
     :type aws_conn_id: str
@@ -48,7 +47,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
     :type max_ingestion_time: int
-    """  # noqa: E501
+    """
 
     integer_fields = [
         ['ResourceConfig', 'InstanceCount'],
