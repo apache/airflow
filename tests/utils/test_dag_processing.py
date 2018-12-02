@@ -18,12 +18,15 @@
 # under the License.
 
 import os
+import sys
+import tempfile
 import unittest
 from datetime import timedelta
 
 from mock import MagicMock
 
 from airflow import configuration as conf
+from airflow.configuration import mkdir_p
 from airflow.jobs import DagFileProcessor
 from airflow.jobs import LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
@@ -37,6 +40,96 @@ TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+SETTINGS_FILE_VALID = """
+LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'airflow.task': {
+            'format': '[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'airflow.task',
+            'stream': 'ext://sys.stdout'
+        },
+        'task': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'airflow.task',
+            'stream': 'ext://sys.stdout'
+        },
+    },
+    'loggers': {
+        'airflow': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False
+        },
+        'airflow.task': {
+            'handlers': ['task'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    }
+}
+"""
+
+SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
+
+
+class settings_context(object):
+    """
+    Sets a settings file and puts it in the Python classpath
+
+    :param content:
+          The content of the settings file
+    """
+
+    def __init__(self, content, dir=None, name='LOGGING_CONFIG'):
+        self.content = content
+        self.settings_root = tempfile.mkdtemp()
+        filename = "{}.py".format(SETTINGS_DEFAULT_NAME)
+
+        if dir:
+            # Replace slashes by dots
+            self.module = dir.replace('/', '.') + '.' + SETTINGS_DEFAULT_NAME + '.' + name
+
+            # Create the directory structure
+            dir_path = os.path.join(self.settings_root, dir)
+            mkdir_p(dir_path)
+
+            # Add the __init__ for the directories
+            # This is required for Python 2.7
+            basedir = self.settings_root
+            for part in dir.split('/'):
+                open(os.path.join(basedir, '__init__.py'), 'w').close()
+                basedir = os.path.join(basedir, part)
+            open(os.path.join(basedir, '__init__.py'), 'w').close()
+
+            self.settings_file = os.path.join(dir_path, filename)
+        else:
+            self.module = SETTINGS_DEFAULT_NAME + '.' + name
+            self.settings_file = os.path.join(self.settings_root, filename)
+
+    def __enter__(self):
+        with open(self.settings_file, 'w') as handle:
+            handle.writelines(self.content)
+        sys.path.append(self.settings_root)
+        conf.set(
+            'core',
+            'logging_config_class',
+            self.module
+        )
+        return self.settings_file
+
+    def __exit__(self, *exc_info):
+        # shutil.rmtree(self.settings_root)
+        # Reset config
+        conf.set('core', 'logging_config_class', '')
+        sys.path.remove(self.settings_root)
 
 
 class TestDagFileProcessorManager(unittest.TestCase):
@@ -123,6 +216,54 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
 
 class TestDagFileProcessorAgent(unittest.TestCase):
+    def test_reload_module(self):
+        """
+        Configure the context to have core.logging_config_class set to a fake logging
+        class path, thus when reloading logging module the airflow.processor_manager
+        logger should not be configured.
+        """
+        with settings_context(SETTINGS_FILE_VALID):
+            # Launch a process through DagFileProcessorAgent, which will try
+            # reload the logging module.
+            def processor_factory(file_path, zombies):
+                return DagFileProcessor(file_path,
+                                        False,
+                                        [],
+                                        zombies)
+
+            test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
+            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+
+            log_file_loc = conf.get('core', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
+            try:
+                os.remove(log_file_loc)
+            except OSError:
+                pass
+
+            # Starting dag processing with 0 max_runs to avoid redundant operations.
+            processor_agent = DagFileProcessorAgent(test_dag_path,
+                                                    [],
+                                                    0,
+                                                    processor_factory,
+                                                    async_mode)
+            manager_process = \
+                processor_agent._launch_process(processor_agent._dag_directory,
+                                                processor_agent._file_paths,
+                                                processor_agent._max_runs,
+                                                processor_agent._processor_factory,
+                                                processor_agent._child_signal_conn,
+                                                processor_agent._stat_queue,
+                                                processor_agent._result_queue,
+                                                processor_agent._async_mode)
+            if not async_mode:
+                processor_agent.heartbeat()
+
+            manager_process.join()
+
+            # Since we are reloading logging config not creating this file,
+            # we should expect it to be nonexistent.
+            self.assertFalse(os.path.isfile(log_file_loc))
+
     def test_parse_once(self):
         def processor_factory(file_path, zombies):
             return DagFileProcessor(file_path,
@@ -164,7 +305,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         except OSError:
             pass
 
-        # Starting dag processing with 0 max_runs to avoid redundent operations.
+        # Starting dag processing with 0 max_runs to avoid redundant operations.
         processor_agent = DagFileProcessorAgent(test_dag_path,
                                                 [],
                                                 0,
