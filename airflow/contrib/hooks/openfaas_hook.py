@@ -28,7 +28,7 @@ OK_STATUS_CODE = 202
 
 class OpenFaasHook(BaseHook):
     """
-    An operator that submit presto query to athena.
+    Interact with Openfaas to query, deploy, invoke and update function
 
     :param function_name: Name of the function
     :type query: str
@@ -55,6 +55,9 @@ class OpenFaasHook(BaseHook):
 
     def deploy_function(self, overwrite_function_if_exist, body):
         if overwrite_function_if_exist:
+            self.log.info("function already exist " + self.function_name + " going to update")
+            self.update_function(body)
+        else:
             url = self.get_conn().host + self.DEPLOY_FUNCTION
             self.log.info("deploying function " + url)
             response = requests.post(url, body)
@@ -64,13 +67,10 @@ class OpenFaasHook(BaseHook):
                 raise AirflowException('failed to deploy')
             else:
                 self.log.info("function deployed " + self.function_name)
-        else:
-            self.log.info("function already exist " + self.function_name + " going to update")
-            self.update_function(body)
 
     def invoke_async_function(self, body):
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
-        self.log.info("invoke  " + url)
+        self.log.info("invoking  function " + url)
         response = requests.post(url, body)
         if (response.ok):
             self.log.info("invoked " + self.function_name)
@@ -89,15 +89,12 @@ class OpenFaasHook(BaseHook):
         else:
             self.log.info("function was updated")
 
-    def is_function_exist(self):
+    def does_function_exist(self):
         url = self.get_conn().host + self.GET_FUNCTION + self.function_name
-        self.log.info("url is " + url)
+
         response = requests.get(url)
         if (response.ok):
-            jData = json.loads(response.content)
-            self.log.info("The response contains {0} properties".format(len(jData)))
             return True
-
         else:
             self.log.error("Failed to find function " + self.function_name)
             return False
