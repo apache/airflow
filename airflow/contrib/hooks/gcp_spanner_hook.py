@@ -33,10 +33,10 @@ class SpannerHook(GoogleCloudBaseHook):
     """
 
     def __init__(
-        self, spanner_conn_id="google_cloud_spanner_default", delegate_to=None
+        self, gcp_conn_id="google_cloud_default", delegate_to=None
     ):
         super(SpannerHook, self).__init__(
-            gcp_conn_id=spanner_conn_id, delegate_to=delegate_to
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to
         )
         self.connection = self.get_conn("v1")
 
