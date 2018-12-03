@@ -43,6 +43,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 
 class ParentStdout():
@@ -109,6 +110,9 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(recordObj)
 =======
 >>>>>>> d98bcb1c... [AIRFLOW-3370] Move RECORD_LABELS to log_config.py custom log config fileand fix flake8 linting errors + warnings
+=======
+from airflow.utils.log.logging_mixin import LoggingMixin
+>>>>>>> a1bc24e8... [AIRFLOW-3370] Correct to pass current ES handler tests
 
 
 class ParentStdout():
@@ -140,7 +144,7 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(recordObj)
 
 
-class ElasticsearchTaskHandler(FileTaskHandler):
+class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
 
@@ -166,6 +170,7 @@ class ElasticsearchTaskHandler(FileTaskHandler):
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                  write_stdout=None, json_format=None,
                  record_labels=None, host='localhost:9200'):
 =======
@@ -180,6 +185,10 @@ class ElasticsearchTaskHandler(FileTaskHandler):
 =======
                  write_stdout, json_format, record_labels, host=None):
 >>>>>>> d98bcb1c... [AIRFLOW-3370] Move RECORD_LABELS to log_config.py custom log config fileand fix flake8 linting errors + warnings
+=======
+                 write_stdout=None, json_format=None,
+                 record_labels=None, host='localhost:9200'):
+>>>>>>> a1bc24e8... [AIRFLOW-3370] Correct to pass current ES handler tests
         """
         :param base_log_folder: base folder to store logs locally
         :param log_id_template: log id template
@@ -308,7 +317,7 @@ class ElasticsearchTaskHandler(FileTaskHandler):
 >>>>>>> d98bcb1c... [AIRFLOW-3370] Move RECORD_LABELS to log_config.py custom log config fileand fix flake8 linting errors + warnings
         return ti_info
 
-    def read(self, task_instance, try_number=None, metadata=None):
+    def read(self, task_instance, try_number, metadata=None):
             """
             Read logs of a given task instance from elasticsearch.
             :param task_instance: task instance object
@@ -397,6 +406,7 @@ class ElasticsearchTaskHandler(FileTaskHandler):
                 return super(ElasticsearchTaskHandler, self).read(task_instance,
                                                                   try_number,
                                                                   metadata)
+<<<<<<< HEAD
 =======
 
                 return logs, metadatas
@@ -409,6 +419,8 @@ class ElasticsearchTaskHandler(FileTaskHandler):
                                                            try_number,
                                                            metadata)
 >>>>>>> d98bcb1c... [AIRFLOW-3370] Move RECORD_LABELS to log_config.py custom log config fileand fix flake8 linting errors + warnings
+=======
+>>>>>>> a1bc24e8... [AIRFLOW-3370] Correct to pass current ES handler tests
 
     def _render_log_id(self, ti, try_number):
         # Using Jinja2 templating
@@ -458,6 +470,7 @@ class ElasticsearchTaskHandler(FileTaskHandler):
                                                .replace(":", "_") \
                                                .replace("-", "_") \
                                                .replace("+", "_")
+
         return self.log_id_template.format(dag_id=ti.dag_id,
                                            task_id=ti.task_id,
                                            execution_date=ti
@@ -580,6 +593,7 @@ class ElasticsearchTaskHandler(FileTaskHandler):
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
 <<<<<<< HEAD
+<<<<<<< HEAD
         # Don't need to do this if using write_stdout, this is handled in read
         if not self.write_stdout:
             self.handler.stream.write(self.end_of_log_mark)
@@ -593,6 +607,9 @@ class ElasticsearchTaskHandler(FileTaskHandler):
         elif not self.write_stdout:
 =======
         # self.handler.stream.write(self.end_of_log_mark)
+=======
+        self.handler.stream.write(self.end_of_log_mark)
+>>>>>>> a1bc24e8... [AIRFLOW-3370] Correct to pass current ES handler tests
 
         if self.write_stdout:
             if self.handler is not None:
