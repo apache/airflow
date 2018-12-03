@@ -19,11 +19,9 @@
 
 
 import unittest
-
-from mock import patch
-
 from airflow import DAG
 from airflow import configuration
+from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.contrib.sensors.redis_key_sensor import RedisKeySensor
 from airflow.utils import timezone
 
@@ -47,22 +45,13 @@ class TestRedisSensor(unittest.TestCase):
             key='test_key'
         )
 
-    @patch("airflow.contrib.hooks.redis_hook.RedisHook.key_exists")
-    def test_poke(self, key_exists):
-        key_exists.return_value = True
-        self.assertTrue(self.sensor.poke(None))
-
-        key_exists.return_value = False
-        self.assertFalse(self.sensor.poke(None))
-
-    @patch("airflow.contrib.hooks.redis_hook.StrictRedis.exists")
-    def test_existing_key_called(self, redis_client_exists):
-        self.sensor.run(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE, ignore_ti_state=True
-        )
-
-        self.assertTrue(redis_client_exists.called_with('test_key'))
+    def test_poke(self):
+        hook = RedisHook(redis_conn_id='redis_default')
+        redis = hook.get_conn()
+        redis.set('test_key', 'test_value')
+        self.assertTrue(self.sensor.poke(None), "Key exists on first call.")
+        redis.delete('test_key')
+        self.assertFalse(self.sensor.poke(None), "Key does NOT exists on second call.")
 
 
 if __name__ == '__main__':

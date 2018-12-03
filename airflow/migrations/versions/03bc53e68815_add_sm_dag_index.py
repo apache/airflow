@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,24 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.contrib.hooks.redis_hook import RedisHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.utils.decorators import apply_defaults
+
+"""merge_heads_2
+
+Revision ID: 03bc53e68815
+Revises: 0a2a5b66e19d, bf00311e1990
+Create Date: 2018-11-24 20:21:46.605414
+
+"""
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = '03bc53e68815'
+down_revision = ('0a2a5b66e19d', 'bf00311e1990')
+branch_labels = None
+depends_on = None
 
 
-class RedisKeySensor(BaseSensorOperator):
-    """
-    Checks for the existence of a key in a Redis
-    """
-    template_fields = ('key',)
-    ui_color = '#f0eee4'
+def upgrade():
+    op.create_index('sm_dag', 'sla_miss', ['dag_id'], unique=False)
 
-    @apply_defaults
-    def __init__(self, key, redis_conn_id, *args, **kwargs):
-        super(RedisKeySensor, self).__init__(*args, **kwargs)
-        self.redis_conn_id = redis_conn_id
-        self.key = key
 
-    def poke(self, context):
-        self.log.info('Sensor checks for existence of key: %s', self.key)
-        return RedisHook(self.redis_conn_id).get_conn().exists(self.key)
+def downgrade():
+    op.drop_index('sm_dag', table_name='sla_miss')

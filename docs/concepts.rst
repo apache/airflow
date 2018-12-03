@@ -500,8 +500,8 @@ that happened in an upstream task. One way to do this is by using the
 ``BranchPythonOperator``.
 
 The ``BranchPythonOperator`` is much like the PythonOperator except that it
-expects a python_callable that returns a task_id. The task_id returned
-is followed, and all of the other paths are skipped.
+expects a python_callable that returns a task_id (or list of task_ids). The
+task_id returned is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to be referencing a task
 directly downstream from the BranchPythonOperator task.
 
@@ -652,6 +652,7 @@ while creating tasks:
 * ``all_done``: all parents are done with their execution
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
+* ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
 * ``dummy``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)

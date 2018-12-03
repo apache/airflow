@@ -258,7 +258,7 @@ To use kerberos authentication, you must install Airflow with the `kerberos` ext
 
 .. code-block:: base
 
-   pip install airflow[kerberos]
+   pip install apache-airflow[kerberos]
 
 OAuth Authentication
 --------------------
@@ -291,7 +291,7 @@ To use GHE authentication, you must install Airflow with the `github_enterprise`
 
 .. code-block:: base
 
-   pip install airflow[github_enterprise]
+   pip install apache-airflow[github_enterprise]
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -333,13 +333,13 @@ login, separated with a comma, to only members of those domains.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = "example1.com,example2.com"
+    domain = example1.com,example2.com
 
 To use Google authentication, you must install Airflow with the `google_auth` extras group:
 
 .. code-block:: base
 
-   pip install airflow[google_auth]
+   pip install apache-airflow[google_auth]
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

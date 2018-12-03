@@ -172,6 +172,7 @@ doc = [
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
     'sphinx-rtd-theme>=0.1.6',
+    'sphinxcontrib-httpdomain>=1.7.0',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
 docker = ['docker~=3.0']
@@ -299,7 +300,7 @@ def do_setup():
             'dill>=0.2.2, <0.3',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
-            'flask-admin==1.4.1',
+            'flask-admin==1.5.2',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
@@ -310,7 +311,7 @@ def do_setup():
             'gunicorn>=19.4.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
-            'jinja2>=2.7.3, <2.9.0',
+            'jinja2>=2.7.3, <=2.10.0',
             'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
@@ -322,7 +323,7 @@ def do_setup():
             'python-nvd3==0.15.0',
             'requests>=2.5.1, <3',
             'setproctitle>=1.1.8, <2',
-            'sqlalchemy>=1.1.15, <1.2.0',
+            'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
             'tenacity==4.8.0',
             'thrift>=0.9.2',
@@ -398,7 +399,6 @@ def do_setup():
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 2.7',
-            'Programming Language :: Python :: 3.4',
             'Programming Language :: Python :: 3.5',
             'Topic :: System :: Monitoring',
         ],
@@ -412,7 +412,7 @@ def do_setup():
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
-        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
     )
 
 

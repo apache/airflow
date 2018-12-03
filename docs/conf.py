@@ -76,6 +76,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
     'sphinxarg.ext',
+    'sphinxcontrib.httpdomain'
 ]
 
 autodoc_default_flags = ['show-inheritance', 'members']

@@ -27,8 +27,6 @@ under the License.
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Twitter Follow](https://img.shields.io/twitter/follow/ApacheAirflow.svg?style=social&label=Follow)](https://twitter.com/ApacheAirflow)
 
-_NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Apache Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
-
 Apache Airflow (or simply Airflow) is a platform to programmatically author, schedule, and monitor workflows.
 
 When workflows are defined as code, they become more maintainable,
@@ -266,6 +264,7 @@ Currently **officially** using Airflow:
 1. [Plaid](https://www.plaid.com/) [[@plaid](https://github.com/plaid), [@AustinBGibbons](https://github.com/AustinBGibbons) & [@jeeyoungk](https://github.com/jeeyoungk)]
 1. [Playbuzz](https://www.playbuzz.com/) [[@clintonboys](https://github.com/clintonboys) & [@dbn](https://github.com/dbn)]
 1. [PMC](https://pmc.com/) [[@andrewm4894](https://github.com/andrewm4894)]
+1. [Poshmark](https://www.poshmark.com)
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
 1. [Publicis Pixelpark](https://www.publicispixelpark.de/) [[@feluelle](https://github.com/feluelle)]
@@ -294,6 +293,7 @@ Currently **officially** using Airflow:
 1. [Square](https://squareup.com/)
 1. [Surfline](https://www.surfline.com/) [[@jawang35](https://github.com/jawang35)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
+1. [TEK](https://www.tek.fi/en) [[@telac](https://github.com/telac)]
 1. [Tesla](https://www.tesla.com/) [[@thoralf-gutierrez](https://github.com/thoralf-gutierrez)]
 1. [The Home Depot](https://www.homedepot.com/)[[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay)] [[@ilikedata](https://github.com/ilikedata)]
@@ -310,6 +310,7 @@ Currently **officially** using Airflow:
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
 1. [United Airlines](https://www.united.com/) [[@ilopezfr](https://github.com/ilopezfr)]
 1. [Upsight](https://www.upsight.com)
+1. [VeeR VR](https://veer.tv) [[@pishilong](https://github.com/pishilong)]
 1. [Vente-Exclusive.com](http://www.vente-exclusive.com/) [[@alexvanboxel](https://github.com/alexvanboxel)]
 1. [Vevo](https://www.vevo.com/) [[@csetiawan](https://github.com/csetiawan) & [@jerrygillespie](https://github.com/jerrygillespie)]
 1. [Vidio](https://www.vidio.com/)

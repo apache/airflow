@@ -1010,7 +1010,7 @@ def serve_logs(args):
     flask_app = flask.Flask(__name__)
 
     @flask_app.route('/log/<path:filename>')
-    def serve_logs(filename):  # noqa
+    def serve_logs(filename):
         log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
         return flask.send_from_directory(
             log,
@@ -1085,7 +1085,7 @@ def worker(args):
         sp.kill()
 
 
-def initdb(args):  # noqa
+def initdb(args):
     print("DB: " + repr(settings.engine.url))
     db_utils.initdb(settings.RBAC)
     print("Done.")
@@ -1102,7 +1102,7 @@ def resetdb(args):
 
 
 @cli_utils.action_logging
-def upgradedb(args):  # noqa
+def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
     db_utils.upgradedb()
 
@@ -1120,7 +1120,7 @@ def upgradedb(args):  # noqa
 
 
 @cli_utils.action_logging
-def version(args):  # noqa
+def version(args):
     print(settings.HEADER + "  v" + airflow.__version__)
 
 
@@ -1314,7 +1314,7 @@ def flower(args):
 
 
 @cli_utils.action_logging
-def kerberos(args):  # noqa
+def kerberos(args):
     print(settings.HEADER)
     import airflow.security.kerberos
 
@@ -1467,7 +1467,7 @@ def list_dag_runs(args, dag=None):
 
 
 @cli_utils.action_logging
-def sync_perm(args): # noqa
+def sync_perm(args):
     if settings.RBAC:
         appbuilder = cached_appbuilder()
         print('Update permission, view-menu for all existing roles')

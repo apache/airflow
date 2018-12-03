@@ -22,6 +22,7 @@ import unittest
 
 from google.auth.exceptions import GoogleAuthError
 import mock
+from apiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
@@ -343,6 +344,48 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         with self.assertRaises(Exception):
             cursor.insert_all(project_id, dataset_id, table_id,
                               rows, fail_on_error=True)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_view_fails_on_exception(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_view'
+        view = {
+            'incorrect_key': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
+            "useLegacySql": False
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.insert)
+        method.return_value.execute.side_effect = HttpError(
+            resp={'status': '400'}, content=b'Query is required for views')
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        with self.assertRaises(Exception):
+            cursor.create_empty_table(project_id, dataset_id, table_id,
+                                      view=view)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_view(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_view'
+        view = {
+            'query': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
+            "useLegacySql": False
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.insert)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_table(project_id, dataset_id, table_id,
+                                  view=view)
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            },
+            'view': view
+        }
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
 
 class TestBigQueryCursor(unittest.TestCase):

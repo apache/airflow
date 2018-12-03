@@ -22,12 +22,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import copy
+from collections import defaultdict, namedtuple
 
+from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
-from builtins import str, object, bytes, ImportError as BuiltinImportError
-import copy
-from collections import namedtuple, defaultdict
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Hashable
@@ -292,12 +292,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors = {}
         self.has_logged = False
 
-        if include_examples:
-            example_dag_folder = os.path.join(
-                os.path.dirname(__file__),
-                'example_dags')
-            self.collect_dags(example_dag_folder)
-        self.collect_dags(dag_folder)
+        self.collect_dags(dag_folder, include_examples)
 
     def size(self):
         """
@@ -531,7 +526,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     def collect_dags(
             self,
             dag_folder=None,
-            only_if_updated=True):
+            only_if_updated=True,
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -551,7 +547,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        for filepath in list_py_file_paths(dag_folder):
+        for filepath in list_py_file_paths(dag_folder, include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
@@ -2440,7 +2436,7 @@ class BaseOperator(LoggingMixin):
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | dummy}``
+        one_failed | none_failed | dummy}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -5480,6 +5476,10 @@ class SlaMiss(Base):
     timestamp = Column(UtcDateTime)
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index('sm_dag', dag_id, unique=False),
+    )
 
     def __repr__(self):
         return str((

@@ -24,10 +24,74 @@ available at /api/experimental/. Please note that we expect the endpoint definit
 Endpoints
 ---------
 
-This is a place holder until the swagger definitions are active
+.. http:post:: /api/experimental/dags/<DAG_ID>/dag_runs
 
-* /api/experimental/dags/<DAG_ID>/tasks/<TASK_ID> returns info for a task (GET).
-* /api/experimental/dags/<DAG_ID>/dag_runs creates a dag_run for a given dag id (POST).
+
+  Creates a dag_run for a given dag id.
+
+
+  **Trigger DAG with config, example:**
+
+  .. code-block:: bash
+
+    curl -X POST \
+      http://localhost:8080/api/experimental/dags/<DAG_ID>/dag_runs \
+      -H 'Cache-Control: no-cache' \
+      -H 'Content-Type: application/json' \
+      -d '{"conf":"{\"key\":\"value\"}"}'
+
+
+.. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs
+
+  Returns a list of Dag Runs for a specific DAG ID.
+
+.. http:get:: /api/experimental/dags/<string:dag_id>/dag_runs/<string:execution_date>
+
+  Returns a JSON with a dag_run's public instance variables. The format for the <string:execution_date> is expected to be "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+
+
+.. http:get:: /api/experimental/test
+
+  To check REST API server correct work. Return status 'OK'.
+
+
+.. http:get:: /api/experimental/dags/<DAG_ID>/tasks/<TASK_ID>
+
+  Returns info for a task.
+
+
+.. http:get:: /api/experimental/dags/<DAG_ID>/dag_runs/<string:execution_date>/tasks/<TASK_ID>
+
+  Returns a JSON with a task instance's public instance variables. The format for the <string:execution_date> is expected to be "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".
+
+
+.. http:get:: /api/experimental/dags/<DAG_ID>/paused/<string:paused>
+
+  '<string:paused>' must be a 'true' to pause a DAG and 'false' to unpause.
+
+
+.. http:get:: /api/experimental/latest_runs
+
+  Returns the latest DagRun for each DAG formatted for the UI.
+
+
+.. http:get:: /api/experimental/pools
+
+  Get all pools.
+
+
+.. http:get:: /api/experimental/pools/<string:name>
+
+  Get pool by a given name.
+
+.. http:post:: /api/experimental/pools
+
+  Create a pool.
+
+.. http:delete:: /api/experimental/pools/<string:name>
+
+  Delete pool.
+
 
 CLI
 -----

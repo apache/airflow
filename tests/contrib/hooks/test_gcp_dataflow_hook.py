@@ -255,8 +255,10 @@ class DataFlowTemplateHookTest(unittest.TestCase):
         self.dataflow_hook.start_template_dataflow(
             job_name=JOB_NAME, variables=DATAFLOW_OPTIONS_TEMPLATE, parameters=PARAMETERS,
             dataflow_template=TEMPLATE)
+        options_with_region = {'region': 'us-central1'}
+        options_with_region.update(DATAFLOW_OPTIONS_TEMPLATE)
         internal_dataflow_mock.assert_called_once_with(
-            mock.ANY, DATAFLOW_OPTIONS_TEMPLATE, PARAMETERS, TEMPLATE)
+            mock.ANY, options_with_region, PARAMETERS, TEMPLATE)
 
 
 class DataFlowJobTest(unittest.TestCase):

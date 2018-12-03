@@ -463,7 +463,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             self.log.info("The pid of cloud_sql_proxy: {}".format(
                 self.sql_proxy_process.pid))
             while True:
-                line = self.sql_proxy_process.stderr.readline()
+                line = self.sql_proxy_process.stderr.readline().decode('utf-8')
                 return_code = self.sql_proxy_process.poll()
                 if line == '' and return_code is not None:
                     self.sql_proxy_process = None
@@ -522,7 +522,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         command_to_run = [self.sql_proxy_path]
         command_to_run.extend(['--version'])
         command_to_run.extend(self._get_credential_parameters())
-        result = subprocess.check_output(command_to_run)
+        result = subprocess.check_output(command_to_run).decode('utf-8')
         pattern = re.compile("^.*[V|v]ersion ([^;]*);.*$")
         m = pattern.match(result)
         if m:

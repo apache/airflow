@@ -35,7 +35,7 @@ class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified ``dag_id``
 
-    :param trigger_dag_id: the dag_id to trigger
+    :param trigger_dag_id: the dag_id to trigger (templated)
     :type trigger_dag_id: str
     :param python_callable: a reference to a python function that will be
         called while passing it the ``context`` object and a placeholder
@@ -50,7 +50,7 @@ class TriggerDagRunOperator(BaseOperator):
     :param execution_date: Execution date for the dag
     :type execution_date: datetime.datetime
     """
-    template_fields = tuple()
+    template_fields = ('trigger_dag_id',)
     template_ext = tuple()
     ui_color = '#ffefeb'
 

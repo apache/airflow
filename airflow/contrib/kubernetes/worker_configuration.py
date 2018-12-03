@@ -50,7 +50,10 @@ class WorkerConfiguration(LoggingMixin):
             'value': self.kube_config.git_branch
         }, {
             'name': 'GIT_SYNC_ROOT',
-            'value': '/tmp'
+            'value': os.path.join(
+                self.worker_airflow_dags,
+                self.kube_config.git_subpath
+            )
         }, {
             'name': 'GIT_SYNC_DEST',
             'value': 'dags'
