@@ -18,7 +18,7 @@ from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.models import DagRun
-from airflow.operators.sensors import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
 
 class DagRunSensor(BaseSensorOperator):
@@ -27,7 +27,7 @@ class DagRunSensor(BaseSensorOperator):
 
     :param trigger_task_id: The task_id that triggered the dags and returns a list
         of dagrun ids to monitor
-    :type trigger_task_id: list
+    :type trigger_task_id: str
     :param sensor_rule: criteria for success after dagruns complete.
         Default is ``TriggerRule.ONE_SUCCESS``
     :type sensor_rule: str
