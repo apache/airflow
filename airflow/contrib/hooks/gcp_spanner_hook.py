@@ -48,6 +48,18 @@ class SpannerHook(GoogleCloudBaseHook):
         return build("spanner", version, http=http_authorized, cache_discovery=False)
 
     def list_instance_configs(self, project_id):
+        """
+        Lists the supported instance configurations for a given project.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instanceConfigs/list
+
+        :param project_id: The name of the project for which a list of supported instance
+            configurations is requested
+        :type project_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Retrieving Spanner instance configs")
@@ -69,6 +81,30 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def create_instance(self, project_id, body):
+        """
+        Method to create a Cloud Spanner instance and begins preparing it to begin serving.
+        If the named instance already exists, it will return 409 Instance Already Exists.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/create
+
+        :param project_id: The name of the project in which to create the instance
+        :type project_id: str
+        :param body: the request body containing instance creation data
+        :type rows: dict
+
+        **Example or body**:
+            body = {
+                "instanceId": "spanner-instance-1",
+                "instance": {
+                    "nodeCount": 1,
+                    "config": "projects/spanner-project/instanceConfigs/eur3",
+                    "displayName": "Spanner Instance 1",
+                },
+            }
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         if "instanceId" not in body:
@@ -92,6 +128,19 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def get_instance(self, project_id, instance_id):
+        """
+        Method to get information about a Cloud Spanner instance.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/get
+
+        :param project_id: The name of the project in which to get the instance
+        :type project_id: str
+        :param instance_id: The name of the instance
+        :type instance_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Retrieving Spanner instance")
@@ -113,6 +162,19 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def delete_instance(self, project_id, instance_id):
+        """
+        Method to delete a Cloud Spanner instance.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete
+
+        :param project_id: The name of the project in which to delete the instance
+        :type project_id: str
+        :param instance_id: The name of the instance
+        :type instance_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Deleting Spanner instance")
@@ -129,6 +191,17 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def list_instances(self, project_id):
+        """
+        Method to list all Cloud Spanner instances in the given project.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/list
+
+        :param project_id: The name of the project in which to delete the instance
+        :type project_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Retrieving all Spanner instances")
@@ -150,6 +223,25 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def create_database(self, project_id, instance_id, body):
+        """
+        Method to creates a new Cloud Spanner database and starts to prepare it for serving.
+        If the named database already exists, it will return 409 Database Already Exists.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create
+
+        :param project_id: The name of the project
+        :type project_id: str
+        :param instance_id: The name of the instance in which to create the database
+        :type instance_id: str
+        :param body: the request body containing database creation data
+        :type rows: dict
+
+        **Example or body**:
+            body = {"createStatement": "CREATE DATABASE spannerdb"}
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Creating Spanner database")
@@ -174,6 +266,21 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def get_database(self, project_id, instance_id, database_id):
+        """
+        Method to get the state of a Cloud Spanner database.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/get
+
+        :param project_id: The name of the project
+        :type project_id: str
+        :param instance_id: The name of the instance in which to get the database
+        :type instance_id: str
+        :param database_id: The name of the database
+        :type database_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Retrieving Spanner database")
@@ -199,6 +306,21 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def drop_database(self, project_id, instance_id, database_id):
+        """
+        Method to drop a Cloud Spanner database.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/dropDatabase
+
+        :param project_id: The name of the project
+        :type project_id: str
+        :param instance_id: The name of the instance in which to drop the database
+        :type instance_id: str
+        :param database_id: The name of the database
+        :type database_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Dropping Spanner database")
@@ -217,6 +339,19 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def list_databases(self, project_id, instance_id):
+        """
+        Method to lists all databases in a Cloud Spanner isntance.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/list
+
+        :param project_id: The name of the project
+        :type project_id: str
+        :param instance_id: The name of the instance in which to list all the databases
+        :type instance_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Retrieving all Spanner databases")
@@ -237,7 +372,23 @@ class SpannerHook(GoogleCloudBaseHook):
                 "BigQuery job failed. Error was: {}".format(err.content)
             )
 
-    def create_session(self, project_id, instance_id, database_id, body):
+    def create_session(self, project_id, instance_id, database_id):
+        """
+        Method to creates a new session that can be used to perform Cloud Spanner
+        database transactions.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases.sessions/create
+
+        :param project_id: The name of the project
+        :type project_id: str
+        :param instance_id: The name of the instance
+        :type instance_id: str
+        :param database_id: The database in which the new session is to be created
+        :type database_id: str
+        """
+
         project_id = project_id if project_id is not None else self.project_id
 
         self.log.info("Creating Spanner database session")
@@ -252,7 +403,7 @@ class SpannerHook(GoogleCloudBaseHook):
                     database="projects/{}/instances/{}/databases/{}".format(
                         project_id, instance_id, database_id
                     ),
-                    body=body,
+                    body={"session": {}},
                 )
                 .execute()
             )
@@ -265,6 +416,21 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def delete_session(self, session_id):
+        """
+        Method to end a session, releasing server resources associated with it.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases.sessions/delete
+
+        :param session_id: The name of the session
+        :type session_id: str
+
+        **Example or session_id**:
+            session_id = ('projects/{project_id}/instances/{instance_id}'
+                          '/databases/{database_id}/sessions/{session_id}')
+        """
+
         self.log.info("Deleting Spanner database session")
 
         try:
@@ -279,6 +445,28 @@ class SpannerHook(GoogleCloudBaseHook):
             )
 
     def execute_sql(self, session_id, body):
+        """
+        Method to execute an SQL statement and return all results in a single reply.
+        Notice: This method cannot be used to return a result set larger than 10 MiB.
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases.sessions/executeSql
+
+        :param session_id: The name of the session
+        :type session_id: str
+
+        **Example or session_id**:
+            session_id = ('projects/{project_id}/instances/{instance_id}'
+                          '/databases/{database_id}/sessions/{session_id}')
+
+        :param body: The request body that contains data, such as SQL statement, etc.
+        :type body: dict
+
+        **Example or body**:
+            body = {"sql": "SELECT * FROM Product"}
+        """
+
         self.log.info("Executing SQL on Spanner")
 
         try:
