@@ -671,8 +671,146 @@ More information
 See `Google Cloud Functions API documentation
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
-Google Cloud Sql Operators
---------------------------
+Google Cloud Spanner Operators
+------------------------------
+
+CloudSpannerInstanceDatabaseDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Deletes a database from the specified Cloud Spanner instance. If the database does not
+exist, no action is taken, and the operator succeeds.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from environment variables.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :start-after: [START howto_operator_spanner_arguments]
+    :end-before: [END howto_operator_spanner_arguments]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_database_delete]
+    :end-before: [END howto_operator_spanner_database_delete]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_spanner_delete_template_fields]
+    :end-before: [END gcp_spanner_delete_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Spanner API documentation for database drop call
+<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/dropDatabase>`_.
+
+
+CloudSpannerInstanceDatabaseDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates a new Cloud Spanner database in the specified instance, or if the
+desired database exists, assumes success with no changes applied to database
+configuration. No structure of the database is verified - it's enough if the database exists
+with the same name.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from environment variables.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :start-after: [START howto_operator_spanner_arguments]
+    :end-before: [END howto_operator_spanner_arguments]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_database_deploy]
+    :end-before: [END howto_operator_spanner_database_deploy]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_spanner_database_deploy_template_fields]
+    :end-before: [END gcp_spanner_database_deploy_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Spanner API documentation for `database create
+<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_
+
+CloudSpannerInstanceDatabaseUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Runs a DDL query in a Cloud Spanner database and allows you to modify the structure of an
+existing database.
+
+You can optionally specify an operation_id parameter which simplifies determining whether
+the statements were executed in case the update_database call is replayed
+(idempotency check). The operation_id should be unique within the database, and must be
+a valid identifier: `[a-z][a-z0-9_]*`. More information can be found in
+`the documentation of updateDdl API <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from environment variables.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :start-after: [START howto_operator_spanner_arguments]
+    :end-before: [END howto_operator_spanner_arguments]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_database_update]
+    :end-before: [END howto_operator_spanner_database_update]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_spanner_database_update_template_fields]
+    :end-before: [END gcp_spanner_database_update_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Spanner API documentation for `database update_ddl
+<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_.
 
 CloudSpannerInstanceDatabaseQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -685,7 +823,7 @@ For parameter definition take a look at
 Arguments
 """""""""
 
-Some arguments in the example DAG are taken from environment variables:
+Some arguments in the example DAG are taken from environment variables.
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
@@ -705,10 +843,10 @@ Templating
 """"""""""
 
 .. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
-  :language: python
-  :dedent: 4
-  :start-after: [START gcp_spanner_query_template_fields]
-  :end-before: [END gcp_spanner_query_template_fields]
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_spanner_query_template_fields]
+    :end-before: [END gcp_spanner_query_template_fields]
 
 More information
 """"""""""""""""
@@ -716,56 +854,11 @@ More information
 See Google Cloud Spanner API documentation for `the DML syntax
 <https://cloud.google.com/spanner/docs/dml-syntax>`_.
 
-CloudSpannerInstanceDeployOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Creates a new Cloud Spanner instance or, if an instance with the same name exists,
-updates it.
-
-For parameter definition take a look at
-:class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator`.
-
-Arguments
-"""""""""
-
-Some arguments in the example DAG are taken from environment variables:
-
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
-    :language: python
-    :start-after: [START howto_operator_spanner_arguments]
-    :end-before: [END howto_operator_spanner_arguments]
-
-Using the operator
-""""""""""""""""""
-
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_spanner_deploy]
-    :end-before: [END howto_operator_spanner_deploy]
-
-Templating
-""""""""""
-
-.. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
-  :language: python
-  :dedent: 4
-  :start-after: [START gcp_spanner_deploy_template_fields]
-  :end-before: [END gcp_spanner_deploy_template_fields]
-
-More information
-""""""""""""""""
-
-See Google Cloud Spanner API documentation for instance `create
-<https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.admin.instance.v1#google.spanner.admin.instance.v1.InstanceAdmin.CreateInstance>`_
-and `update
-<https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.admin.instance.v1#google.spanner.admin.instance.v1.InstanceAdmin.UpdateInstance>`_.
-
 CloudSpannerInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Deletes a Cloud Spanner instance.
-If an instance does not exist, no action will be taken and the operator will succeed.
+Deletes a Cloud Spanner instance. If an instance does not exist, no action is taken,
+and the operator succeeds.
 
 For parameter definition take a look at
 :class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator`.
@@ -803,6 +896,9 @@ More information
 
 See `Google Cloud Spanner API documentation for instance delete
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.
+
+Google Cloud Sql Operators
+--------------------------
 
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

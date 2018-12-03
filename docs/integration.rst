@@ -688,11 +688,38 @@ Cloud Spanner
 Cloud Spanner Operators
 """""""""""""""""""""""
 
+- :ref:`CloudSpannerInstanceDatabaseDeleteOperator` : deletes an existing database from
+  a Google Cloud Spanner instance or returns success if the database is missing.
+- :ref:`CloudSpannerInstanceDatabaseDeployOperator` : creates a new database in a Google
+  Cloud instance or returns success if the database already exists.
+- :ref:`CloudSpannerInstanceDatabaseUpdateOperator` : updates the structure of a
+  Google Cloud Spanner database.
 - :ref:`CloudSpannerInstanceDatabaseQueryOperator` : executes an arbitrary DML query
   (INSERT, UPDATE, DELETE).
-- :ref:`CloudSpannerInstanceDeployOperator` : creates a new Cloud Spanner instance or,
-  if an instance with the same name exists, updates it.
-- :ref:`CloudSpannerInstanceDeleteOperator` : deletes a Cloud Spanner instance.
+- :ref:`CloudSpannerInstanceDeployOperator` : creates a new Google Cloud Spanner instance,
+  or if an instance with the same name exists, updates the instance.
+- :ref:`CloudSpannerInstanceDeleteOperator` : deletes a Google Cloud Spanner instance.
+
+.. _CloudSpannerInstanceDatabaseDeleteOperator:
+
+CloudSpannerInstanceDatabaseDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator
+
+.. _CloudSpannerInstanceDatabaseDeployOperator:
+
+CloudSpannerInstanceDatabaseDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator
+
+.. _CloudSpannerInstanceDatabaseUpdateOperator:
+
+CloudSpannerInstanceDatabaseUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator
 
 .. _CloudSpannerInstanceDatabaseQueryOperator:
 
@@ -714,6 +741,14 @@ CloudSpannerInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator
+
+
+CloudSpannerHook
+""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook
+    :members:
+
 
 Cloud SQL
 '''''''''
