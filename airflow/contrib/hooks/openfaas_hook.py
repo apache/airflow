@@ -28,10 +28,10 @@ class OpenFaasHook(BaseHook):
     """
     Interact with Openfaas to query, deploy, invoke and update function
 
-    :param function_name: Name of the function
+    :param function_name: Name of the function, Defaults to None
     :type query: str
-    :param aws_conn_id: openfass connection to use, Defaults to open_faas_default
-    :type aws_conn_id: str
+    :param conn_id: openfass connection to use, Defaults to open_faas_default
+    :type conn_id: str
     """
 
     GET_FUNCTION = "/system/function/"
