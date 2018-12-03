@@ -106,13 +106,13 @@ class BigQueryOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  sql,
-                 destination_dataset_table=False,
+                 destination_dataset_table=None,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 udf_config=False,
+                 udf_config=None,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
                  maximum_bytes_billed=None,
@@ -144,10 +144,8 @@ class BigQueryOperator(BaseOperator):
         self.labels = labels
         self.bq_cursor = None
         self.priority = priority
-        if time_partitioning is None:
-            self.time_partitioning = {}
-        if api_resource_configs is None:
-            self.api_resource_configs = {}
+        self.time_partitioning = time_partitioning
+        self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
 
     def execute(self, context):
@@ -160,7 +158,7 @@ class BigQueryOperator(BaseOperator):
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.sql,
+            sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,

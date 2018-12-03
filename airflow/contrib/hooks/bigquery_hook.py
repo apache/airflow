@@ -566,7 +566,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param labels a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
-        :param schema_update_options: Allows the schema of the desitination
+        :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the query job.
         :type schema_update_options: tuple
         :param priority: Specifies a priority for the query.
@@ -581,6 +581,9 @@ class BigQueryBaseCursor(LoggingMixin):
             time_partitioning. The order of columns given determines the sort order.
         :type cluster_fields: list of str
         """
+
+        if time_partitioning is None:
+            time_partitioning = {}
 
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
