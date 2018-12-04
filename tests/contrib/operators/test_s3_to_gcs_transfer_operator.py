@@ -36,8 +36,13 @@ TASK_ID = 'test-s3-gcs-transfer-operator'
 S3_BUCKET = 'test-s3-bucket'
 GCS_BUCKET = 'test-gcs-bucket'
 PROJECT_ID = 'test-project'
+DESCRIPTION = 'test-description'
 ACCESS_KEY = 'test-access-key'
 SECRET_KEY = 'test-secret-key'
+SCHEDULE = {
+    'scheduleStartDate': {'month': 10, 'day': 1, 'year': 2018},
+    'scheduleEndDate': {'month': 10, 'day': 31, 'year': 2018},
+}
 
 
 Credentials = collections.namedtuple(
@@ -53,23 +58,27 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
             s3_bucket=S3_BUCKET,
             gcs_bucket=GCS_BUCKET,
             project_id=PROJECT_ID,
+            description=DESCRIPTION,
         )
 
         self.assertEqual(operator.task_id, TASK_ID)
         self.assertEqual(operator.s3_bucket, S3_BUCKET)
         self.assertEqual(operator.gcs_bucket, GCS_BUCKET)
         self.assertEqual(operator.project_id, PROJECT_ID)
+        self.assertEqual(operator.description, DESCRIPTION)
 
     @mock.patch('airflow.contrib.operators.s3_to_gcs_transfer_operator.GCPTransferServiceHook')
     @mock.patch('airflow.contrib.operators.s3_to_gcs_transfer_operator.S3Hook')
     def test_execute(self, mock_s3_hook, mock_transfer_hook):
-        """Test the execute function when the run is successful."""
+        """Test the execute function with a custom schedule."""
 
         operator = S3ToGoogleCloudStorageTransferOperator(
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
             gcs_bucket=GCS_BUCKET,
             project_id=PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE,
         )
 
         mock_s3_hook.return_value.get_credentials.return_value = Credentials(
@@ -81,6 +90,8 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
 
         mock_transfer_hook.return_value.create_transfer_job.assert_called_once_with(
             project_id=PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=SCHEDULE,
             transfer_spec={
                 'awsS3DataSource': {
                     'bucketName': S3_BUCKET,
@@ -96,3 +107,50 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
                 'transferOptions': {}
             }
         )
+
+        mock_transfer_hook.return_value.wait_for_transfer_job.assert_called_once_with(
+            mock_transfer_hook.return_value.create_transfer_job.return_value
+        )
+
+    @mock.patch('airflow.contrib.operators.s3_to_gcs_transfer_operator.GCPTransferServiceHook')
+    @mock.patch('airflow.contrib.operators.s3_to_gcs_transfer_operator.S3Hook')
+    def test_execute_skip_wait(self, mock_s3_hook, mock_transfer_hook):
+        """Test the execute function and wait until transfer is complete."""
+
+        operator = S3ToGoogleCloudStorageTransferOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            gcs_bucket=GCS_BUCKET,
+            project_id=PROJECT_ID,
+            description=DESCRIPTION,
+            wait=False,
+        )
+
+        mock_s3_hook.return_value.get_credentials.return_value = Credentials(
+            access_key=ACCESS_KEY,
+            secret_key=SECRET_KEY,
+        )
+
+        operator.execute(None)
+
+        mock_transfer_hook.return_value.create_transfer_job.assert_called_once_with(
+            project_id=PROJECT_ID,
+            description=DESCRIPTION,
+            schedule=None,
+            transfer_spec={
+                'awsS3DataSource': {
+                    'bucketName': S3_BUCKET,
+                    'awsAccessKey': {
+                        'accessKeyId': ACCESS_KEY,
+                        'secretAccessKey': SECRET_KEY,
+                    }
+                },
+                'gcsDataSink': {
+                    'bucketName': GCS_BUCKET,
+                },
+                'objectConditions': {},
+                'transferOptions': {}
+            }
+        )
+
+        assert not mock_transfer_hook.return_value.wait_for_transfer_job.called
