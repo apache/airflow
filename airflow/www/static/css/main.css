@@ -136,6 +136,11 @@ pre code {
     overflow-wrap: normal;
     white-space: pre;
 }
+
+.wrap {
+    white-space: pre-wrap;
+}
+
 input, select {
     margin: 0px;
 }
