@@ -601,7 +601,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String(ID_LEN), unique=True)
     email = Column(String(500))
-    superuser = False
+    superuser = Column(Boolean(), default=False)
 
     def __repr__(self):
         return self.username
