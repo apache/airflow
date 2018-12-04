@@ -148,6 +148,42 @@ To enable this feature, a custom log configuration file must be added, as detail
 #. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file that was just created in the step above.
 #. Customize the following portions of the template:
 
+  .. code-block:: bash
+
+      # Add a list called `RECORD_LABELS` and add the fields to the list that you want
+      # collected for the logs. These fields are from the LogRecord object in the `logging` module.
+      # An example configuration is below.
+
+      RECORD_LABELS = ['asctime', 'levelname', 'filename', 'lineno', 'message']
+
+      # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
+      LOGGING_CONFIG = ...
+
+      # Change the section in `loggers['airflow.task']` to include elasticsearch
+      'loggers': {
+        'airflow.task': {
+            'handlers': ["elasticsearch"],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        }
+      }
+
+      # Copy elasticsearch into the `handlers` section
+      'handlers': {
+        'elasticsearch': {
+            'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
+            'formatter': 'airflow',
+            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+            'log_id_template': LOG_ID_TEMPLATE,
+            'filename_template': FILENAME_TEMPLATE,
+            'end_of_log_mark': END_OF_LOG_MARK,
+            'host': ELASTICSEARCH_HOST,
+            'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
+            'json_format': ELASTICSEARCH_JSON_FORMAT,
+            'record_labels': ELASTICSEARCH_RECORD_LABELS,
+        }
+      }
+      
 In addition, ``airflow.cfg`` must be configured as such:
 
 .. code-block:: bash
