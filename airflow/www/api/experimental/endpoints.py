@@ -26,6 +26,7 @@ from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.api.common.experimental.get_dag_runs import format_dag_run
 from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -56,6 +57,10 @@ def trigger_dag(dag_id):
     if 'conf' in data:
         conf = data['conf']
 
+    detailed_output = None
+    if 'detailed_output' in data:
+        detailed_output = data['detailed_output']
+
     execution_date = None
     if 'execution_date' in data and data['execution_date'] is not None:
         execution_date = data['execution_date']
@@ -66,7 +71,8 @@ def trigger_dag(dag_id):
         except ValueError:
             error_message = (
                 'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
+                'as a date. Example date format: '
+                '2015-11-16T14:34:15+00:00'.format(
                     execution_date))
             _log.info(error_message)
             response = jsonify({'error': error_message})
@@ -84,8 +90,11 @@ def trigger_dag(dag_id):
 
     if getattr(g, 'user', None):
         _log.info("User {} created {}".format(g.user, dr))
-
-    response = jsonify(message="Created {}".format(dr))
+    if detailed_output:
+        dr = format_dag_run(dr)
+        response = jsonify(**dr)
+    else:
+        response = jsonify(message="Created {}".format(dr))
     return response
 
 
@@ -112,7 +121,8 @@ def test():
     return jsonify(status='OK')
 
 
-@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
+@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>',
+                        methods=['GET'])
 @requires_authentication
 def task_info(dag_id, task_id):
     """Returns a JSON with a task's public instance variables. """
@@ -132,8 +142,8 @@ def task_info(dag_id, task_id):
 
 
 @api_experimental.route(
-    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>',
-    methods=['GET'])
+    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/' +
+    'tasks/<string:task_id>', methods=['GET'])
 @requires_authentication
 def task_instance_info(dag_id, execution_date, task_id):
     """
@@ -189,7 +199,8 @@ def latest_dag_runs():
                 'dag_run_url': url_for('airflow.graph', dag_id=dagrun.dag_id,
                                        execution_date=dagrun.execution_date)
             })
-    return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
+    # old flask versions dont support jsonifying arrays
+    return jsonify(items=payload)
 
 
 @api_experimental.route('/pools/<string:name>', methods=['GET'])

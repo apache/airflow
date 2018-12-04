@@ -40,16 +40,18 @@ def get_dag_runs(dag_id, state=None):
     dag_runs = list()
     state = state.lower() if state else None
     for run in DagRun.find(dag_id=dag_id, state=state):
-        dag_runs.append({
-            'id': run.id,
+        dag_runs.append(format_dag_run(run))
+    return dag_runs
+
+
+def format_dag_run(run):
+    return {'id': run.id,
             'run_id': run.run_id,
             'state': run.state,
             'dag_id': run.dag_id,
             'execution_date': run.execution_date.isoformat(),
             'start_date': ((run.start_date or '') and
                            run.start_date.isoformat()),
-            'dag_run_url': url_for('Airflow.graph', dag_id=run.dag_id,
+            'dag_run_url': url_for('airflow.graph', dag_id=run.dag_id,
                                    execution_date=run.execution_date)
-        })
-
-    return dag_runs
+            }

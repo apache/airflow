@@ -94,6 +94,23 @@ class TestApiExperimental(unittest.TestCase):
         )
         self.assertEqual(404, response.status_code)
 
+    def test_trigger_dag_detailed_output(self):
+        url_template = '/api/experimental/dags/{}/dag_runs'
+        response = self.app.post(
+            url_template.format('example_bash_operator'),
+            data=json.dumps({'run_id': 'my_run' + utcnow().isoformat(),
+                             'detailed_output': 1}),
+            content_type="application/json"
+        )
+        data = json.loads(response.data)
+        self.assertEqual(200, response.status_code)
+        self.assertIn('id', data)
+        self.assertIn('run_id', data)
+        self.assertIn('dag_id', data)
+        self.assertIn('execution_date', data)
+        self.assertIn('start_date', data)
+        self.assertIn('dag_run_url', data)
+
     def test_delete_dag(self):
         url_template = '/api/experimental/dags/{}'
 
