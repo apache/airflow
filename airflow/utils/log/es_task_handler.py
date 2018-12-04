@@ -125,6 +125,9 @@ class ParentStdout():
     def write(self, string):
         sys.__stdout__.write(string)
 
+    def close(self):
+        self.closed = True
+
 
 class JsonFormatter(logging.Formatter):
     """
@@ -317,7 +320,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 >>>>>>> d98bcb1c... [AIRFLOW-3370] Move RECORD_LABELS to log_config.py custom log config fileand fix flake8 linting errors + warnings
         return ti_info
 
-    def read(self, task_instance, try_number, metadata=None):
+    def read(self, task_instance, try_number=None, metadata=None):
             """
             Read logs of a given task instance from elasticsearch.
             :param task_instance: task instance object
@@ -397,6 +400,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                         self.mark_end_on_close = False
                         metadatas[i] = metadata
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 94275dcd... [AIRFLIOW-3370] Correct function init parameters and re-add end_of_log mark to log files that are written to filesystem
                     elif not log:
                         metadata['end_of_log'] = False
                         metadatas[i] = metadata
@@ -443,6 +449,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                                                .replace("+", "_")
 
         return self.log_id_template.format(dag_id=ti.dag_id,
+<<<<<<< HEAD
                                                task_id=ti.task_id,
                                                execution_date=ti
                                                .execution_date.isoformat(),
@@ -472,6 +479,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                                                .replace("+", "_")
 
         return self.log_id_template.format(dag_id=ti.dag_id,
+=======
+>>>>>>> c0832915... [AIRFLOW-3370] Remove redundant code
                                            task_id=ti.task_id,
                                            execution_date=ti
                                            .execution_date.isoformat(),
@@ -584,14 +593,19 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None
 <<<<<<< HEAD
+<<<<<<< HEAD
         if not self.write_stdout and (self.handler.stream is None or self.handler.stream.closed):
 =======
         if self.handler.stream is None or self.handler.stream.closed:
 >>>>>>> d98bcb1c... [AIRFLOW-3370] Move RECORD_LABELS to log_config.py custom log config fileand fix flake8 linting errors + warnings
+=======
+        if not self.write_stdout and (self.handler.stream is None or self.handler.stream.closed):
+>>>>>>> 94275dcd... [AIRFLIOW-3370] Correct function init parameters and re-add end_of_log mark to log files that are written to filesystem
             self.handler.stream = self.handler._open()
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         # Don't need to do this if using write_stdout, this is handled in read
@@ -610,10 +624,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 =======
         self.handler.stream.write(self.end_of_log_mark)
 >>>>>>> a1bc24e8... [AIRFLOW-3370] Correct to pass current ES handler tests
+=======
+        # Don't need to do this if using write_stdout, this is handled in read
+        if not self.write_stdout:
+            self.handler.stream.write(self.end_of_log_mark)
+>>>>>>> 94275dcd... [AIRFLIOW-3370] Correct function init parameters and re-add end_of_log mark to log files that are written to filesystem
 
         if self.write_stdout:
             if self.handler is not None:
-                self.writer.closed = True
+                self.writer.close()
                 self.handler.close()
                 sys.stdout = sys.__stdout__
 
