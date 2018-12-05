@@ -29,14 +29,8 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     :param bucket: Name of a bucket.
     :type bucket: str
     :param entity: The entity holding the permission, in one of the following forms:
-        - user-userId
-        - user-email
-        - group-groupId
-        - group-email
-        - domain-domain
-        - project-team-projectId
-        - allUsers
-        - allAuthenticatedUsers
+        user-userId, user-email, group-groupId, group-email, domain-domain,
+        project-team-projectId, allUsers, allAuthenticatedUsers
     :type entity: str
     :param role: The access permission for the entity.
         Acceptable values are: "OWNER", "READER", "WRITER".
@@ -82,14 +76,8 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         https://cloud.google.com/storage/docs/json_api/#encoding
     :type object_name: str
     :param entity: The entity holding the permission, in one of the following forms:
-        - user-userId
-        - user-email
-        - group-groupId
-        - group-email
-        - domain-domain
-        - project-team-projectId
-        - allUsers
-        - allAuthenticatedUsers
+        user-userId, user-email, group-groupId, group-email, domain-domain,
+        project-team-projectId, allUsers, allAuthenticatedUsers
     :type entity: str
     :param role: The access permission for the entity.
         Acceptable values are: "OWNER", "READER".

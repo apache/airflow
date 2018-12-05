@@ -556,6 +556,8 @@ Cloud SQL Operators
 - :ref:`CloudSqlInstanceDatabasePatchOperator` : updates a database inside a Cloud
   SQL instance.
 - :ref:`CloudSqlInstanceDeleteOperator` : delete a Cloud SQL instance.
+- :ref:`CloudSqlInstanceExportOperator` : exports data from a Cloud SQL instance.
+- :ref:`CloudSqlInstanceImportOperator` : imports data into a Cloud SQL instance.
 - :ref:`CloudSqlInstanceCreateOperator` : create a new Cloud SQL instance.
 - :ref:`CloudSqlInstancePatchOperator` : patch a Cloud SQL instance.
 - :ref:`CloudSqlQueryOperator` : run query in a Cloud SQL instance.
@@ -587,6 +589,20 @@ CloudSqlInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
+
+.. _CloudSqlInstanceExportOperator:
+
+CloudSqlInstanceExportOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator
+
+.. _CloudSqlInstanceImportOperator:
+
+CloudSqlInstanceImportOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator
 
 .. _CloudSqlInstanceCreateOperator:
 
