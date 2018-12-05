@@ -59,6 +59,12 @@ LOG_ID_TEMPLATE = conf.get('elasticsearch', 'ELASTICSEARCH_LOG_ID_TEMPLATE')
 
 END_OF_LOG_MARK = conf.get('elasticsearch', 'ELASTICSEARCH_END_OF_LOG_MARK')
 
+ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'ELASTICSEARCH_WRITE_STDOUT')
+
+ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'ELASTICSEARCH_JSON_FORMAT')
+
+ELASTICSEARCH_RECORD_LABELS = ['asctime', 'levelname', 'filename', 'lineno', 'message']
+
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -191,6 +197,9 @@ REMOTE_HANDLERS = {
             'filename_template': FILENAME_TEMPLATE,
             'end_of_log_mark': END_OF_LOG_MARK,
             'host': ELASTICSEARCH_HOST,
+            'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
+            'json_format': ELASTICSEARCH_JSON_FORMAT,
+            'record_labels': ELASTICSEARCH_RECORD_LABELS,
         },
     },
 }

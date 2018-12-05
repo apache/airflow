@@ -82,6 +82,7 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(recordObj)
 
 
+<<<<<<< HEAD
 class ParentStdout():
     """
     Keep track of the ParentStdout stdout context in child process
@@ -151,6 +152,8 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(recordObj)
 
 
+=======
+>>>>>>> 5a487709... [AIRFLOW-3370] Remove redundant code, remove line and fix linting error
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
@@ -413,6 +416,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
                 return logs, metadatas
             elif not self.write_stdout:
+<<<<<<< HEAD
                 return super(ElasticsearchTaskHandler, self).read(task_instance,
                                                                   try_number,
                                                                   metadata)
@@ -431,6 +435,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 >>>>>>> d98bcb1c... [AIRFLOW-3370] Move RECORD_LABELS to log_config.py custom log config fileand fix flake8 linting errors + warnings
 =======
 >>>>>>> a1bc24e8... [AIRFLOW-3370] Correct to pass current ES handler tests
+=======
+                return super(ElasticsearchTaskHandler, self).read(
+                                                             task_instance,
+                                                             try_number,
+                                                             metadata)
+>>>>>>> b0b32d01... [AIRFLOW-3370] Fix linting
 
     def _render_log_id(self, ti, try_number):
         # Using Jinja2 templating
@@ -598,6 +608,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # first in logging.shutdown() and the stream in it would be set to None
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         if not self.write_stdout and (self.handler.stream is None or self.handler.stream.closed):
 =======
         if self.handler.stream is None or self.handler.stream.closed:
@@ -605,6 +616,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 =======
         if not self.write_stdout and (self.handler.stream is None or self.handler.stream.closed):
 >>>>>>> 94275dcd... [AIRFLIOW-3370] Correct function init parameters and re-add end_of_log mark to log files that are written to filesystem
+=======
+        if not self.write_stdout and (self.handler.stream is None or
+                                      self.handler.stream.closed):
+>>>>>>> 5a487709... [AIRFLOW-3370] Remove redundant code, remove line and fix linting error
             self.handler.stream = self.handler._open()
 
         # Mark the end of file using end of log mark,

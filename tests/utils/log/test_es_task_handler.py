@@ -367,7 +367,6 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
 
         self.assertTrue(self.es_task_handler.closed)
 
-
     def test_close_with_no_handler(self):
         self.es_task_handler.set_context(self.ti)
         self.es_task_handler.handler = None
