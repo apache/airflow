@@ -401,9 +401,9 @@ AwsFirehoseHook
 Amazon SageMaker
 ''''''''''''''''
 
-For more instructions on using Amazon SageMaker in Airflow, please see `here`_.
+For more instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
 
-.. _here: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
+.. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
 
 - :ref:`SageMakerHook` : Interact with Amazon SageMaker.
 - :ref:`SageMakerTrainingOperator` : Create a SageMaker training job.
@@ -425,7 +425,7 @@ SageMakerHook
 SageMakerTrainingOperator
 """""""""""""""""""""""""
 
-.. autoclass:: airflow.operators.sagemaker_training_operator.SageMakerTrainingOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator
 
 .. _SageMakerTuningOperator:
 
@@ -453,14 +453,14 @@ SageMakerTransformOperator
 SageMakerEndpointConfigOperator
 """""""""""""""""""""""""""""""
 
-.. autoclass:: airflow.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
 
 .. _SageMakerEndpointOperator:
 
 SageMakerEndpointOperator
 """""""""""""""""""""""""
 
-.. autoclass:: airflow.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
 
 .. _Databricks:
 
