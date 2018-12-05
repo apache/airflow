@@ -561,8 +561,8 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
          "Invalid database type 'wrong'. Must be one of ['postgres', 'mysql']"),
         ('project_id', 'location', 'instance_name', 'postgres', True, True,
          'SELECT * FROM TEST',
-         "Cloud Sql Proxy does not support SSL connections. SSL is not needed as"
-         " Cloud Sql Proxy provides encryption on its own"),
+         "Cloud SQL Proxy does not support SSL connections. SSL is not needed as"
+         " Cloud SQL Proxy provides encryption on its own"),
         ('project_id', 'location', 'instance_name', 'postgres', False, True,
          'SELECT * FROM TEST',
          "SSL connections requires sslcert to be set"),

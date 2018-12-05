@@ -111,7 +111,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :param body: Body required by the Cloud SQL insert API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert#request-body.
         :type body: dict
-        :return: True if the operation succeeded, raises an error otherwise.
+        :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
         response = self.get_conn().instances().insert(
@@ -135,7 +135,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :type body: dict
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
-        :return: True if the operation succeeded, raises an error otherwise.
+        :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
         response = self.get_conn().instances().patch(
@@ -154,7 +154,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :type project_id: str
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
-        :return: True if the operation succeeded, raises an error otherwise
+        :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
         response = self.get_conn().instances().delete(
@@ -195,7 +195,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
-        :return: True if the operation succeeded, raises an error otherwise.
+        :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
         response = self.get_conn().databases().insert(
@@ -211,7 +211,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         Updates a database resource inside a Cloud SQL instance.
 
         This method supports patch semantics.
-        See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
+        See https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch.
 
         :param project: Project ID of the project that contains the instance.
         :type project: str
@@ -222,7 +222,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
-        :return: True if the operation succeeded, raises an error otherwise.
+        :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
         response = self.get_conn().databases().patch(
@@ -244,7 +244,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :type instance: str
         :param database: Name of the database to be deleted in the instance.
         :type database: str
-        :return: True if the operation succeeded, raises an error otherwise.
+        :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
         response = self.get_conn().databases().delete(
@@ -352,11 +352,11 @@ GCP_CREDENTIALS_KEYFILE_DICT = "extra__google_cloud_platform__keyfile_dict"
 
 class CloudSqlProxyRunner(LoggingMixin):
     """
-    Downloads and runs cloud-sql-proxy as subprocess of the python process.
+    Downloads and runs cloud-sql-proxy as subprocess of the Python process.
 
     The cloud-sql-proxy needs to be downloaded and started before we can connect
     to the Google Cloud SQL instance via database connection. It establishes
-    secure tunnel connection to the database - it authorizes using the
+    secure tunnel connection to the database. It authorizes using the
     GCP credentials that are passed by the configuration.
 
     More details about the proxy can be found here:
@@ -497,7 +497,7 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     def start_proxy(self):
         """
-        Starts Cloud Sql Proxy.
+        Starts Cloud SQL Proxy.
 
         You have to remember to stop the proxy if you started it!
         """
@@ -575,7 +575,7 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     def get_proxy_version(self):
         """
-        Returns version of the Cloud Sql Proxy.
+        Returns version of the Cloud SQL Proxy.
         """
         self._download_sql_proxy_if_needed()
         command_to_run = [self.sql_proxy_path]
@@ -591,7 +591,7 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     def get_socket_path(self):
         """
-        Retrieves UNIX socket path used by Cloud Sql Proxy.
+        Retrieves UNIX socket path used by Cloud SQL Proxy.
 
         :return: The dynamically generated path for the socket created by the proxy.
         :rtype: str
@@ -642,38 +642,38 @@ CLOUD_SQL_VALID_DATABASE_TYPES = ['postgres', 'mysql']
 # noinspection PyAbstractClass
 class CloudSqlDatabaseHook(BaseHook):
     """
-    Serves DB connection configuration for CloudSQL (Connections
+    Serves DB connection configuration for Google Cloud SQL (Connections
     of *gcpcloudsql://* type).
 
-    The hook is a "meta" one - it does not perform an actual connection,
-    it is there to retrieve all the parameters configured in gcpcloudsql:// connection,
-    start/stop Cloud Sql Proxy if needed, dynamically generate Postgres or MySQL
+    The hook is a "meta" one. It does not perform an actual connection.
+    It is there to retrieve all the parameters configured in gcpcloudsql:// connection,
+    start/stop Cloud SQL Proxy if needed, dynamically generate Postgres or MySQL
     connection in the database and return an actual Postgres or MySQL hook.
-    The returned Postgres/MySQL hooks are using direct connection or Cloud Sql
-    Proxy socket/tcp as configured.
+    The returned Postgres/MySQL hooks are using direct connection or Cloud SQL
+    Proxy socket/TCP as configured.
 
     Main parameters of the hook are retrieved from the standard URI components:
 
     * **user** - User name to authenticate to the database (from login of the URI).
-    * **password** - Password to authenticate to the database (from password of the URI)
-    * **public_ip** - IP to connect to for public connection (from host of the URI)
-    * **public_port** - Port to connect to for public connection (from port of the URI)
-    * **database** - Database to connect to (from schema of the URI)
+    * **password** - Password to authenticate to the database (from password of the URI).
+    * **public_ip** - IP to connect to for public connection (from host of the URI).
+    * **public_port** - Port to connect to for public connection (from port of the URI).
+    * **database** - Database to connect to (from schema of the URI).
 
     Remaining parameters are retrieved from the extras (URI query parameters):
 
     * **project_id** - Google Cloud Platform project where the Cloud SQL instance exists.
     * **instance** -  Name of the instance of the Cloud SQL database instance.
-    * **location** - The location of the cloud sql instance (for example europe-west1).
-    * **database_type** - The type of the database instance (mysql or postgres).
+    * **location** - The location of the Cloud SQL instance (for example europe-west1).
+    * **database_type** - The type of the database instance (MySQL or Postgres).
     * **use_proxy** - (default False) Whether SQL proxy should be used to connect to Cloud
       SQL DB.
     * **use_ssl** - (default False) Whether SSL should be used to connect to Cloud SQL DB.
-      You cannot use proxy and ssl together.
+      You cannot use proxy and SSL together.
     * **sql_proxy_use_tcp** - (default False) If set to true, TCP is used to connect via
       proxy, otherwise UNIX sockets are used.
-    * **sql_proxy_binary_path** - Optional path to sql proxy binary. If the binary is not
-      specified or the binary is not present, it is automatically downloaded.
+    * **sql_proxy_binary_path** - Optional path to Cloud SQL Proxy binary. If the binary
+      is not specified or the binary is not present, it is automatically downloaded.
     * **sql_proxy_version** -  Specific version of the proxy to download (for example
       v1.13). If not specified, the latest version is downloaded.
     * **sslcert** - Path to client certificate to authenticate when SSL is used.
@@ -742,8 +742,8 @@ class CloudSqlDatabaseHook(BaseHook):
                 self.database_type, CLOUD_SQL_VALID_DATABASE_TYPES
             ))
         if self.use_proxy and self.use_ssl:
-            raise AirflowException("Cloud Sql Proxy does not support SSL connections."
-                                   " SSL is not needed as Cloud Sql Proxy "
+            raise AirflowException("Cloud SQL Proxy does not support SSL connections."
+                                   " SSL is not needed as Cloud SQL Proxy "
                                    "provides encryption on its own")
         if self.use_ssl:
             self._check_ssl_file(self.sslcert, "sslcert")
@@ -829,7 +829,7 @@ class CloudSqlDatabaseHook(BaseHook):
     @provide_session
     def create_connection(self, session=None):
         """
-        Create connection in the Connection table - according to whether it uses
+        Create connection in the Connection table, according to whether it uses
         proxy, TCP, UNIX sockets, SSL. Connection ID will be randomly generated.
 
         :param session: Session of the SQL Alchemy ORM (automatically generated with
@@ -858,10 +858,10 @@ class CloudSqlDatabaseHook(BaseHook):
 
     def get_sqlproxy_runner(self):
         """
-        Retrieve Cloud Sql Proxy runner. It is used to manage the proxy
+        Retrieve Cloud SQL Proxy runner. It is used to manage the proxy
         lifecycle per task.
 
-        :return: The Cloud Sql Proxy runner.
+        :return: The Cloud SQL Proxy runner.
         :rtype: CloudSqlProxyRunner
         """
         return CloudSqlProxyRunner(
@@ -874,8 +874,8 @@ class CloudSqlDatabaseHook(BaseHook):
 
     def get_database_hook(self):
         """
-        Retrieve database hook - this is the actual Postgres or MySQL database hook
-        that uses proxy or connects directly to the Google Cloud Sql database.
+        Retrieve database hook. This is the actual Postgres or MySQL database hook
+        that uses proxy or connects directly to the Google Cloud SQL database.
         """
         if self.database_type == 'postgres':
             self.db_hook = PostgresHook(postgres_conn_id=self.db_conn_id,
@@ -895,7 +895,7 @@ class CloudSqlDatabaseHook(BaseHook):
 
     def reserve_free_tcp_port(self):
         """
-        Reserve free TCP port to be used by Cloud Sql Proxy
+        Reserve free TCP port to be used by Cloud SQL Proxy
         """
         self.reserved_tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.reserved_tcp_socket.bind(('127.0.0.1', 0))
@@ -903,7 +903,7 @@ class CloudSqlDatabaseHook(BaseHook):
 
     def free_reserved_port(self):
         """
-        Free TCP port - makes it immediately ready to be used by Cloud Sql Proxy.
+        Free TCP port. Makes it immediately ready to be used by Cloud SQL Proxy.
         """
         if self.reserved_tcp_socket:
             self.reserved_tcp_socket.close()
