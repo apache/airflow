@@ -85,10 +85,6 @@ if "BUILDING_AIRFLOW_DOCS" in os.environ:
     DAGS_FOLDER = '[AIRFLOW_HOME]/dags'
 
 
-def sigint_handler(sig, frame):
-    sys.exit(0)
-
-
 def sigquit_handler(sig, frame):
     """Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
     e.g. kill -s QUIT <PID> or CTRL+\
@@ -997,8 +993,6 @@ def scheduler(args):
         stdout.close()
         stderr.close()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
         job.run()
 
@@ -1076,9 +1070,6 @@ def worker(args):
         stdout.close()
         stderr.close()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
         sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
 
         worker.run(**options)
@@ -1306,9 +1297,6 @@ def flower(args):
         stdout.close()
         stderr.close()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-
         os.execvp("flower", ['flower', '-b',
                              broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
