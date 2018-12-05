@@ -657,11 +657,11 @@ Compute Engine Operators
 - :ref:`GceInstanceGroupManagerUpdateTemplateOperator` : patch the Instance Group Manager,
   replacing source Instance Template URL with the destination one.
 
-The operators have common base operator:
+The operators have the common base operator:
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceBaseOperator
 
-They also use :ref:`GceHook` hook to communicate with Google Cloud Platform.
+They also use :ref:`GceHook` to communicate with Google Cloud Platform.
 
 .. _GceInstanceStartOperator:
 
@@ -718,7 +718,7 @@ Cloud Functions Operators
 
 .. autoclass:: airflow.contrib.operators.gcp_operator.GCP
 
-They also use :ref:`GcfHook` hook to communicate with Google Cloud Platform.
+They also use :ref:`GcfHook` to communicate with Google Cloud Platform.
 
 .. _GcfFunctionDeployOperator:
 

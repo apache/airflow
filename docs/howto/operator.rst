@@ -162,7 +162,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_
+See `Google Compute Engine API documentation
+<https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_.
 
 
 GceInstanceStopOperator
@@ -170,7 +171,7 @@ GceInstanceStopOperator
 
 Use the operator to stop Google Compute Engine instance.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator`
 
 Arguments
@@ -204,7 +205,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_
+See `Google Compute Engine API documentation
+<https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_.
 
 
 GceSetMachineTypeOperator
@@ -212,8 +214,8 @@ GceSetMachineTypeOperator
 
 Use the operator to change machine type of a Google Compute Engine instance.
 
-For parameter definition take a look at
-:class:`~airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator`
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator`.
 
 Arguments
 """""""""
@@ -252,7 +254,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_
+See `Google Compute Engine API documentation
+<https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_.
 
 
 GceInstanceTemplateCopyOperator
@@ -261,7 +264,7 @@ GceInstanceTemplateCopyOperator
 Use the operator to copy an existing Google Compute Engine instance template
 applying a patch to it.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator`.
 
 Arguments
@@ -300,14 +303,15 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_
+See `Google Compute Engine API documentation
+<https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_.
 
 GceInstanceGroupManagerUpdateTemplateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to update template in Google Compute Engine Instance Group Manager.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator`.
 
 Arguments
@@ -347,13 +351,15 @@ Troubleshooting
 """""""""""""""
 
 You might find that your GceInstanceGroupManagerUpdateTemplateOperator fails with
-missing permissions. The service account has to have Service Account User role assigned
-via IAM permissions in order to execute the operation.
+missing permissions. To execute the operation, the service account requires
+the permissions that theService Account User role provides
+(assigned via Google Cloud IAM).
 
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_
+See `Google Compute Engine API documentation
+<https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.
 
 Google Cloud Functions Operators
 --------------------------------
@@ -363,7 +369,7 @@ GcfFunctionDeleteOperator
 
 Use the operator to delete a function from Google Cloud Functions.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator`.
 
 Arguments
@@ -417,19 +423,21 @@ and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
     --role="roles/iam.serviceAccountUser"
 
 
-See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details
+See `Adding the IAM service agent user role to the runtime service
+<https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_.
 
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_
+See `Google Cloud Functions API documentation
+<https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
 
 GcfFunctionDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to deploy a function to Google Cloud Functions.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`.
 
 
@@ -463,7 +471,8 @@ Note that the neither the body nor the default args are complete in the above ex
 Depending on the variables set, there might be different variants on how to pass source
 code related fields. Currently, you can pass either sourceArchiveUrl, sourceRepository
 or sourceUploadUrl as described in the
-`Cloud Functions API specification <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#CloudFunction>`_.
+`Cloud Functions API specification
+<https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#CloudFunction>`_.
 
 Additionally, default_args or direct operator args might contain zip_path parameter
 to run the extra step of uploading the source code before deploying it.
@@ -530,7 +539,8 @@ can be downloaded if necessary.
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_
+See `Google Cloud Functions API documentation
+<https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
 Google Cloud Sql Operators
 --------------------------
@@ -540,7 +550,7 @@ CloudSqlInstanceDatabaseCreateOperator
 
 Creates a new database inside a Cloud SQL instance.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator`.
 
 Arguments
@@ -589,7 +599,7 @@ CloudSqlInstanceDatabaseDeleteOperator
 
 Deletes a database from a Cloud SQL instance.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator`.
 
 Arguments
@@ -633,7 +643,7 @@ Updates a resource containing information about a database inside a Cloud SQL in
 using patch semantics.
 See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator`.
 
 Arguments
@@ -682,7 +692,7 @@ CloudSqlInstanceDeleteOperator
 
 Deletes a Cloud SQL instance in Google Cloud Platform.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator`.
 
 Arguments
@@ -898,7 +908,7 @@ CloudSqlInstanceCreateOperator
 
 Creates a new Cloud SQL instance in Google Cloud Platform.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`.
 
 If an instance with the same name exists, no action will be taken and the operator
@@ -942,8 +952,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for insert <https://cloud.google
-.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
+See `Google Cloud SQL API documentation for insert
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
 
 .. _CloudSqlInstancePatchOperator:
 
@@ -952,7 +962,7 @@ CloudSqlInstancePatchOperator
 
 Updates settings of a Cloud SQL instance in Google Cloud Platform (partial update).
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator`.
 
 This is a partial update, so only values for the settings specified in the body
@@ -997,44 +1007,44 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for patch <https://cloud.google
-.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
+See `Google Cloud SQL API documentation for patch
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
 
 CloudSqlQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^
 
 Performs DDL or DML SQL queries in Google Cloud SQL instance. The DQL
-(retrieving data from Google Cloud SQL) is not supported - you might run the SELECT
-queries but results of those queries are discarded.
+(retrieving data from Google Cloud SQL) is not supported. You might run the SELECT
+queries, but the results of those queries are discarded.
 
-You can specify various connectivity methods to connect to running instance -
+You can specify various connectivity methods to connect to running instance,
 starting from public IP plain connection through public IP with SSL or both TCP and
-socket connection via Cloud Sql Proxy. The proxy is downloaded and started/stopped
+socket connection via Cloud SQL Proxy. The proxy is downloaded and started/stopped
 dynamically as needed by the operator.
 
 There is a *gcpcloudsql://* connection type that you should use to define what
 kind of connectivity you want the operator to use. The connection is a "meta"
 type of connection. It is not used to make an actual connectivity on its own, but it
-determines whether Cloud Sql Proxy should be started by `CloudSqlDatabaseHook`
-and what kind of the database connection (Postgres or MySQL) should be created
-dynamically - to either connect to Cloud SQL via public IP address or via the proxy.
+determines whether Cloud SQL Proxy should be started by `CloudSqlDatabaseHook`
+and what kind of database connection (Postgres or MySQL) should be created
+dynamically to connect to Cloud SQL via public IP address or via the proxy.
 The 'CloudSqlDatabaseHook` uses
-:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner` to manage Cloud Sql
-Proxy lifecycle (each task has its own Cloud Sql Proxy)
+:class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner` to manage Cloud SQL
+Proxy lifecycle (each task has its own Cloud SQL Proxy)
 
 When you build connection, you should use connection parameters as described in
 :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook`. You can see
 examples of connections below for all the possible types of connectivity. Such connection
-can be reused between different tasks (instances of `CloudSqlQueryOperator`) - each
+can be reused between different tasks (instances of `CloudSqlQueryOperator`). Each
 task will get their own proxy started if needed with their own TCP or UNIX socket.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator`.
 
-Since query operator can run arbitrary query - it cannot be guaranteed to be
-idempotent. SQL query designer should design the queries to be idempotent. For example
-both Postgres and MySql support CREATE TABLE IF NOT EXISTS statements that can be
+Since query operator can run arbitrary query, it cannot be guaranteed to be
+idempotent. SQL query designer should design the queries to be idempotent. For example,
+both Postgres and MySQL support CREATE TABLE IF NOT EXISTS statements that can be
 used to create tables in an idempotent way.
 
 Arguments
@@ -1067,8 +1077,8 @@ of the connection URI should be URL-encoded:
 Using the operator
 """"""""""""""""""
 
-Example operators below are using all connectivity options (note connection id
-from the operator matches the `AIRFLOW_CONN_*` postfix uppercase - this is
+Example operators below are using all connectivity options. Note connection id
+from the operator matches the `AIRFLOW_CONN_*` postfix uppercase. This is
 standard AIRFLOW notation for defining connection via environment variables):
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql_query.py
@@ -1088,9 +1098,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Sql Proxy documentation
-<https://cloud.google.com/sql/docs/postgres/sql-proxy>`_
-for details about Cloud Sql Proxy.
+See `Google Cloud SQL Proxy documentation
+<https://cloud.google.com/sql/docs/postgres/sql-proxy>`_.
 
 Google Cloud Storage Operators
 ------------------------------
@@ -1100,7 +1109,7 @@ GoogleCloudStorageBucketCreateAclEntryOperator
 
 Creates a new ACL entry on the specified bucket.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`
 
 Arguments
@@ -1135,15 +1144,14 @@ More information
 """"""""""""""""
 
 See `Google Cloud Storage BucketAccessControls insert documentation
-<https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_
-for details.
+<https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_.
 
 GoogleCloudStorageObjectCreateAclEntryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Creates a new ACL entry on the specified object.
 
-For parameter definition take a look at
+For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`
 
 Arguments
@@ -1178,6 +1186,5 @@ More information
 """"""""""""""""
 
 See `Google Cloud Storage ObjectAccessControls insert documentation
-<https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_
-for details.
+<https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
 
