@@ -6,6 +6,6 @@ You can then start the different servers by using systemctl start <service>. Ena
  systemctl enable <service>.
 
 By default the environment configuration points to /etc/sysconfig/airflow . You can copy the "airflow" file in this
-directory and adjust it to your liking. Make sure to specify the SCHEDULER_RUNS variable.
+directory and adjust it to your liking.
 
 With some minor changes they probably work on other systemd systems.
