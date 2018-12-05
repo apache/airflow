@@ -719,6 +719,178 @@ More information
 See `Google Cloud SQL API documentation for delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
+.. CloudSqlInstanceExportOperator:
+
+CloudSqlInstanceExportOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
+or CSV file.
+
+Note: This operator is idempotent. If executed multiple times with the same
+export file URI, the export file in GCS will simply be overridden.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from Airflow variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_arguments]
+    :end-before: [END howto_operator_cloudsql_arguments]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_export_import_arguments]
+    :end-before: [END howto_operator_cloudsql_export_import_arguments]
+
+Example body defining the export operation:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_export_body]
+    :end-before: [END howto_operator_cloudsql_export_body]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_export]
+    :end-before: [END howto_operator_cloudsql_export]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_sql_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_sql_export_template_fields]
+    :end-before: [END gcp_sql_export_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud SQL API documentation for export <https://cloud.google
+.com/sql/docs/mysql/admin-api/v1beta4/instances/export>`_.
+
+Troubleshooting
+"""""""""""""""
+
+If you receive an "Unauthorized" error in GCP, make sure that the service account
+of the Cloud SQL instance is authorized to write to the selected GCS bucket.
+
+It is not the service account configured in Airflow that communicates with GCS,
+but rather the service account of the particular Cloud SQL instance.
+
+To grant the service account with the appropriate WRITE permissions for the GCS bucket
+you can use the :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`,
+as shown in the example:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_export_gcs_permissions]
+    :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
+
+
+.. CloudSqlInstanceImportOperator:
+
+CloudSqlInstanceImportOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
+
+CSV import:
+"""""""""""
+
+This operator is NOT idempotent for a CSV import. If the same file is imported
+multiple times, the imported data will be duplicated in the database.
+Moreover, if there are any unique constraints the duplicate import may result in an
+error.
+
+SQL import:
+"""""""""""
+
+This operator is idempotent for a SQL import if it was also exported by Cloud SQL.
+The exported SQL contains 'DROP TABLE IF EXISTS' statements for all tables
+to be imported.
+
+If the import file was generated in a different way, idempotence is not guaranteed.
+It has to be ensured on the SQL file level.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from Airflow variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_arguments]
+    :end-before: [END howto_operator_cloudsql_arguments]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_export_import_arguments]
+    :end-before: [END howto_operator_cloudsql_export_import_arguments]
+
+Example body defining the import operation:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_import_body]
+    :end-before: [END howto_operator_cloudsql_import_body]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_import]
+    :end-before: [END howto_operator_cloudsql_import]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_sql_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_sql_import_template_fields]
+    :end-before: [END gcp_sql_import_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud SQL API documentation for import <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import>`_.
+
+Troubleshooting
+"""""""""""""""
+
+If you receive an "Unauthorized" error in GCP, make sure that the service account
+of the Cloud SQL instance is authorized to read from the selected GCS object.
+
+It is not the service account configured in Airflow that communicates with GCS,
+but rather the service account of the particular Cloud SQL instance.
+
+To grant the service account with the appropriate READ permissions for the GCS object
+you can use the :class:`~airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`,
+as shown in the example:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
+    :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
+
 .. _CloudSqlInstanceCreateOperator:
 
 CloudSqlInstanceCreateOperator
@@ -772,7 +944,6 @@ More information
 
 See `Google Cloud SQL API documentation for insert <https://cloud.google
 .com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
-
 
 .. _CloudSqlInstancePatchOperator:
 
