@@ -44,6 +44,10 @@ from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+from airflow.utils.log.logging_mixin import LoggingMixin
+>>>>>>> 21e267b8... [AIRFLOW-3370] Remove import statement, re-add LoggingMixin, and rep-add test_dag.py
 
 
 class ParentStdout():
