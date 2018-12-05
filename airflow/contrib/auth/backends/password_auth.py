@@ -94,6 +94,9 @@ class PasswordUser(models.User):
         """Provides access to data profiling tools"""
         return True
 
+    def is_superuser(self):
+        return hasattr(self, 'user') and self.user.is_superuser()
+
 
 @login_manager.user_loader
 @provide_session
@@ -102,8 +105,8 @@ def load_user(userid, session=None):
     if not userid or userid == 'None':
         return None
 
-    user = session.query(PasswordUser).filter(PasswordUser.id == int(userid)).first()
-    return user
+    user = session.query(models.User).filter(models.User.id == int(userid)).first()
+    return PasswordUser(user)
 
 
 def authenticate(session, username, password):
