@@ -33,19 +33,19 @@ class SpannerHook(GoogleCloudBaseHook):
     """
 
     def __init__(
-        self, gcp_conn_id="google_cloud_default", delegate_to=None
+        self, gcp_conn_id="google_cloud_default", delegate_to=None, version="v1"
     ):
-        super(SpannerHook, self).__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to
-        )
-        self.connection = self.get_conn("v1")
+        super(SpannerHook, self).__init__(gcp_conn_id, delegate_to)
+        self.version = version
 
-    def get_conn(self, version="v1"):
+    def get_conn(self):
         """
         Returns a Google Cloud Spanner service object.
         """
         http_authorized = self._authorize()
-        return build("spanner", version, http=http_authorized, cache_discovery=False)
+        return build(
+            "spanner", self.version, http=http_authorized, cache_discovery=False
+        )
 
     def list_instance_configs(self, project_id):
         """
@@ -66,7 +66,8 @@ class SpannerHook(GoogleCloudBaseHook):
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instanceConfigs()
                 .list(parent="projects/{}".format(project_id))
                 .execute()
@@ -108,13 +109,14 @@ class SpannerHook(GoogleCloudBaseHook):
         project_id = project_id if project_id is not None else self.project_id
 
         if "instanceId" not in body:
-            raise ValueError("Spanner instanceId is undefined")
+            raise ValueError("instanceId is undefined in the body")
 
         self.log.info("Creating Spanner instance")
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .create(parent="projects/{}".format(project_id), body=body)
                 .execute()
@@ -147,14 +149,14 @@ class SpannerHook(GoogleCloudBaseHook):
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .get(name="projects/{}/instances/{}".format(project_id, instance_id))
                 .execute()
             )
 
             self.log.info("Spanner instance retrieved successfully")
-
             return resp
         except HttpError as err:
             raise AirflowException(
@@ -180,7 +182,7 @@ class SpannerHook(GoogleCloudBaseHook):
         self.log.info("Deleting Spanner instance")
 
         try:
-            self.connection.projects().instances().delete(
+            self.get_conn().projects().instances().delete(
                 name="projects/{}/instances/{}".format(project_id, instance_id)
             ).execute()
 
@@ -208,14 +210,14 @@ class SpannerHook(GoogleCloudBaseHook):
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .list(parent="projects/{}".format(project_id))
                 .execute()
             )
 
             self.log.info("All Spanner instances retrieved successfully")
-
             return resp
         except HttpError as err:
             raise AirflowException(
@@ -244,11 +246,15 @@ class SpannerHook(GoogleCloudBaseHook):
 
         project_id = project_id if project_id is not None else self.project_id
 
+        if "createStatement" not in body:
+            raise ValueError("createStatement is undefined in the body")
+
         self.log.info("Creating Spanner database")
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .databases()
                 .create(
@@ -287,7 +293,8 @@ class SpannerHook(GoogleCloudBaseHook):
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .databases()
                 .get(
@@ -326,7 +333,7 @@ class SpannerHook(GoogleCloudBaseHook):
         self.log.info("Dropping Spanner database")
 
         try:
-            self.connection.projects().instances().databases().dropDatabase(
+            self.get_conn().projects().instances().databases().dropDatabase(
                 database="projects/{}/instances/{}/databases/{}".format(
                     project_id, instance_id, database_id
                 )
@@ -358,7 +365,8 @@ class SpannerHook(GoogleCloudBaseHook):
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .databases()
                 .list(parent="projects/{}/instances/{}".format(project_id, instance_id))
@@ -395,7 +403,8 @@ class SpannerHook(GoogleCloudBaseHook):
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .databases()
                 .sessions()
@@ -434,7 +443,7 @@ class SpannerHook(GoogleCloudBaseHook):
         self.log.info("Deleting Spanner database session")
 
         try:
-            self.connection.projects().instances().databases().sessions().delete(
+            self.get_conn().projects().instances().databases().sessions().delete(
                 name=session_id
             ).execute()
 
@@ -467,11 +476,15 @@ class SpannerHook(GoogleCloudBaseHook):
             body = {"sql": "SELECT * FROM Product"}
         """
 
+        if "sql" not in body:
+            raise ValueError("sql is undefined in the body")
+
         self.log.info("Executing SQL on Spanner")
 
         try:
             resp = (
-                self.connection.projects()
+                self.get_conn()
+                .projects()
                 .instances()
                 .databases()
                 .sessions()
