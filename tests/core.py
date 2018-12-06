@@ -1164,13 +1164,13 @@ class CliTests(unittest.TestCase):
             'list_tasks', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
-    @mock.patch("airflow.bin.cli.db_utils.initdb")
+    @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
         initdb_mock.assert_called_once_with(False)
 
-    @mock.patch("airflow.bin.cli.db_utils.resetdb")
+    @mock.patch("airflow.bin.cli.db.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
 

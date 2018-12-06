@@ -24,8 +24,9 @@ from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import or_
 
-from airflow import models, settings
+from airflow import models
 from airflow.www_rbac.app import appbuilder
+from airflow.utils.db import provide_session
 
 ###########################################################################
 #                               VIEW MENUS
@@ -329,7 +330,8 @@ class AirflowSecurityManager(SecurityManager):
         if not pv and permission_name and view_menu_name:
             self.add_permission_view_menu(permission_name, view_menu_name)
 
-    def create_custom_dag_permission_view(self):
+    @provide_session
+    def create_custom_dag_permission_view(self, session=None):
         """
         Workflow:
         1. when scheduler found a new dag, we will create an entry in ab_view_menu
@@ -359,7 +361,7 @@ class AirflowSecurityManager(SecurityManager):
                 merge_pv(perm, dag)
 
         # Get all the active / paused dags and insert them into a set
-        all_dags_models = settings.Session.query(models.DagModel)\
+        all_dags_models = session.query(models.DagModel)\
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
             .filter(~models.DagModel.is_subdag).all()
 
@@ -382,7 +384,7 @@ class AirflowSecurityManager(SecurityManager):
         view_menu = self.viewmenu_model
 
         # todo(tao) comment on the query
-        all_perm_view_by_user = settings.Session.query(ab_perm_view_role)\
+        all_perm_view_by_user = session.query(ab_perm_view_role)\
             .join(perm_view, perm_view.id == ab_perm_view_role
                   .columns.permission_view_id)\
             .filter(ab_perm_view_role.columns.role_id == user_role.id)\
