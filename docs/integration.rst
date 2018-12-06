@@ -427,6 +427,70 @@ AwsFirehoseHook
 
 .. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 
+Amazon SageMaker
+''''''''''''''''
+
+For more instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
+
+.. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
+
+- :ref:`SageMakerHook` : Interact with Amazon SageMaker.
+- :ref:`SageMakerTrainingOperator` : Create a SageMaker training job.
+- :ref:`SageMakerTuningOperator` : Create a SageMaker tuning job.
+- :ref:`SageMakerModelOperator` : Create a SageMaker model.
+- :ref:`SageMakerTransformOperator` : Create a SageMaker transform job.
+- :ref:`SageMakerEndpointConfigOperator` : Create a SageMaker endpoint config.
+- :ref:`SageMakerEndpointOperator` : Create a SageMaker endpoint.
+
+.. _SageMakerHook:
+
+SageMakerHook
+"""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.sagemaker_hook.SageMakerHook
+
+.. _SageMakerTrainingOperator:
+
+SageMakerTrainingOperator
+"""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator
+
+.. _SageMakerTuningOperator:
+
+SageMakerTuningOperator
+"""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator
+
+.. _SageMakerModelOperator:
+
+SageMakerModelOperator
+""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator
+
+.. _SageMakerTransformOperator:
+
+SageMakerTransformOperator
+""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator
+
+.. _SageMakerEndpointConfigOperator:
+
+SageMakerEndpointConfigOperator
+"""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
+
+.. _SageMakerEndpointOperator:
+
+SageMakerEndpointOperator
+"""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
+
 .. _Databricks:
 
 Databricks
