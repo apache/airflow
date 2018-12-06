@@ -31,10 +31,14 @@ import textwrap
 import time
 import unittest
 import urllib
+import uuid
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
+from hamcrest import contains, instance_of
+from hamcrest.core import assert_that
+from hamcrest.core.core import is_
 from mock import ANY, Mock, mock_open, patch
 from parameterized import parameterized
 from freezegun import freeze_time
@@ -407,6 +411,108 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', '{{ foo }}', dict(foo='bar'))
         self.assertEqual(result, 'bar')
+
+    def test_render_template_list_field(self):
+        """Tests if render_template from a list field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], dict(foo='bar'))
+        assert_that(result, is_(instance_of(list)))
+        assert_that(result, contains('bar_1', 'bar_2'))
+
+    def test_render_template_tuple_field(self):
+        """Tests if render_template from a tuple field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), dict(foo='bar'))
+        # tuple is replaced by a list
+        assert_that(result, is_(instance_of(list)))
+        assert_that(result, contains('bar_1', 'bar_2'))
+
+    def test_render_template_dict_field(self):
+        """Tests if render_template from a dict field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, dict(foo='bar'))
+        assert_that(result, is_({'key1': 'bar_1', 'key2': 'bar_2'}))
+
+    def test_render_template_dict_field_with_templated_keys(self):
+        """Tests if render_template from a dict field works as expected:
+        dictionary keys are not templated"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, dict(foo='bar'))
+        assert_that(result, is_({'key_{{ foo }}_1': 1, 'key_2': 'bar_2'}))
+
+    def test_render_template_date_field(self):
+        """Tests if render_template from a date field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        assert_that(
+            task.render_template('', datetime.date(2018, 12, 6), dict(foo='bar')),
+            is_(datetime.date(2018, 12, 6)))
+
+    def test_render_template_datetime_field(self):
+        """Tests if render_template from a datetime field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        assert_that(
+            task.render_template('', datetime.datetime(2018, 12, 6, 10, 55), dict(foo='bar')),
+            is_(datetime.datetime(2018, 12, 6, 10, 55)))
+
+    def test_render_template_UUID_field(self):
+        """Tests if render_template from a UUID field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        random_uuid = uuid.uuid4()
+        assert_that(task.render_template('', random_uuid, dict(foo='bar')), is_(random_uuid))
+
+    def test_render_template_object_field(self):
+        """Tests if render_template from an object field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        test_object = object()
+        assert_that(task.render_template('', test_object, dict(foo='bar')), is_(test_object))
 
     def test_render_template_field_macro(self):
         """ Tests if render_template from a field works,

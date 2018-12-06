@@ -47,7 +47,6 @@ import zipfile
 import jinja2
 import json
 import logging
-import numbers
 import os
 import pendulum
 import pickle
@@ -2643,18 +2642,12 @@ class BaseOperator(LoggingMixin):
             result = jinja_env.from_string(content).render(**context)
         elif isinstance(content, (list, tuple)):
             result = [rt(attr, e, context) for e in content]
-        elif isinstance(content, numbers.Number):
-            result = content
         elif isinstance(content, dict):
             result = {
                 k: rt("{}[{}]".format(attr, k), v, context)
                 for k, v in list(content.items())}
         else:
-            param_type = type(content)
-            msg = (
-                "Type '{param_type}' used for parameter '{attr}' is "
-                "not supported for templating").format(**locals())
-            raise AirflowException(msg)
+            result = content
         return result
 
     def render_template(self, attr, content, context):
