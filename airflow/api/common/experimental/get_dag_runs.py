@@ -52,6 +52,6 @@ def format_dag_run(run):
             'execution_date': run.execution_date.isoformat(),
             'start_date': ((run.start_date or '') and
                            run.start_date.isoformat()),
-            'dag_run_url': url_for('airflow.graph', dag_id=run.dag_id,
+            'dag_run_url': url_for('Airflow.graph', dag_id=run.dag_id,
                                    execution_date=run.execution_date)
             }
