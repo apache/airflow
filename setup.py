@@ -216,7 +216,7 @@ password = [
 ]
 pinot = ['pinotdb==0.1.1']
 postgres = ['psycopg2>=2.7.4,<2.8']
-qds = ['qds-sdk>=1.9.6']
+qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis~=3.2']
 s3 = ['boto3>=1.7.0, <1.8.0']
