@@ -225,6 +225,23 @@ AdlsToGoogleCloudStorageOperator
 
 .. _AWS:
 
+Azure Kubernetes Service
+'''''''''''''''''''''''''
+Azure Kubernetes Service (AKS) simplifies the deployment and operations of Kubernetes and enables you to dynamically scale your application infrastructure.
+The AzureKubernetesServiceHook requires a service principal. The credentials for this principal can either be defined in the extra field `key_path`, as an 
+environment variable named `AZURE_AUTH_LOCATION`.
+
+- :ref:`AzureKubernetesOperator` : Start new AKS.
+- :ref:`AzureKubernetesServiceHook` : Wrapper around a aks.
+
+AzureKubernetesOperator
+"""""""""""""""""""""""""""""""
+ .. autoclass:: airflow.contrib.operators.aks_operator.AzureKubernetesOperator
+
+AzureKubernetesServiceHook
+""""""""""""""""""""""""""
+ .. autoclass:: airflow.contrib.hooks.azure_kubernetes_hook.AzureKubernetesServiceHook
+
 AWS: Amazon Web Services
 ------------------------
 

@@ -283,6 +283,10 @@ def initdb(rbac=False):
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }'))
     merge_conn(
         models.Connection(
+            conn_id='azure_kubernetes_default', conn_type='azure_kubernetes_instances',
+            extra='{"key_path": "<AZURE_AUTH_LOCATION>" }'))
+    merge_conn(
+        models.Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
 
