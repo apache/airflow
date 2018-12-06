@@ -31,6 +31,7 @@ class OpenFaasHook(BaseHook):
     :param function_name: Name of the function, Defaults to None
     :type query: str
     :param conn_id: openfass connection to use, Defaults to open_faas_default
+    for example host : https://openfaas.faas.com, Conn Type : Http
     :type conn_id: str
     """
 
@@ -53,39 +54,39 @@ class OpenFaasHook(BaseHook):
 
     def deploy_function(self, overwrite_function_if_exist, body):
         if overwrite_function_if_exist:
-            self.log.info("function already exist " + self.function_name + " going to update")
+            self.log.info("Function already exist " + self.function_name + " going to update")
             self.update_function(body)
         else:
             url = self.get_conn().host + self.DEPLOY_FUNCTION
-            self.log.info("deploying function " + url)
+            self.log.info("Deploying function " + url)
             response = requests.post(url, body)
             if (response.status_code != OK_STATUS_CODE):
-                self.log.error("response status " + str(response.status_code))
-                self.log.error("failed to deploy")
+                self.log.error("Response status " + str(response.status_code))
+                self.log.error("Failed to deploy")
                 raise AirflowException('failed to deploy')
             else:
-                self.log.info("function deployed " + self.function_name)
+                self.log.info("Function deployed " + self.function_name)
 
     def invoke_async_function(self, body):
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
-        self.log.info("invoking  function " + url)
+        self.log.info("Invoking  function " + url)
         response = requests.post(url, body)
         if (response.ok):
-            self.log.info("invoked " + self.function_name)
+            self.log.info("Invoked " + self.function_name)
         else:
-            self.log.error("response status " + str(response.status_code))
+            self.log.error("Response status " + str(response.status_code))
             raise AirflowException('failed to invoke function')
 
     def update_function(self, body):
         url = self.get_conn().host + self.UPDATE_FUNCTION
-        self.log.info("updating function " + url)
+        self.log.info("Updating function " + url)
         response = requests.put(url, body)
         if (response.status_code != OK_STATUS_CODE):
-            self.log.error("response status " + str(response.status_code))
-            self.log.error("failed to update response " + response.content.decode("utf-8"))
+            self.log.error("Response status " + str(response.status_code))
+            self.log.error("Failed to update response " + response.content.decode("utf-8"))
             raise AirflowException('failed to update ' + self.function_name)
         else:
-            self.log.info("function was updated")
+            self.log.info("Function was updated")
 
     def does_function_exist(self):
         url = self.get_conn().host + self.GET_FUNCTION + self.function_name
