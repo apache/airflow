@@ -151,6 +151,7 @@ azure_data_lake = [
     'azure-mgmt-datalake-store==0.4.0',
     'azure-datalake-store==0.0.19'
 ]
+azure_cosmos = ['azure-cosmos>=3.0.1']
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery>=4.1.1, <4.2.0',
@@ -265,10 +266,11 @@ if not PY3:
 
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
+devel_azure = devel_minreq + azure_data_lake + azure_cosmos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch + azure_data_lake +
+             druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
              atlas)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
@@ -343,6 +345,7 @@ def do_setup():
             'async': async_packages,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
+            'azure_cosmos': azure_cosmos,
             'cassandra': cassandra,
             'celery': celery,
             'cgroups': cgroups,
@@ -353,6 +356,7 @@ def do_setup():
             'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
+            'devel_azure': devel_azure,
             'doc': doc,
             'docker': docker,
             'druid': druid,
