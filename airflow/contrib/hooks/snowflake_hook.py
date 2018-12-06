@@ -59,7 +59,7 @@ class SnowflakeHook(DbApiHook):
             "database": self.database or database or '',
             "account": self.account or account or '',
             "warehouse": self.warehouse or warehouse or '',
-            "region" : self.region or region or ''
+            "region": self.region or region or ''
         }
         return conn_config
 

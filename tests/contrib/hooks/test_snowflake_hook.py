@@ -39,7 +39,8 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.schema = 'public'
         self.conn.extra_dejson = {'database': 'db',
                                   'account': 'airflow',
-                                  'warehouse': 'af_wh'}
+                                  'warehouse': 'af_wh',
+                                  'region': 'af_region'}
 
         class UnitTestSnowflakeHook(SnowflakeHook):
             conn_name_attr = 'snowflake_conn_id'
@@ -62,7 +63,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                 'schema': 'public',
                                 'database': 'db',
                                 'account': 'airflow',
-                                'warehouse': 'af_wh'}
+                                'warehouse': 'af_wh',
+                                'region': 'af_region'}
         self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
 
     def test_get_conn(self):
