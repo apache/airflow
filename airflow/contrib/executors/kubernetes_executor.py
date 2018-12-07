@@ -590,9 +590,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def sync(self):
         if self.running:
-            self.log.info('self.running: %s', self.running)
+            self.log.debug('self.running: %s', self.running)
         if self.queued_tasks:
-            self.log.info('self.queued: %s', self.queued_tasks)
+            self.log.debug('self.queued: %s', self.queued_tasks)
         self.kube_scheduler.sync()
 
         last_resource_version = None
