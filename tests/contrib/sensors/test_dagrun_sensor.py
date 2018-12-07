@@ -84,12 +84,12 @@ class TestDagRunSensor(unittest.TestCase):
             dag_parent.run()
 
         failed_tis = sess.query(TI).filter(
+            TI.dag_id == TEST_DAG_PARENT,
             TI.state == State.FAILED,
         ).all()
         self.assertEqual(len(failed_tis), 1)
         failed_ti = failed_tis[0]
         self.assertEqual(failed_ti.task_id, 'sense_child')
-        self.assertEqual(failed_ti.dag_id, TEST_DAG_PARENT)
 
         failed_drs = sess.query(DR).filter(
             DR.dag_id == TEST_DAG_PARENT,
