@@ -184,6 +184,9 @@
         {% endfor %}
         </tbody>
     </table>
+    <a href="{{ url_for('Airflow.refresh_all') }}">
+      <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh All DAGs"></span> Refresh All DAGs
+    </a>
     <div class="row">
       <div class="col-sm-12" style="text-align:right;">
         <div class="dataTables_info" id="dags_info" role="status" aria-live="polite" style="padding-top: 0px;">Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries</div>
