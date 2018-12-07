@@ -53,8 +53,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.end_of_log_mark = 'end_of_log\n'
         self.write_stdout = None
         self.json_format = None
-        self.record_labels = ['asctime', 'levelname', 'filename', 'lineno', 'message']
-        self.host = "10.31.255.146:9200"
+        self.record_labels = None
 
         self.es_task_handler = ElasticsearchTaskHandler(
             self.local_log_location,
@@ -67,7 +66,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.host,
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{'host': '10.31.255.146', 'port': 9200}])
+        self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
         self.index_name = 'test_index'
         self.doc_type = 'log'
         self.test_message = 'some random stuff'

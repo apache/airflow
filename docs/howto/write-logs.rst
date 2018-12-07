@@ -148,7 +148,8 @@ This handler also has additional options.
    To use this feature, set the ``ELASTICSEARCH_WRITE_STDOUT`` flag in ``airflow.cfg``.
 
 2. You can also choose to have the logs output in a JSON format. Airflow uses the standard Python ``logging`` module. JSON fields are directly defined from the LogRecord object.
-   To use this feature, set the ``ELASTICSEARCH_JSON_FORMAT`` flag in ``airflow.cfg``.
+   To use this feature, set the ``ELASTICSEARCH_JSON_FORMAT`` flag in ``airflow.cfg``. Add the fields to the comma-delimited string that you want collected for the logs. These fields are
+   from the LogRecord object in the ``logging`` module. `Documentation on different attributes can be found here <https://docs.python.org/3/library/logging.html#logrecord-objects/>`_.
 
 First, to use the handler, ``airflow.cfg`` must be configured as follows:
 
@@ -188,24 +189,17 @@ If the ``ELASTICSEARCH_WRITE_STDOUT`` flag is desired, the following must be add
     elasticsearch_end_of_log_mark = end_of_log
     elasticsearch_write_stdout = True
     elasticsearch_json_format = True
+    # A comma delimited string for all record label fields
+    elasticsearch_record_labels = asctime, loglevel, ...
 
 To enable the Elasticsearch handler, a custom log configuration file must be added, as detailed by the following steps:
 
 1. Airflow's logging system requires a custom .py file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file. ``$AIRFLOW_HOME/config`` is recommended.
 2. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
 3. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file that was just created in the step above.
-4. If ``ELASTICSEARCH_JSON_FORMAT`` is set in ``airflow.cfg``, add a list called ``RECORD_LABELS`` and add the fields to the list that you want
-   collected for the logs. These fields are from the LogRecord object in the ``logging`` module.
-   `Documentation
-   <https://docs.python.org/3/library/logging.html#logrecord-objects>`_ on
-   different attributes can be found here.
-5. Customize the following portions of the template:
+4. Customize the following portions of the template:
 
   .. code-block:: bash
-
-      # An example configuration is below.
-
-      RECORD_LABELS = ['asctime', 'levelname', 'filename', 'lineno', 'message']
 
       # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
       LOGGING_CONFIG = ...

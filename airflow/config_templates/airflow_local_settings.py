@@ -63,7 +63,8 @@ ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'ELASTICSEARCH_WRITE_STDO
 
 ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'ELASTICSEARCH_JSON_FORMAT')
 
-ELASTICSEARCH_RECORD_LABELS = [label.strip() for label in conf.get('elasticsearch', 'ELASTICSEARCH_RECORD_LABELS').split(",")]
+ELASTICSEARCH_RECORD_LABELS = [label.strip() for label in conf.get('elasticsearch',
+                               'ELASTICSEARCH_RECORD_LABELS').split(",")]
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
