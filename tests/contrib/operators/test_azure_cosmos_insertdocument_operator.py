@@ -23,7 +23,7 @@ import json
 import unittest
 import uuid
 
-from airflow.contrib.operators.azure_cosmos_insertdocument_operator import AzureCosmosInsertDocumentOperator
+from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
 
 from airflow import configuration
 from airflow import models
