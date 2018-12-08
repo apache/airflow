@@ -208,21 +208,20 @@ class BigQueryOperatorTest(unittest.TestCase):
             .cursor() \
             .run_query \
             .assert_called_once_with(
-            sql='Select * from test_table',
-            destination_dataset_table=None,
-            write_disposition='WRITE_EMPTY',
-            allow_large_results=False,
-            flatten_results=None,
-            udf_config=None,
-            maximum_billing_tier=None,
-            maximum_bytes_billed=None,
-            create_disposition='CREATE_IF_NEEDED',
-            schema_update_options=(),
-            query_params=None,
-            labels=None,
-            priority='INTERACTIVE',
-            time_partitioning=None,
-            api_resource_configs=None,
-            cluster_fields=None,
-        )
-
+                sql='Select * from test_table',
+                destination_dataset_table=None,
+                write_disposition='WRITE_EMPTY',
+                allow_large_results=False,
+                flatten_results=None,
+                udf_config=None,
+                maximum_billing_tier=None,
+                maximum_bytes_billed=None,
+                create_disposition='CREATE_IF_NEEDED',
+                schema_update_options=(),
+                query_params=None,
+                labels=None,
+                priority='INTERACTIVE',
+                time_partitioning=None,
+                api_resource_configs=None,
+                cluster_fields=None,
+            )
