@@ -1129,7 +1129,6 @@ class TaskInstance(Base, LoggingMixin):
         cmd.extend(["--raw"]) if raw else None
         cmd.extend(["-sd", file_path]) if file_path else None
         cmd.extend(["--cfg_path", cfg_path]) if cfg_path else None
-        #cmd.extend(["&"]) if local and not raw else None
         return cmd
 
     @property
