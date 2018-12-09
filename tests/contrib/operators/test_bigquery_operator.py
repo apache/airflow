@@ -21,7 +21,8 @@ import unittest
 
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
-    BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator
+    BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator, \
+    BigQueryOperator
 
 try:
     from unittest import mock
@@ -142,4 +143,85 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
                 dataset_id=TEST_DATASET,
                 project_id=TEST_PROJECT_ID,
                 dataset_reference={}
+            )
+
+
+class BigQueryOperatorTest(unittest.TestCase):
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_execute(self, mock_hook):
+        operator = BigQueryOperator(
+            task_id=TASK_ID,
+            sql='Select * from test_table',
+            destination_dataset_table=None,
+            write_disposition='WRITE_EMPTY',
+            allow_large_results=False,
+            flatten_results=None,
+            bigquery_conn_id='bigquery_default',
+            udf_config=None,
+            use_legacy_sql=True,
+            maximum_billing_tier=None,
+            maximum_bytes_billed=None,
+            create_disposition='CREATE_IF_NEEDED',
+            schema_update_options=(),
+            query_params=None,
+            labels=None,
+            priority='INTERACTIVE',
+            time_partitioning=None,
+            api_resource_configs=None,
+            cluster_fields=None,
+        )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn() \
+            .cursor() \
+            .run_query \
+            .assert_called_once_with(
+                sql='Select * from test_table',
+                destination_dataset_table=None,
+                write_disposition='WRITE_EMPTY',
+                allow_large_results=False,
+                flatten_results=None,
+                udf_config=None,
+                maximum_billing_tier=None,
+                maximum_bytes_billed=None,
+                create_disposition='CREATE_IF_NEEDED',
+                schema_update_options=(),
+                query_params=None,
+                labels=None,
+                priority='INTERACTIVE',
+                time_partitioning=None,
+                api_resource_configs=None,
+                cluster_fields=None,
+            )
+
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_bigquery_operator_defaults(self, mock_hook):
+        operator = BigQueryOperator(
+            task_id=TASK_ID,
+            sql='Select * from test_table',
+        )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn() \
+            .cursor() \
+            .run_query \
+            .assert_called_once_with(
+                sql='Select * from test_table',
+                destination_dataset_table=None,
+                write_disposition='WRITE_EMPTY',
+                allow_large_results=False,
+                flatten_results=None,
+                udf_config=None,
+                maximum_billing_tier=None,
+                maximum_bytes_billed=None,
+                create_disposition='CREATE_IF_NEEDED',
+                schema_update_options=(),
+                query_params=None,
+                labels=None,
+                priority='INTERACTIVE',
+                time_partitioning=None,
+                api_resource_configs=None,
+                cluster_fields=None,
             )
