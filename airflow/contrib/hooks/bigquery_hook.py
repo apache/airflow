@@ -506,6 +506,8 @@ class BigQueryBaseCursor(LoggingMixin):
         Schema changes can only be applied to tables, not views.
         To patch a view, 'view' kwarg is required to parse in.
 
+        Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
+
         :param project_id: The project containing the table/view to be patched.
         :type project_id: str
         :param dataset_id: The dataset containing the table/view to be patched.
