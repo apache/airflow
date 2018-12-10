@@ -92,7 +92,6 @@ admin = users[0]
 admin.superuser = True
 session.add(admin)
 session.commit()
-
 ```
 
 ## Airflow 1.10.1
