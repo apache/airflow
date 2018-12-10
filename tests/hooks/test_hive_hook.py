@@ -403,6 +403,18 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = HiveServer2Hook()
         hook.get_conn()
 
+    def test_get_conn_with_password(self):
+        from airflow.hooks.base_hook import CONN_ENV_PREFIX
+        conn_id = "conn_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+        conn_value = os.getenv(conn_env)
+        os.putenv(conn_env, "http://conn_id@conn_pass:address.com:port")
+
+        hook = HiveServer2Hook(hiveserver2_conn_id=conn_id)
+        self.assertEqual(hook.get_conn().password, 'conn_pass')
+
+        os.putenv(conn_env, conn_value)
+
     def test_get_records(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
