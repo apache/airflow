@@ -63,7 +63,6 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             self.write_stdout,
             self.json_format,
             self.record_labels,
-            self.host,
         )
 
         self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
