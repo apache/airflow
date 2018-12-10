@@ -387,6 +387,59 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_patch_table(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        schema_patched = [
+            {"name": "id", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "balance", "type": "FLOAT", "mode": "NULLABLE"},
+            {"name": "new_field", "type": "STRING", "mode": "NULLABLE"}
+        ]
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_table(project_id, dataset_id, table_id, schema=schema_patched)
+        body = {
+            "schema": {
+                "fields": schema_patched
+            }
+        }
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=body
+        )
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_patch_view(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        view_id = 'bq_view'
+        view_patched = {
+            "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+            "useLegacySql": False
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_table(project_id, dataset_id, view_id, view=view_patched)
+        body = {
+            "view": view_patched
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=view_id,
+            body=body
+        )
+
 
 class TestBigQueryCursor(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')

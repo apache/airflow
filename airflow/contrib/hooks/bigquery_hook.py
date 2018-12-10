@@ -495,6 +495,76 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
+    def patch_table(self,
+                    project_id,
+                    dataset_id,
+                    table_id,
+                    schema=None,
+                    view=None):
+        """
+        Patch information in an existing table/view.
+        Schema changes can only be applied to tables, not views.
+        To patch a view, 'view' kwarg is required to parse in.
+
+        :param project_id: The project containing the table/view to be patched.
+        :type project_id: str
+        :param dataset_id: The dataset containing the table/view to be patched.
+        :type dataset_id: str
+        :param table_id: The Name of the table/view to be patched.
+        :type table_id: str
+        :param schema: [Optional] If set, the schema field list as defined here:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+            The supported schema modifications and unsupported schema modification are listed here:
+            https://cloud.google.com/bigquery/docs/managing-table-schemas
+        :type schema: list
+
+        **Example**: ::
+
+            schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+
+        :param view: [Optional] A dictionary containing definition for the view.
+            If set, it will patch a view instead of a table:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+        :type view: dict
+
+        **Example**: ::
+
+            view = {
+                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+                "useLegacySql": False
+            }
+
+        """
+
+        project_id = project_id if project_id is not None else self.project_id
+
+        table_resource = {}
+
+        if schema:
+            table_resource['schema'] = {'fields': schema}
+
+        if view:
+            table_resource['view'] = view
+
+        self.log.info('Patching Table %s:%s.%s',
+                      project_id, dataset_id, table_id)
+
+        try:
+            self.service.tables().patch(
+                projectId=project_id,
+                datasetId=dataset_id,
+                tableId=table_id,
+                body=table_resource).execute()
+
+            self.log.info('Table patched successfully: %s:%s.%s',
+                          project_id, dataset_id, table_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
     def run_query(self,
                   sql,
                   destination_dataset_table=None,
