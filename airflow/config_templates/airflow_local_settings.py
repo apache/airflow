@@ -21,6 +21,7 @@ import os
 
 from airflow import configuration as conf
 from airflow.utils.file import mkdirs
+import uuid
 
 # TODO: Logging format and level should be configured
 # in this file instead of from airflow.cfg. Currently
@@ -64,7 +65,7 @@ DEFAULT_LOGGING_CONFIG = {
     'disable_existing_loggers': False,
     'formatters': {
         'airflow': {
-            'format': LOG_FORMAT,
+            'format': LOG_FORMAT + ' [' + str(uuid.uuid1()) + ']',
         },
     },
     'handlers': {
