@@ -433,6 +433,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         body = {
             "view": view_patched
         }
+        
         method.assert_called_once_with(
             projectId=project_id,
             datasetId=dataset_id,
