@@ -213,7 +213,7 @@ class WorkerConfiguration(LoggingMixin):
                 'dag_id': dag_id,
                 'task_id': task_id,
                 'execution_date': execution_date,
-                'try_number': str(try_number)
+                'try_number': str(try_number),
             },
             envs=self._get_environment(),
             secrets=self._get_secrets(),
