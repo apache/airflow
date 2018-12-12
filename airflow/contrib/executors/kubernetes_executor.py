@@ -150,6 +150,10 @@ class KubeConfig:
         self.git_user = conf.get(self.kubernetes_section, 'git_user')
         self.git_password = conf.get(self.kubernetes_section, 'git_password')
 
+        # If True, use the dags that exist in the docker container instead of pulling
+        # from git or a dag volume claim.
+        self.use_container_dags = conf.get(self.kubernetes_section, 'use_container_dags')
+
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
         self.dags_volume_claim = conf.get(self.kubernetes_section, 'dags_volume_claim')
@@ -204,10 +208,13 @@ class KubeConfig:
         self._validate()
 
     def _validate(self):
-        if not self.dags_volume_claim and (not self.git_repo or not self.git_branch):
+        if not self.dags_volume_claim \
+                and (not self.git_repo or not self.git_branch) \
+                and not self.use_container_dags:
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
-                'config section: `dags_volume_claim` or `git_repo and git_branch`')
+                'config section: `dags_volume_claim` or `use_container_dags` '
+                'or `git_repo and git_branch`')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
