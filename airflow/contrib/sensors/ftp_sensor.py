@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import ftplib
-import logging
 import re
 
 from airflow.contrib.hooks.ftp_hook import FTPHook, FTPSHook
@@ -43,6 +42,7 @@ class FTPSensor(BaseSensorOperator):
             **kwargs):
         """
         Create a new FTP sensor
+
         :param path: Remote file or directory path
         :type path: str
         :param fail_on_transient_errors: Fail on all errors,
@@ -69,15 +69,15 @@ class FTPSensor(BaseSensorOperator):
             code = int(matches.group(0))
             return code
         except ValueError:
-            return None
+            return e
 
     def poke(self, context):
         with self._create_hook() as hook:
-            logging.info('Poking for %s', self.path)
+            self.log.info('Poking for %s', self.path)
             try:
                 hook.get_mod_time(self.path)
             except ftplib.error_perm as e:
-                logging.info('Ftp error encountered: %s', str(e))
+                self.log.info('Ftp error encountered: %s', str(e))
                 error_code = self._get_error_code(e)
                 if ((error_code != 550) and
                         (self.fail_on_transient_errors or
