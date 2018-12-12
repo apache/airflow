@@ -139,7 +139,7 @@ class KubeConfig:
 
         # NOTE: user can build the dags into the docker image directly,
         # this will set to True if so
-        self.dags_in_docker = conf.get(self.kubernetes_section, 'dags_in_docker')
+        self.dags_in_image = conf.get(self.kubernetes_section, 'dags_in_image')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
@@ -208,12 +208,12 @@ class KubeConfig:
         self._validate()
 
     def _validate(self):
-        if not self.dags_volume_claim and not self.dags_in_docker \
+        if not self.dags_volume_claim and not self.dags_in_image \
                 and (not self.git_repo or not self.git_branch):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
                 'config section: `dags_volume_claim` or `git_repo and git_branch` '
-                'or `dags_in_docker`')
+                'or `dags_in_image`')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
