@@ -1052,6 +1052,9 @@ def worker(args):
         'loglevel': conf.get('core', 'LOGGING_LEVEL'),
     }
 
+    if conf.has_option("celery", "pool"):
+        options["pool"] = conf.get("celery", "pool")
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
                                                         args.pid,
