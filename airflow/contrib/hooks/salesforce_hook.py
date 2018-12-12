@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 """
 This module contains a Salesforce Hook
@@ -24,14 +29,15 @@ NOTE:   this hook also relies on the simple_salesforce package:
 from simple_salesforce import Salesforce
 from airflow.hooks.base_hook import BaseHook
 
-import logging
 import json
 
 import pandas as pd
 import time
 
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-class SalesforceHook(BaseHook):
+
+class SalesforceHook(BaseHook, LoggingMixin):
     def __init__(
             self,
             conn_id,
@@ -78,7 +84,8 @@ class SalesforceHook(BaseHook):
             username=self.connection.login,
             password=self.connection.password,
             security_token=self.extras['security_token'],
-            instance_url=self.connection.host
+            instance_url=self.connection.host,
+            sandbox=self.extras.get('sandbox', False)
         )
         self.sf = sf
         return sf
@@ -91,13 +98,12 @@ class SalesforceHook(BaseHook):
         """
         self.sign_in()
 
-        logging.info("Querying for all objects")
+        self.log.info("Querying for all objects")
         query = self.sf.query_all(query)
 
-        logging.info(
-            "Received results: Total size: {0}; Done: {1}".format(
-                query['totalSize'], query['done']
-            )
+        self.log.info(
+            "Received results: Total size: %s; Done: %s",
+            query['totalSize'], query['done']
         )
 
         query = json.loads(json.dumps(query))
@@ -130,7 +136,7 @@ class SalesforceHook(BaseHook):
         return [f['name'] for f in desc['fields']]
 
     def _build_field_list(self, fields):
-        # join all of the fields in a comma seperated list
+        # join all of the fields in a comma separated list
         return ",".join(fields)
 
     def get_object_from_salesforce(self, obj, fields):
@@ -144,11 +150,9 @@ class SalesforceHook(BaseHook):
         field_string = self._build_field_list(fields)
 
         query = "SELECT {0} FROM {1}".format(field_string, obj)
-        logging.info(
-            "Making query to salesforce: {0}".format(
-                query if len(query) < 30
-                else " ... ".join([query[:15], query[-15:]])
-            )
+        self.log.info(
+            "Making query to Salesforce: %s",
+            query if len(query) < 30 else " ... ".join([query[:15], query[-15:]])
         )
         return self.make_query(query)
 
@@ -171,8 +175,9 @@ class SalesforceHook(BaseHook):
         try:
             col = pd.to_datetime(col)
         except ValueError:
-            logging.warning(
-                "Could not convert field to timestamps: {0}".format(col.name)
+            log = LoggingMixin().log
+            log.warning(
+                "Could not convert field to timestamps: %s", col.name
             )
             return col
 
@@ -205,18 +210,18 @@ class SalesforceHook(BaseHook):
 
         Acceptable formats are:
             - csv:
-                comma-seperated-values file.  This is the default format.
+                comma-separated-values file.  This is the default format.
             - json:
                 JSON array.  Each element in the array is a different row.
             - ndjson:
-                JSON array but each element is new-line deliminated
-                instead of comman deliminated like in `json`
+                JSON array but each element is new-line delimited
+                instead of comma delimited like in `json`
 
         This requires a significant amount of cleanup.
         Pandas doesn't handle output to CSV and json in a uniform way.
         This is especially painful for datetime types.
         Pandas wants to write them as strings in CSV,
-        but as milisecond Unix timestamps.
+        but as millisecond Unix timestamps.
 
         By default, this function will try and leave all values as
         they are represented in Salesforce.
@@ -266,7 +271,7 @@ class SalesforceHook(BaseHook):
             # for each returned record
             object_name = query_results[0]['attributes']['type']
 
-            logging.info("Coercing timestamps for: {0}".format(object_name))
+            self.log.info("Coercing timestamps for: %s", object_name)
 
             schema = self.describe_object(object_name)
 
@@ -300,7 +305,7 @@ class SalesforceHook(BaseHook):
             # there are also a ton of newline objects
             # that mess up our ability to write to csv
             # we remove these newlines so that the output is a valid CSV format
-            logging.info("Cleaning data and writing to CSV")
+            self.log.info("Cleaning data and writing to CSV")
             possible_strings = df.columns[df.dtypes == "object"]
             df[possible_strings] = df[possible_strings].apply(
                 lambda x: x.str.replace("\r\n", "")

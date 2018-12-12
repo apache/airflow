@@ -304,39 +304,39 @@ function updateQueryStringParameter(uri, key, value) {
 
     $("#btn_rendered").click(function(){
       url = "{{ url_for('airflow.rendered') }}" +
-        "?task_id=" + task_id +
-        "&dag_id=" + dag_id +
-        "&execution_date=" + execution_date;
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
     $("#btn_subdag").click(function(){
       url = "{{ url_for('airflow.graph') }}" +
-        "?dag_id=" + subdag_id +
-        "&execution_date=" + execution_date;
+        "?dag_id=" + encodeURIComponent(subdag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
     $("#btn_log").click(function(){
       url = "{{ url_for('airflow.log') }}" +
-        "?task_id=" + task_id +
-        "&dag_id=" + dag_id +
-        "&execution_date=" + execution_date;
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
     $("#btn_task").click(function(){
       url = "{{ url_for('airflow.task') }}" +
-        "?task_id=" + task_id +
-        "&dag_id=" + dag_id +
-        "&execution_date=" + execution_date;
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
     $("#btn_ti").click(function(){
       url = "/admin/taskinstance/" +
-        "?flt1_dag_id_equals=" + dag_id +
-        "&flt2_task_id_equals=" + task_id +
+        "?flt1_dag_id_equals=" + encodeURIComponent(dag_id) +
+        "&flt2_task_id_equals=" + encodeURIComponent(task_id) +
         "&sort=3&desc=1";
       window.location = url;
     });
@@ -348,7 +348,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&ignore_all_deps=" + $('#btn_ignore_all_deps').hasClass('active') +
         "&ignore_task_deps=" + $('#btn_ignore_task_deps').hasClass('active') +
         "&ignore_ti_state=" + $('#btn_ignore_ti_state').hasClass('active') +
-        "&execution_date=" + execution_date +
+        "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
       window.location = url;
     });
@@ -362,7 +362,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&upstream=" + $('#btn_upstream').hasClass('active') +
         "&downstream=" + $('#btn_downstream').hasClass('active') +
         "&recursive=" + $('#btn_recursive').hasClass('active') +
-        "&execution_date=" + execution_date +
+        "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
       window.location = url;
     });
@@ -371,7 +371,7 @@ function updateQueryStringParameter(uri, key, value) {
       url = "{{ url_for('airflow.dagrun_clear') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + execution_date +
+        "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
       window.location = url;
     });
@@ -384,7 +384,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&downstream=" + $('#btn_success_downstream').hasClass('active') +
         "&future=" + $('#btn_success_future').hasClass('active') +
         "&past=" + $('#btn_success_past').hasClass('active') +
-        "&execution_date=" + execution_date +
+        "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
 
       window.location = url;
@@ -393,22 +393,22 @@ function updateQueryStringParameter(uri, key, value) {
     $('#btn_dagrun_success').click(function(){
       url = "{{ url_for('airflow.dagrun_success') }}" +
         "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + execution_date +
+        "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
       window.location = url;
     });
 
     $("#btn_gantt").click(function(){
       url = "{{ url_for('airflow.gantt') }}" +
-        "?dag_id=" + dag_id +
-        "&execution_date=" + execution_date;
+        "?dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
     $("#btn_graph").click(function(){
       url = "{{ url_for('airflow.graph') }}" +
-        "?dag_id=" + dag_id +
-        "&execution_date=" + execution_date;
+        "?dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
 
@@ -419,7 +419,7 @@ function updateQueryStringParameter(uri, key, value) {
       } else {
         is_paused = 'false'
       }
-      url = "{{ url_for('airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + dag_id;
+      url = "{{ url_for('airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + encodeURIComponent(dag_id);
       $.post(url);
     });
 

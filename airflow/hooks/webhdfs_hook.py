@@ -1,29 +1,36 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
-import logging
 
 from hdfs import InsecureClient, HdfsError
 
-_kerberos_security_mode = configuration.get("core", "security") == "kerberos"
+from airflow.utils.log.logging_mixin import LoggingMixin
+
+_kerberos_security_mode = configuration.conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
         from hdfs.ext.kerberos import KerberosClient
     except ImportError:
-        logging.error("Could not load the Kerberos extension for the WebHDFSHook.")
+        log = LoggingMixin().log
+        log.error("Could not load the Kerberos extension for the WebHDFSHook.")
         raise
 from airflow.exceptions import AirflowException
 
@@ -47,7 +54,7 @@ class WebHDFSHook(BaseHook):
         nn_connections = self.get_connections(self.webhdfs_conn_id)
         for nn in nn_connections:
             try:
-                logging.debug('Trying namenode {}'.format(nn.host))
+                self.log.debug('Trying namenode %s', nn.host)
                 connection_str = 'http://{nn.host}:{nn.port}'.format(nn=nn)
                 if _kerberos_security_mode:
                     client = KerberosClient(connection_str)
@@ -55,11 +62,12 @@ class WebHDFSHook(BaseHook):
                     proxy_user = self.proxy_user or nn.login
                     client = InsecureClient(connection_str, user=proxy_user)
                 client.status('/')
-                logging.debug('Using namenode {} for hook'.format(nn.host))
+                self.log.debug('Using namenode %s for hook', nn.host)
                 return client
             except HdfsError as e:
-                logging.debug("Read operation on namenode {nn.host} failed with"
-                              " error: {e.message}".format(**locals()))
+                self.log.debug(
+                    "Read operation on namenode {nn.host} failed with error: {e}".format(**locals())
+                )
         nn_hosts = [c.host for c in nn_connections]
         no_nn_error = "Read operations failed on the namenodes below:\n{}".format("\n".join(nn_hosts))
         raise AirflowWebHDFSHookException(no_nn_error)
@@ -98,4 +106,4 @@ class WebHDFSHook(BaseHook):
                  overwrite=overwrite,
                  n_threads=parallelism,
                  **kwargs)
-        logging.debug("Uploaded file {} to {}".format(source, destination))
+        self.log.debug("Uploaded file %s to %s", source, destination)
