@@ -395,8 +395,8 @@ class AirflowSecurityManager(SecurityManager):
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
-            existing_perms_views = set([role.permission_view_id
-                                        for role in existing_perm_view_by_user])
+            existing_perms_views = set([pv.permission_view_id
+                                        for pv in existing_perm_view_by_user])
             missing_perm_views = all_perm_views - existing_perms_views
 
             for perm_view_id in missing_perm_views:

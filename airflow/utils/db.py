@@ -208,7 +208,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='redis_default', conn_type='redis',
-            host='localhost', port=6379,
+            host='redis', port=6379,
             extra='{"db": 0}'))
     merge_conn(
         models.Connection(
@@ -277,6 +277,10 @@ def initdb(rbac=False):
         models.Connection(
             conn_id='azure_data_lake_default', conn_type='azure_data_lake',
             extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }'))
+    merge_conn(
+        models.Connection(
+            conn_id='azure_cosmos_default', conn_type='azure_cosmos',
+            extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }'))
     merge_conn(
         models.Connection(
             conn_id='cassandra_default', conn_type='cassandra',

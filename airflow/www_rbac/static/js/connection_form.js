@@ -53,6 +53,12 @@ $(document).ready(function () {
         'password': 'Auth Token',
       }
     },
+    ssh: {
+      hidden_fields: ['schema'],
+      relabeling: {
+        'login': 'Username',
+      }
+    },
   };
 
   function connTypeChange(connectionType) {

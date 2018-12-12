@@ -134,6 +134,9 @@ class DataprocClusterCreateOperator(BaseOperator):
         auto-deleted at the end of this duration.
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
     :type auto_delete_ttl: int
+    :param customer_managed_key: The customer-managed key used for disk encryption
+        (projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME])
+    :type customer_managed_key: str
     """
 
     template_fields = ['cluster_name', 'project_id', 'zone', 'region']
@@ -171,6 +174,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  idle_delete_ttl=None,
                  auto_delete_time=None,
                  auto_delete_ttl=None,
+                 customer_managed_key=None,
                  *args,
                  **kwargs):
 
@@ -206,6 +210,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.idle_delete_ttl = idle_delete_ttl
         self.auto_delete_time = auto_delete_time
         self.auto_delete_ttl = auto_delete_ttl
+        self.customer_managed_key = customer_managed_key
         self.single_node = num_workers == 0
 
         assert not (self.custom_image and self.image_version), \
@@ -316,7 +321,8 @@ class DataprocClusterCreateOperator(BaseOperator):
                 },
                 'secondaryWorkerConfig': {},
                 'softwareConfig': {},
-                'lifecycleConfig': {}
+                'lifecycleConfig': {},
+                'encryptionConfig': {}
             }
         }
         if self.num_preemptible_workers > 0:
@@ -391,6 +397,9 @@ class DataprocClusterCreateOperator(BaseOperator):
         if self.service_account_scopes:
             cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] =\
                 self.service_account_scopes
+        if self.customer_managed_key:
+            cluster_data['config']['encryptionConfig'] =\
+                {'gcePdKmsKeyName': self.customer_managed_key}
         return cluster_data
 
     def execute(self, context):
