@@ -63,7 +63,7 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
         hook = AwsDynamoDBHook(aws_conn_id='aws_default')
         self.assertIsNotNone(hook.get_conn())
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveServer2Hook.get_pandas_df',
+    @mock.patch('airflow.hooks.hive_hook.HiveServer2Hook.get_pandas_df',
                 return_value=pd.DataFrame(data=[('1', 'sid')], columns=['id', 'name']))
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
@@ -103,7 +103,7 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
             'table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 1)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveServer2Hook.get_pandas_df',
+    @mock.patch('airflow.hooks.hive_hook.HiveServer2Hook.get_pandas_df',
                 return_value=pd.DataFrame(data=[('1', 'sid'), ('1', 'gupta')], columns=['id', 'name']))
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
