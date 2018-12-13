@@ -31,7 +31,7 @@ from hmsclient import HMSClient
 
 from airflow import DAG, configuration
 from airflow.exceptions import AirflowException
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow.hooks.hive_hook import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -128,7 +128,7 @@ class TestHiveCliHook(unittest.TestCase):
         del os.environ[execution_date_ctx_var_name]
         del os.environ[dag_run_id_ctx_var_name]
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    @mock.patch('airflow.hooks.hive_hook.HiveCliHook.run_cli')
     def test_load_file(self, mock_run_cli):
         filepath = "/path/to/input/file"
         table = "output_table"
@@ -143,7 +143,7 @@ class TestHiveCliHook(unittest.TestCase):
         )
         mock_run_cli.assert_called_with(query)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('airflow.hooks.hive_hook.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
     def test_load_df(self, mock_to_csv, mock_load_file):
         df = pd.DataFrame({"c": ["foo", "bar", "baz"]})
@@ -170,7 +170,7 @@ class TestHiveCliHook(unittest.TestCase):
         self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
         self.assertEqual(kwargs["table"], table)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('airflow.hooks.hive_hook.HiveCliHook.load_file')
     @mock.patch('pandas.DataFrame.to_csv')
     def test_load_df_with_optional_parameters(self, mock_to_csv, mock_load_file):
         hook = HiveCliHook()
@@ -187,7 +187,7 @@ class TestHiveCliHook(unittest.TestCase):
             self.assertEqual(kwargs["create"], create)
             self.assertEqual(kwargs["recreate"], recreate)
 
-    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    @mock.patch('airflow.hooks.hive_hook.HiveCliHook.run_cli')
     def test_load_df_with_data_types(self, mock_run_cli):
         d = OrderedDict()
         d['b'] = [True]
