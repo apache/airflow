@@ -433,6 +433,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
 .. autoclass:: airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook
 .. autoclass:: airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook
+.. autoclass:: airflow.contrib.hooks.gcp_memorystore_hook.MemorystoreHook
 .. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
 .. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook

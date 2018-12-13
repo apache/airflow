@@ -44,14 +44,14 @@ class MemorystoreHook(GoogleCloudBaseHook):
         version="v1beta1",
     ):
         super(MemorystoreHook, self).__init__(gcp_conn_id, delegate_to)
-        self._conn = self.get_conn(version)
+        self.version = version
 
-    def get_conn(self, version):
+    def get_conn(self):
         """
         Returns a Google Cloud Memorystore service object.
         """
         credentials = self._get_credentials()
-        return build("redis", version, credentials=credentials, cache_discovery=False)
+        return build("redis", self.version, credentials=credentials, cache_discovery=False)
 
     def list_instances(self, project_id, location_id):
         """
@@ -75,7 +75,7 @@ class MemorystoreHook(GoogleCloudBaseHook):
         self.log.info("Start requesting list of Redis instances")
         try:
             resp = (
-                self._conn.projects()
+                self.get_conn().projects()
                 .locations()
                 .instances()
                 .list(parent="projects/{}/locations/{}".format(project_id, location_id))
@@ -137,7 +137,7 @@ class MemorystoreHook(GoogleCloudBaseHook):
         self.log.info("Start creating Redis instance")
         try:
             resp = (
-                self._conn.projects()
+                self.get_conn().projects()
                 .locations()
                 .instances()
                 .create(
@@ -183,7 +183,7 @@ class MemorystoreHook(GoogleCloudBaseHook):
         self.log.info("Start deleting Redis instance")
         try:
             resp = (
-                self._conn.projects()
+                self.get_conn().projects()
                 .locations()
                 .instances()
                 .delete(
@@ -230,7 +230,7 @@ class MemorystoreHook(GoogleCloudBaseHook):
         self.log.info("Start requesting Redis instance")
         try:
             resp = (
-                self._conn.projects()
+                self.get_conn().projects()
                 .locations()
                 .instances()
                 .get(

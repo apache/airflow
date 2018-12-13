@@ -927,6 +927,16 @@ DatastoreHook
     :members:
 
 
+Cloud Memorystore
+'''''''''''''''
+
+MemorystoreHook
+"""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_memorystore_hook.MemorystoreHook
+    :members:
+
+
 Cloud ML Engine
 '''''''''''''''
 
