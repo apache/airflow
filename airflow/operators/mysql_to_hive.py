@@ -23,7 +23,7 @@ import unicodecsv as csv
 from tempfile import NamedTemporaryFile
 import MySQLdb
 
-from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.hive_hook import HiveCliHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
