@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
+from airflow.hooks.hive_hook import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.druid_hook import DruidHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
