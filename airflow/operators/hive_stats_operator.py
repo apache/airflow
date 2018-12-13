@@ -24,7 +24,7 @@ import json
 from airflow.exceptions import AirflowException
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
-from airflow.hooks.hive_hooks import HiveMetastoreHook
+from airflow.hooks.hive_hook import HiveMetastoreHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
