@@ -17,6 +17,9 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
+# python-slugify - install and use text-unidecode because of the existing https://github.com/areski/python-nvd3 dependency
+export SLUGIFY_USES_TEXT_UNIDECODE=yes
+
 IMAGE=${1:-airflow}
 TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
