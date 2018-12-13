@@ -545,6 +545,94 @@ See `Google Cloud Functions API documentation
 Google Cloud Sql Operators
 --------------------------
 
+CloudSpannerInstanceDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates a new Cloud Spanner instance or, if an instance with the same name exists,
+updates it.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :start-after: [START howto_operator_spanner_arguments]
+    :end-before: [END howto_operator_spanner_arguments]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_deploy]
+    :end-before: [END howto_operator_spanner_deploy]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
+  :language: python
+  :dedent: 4
+  :start-after: [START gcp_spanner_deploy_template_fields]
+  :end-before: [END gcp_spanner_deploy_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Spanner API documentation for instance `create
+<https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.admin.instance.v1#google.spanner.admin.instance.v1.InstanceAdmin.CreateInstance>`_
+and `update
+<https://cloud.google.com/spanner/docs/reference/rpc/google.spanner.admin.instance.v1#google.spanner.admin.instance.v1.InstanceAdmin.UpdateInstance>`_.
+
+CloudSpannerInstanceDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Deletes a Cloud Spanner instance.
+If an instance does not exist, no action will be taken and the operator will succeed.
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :start-after: [START howto_operator_spanner_arguments]
+    :end-before: [END howto_operator_spanner_arguments]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_delete]
+    :end-before: [END howto_operator_spanner_delete]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
+  :language: python
+  :dedent: 4
+  :start-after: [START gcp_spanner_delete_template_fields]
+  :end-before: [END gcp_spanner_delete_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Spanner API documentation for instance delete
+<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.
+
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

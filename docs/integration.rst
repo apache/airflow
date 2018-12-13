@@ -636,6 +636,30 @@ BigQueryHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
     :members:
 
+Cloud Spanner
+'''''''''''''
+
+Cloud Spanner Operators
+"""""""""""""""""""""""
+
+- :ref:`CloudSpannerInstanceDeployOperator` : creates a new Cloud Spanner instance or,
+  if an instance with the same name exists, updates it.
+- :ref:`CloudSpannerInstanceDeleteOperator` : deletes a Cloud Spanner instance.
+
+.. _CloudSpannerInstanceDeployOperator:
+
+CloudSpannerInstanceDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator
+
+.. _CloudSpannerInstanceDeleteOperator:
+
+CloudSpannerInstanceDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator
+
 Cloud SQL
 '''''''''
 
