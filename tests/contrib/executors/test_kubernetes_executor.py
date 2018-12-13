@@ -109,6 +109,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.airflow_dags = 'logs'
         self.kube_config.dags_volume_subpath = None
         self.kube_config.logs_volume_subpath = None
+        self.kube_config.dags_in_image = False
 
     def test_worker_configuration_no_subpaths(self):
         worker_config = WorkerConfiguration(self.kube_config)
@@ -154,6 +155,61 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         env = worker_config._get_environment()
 
         self.assertEqual(dags_folder, env['AIRFLOW__CORE__DAGS_FOLDER'])
+
+    def test_worker_pvc_dags(self):
+        # Tests persistence volume config created when `dags_volume_claim` is set
+        self.kube_config.dags_volume_claim = 'airflow-dags'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        volumes, volume_mounts = worker_config.init_volumes_and_mounts()
+
+        dag_volume = [volume for volume in volumes if volume['name'] == 'airflow-dags']
+        dag_volume_mount = [mount for mount in volume_mounts if mount['name'] == 'airflow-dags']
+
+        self.assertEqual('airflow-dags', dag_volume[0]['persistentVolumeClaim']['claimName'])
+        self.assertEqual(1, len(dag_volume_mount))
+
+    def test_worker_git_dags(self):
+        # Tests persistence volume config created when `git_repo` is set
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_folder = '/usr/local/airflow/dags'
+        self.kube_config.worker_dags_folder = '/usr/local/airflow/dags'
+
+        self.kube_config.git_sync_container_repository = 'gcr.io/google-containers/git-sync-amd64'
+        self.kube_config.git_sync_container_tag = 'v2.0.5'
+        self.kube_config.git_sync_container = 'gcr.io/google-containers/git-sync-amd64:v2.0.5'
+        self.kube_config.git_sync_init_container_name = 'git-sync-clone'
+        self.kube_config.git_subpath = ''
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        volumes, volume_mounts = worker_config.init_volumes_and_mounts()
+
+        init_container = worker_config._get_init_containers(volume_mounts)[0]
+
+        dag_volume = [volume for volume in volumes if volume['name'] == 'airflow-dags']
+        dag_volume_mount = [mount for mount in volume_mounts if mount['name'] == 'airflow-dags']
+
+        self.assertTrue('emptyDir' in dag_volume[0])
+        self.assertEqual('/usr/local/airflow/dags/', dag_volume_mount[0]['mountPath'])
+
+        self.assertEqual('git-sync-clone', init_container['name'])
+        self.assertEqual('gcr.io/google-containers/git-sync-amd64:v2.0.5', init_container['image'])
+
+    def test_worker_container_dags(self):
+        # Tests that the 'airflow-dags' persistence volume is NOT created when `dags_in_image` is set
+        self.kube_config.dags_in_image = True
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        volumes, volume_mounts = worker_config.init_volumes_and_mounts()
+
+        dag_volume = [volume for volume in volumes if volume['name'] == 'airflow-dags']
+        dag_volume_mount = [mount for mount in volume_mounts if mount['name'] == 'airflow-dags']
+
+        init_containers = worker_config._get_init_containers(volume_mounts)
+
+        self.assertEqual(0, len(dag_volume))
+        self.assertEqual(0, len(dag_volume_mount))
+        self.assertEqual(0, len(init_containers))
 
 
 class TestKubernetesExecutor(unittest.TestCase):

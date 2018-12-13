@@ -139,7 +139,7 @@ class KubeConfig:
 
         # NOTE: user can build the dags into the docker image directly,
         # this will set to True if so
-        self.dags_in_image = conf.get(self.kubernetes_section, 'dags_in_image')
+        self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
