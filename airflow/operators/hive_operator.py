@@ -21,7 +21,7 @@ from __future__ import unicode_literals
 
 import re
 
-from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.hive_hook import HiveCliHook
 from airflow import configuration
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
