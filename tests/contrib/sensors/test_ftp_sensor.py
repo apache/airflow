@@ -93,5 +93,6 @@ class TestFTPSensor(unittest.TestCase):
         self.assertFalse(op.poke(None))
         self.assertTrue(op.poke(None))
 
+
 if __name__ == '__main__':
     unittest.main()
