@@ -24,7 +24,7 @@ from flask import Blueprint, request
 from flask_admin import BaseView, expose
 import pandas as pd
 
-from airflow.hooks.hive_hooks import HiveMetastoreHook, HiveCliHook
+from airflow.hooks.hive_hook import HiveMetastoreHook, HiveCliHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.plugins_manager import AirflowPlugin
