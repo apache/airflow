@@ -178,7 +178,7 @@ data:
     worker_container_image_pull_policy = IfNotPresent
     worker_dags_folder = /tmp/dags
     delete_worker_pods = True
-    dags_in_docker = False
+    dags_in_image = False
     git_repo = https://github.com/apache/incubator-airflow.git
     git_branch = master
     git_subpath = airflow/example_dags/
