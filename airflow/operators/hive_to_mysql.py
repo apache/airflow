@@ -19,7 +19,7 @@
 
 from tempfile import NamedTemporaryFile
 
-from airflow.hooks.hive_hooks import HiveServer2Hook
+from airflow.hooks.hive_hook import HiveServer2Hook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
