@@ -24,6 +24,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Rename of hive_hooks.py to hive_hook.py
+
+For consistency with all other hooks hive_hooks.py file has been renamed to hive_hook.py
+
 ### New `dag_processor_manager_log_location` config option
 
 The DAG parsing manager log now by default will be log into a file, where its location is
