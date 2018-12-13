@@ -19,7 +19,7 @@
 
 import tempfile
 
-from airflow.hooks.hive_hooks import HiveServer2Hook
+from airflow.hooks.hive_hook import HiveServer2Hook
 from airflow.hooks.samba_hook import SambaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
