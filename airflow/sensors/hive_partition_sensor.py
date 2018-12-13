@@ -68,7 +68,7 @@ class HivePartitionSensor(BaseSensorOperator):
             'Poking for table {self.schema}.{self.table}, '
             'partition {self.partition}'.format(**locals()))
         if not hasattr(self, 'hook'):
-            from airflow.hooks.hive_hooks import HiveMetastoreHook
+            from airflow.hooks.hive_hook import HiveMetastoreHook
             self.hook = HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
         return self.hook.check_for_partition(
