@@ -28,7 +28,7 @@ import os
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook
-from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.hive_hook import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.compression import uncompress_file
