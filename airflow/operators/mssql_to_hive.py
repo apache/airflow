@@ -23,7 +23,7 @@ import unicodecsv as csv
 from tempfile import NamedTemporaryFile
 import pymssql
 
-from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.hive_hook import HiveCliHook
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
