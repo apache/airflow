@@ -136,7 +136,7 @@ class HiveOperatorTest(HiveEnvironmentTest):
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
-    import airflow.hooks.hive_hooks
+    import airflow.hooks.hive_hook
     import airflow.operators.presto_to_mysql
 
     class HivePrestoTest(HiveEnvironmentTest):
