@@ -17,12 +17,7 @@
 #  specific language governing permissions and limitations      *
 #  under the License.
 
-#cd /usr/local/lib/python2.7/dist-packages/airflow && \
-#cp -R example_dags/* /root/airflow/dags/ && \
-#cp -R contrib/example_dags/example_kubernetes_*.py /root/airflow/dags/ && \
-
-cp /root/airflow/airflow_config/* /root/airflow/
+cd /usr/local/lib/python2.7/dist-packages/airflow && \
 airflow initdb && \
 alembic upgrade heads && \
-(airflow users --create --username airflow --lastname airflow --firstname jon --email airflow@apache.org --role Admin --password airflow || true) && \
-#echo "retrieved from mount" > /root/test_volume/test.txt
+(airflow users --create --username airflow --lastname airflow --firstname jon --email airflow@apache.org --role Admin --password airflow || true)

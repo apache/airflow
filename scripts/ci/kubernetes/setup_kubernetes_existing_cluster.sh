@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -15,42 +17,18 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-FROM ubuntu:16.04
+set -o xtrace
+set -e
 
-ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
+echo "This script downloads builds the airflow source and docker image, uploads to repository, and then deploys airflow onto existing kubernetes cluster"
 
-# install deps
-RUN apt-get update -y && apt-get install -y \
-        wget \
-        python-dev \
-        python-pip \
-        libczmq-dev \
-        libcurlpp-dev \
-        curl \
-        libssl-dev \
-        git \
-        inetutils-telnet \
-        bind9utils \
-        zip \
-        unzip \
-    && apt-get clean
+DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
-RUN pip install --upgrade pip
+$DIRNAME/docker/build.sh $1 $2
+docker push $1:$2
+IMAGE_STRING=$1:$2
+echo $IMAGE_STRING
+cat $DIRNAME/kube/airflow_testing.yaml.template | sed -e "s|{IMAGE_STRING}|image: $IMAGE_STRING|g" > $DIRNAME/kube/airflow_testing.yaml
+$DIRNAME/kube/deploy.sh local_testing
 
-# Since we install vanilla Airflow, we also want to have support for Postgres and Kubernetes
-RUN pip install -U setuptools && \
-    pip install kubernetes && \
-    pip install cryptography && \
-    pip install psycopg2-binary==2.7.4  # I had issues with older versions of psycopg2, just a warning
-
-# install airflow
-COPY airflow.tar.gz /tmp/airflow.tar.gz
-RUN pip install /tmp/airflow.tar.gz
-
-COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
-COPY airflow-env-local.sh /tmp/airflow-env-local.sh
-
-COPY bootstrap.sh /bootstrap.sh
-RUN chmod +x /bootstrap.sh
-
-ENTRYPOINT ["/bootstrap.sh"]
+echo "Airflow environment on kubernetes is good to go!"
