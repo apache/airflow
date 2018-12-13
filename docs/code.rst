@@ -387,7 +387,7 @@ interface when possible and acting as building blocks for operators.
 
 .. autoclass:: airflow.hooks.dbapi_hook.DbApiHook
 .. autoclass:: airflow.hooks.docker_hook.DockerHook
-.. automodule:: airflow.hooks.hive_hooks
+.. automodule:: airflow.hooks.hive_hook
     :members:
       HiveCliHook,
       HiveMetastoreHook,
