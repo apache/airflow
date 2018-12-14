@@ -1990,7 +1990,7 @@ class SchedulerJobTest(unittest.TestCase):
         dagbag = self._make_simple_dag_bag([dag1, dag2, dag3])
         scheduler = SchedulerJob(num_runs=0, run_duration=0)
         scheduler._change_state_for_tis_without_dagrun(
-            simple_dag_bag=dagbag,
+            dag_bag=dagbag,
             old_states=[State.SCHEDULED, State.QUEUED],
             new_state=State.NONE,
             session=session)
@@ -2018,7 +2018,7 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
 
         scheduler._change_state_for_tis_without_dagrun(
-            simple_dag_bag=dagbag,
+            dag_bag=dagbag,
             old_states=[State.SCHEDULED, State.QUEUED],
             new_state=State.NONE,
             session=session)

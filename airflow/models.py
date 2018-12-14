@@ -82,7 +82,6 @@ from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout,
     AirflowRescheduleException
 )
-from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -245,7 +244,7 @@ def clear_task_instances(tis,
             dr.start_date = timezone.utcnow()
 
 
-class DagBag(BaseDagBag, LoggingMixin):
+class DagBag(LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
     level configuration settings, like what database to use as a backend and
@@ -299,6 +298,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         :return: the amount of dags contained in this dagbag
         """
         return len(self.dags)
+
+    @property
+    def dag_ids(self):
+        return self.dags.keys()
 
     def get_dag(self, dag_id):
         """
@@ -3247,7 +3250,7 @@ class DagModel(Base):
 
 
 @functools.total_ordering
-class DAG(BaseDag, LoggingMixin):
+class DAG(LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start date and an end date
@@ -3438,6 +3441,25 @@ class DAG(BaseDag, LoggingMixin):
             'template_searchpath',
             'last_loaded',
         }
+
+    @property
+    def task_special_args(self):
+        args = {}
+        for task in self.tasks:
+            special_args = {}
+            if task.task_concurrency is not None:
+                special_args['task_concurrency'] = task.task_concurrency
+            if len(special_args) > 0:
+                args[task.task_id] = special_args
+        return args
+
+    def get_task_special_arg(self, task_id, special_arg_name):
+        args = self.task_special_args
+        if task_id in args and special_arg_name in args[task_id]:
+            return args[task_id][special_arg_name]
+        else:
+            return None
+
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)

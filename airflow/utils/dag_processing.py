@@ -45,99 +45,12 @@ from tabulate import tabulate
 # To avoid circular imports
 import airflow.models
 from airflow import configuration as conf
-from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.settings import logging_class_path
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-
-
-class SimpleDag(BaseDag):
-    """
-    A simplified representation of a DAG that contains all attributes
-    required for instantiating and scheduling its associated tasks.
-    """
-
-    def __init__(self, dag, pickle_id=None):
-        """
-        :param dag: the DAG
-        :type dag: DAG
-        :param pickle_id: ID associated with the pickled version of this DAG.
-        :type pickle_id: unicode
-        """
-        self._dag_id = dag.dag_id
-        self._task_ids = [task.task_id for task in dag.tasks]
-        self._full_filepath = dag.full_filepath
-        self._is_paused = dag.is_paused
-        self._concurrency = dag.concurrency
-        self._pickle_id = pickle_id
-        self._task_special_args = {}
-        for task in dag.tasks:
-            special_args = {}
-            if task.task_concurrency is not None:
-                special_args['task_concurrency'] = task.task_concurrency
-            if len(special_args) > 0:
-                self._task_special_args[task.task_id] = special_args
-
-    @property
-    def dag_id(self):
-        """
-        :return: the DAG ID
-        :rtype: unicode
-        """
-        return self._dag_id
-
-    @property
-    def task_ids(self):
-        """
-        :return: A list of task IDs that are in this DAG
-        :rtype: list[unicode]
-        """
-        return self._task_ids
-
-    @property
-    def full_filepath(self):
-        """
-        :return: The absolute path to the file that contains this DAG's definition
-        :rtype: unicode
-        """
-        return self._full_filepath
-
-    @property
-    def concurrency(self):
-        """
-        :return: maximum number of tasks that can run simultaneously from this DAG
-        :rtype: int
-        """
-        return self._concurrency
-
-    @property
-    def is_paused(self):
-        """
-        :return: whether this DAG is paused or not
-        :rtype: bool
-        """
-        return self._is_paused
-
-    @property
-    def pickle_id(self):
-        """
-        :return: The pickle ID for this DAG, if it has one. Otherwise None.
-        :rtype: unicode
-        """
-        return self._pickle_id
-
-    @property
-    def task_special_args(self):
-        return self._task_special_args
-
-    def get_task_special_arg(self, task_id, special_arg_name):
-        if task_id in self._task_special_args and special_arg_name in self._task_special_args[task_id]:
-            return self._task_special_args[task_id][special_arg_name]
-        else:
-            return None
 
 
 class SimpleTaskInstance(object):
@@ -235,54 +148,6 @@ class SimpleTaskInstance(object):
         else:
             ti = qry.first()
         return ti
-
-
-class SimpleDagBag(BaseDagBag):
-    """
-    A collection of SimpleDag objects with some convenience methods.
-    """
-
-    def __init__(self, simple_dags):
-        """
-        Constructor.
-
-        :param simple_dags: SimpleDag objects that should be in this
-        :type: list(SimpleDag)
-        """
-        self.simple_dags = simple_dags
-        self.dag_id_to_simple_dag = {}
-
-        for simple_dag in simple_dags:
-            self.dag_id_to_simple_dag[simple_dag.dag_id] = simple_dag
-
-    def add_dag(self, simple_dag):
-        self.dag_id_to_simple_dag[simple_dag.dag_id] = simple_dag
-
-    def remove_dag(self, dag_id):
-        del self.dag_id_to_simple_dag[dag_id]
-
-    def __len__(self):
-        return len(self.dag_id_to_simple_dag)
-
-    @property
-    def dag_ids(self):
-        """
-        :return: IDs of all the DAGs in this
-        :rtype: list[unicode]
-        """
-        return self.dag_id_to_simple_dag.keys()
-
-    def get_dag(self, dag_id):
-        """
-        :param dag_id: DAG ID
-        :type dag_id: unicode
-        :return: if the given DAG ID exists in the bag, return the BaseDag
-        corresponding to that ID. Otherwise, throw an Exception
-        :rtype: SimpleDag
-        """
-        if dag_id not in self.dag_id_to_simple_dag:
-            raise AirflowException("Unknown DAG ID {}".format(dag_id))
-        return self.dag_id_to_simple_dag[dag_id]
 
 
 def list_py_file_paths(directory, safe_mode=True,
@@ -504,7 +369,7 @@ class DagFileProcessorAgent(LoggingMixin):
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
         self._all_files_processed = True
         self._result_count = 0
-        self._simple_dag_bag = SimpleDagBag([])
+        self._dag_bag = airflow.models.DagBag()
 
     def start(self):
         """
@@ -574,10 +439,10 @@ class DagFileProcessorAgent(LoggingMixin):
         p.start()
         return p
 
-    def harvest_simple_dags(self):
+    def harvest_dags(self):
         """
         Harvest DAG parsing results from result queue and sync metadata from stat queue.
-        :return: List of parsing result in SimpleDag format.
+        :return: DagBag
         """
         # Metadata and results to be harvested can be inconsistent,
         # but it should not be a big problem.
@@ -585,20 +450,20 @@ class DagFileProcessorAgent(LoggingMixin):
         # Heartbeating after syncing metadata so we do not restart manager
         # if it processed all files for max_run times and exit normally.
         self._heartbeat_manager()
-        simple_dags = []
+        dags = []
         # multiprocessing.Queue().qsize will not work on MacOS.
         if sys.platform == "darwin":
             qsize = self._result_count
         else:
             qsize = self._result_queue.qsize()
         for _ in range(qsize):
-            simple_dags.append(self._result_queue.get())
+            dags.append(self._result_queue.get())
 
         self._result_count = 0
 
-        for dag in simple_dags:
-            self._simple_dag_bag.add_dag(dag)
-        return self._simple_dag_bag
+        for dag in dags:
+            self._dag_bag.dags[dag.dag_id] = dag
+        return self._dag_bag
 
     def _heartbeat_manager(self):
         """
@@ -1126,9 +991,9 @@ class DagFileProcessorManager(LoggingMixin):
         kick off new processes to process DAG definition files and read the
         results from the finished processors.
 
-        :return: a list of SimpleDags that were produced by processors that
+        :return: a list of DAGs that were produced by processors that
         have finished since the last time this was called
-        :rtype: list[SimpleDag]
+        :rtype: list[DAG]
         """
         finished_processors = {}
         """:type : dict[unicode, AbstractDagFileProcessor]"""
