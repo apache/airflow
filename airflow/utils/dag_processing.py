@@ -371,6 +371,10 @@ class DagFileProcessorAgent(LoggingMixin):
         self._result_count = 0
         self._dag_bag = airflow.models.DagBag()
 
+    @property
+    def dag_bag(self):
+        return self._dag_bag
+
     def start(self):
         """
         Launch DagFileProcessorManager processor and start DAG parsing loop in manager.
@@ -462,8 +466,8 @@ class DagFileProcessorAgent(LoggingMixin):
         self._result_count = 0
 
         for dag in dags:
-            self._dag_bag.dags[dag.dag_id] = dag
-        return self._dag_bag
+            self.dag_bag.dags[dag.dag_id] = dag
+        return self.dag_bag
 
     def _heartbeat_manager(self):
         """

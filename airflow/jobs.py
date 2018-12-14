@@ -893,6 +893,9 @@ class SchedulerJob(BaseJob):
                 return
 
             if next_run_date and period_end and period_end <= timezone.utcnow():
+                # Progress python file to support dynamic dags
+                for d in self.process_file(dag.full_filepath, []):
+                    self.processor_agent.dag_bag.dags[d.dag_id] = d
                 next_run = dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
                     execution_date=next_run_date,
