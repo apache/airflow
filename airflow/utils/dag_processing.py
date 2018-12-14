@@ -36,6 +36,7 @@ from collections import namedtuple
 from datetime import timedelta
 from importlib import import_module
 
+import pendulum
 import psutil
 from six.moves import range, reload_module
 from sqlalchemy import or_
@@ -253,6 +254,15 @@ class SimpleDagBag(BaseDagBag):
 
         for simple_dag in simple_dags:
             self.dag_id_to_simple_dag[simple_dag.dag_id] = simple_dag
+
+    def add_dag(self, simple_dag):
+        self.dag_id_to_simple_dag[simple_dag.dag_id] = simple_dag
+
+    def remove_dag(self, dag_id):
+        del self.dag_id_to_simple_dag[dag_id]
+
+    def __len__(self):
+        return len(self.dag_id_to_simple_dag)
 
     @property
     def dag_ids(self):
@@ -494,6 +504,7 @@ class DagFileProcessorAgent(LoggingMixin):
         # Initialized as true so we do not deactivate w/o any actual DAG parsing.
         self._all_files_processed = True
         self._result_count = 0
+        self._simple_dag_bag = SimpleDagBag([])
 
     def start(self):
         """
@@ -585,7 +596,9 @@ class DagFileProcessorAgent(LoggingMixin):
 
         self._result_count = 0
 
-        return simple_dags
+        for dag in simple_dags:
+            self._simple_dag_bag.add_dag(dag)
+        return self._simple_dag_bag
 
     def _heartbeat_manager(self):
         """
@@ -741,6 +754,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._processors = {}
         # Map from file path to the last runtime
         self._last_runtime = {}
+        self._last_mtime = {}
         # Map from file path to the last finish time
         self._last_finish_time = {}
         self._last_zombie_query_time = timezone.utcnow()
@@ -958,12 +972,14 @@ class DagFileProcessorManager(LoggingMixin):
                    "PID",
                    "Runtime",
                    "Last Runtime",
-                   "Last Run"]
+                   "Last Run",
+                   "File mtime"]
 
         rows = []
         for file_path in known_file_paths:
             last_runtime = self.get_last_runtime(file_path)
             processor_pid = self.get_pid(file_path)
+            file_mtime = pendulum.from_timestamp(os.path.getmtime(file_path))
             processor_start_time = self.get_start_time(file_path)
             runtime = ((timezone.utcnow() - processor_start_time).total_seconds()
                        if processor_start_time else None)
@@ -973,13 +989,14 @@ class DagFileProcessorManager(LoggingMixin):
                          processor_pid,
                          runtime,
                          last_runtime,
-                         last_run))
+                         last_run,
+                         file_mtime))
 
         # Sort by longest last runtime. (Can't sort None values in python3)
         rows = sorted(rows, key=lambda x: x[3] or 0.0)
 
         formatted_rows = []
-        for file_path, pid, runtime, last_runtime, last_run in rows:
+        for file_path, pid, runtime, last_runtime, last_run, file_mtime in rows:
             formatted_rows.append((file_path,
                                    pid,
                                    "{:.2f}s".format(runtime)
@@ -987,7 +1004,8 @@ class DagFileProcessorManager(LoggingMixin):
                                    "{:.2f}s".format(last_runtime)
                                    if last_runtime else None,
                                    last_run.strftime("%Y-%m-%dT%H:%M:%S")
-                                   if last_run else None))
+                                   if last_run else None,
+                                   file_mtime))
         log_str = ("\n" +
                    "=" * 80 +
                    "\n" +
@@ -1124,6 +1142,7 @@ class DagFileProcessorManager(LoggingMixin):
                 finished_processors[file_path] = processor
                 self._last_runtime[file_path] = (now -
                                                  processor.start_time).total_seconds()
+                self._last_mtime[file_path] = os.path.getmtime(file_path)
                 self._last_finish_time[file_path] = now
                 self._run_count[file_path] += 1
             else:
@@ -1182,8 +1201,9 @@ class DagFileProcessorManager(LoggingMixin):
                 "Queuing the following files for processing:\n\t%s",
                 "\n\t".join(files_paths_to_queue)
             )
-
-            self._file_path_queue.extend(files_paths_to_queue)
+            for file in files_paths_to_queue:
+                if file not in self._last_mtime or self._last_mtime[file] != os.path.getmtime(file):
+                    self._file_path_queue.append(file)
 
         zombies = self._find_zombies()
 
