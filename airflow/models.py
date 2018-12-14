@@ -2664,12 +2664,7 @@ class BaseOperator(LoggingMixin):
     def __eq__(self, other):
         if (type(self) == type(other) and
                 self.task_id == other.task_id):
-
-            return all(
-                self.__dict__.get(c, None)
-                ==
-                other.__dict__.get(c, None)
-                for c in self._comps)
+            return all(self.__dict__.get(c, None) == other.__dict__.get(c, None) for c in self._comps)
         return False
 
     def __ne__(self, other):
@@ -3453,11 +3448,7 @@ class DAG(BaseDag, LoggingMixin):
 
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
-            return all(
-                getattr(self, c, None)
-                ==
-                getattr(other, c, None)
-                for c in self._comps)
+            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
         return False
 
     def __ne__(self, other):
