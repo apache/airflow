@@ -45,15 +45,20 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
+    :param description: Optional transfer service job description
+    :type description: str
+    :param schedule: Optional transfer service schedule; see
+        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs.
+        If not set, run transfer job once as soon as the operator runs
+    :type schedule: dict
     :param object_conditions: Transfer service object conditions; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
     :type object_conditions: dict
     :param transfer_options: Transfer service transfer options; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
     :type transfer_options: dict
-    :param job_kwargs: Additional transfer job options; see
-        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs
-    :type job_kwargs: dict
+    :param wait: Wait for transfer to finish
+    :type wait: bool
 
     **Example**:
 
@@ -67,7 +72,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
             dag=my_dag)
     """
 
-    template_fields = ('s3_bucket', 'gcs_bucket')
+    template_fields = ('s3_bucket', 'gcs_bucket', 'description', 'object_conditions')
     ui_color = '#e09411'
 
     @apply_defaults
@@ -78,9 +83,11 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
                  aws_conn_id='aws_default',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
+                 description=None,
+                 schedule=None,
                  object_conditions=None,
                  transfer_options=None,
-                 job_kwargs=None,
+                 wait=True,
                  *args,
                  **kwargs):
 
@@ -93,9 +100,11 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.description = description
+        self.schedule = schedule
         self.object_conditions = object_conditions or {}
         self.transfer_options = transfer_options or {}
-        self.job_kwargs = job_kwargs or {}
+        self.wait = wait
 
     def execute(self, context):
         transfer_hook = GCPTransferServiceHook(
@@ -104,8 +113,10 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
 
         s3_creds = S3Hook(aws_conn_id=self.aws_conn_id).get_credentials()
 
-        transfer_hook.create_transfer_job(
+        job = transfer_hook.create_transfer_job(
             project_id=self.project_id,
+            description=self.description,
+            schedule=self.schedule,
             transfer_spec={
                 'awsS3DataSource': {
                     'bucketName': self.s3_bucket,
@@ -119,6 +130,8 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
                 },
                 'objectConditions': self.object_conditions,
                 'transferOptions': self.transfer_options,
-            },
-            **self.job_kwargs
+            }
         )
+
+        if self.wait:
+            transfer_hook.wait_for_transfer_job(job)
