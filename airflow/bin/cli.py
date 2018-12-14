@@ -970,7 +970,6 @@ def scheduler(args):
     job = jobs.SchedulerJob(
         dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
-        run_duration=args.run_duration,
         num_runs=args.num_runs,
         do_pickle=args.do_pickle)
 
@@ -1768,10 +1767,6 @@ class CLIFactory(object):
                  "stderr."),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
-        'run_duration': Arg(
-            ("-r", "--run-duration"),
-            default=None, type=int,
-            help="Set number of seconds to execute before exiting"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
             default=-1, type=int,
@@ -2057,7 +2052,7 @@ class CLIFactory(object):
         }, {
             'func': scheduler,
             'help': "Start a scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
+            'args': ('dag_id_opt', 'subdir', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {

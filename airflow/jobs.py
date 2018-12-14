@@ -545,7 +545,6 @@ class SchedulerJob(BaseJob):
             subdir=settings.DAGS_FOLDER,
             num_runs=-1,
             processor_poll_interval=1.0,
-            run_duration=None,
             do_pickle=False,
             log=None,
             *args, **kwargs):
@@ -563,8 +562,6 @@ class SchedulerJob(BaseJob):
         :param processor_poll_interval: The number of seconds to wait between
             polls of running processors
         :type processor_poll_interval: int
-        :param run_duration: how long to run (in seconds) before exiting
-        :type run_duration: int
         :param do_pickle: once a DAG object is obtained by executing the Python
             file, whether to serialize the DAG object to the DB
         :type do_pickle: bool
@@ -578,7 +575,6 @@ class SchedulerJob(BaseJob):
         self.subdir = subdir
 
         self.num_runs = num_runs
-        self.run_duration = run_duration
         self._processor_poll_interval = processor_poll_interval
 
         self.do_pickle = do_pickle
@@ -595,10 +591,6 @@ class SchedulerJob(BaseJob):
             self.using_sqlite = True
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
-        if run_duration is None:
-            self.run_duration = conf.getint('scheduler',
-                                            'run_duration')
-
         self.processor_agent = None
         self._last_loop = False
 
@@ -1499,7 +1491,6 @@ class SchedulerJob(BaseJob):
                 (executors.LocalExecutor, executors.SequentialExecutor):
             pickle_dags = True
 
-        self.log.info("Running execute loop for %s seconds", self.run_duration)
         self.log.info("Processing each file at most %s times", self.num_runs)
 
         # Build up a list of Python files that could contain DAGs
@@ -1562,8 +1553,7 @@ class SchedulerJob(BaseJob):
         last_self_heartbeat_time = timezone.utcnow()
 
         # For the execute duration, parse and schedule DAGs
-        while (timezone.utcnow() - execute_start_time).total_seconds() < \
-                self.run_duration or self.run_duration < 0:
+        while True:
             self.log.debug("Starting Loop...")
             loop_start_time = time.time()
 
