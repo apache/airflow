@@ -24,16 +24,18 @@ DIRNAME=$(cd "$(dirname "$0")"; pwd)
 if [ "$1" == "local_testing" ]; then
     kubectl delete -f $DIRNAME/airflow_testing.yaml
     kubectl apply -f $DIRNAME/airflow_testing.yaml
+    kubectl apply -f $DIRNAME/configmaps_testing.yaml
 else
     kubectl delete -f $DIRNAME/airflow.yaml
     kubectl apply -f $DIRNAME/airflow.yaml
+    kubectl apply -f $DIRNAME/configmaps.yaml
 fi
 
 kubectl delete -f $DIRNAME/postgres.yaml
 kubectl delete -f $DIRNAME/secrets.yaml
 
 kubectl apply -f $DIRNAME/secrets.yaml
-kubectl apply -f $DIRNAME/configmaps.yaml
+
 kubectl apply -f $DIRNAME/postgres.yaml
 kubectl apply -f $DIRNAME/volumes.yaml
 

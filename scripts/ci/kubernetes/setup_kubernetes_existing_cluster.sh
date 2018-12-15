@@ -29,6 +29,10 @@ DIRNAME=$(cd "$(dirname "$0")"; pwd)
 IMAGE_STRING=$1:$2
 echo $IMAGE_STRING
 cat $DIRNAME/kube/airflow_testing.yaml.template | sed -e "s|{IMAGE_STRING}|image: $IMAGE_STRING|g" > $DIRNAME/kube/airflow_testing.yaml
+cat $DIRNAME/kube/configmaps.yaml | sed -e "s|worker_container_repository.*|worker_container_repository = $1|g" |\
+sed -e "s|worker_container_tag.*|worker_container_tag = $2|g" |\
+sed -e "s|worker_container_image_pull_policy.*|worker_container_image_pull_policy = Always|g" \
+> $DIRNAME/kube/configmaps_testing.yaml
 $DIRNAME/kube/deploy.sh local_testing
 
 echo "Airflow environment on kubernetes is good to go!"
