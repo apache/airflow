@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    kubernetes.io/limit-ranger: 'LimitRanger plugin set: cpu request for container
+      base; cpu request for init container git-sync-clone'
+    test: annotation
+  creationTimestamp: null
+  labels:
+    airflow-worker: b1f63a34-365d-4132-95be-4d6bd245491e
+    dag_id: example_kubernetes_executor_config
+    execution_date: 2018-12-15T23_23_43_plus_00_00
+    task_id: start_task
+  name: test2
+  selfLink: /api/v1/namespaces/default/pods/examplekubernetesexecutorconfigstarttask-3e0e1688fb4440ee9230c07489ec8c21
+spec:
+  affinity: {}
+  containers:
+  - command: ["/bin/sleep"]
+    args:
+    - "1000000"
+    env:
+    - name: AIRFLOW__CORE__AIRFLOW_HOME
+      value: /root/airflow
+    - name: AIRFLOW__CORE__EXECUTOR
+      value: LocalExecutor
+    - name: AIRFLOW__CORE__DAGS_FOLDER
+      value: /tmp/dags
+    - name: SQL_ALCHEMY_CONN
+      valueFrom:
+        secretKeyRef:
+          key: sql_alchemy_conn
+          name: airflow-secrets
+    image: gcr.io/airflow-development-225219/airflow-testing:test
+    imagePullPolicy: Always
+    name: base
+    resources:
+      requests:
+        cpu: 100m
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /root/airflow/dags/airflow/contrib/example_dags/
+      name: airflow-dags
+      readOnly: true
+    - mountPath: /root/airflow/logs
+      name: airflow-logs
+    - mountPath: /root/airflow/airflow.cfg
+      name: airflow-config
+      readOnly: true
+      subPath: airflow.cfg
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: default-token-qlbhb
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  initContainers:
+  - env:
+    - name: GIT_SYNC_REPO
+      value: https://github.com/apache/incubator-airflow.git
+    - name: GIT_SYNC_BRANCH
+      value: master
+    - name: GIT_SYNC_ROOT
+      value: /root/airflow/dags/airflow/contrib/example_dags/
+    - name: GIT_SYNC_DEST
+      value: dags
+    - name: GIT_SYNC_ONE_TIME
+      value: "true"
+    image: gcr.io/google-containers/git-sync-amd64:v2.0.5
+    imagePullPolicy: IfNotPresent
+    name: git-sync-clone
+    resources:
+      requests:
+        cpu: 100m
+    securityContext:
+      runAsUser: 0
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /root/airflow/dags/airflow/contrib/example_dags/
+      name: airflow-dags
+    - mountPath: /root/airflow/logs
+      name: airflow-logs
+    - mountPath: /root/airflow/airflow.cfg
+      name: airflow-config
+      readOnly: true
+      subPath: airflow.cfg
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: default-token-qlbhb
+      readOnly: true
+  nodeName: gke-airflow-developmen-im-super-cheap-6202bd84-3f1v
+  restartPolicy: Never
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - emptyDir: {}
+    name: airflow-dags
+  - emptyDir: {}
+    name: airflow-logs
+  - configMap:
+      defaultMode: 420
+      name: airflow-configmap
+    name: airflow-config
+  - name: default-token-qlbhb
+    secret:
+      defaultMode: 420
+      secretName: default-token-qlbhb

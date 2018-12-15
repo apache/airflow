@@ -52,10 +52,7 @@ class WorkerConfiguration(LoggingMixin):
             'value': self.kube_config.git_branch
         }, {
             'name': 'GIT_SYNC_ROOT',
-            'value': os.path.join(
-                self.worker_airflow_dags,
-                self.kube_config.git_subpath
-            )
+            'value': '/tmp/'
         }, {
             'name': 'GIT_SYNC_DEST',
             'value': 'dags'
@@ -76,12 +73,19 @@ class WorkerConfiguration(LoggingMixin):
 
         self.log.debug("git mode: {}".format(init_environment))
         volume_mounts[0]['readOnly'] = False
+        move_dags_lifecycle = {
+            'preStop':{
+                'exec': 'cp -R /tmp/dags/{} {}'.format(self.kube_config.git_subpath,
+                                                       self.worker_airflow_dags)
+            }
+        }
         return [{
             'name': self.kube_config.git_sync_init_container_name,
             'image': self.kube_config.git_sync_container,
             'securityContext': {'runAsUser': 0},
             'env': init_environment,
-            'volumeMounts': volume_mounts
+            'volumeMounts': volume_mounts,
+            'lifeCycle': move_dags_lifecycle,
         }]
 
     def _get_environment(self):

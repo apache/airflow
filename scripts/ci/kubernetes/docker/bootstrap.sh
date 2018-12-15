@@ -18,7 +18,6 @@
 #  under the License.                                           *
 
 # launch the appropriate process
-
 if [ "$1" = "webserver" ]
 then
 	exec airflow webserver
