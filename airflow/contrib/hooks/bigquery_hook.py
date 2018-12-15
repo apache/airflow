@@ -53,10 +53,12 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
     def __init__(self,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 use_legacy_sql=True):
+                 use_legacy_sql=True,
+                 location=None):
         super(BigQueryHook, self).__init__(
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
+        self.location = location
 
     def get_conn(self):
         """
@@ -67,7 +69,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         return BigQueryConnection(
             service=service,
             project_id=project,
-            use_legacy_sql=self.use_legacy_sql)
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location,
+        )
 
     def get_service(self):
         """
@@ -201,7 +205,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  service,
                  project_id,
                  use_legacy_sql=True,
-                 api_resource_configs=None):
+                 api_resource_configs=None,
+                 location=None):
 
         self.service = service
         self.project_id = project_id
@@ -211,6 +216,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.api_resource_configs = api_resource_configs \
             if api_resource_configs else {}
         self.running_job_id = None
+        self.location = location
 
     def create_empty_table(self,
                            project_id,
@@ -512,7 +518,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   priority='INTERACTIVE',
                   time_partitioning=None,
                   api_resource_configs=None,
-                  cluster_fields=None):
+                  cluster_fields=None,
+                  location=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -580,10 +587,17 @@ class BigQueryBaseCursor(LoggingMixin):
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
         :type cluster_fields: list of str
+        :param location: The geographic location of the job. Required except for
+            US and EU. See details at
+            https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+        :type location: str
         """
 
         if time_partitioning is None:
             time_partitioning = {}
+
+        if location:
+            self.location = location
 
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
@@ -1089,9 +1103,15 @@ class BigQueryBaseCursor(LoggingMixin):
         keep_polling_job = True
         while keep_polling_job:
             try:
-                job = jobs.get(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id).execute()
+                if self.location:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id,
+                        location=self.location).execute()
+                else:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id).execute()
                 if job['status']['state'] == 'DONE':
                     keep_polling_job = False
                     # Check if job had errors.
@@ -1120,7 +1140,13 @@ class BigQueryBaseCursor(LoggingMixin):
     def poll_job_complete(self, job_id):
         jobs = self.service.jobs()
         try:
-            job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
+            if self.location:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id,
+                               location=self.location).execute()
+            else:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id).execute()
             if job['status']['state'] == 'DONE':
                 return True
         except HttpError as err:
@@ -1143,9 +1169,15 @@ class BigQueryBaseCursor(LoggingMixin):
                 not self.poll_job_complete(self.running_job_id)):
             self.log.info('Attempting to cancel job : %s, %s', self.project_id,
                           self.running_job_id)
-            jobs.cancel(
-                projectId=self.project_id,
-                jobId=self.running_job_id).execute()
+            if self.location:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id,
+                    location=self.location).execute()
+            else:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id).execute()
         else:
             self.log.info('No running BigQuery jobs to cancel.')
             return
@@ -1617,11 +1649,13 @@ class BigQueryCursor(BigQueryBaseCursor):
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py
     """
 
-    def __init__(self, service, project_id, use_legacy_sql=True):
+    def __init__(self, service, project_id, use_legacy_sql=True, location=None):
         super(BigQueryCursor, self).__init__(
             service=service,
             project_id=project_id,
-            use_legacy_sql=use_legacy_sql)
+            use_legacy_sql=use_legacy_sql,
+            location=location,
+        )
         self.buffersize = None
         self.page_token = None
         self.job_id = None
