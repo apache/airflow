@@ -24,8 +24,8 @@ echo "This script downloads builds the airflow source and docker image, uploads 
 
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
-$DIRNAME/docker/build.sh $1 $2
-docker push $1:$2
+#$DIRNAME/docker/build.sh $1 $2
+#docker push $1:$2
 IMAGE_STRING=$1:$2
 echo $IMAGE_STRING
 cat $DIRNAME/kube/airflow_testing.yaml.template | sed -e "s|{IMAGE_STRING}|image: $IMAGE_STRING|g" > $DIRNAME/kube/airflow_testing.yaml

@@ -26,7 +26,7 @@ import six
 import re
 
 try:
-    check_call(["/usr/local/bin/kubectl", "get", "pods"])
+    check_call(["kubectl", "get", "pods"])
 except Exception as e:
     if os.environ.get('KUBERNETES_VERSION'):
         raise e
@@ -42,9 +42,9 @@ def get_kube_host():
         return get_minikube_host()
     else:
         node_ip_string = "kubectl get nodes -o wide"
-        node_ip_result = check_output(node_ip_string.split(" "))
-        node_ip_line = node_ip_result.split(b' ')[1]
-        node_ip = re.split(b'\s+', node_ip_line)[5]
+        node_ip_result = check_output(node_ip_string.split(" ")).decode()
+        node_ip_line = node_ip_result.split('\n')[1]
+        node_ip = re.split('\s+', node_ip_line)[5]
         return '{}:30809'.format(node_ip.strip())
 
 

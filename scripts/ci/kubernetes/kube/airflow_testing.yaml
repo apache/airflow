@@ -49,6 +49,8 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-dags-local
+          mountPath: /root/airflow/dags
         env:
         - name: SQL_ALCHEMY_CONN
           valueFrom:
@@ -82,6 +84,8 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-dags-local
+          mountPath: /root/airflow/dags
       - name: scheduler
         image: gcr.io/airflow-development-225219/airflow-testing:test
         imagePullPolicy: Always
@@ -100,10 +104,14 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-dags-local
+          mountPath: /root/airflow/dags
       volumes:
       - name: airflow-configmap
         configMap:
           name: airflow-configmap
+      - name: airflow-dags-local
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
