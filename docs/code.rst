@@ -269,7 +269,7 @@ Sensors
 .. _macros:
 
 Macros
----------
+------
 Here's a list of variables and macros that can be used in templates
 
 
@@ -284,19 +284,20 @@ Variable                            Description
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
 ``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``
-                                    if ``{{ ds }}`` is ``2016-01-08`` and ``schedule_interval`` is ``@weekly``,
+                                    if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
                                     ``{{ prev_ds }}`` will be ``2016-01-01``
 ``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None`
 ``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``
-                                    if ``{{ ds }}`` is ``2016-01-01`` and ``schedule_interval`` is ``@weekly``,
-                                    ``{{ next_ds }}`` will be ``2016-01-08``
+                                    if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
+                                    ``{{ next_ds }}`` will be ``2018-01-08``
 ``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
 ``{{ yesterday_ds }}``              the day before the execution date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``       the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``               the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``        the day after the execution date as ``YYYYMMDD``
-``{{ ts }}``                        same as ``execution_date.isoformat()``
-``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
+``{{ ts }}``                        same as ``execution_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
+``{{ ts_nodash }}``                 same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
+``{{ ts_nodash_with_tz }}``         same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
 ``{{ prev_execution_date }}``       the previous execution date (if available) (datetime.datetime)
 ``{{ next_execution_date }}``       the next execution date (datetime.datetime)

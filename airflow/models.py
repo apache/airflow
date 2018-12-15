@@ -1869,7 +1869,8 @@ class TaskInstance(Base, LoggingMixin):
             prev_ds_nodash = prev_ds.replace('-', '')
 
         ds_nodash = ds.replace('-', '')
-        ts_nodash = ts.replace('-', '').replace(':', '')
+        ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
+        ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
         tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
 
@@ -1939,6 +1940,7 @@ class TaskInstance(Base, LoggingMixin):
             'ds_nodash': ds_nodash,
             'ts': ts,
             'ts_nodash': ts_nodash,
+            'ts_nodash_with_tz': ts_nodash_with_tz,
             'yesterday_ds': yesterday_ds,
             'yesterday_ds_nodash': yesterday_ds_nodash,
             'tomorrow_ds': tomorrow_ds,
