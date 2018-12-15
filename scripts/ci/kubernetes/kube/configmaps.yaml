@@ -183,7 +183,7 @@ data:
     git_subpath = airflow/example_dags/
     git_user =
     git_password =
-    dags_volume_claim = airflow-dags
+    dags_volume_claim =
     dags_volume_subpath =
     logs_volume_claim = 
     logs_volume_subpath =

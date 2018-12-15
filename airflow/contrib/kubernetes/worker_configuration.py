@@ -39,7 +39,9 @@ class WorkerConfiguration(LoggingMixin):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
         # If we're using volume claims to mount the dags, no init container is needed
         if self.kube_config.dags_volume_claim:
+            self.log.info("xxx: dag claim {}".format(self.kube_config.dags_volume_claim))
             return []
+
 
         # Otherwise, define a git-sync init container
         init_environment = [{
@@ -72,6 +74,7 @@ class WorkerConfiguration(LoggingMixin):
                 'value': self.kube_config.git_password
             })
 
+        self.log.debug("git mode: {}".format(init_environment))
         volume_mounts[0]['readOnly'] = False
         return [{
             'name': self.kube_config.git_sync_init_container_name,
@@ -138,6 +141,7 @@ class WorkerConfiguration(LoggingMixin):
             )
         ]
 
+        self.log.debug("xxx: dag volume {}".format(volumes))
         dag_volume_mount_path = ""
 
         if self.kube_config.dags_volume_claim:
