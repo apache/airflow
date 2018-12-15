@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    kubernetes.io/limit-ranger: 'LimitRanger plugin set: cpu request for container
+      test2'
+  creationTimestamp: null
+  labels:
+    run: test2
+  name: test2
+  selfLink: /api/v1/namespaces/default/pods/test2
+spec:
+  containers:
+  - image: gcr.io/airflow-development-225219/airflow-testing:test
+    imagePullPolicy: IfNotPresent
+    name: test2
+    resources:
+      requests:
+        cpu: 100m
+    command:
+    - sleep
+    args:
+    - "1000"
+    volumeMounts:
+    - name: airflow-configmap
+      mountPath: /root/airflow/air_config
+    env:
+    - name: SQL_ALCHEMY_CONN
+      valueFrom:
+        secretKeyRef:
+          name: airflow-secrets
+          key: sql_alchemy_conn
+  volumes:
+  - name: airflow-configmap
+    configMap:
+      name: airflow-configmap

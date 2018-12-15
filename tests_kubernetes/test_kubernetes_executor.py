@@ -37,6 +37,17 @@ except Exception as e:
         )
 
 
+def get_kube_host():
+    if "USE_MINIKUBE" in os.environ:
+        return get_minikube_host()
+    else:
+        node_ip_string = "kubectl get nodes -o wide"
+        node_ip_result = check_output(node_ip_string.split(" "))
+        node_ip_line = node_ip_result.split(b' ')[1]
+        node_ip = re.split(b'\s+', node_ip_line)[5]
+        return '{}:30809'.format(node_ip.strip())
+
+
 def get_minikube_host():
     if "MINIKUBE_IP" in os.environ:
         host_ip = os.environ['MINIKUBE_IP']
@@ -72,10 +83,10 @@ class KubernetesExecutorTest(unittest.TestCase):
                 result = requests.get(
                     'http://{host}/api/experimental/dags/{dag_id}/'
                     'dag_runs/{execution_date}/tasks/{task_id}'
-                    .format(host=host,
-                            dag_id=dag_id,
-                            execution_date=execution_date,
-                            task_id=task_id)
+                        .format(host=host,
+                                dag_id=dag_id,
+                                execution_date=execution_date,
+                                task_id=task_id)
                 )
                 self.assertEqual(result.status_code, 200, "Could not get the status")
                 result_json = result.json()
@@ -107,9 +118,9 @@ class KubernetesExecutorTest(unittest.TestCase):
             result = requests.get(
                 'http://{host}/api/experimental/dags/{dag_id}/'
                 'dag_runs/{execution_date}'
-                .format(host=host,
-                        dag_id=dag_id,
-                        execution_date=execution_date)
+                    .format(host=host,
+                            dag_id=dag_id,
+                            execution_date=execution_date)
             )
             print(result)
             self.assertEqual(result.status_code, 200, "Could not get the status")
@@ -157,7 +168,7 @@ class KubernetesExecutorTest(unittest.TestCase):
         return result_json
 
     def test_integration_run_dag(self):
-        host = get_minikube_host()
+        host = get_kube_host()
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)
@@ -180,7 +191,7 @@ class KubernetesExecutorTest(unittest.TestCase):
                                        expected_final_state='success', timeout=100)
 
     def test_integration_run_dag_with_scheduler_failure(self):
-        host = get_minikube_host()
+        host = get_kube_host()
         dag_id = 'example_kubernetes_executor_config'
 
         result_json = self.start_dag(dag_id=dag_id, host=host)
