@@ -17,8 +17,12 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-# python-slugify - install and use text-unidecode because of the existing https://github.com/areski/python-nvd3 dependency
-export SLUGIFY_USES_TEXT_UNIDECODE=yes
+# python-slugify - install and use text-unidecode because of the existing python-nvd3 dependency
+# set SLUGIFY_USES_TEXT_UNIDECODE variable needed for installation
+if [ -z "$SLUGIFY_USES_TEXT_UNIDECODE" ]
+then
+        export SLUGIFY_USES_TEXT_UNIDECODE=yes
+fi
 
 IMAGE=${1:-airflow}
 TAG=${2:-latest}
