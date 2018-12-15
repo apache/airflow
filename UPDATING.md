@@ -24,6 +24,13 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Modification to `ts_nodash` macro
+`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes. 
+
+Examples:
+  * `ts_nodash`: `20150101T000000`
+  * `ts_nodash_with_tz`: `20150101T000000+0000`
+
 ### New `dag_processor_manager_log_location` config option
 
 The DAG parsing manager log now by default will be log into a file, where its location is
