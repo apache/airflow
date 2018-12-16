@@ -50,7 +50,7 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
-from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
+from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import days_ago
 from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
@@ -1284,7 +1284,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler.run()
 
     def _make_simple_dag_bag(self, dags):
-        return SimpleDagBag([SimpleDag(dag) for dag in dags])
+        return DagBag(dags)
 
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
