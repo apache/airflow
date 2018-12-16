@@ -703,7 +703,8 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
 
 
 class TestBigQueryHookLocation(unittest.TestCase):
-    def test_location_propagates_properly(self):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_location_propagates_properly(self, run_with_config):
         with mock.patch.object(hook.BigQueryHook, 'get_service'):
             bq_hook = hook.BigQueryHook(location=None)
             self.assertIsNone(bq_hook.location)
@@ -713,6 +714,7 @@ class TestBigQueryHookLocation(unittest.TestCase):
                                                 location=None)
             self.assertIsNone(bq_cursor.location)
             bq_cursor.run_query(sql='select 1', location='US')
+            run_with_config.assert_called_once()
             self.assertEquals(bq_cursor.location, 'US')
 
 
