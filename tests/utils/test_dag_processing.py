@@ -279,15 +279,17 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                                                 processor_factory,
                                                 async_mode)
         processor_agent.start()
-        parsing_result = []
         while not processor_agent.done:
             if not async_mode:
                 processor_agent.heartbeat()
                 processor_agent.wait_until_finished()
-            parsing_result.extend(processor_agent.harvest_dags())
 
+        parsing_result = []
+        for dag in processor_agent.dag_bag.dags.values():
+            if not dag.is_paused:
+                parsing_result.append(dag)
         dag_ids = [result.dag_id for result in parsing_result]
-        self.assertEqual(dag_ids.count('test_start_date_scheduling'), 1)
+        self.assertEqual(len(dag_ids), 1, 'test_start_date_scheduling')
 
     def test_launch_process(self):
         def processor_factory(file_path, zombies):

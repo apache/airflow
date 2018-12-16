@@ -495,7 +495,7 @@ class DagFileProcessorAgent(LoggingMixin):
 
     @property
     def done(self):
-        return self._done
+        return len(self._file_path_queue) == 0
 
     @property
     def all_files_processed(self):
