@@ -122,7 +122,11 @@ class SFTPOperator(BaseOperator):
                 self.ssh_hook.remote_host = self.remote_host
 
             with self.ssh_hook.get_conn() as ssh_client:
-                sftp_client = ssh_client.open_sftp()
+                try:
+                    sftp_client = ssh_client.open_sftp()
+                except OSError as e:
+                    raise AirflowException("Error while connecting client, error: {0}"
+                                           .format(str(e)))
                 if self.operation.lower() == SFTPOperation.GET:
                     local_folder = os.path.dirname(self.local_filepath)
                     if self.create_intermediate_dirs:
