@@ -180,7 +180,7 @@ data:
     delete_worker_pods = True
     git_repo = https://github.com/apache/incubator-airflow.git
     git_branch = master
-    git_subpath = airflow/example_dags/
+    git_subpath = airflow/contrib/example_dags/
     git_user =
     git_password =
     dags_volume_claim =
