@@ -3462,7 +3462,6 @@ class DAG(LoggingMixin):
         else:
             return None
 
-
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
 

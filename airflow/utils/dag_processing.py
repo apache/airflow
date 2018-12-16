@@ -45,7 +45,6 @@ from tabulate import tabulate
 # To avoid circular imports
 import airflow.models
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException
 from airflow.settings import logging_class_path
 from airflow.utils import timezone
 from airflow.utils.db import provide_session

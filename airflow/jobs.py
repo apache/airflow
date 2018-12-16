@@ -1723,9 +1723,8 @@ class SchedulerJob(BaseJob):
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
             dag = dagbag.get_dag(dag_id)
-            pickle_id = None
             if pickle_dags:
-                pickle_id = dag.pickle(session).id
+                dag.pickle(session)
 
         # Record import errors into the ORM
         try:
