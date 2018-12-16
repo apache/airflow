@@ -67,6 +67,11 @@ spec:
       value: "true"
     image: gcr.io/google-containers/git-sync-amd64:v2.0.5
     imagePullPolicy: IfNotPresent
+    lifecycle:
+      preStop:
+        exec:
+          command:
+          - cp -R /tmp/dags/* ~/airflow/dags
     name: git-sync-clone
     resources:
       requests:

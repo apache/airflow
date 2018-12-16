@@ -42,7 +42,6 @@ class WorkerConfiguration(LoggingMixin):
             self.log.info("xxx: dag claim {}".format(self.kube_config.dags_volume_claim))
             return []
 
-
         # Otherwise, define a git-sync init container
         init_environment = [{
             'name': 'GIT_SYNC_REPO',
@@ -73,19 +72,12 @@ class WorkerConfiguration(LoggingMixin):
 
         self.log.debug("git mode: {}".format(init_environment))
         volume_mounts[0]['readOnly'] = False
-        move_dags_lifecycle = {
-            'preStop':{
-                'exec': 'cp -R /tmp/dags/{} {}'.format(self.kube_config.git_subpath,
-                                                       self.worker_airflow_dags)
-            }
-        }
         return [{
             'name': self.kube_config.git_sync_init_container_name,
             'image': self.kube_config.git_sync_container,
             'securityContext': {'runAsUser': 0},
             'env': init_environment,
             'volumeMounts': volume_mounts,
-            'lifeCycle': move_dags_lifecycle,
         }]
 
     def _get_environment(self):
@@ -99,7 +91,7 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.worker_dags_folder:
             env['AIRFLOW__CORE__DAGS_FOLDER'] = self.kube_config.worker_dags_folder
         if (not self.kube_config.airflow_configmap and
-                'AIRFLOW__CORE__SQL_ALCHEMY_CONN' not in self.kube_config.kube_secrets):
+            'AIRFLOW__CORE__SQL_ALCHEMY_CONN' not in self.kube_config.kube_secrets):
             env['AIRFLOW__CORE__SQL_ALCHEMY_CONN'] = conf.get("core", "SQL_ALCHEMY_CONN")
         return env
 
