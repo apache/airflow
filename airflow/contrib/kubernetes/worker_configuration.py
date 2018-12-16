@@ -197,7 +197,7 @@ class WorkerConfiguration(LoggingMixin):
 
         return volumes, volume_mounts
 
-    def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
+    def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date, try_number,
                  airflow_command, kube_executor_config):
         volumes, volume_mounts = self.init_volumes_and_mounts()
         volumes += kube_executor_config.volumes
@@ -227,7 +227,8 @@ class WorkerConfiguration(LoggingMixin):
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
                 'task_id': task_id,
-                'execution_date': execution_date
+                'execution_date': execution_date,
+                'try_number': "{}".format(try_number)
             },
             envs=self._get_environment(),
             secrets=self._get_secrets(),
