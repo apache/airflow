@@ -21,14 +21,11 @@ set -x
 
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
+
 if [ "$1" == "local_testing" ]; then
     kubectl delete -f $DIRNAME/airflow_testing.yaml
-    kubectl apply -f $DIRNAME/airflow_testing.yaml
-    kubectl apply -f $DIRNAME/configmaps_testing.yaml
 else
     kubectl delete -f $DIRNAME/airflow.yaml
-    kubectl apply -f $DIRNAME/airflow.yaml
-    kubectl apply -f $DIRNAME/configmaps.yaml
 fi
 
 kubectl delete -f $DIRNAME/postgres.yaml
@@ -45,6 +42,28 @@ do
   echo "------- Running kubectl get pods -------"
   PODS=$(kubectl get pods | awk 'NR>1 {print $0}')
   echo "$PODS"
+  NUM_POSTGRES_READY=$(echo $PODS | grep postgres | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l | xargs)
+  if [ "$NUM_POSTGRES_READY" == "1" ]; then
+    break
+  fi
+  sleep 4
+done
+
+if [ "$1" == "local_testing" ]; then
+    kubectl apply -f $DIRNAME/airflow_testing.yaml
+    kubectl apply -f $DIRNAME/configmaps_testing.yaml
+else
+    kubectl apply -f $DIRNAME/airflow.yaml
+    kubectl apply -f $DIRNAME/configmaps.yaml
+fi
+
+
+# wait for up to 10 minutes for everything to be deployed
+for i in {1..150}
+do
+  echo "------- Running kubectl get pods -------"
+  PODS=$(kubectl get pods | awk 'NR>1 {print $0}')
+  echo "$PODS"
   NUM_AIRFLOW_READY=$(echo $PODS | grep airflow | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l | xargs)
   NUM_POSTGRES_READY=$(echo $PODS | grep postgres | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l | xargs)
   if [ "$NUM_AIRFLOW_READY" == "1" ] && [ "$NUM_POSTGRES_READY" == "1" ]; then
@@ -52,6 +71,7 @@ do
   fi
   sleep 4
 done
+
 
 POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | grep airflow | head -1)
 
