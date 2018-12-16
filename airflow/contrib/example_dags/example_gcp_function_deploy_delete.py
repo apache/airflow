@@ -22,19 +22,19 @@ Example Airflow DAG that creates a Google Cloud Function and then deletes it.
 
 This DAG relies on the following OS environment variables
 https://airflow.apache.org/concepts.html#variables
-* PROJECT_ID - Google Cloud Project to use for the Cloud Function.
-* LOCATION - Google Cloud Functions region where the function should be
+* GCP_PROJECT_ID - Google Cloud Project to use for the Cloud Function.
+* GCP_LOCATION - Google Cloud Functions region where the function should be
   created.
-* SOURCE_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage
+* GCF_SOURCE_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage
 or
-    * SOURCE_UPLOAD_URL - Generated upload URL for the zipped source
+    * GCF_SOURCE_UPLOAD_URL - Generated upload URL for the zipped source
     or
-    * ZIP_PATH - Local path to the zipped source archive
+    * GCF_ZIP_PATH - Local path to the zipped source archive
 or
 * SOURCE_REPOSITORY - The URL pointing to the hosted repository where the function is
 defined in a supported Cloud Source Repository URL format
 https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#SourceRepository
-* ENTRYPOINT - Name of the executable function in the source code.
+* GCF_ENTRYPOINT - Name of the executable function in the source code.
 """
 
 import os
@@ -46,28 +46,30 @@ from airflow.contrib.operators.gcp_function_operator \
 from airflow.utils import dates
 
 # [START howto_operator_gcf_deploy_variables]
-PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
-LOCATION = os.environ.get('LOCATION', 'europe-west1')
-SOURCE_ARCHIVE_URL = os.environ.get('SOURCE_ARCHIVE_URL', '')
-SOURCE_UPLOAD_URL = os.environ.get('SOURCE_UPLOAD_URL', '')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
+GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
+GCF_SOURCE_ARCHIVE_URL = os.environ.get('GCF_SOURCE_ARCHIVE_URL', '')
+GCF_SOURCE_UPLOAD_URL = os.environ.get('GCF_SOURCE_UPLOAD_URL', '')
 SOURCE_REPOSITORY = os.environ.get(
     'SOURCE_REPOSITORY',
     'https://source.developers.google.com/'
-    'projects/example-project/repos/hello-world/moveable-aliases/master')
-ZIP_PATH = os.environ.get('ZIP_PATH', '')
-ENTRYPOINT = os.environ.get('ENTRYPOINT', 'helloWorld')
-FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(PROJECT_ID, LOCATION,
-                                                               ENTRYPOINT)
-RUNTIME = 'nodejs6'
-VALIDATE_BODY = os.environ.get('VALIDATE_BODY', True)
+    'projects/{}/repos/hello-world/moveable-aliases/master'.format(GCP_PROJECT_ID))
+GCF_ZIP_PATH = os.environ.get('GCF_ZIP_PATH', '')
+GCF_ENTRYPOINT = os.environ.get('GCF_ENTRYPOINT', 'helloWorld')
+GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello')
+FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(GCP_PROJECT_ID,
+                                                               GCP_LOCATION,
+                                                               GCF_SHORT_FUNCTION_NAME)
+GCF_RUNTIME = 'nodejs6'
+GCP_VALIDATE_BODY = os.environ.get('GCP_VALIDATE_BODY', True)
 
 # [END howto_operator_gcf_deploy_variables]
 
 # [START howto_operator_gcf_deploy_body]
 body = {
     "name": FUNCTION_NAME,
-    "entryPoint": ENTRYPOINT,
-    "runtime": RUNTIME,
+    "entryPoint": GCF_ENTRYPOINT,
+    "runtime": GCF_RUNTIME,
     "httpsTrigger": {}
 }
 # [END howto_operator_gcf_deploy_body]
@@ -79,17 +81,17 @@ default_args = {
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]
-if SOURCE_ARCHIVE_URL:
-    body['sourceArchiveUrl'] = SOURCE_ARCHIVE_URL
+if GCF_SOURCE_ARCHIVE_URL:
+    body['sourceArchiveUrl'] = GCF_SOURCE_ARCHIVE_URL
 elif SOURCE_REPOSITORY:
     body['sourceRepository'] = {
         'url': SOURCE_REPOSITORY
     }
-elif ZIP_PATH:
+elif GCF_ZIP_PATH:
     body['sourceUploadUrl'] = ''
-    default_args['zip_path'] = ZIP_PATH
-elif SOURCE_UPLOAD_URL:
-    body['sourceUploadUrl'] = SOURCE_UPLOAD_URL
+    default_args['zip_path'] = GCF_ZIP_PATH
+elif GCF_SOURCE_UPLOAD_URL:
+    body['sourceUploadUrl'] = GCF_SOURCE_UPLOAD_URL
 else:
     raise Exception("Please provide one of the source_code parameters")
 # [END howto_operator_gcf_deploy_variants]
@@ -98,16 +100,17 @@ else:
 with models.DAG(
     'example_gcp_function_deploy_delete',
     default_args=default_args,
-    schedule_interval=datetime.timedelta(days=1)
+    schedule_interval=datetime.timedelta(days=1),
+    catchup=False
 ) as dag:
     # [START howto_operator_gcf_deploy]
     deploy_task = GcfFunctionDeployOperator(
         task_id="gcf_deploy_task",
         name=FUNCTION_NAME,
-        project_id=PROJECT_ID,
-        location=LOCATION,
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
         body=body,
-        validate_body=VALIDATE_BODY
+        validate_body=GCP_VALIDATE_BODY
     )
     # [END howto_operator_gcf_deploy]
     delete_task = GcfFunctionDeleteOperator(

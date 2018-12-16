@@ -412,13 +412,13 @@ Cloud IAM permissions.
    service account.
 
 The typical way of assigning Cloud IAM permissions with `gcloud` is
-shown below. Just replace PROJECT_ID with ID of your Google Cloud Platform project
+shown below. Just replace GCP_PROJECT_ID with ID of your Google Cloud Platform project
 and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
 
 .. code-block:: bash
 
   gcloud iam service-accounts add-iam-policy-binding \
-    PROJECT_ID@appspot.gserviceaccount.com \
+    GCP_PROJECT_ID@appspot.gserviceaccount.com \
     --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
     --role="roles/iam.serviceAccountUser"
 
@@ -520,13 +520,13 @@ Cloud IAM permissions.
    service account.
 
 The typical way of assigning Cloud IAM permissions with `gcloud` is
-shown below. Just replace PROJECT_ID with ID of your Google Cloud Platform project
+shown below. Just replace GCP_PROJECT_ID with ID of your Google Cloud Platform project
 and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
 
 .. code-block:: bash
 
   gcloud iam service-accounts add-iam-policy-binding \
-    PROJECT_ID@appspot.gserviceaccount.com \
+    GCP_PROJECT_ID@appspot.gserviceaccount.com \
     --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
     --role="roles/iam.serviceAccountUser"
 

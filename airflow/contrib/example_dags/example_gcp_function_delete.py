@@ -20,9 +20,9 @@
 """
 Example Airflow DAG that deletes a Google Cloud Function.
 This DAG relies on the following OS environment variables
-* PROJECT_ID - Google Cloud Project where the Cloud Function exists.
-* LOCATION - Google Cloud Functions region where the function exists.
-* ENTRYPOINT - Name of the executable function in the source code.
+* GCP_PROJECT_ID - Google Cloud Project where the Cloud Function exists.
+* GCP_LOCATION - Google Cloud Functions region where the function exists.
+* GCF_ENTRYPOINT - Name of the executable function in the source code.
 """
 
 import os
@@ -33,13 +33,16 @@ from airflow import models
 from airflow.contrib.operators.gcp_function_operator import GcfFunctionDeleteOperator
 
 # [START howto_operator_gcf_delete_args]
-PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
-LOCATION = os.environ.get('LOCATION', 'europe-west1')
-ENTRYPOINT = os.environ.get('ENTRYPOINT', 'helloWorld')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
+GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
+GCF_ENTRYPOINT = os.environ.get('GCF_ENTRYPOINT', 'helloWorld')
 # A fully-qualified name of the function to delete
 
-FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(PROJECT_ID, LOCATION,
-                                                               ENTRYPOINT)
+GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello')
+FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(GCP_PROJECT_ID,
+                                                               GCP_LOCATION,
+                                                               GCF_SHORT_FUNCTION_NAME)
+
 # [END howto_operator_gcf_delete_args]
 
 default_args = {
@@ -49,7 +52,8 @@ default_args = {
 with models.DAG(
     'example_gcp_function_delete',
     default_args=default_args,
-    schedule_interval=datetime.timedelta(days=1)
+    schedule_interval=datetime.timedelta(days=1),
+    catchup=False
 ) as dag:
     # [START howto_operator_gcf_delete]
     t1 = GcfFunctionDeleteOperator(

@@ -23,7 +23,7 @@ creates, patches and deletes a database inside the instance, in Google Cloud Pla
 
 This DAG relies on the following OS environment variables
 https://airflow.apache.org/concepts.html#variables
-* PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance.
+* GCP_PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance.
 * INSTANCE_NAME - Name of the Cloud SQL instance.
 * DB_NAME - Name of the database inside a Cloud SQL instance.
 """
@@ -44,7 +44,7 @@ from airflow.contrib.operators.gcs_acl_operator import \
     GoogleCloudStorageObjectCreateAclEntryOperator
 
 # [START howto_operator_cloudsql_arguments]
-PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'test-mysql')
 INSTANCE_NAME2 = os.environ.get('INSTANCE_NAME2', 'test-mysql2')
 DB_NAME = os.environ.get('DB_NAME', 'testdb')
@@ -145,7 +145,7 @@ import_body = {
 db_create_body = {
     "instance": INSTANCE_NAME,
     "name": DB_NAME,
-    "project": PROJECT_ID
+    "project": GCP_PROJECT_ID
 }
 # [END howto_operator_cloudsql_db_create_body]
 # [START howto_operator_cloudsql_db_patch_body]
@@ -176,21 +176,21 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_create]
     sql_instance_create = CloudSqlInstanceCreateOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         body=body,
         instance=INSTANCE_NAME,
-        task_id='sql_instance_create'
+        task_id='sql_instance_create_task'
     )
     # [END howto_operator_cloudsql_create]
     prev_task = sql_instance_create
 
-    sql_instance_create_2 = CloudSqlInstanceCreateOperator(
-        project_id=PROJECT_ID,
+    sql_instance_create_2_task = CloudSqlInstanceCreateOperator(
+        project_id=GCP_PROJECT_ID,
         body=body2,
         instance=INSTANCE_NAME2,
         task_id='sql_instance_create_2'
     )
-    prev_task = next_dep(sql_instance_create_2, prev_task)
+    prev_task = next_dep(sql_instance_create_2_task, prev_task)
 
     # ############################################## #
     # ### MODIFYING INSTANCE AND ITS DATABASE ###### #
@@ -198,7 +198,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_patch]
     sql_instance_patch_task = CloudSqlInstancePatchOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         body=patch_body,
         instance=INSTANCE_NAME,
         task_id='sql_instance_patch_task'
@@ -208,7 +208,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_db_create]
     sql_db_create_task = CloudSqlInstanceDatabaseCreateOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         body=db_create_body,
         instance=INSTANCE_NAME,
         task_id='sql_db_create_task'
@@ -218,7 +218,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_db_patch]
     sql_db_patch_task = CloudSqlInstanceDatabasePatchOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         body=db_patch_body,
         instance=INSTANCE_NAME,
         database=DB_NAME,
@@ -245,7 +245,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_export]
     sql_export_task = CloudSqlInstanceExportOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         body=export_body,
         instance=INSTANCE_NAME,
         task_id='sql_export_task'
@@ -272,7 +272,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_import]
     sql_import_task = CloudSqlInstanceImportOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         body=import_body,
         instance=INSTANCE_NAME2,
         task_id='sql_import_task'
@@ -286,7 +286,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_db_delete]
     sql_db_delete_task = CloudSqlInstanceDatabaseDeleteOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME,
         database=DB_NAME,
         task_id='sql_db_delete_task'
@@ -300,7 +300,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSqlInstanceDeleteOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME,
         task_id='sql_instance_delete_task'
     )
@@ -308,7 +308,7 @@ with models.DAG(
     prev_task = next_dep(sql_instance_delete_task, prev_task)
 
     sql_instance_delete_task_2 = CloudSqlInstanceDeleteOperator(
-        project_id=PROJECT_ID,
+        project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME2,
         task_id='sql_instance_delete_task_2'
     )

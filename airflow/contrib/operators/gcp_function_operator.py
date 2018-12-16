@@ -181,7 +181,7 @@ class GcfFunctionDeployOperator(BaseOperator):
 
     def execute(self, context):
         if self.zip_path_preprocessor.should_upload_function():
-            self.body[SOURCE_UPLOAD_URL] = self._upload_source_code()
+            self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code()
         self._validate_all_body_fields()
         self._set_airflow_version_label()
         if not self._check_if_function_exists():
@@ -190,10 +190,10 @@ class GcfFunctionDeployOperator(BaseOperator):
             self._update_function()
 
 
-SOURCE_ARCHIVE_URL = 'sourceArchiveUrl'
-SOURCE_UPLOAD_URL = 'sourceUploadUrl'
+GCF_SOURCE_ARCHIVE_URL = 'sourceArchiveUrl'
+GCF_SOURCE_UPLOAD_URL = 'sourceUploadUrl'
 SOURCE_REPOSITORY = 'sourceRepository'
-ZIP_PATH = 'zip_path'
+GCF_ZIP_PATH = 'zip_path'
 
 
 class ZipPathPreprocessor:
@@ -226,28 +226,28 @@ class ZipPathPreprocessor:
         return field in dictionary and not dictionary[field]
 
     def _verify_upload_url_and_no_zip_path(self):
-        if self._is_present_and_empty(self.body, SOURCE_UPLOAD_URL):
+        if self._is_present_and_empty(self.body, GCF_SOURCE_UPLOAD_URL):
             if not self.zip_path:
                 raise AirflowException(
                     "Parameter '{}' is empty in the body and argument '{}' "
                     "is missing or empty. You need to have non empty '{}' "
                     "when '{}' is present and empty.".
-                    format(SOURCE_UPLOAD_URL, ZIP_PATH, ZIP_PATH, SOURCE_UPLOAD_URL))
+                    format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH, GCF_ZIP_PATH, GCF_SOURCE_UPLOAD_URL))
 
     def _verify_upload_url_and_zip_path(self):
-        if SOURCE_UPLOAD_URL in self.body and self.zip_path:
-            if not self.body[SOURCE_UPLOAD_URL]:
+        if GCF_SOURCE_UPLOAD_URL in self.body and self.zip_path:
+            if not self.body[GCF_SOURCE_UPLOAD_URL]:
                 self.upload_function = True
             else:
                 raise AirflowException("Only one of '{}' in body or '{}' argument "
                                        "allowed. Found both."
-                                       .format(SOURCE_UPLOAD_URL, ZIP_PATH))
+                                       .format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH))
 
     def _verify_archive_url_and_zip_path(self):
-        if SOURCE_ARCHIVE_URL in self.body and self.zip_path:
+        if GCF_SOURCE_ARCHIVE_URL in self.body and self.zip_path:
             raise AirflowException("Only one of '{}' in body or '{}' argument "
                                    "allowed. Found both."
-                                   .format(SOURCE_ARCHIVE_URL, ZIP_PATH))
+                                   .format(GCF_SOURCE_ARCHIVE_URL, GCF_ZIP_PATH))
 
     def should_upload_function(self):
         if self.upload_function is None:

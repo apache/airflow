@@ -1,0 +1,201 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 'clone-variables'
+  args: ['source', 'repos', 'clone', 'airflow-breeze-config', '/root/airflow-breeze-config']
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'decrypt-files-and-variables'
+  env:
+  - "PYTHON_VERSION=2.7"
+  - "HOME=/root"
+  - "AIRFLOW_BREEZE_CONFIG_DIR=/root/airflow-breeze-config"
+  - "BUILD_ID=${BUILD_ID}"
+  - "GCP_PROJECT_ID=${PROJECT_ID}"
+  entrypoint: '/bin/bash'
+  args: ['-c', '/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/decrypt_all_files_and_variables.sh']
+  dir: '/root/airflow-breeze-config/keys'
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: "gcr.io/cloud-builders/gsutil"
+  id: 'create-build-id-dir'
+  entrypoint: '/bin/bash'
+  waitFor: ['decrypt-files-and-variables']
+  args: ['-c', 'source /root/airflow-breeze-config/variables.env && touch /tmp/empty.txt && gsutil cp /tmp/empty.txt "gs://$${AIRFLOW_BREEZE_GCP_BUILD_BUCKET}/${BUILD_ID}/empty.txt" || true']
+  volumes:
+  - name: 'logs-python35'
+    path: '/logs/python35'
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'build-docs'
+  env:
+    - "PYTHON_VERSION=2.7"
+    - "HOME=/root"
+    - "BUILD_ID=${BUILD_ID}"
+    - "GCP_PROJECT_ID=${PROJECT_ID}"
+  args: [ "/bin/bash", "-c", "/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/build_docs.sh"]
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'python27-test'
+  waitFor: ['decrypt-files-and-variables', 'create-build-id-dir']
+  env:
+    - "HOME=/root"
+    - "PYTHON_VERSION=2.7"
+    - "AIRFLOW_BREEZE_TEST_SUITE=python27"
+    - "AIRFLOW_BREEZE_SHORT_SHA=${SHORT_SHA}"
+    - "AIRFLOW_BREEZE_CONFIG_DIR=/root/airflow-breeze-config"
+    - "BUILD_ID=${BUILD_ID}"
+    - "SKIP_UNLINKING_EXAMPLES=True"
+    - "GCP_PROJECT_ID=${PROJECT_ID}"
+  args: [ "/bin/bash", "-c",
+          "/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/run_ci_tests.sh"]
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+  - name: 'logs-python27'
+    path: '/logs'
+- name: "gcr.io/cloud-builders/gsutil"
+  id: 'python27-send-logs'
+  entrypoint: '/bin/bash'
+  waitFor: ['python27-test']
+  args: ['-c', 'source /root/airflow-breeze-config/variables.env && gsutil -m cp -r /logs "gs://$${AIRFLOW_BREEZE_GCP_BUILD_BUCKET}/${BUILD_ID}/" || true']
+  volumes:
+  - name: 'logs-python27'
+    path: '/logs/python27'
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'python35-test'
+  waitFor: ['decrypt-files-and-variables', 'create-build-id-dir']
+  env:
+  - "HOME=/root"
+  - "PYTHON_VERSION=3.5"
+  - "AIRFLOW_BREEZE_TEST_SUITE=python35"
+  - "AIRFLOW_BREEZE_SHORT_SHA=${SHORT_SHA}"
+  - "AIRFLOW_BREEZE_CONFIG_DIR=/root/airflow-breeze-config"
+  - "BUILD_ID=${BUILD_ID}"
+  - "SKIP_UNLINKING_EXAMPLES=True"
+  - "GCP_PROJECT_ID=${PROJECT_ID}"
+  args: [ "/bin/bash", "-c",
+          "/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/run_ci_tests.sh"]
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+  - name: 'logs-python35'
+    path: '/logs'
+- name: "gcr.io/cloud-builders/gsutil"
+  id: 'python35-send-logs'
+  entrypoint: '/bin/bash'
+  waitFor: ['python35-test']
+  args: ['-c', 'source /root/airflow-breeze-config/variables.env && gsutil -m cp -r /logs "gs://$${AIRFLOW_BREEZE_GCP_BUILD_BUCKET}/${BUILD_ID}/" || true']
+  volumes:
+  - name: 'logs-python35'
+    path: '/logs/python35'
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'python36-test'
+  waitFor: ['decrypt-files-and-variables', 'create-build-id-dir']
+  env:
+    - "HOME=/root"
+    - "PYTHON_VERSION=3.6"
+    - "AIRFLOW_BREEZE_TEST_SUITE=python36"
+    - "AIRFLOW_BREEZE_SHORT_SHA=${SHORT_SHA}"
+    - "AIRFLOW_BREEZE_CONFIG_DIR=/root/airflow-breeze-config"
+    - "BUILD_ID=${BUILD_ID}"
+    - "SKIP_UNLINKING_EXAMPLES=True"
+    - "GCP_PROJECT_ID=${PROJECT_ID}"
+  args: [ "/bin/bash", "-c",
+          "/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/run_ci_tests.sh"]
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+  - name: 'logs-python36'
+    path: '/logs'
+- name: "gcr.io/cloud-builders/gsutil"
+  id: 'python36-send-logs'
+  entrypoint: '/bin/bash'
+  waitFor: ['python36-test']
+  args: ['-c', 'source /root/airflow-breeze-config/variables.env && gsutil -m cp -r /logs "gs://$${AIRFLOW_BREEZE_GCP_BUILD_BUCKET}/${BUILD_ID}/" || true']
+  volumes:
+  - name: 'logs-python36'
+    path: '/logs/python36'
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'merge-tests'
+  waitFor: ['python27-send-logs', 'python35-send-logs', 'python36-send-logs']
+  env:
+    - "PYTHON_VERSION=2.7"
+    - "HOME=/root"
+    - "BUILD_ID=${BUILD_ID}"
+    - "GCP_PROJECT_ID=${PROJECT_ID}"
+  args: [ "/bin/bash", "-c", "/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/merge_tests.sh ${_AIRFLOW_BREEZE_TEST_SUITES}"]
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'prepare-summary'
+  waitFor: ['merge-tests']
+  env:
+  - "PYTHON_VERSION=2.7"
+  - "HOME=/root"
+  - "BUILD_ID=${BUILD_ID}"
+  - "REPO_NAME=${REPO_NAME}"
+  - "BRANCH_NAME=${BRANCH_NAME}"
+  - "TAG_NAME=${TAG_NAME}"
+  - "COMMIT_SHA=${COMMIT_SHA}"
+  - "GCP_PROJECT_ID=${PROJECT_ID}"
+  - "AIRFLOW_BREEZE_TEST_SUITES=${_AIRFLOW_BREEZE_TEST_SUITES}"
+  args: [ "/bin/bash", "-c", "/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/prepare_summary_page.sh"]
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: "gcr.io/cloud-builders/gsutil"
+  id: 'send-artifacts'
+  entrypoint: '/bin/bash'
+  waitFor: ['build-docs', 'prepare-summary']
+  args: ['-c', 'source /root/airflow-breeze-config/variables.env && gsutil -m cp -r output/* "gs://$${AIRFLOW_BREEZE_GCP_BUILD_BUCKET}/" || true']
+  volumes:
+  - name: 'airflow-breeze-config'
+    path: '/root/airflow-breeze-config'
+- name: 'gcr.io/${PROJECT_ID}/airflow-breeze:${_AIRFLOW_BREEZE_BRANCH}'
+  id: 'verify-tests'
+  waitFor: ['send-artifacts']
+  env:
+    - "PYTHON_VERSION=2.7"
+    - "HOME=/root"
+    - "BUILD_ID=${BUILD_ID}"
+    - "GCP_PROJECT_ID=${PROJECT_ID}"
+  args: [ "/bin/bash", "-c", "/airflow/_init.sh ${_CLOUDBUILD_SCRIPTS_DIR}/verify_tests.sh"]
+  volumes:
+substitutions:
+  _AIRFLOW_BREEZE_BRANCH: 'master'
+  _AIRFLOW_BREEZE_TEST_SUITES: 'python27 python35 python36'
+  _CLOUDBUILD_SCRIPTS_DIR: '/workspace/airflow/contrib/cloudbuild/scripts'
+options:
+  machineType: 'N1_HIGHCPU_8'
+timeout: 2800s

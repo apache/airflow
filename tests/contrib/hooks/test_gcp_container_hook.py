@@ -32,16 +32,16 @@ except ImportError:
 
 TASK_ID = 'test-gke-cluster-operator'
 CLUSTER_NAME = 'test-cluster'
-TEST_PROJECT_ID = 'test-project'
-ZONE = 'test-zone'
+TEST_GCP_PROJECT_ID = 'test-project'
+GCE_ZONE = 'test-zone'
 
 
 class GKEClusterHookDeleteTest(unittest.TestCase):
     def setUp(self):
         with mock.patch.object(GKEClusterHook, "__init__", return_value=None):
             self.gke_hook = GKEClusterHook(None, None, None)
-            self.gke_hook.project_id = TEST_PROJECT_ID
-            self.gke_hook.location = ZONE
+            self.gke_hook.project_id = TEST_GCP_PROJECT_ID
+            self.gke_hook.location = GCE_ZONE
             self.gke_hook.client = mock.Mock()
 
     @mock.patch("airflow.contrib.hooks.gcp_container_hook.GKEClusterHook._dict_to_proto")
@@ -55,7 +55,7 @@ class GKEClusterHookDeleteTest(unittest.TestCase):
         self.gke_hook.delete_cluster(name=CLUSTER_NAME, retry=retry_mock,
                                      timeout=timeout_mock)
 
-        client_delete.assert_called_with(project_id=TEST_PROJECT_ID, zone=ZONE,
+        client_delete.assert_called_with(project_id=TEST_GCP_PROJECT_ID, zone=GCE_ZONE,
                                          cluster_id=CLUSTER_NAME,
                                          retry=retry_mock, timeout=timeout_mock)
         wait_mock.assert_called_with(client_delete.return_value)
@@ -94,8 +94,8 @@ class GKEClusterHookCreateTest(unittest.TestCase):
     def setUp(self):
         with mock.patch.object(GKEClusterHook, "__init__", return_value=None):
             self.gke_hook = GKEClusterHook(None, None, None)
-            self.gke_hook.project_id = TEST_PROJECT_ID
-            self.gke_hook.location = ZONE
+            self.gke_hook.project_id = TEST_GCP_PROJECT_ID
+            self.gke_hook.location = GCE_ZONE
             self.gke_hook.client = mock.Mock()
 
     @mock.patch("airflow.contrib.hooks.gcp_container_hook.GKEClusterHook._dict_to_proto")
@@ -114,7 +114,7 @@ class GKEClusterHookCreateTest(unittest.TestCase):
         self.gke_hook.create_cluster(mock_cluster_proto, retry=retry_mock,
                                      timeout=timeout_mock)
 
-        client_create.assert_called_with(project_id=TEST_PROJECT_ID, zone=ZONE,
+        client_create.assert_called_with(project_id=TEST_GCP_PROJECT_ID, zone=GCE_ZONE,
                                          cluster=mock_cluster_proto,
                                          retry=retry_mock, timeout=timeout_mock)
         wait_mock.assert_called_with(client_create.return_value)
@@ -133,7 +133,7 @@ class GKEClusterHookCreateTest(unittest.TestCase):
         self.gke_hook.create_cluster(mock_cluster_dict, retry=retry_mock,
                                      timeout=timeout_mock)
 
-        client_create.assert_called_with(project_id=TEST_PROJECT_ID, zone=ZONE,
+        client_create.assert_called_with(project_id=TEST_GCP_PROJECT_ID, zone=GCE_ZONE,
                                          cluster=proto_mock,
                                          retry=retry_mock, timeout=timeout_mock)
         wait_mock.assert_called_with(client_create.return_value)
@@ -172,8 +172,8 @@ class GKEClusterHookGetTest(unittest.TestCase):
     def setUp(self):
         with mock.patch.object(GKEClusterHook, "__init__", return_value=None):
             self.gke_hook = GKEClusterHook(None, None, None)
-            self.gke_hook.project_id = TEST_PROJECT_ID
-            self.gke_hook.location = ZONE
+            self.gke_hook.project_id = TEST_GCP_PROJECT_ID
+            self.gke_hook.location = GCE_ZONE
             self.gke_hook.client = mock.Mock()
 
     def test_get_cluster(self):
@@ -184,7 +184,7 @@ class GKEClusterHookGetTest(unittest.TestCase):
         self.gke_hook.get_cluster(name=CLUSTER_NAME, retry=retry_mock,
                                   timeout=timeout_mock)
 
-        client_get.assert_called_with(project_id=TEST_PROJECT_ID, zone=ZONE,
+        client_get.assert_called_with(project_id=TEST_GCP_PROJECT_ID, zone=GCE_ZONE,
                                       cluster_id=CLUSTER_NAME,
                                       retry=retry_mock, timeout=timeout_mock)
 
@@ -194,15 +194,15 @@ class GKEClusterHookTest(unittest.TestCase):
     def setUp(self):
         with mock.patch.object(GKEClusterHook, "__init__", return_value=None):
             self.gke_hook = GKEClusterHook(None, None, None)
-            self.gke_hook.project_id = TEST_PROJECT_ID
-            self.gke_hook.location = ZONE
+            self.gke_hook.project_id = TEST_GCP_PROJECT_ID
+            self.gke_hook.location = GCE_ZONE
             self.gke_hook.client = mock.Mock()
 
     def test_get_operation(self):
         self.gke_hook.client.get_operation = mock.Mock()
         self.gke_hook.get_operation('TEST_OP')
-        self.gke_hook.client.get_operation.assert_called_with(project_id=TEST_PROJECT_ID,
-                                                              zone=ZONE,
+        self.gke_hook.client.get_operation.assert_called_with(project_id=TEST_GCP_PROJECT_ID,
+                                                              zone=GCE_ZONE,
                                                               operation_id='TEST_OP')
 
     def test_append_label(self):

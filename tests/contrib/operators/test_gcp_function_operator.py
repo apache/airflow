@@ -29,6 +29,9 @@ from airflow.version import version
 
 from copy import deepcopy
 
+from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
+    GCP_FUNCTION_KEY, SKIP_TEST_WARNING
+
 try:
     # noinspection PyProtectedMember
     from unittest import mock
@@ -41,20 +44,21 @@ except ImportError:
 EMPTY_CONTENT = ''.encode('utf8')
 MOCK_RESP_404 = type('', (object,), {"status": 404})()
 
-PROJECT_ID = 'test_project_id'
-LOCATION = 'test_region'
-SOURCE_ARCHIVE_URL = 'gs://folder/file.zip'
-ENTRYPOINT = 'helloWorld'
-FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(PROJECT_ID, LOCATION,
-                                                               ENTRYPOINT)
-RUNTIME = 'nodejs6'
+GCP_PROJECT_ID = 'test_project_id'
+GCP_LOCATION = 'test_region'
+GCF_SOURCE_ARCHIVE_URL = 'gs://folder/file.zip'
+GCF_ENTRYPOINT = 'helloWorld'
+FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(GCP_PROJECT_ID,
+                                                               GCP_LOCATION,
+                                                               GCF_ENTRYPOINT)
+GCF_RUNTIME = 'nodejs6'
 VALID_RUNTIMES = ['nodejs6', 'nodejs8', 'python37']
 VALID_BODY = {
     "name": FUNCTION_NAME,
-    "entryPoint": ENTRYPOINT,
-    "runtime": RUNTIME,
+    "entryPoint": GCF_ENTRYPOINT,
+    "runtime": GCF_RUNTIME,
     "httpsTrigger": {},
-    "sourceArchiveUrl": SOURCE_ARCHIVE_URL
+    "sourceArchiveUrl": GCF_SOURCE_ARCHIVE_URL
 }
 
 
@@ -100,8 +104,8 @@ class GcfFunctionDeployTest(unittest.TestCase):
             side_effect=HttpError(resp=MOCK_RESP_404, content=b'not found'))
         mock_hook.return_value.create_new_function.return_value = True
         op = GcfFunctionDeployOperator(
-            project_id=PROJECT_ID,
-            location=LOCATION,
+            project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
             body=deepcopy(VALID_BODY),
             task_id="id"
         )
@@ -125,8 +129,8 @@ class GcfFunctionDeployTest(unittest.TestCase):
         mock_hook.return_value.get_function.return_value = True
         mock_hook.return_value.update_function.return_value = True
         op = GcfFunctionDeployOperator(
-            project_id=PROJECT_ID,
-            location=LOCATION,
+            project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
             body=deepcopy(VALID_BODY),
             task_id="id"
         )
@@ -639,3 +643,29 @@ class GcfFunctionDeleteTest(unittest.TestCase):
         mock_hook.return_value.delete_function.assert_called_once_with(
             'projects/project_name/locations/project_location/functions/function_name'
         )
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_FUNCTION_KEY), SKIP_TEST_WARNING)
+class CloudFunctionsDeleteExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+    def __init__(self, method_name='runTest'):
+        super(CloudFunctionsDeleteExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_function_delete',
+            gcp_key=GCP_FUNCTION_KEY)
+
+    def test_run_example_dag_delete_query(self):
+        self._run_dag()
+
+
+@unittest.skipIf(
+    BaseGcpIntegrationTestCase.skip_check(GCP_FUNCTION_KEY), SKIP_TEST_WARNING)
+class CloudFunctionsDeployDeleteExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
+    def __init__(self, method_name='runTest'):
+        super(CloudFunctionsDeployDeleteExampleDagsIntegrationTest, self).__init__(
+            method_name,
+            dag_id='example_gcp_function_deploy_delete',
+            gcp_key=GCP_FUNCTION_KEY)
+
+    def test_run_example_dag_deploy_delete_query(self):
+        self._run_dag()

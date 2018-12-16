@@ -76,7 +76,7 @@ class GcfHook(GoogleCloudBaseHook):
         Lists all Cloud Functions created in the location.
 
         :param full_location: full location including the project in the form of
-            of /projects/<PROJECT>/location/<LOCATION>
+            of /projects/<PROJECT>/location/<GCP_LOCATION>
         :type full_location: str
         :return: array of Cloud Functions objects - representing functions in the location
         :rtype: [dict]
@@ -90,7 +90,7 @@ class GcfHook(GoogleCloudBaseHook):
         Creates a new function in Cloud Function in the location specified in the body.
 
         :param full_location: full location including the project in the form of
-            of /projects/<PROJECT>/location/<LOCATION>
+            of /projects/<PROJECT>/location/<GCP_LOCATION>
         :type full_location: str
         :param body: body required by the Cloud Functions insert API
         :type body: dict
@@ -130,7 +130,7 @@ class GcfHook(GoogleCloudBaseHook):
         Uploads zip file with sources.
 
         :param parent: Google Cloud Platform project id and region where zip file should
-         be uploaded in the form of /projects/<PROJECT>/location/<LOCATION>
+         be uploaded in the form of /projects/<PROJECT>/location/<GCP_LOCATION>
         :type parent: str
         :param zip_path: path of the valid .zip file to upload
         :type zip_path: str
