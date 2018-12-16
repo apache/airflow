@@ -51,7 +51,7 @@ class WorkerConfiguration(LoggingMixin):
             'value': self.kube_config.git_branch
         }, {
             'name': 'GIT_SYNC_ROOT',
-            'value': '/tmp/'
+            'value': '/git/'
         }, {
             'name': 'GIT_SYNC_DEST',
             'value': 'dags'
@@ -112,6 +112,7 @@ class WorkerConfiguration(LoggingMixin):
 
     def init_volumes_and_mounts(self):
         dags_volume_name = 'airflow-dags'
+        git_volume_name = 'airflow-git'
         logs_volume_name = 'airflow-logs'
 
         def _construct_volume(name, claim):
@@ -134,6 +135,10 @@ class WorkerConfiguration(LoggingMixin):
             _construct_volume(
                 logs_volume_name,
                 self.kube_config.logs_volume_claim
+            ),
+            _construct_volume(
+                git_volume_name,
+                None,
             )
         ]
 
@@ -162,9 +167,15 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.logs_volume_subpath:
             logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
 
+        git_volume_mount = {
+            'name': git_volume_name,
+            'mountPath': "/git",
+        }
+
         volume_mounts = [
+            git_volume_mount,
             dags_volume_mount,
-            logs_volume_mount
+            logs_volume_mount,
         ]
 
         # Mount the airflow.cfg file via a configmap the user has specified
@@ -201,6 +212,7 @@ class WorkerConfiguration(LoggingMixin):
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
         annotations = kube_executor_config.annotations.copy()
+        git_copy_cmd = "cp /git/dags/* {} &&".format(self.kube_config.worker_dags_folder)
         if gcp_sa_key:
             annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
 
@@ -210,7 +222,7 @@ class WorkerConfiguration(LoggingMixin):
             image=kube_executor_config.image or self.kube_config.kube_image,
             image_pull_policy=(kube_executor_config.image_pull_policy or
                                self.kube_config.kube_image_pull_policy),
-            cmds=airflow_command,
+            cmds=git_copy_cmd.split(" ").extend(airflow_command),
             labels={
                 'airflow-worker': worker_uuid,
                 'dag_id': dag_id,
