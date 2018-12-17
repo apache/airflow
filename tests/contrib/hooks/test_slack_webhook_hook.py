@@ -20,7 +20,8 @@
 import json
 import unittest
 
-from airflow import configuration, models
+from airflow import configuration
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
@@ -49,7 +50,7 @@ class TestSlackWebhookHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='slack-webhook-default',
                 extra='{"webhook_token": "your_token_here"}')
         )

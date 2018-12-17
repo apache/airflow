@@ -33,6 +33,8 @@ import reprlib
 import argparse
 from builtins import input
 from collections import namedtuple
+
+from airflow.models.connection import Connection
 from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
@@ -55,8 +57,7 @@ from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import GetDefaultExecutor
 from airflow.models import (DagModel, DagBag, TaskInstance,
-                            DagPickle, DagRun, Variable, DagStat,
-                            Connection, DAG)
+                            DagPickle, DagRun, Variable, DagStat, DAG)
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli as cli_utils

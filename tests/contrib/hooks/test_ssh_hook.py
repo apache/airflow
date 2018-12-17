@@ -19,8 +19,8 @@
 
 import unittest
 from airflow import configuration
+from airflow.models.connection import Connection
 from airflow.utils import db
-from airflow import models
 
 try:
     from unittest import mock
@@ -132,7 +132,7 @@ class SSHHookTest(unittest.TestCase):
 
     def test_conn_with_extra_parameters(self):
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='ssh_with_extra',
                 host='localhost',
                 conn_type='ssh',

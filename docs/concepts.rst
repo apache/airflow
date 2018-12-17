@@ -303,7 +303,7 @@ Hooks
 Hooks are interfaces to external platforms and databases like Hive, S3,
 MySQL, Postgres, HDFS, and Pig. Hooks implement a common interface when
 possible, and act as a building block for operators. They also use
-the ``airflow.models.Connection`` model to retrieve hostnames
+the ``airflow.models.connection.Connection`` model to retrieve hostnames
 and authentication information. Hooks keep authentication code and
 information out of pipelines, centralized in the metadata database.
 

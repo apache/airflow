@@ -23,7 +23,7 @@ import unittest
 import boto3
 
 from airflow import configuration
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 try:

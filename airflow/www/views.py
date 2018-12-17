@@ -69,6 +69,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models import XCom, DagRun
+from airflow.models.connection import Connection
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
@@ -388,7 +389,7 @@ class Airflow(BaseView):
             csv = request.args.get('csv') == "true"
             chart = session.query(models.Chart).filter_by(id=chart_id).first()
             db = session.query(
-                models.Connection).filter_by(conn_id=chart.conn_id).first()
+                Connection).filter_by(conn_id=chart.conn_id).first()
 
         payload = {
             "state": "ERROR",
@@ -2216,8 +2217,7 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
     @wwwutils.gzipped
     @provide_session
     def query(self, session=None):
-        dbs = session.query(models.Connection).order_by(
-            models.Connection.conn_id).all()
+        dbs = session.query(Connection).order_by(Connection.conn_id).all()
         session.expunge_all()
         db_choices = list(
             ((db.conn_id, db.conn_id) for db in dbs if db.get_hook()))
@@ -2335,8 +2335,8 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
 def _connection_ids(session=None):
     return [(c.conn_id, c.conn_id) for c in (
         session
-            .query(models.Connection.conn_id)
-            .group_by(models.Connection.conn_id))]
+            .query(Connection.conn_id)
+            .group_by(Connection.conn_id))]
 
 
 class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
@@ -2986,7 +2986,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__scope': StringField('Scopes (comma separated)'),
     }
     form_choices = {
-        'conn_type': models.Connection._types
+        'conn_type': Connection._types
     }
 
     def on_model_change(self, form, model, is_created):

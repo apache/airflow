@@ -23,8 +23,8 @@ import unittest
 from mock import patch
 
 from airflow import configuration
-from airflow import models
 from airflow.contrib.sensors.datadog_sensor import DatadogSensor
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 at_least_one_event = [{'alert_type': 'info',
@@ -64,7 +64,7 @@ class TestDatadogSensor(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='datadog_default', conn_type='datadog',
                 login='login', password='password',
                 extra=json.dumps({'api_key': 'api_key', 'app_key': 'app_key'})

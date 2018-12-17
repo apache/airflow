@@ -41,7 +41,6 @@ from parameterized import parameterized
 from airflow import AirflowException, configuration, models, settings
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import Connection
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun, DagStat
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
@@ -49,6 +48,7 @@ from airflow.models import SkipMixin
 from airflow.models import State as ST
 from airflow.models import XCom
 from airflow.models import clear_task_instances
+from airflow.models.connection import Connection
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
