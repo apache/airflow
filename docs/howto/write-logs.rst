@@ -57,6 +57,7 @@ example:
     # Airflow can store logs remotely in AWS S3. Users must supply a remote
     # location URL (starting with either 's3://...') and an Airflow connection
     # id that provides access to the storage location.
+    remote_logging = True
     remote_base_log_folder = s3://my-bucket/path/to/logs
     remote_log_conn_id = MyS3Conn
     # Use server-side encryption for logs stored in S3
