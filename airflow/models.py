@@ -3753,8 +3753,8 @@ class DAG(LoggingMixin):
         Returns a boolean indicating whether this DAG is paused
         """
         qry = session.query(DagModel).filter(
-            DagModel.dag_id == self.dag_id)
-        return qry.value('is_paused')
+            DagModel.dag_id == self.dag_id).first()
+        return qry.is_paused
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=None):
