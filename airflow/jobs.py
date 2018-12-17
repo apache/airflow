@@ -545,6 +545,8 @@ class SchedulerJob(BaseJob):
             run_duration=None,
             do_pickle=False,
             log=None,
+            last_loop=False,
+            single_file_loop=False,
             *args, **kwargs):
         """
         :param dag_id: if specified, only schedule tasks with this DAG ID
@@ -567,6 +569,7 @@ class SchedulerJob(BaseJob):
         :type do_pickle: bool
         """
         # for BaseJob compatibility
+        self._single_file_loop = single_file_loop
         self.dag_id = dag_id
         self.dag_ids = [dag_id] if dag_id else []
         if dag_ids:
@@ -597,7 +600,7 @@ class SchedulerJob(BaseJob):
                                             'run_duration')
 
         self.processor_agent = None
-        self._last_loop = False
+        self._last_loop = last_loop
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
@@ -1640,7 +1643,7 @@ class SchedulerJob(BaseJob):
             # Exit early for a test mode, run one additional scheduler loop
             # to reduce the possibility that parsed DAG was put into the queue
             # by the DAG manager but not yet received by DAG agent.
-            if self.processor_agent.done:
+            if self._single_file_loop and self.processor_agent.done:
                 self._last_loop = True
 
             if self._last_loop:
