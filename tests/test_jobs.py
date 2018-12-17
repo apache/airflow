@@ -1279,7 +1279,8 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler = SchedulerJob(
             dag_id='this_dag_doesnt_exist',  # We don't want to actually run anything
             num_runs=1,
-            subdir=os.path.join(dags_folder))
+            subdir=os.path.join(dags_folder),
+            single_file_loop=True)
         scheduler.heartrate = 0
         scheduler.run()
 
@@ -2818,6 +2819,7 @@ class SchedulerJobTest(unittest.TestCase):
             # try to schedule the above DAG repeatedly.
             scheduler = SchedulerJob(num_runs=1,
                                      executor=executor,
+                                     single_file_loop=True,
                                      subdir=os.path.join(settings.DAGS_FOLDER,
                                                          "no_dags.py"))
             scheduler.heartrate = 0
