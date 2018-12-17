@@ -1284,7 +1284,10 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler.run()
 
     def _make_simple_dag_bag(self, dags):
-        return DagBag(dags)
+        dag_bag = DagBag()
+        for dag in dags:
+            dag_bag.dags[dag.dag_id] = dag
+        return dag_bag
 
     def test_no_orphan_process_will_be_left(self):
         empty_dir = mkdtemp()
@@ -1822,18 +1825,22 @@ class SchedulerJobTest(unittest.TestCase):
         task_id_1 = 'dummy'
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
-        dagbag = SimpleDagBag([])
+        dagbag = DagBag()
+        dagbag.dags[dag.dag_id] = dag
 
         scheduler = SchedulerJob()
         session = settings.Session()
 
-        dr1 = scheduler.create_dag_run(dag)
-        ti1 = TI(task1, dr1.execution_date)
-        ti1.state = State.SCHEDULED
-        session.merge(ti1)
-        session.commit()
-
-        self.assertEqual(0, scheduler._execute_task_instances(dagbag, states=[State.SCHEDULED]))
+        with mock.patch('airflow.utils.dag_processing.DagFileProcessorAgent') as processor_agent_mock:
+            processor_agent_mock.dag_bag.return_value = dagbag
+            scheduler.processor_agent = processor_agent_mock
+            dr1 = scheduler.create_dag_run(dag)
+            ti1 = TI(task1, dr1.execution_date)
+            ti1.state = State.SCHEDULED
+            session.merge(ti1)
+            session.commit()
+            changes = scheduler._execute_task_instances(dagbag, states=[State.SCHEDULED])
+            self.assertEqual(1, changes)
 
     def test_execute_task_instances(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances'
