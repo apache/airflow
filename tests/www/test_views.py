@@ -446,11 +446,44 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
 
+    def test_delete_dag_button_normal(self):
+        resp = self.client.get('/', follow_redirects=True)
+        self.check_content_in_response('/delete?dag_id=example_bash_operator', resp)
+        self.check_content_in_response("return confirmDeleteDag('example_bash_operator')", resp)
+
+    def test_delete_dag_button_for_dag_on_scheduler_only(self):
+        # Test for JIRA AIRFLOW-3233 (PR 4069):
+        # The delete-dag URL should be generated correctly for DAGs
+        # that exist on the scheduler (DB) but not the webserver DagBag
+
+        test_dag_id = "non_existent_dag"
+
+        DM = models.DagModel
+        self.session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        self.session.commit()
+
+        resp = self.client.get('/', follow_redirects=True)
+        self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
+        self.check_content_in_response("return confirmDeleteDag('{}')".format(test_dag_id), resp)
+
+        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        self.session.commit()
+
 
 class TestConfigurationView(TestBase):
-    def test_configuration(self):
+    def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
+        conf.set("webserver", "expose_config", "False")
+        resp = self.client.get('configuration', follow_redirects=True)
+        self.check_content_in_response(
+            ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
+                                      'most likely for security reasons.'], resp)
+
+    def test_configuration_expose_config(self):
+        self.logout()
+        self.login()
+        conf.set("webserver", "expose_config", "True")
         resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
@@ -965,6 +998,9 @@ class TestDagACLView(TestBase):
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
 
+        role_user = self.appbuilder.sm.find_role('User')
+        self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
+
         read_only_perm_on_dag = self.appbuilder.sm.\
             find_permission_view_menu('can_dag_read', 'example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
@@ -1389,39 +1425,6 @@ class TestTaskInstanceView(TestBase):
         # doesn't blow up!
         self.check_content_in_response('List Task Instance', resp)
         pass
-
-
-class TestDeleteDag(unittest.TestCase):
-
-    def setUp(self):
-        conf.load_test_config()
-        app = application.create_app(testing=True)
-        app.config['WTF_CSRF_METHODS'] = []
-        self.app = app.test_client()
-
-    def test_delete_dag_button_normal(self):
-        resp = self.app.get('/', follow_redirects=True)
-        self.assertIn('/delete?dag_id=example_bash_operator', resp.data.decode('utf-8'))
-        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
-
-    def test_delete_dag_button_for_dag_on_scheduler_only(self):
-        # Test for JIRA AIRFLOW-3233 (PR 4069):
-        # The delete-dag URL should be generated correctly for DAGs
-        # that exist on the scheduler (DB) but not the webserver DagBag
-
-        test_dag_id = "non_existent_dag"
-
-        session = Session()
-        DM = models.DagModel
-        session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
-        session.commit()
-
-        resp = self.app.get('/', follow_redirects=True)
-        self.assertIn('/delete?dag_id={}'.format(test_dag_id), resp.data.decode('utf-8'))
-        self.assertIn("return confirmDeleteDag('{}')".format(test_dag_id), resp.data.decode('utf-8'))
-
-        session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
-        session.commit()
 
 
 if __name__ == '__main__':

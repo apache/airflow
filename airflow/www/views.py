@@ -1627,6 +1627,8 @@ class Airflow(AirflowBaseView):
         # sync dag permission
         appbuilder.sm.sync_perm_for_dag(dag_id)
 
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
+
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
@@ -1798,11 +1800,18 @@ class ConfigurationView(AirflowBaseView):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
         subtitle = conf.AIRFLOW_CONFIG
-        with open(conf.AIRFLOW_CONFIG, 'r') as f:
-            config = f.read()
-        table = [(section, key, value, source)
-                 for section, parameters in conf.as_dict(True, True).items()
-                 for key, (value, source) in parameters.items()]
+        # Don't show config when expose_config variable is False in airflow config
+        if conf.getboolean("webserver", "expose_config"):
+            with open(conf.AIRFLOW_CONFIG, 'r') as f:
+                config = f.read()
+            table = [(section, key, value, source)
+                     for section, parameters in conf.as_dict(True, True).items()
+                     for key, (value, source) in parameters.items()]
+        else:
+            config = (
+                "# Your Airflow administrator chose not to expose the "
+                "configuration, most likely for security reasons.")
+            table = None
 
         if raw:
             return Response(
