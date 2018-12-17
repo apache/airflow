@@ -137,6 +137,10 @@ class KubeConfig:
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
 
+        # NOTE: user can build the dags into the docker image directly,
+        # this will set to True if so
+        self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
+
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')
@@ -204,10 +208,12 @@ class KubeConfig:
         self._validate()
 
     def _validate(self):
-        if not self.dags_volume_claim and (not self.git_repo or not self.git_branch):
+        if not self.dags_volume_claim and not self.dags_in_image \
+                and (not self.git_repo or not self.git_branch):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
-                'config section: `dags_volume_claim` or `git_repo and git_branch`')
+                'config section: `dags_volume_claim` or `git_repo and git_branch` '
+                'or `dags_in_image`')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
@@ -590,9 +596,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def sync(self):
         if self.running:
-            self.log.info('self.running: %s', self.running)
+            self.log.debug('self.running: %s', self.running)
         if self.queued_tasks:
-            self.log.info('self.queued: %s', self.queued_tasks)
+            self.log.debug('self.queued: %s', self.queued_tasks)
         self.kube_scheduler.sync()
 
         last_resource_version = None
@@ -607,8 +613,14 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             last_resource_version, session=self._session)
 
         if not self.task_queue.empty():
-            key, command, kube_executor_config = self.task_queue.get()
-            self.kube_scheduler.run_next((key, command, kube_executor_config))
+            task = self.task_queue.get()
+
+            try:
+                self.kube_scheduler.run_next(task)
+            except ApiException:
+                self.log.exception('ApiException when attempting ' +
+                                   'to run task, re-queueing.')
+                self.task_queue.put(task)
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:

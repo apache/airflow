@@ -175,6 +175,7 @@ data:
     worker_container_image_pull_policy = IfNotPresent
     worker_dags_folder = /tmp/dags
     delete_worker_pods = True
+    dags_in_image = False
     git_repo = https://github.com/apache/incubator-airflow.git
     git_branch = master
     git_subpath = airflow/example_dags/
@@ -249,6 +250,11 @@ data:
 
     # This defines the port that Celery Flower runs on
     flower_port = 5555
+
+    # Securing Flower with Basic Authentication
+    # Accepts user:password pairs separated by a comma
+    # Example: flower_basic_auth = user1:password1,user2:password2
+    flower_basic_auth =
 
     # Default queue that tasks get assigned to and that worker listen on.
     default_queue = default

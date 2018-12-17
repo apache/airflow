@@ -441,7 +441,8 @@ class CoreTest(unittest.TestCase):
             self.assertTrue(
                 issubclass(w[0].category, PendingDeprecationWarning))
             self.assertIn(
-                'Invalid arguments were passed to BashOperator.',
+                ('Invalid arguments were passed to BashOperator '
+                 '(task_id: test_illegal_args).'),
                 w[0].message.args[0])
 
     def test_bash_operator(self):
@@ -666,7 +667,8 @@ class CoreTest(unittest.TestCase):
         self.assertEquals(context['prev_ds_nodash'], '20141231')
 
         self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
-        self.assertEquals(context['ts_nodash'], '20150101T000000+0000')
+        self.assertEquals(context['ts_nodash'], '20150101T000000')
+        self.assertEquals(context['ts_nodash_with_tz'], '20150101T000000+0000')
 
         self.assertEquals(context['yesterday_ds'], '2014-12-31')
         self.assertEquals(context['yesterday_ds_nodash'], '20141231')

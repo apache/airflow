@@ -1004,7 +1004,7 @@ def serve_logs(args):
     flask_app = flask.Flask(__name__)
 
     @flask_app.route('/log/<path:filename>')
-    def serve_logs(filename):  # noqa
+    def serve_logs(filename):
         log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
         return flask.send_from_directory(
             log,
@@ -1046,6 +1046,9 @@ def worker(args):
         'loglevel': conf.get('core', 'LOGGING_LEVEL'),
     }
 
+    if conf.has_option("celery", "pool"):
+        options["pool"] = conf.get("celery", "pool")
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
                                                         args.pid,
@@ -1079,7 +1082,7 @@ def worker(args):
         sp.kill()
 
 
-def initdb(args):  # noqa
+def initdb(args):
     print("DB: " + repr(settings.engine.url))
     db_utils.initdb()
     print("Done.")
@@ -1096,7 +1099,7 @@ def resetdb(args):
 
 
 @cli_utils.action_logging
-def upgradedb(args):  # noqa
+def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
     db_utils.upgradedb()
 
@@ -1114,7 +1117,7 @@ def upgradedb(args):  # noqa
 
 
 @cli_utils.action_logging
-def version(args):  # noqa
+def version(args):
     print(settings.HEADER + "  v" + airflow.__version__)
 
 
@@ -1270,6 +1273,10 @@ def flower(args):
     if args.url_prefix:
         url_prefix = '--url-prefix=' + args.url_prefix
 
+    basic_auth = ''
+    if args.basic_auth:
+        basic_auth = '--basic_auth=' + args.basic_auth
+
     flower_conf = ''
     if args.flower_conf:
         flower_conf = '--conf=' + args.flower_conf
@@ -1291,7 +1298,7 @@ def flower(args):
 
         with ctx:
             os.execvp("flower", ['flower', '-b',
-                                 broka, address, port, api, flower_conf, url_prefix])
+                                 broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
         stdout.close()
         stderr.close()
@@ -1300,11 +1307,11 @@ def flower(args):
         signal.signal(signal.SIGTERM, sigint_handler)
 
         os.execvp("flower", ['flower', '-b',
-                             broka, address, port, api, flower_conf, url_prefix])
+                             broka, address, port, api, flower_conf, url_prefix, basic_auth])
 
 
 @cli_utils.action_logging
-def kerberos(args):  # noqa
+def kerberos(args):
     print(settings.HEADER)
     import airflow.security.kerberos
 
@@ -1324,12 +1331,12 @@ def kerberos(args):  # noqa
         )
 
         with ctx:
-            airflow.security.kerberos.run()
+            airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
         stdout.close()
         stderr.close()
     else:
-        airflow.security.kerberos.run()
+        airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
 
 @cli_utils.action_logging
@@ -1457,7 +1464,7 @@ def list_dag_runs(args, dag=None):
 
 
 @cli_utils.action_logging
-def sync_perm(args):  # noqa
+def sync_perm(args):
     appbuilder = cached_appbuilder()
     print('Update permission, view-menu for all existing roles')
     appbuilder.sm.sync_roles()
@@ -1665,8 +1672,7 @@ class CLIFactory(object):
             help="Delete a variable"),
         # kerberos
         'principal': Arg(
-            ("principal",), "kerberos principal",
-            nargs='?', default=conf.get('kerberos', 'principal')),
+            ("principal",), "kerberos principal", nargs='?'),
         'keytab': Arg(
             ("-kt", "--keytab"), "keytab",
             nargs='?', default=conf.get('kerberos', 'keytab')),
@@ -1814,6 +1820,12 @@ class CLIFactory(object):
             ("-u", "--url_prefix"),
             default=conf.get('celery', 'FLOWER_URL_PREFIX'),
             help="URL prefix for Flower"),
+        'flower_basic_auth': Arg(
+            ("-ba", "--basic_auth"),
+            default=conf.get('celery', 'FLOWER_BASIC_AUTH'),
+            help=("Securing Flower with Basic Authentication. "
+                  "Accepts user:password pairs separated by a comma. "
+                  "Example: flower_basic_auth = user1:password1,user2:password2")),
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
@@ -2061,7 +2073,7 @@ class CLIFactory(object):
             'func': flower,
             'help': "Start a Celery Flower",
             'args': ('flower_hostname', 'flower_port', 'flower_conf', 'flower_url_prefix',
-                     'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+                     'flower_basic_auth', 'broker_api', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
             'help': "Show the version",

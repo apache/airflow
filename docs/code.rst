@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 API Reference
 =============
 
@@ -113,7 +130,10 @@ Operators
 .. Alphabetize this list
 
 .. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
+.. autoclass:: airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
+.. autoclass:: airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator
@@ -189,6 +209,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.s3_to_gcs_transfer_operator.S3ToGoogleCloudStorageTransferOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_base_operator.SageMakerBaseOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
@@ -213,7 +234,9 @@ Operators
 Sensors
 ^^^^^^^
 
+.. autoclass:: airflow.contrib.sensors.aws_athena_sensor.AthenaSensor
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
+.. autoclass:: airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
 .. autoclass:: airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor
@@ -246,7 +269,7 @@ Sensors
 .. _macros:
 
 Macros
----------
+------
 Here's a list of variables and macros that can be used in templates
 
 
@@ -261,19 +284,20 @@ Variable                            Description
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
 ``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``
-                                    if ``{{ ds }}`` is ``2016-01-08`` and ``schedule_interval`` is ``@weekly``,
+                                    if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
                                     ``{{ prev_ds }}`` will be ``2016-01-01``
 ``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None`
 ``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``
-                                    if ``{{ ds }}`` is ``2016-01-01`` and ``schedule_interval`` is ``@weekly``,
-                                    ``{{ next_ds }}`` will be ``2016-01-08``
+                                    if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
+                                    ``{{ next_ds }}`` will be ``2018-01-08``
 ``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
-``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
-``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
-``{{ tomorrow_ds }}``               tomorrow's date as ``YYYY-MM-DD``
-``{{ tomorrow_ds_nodash }}``        tomorrow's date as ``YYYYMMDD``
-``{{ ts }}``                        same as ``execution_date.isoformat()``
-``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
+``{{ yesterday_ds }}``              the day before the execution date as ``YYYY-MM-DD``
+``{{ yesterday_ds_nodash }}``       the day before the execution date as ``YYYYMMDD``
+``{{ tomorrow_ds }}``               the day after the execution date as ``YYYY-MM-DD``
+``{{ tomorrow_ds_nodash }}``        the day after the execution date as ``YYYYMMDD``
+``{{ ts }}``                        same as ``execution_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
+``{{ ts_nodash }}``                 same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
+``{{ ts_nodash_with_tz }}``         same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
 ``{{ prev_execution_date }}``       the previous execution date (if available) (datetime.datetime)
 ``{{ next_execution_date }}``       the next execution date (datetime.datetime)
@@ -390,11 +414,13 @@ interface when possible and acting as building blocks for operators.
 Community contributed hooks
 '''''''''''''''''''''''''''
 .. Alphabetize this list
+.. autoclass:: airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
 .. autoclass:: airflow.contrib.hooks.aws_sns_hook.AwsSnsHook
+.. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 .. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
@@ -415,10 +441,12 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
 .. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+.. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
 .. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
 .. autoclass:: airflow.contrib.hooks.mongo_hook.MongoHook
+.. autoclass:: airflow.contrib.hooks.openfaas_hook.OpenFaasHook
 .. autoclass:: airflow.contrib.hooks.pinot_hook.PinotDbApiHook
 .. autoclass:: airflow.contrib.hooks.qubole_hook.QuboleHook
 .. autoclass:: airflow.contrib.hooks.redis_hook.RedisHook
@@ -450,3 +478,4 @@ Community-contributed executors
 '''''''''''''''''''''''''''''''
 
 .. autoclass:: airflow.contrib.executors.mesos_executor.MesosExecutor
+.. autoclass:: airflow.contrib.executors.kubernetes_executor.KubernetesExecutor

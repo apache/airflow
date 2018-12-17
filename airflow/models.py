@@ -22,12 +22,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import copy
+from collections import defaultdict, namedtuple, OrderedDict
 
+from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
-from builtins import str, object, bytes, ImportError as BuiltinImportError
-import copy
-from collections import namedtuple, defaultdict
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Hashable
@@ -64,7 +64,7 @@ from urllib.parse import urlparse, quote, parse_qsl, unquote
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
-    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint,
+    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, MetaData,
     and_, asc, func, or_, true as sqltrue
 )
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
@@ -108,7 +108,13 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 
-Base = declarative_base()
+SQL_ALCHEMY_SCHEMA = configuration.get('core', 'SQL_ALCHEMY_SCHEMA')
+
+if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
+    Base = declarative_base()
+else:
+    Base = declarative_base(metadata=MetaData(schema=SQL_ALCHEMY_SCHEMA))
+
 ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
 
@@ -286,12 +292,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors = {}
         self.has_logged = False
 
-        if include_examples:
-            example_dag_folder = os.path.join(
-                os.path.dirname(__file__),
-                'example_dags')
-            self.collect_dags(example_dag_folder)
-        self.collect_dags(dag_folder)
+        self.collect_dags(dag_folder, include_examples)
 
     def size(self):
         """
@@ -525,7 +526,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     def collect_dags(
             self,
             dag_folder=None,
-            only_if_updated=True):
+            only_if_updated=True,
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -545,7 +547,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        for filepath in list_py_file_paths(dag_folder):
+        for filepath in list_py_file_paths(dag_folder, include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
@@ -599,7 +601,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String(ID_LEN), unique=True)
     email = Column(String(500))
-    superuser = False
+    superuser = Column(Boolean(), default=False)
 
     def __repr__(self):
         return self.username
@@ -665,8 +667,11 @@ class Connection(Base, LoggingMixin):
         ('snowflake', 'Snowflake',),
         ('segment', 'Segment',),
         ('azure_data_lake', 'Azure Data Lake'),
+        ('azure_cosmos', 'Azure CosmosDB'),
         ('cassandra', 'Cassandra',),
         ('qubole', 'Qubole'),
+        ('mongo', 'MongoDB'),
+        ('gcpcloudsql', 'Google Cloud SQL'),
     ]
 
     def __init__(
@@ -804,9 +809,18 @@ class Connection(Base, LoggingMixin):
             elif self.conn_type == 'azure_data_lake':
                 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
                 return AzureDataLakeHook(azure_data_lake_conn_id=self.conn_id)
+            elif self.conn_type == 'azure_cosmos':
+                from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
+                return AzureCosmosDBHook(azure_cosmos_conn_id=self.conn_id)
             elif self.conn_type == 'cassandra':
                 from airflow.contrib.hooks.cassandra_hook import CassandraHook
                 return CassandraHook(cassandra_conn_id=self.conn_id)
+            elif self.conn_type == 'mongo':
+                from airflow.contrib.hooks.mongo_hook import MongoHook
+                return MongoHook(conn_id=self.conn_id)
+            elif self.conn_type == 'gcpcloudsql':
+                from airflow.contrib.hooks.gcp_sql_hook import CloudSqlDatabaseHook
+                return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         except Exception:
             pass
 
@@ -1837,7 +1851,8 @@ class TaskInstance(Base, LoggingMixin):
             prev_ds_nodash = prev_ds.replace('-', '')
 
         ds_nodash = ds.replace('-', '')
-        ts_nodash = ts.replace('-', '').replace(':', '')
+        ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
+        ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
         tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
 
@@ -1907,6 +1922,7 @@ class TaskInstance(Base, LoggingMixin):
             'ds_nodash': ds_nodash,
             'ts': ts,
             'ts_nodash': ts_nodash,
+            'ts_nodash_with_tz': ts_nodash_with_tz,
             'yesterday_ds': yesterday_ds,
             'yesterday_ds_nodash': yesterday_ds_nodash,
             'tomorrow_ds': tomorrow_ds,
@@ -1956,21 +1972,40 @@ class TaskInstance(Base, LoggingMixin):
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):
-        task = self.task
-        title = "Airflow alert: {self}".format(**locals())
-        exception = str(exception).replace('\n', '<br>')
+        exception_html = str(exception).replace('\n', '<br>')
+        jinja_context = self.get_template_context()
+        jinja_context.update(dict(
+            exception=exception,
+            exception_html=exception_html,
+            try_number=self.try_number,
+            max_tries=self.max_tries))
+
+        jinja_env = self.task.get_template_env()
+
+        default_subject = 'Airflow alert: {{ti}}'
         # For reporting purposes, we report based on 1-indexed,
         # not 0-indexed lists (i.e. Try 1 instead of
         # Try 0 for the first attempt).
-        body = (
-            "Try {try_number} out of {max_tries}<br>"
-            "Exception:<br>{exception}<br>"
-            "Log: <a href='{self.log_url}'>Link</a><br>"
-            "Host: {self.hostname}<br>"
-            "Log file: {self.log_filepath}<br>"
-            "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
-        ).format(try_number=self.try_number, max_tries=self.max_tries + 1, **locals())
-        send_email(task.email, title, body)
+        default_html_content = (
+            'Try {{try_number}} out of {{max_tries + 1}}<br>'
+            'Exception:<br>{{exception_html}}<br>'
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            'Host: {{ti.hostname}}<br>'
+            'Log file: {{ti.log_filepath}}<br>'
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
+
+        def render(key, content):
+            if configuration.has_option('email', key):
+                path = configuration.get('email', key)
+                with open(path) as f:
+                    content = f.read()
+
+            return jinja_env.from_string(content).render(**jinja_context)
+
+        subject = render('subject_template', default_subject)
+        html_content = render('html_content_template', default_html_content)
+        send_email(self.task.email, subject, html_content)
 
     def set_duration(self):
         if self.end_date and self.start_date:
@@ -2389,7 +2424,7 @@ class BaseOperator(LoggingMixin):
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | dummy}``
+        one_failed | none_failed | dummy}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -2479,14 +2514,14 @@ class BaseOperator(LoggingMixin):
         if args or kwargs:
             # TODO remove *args and **kwargs in Airflow 2.0
             warnings.warn(
-                'Invalid arguments were passed to {c}. Support for '
-                'passing such arguments will be dropped in Airflow 2.0. '
-                'Invalid arguments were:'
+                'Invalid arguments were passed to {c} (task_id: {t}). '
+                'Support for passing such arguments will be dropped in '
+                'Airflow 2.0. Invalid arguments were:'
                 '\n*args: {a}\n**kwargs: {k}'.format(
-                    c=self.__class__.__name__, a=args, k=kwargs),
-                category=PendingDeprecationWarning
+                    c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
+                category=PendingDeprecationWarning,
+                stacklevel=3
             )
-
         validate_key(task_id)
         self.task_id = task_id
         self.owner = owner
@@ -2611,10 +2646,10 @@ class BaseOperator(LoggingMixin):
         }
 
     def __eq__(self, other):
-        return (
-            type(self) == type(other) and
-            all(self.__dict__.get(c, None) == other.__dict__.get(c, None)
-                for c in self._comps))
+        if (type(self) == type(other) and
+                self.task_id == other.task_id):
+            return all(self.__dict__.get(c, None) == other.__dict__.get(c, None) for c in self._comps)
+        return False
 
     def __ne__(self, other):
         return not self == other
@@ -2859,9 +2894,7 @@ class BaseOperator(LoggingMixin):
         Renders a template either from a file or directly in a field, and returns
         the rendered result.
         """
-        jinja_env = self.dag.get_template_env() \
-            if hasattr(self, 'dag') \
-            else jinja2.Environment(cache_size=0)
+        jinja_env = self.get_template_env()
 
         exts = self.__class__.template_ext
         if (
@@ -2870,6 +2903,11 @@ class BaseOperator(LoggingMixin):
             return jinja_env.get_template(content).render(**context)
         else:
             return self.render_template_from_field(attr, content, context, jinja_env)
+
+    def get_template_env(self):
+        return self.dag.get_template_env() \
+            if hasattr(self, 'dag') \
+            else jinja2.Environment(cache_size=0)
 
     def prepare_template(self):
         """
@@ -2884,14 +2922,24 @@ class BaseOperator(LoggingMixin):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if content is not None and \
-                    isinstance(content, six.string_types) and \
+            if content is None:
+                continue
+            elif isinstance(content, six.string_types) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
-                env = self.dag.get_template_env()
+                env = self.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
                 except Exception as e:
                     self.log.exception(e)
+            elif isinstance(content, list):
+                env = self.dag.get_template_env()
+                for i in range(len(content)):
+                    if isinstance(content[i], six.string_types) and \
+                            any([content[i].endswith(ext) for ext in self.template_ext]):
+                        try:
+                            content[i] = env.loader.get_source(env, content[i])[0]
+                        except Exception as e:
+                            self.log.exception(e)
         self.prepare_template()
 
     @property
@@ -3320,7 +3368,8 @@ class DAG(BaseDag, LoggingMixin):
                     timezone.parse(self.default_args['start_date'])
                 )
             self.timezone = self.default_args['start_date'].tzinfo
-        else:
+
+        if not hasattr(self, 'timezone') or not self.timezone:
             self.timezone = settings.TIMEZONE
 
         self.start_date = timezone.convert_to_utc(start_date)
@@ -3378,12 +3427,13 @@ class DAG(BaseDag, LoggingMixin):
         return "<DAG: {self.dag_id}>".format(self=self)
 
     def __eq__(self, other):
-        return (
-            type(self) == type(other) and
+        if (type(self) == type(other) and
+                self.dag_id == other.dag_id):
+
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
-            all(getattr(self, c, None) == getattr(other, c, None)
-                for c in self._comps))
+            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
+        return False
 
     def __ne__(self, other):
         return not self == other
@@ -3839,8 +3889,8 @@ class DAG(BaseDag, LoggingMixin):
         :return: list of tasks in topological order
         """
 
-        # copy the the tasks so we leave it unmodified
-        graph_unsorted = self.tasks[:]
+        # convert into an OrderedDict to speedup lookup while keeping order the same
+        graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
 
         graph_sorted = []
 
@@ -3863,14 +3913,14 @@ class DAG(BaseDag, LoggingMixin):
             # not, we need to bail out as the graph therefore can't be
             # sorted.
             acyclic = False
-            for node in list(graph_unsorted):
+            for node in list(graph_unsorted.values()):
                 for edge in node.upstream_list:
-                    if edge in graph_unsorted:
+                    if edge.task_id in graph_unsorted:
                         break
                 # no edges in upstream tasks
                 else:
                     acyclic = True
-                    graph_unsorted.remove(node)
+                    del graph_unsorted[node.task_id]
                     graph_sorted.append(node)
 
             if not acyclic:
@@ -5415,6 +5465,10 @@ class SlaMiss(Base):
     timestamp = Column(UtcDateTime)
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index('sm_dag', dag_id, unique=False),
+    )
 
     def __repr__(self):
         return str((

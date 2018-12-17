@@ -181,13 +181,17 @@ class AirflowSecurityManager(SecurityManager):
         if not role:
             role = self.add_role(role_name)
 
-        role_pvms = []
-        for pvm in pvms:
-            if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
-                role_pvms.append(pvm)
-        role.permissions = list(set(role_pvms))
-        self.get_session.merge(role)
-        self.get_session.commit()
+        if len(role.permissions) == 0:
+            logging.info('Initializing permissions for role:%s in the database.', role_name)
+            role_pvms = []
+            for pvm in pvms:
+                if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
+                    role_pvms.append(pvm)
+            role.permissions = list(set(role_pvms))
+            self.get_session.merge(role)
+            self.get_session.commit()
+        else:
+            logging.info('Existing permissions for the role:%s within the database will persist.', role_name)
 
     def get_user_roles(self, user=None):
         """
@@ -391,8 +395,8 @@ class AirflowSecurityManager(SecurityManager):
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
-            existing_perms_views = set([role.permission_view_id
-                                        for role in existing_perm_view_by_user])
+            existing_perms_views = set([pv.permission_view_id
+                                        for pv in existing_perm_view_by_user])
             missing_perm_views = all_perm_views - existing_perms_views
 
             for perm_view_id in missing_perm_views:

@@ -324,6 +324,12 @@ class AirflowConfigParser(ConfigParser):
         if section in self._sections:
             _section.update(copy.deepcopy(self._sections[section]))
 
+        section_prefix = 'AIRFLOW__{S}__'.format(S=section.upper())
+        for env_var in sorted(os.environ.keys()):
+            if env_var.startswith(section_prefix):
+                key = env_var.replace(section_prefix, '').lower()
+                _section[key] = self._get_env_var_option(section, key)
+
         for key, val in iteritems(_section):
             try:
                 val = int(val)
