@@ -624,7 +624,7 @@ class SchedulerJob(BaseJob):
         tasks that should have succeeded in the past hour.
         """
         if not any([ti.sla for ti in dag.tasks]):
-            self.log.info(
+            self.log.debug(
                 "Skipping SLA check for %s because no tasks in DAG have SLAs",
                 dag
             )
@@ -1434,14 +1434,14 @@ class SchedulerJob(BaseJob):
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
             if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
+                self.log.debug("Not processing DAG %s since it's paused", dag.dag_id)
                 continue
 
             if not dag:
                 self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
                 continue
 
-            self.log.info("Processing %s", dag.dag_id)
+            self.log.debug("Processing %s", dag.dag_id)
 
             dag_run = self.create_dag_run(dag)
             if dag_run:
