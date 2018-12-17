@@ -41,8 +41,7 @@ class TestGCPTransferServiceHook(unittest.TestCase):
             self.transfer_hook = GCPTransferServiceHook()
             self.transfer_hook._conn = self.conn
 
-    @mock.patch('airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook.wait_for_transfer_job')
-    def test_create_transfer_job(self, mock_wait):
+    def test_create_transfer_job(self):
         mock_create = self.conn.transferJobs.return_value.create
         mock_execute = mock_create.return_value.execute
         mock_execute.return_value = {
@@ -54,10 +53,12 @@ class TestGCPTransferServiceHook(unittest.TestCase):
             'awsS3DataSource': {'bucketName': 'test-s3-bucket'},
             'gcsDataSink': {'bucketName': 'test-gcs-bucket'}
         }
-        self.transfer_hook.create_transfer_job('test-project', transfer_spec)
+        self.transfer_hook.create_transfer_job(
+            'test-project', 'test-description', None, transfer_spec)
         mock_create.assert_called_once_with(body={
             'status': 'ENABLED',
             'projectId': 'test-project',
+            'description': 'test-description',
             'transferSpec': transfer_spec,
             'schedule': {
                 'scheduleStartDate': {
@@ -72,7 +73,31 @@ class TestGCPTransferServiceHook(unittest.TestCase):
                 }
             }
         })
-        mock_wait.assert_called_once_with(mock_execute.return_value, conn=self.conn)
+
+    def test_create_transfer_job_custom_schedule(self):
+        mock_create = self.conn.transferJobs.return_value.create
+        mock_execute = mock_create.return_value.execute
+        mock_execute.return_value = {
+            'projectId': 'test-project',
+            'name': 'transferJobs/test-job',
+        }
+        schedule = {
+            'scheduleStartDate': {'month': 10, 'day': 1, 'year': 2018},
+            'scheduleEndDate': {'month': 10, 'day': 31, 'year': 2018},
+        }
+        transfer_spec = {
+            'awsS3DataSource': {'bucketName': 'test-s3-bucket'},
+            'gcsDataSink': {'bucketName': 'test-gcs-bucket'}
+        }
+        self.transfer_hook.create_transfer_job(
+            'test-project', 'test-description', schedule, transfer_spec)
+        mock_create.assert_called_once_with(body={
+            'status': 'ENABLED',
+            'projectId': 'test-project',
+            'description': 'test-description',
+            'transferSpec': transfer_spec,
+            'schedule': schedule,
+        })
 
     @mock.patch('time.sleep')
     def test_wait_for_transfer_job(self, mock_sleep):

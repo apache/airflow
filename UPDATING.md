@@ -24,6 +24,13 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Modification to `ts_nodash` macro
+`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes. 
+
+Examples:
+  * `ts_nodash`: `20150101T000000`
+  * `ts_nodash_with_tz`: `20150101T000000+0000`
+
 ### New `dag_processor_manager_log_location` config option
 
 The DAG parsing manager log now by default will be log into a file, where its location is
@@ -74,6 +81,24 @@ airflow users --list
 To delete a user:
 ```bash
 airflow users --delete --username jondoe
+```
+
+### User model changes
+This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
+
+For example, open a Python shell and
+```python
+from airflow import models, settings
+
+session = settings.Session()
+users = session.query(models.User).all()  # [admin, regular_user]
+
+users[1].superuser  # False
+
+admin = users[0]
+admin.superuser = True
+session.add(admin)
+session.commit()
 ```
 
 ## Airflow 1.10.1

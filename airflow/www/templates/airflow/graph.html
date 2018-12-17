@@ -282,11 +282,22 @@
               tt += "Operator: " + task.task_type + "<br>";
               tt += "Started: " + ti.start_date + "<br>";
               tt += "Ended: " + ti.end_date + "<br>";
-              tt += "Duration: " + ti.duration + "<br>";
+              tt += "Duration: " + secondsToString(ti.duration) + "<br>";
               tt += "State: " + ti.state + "<br>";
               return tt;
             });
         });
+    }
+
+    function secondsToString(seconds) {
+        var numdays = Math.floor((seconds % 31536000) / 86400); 
+        var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
+        var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
+        var numseconds = Math.floor((((seconds % 31536000) % 86400) % 3600) % 60);
+        return (numdays > 0    ? numdays    + (numdays    === 1 ? " day "    : " days ")    : "") +
+               (numhours > 0   ? numhours   + (numhours   === 1 ? " hour "   : " hours ")   : "") +
+               (numminutes > 0 ? numminutes + (numminutes === 1 ? " minute " : " minutes ") : "") +
+               (numseconds > 0 ? numseconds + (numseconds === 1 ? " second"  : " seconds")  : "");
     }
 
     function clearFocus(){

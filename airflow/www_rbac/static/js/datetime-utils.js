@@ -58,3 +58,14 @@ export const converAndFormatUTC = (datetime, tz) => {
   if (tz) dateTimeObj = dateTimeObj.tz(tz);
   return dateTimeObj.format(defaultFormatWithTZ)
 }
+
+export const secondsToString = (seconds) => {
+  let numdays    = Math.floor((seconds % 31536000) / 86400); 
+  let numhours   = Math.floor(((seconds % 31536000) % 86400) / 3600);
+  let numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
+  let numseconds = Math.floor((((seconds % 31536000) % 86400) % 3600) % 60);
+  return (numdays > 0    ? numdays    + (numdays    === 1 ? " day "    : " days ")    : "") +
+         (numhours > 0   ? numhours   + (numhours   === 1 ? " hour "   : " hours ")   : "") +
+         (numminutes > 0 ? numminutes + (numminutes === 1 ? " minute " : " minutes ") : "") +
+         (numseconds > 0 ? numseconds + (numseconds === 1 ? " second"  : " seconds")  : "");
+}

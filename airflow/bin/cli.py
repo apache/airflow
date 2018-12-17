@@ -1052,6 +1052,9 @@ def worker(args):
         'loglevel': conf.get('core', 'LOGGING_LEVEL'),
     }
 
+    if conf.has_option("celery", "pool"):
+        options["pool"] = conf.get("celery", "pool")
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
                                                         args.pid,
@@ -1334,12 +1337,12 @@ def kerberos(args):
         )
 
         with ctx:
-            airflow.security.kerberos.run()
+            airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
         stdout.close()
         stderr.close()
     else:
-        airflow.security.kerberos.run()
+        airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
 
 @cli_utils.action_logging
@@ -1678,8 +1681,7 @@ class CLIFactory(object):
             help="Delete a variable"),
         # kerberos
         'principal': Arg(
-            ("principal",), "kerberos principal",
-            nargs='?', default=conf.get('kerberos', 'principal')),
+            ("principal",), "kerberos principal", nargs='?'),
         'keytab': Arg(
             ("-kt", "--keytab"), "keytab",
             nargs='?', default=conf.get('kerberos', 'keytab')),
