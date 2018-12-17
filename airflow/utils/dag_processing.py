@@ -1024,7 +1024,7 @@ class DagFileProcessorManager(LoggingMixin):
                        len(self._file_path_queue))
 
         # Collect all the DAGs that were found in the processed files
-        simple_dags = []
+        dags = []
         for file_path, processor in finished_processors.items():
             if processor.result is None:
                 self.log.warning(
@@ -1032,8 +1032,8 @@ class DagFileProcessorManager(LoggingMixin):
                     processor.file_path, processor.exit_code
                 )
             else:
-                for simple_dag in processor.result:
-                    simple_dags.append(simple_dag)
+                for dag in processor.result:
+                    dags.append(dag)
 
         # Generate more file paths to process if we processed all the files
         # already.
@@ -1091,7 +1091,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Update heartbeat count.
         self._run_count[self._heart_beat_key] += 1
 
-        return simple_dags
+        return dags
 
     @provide_session
     def _find_zombies(self, session):
