@@ -100,7 +100,7 @@ class CompileAssets(Command):
         pass
 
     def run(self):
-        subprocess.call('./airflow/www_rbac/compile_assets.sh')
+        subprocess.call('./airflow/www/compile_assets.sh')
 
 
 def git_version(version):

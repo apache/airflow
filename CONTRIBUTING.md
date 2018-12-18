@@ -355,9 +355,9 @@ $ alembic revision -m "add new field to db"
 ~/airflow/airflow/migrations/versions/12341123_add_new_field_to_db.py
 ```
 
-## Setting up the node / npm javascript environment (ONLY FOR www_rbac)
+## Setting up the node / npm javascript environment
 
-`airflow/www_rbac/` contains all npm-managed, front end assets.
+`airflow/www/` contains all npm-managed, front end assets.
 Flask-Appbuilder itself comes bundled with jQuery and bootstrap.
 While these may be phased out over time, these packages are currently not
 managed with npm.
@@ -389,12 +389,12 @@ export PATH="$HOME/.npm-packages/bin:$PATH"
 #### npm packages
 
 To install third party libraries defined in `package.json`, run the
-following within the `airflow/www_rbac/` directory which will install them in a
-new `node_modules/` folder within `www_rbac/`.
+following within the `airflow/www/` directory which will install them in a
+new `node_modules/` folder within `www/`.
 
 ```bash
 # from the root of the repository, move to where our JS package.json lives
-cd airflow/www_rbac/
+cd airflow/www/
 # run npm install to fetch all the dependencies
 npm install
 ```

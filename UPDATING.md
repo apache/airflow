@@ -24,6 +24,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Deprecate legacy UI in favor of FAB RBAC UI
+Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
+in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the 
+RBAC UI explicitly in the configuration now as this is the only default UI. 
+
+
 ### Modification to `ts_nodash` macro
 `ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes. 
 

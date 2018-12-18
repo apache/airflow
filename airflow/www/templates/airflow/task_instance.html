@@ -22,10 +22,11 @@
 
 {% block head_css %}
 {{ super() }}
-<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 {% endblock %}
 
-{% block body %}
+{% block content %}
   {{ super() }}
   <h4>
 <form method="get" id="daform">
@@ -42,16 +43,16 @@
 </form>
   </h4>
   <ul class="nav nav-pills">
-    <li><a href="{{ url_for("airflow.task", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for("Airflow.task", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
       Task Instance Details</a></li>
-    <li><a href="{{ url_for("airflow.rendered", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for("Airflow.rendered", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
       Rendered Template</a></li>
-    <li><a href="{{ url_for("airflow.log", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for("Airflow.log", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
       Log</a></li>
-    <li><a href="{{ url_for("airflow.xcom", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
+    <li><a href="{{ url_for("Airflow.xcom", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
       XCom</a></li>
   </ul>
@@ -59,8 +60,7 @@
 {% endblock %}
 {% block tail %}
   {{ super() }}
-  <script src="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
-  <script src="{{ admin_static.url(filename='admin/js/form-1.0.0.js') }}"></script>
+  <script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js')}}"></script>
   <script>
     $( document ).ready(function() {
       function date_change(){
