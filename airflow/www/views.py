@@ -111,8 +111,7 @@ def dag_link(v, c, m, p):
     dag_id = bleach.clean(m.dag_id)
     url = url_for(
         'airflow.graph',
-        dag_id=dag_id,
-        execution_date=m.execution_date)
+        dag_id=dag_id)
     return Markup(
         '<a href="{}">{}</a>'.format(url, dag_id))
 
