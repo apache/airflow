@@ -37,7 +37,8 @@ class SlackWebhookOperator(SimpleHttpOperator):
     :type webhook_token: str
     :param message: The message you want to send on Slack
     :type message: str
-    :param attachments: The attachments you want to send on Slack
+    :param attachments: The attachments to send on Slack. Should be a list of
+                        dictionaries representing Slack attachments.
     :type attachments: list
     :param channel: The channel the message should be posted to
     :type channel: str
@@ -57,7 +58,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  http_conn_id=None,
                  webhook_token=None,
                  message="",
-                 attachments="",
+                 attachments=None,
                  channel=None,
                  username=None,
                  icon_emoji=None,
