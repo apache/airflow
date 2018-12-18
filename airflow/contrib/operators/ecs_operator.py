@@ -30,7 +30,7 @@ class ECSOperator(BaseOperator):
     """
     Execute a task on AWS EC2 Container Service
 
-    :param task_definition: the task definition name on EC2 Container Service
+    :param task_definition: the task definition name on EC2 Container Service (templated)
     :type task_definition: str
     :param cluster: the cluster name on EC2 Container Service
     :type cluster: str
@@ -60,7 +60,7 @@ class ECSOperator(BaseOperator):
     ui_color = '#f0ede4'
     client = None
     arn = None
-    template_fields = ('overrides',)
+    template_fields = ('task_definition', 'overrides',)
 
     @apply_defaults
     def __init__(self, task_definition, cluster, overrides,

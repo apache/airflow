@@ -95,7 +95,7 @@ class TestECSOperator(unittest.TestCase):
         self.aws_hook_mock.assert_called_once_with(aws_conn_id=None)
 
     def test_template_fields_overrides(self):
-        self.assertEqual(self.ecs.template_fields, ('overrides',))
+        self.assertEqual(self.ecs.template_fields, ('task_definition', 'overrides',))
 
     @mock.patch.object(ECSOperator, '_wait_for_task_ended')
     @mock.patch.object(ECSOperator, '_check_success_task')
