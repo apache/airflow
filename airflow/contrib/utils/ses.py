@@ -90,7 +90,8 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     log = LoggingMixin().log
 
     if not dryrun:
-        client = boto3.client('ses')
+        SES_REGION = configuration.conf.get('ses', 'SES_REGION')
+        client = boto3.client('ses', region_name=SES_REGION)
         log.info("Sent an alert email to %s", e_to)
         client.send_raw_email(Source=e_from,
                               Destinations=e_to,
