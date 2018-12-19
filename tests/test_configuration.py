@@ -21,6 +21,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
+import contextlib
 from collections import OrderedDict
 
 import six
@@ -33,6 +34,23 @@ if six.PY2:
     import unittest2 as unittest
 else:
     import unittest
+
+
+@contextlib.contextmanager
+def env_vars(**vars):
+    original = {}
+    for key, value in vars.items():
+        original[key] = os.environ.get(key)
+        if value is not None:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
+    yield
+    for key, value in original.items():
+        if value is not None:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
 
 
 class ConfTest(unittest.TestCase):
@@ -48,6 +66,30 @@ class ConfTest(unittest.TestCase):
     def tearDownClass(cls):
         del os.environ['AIRFLOW__TESTSECTION__TESTKEY']
         del os.environ['AIRFLOW__TESTSECTION__TESTPERCENT']
+
+    def test_airflow_home_default(self):
+        with env_vars(AIRFLOW_HOME=None):
+            self.assertEqual(
+                configuration.get_airflow_home(),
+                configuration.expand_env_var('~/airflow'))
+
+    def test_airflow_home_override(self):
+        with env_vars(AIRFLOW_HOME='/path/to/airflow'):
+            self.assertEqual(
+                configuration.get_airflow_home(),
+                '/path/to/airflow')
+
+    def test_airflow_config_default(self):
+        with env_vars(AIRFLOW_CONFIG=None):
+            self.assertEqual(
+                configuration.get_airflow_config('/home/airflow'),
+                configuration.expand_env_var('/home/airflow/airflow.cfg'))
+
+    def test_airflow_config_override(self):
+        with env_vars(AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
+            self.assertEqual(
+                configuration.get_airflow_config('/home//airflow'),
+                '/path/to/airflow/airflow.cfg')
 
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
