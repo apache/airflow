@@ -27,7 +27,6 @@ import time
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
-import hmsclient
 import six
 import unicodecsv as csv
 from past.builtins import basestring
