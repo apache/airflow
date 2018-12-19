@@ -32,7 +32,6 @@ import subprocess
 import time
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-import hmsclient
 
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
@@ -480,6 +479,7 @@ class HiveMetastoreHook(BaseHook):
         """
         Returns a Hive thrift client.
         """
+        import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
         ms = self.metastore_conn
