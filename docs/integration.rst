@@ -642,9 +642,18 @@ Cloud Spanner
 Cloud Spanner Operators
 """""""""""""""""""""""
 
+- :ref:`CloudSpannerInstanceDatabaseQueryOperator` : executes an arbitrary DML query
+  (INSERT, UPDATE, DELETE).
 - :ref:`CloudSpannerInstanceDeployOperator` : creates a new Cloud Spanner instance or,
   if an instance with the same name exists, updates it.
 - :ref:`CloudSpannerInstanceDeleteOperator` : deletes a Cloud Spanner instance.
+
+.. _CloudSpannerInstanceDatabaseQueryOperator:
+
+CloudSpannerInstanceDatabaseQueryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator
 
 .. _CloudSpannerInstanceDeployOperator:
 
