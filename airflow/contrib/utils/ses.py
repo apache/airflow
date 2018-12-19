@@ -49,13 +49,13 @@ def send_ses_email(to, subject, html_content, files=None,
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
-    SMTP_MAIL_FROM = configuration.conf.get('smtp', 'SMTP_MAIL_FROM')
+    SES_MAIL_FROM = configuration.conf.get('ses', 'SES_MAIL_FROM')
 
     to = get_email_address_list(to)
 
     msg = MIMEMultipart(mime_subtype)
     msg['Subject'] = subject
-    msg['From'] = SMTP_MAIL_FROM
+    msg['From'] = SES_MAIL_FROM
     msg['To'] = ", ".join(to)
     recipients = to
     if cc:
@@ -83,7 +83,7 @@ def send_ses_email(to, subject, html_content, files=None,
             part['Content-ID'] = '<%s>' % basename
             msg.attach(part)
 
-    send_MIME_email(SMTP_MAIL_FROM, recipients, msg, dryrun)
+    send_MIME_email(SES_MAIL_FROM, recipients, msg, dryrun)
 
 
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
