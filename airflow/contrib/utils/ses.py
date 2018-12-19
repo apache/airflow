@@ -41,9 +41,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def send_ses_email(to, subject, html_content, files=None,
-                    dryrun=False, cc=None, bcc=None,
-                    mime_subtype='mixed', mime_charset='us-ascii',
-                    **kwargs):
+                   dryrun=False, cc=None, bcc=None,
+                   mime_subtype='mixed', mime_charset='us-ascii',
+                   **kwargs):
     """
     Send an email with html content
 
