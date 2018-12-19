@@ -545,6 +545,48 @@ See `Google Cloud Functions API documentation
 Google Cloud Sql Operators
 --------------------------
 
+CloudSpannerInstanceDatabaseQueryOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
+
+For parameter definition take a look at
+:class:`~airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator`.
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :start-after: [START howto_operator_spanner_arguments]
+    :end-before: [END howto_operator_spanner_arguments]
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_query]
+    :end-before: [END howto_operator_spanner_query]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_spanner_operator.py
+  :language: python
+  :dedent: 4
+  :start-after: [START gcp_spanner_query_template_fields]
+  :end-before: [END gcp_spanner_query_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Spanner API documentation for `the DML syntax
+<https://cloud.google.com/spanner/docs/dml-syntax>`_.
+
 CloudSpannerInstanceDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -22,7 +22,8 @@ from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.contrib.operators.gcp_spanner_operator import \
-    CloudSpannerInstanceDeployOperator, CloudSpannerInstanceDeleteOperator
+    CloudSpannerInstanceDeployOperator, CloudSpannerInstanceDeleteOperator, \
+    CloudSpannerInstanceDatabaseQueryOperator
 from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
     SKIP_TEST_WARNING, GCP_SPANNER_KEY
 
@@ -37,10 +38,15 @@ except ImportError:
 
 PROJECT_ID = 'project-id'
 INSTANCE_ID = 'instance-id'
-DB_NAME = 'db1'
+DB_ID = 'db1'
 CONFIG_NAME = 'projects/project-id/instanceConfigs/eur3'
 NODE_COUNT = '1'
 DISPLAY_NAME = 'Test Instance'
+INSERT_QUERY = "INSERT my_table1 (id, name) VALUES (1, 'One')"
+INSERT_QUERY_2 = "INSERT my_table2 (id, name) VALUES (1, 'One')"
+CREATE_QUERY = "CREATE TABLE my_table1 (id INT64, name STRING(MAX)) PRIMARY KEY (id)"
+CREATE_QUERY_2 = "CREATE TABLE my_table2 (id INT64, name STRING(MAX)) PRIMARY KEY (id)"
+QUERY_TYPE = "DML"
 
 
 class CloudSpannerTest(unittest.TestCase):
@@ -163,6 +169,76 @@ class CloudSpannerTest(unittest.TestCase):
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_spanner_operator.CloudSpannerHook")
+    def test_instance_query(self, mock_hook):
+        mock_hook.return_value.execute_sql.return_value = None
+        op = CloudSpannerInstanceDatabaseQueryOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            query=INSERT_QUERY,
+            task_id="id"
+        )
+        result = op.execute(None)
+        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.execute_dml.assert_called_once_with(
+            PROJECT_ID, INSTANCE_ID, DB_ID, [INSERT_QUERY]
+        )
+        self.assertIsNone(result)
+
+    @parameterized.expand([
+        ("", INSTANCE_ID, DB_ID, INSERT_QUERY, "project_id"),
+        (PROJECT_ID, "", DB_ID, INSERT_QUERY, "instance_id"),
+        (PROJECT_ID, INSTANCE_ID, "", INSERT_QUERY, "database_id"),
+        (PROJECT_ID, INSTANCE_ID, DB_ID, "", "query"),
+    ])
+    @mock.patch("airflow.contrib.operators.gcp_spanner_operator.CloudSpannerHook")
+    def test_instance_query_ex_if_param_missing(self, project_id, instance_id,
+                                                database_id, query, exp_msg, mock_hook):
+        with self.assertRaises(AirflowException) as cm:
+            CloudSpannerInstanceDatabaseQueryOperator(
+                project_id=project_id,
+                instance_id=instance_id,
+                database_id=database_id,
+                query=query,
+                task_id="id"
+            )
+        err = cm.exception
+        self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
+        mock_hook.assert_not_called()
+
+    @mock.patch("airflow.contrib.operators.gcp_spanner_operator.CloudSpannerHook")
+    def test_instance_query_dml(self, mock_hook):
+        mock_hook.return_value.execute_dml.return_value = None
+        op = CloudSpannerInstanceDatabaseQueryOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            query=INSERT_QUERY,
+            task_id="id"
+        )
+        op.execute(None)
+        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.execute_dml.assert_called_once_with(
+            PROJECT_ID, INSTANCE_ID, DB_ID, [INSERT_QUERY]
+        )
+
+    @mock.patch("airflow.contrib.operators.gcp_spanner_operator.CloudSpannerHook")
+    def test_instance_query_dml_list(self, mock_hook):
+        mock_hook.return_value.execute_dml.return_value = None
+        op = CloudSpannerInstanceDatabaseQueryOperator(
+            project_id=PROJECT_ID,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            query=[INSERT_QUERY, INSERT_QUERY_2],
+            task_id="id"
+        )
+        op.execute(None)
+        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.return_value.execute_dml.assert_called_once_with(
+            PROJECT_ID, INSTANCE_ID, DB_ID, [INSERT_QUERY, INSERT_QUERY_2]
+        )
 
 
 @unittest.skipIf(

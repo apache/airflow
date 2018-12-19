@@ -18,18 +18,18 @@
 # under the License.
 
 """
-Example Airflow DAG that creates, updates and deletes a Cloud Spanner instance.
+Example Airflow DAG that creates, updates, queries and deletes a Cloud Spanner instance.
 
 This DAG relies on the following environment variables
-* PROJECT_ID - Google Cloud Platform project for the Cloud Spanner instance.
-* INSTANCE_ID - Cloud Spanner instance ID.
-* CONFIG_NAME - The name of the instance's configuration. Values are of the form
+* SPANNER_PROJECT_ID - Google Cloud Platform project for the Cloud Spanner instance.
+* SPANNER_INSTANCE_ID - Cloud Spanner instance ID.
+* SPANNER_CONFIG_NAME - The name of the instance's configuration. Values are of the form
     projects/<project>/instanceConfigs/<configuration>.
     See also:
         https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instanceConfigs#InstanceConfig
         https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instanceConfigs/list#google.spanner.admin.instance.v1.InstanceAdmin.ListInstanceConfigs
-* NODE_COUNT - Number of nodes allocated to the instance.
-* DISPLAY_NAME - The descriptive name for this instance as it appears in UIs.
+* SPANNER_NODE_COUNT - Number of nodes allocated to the instance.
+* SPANNER_DISPLAY_NAME - The descriptive name for this instance as it appears in UIs.
     Must be unique per project and between 4 and 30 characters in length.
 """
 
@@ -38,15 +38,17 @@ import os
 import airflow
 from airflow import models
 from airflow.contrib.operators.gcp_spanner_operator import \
-    CloudSpannerInstanceDeployOperator, CloudSpannerInstanceDeleteOperator
+    CloudSpannerInstanceDeployOperator, CloudSpannerInstanceDatabaseQueryOperator, \
+    CloudSpannerInstanceDeleteOperator
 
 # [START howto_operator_spanner_arguments]
-PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
-INSTANCE_ID = os.environ.get('INSTANCE_ID', 'testinstance')
-CONFIG_NAME = os.environ.get('CONFIG_NAME',
+PROJECT_ID = os.environ.get('SPANNER_PROJECT_ID', 'example-project')
+INSTANCE_ID = os.environ.get('SPANNER_INSTANCE_ID', 'testinstance')
+DB_ID = os.environ.get('SPANNER_DB_ID', 'db1')
+CONFIG_NAME = os.environ.get('SPANNER_CONFIG_NAME',
                              'projects/example-project/instanceConfigs/eur3')
-NODE_COUNT = os.environ.get('NODE_COUNT', '1')
-DISPLAY_NAME = os.environ.get('DISPLAY_NAME', 'Test Instance')
+NODE_COUNT = os.environ.get('SPANNER_NODE_COUNT', '1')
+DISPLAY_NAME = os.environ.get('SPANNER_DISPLAY_NAME', 'Test Instance')
 # [END howto_operator_spanner_arguments]
 
 default_args = {
@@ -80,6 +82,24 @@ with models.DAG(
         task_id='spanner_instance_update_task'
     )
 
+    # [START howto_operator_spanner_query]
+    spanner_instance_query = CloudSpannerInstanceDatabaseQueryOperator(
+        project_id=PROJECT_ID,
+        instance_id=INSTANCE_ID,
+        database_id='db1',
+        query="DELETE FROM my_table2 WHERE true",
+        task_id='spanner_instance_query'
+    )
+    # [END howto_operator_spanner_query]
+
+    spanner_instance_query2 = CloudSpannerInstanceDatabaseQueryOperator(
+        project_id=PROJECT_ID,
+        instance_id=INSTANCE_ID,
+        database_id='db1',
+        query="example_gcp_spanner.sql",
+        task_id='spanner_instance_query2'
+    )
+
     # [START howto_operator_spanner_delete]
     spanner_instance_delete_task = CloudSpannerInstanceDeleteOperator(
         project_id=PROJECT_ID,
@@ -89,4 +109,5 @@ with models.DAG(
     # [END howto_operator_spanner_delete]
 
     spanner_instance_create_task >> spanner_instance_update_task \
+        >> spanner_instance_query >> spanner_instance_query2 \
         >> spanner_instance_delete_task
