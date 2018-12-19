@@ -1213,7 +1213,7 @@ class SchedulerJob(BaseJob):
         task_instance_str = "\n\t".join(
             ["{}".format(x) for x in executable_tis])
         self.log.info(
-            "Setting the follow tasks to queued state:\n\t%s", task_instance_str)
+            "Setting the following tasks to queued state:\n\t%s", task_instance_str)
         # so these dont expire on commit
         for ti in executable_tis:
             copy_dag_id = ti.dag_id
@@ -1408,7 +1408,7 @@ class SchedulerJob(BaseJob):
                 ["{}".format(x) for x in tis_to_set_to_scheduled])
 
             session.commit()
-            self.log.info("Set the follow tasks to scheduled state:\n\t{}"
+            self.log.info("Set the following tasks to scheduled state:\n\t{}"
                           .format(task_instance_str))
 
     def _process_dags(self, dagbag, dags, tis_out):
