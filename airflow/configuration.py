@@ -441,23 +441,23 @@ def mkdir_p(path):
                 'Error creating {}: {}'.format(path, exc.strerror))
 
 
+def get_airflow_home():
+    return expand_env_var(os.environ.get('AIRFLOW_HOME', '~/airflow'))
+
+
+def get_airflow_config(airflow_home):
+    if 'AIRFLOW_CONFIG' not in os.environ:
+        return os.path.join(airflow_home, 'airflow.cfg')
+    return expand_env_var(os.environ['AIRFLOW_CONFIG'])
+
+
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
-# "~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
+# "~/airflow" and "$AIRFLOW_HOME/airflow.cfg" respectively as defaults.
 
-if 'AIRFLOW_HOME' not in os.environ:
-    AIRFLOW_HOME = expand_env_var('~/airflow')
-else:
-    AIRFLOW_HOME = expand_env_var(os.environ['AIRFLOW_HOME'])
-
+AIRFLOW_HOME = get_airflow_home()
+AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
 mkdir_p(AIRFLOW_HOME)
 
-if 'AIRFLOW_CONFIG' not in os.environ:
-    if os.path.isfile(expand_env_var('~/airflow.cfg')):
-        AIRFLOW_CONFIG = expand_env_var('~/airflow.cfg')
-    else:
-        AIRFLOW_CONFIG = AIRFLOW_HOME + '/airflow.cfg'
-else:
-    AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
 
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip

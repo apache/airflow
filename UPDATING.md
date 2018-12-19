@@ -25,7 +25,6 @@ assists users migrating to a new version.
 ## Airflow 1.10.3
 
 ### RedisPy dependency updated to v3 series
-
 If you are using the Redis Sensor or Hook you may have to update your code. See
 [redis-py porting instructions] to check if your code might be affected (MSET,
 MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
@@ -49,6 +48,14 @@ BashTaskRunner has been renamed to StandardTaskRunner. It is the default task ru
 so you might need to update your config.
 
 `task_runner = StandardTaskRunner`
+
+### Modification to config file discovery
+
+If the `AIRFLOW_CONFIG` environment variable was not set and the
+`~/airflow/airflow.cfg` file existed, airflow previously used
+`~/airflow/airflow.cfg` instead of `$AIRFLOW_HOME/airflow.cfg`. Now airflow
+will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
+environment variables rather than checking for the presence of a file.
 
 ## Airflow 1.10.2
 
