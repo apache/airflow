@@ -63,7 +63,7 @@ class SFTPOperator(BaseOperator):
 
             put_file = SFTPOperator(
                 task_id="test_sftp",
-                ssh_conn="ssh_default",
+                ssh_conn_id="ssh_default",
                 local_filepath="/tmp/file.txt",
                 remote_filepath="/tmp/tmp1/tmp2/file.txt",
                 operation="put",
