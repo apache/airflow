@@ -22,8 +22,9 @@ import unittest
 
 from mock import Mock, patch, mock_open
 
-from airflow import configuration, models
+from airflow import configuration
 from airflow.contrib.hooks.imap_hook import ImapHook
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 imaplib_string = 'airflow.contrib.hooks.imap_hook.imaplib'
@@ -56,7 +57,7 @@ class TestImapHook(unittest.TestCase):
         configuration.load_test_config()
 
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='imap_default',
                 host='imap_server_address',
                 login='imap_user',

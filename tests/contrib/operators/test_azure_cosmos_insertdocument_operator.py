@@ -26,7 +26,7 @@ import uuid
 from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
 
 from airflow import configuration
-from airflow import models
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 try:
@@ -50,7 +50,7 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         self.test_collection_name = 'test_collection_name'
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='azure_cosmos_test_key_id',
                 conn_type='azure_cosmos',
                 login=self.test_end_point,

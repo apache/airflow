@@ -24,8 +24,8 @@ from mock import Mock
 from mock import patch
 
 from airflow import DAG, configuration
-from airflow import models
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
+from airflow.models.connection import Connection
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -57,7 +57,7 @@ class TestJiraSensor(unittest.TestCase):
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='jira_default', conn_type='jira',
                 host='https://localhost/jira/', port=443,
                 extra='{"verify": "False", "project": "AIRFLOW"}'))

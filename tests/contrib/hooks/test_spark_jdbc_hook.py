@@ -19,7 +19,8 @@
 #
 import unittest
 
-from airflow import configuration, models
+from airflow import configuration
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 from airflow.contrib.hooks.spark_jdbc_hook import SparkJDBCHook
@@ -67,13 +68,13 @@ class TestSparkJDBCHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='spark-default', conn_type='spark',
                 host='yarn://yarn-master',
                 extra='{"queue": "root.etl", "deploy-mode": "cluster"}')
         )
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='jdbc-default', conn_type='postgres',
                 host='localhost', schema='default', port=5432,
                 login='user', password='supersecret',

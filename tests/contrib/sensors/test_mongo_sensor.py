@@ -24,7 +24,7 @@ from airflow import DAG
 from airflow import configuration
 from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.contrib.sensors.mongo_sensor import MongoSensor
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils import db, timezone
 
 

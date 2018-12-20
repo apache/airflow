@@ -25,8 +25,9 @@ import shutil
 import os
 import pysftp
 
-from airflow import configuration, models
+from airflow import configuration
 from airflow.contrib.hooks.sftp_hook import SFTPHook
+from airflow.models.connection import Connection
 
 TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'
@@ -108,14 +109,14 @@ class SFTPHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.sftp_hook.SFTPHook.get_connection')
     def test_no_host_key_check_default(self, get_connection):
-        connection = models.Connection(login='login', host='host')
+        connection = Connection(login='login', host='host')
         get_connection.return_value = connection
         hook = SFTPHook()
         self.assertEqual(hook.no_host_key_check, False)
 
     @mock.patch('airflow.contrib.hooks.sftp_hook.SFTPHook.get_connection')
     def test_no_host_key_check_enabled(self, get_connection):
-        connection = models.Connection(
+        connection = Connection(
             login='login', host='host',
             extra='{"no_host_key_check": true}')
 
@@ -125,7 +126,7 @@ class SFTPHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.sftp_hook.SFTPHook.get_connection')
     def test_no_host_key_check_disabled(self, get_connection):
-        connection = models.Connection(
+        connection = Connection(
             login='login', host='host',
             extra='{"no_host_key_check": false}')
 
@@ -135,7 +136,7 @@ class SFTPHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.sftp_hook.SFTPHook.get_connection')
     def test_no_host_key_check_disabled_for_all_but_true(self, get_connection):
-        connection = models.Connection(
+        connection = Connection(
             login='login', host='host',
             extra='{"no_host_key_check": "foo"}')
 
@@ -145,7 +146,7 @@ class SFTPHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.sftp_hook.SFTPHook.get_connection')
     def test_no_host_key_check_ignore(self, get_connection):
-        connection = models.Connection(
+        connection = Connection(
             login='login', host='host',
             extra='{"ignore_hostkey_verification": true}')
 
@@ -155,7 +156,7 @@ class SFTPHookTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.sftp_hook.SFTPHook.get_connection')
     def test_no_host_key_check_no_ignore(self, get_connection):
-        connection = models.Connection(
+        connection = Connection(
             login='login', host='host',
             extra='{"ignore_hostkey_verification": false}')
 
