@@ -22,6 +22,7 @@ import subprocess
 import unittest
 
 from airflow import models, settings, configuration, AirflowException
+from airflow.models.connection import Connection
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -97,8 +98,8 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
     def update_connection_with_key_path(self):
         session = settings.Session()
         try:
-            conn = session.query(models.Connection).filter(
-                models.Connection.conn_id == 'google_cloud_default')[0]
+            conn = session.query(Connection).filter(
+                Connection.conn_id == 'google_cloud_default')[0]
             extras = conn.extra_dejson
             extras[KEYPATH_EXTRA] = self.full_key_path
             if extras.get(KEYFILE_DICT_EXTRA):
@@ -117,8 +118,8 @@ class BaseGcpIntegrationTestCase(unittest.TestCase):
     def update_connection_with_dictionary(self):
         session = settings.Session()
         try:
-            conn = session.query(models.Connection).filter(
-                models.Connection.conn_id == 'google_cloud_default')[0]
+            conn = session.query(Connection).filter(
+                Connection.conn_id == 'google_cloud_default')[0]
             extras = conn.extra_dejson
             with open(self.full_key_path, "r") as f:
                 content = json.load(f)

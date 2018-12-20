@@ -31,7 +31,7 @@ from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOpe
     CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
     CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator, \
     CloudSqlInstanceDatabaseDeleteOperator, CloudSqlQueryOperator
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
     GCP_CLOUDSQL_KEY, SKIP_TEST_WARNING
 
