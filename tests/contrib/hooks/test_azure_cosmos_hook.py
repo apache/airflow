@@ -27,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
 
 from airflow import configuration
-from airflow import models
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 import logging
@@ -55,7 +55,7 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         self.test_collection_default = 'test_collection_default'
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='azure_cosmos_test_key_id',
                 conn_type='azure_cosmos',
                 login=self.test_end_point,

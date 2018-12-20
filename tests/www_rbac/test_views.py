@@ -42,6 +42,7 @@ from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs import BaseJob
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils import dates, timezone
@@ -126,7 +127,7 @@ class TestConnectionModelView(TestBase):
         }
 
     def tearDown(self):
-        self.clear_table(models.Connection)
+        self.clear_table(Connection)
         super(TestConnectionModelView, self).tearDown()
 
     def test_create_connection(self):
