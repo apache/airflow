@@ -84,8 +84,9 @@ class SparkSubmitOperator(BaseOperator):
                          Some distros may use spark2-submit.
     :type spark_binary: string
     """
-    template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_classpath', '_packages',
-                       '_exclude_packages', '_keytab', '_principal', '_name', '_application_args', '_env_vars')
+    template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_classpath',
+                       '_packages', '_exclude_packages', '_keytab', '_principal', '_name',
+                       '_application_args', '_env_vars')
     ui_color = WEB_COLORS['LIGHTORANGE']
 
     @apply_defaults
