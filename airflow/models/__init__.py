@@ -76,6 +76,7 @@ from croniter import (
 )
 import six
 
+import airflow.lineage
 from airflow import settings, utils
 from airflow.executors import GetDefaultExecutor, LocalExecutor
 from airflow import configuration
@@ -84,7 +85,6 @@ from airflow.exceptions import (
     AirflowRescheduleException
 )
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -2556,7 +2556,7 @@ class BaseOperator(LoggingMixin):
                 self.get_flat_relative_ids(upstream=upstream))
         )
 
-    @prepare_lineage
+    @airflow.lineage.prepare_lineage
     def pre_execute(self, context):
         """
         This hook is triggered right before self.execute() is called.
@@ -2572,7 +2572,7 @@ class BaseOperator(LoggingMixin):
         """
         raise NotImplementedError()
 
-    @apply_lineage
+    @airflow.lineage.apply_lineage
     def post_execute(self, context, result=None):
         """
         This hook is triggered right after self.execute() is called.

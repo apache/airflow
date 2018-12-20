@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 from functools import wraps
+from itertools import chain
 
+import airflow.models
 from airflow import configuration as conf
 from airflow.lineage.datasets import DataSet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, prepare_classpath
-
-from itertools import chain
 
 PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"
@@ -85,14 +85,18 @@ def apply_lineage(func):
 
 def prepare_lineage(func):
     """
-    Prepares the lineage inlets and outlets
+    Prepares the lineage inlets and outlets.
+
     inlets can be:
-        "auto" -> picks up any outlets from direct upstream tasks that have outlets
-        defined, as such that if A -> B -> C and B does not have outlets but A does,
-        these are provided as inlets.
+        "auto" -> picks up any outlets from all upstream tasks that have outlets defined, as such that
+        if A -> B -> C,  and B does not have outlets but A does, A's outlets are provided as inlets. This
+        is done via tree traversal, starting with the current task. If outlets are found, stop traversing
+        down that branch of the tree. This allows the dag to have non-state affecting operators without
+        any change in the behaviour of the dag.
         "list of task_ids" -> picks up outlets from the upstream task_ids
         "list of datasets" -> manually defined list of DataSet
     """
+
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
         self.log.debug("Preparing lineage inlets and outlets")
@@ -110,26 +114,36 @@ def prepare_lineage(func):
                       for i in inlets]
             self.inlets.extend(inlets)
 
-        if self._inlets['auto']:
-            # dont append twice
-            task_ids = set(self._inlets['task_ids']).symmetric_difference(
-                self.upstream_task_ids
-            )
-            inlets = self.xcom_pull(context,
-                                    task_ids=task_ids,
-                                    dag_id=self.dag_id,
-                                    key=PIPELINE_OUTLETS)
-            inlets = [item for sublist in inlets if sublist for item in sublist]
-            inlets = [DataSet.map_type(i['typeName'])(data=i['attributes'])
-                      for i in inlets]
-            self.inlets.extend(inlets)
+        if self._inlets["auto"]:
+            visited_task_ids = set(self._inlets["task_ids"])  # prevent double counting of outlets
+            stack = {self.task_id}
+            execution_date = context['ti'].execution_date
+            xcoms_outlets = airflow.models.XCom.get_many(execution_date=execution_date,
+                                                         key=PIPELINE_OUTLETS,
+                                                         dag_ids=self.dag_id, limit=1000)
+            while stack:
+                task_id = stack.pop()
+                task = self._dag.task_dict[task_id]
+                visited_task_ids.add(task_id)
+                if self != task:  # Ignore xcoms on initial task for idempotency on reruns
+                    inlets = [xcom.value for xcom in xcoms_outlets if xcom.task_id == task_id]
+                    if inlets:
+                        inlets = [
+                            DataSet.map_type(i["typeName"])(data=i["attributes"])
+                            for i in inlets[0]
+                        ]
+                        self.inlets.extend(inlets)
+                    else:
+                        stack = stack.union(task.upstream_task_ids).difference(visited_task_ids)
+                else:
+                    stack = stack.union(task.upstream_task_ids).difference(visited_task_ids)
 
-        if len(self._inlets['datasets']) > 0:
-            self.inlets.extend(self._inlets['datasets'])
+        if len(self._inlets["datasets"]) > 0:
+            self.inlets.extend(self._inlets["datasets"])
 
         # outlets
-        if len(self._outlets['datasets']) > 0:
-            self.outlets.extend(self._outlets['datasets'])
+        if len(self._outlets["datasets"]) > 0:
+            self.outlets.extend(self._outlets["datasets"])
 
         self.log.debug("inlets: %s, outlets: %s", self.inlets, self.outlets)
 
