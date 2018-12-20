@@ -27,6 +27,7 @@ from builtins import str
 from past.builtins import basestring
 
 import os
+import uuid
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -34,6 +35,7 @@ from email.mime.application import MIMEApplication
 from email.utils import formatdate
 
 import boto3
+import six
 
 from airflow import configuration
 from airflow.exceptions import AirflowConfigException
@@ -42,7 +44,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 def send_ses_email(to, subject, html_content, files=None,
                    dryrun=False, cc=None, bcc=None,
-                   mime_subtype='mixed', mime_charset='us-ascii',
+                   mime_subtype='mixed', mime_charset='utf-8',
                    **kwargs):
     """
     Send an email with html content
@@ -50,10 +52,15 @@ def send_ses_email(to, subject, html_content, files=None,
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
     SES_MAIL_FROM = configuration.conf.get('ses', 'SES_MAIL_FROM')
+    if not six.PY3:
+        # Works around futures newstr being incompatable with urllib
+        # https://github.com/tumblr/pytumblr/pull/94/files/d31889bb3b132c24b1ebf72e939d66f97e3974b2
+        SES_MAIL_FROM = bytes(SES_MAIL_FROM)
 
     to = get_email_address_list(to)
 
     msg = MIMEMultipart(mime_subtype)
+
     msg['Subject'] = subject
     msg['From'] = SES_MAIL_FROM
     msg['To'] = ", ".join(to)
