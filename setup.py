@@ -316,7 +316,6 @@ def do_setup():
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
             'jinja2>=2.7.3, <=2.10.0',
-            'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
