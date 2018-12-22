@@ -1594,7 +1594,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
                     dataset_project_id, dataset_id, table_id))
             else:
-                error_msg = '{} insert error(s) occured: {}:{}.{}. Details: {}'.format(
+                error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
                     len(resp['insertErrors']),
                     dataset_project_id, dataset_id, table_id, resp['insertErrors'])
                 if fail_on_error:

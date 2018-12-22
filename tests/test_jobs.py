@@ -196,7 +196,7 @@ class BackfillJobTest(unittest.TestCase):
         """
         Test backfilling example dags
 
-        Try to backfill some of the example dags. Be carefull, not all dags are suitable
+        Try to backfill some of the example dags. Be careful, not all dags are suitable
         for doing this. For example, a dag that sleeps forever, or does not have a
         schedule won't work here since you simply can't backfill them.
         """

@@ -1364,7 +1364,7 @@ class DagBagTest(unittest.TestCase):
 
     def test_get_existing_dag(self):
         """
-        test that were're able to parse some example DAGs and retrieve them
+        Test that we're able to parse some example DAGs and retrieve them
         """
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=True)
 
