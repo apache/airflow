@@ -166,10 +166,10 @@ There are three ways to setup an Apache Airflow development environment.
   tox -e py35-backend_mysql
   ```
 
-  If you wish to run individual tests inside of docker enviroment you can do as follows:
+  If you wish to run individual tests inside of Docker environment you can do as follows:
 
   ```bash
-    # From the container (with your desired enviroment) with druid hook
+    # From the container (with your desired environment) with druid hook
     tox -e py35-backend_mysql -- tests/hooks/test_druid_hook.py
  ```
 

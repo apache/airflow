@@ -23,7 +23,7 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 class EmrHook(AwsHook):
     """
-    Interact with AWS EMR. emr_conn_id is only neccessary for using the
+    Interact with AWS EMR. emr_conn_id is only necessary for using the
     create_job_flow method.
     """
 

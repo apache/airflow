@@ -24,7 +24,7 @@ Improvements:
 [AIRFLOW-2622] Add "confirm=False" option to SFTPOperator
 [AIRFLOW-2662] support affinity & nodeSelector policies for kubernetes executor/operator
 [AIRFLOW-2709] Improve error handling in Databricks hook
-[AIRFLOW-2723] Update lxml dependancy to >= 4.0.
+[AIRFLOW-2723] Update lxml dependency to >= 4.0.
 [AIRFLOW-2763] No precheck mechanism in place during worker initialisation for the connection to metadata database
 [AIRFLOW-2789] Add ability to create single node cluster to DataprocClusterCreateOperator
 [AIRFLOW-2797] Add ability to create Google Dataproc cluster with custom image
@@ -269,7 +269,7 @@ AIRFLOW 1.10.0, 2018-08-03
 [AIRFLOW-2429] Make Airflow flake8 compliant
 [AIRFLOW-2491] Resolve flask version conflict
 [AIRFLOW-2484] Remove duplicate key in MySQL to GCS Op
-[ARIFLOW-2458] Add cassandra-to-gcs operator
+[AIRFLOW-2458] Add cassandra-to-gcs operator
 [AIRFLOW-2477] Improve time units for task duration and landing times charts for RBAC UI
 [AIRFLOW-2474] Only import snakebite if using py2
 [AIRFLOW-48] Parse connection uri querystring
@@ -1504,7 +1504,7 @@ AIRFLOW 1.8.0, 2017-03-12
 [AIRFLOW-784] Pin funcsigs to 1.0.0
 [AIRFLOW-624] Fix setup.py to not import airflow.version as version
 [AIRFLOW-779] Task should fail with specific message when deleted
-[AIRFLOW-778] Fix completey broken MetastorePartitionSensor
+[AIRFLOW-778] Fix completely broken MetastorePartitionSensor
 [AIRFLOW-739] Set pickle_info log to debug
 [AIRFLOW-771] Make S3 logs append instead of clobber
 [AIRFLOW-773] Fix flaky datetime addition in api test
