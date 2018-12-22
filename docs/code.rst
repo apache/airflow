@@ -256,6 +256,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor
 .. autoclass:: airflow.contrib.sensors.jira_sensor.JiraSensor
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
+.. autoclass:: airflow.contrib.sensors.python_sensor.PythonSensor
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_base_sensor.SageMakerBaseSensor
