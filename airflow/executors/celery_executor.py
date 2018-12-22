@@ -74,7 +74,7 @@ def execute_command(command_to_exec):
 
 class ExceptionWithTraceback(object):
     """
-    Wrapper class used to propogate exceptions to parent processes from subprocesses.
+    Wrapper class used to propagate exceptions to parent processes from subprocesses.
     :param exception: The exception to wrap
     :type exception: Exception
     :param traceback: The stacktrace to wrap
