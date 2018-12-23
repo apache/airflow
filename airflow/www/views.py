@@ -652,10 +652,9 @@ class Airflow(BaseView):
     def code(self, session=None):
         dag_id = request.args.get('dag_id')
         dm = models.DagModel
-        fileloc = session.query(dm).filter(dm.dag_id == dag_id).first().fileloc
-        dag = dagbag.get_dag(dag_id)
+        dag = session.query(dm).filter(dm.dag_id == dag_id).first()
         try:
-            with wwwutils.open_maybe_zipped(fileloc, 'r') as f:
+            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
