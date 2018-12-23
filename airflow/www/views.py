@@ -550,31 +550,29 @@ class Airflow(BaseView):
     @login_required
     @provide_session
     def dag_stats(self, session=None):
-        ds = models.DagStat
+        dr = models.DagRun
+        dm = models.DagModel
+        dag_ids = session.query(dm.dag_id)
 
-        ds.update(
-            dag_ids=[dag.dag_id for dag in dagbag.dags.values() if not dag.is_subdag]
-        )
-
-        qry = (
-            session.query(ds.dag_id, ds.state, ds.count)
-        )
+        states = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
 
         data = {}
-        for dag_id, state, count in qry:
+        for (dag_id, ) in dag_ids:
+            data[dag_id] = {}
+        for dag_id, state, count in states:
             if dag_id not in data:
                 data[dag_id] = {}
             data[dag_id][state] = count
 
         payload = {}
-        for dag in dagbag.dags.values():
-            payload[dag.safe_dag_id] = []
+        for dag_id, d in data.items():
+            payload[dag_id] = []
             for state in State.dag_states:
-                count = data.get(dag.dag_id, {}).get(state, 0)
-                payload[dag.safe_dag_id].append({
+                count = d.get(state, 0)
+                payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag.dag_id,
+                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
         return wwwutils.json_response(payload)
@@ -586,6 +584,8 @@ class Airflow(BaseView):
         TI = models.TaskInstance
         DagRun = models.DagRun
         Dag = models.DagModel
+
+        dag_ids = session.query(Dag.dag_id)
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
@@ -634,26 +634,28 @@ class Airflow(BaseView):
         session.commit()
 
         payload = {}
-        for dag in dagbag.dags.values():
-            payload[dag.safe_dag_id] = []
+        for (dag_id, ) in dag_ids:
+            payload[dag_id] = []
             for state in State.task_states:
-                count = data.get(dag.dag_id, {}).get(state, 0)
-                payload[dag.safe_dag_id].append({
+                count = data.get(dag_id, {}).get(state, 0)
+                payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag.dag_id,
+                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
         return wwwutils.json_response(payload)
 
     @expose('/code')
     @login_required
-    def code(self):
+    @provide_session
+    def code(self, session=None):
         dag_id = request.args.get('dag_id')
+        dm = models.DagModel
+        fileloc = session.query(dm).filter(dm.dag_id == dag_id).first().fileloc
         dag = dagbag.get_dag(dag_id)
-        title = dag_id
         try:
-            with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
+            with wwwutils.open_maybe_zipped(fileloc, 'r') as f:
                 code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
@@ -661,7 +663,7 @@ class Airflow(BaseView):
             html_code = str(e)
 
         return self.render(
-            'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
+            'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
 
