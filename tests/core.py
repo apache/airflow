@@ -48,6 +48,7 @@ from airflow.models import Variable
 
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
+from airflow.models.connection import Connection
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -89,19 +90,6 @@ except ImportError:
     import pickle
 
 
-def reset(dag_id=TEST_DAG_ID):
-    session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
-    tis.delete()
-    session.commit()
-    session.close()
-
-
-configuration.conf.load_test_config()
-if os.environ.get('KUBERNETES_VERSION') is None:
-    reset()
-
-
 class OperatorSubclass(BaseOperator):
     """
     An operator to test template substitution
@@ -129,6 +117,16 @@ class CoreTest(unittest.TestCase):
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.run_after_loop = self.dag_bash.get_task('run_after_loop')
         self.run_this_last = self.dag_bash.get_task('run_this_last')
+
+    def tearDown(self):
+        if os.environ.get('KUBERNETES_VERSION') is None:
+            session = Session()
+            session.query(models.TaskInstance).filter_by(
+                dag_id=TEST_DAG_ID).delete()
+            session.query(models.TaskFail).filter_by(
+                dag_id=TEST_DAG_ID).delete()
+            session.commit()
+            session.close()
 
     def test_schedule_dag_no_previous_runs(self):
         """
@@ -444,7 +442,8 @@ class CoreTest(unittest.TestCase):
             self.assertTrue(
                 issubclass(w[0].category, PendingDeprecationWarning))
             self.assertIn(
-                'Invalid arguments were passed to BashOperator.',
+                ('Invalid arguments were passed to BashOperator '
+                 '(task_id: test_illegal_args).'),
                 w[0].message.args[0])
 
     def test_bash_operator(self):
@@ -482,6 +481,26 @@ class CoreTest(unittest.TestCase):
         if pid != -1:
             os.kill(pid, signal.SIGTERM)
             self.fail("BashOperator's subprocess still running after stopping on timeout!")
+
+    def test_on_failure_callback(self):
+        # Annoying workaround for nonlocal not existing in python 2
+        data = {'called': False}
+
+        def check_failure(context, test_case=self):
+            data['called'] = True
+            error = context.get('exception')
+            test_case.assertIsInstance(error, AirflowException)
+
+        t = BashOperator(
+            task_id='check_on_failure_callback',
+            bash_command="exit 1",
+            dag=self.dag,
+            on_failure_callback=check_failure)
+        self.assertRaises(
+            exceptions.AirflowException,
+            t.run,
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        self.assertTrue(data['called'])
 
     def test_trigger_dagrun(self):
         def trigga(context, obj):
@@ -649,7 +668,8 @@ class CoreTest(unittest.TestCase):
         self.assertEquals(context['prev_ds_nodash'], '20141231')
 
         self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
-        self.assertEquals(context['ts_nodash'], '20150101T000000+0000')
+        self.assertEquals(context['ts_nodash'], '20150101T000000')
+        self.assertEquals(context['ts_nodash_with_tz'], '20150101T000000+0000')
 
         self.assertEquals(context['yesterday_ds'], '2014-12-31')
         self.assertEquals(context['yesterday_ds_nodash'], '20141231')
@@ -1303,8 +1323,8 @@ class CliTests(unittest.TestCase):
         for index in range(1, 6):
             conn_id = 'new%s' % index
             result = (session
-                      .query(models.Connection)
-                      .filter(models.Connection.conn_id == conn_id)
+                      .query(Connection)
+                      .filter(Connection.conn_id == conn_id)
                       .first())
             result = (result.conn_id, result.conn_type, result.host,
                       result.port, result.get_extra())
@@ -1349,8 +1369,8 @@ class CliTests(unittest.TestCase):
         # Check deletions
         for index in range(1, 7):
             conn_id = 'new%s' % index
-            result = (session.query(models.Connection)
-                      .filter(models.Connection.conn_id == conn_id)
+            result = (session.query(Connection)
+                      .filter(Connection.conn_id == conn_id)
                       .first())
 
             self.assertTrue(result is None)
@@ -2101,6 +2121,11 @@ class PasswordUserTest(unittest.TestCase):
         self.password_user.password = "secure_password"
         self.assertTrue(self.password_user.authenticate("secure_password"))
 
+    def test_password_unicode_user_authenticate(self):
+        self.password_user.username = u"🐼"  # This is a panda
+        self.password_user.password = "secure_password"
+        self.assertTrue(self.password_user.authenticate("secure_password"))
+
     def test_password_authenticate_session(self):
         from airflow.contrib.auth.backends.password_auth import PasswordUser
         self.password_user.password = 'test_password'
@@ -2496,9 +2521,9 @@ class ConnectionTest(unittest.TestCase):
         self.assertIsNone(c.port)
 
     def test_param_setup(self):
-        c = models.Connection(conn_id='local_mysql', conn_type='mysql',
-                              host='localhost', login='airflow',
-                              password='airflow', schema='airflow')
+        c = Connection(conn_id='local_mysql', conn_type='mysql',
+                       host='localhost', login='airflow',
+                       password='airflow', schema='airflow')
         self.assertEqual('localhost', c.host)
         self.assertEqual('airflow', c.schema)
         self.assertEqual('airflow', c.login)
@@ -2590,9 +2615,9 @@ class HDFSHookTest(unittest.TestCase):
     @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
     def test_get_autoconfig_client(self, mock_get_connections,
                                    MockAutoConfigClient):
-        c = models.Connection(conn_id='hdfs', conn_type='hdfs',
-                              host='localhost', port=8020, login='foo',
-                              extra=json.dumps({'autoconfig': True}))
+        c = Connection(conn_id='hdfs', conn_type='hdfs',
+                       host='localhost', port=8020, login='foo',
+                       extra=json.dumps({'autoconfig': True}))
         mock_get_connections.return_value = [c]
         HDFSHook(hdfs_conn_id='hdfs').get_conn()
         MockAutoConfigClient.assert_called_once_with(effective_user='foo',
@@ -2606,10 +2631,10 @@ class HDFSHookTest(unittest.TestCase):
 
     @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
     def test_get_ha_client(self, mock_get_connections):
-        c1 = models.Connection(conn_id='hdfs_default', conn_type='hdfs',
-                               host='localhost', port=8020)
-        c2 = models.Connection(conn_id='hdfs_default', conn_type='hdfs',
-                               host='localhost2', port=8020)
+        c1 = Connection(conn_id='hdfs_default', conn_type='hdfs',
+                        host='localhost', port=8020)
+        c2 = Connection(conn_id='hdfs_default', conn_type='hdfs',
+                        host='localhost2', port=8020)
         mock_get_connections.return_value = [c1, c2]
         client = HDFSHook().get_conn()
         self.assertIsInstance(client, snakebite.client.HAClient)

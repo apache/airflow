@@ -34,7 +34,6 @@ from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand,
     PigCommand, ShellCommand, SparkCommand, DbTapQueryCommand, DbExportCommand, \
     DbImportCommand
 
-
 COMMAND_CLASSES = {
     "hivecmd": HiveCommand,
     "prestocmd": PrestoCommand,
@@ -47,35 +46,52 @@ COMMAND_CLASSES = {
     "dbimportcmd": DbImportCommand
 }
 
-HYPHEN_ARGS = ['cluster_label', 'app_id', 'note_id']
-
-POSITIONAL_ARGS = ['sub_command', 'parameters']
-
-COMMAND_ARGS = {
-    "hivecmd": ['query', 'script_location', 'macros', 'tags', 'sample_size',
-                'cluster_label', 'name'],
-    'prestocmd': ['query', 'script_location', 'macros', 'tags', 'cluster_label', 'name'],
-    'hadoopcmd': ['sub_command', 'tags', 'cluster_label', 'name'],
-    'shellcmd': ['script', 'script_location', 'files', 'archives', 'parameters', 'tags',
-                 'cluster_label', 'name'],
-    'pigcmd': ['script', 'script_location', 'parameters', 'tags', 'cluster_label',
-               'name'],
-    'dbtapquerycmd': ['db_tap_id', 'query', 'macros', 'tags', 'name'],
-    'sparkcmd': ['program', 'cmdline', 'sql', 'script_location', 'macros', 'tags',
-                 'cluster_label', 'language', 'app_id', 'name', 'arguments', 'note_id',
-                 'user_program_arguments'],
-    'dbexportcmd': ['mode', 'hive_table', 'partition_spec', 'dbtap_id', 'db_table',
-                    'db_update_mode', 'db_update_keys', 'export_dir',
-                    'fields_terminated_by', 'tags', 'name', 'customer_cluster_label',
-                    'use_customer_cluster', 'additional_options'],
-    'dbimportcmd': ['mode', 'hive_table', 'dbtap_id', 'db_table', 'where_clause',
-                    'parallelism', 'extract_query', 'boundary_query', 'split_column',
-                    'tags', 'name', 'hive_serde', 'customer_cluster_label',
-                    'use_customer_cluster', 'schema', 'additional_options']
+POSITIONAL_ARGS = {
+    'hadoopcmd': ['sub_command'],
+    'shellcmd': ['parameters'],
+    'pigcmd': ['parameters']
 }
 
 
-class QuboleHook(BaseHook, LoggingMixin):
+def flatten_list(list_of_lists):
+    return [element for array in list_of_lists for element in array]
+
+
+def filter_options(options):
+    options_to_remove = ["help", "print-logs-live", "print-logs"]
+    return [option for option in options if option not in options_to_remove]
+
+
+def get_options_list(command_class):
+    options_list = [option.get_opt_string().strip("--") for option in command_class.optparser.option_list]
+    return filter_options(options_list)
+
+
+def build_command_args():
+    command_args, hyphen_args = {}, set()
+    for cmd in COMMAND_CLASSES:
+
+        # get all available options from the class
+        opts_list = get_options_list(COMMAND_CLASSES[cmd])
+
+        # append positional args if any for the command
+        if cmd in POSITIONAL_ARGS:
+            opts_list += POSITIONAL_ARGS[cmd]
+
+        # get args with a hyphen and replace them with underscore
+        for index, opt in enumerate(opts_list):
+            if "-" in opt:
+                opts_list[index] = opt.replace("-", "_")
+                hyphen_args.add(opts_list[index])
+
+        command_args[cmd] = opts_list
+    return command_args, list(hyphen_args)
+
+
+COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
+
+
+class QuboleHook(BaseHook):
     def __init__(self, *args, **kwargs):
         conn = self.get_connection(kwargs['qubole_conn_id'])
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -189,12 +205,13 @@ class QuboleHook(BaseHook, LoggingMixin):
         cmd_type = self.kwargs['command_type']
         inplace_args = None
         tags = set([self.dag_id, self.task_id, context['run_id']])
+        positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
         for k, v in self.kwargs.items():
             if k in COMMAND_ARGS[cmd_type]:
                 if k in HYPHEN_ARGS:
                     args.append("--{0}={1}".format(k.replace('_', '-'), v))
-                elif k in POSITIONAL_ARGS:
+                elif k in positional_args_list:
                     inplace_args = v
                 elif k == 'tags':
                     if isinstance(v, six.string_types):

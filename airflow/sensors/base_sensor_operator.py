@@ -48,7 +48,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         When set to ``poke`` the sensor is taking up a worker slot for its
         whole execution time and sleeps between pokes. Use this mode if the
         expected runtime of the sensor is short or if a short poke interval
-        is requried.
+        is required.
         When set to ``reschedule`` the sensor task frees the worker slot when
         the criteria is not yet met and it's rescheduled at a later time. Use
         this mode if the expected time until the criteria is met is. The poke

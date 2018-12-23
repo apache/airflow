@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
+import re
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -139,6 +140,15 @@ class ECSOperator(BaseOperator):
             raise AirflowException(response)
 
         for task in response['tasks']:
+            # This is a `stoppedReason` that indicates a task has not
+            # successfully finished, but there is no other indication of failure
+            # in the response.
+            # See, https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html # noqa E501
+            if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.',
+                        task.get('stoppedReason', '')):
+                raise AirflowException(
+                    'The task was stopped because the host instance terminated: {}'.
+                    format(task.get('stoppedReason', '')))
             containers = task['containers']
             for container in containers:
                 if container.get('lastStatus') == 'STOPPED' and \

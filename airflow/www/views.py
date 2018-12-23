@@ -37,7 +37,6 @@ import bleach
 import markdown
 import nvd3
 import pendulum
-import pkg_resources
 import sqlalchemy as sqla
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
@@ -70,6 +69,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models import XCom, DagRun
+from airflow.models.connection import Connection
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
@@ -389,7 +389,7 @@ class Airflow(BaseView):
             csv = request.args.get('csv') == "true"
             chart = session.query(models.Chart).filter_by(id=chart_id).first()
             db = session.query(
-                models.Connection).filter_by(conn_id=chart.conn_id).first()
+                Connection).filter_by(conn_id=chart.conn_id).first()
 
         payload = {
             "state": "ERROR",
@@ -489,7 +489,7 @@ class Airflow(BaseView):
                 else:
                     # User provides columns (x, y, metric1, metric2, ...)
                     df.index = df[df.columns[0]]
-                    df = df.sort(df.columns[0])
+                    df = df.sort_values(by=df.columns[0])
                     del df[df.columns[0]]
                     for col in df.columns:
                         df[col] = df[col].astype(np.float)
@@ -570,17 +570,13 @@ class Airflow(BaseView):
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
             for state in State.dag_states:
-                try:
-                    count = data[dag.dag_id][state]
-                except Exception:
-                    count = 0
-                d = {
+                count = data.get(dag.dag_id, {}).get(state, 0)
+                payload[dag.safe_dag_id].append({
                     'state': state,
                     'count': count,
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
-                }
-                payload[dag.safe_dag_id].append(d)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -641,17 +637,13 @@ class Airflow(BaseView):
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
             for state in State.task_states:
-                try:
-                    count = data[dag.dag_id][state]
-                except Exception:
-                    count = 0
-                d = {
+                count = data.get(dag.dag_id, {}).get(state, 0)
+                payload[dag.safe_dag_id].append({
                     'state': state,
                     'count': count,
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
-                }
-                payload[dag.safe_dag_id].append(d)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -1886,6 +1878,8 @@ class Airflow(BaseView):
             session.merge(orm_dag)
         session.commit()
 
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
+
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
@@ -2223,8 +2217,7 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
     @wwwutils.gzipped
     @provide_session
     def query(self, session=None):
-        dbs = session.query(models.Connection).order_by(
-            models.Connection.conn_id).all()
+        dbs = session.query(Connection).order_by(Connection.conn_id).all()
         session.expunge_all()
         db_choices = list(
             ((db.conn_id, db.conn_id) for db in dbs if db.get_hook()))
@@ -2342,8 +2335,8 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
 def _connection_ids(session=None):
     return [(c.conn_id, c.conn_id) for c in (
         session
-            .query(models.Connection.conn_id)
-            .group_by(models.Connection.conn_id))]
+            .query(Connection.conn_id)
+            .group_by(Connection.conn_id))]
 
 
 class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
@@ -2993,7 +2986,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__scope': StringField('Scopes (comma separated)'),
     }
     form_choices = {
-        'conn_type': models.Connection._types
+        'conn_type': Connection._types
     }
 
     def on_model_change(self, form, model, is_created):
@@ -3052,7 +3045,7 @@ class VersionView(wwwutils.SuperUserMixin, BaseView):
     def version(self):
         # Look at the version from setup.py
         try:
-            airflow_version = pkg_resources.require("apache-airflow")[0].version
+            airflow_version = airflow.__version__
         except Exception as e:
             airflow_version = None
             logging.error(e)

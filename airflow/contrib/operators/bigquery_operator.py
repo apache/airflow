@@ -29,11 +29,6 @@ class BigQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database
 
-    :param bql: (Deprecated. Use `sql` parameter instead) the sql code to be
-        executed (templated)
-    :type bql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'.
     :param sql: the sql code to be executed (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
@@ -104,21 +99,20 @@ class BigQueryOperator(BaseOperator):
     :type cluster_fields: list of str
     """
 
-    template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
+    template_fields = ('sql', 'destination_dataset_table', 'labels')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
     @apply_defaults
     def __init__(self,
-                 bql=None,
-                 sql=None,
-                 destination_dataset_table=False,
+                 sql,
+                 destination_dataset_table=None,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 udf_config=False,
+                 udf_config=None,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
                  maximum_bytes_billed=None,
@@ -133,8 +127,7 @@ class BigQueryOperator(BaseOperator):
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
-        self.bql = bql
-        self.sql = sql if sql else bql
+        self.sql = sql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
@@ -151,25 +144,9 @@ class BigQueryOperator(BaseOperator):
         self.labels = labels
         self.bq_cursor = None
         self.priority = priority
-        if time_partitioning is None:
-            self.time_partitioning = {}
-        if api_resource_configs is None:
-            self.api_resource_configs = {}
+        self.time_partitioning = time_partitioning
+        self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
-
-        # TODO remove `bql` in Airflow 2.0
-        if self.bql:
-            import warnings
-            warnings.warn('Deprecated parameter `bql` used in Task id: {}. '
-                          'Use `sql` parameter instead to pass the sql to be '
-                          'executed. `bql` parameter is deprecated and '
-                          'will be removed in a future version of '
-                          'Airflow.'.format(self.task_id),
-                          category=DeprecationWarning)
-
-        if self.sql is None:
-            raise TypeError('{} missing 1 required positional '
-                            'argument: `sql`'.format(self.task_id))
 
     def execute(self, context):
         if self.bq_cursor is None:
@@ -181,7 +158,7 @@ class BigQueryOperator(BaseOperator):
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.sql,
+            sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,
@@ -202,7 +179,7 @@ class BigQueryOperator(BaseOperator):
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
         if self.bq_cursor is not None:
-            self.log.info('Canceling running query due to execution timeout')
+            self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
 
 
@@ -306,7 +283,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  project_id=None,
                  schema_fields=None,
                  gcs_schema_object=None,
-                 time_partitioning={},
+                 time_partitioning=None,
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
@@ -323,7 +300,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
-        self.time_partitioning = time_partitioning
+        self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
 
     def execute(self, context):
@@ -425,7 +402,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type delegate_to: str
     :param src_fmt_configs: configure optional fields specific to the source format
     :type src_fmt_configs: dict
-    :param labels a dictionary containing labels for the table, passed to BigQuery
+    :param labels: a dictionary containing labels for the table, passed to BigQuery
     :type labels: dict
     """
     template_fields = ('bucket', 'source_objects',
@@ -518,9 +495,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
 
 class BigQueryDeleteDatasetOperator(BaseOperator):
-    """"
+    """
     This operator deletes an existing dataset from your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
+
     :param project_id: The project id of the dataset.
     :type project_id: str
     :param dataset_id: The dataset to be deleted.
@@ -569,7 +547,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
 
 class BigQueryCreateEmptyDatasetOperator(BaseOperator):
-    """"
+    """
     This operator is used to create new dataset for your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
 

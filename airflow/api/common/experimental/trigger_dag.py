@@ -59,7 +59,10 @@ def _trigger_dag(
 
     run_conf = None
     if conf:
-        run_conf = json.loads(conf)
+        if type(conf) is dict:
+            run_conf = conf
+        else:
+            run_conf = json.loads(conf)
 
     triggers = list()
     dags_to_trigger = list()

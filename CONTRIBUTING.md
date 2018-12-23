@@ -1,3 +1,22 @@
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
 # Contributing
 
 Contributions are welcome and are greatly appreciated! Every
@@ -87,7 +106,7 @@ There are three ways to setup an Apache Airflow development environment.
 
 1. Using tools and libraries installed directly on your system.
 
-  Install Python (2.7.x or 3.4.x), MySQL, and libxml by using system-level package
+  Install Python (2.7.x or 3.5.x), MySQL, and libxml by using system-level package
   managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/incubator-airflow-ci/blob/master/Dockerfile) for
   a comprehensive list of required packages.
 
@@ -106,10 +125,7 @@ There are three ways to setup an Apache Airflow development environment.
 
   ```
   # Start docker in your Airflow directory
-  docker run -t -i -v `pwd`:/airflow/ -w /airflow/ -e SLUGIFY_USES_TEXT_UNIDECODE=yes python:2 bash
-
-  # Go to the Airflow directory
-  cd /airflow/
+  docker run -t -i -v `pwd`:/airflow/ -w /airflow/ -e SLUGIFY_USES_TEXT_UNIDECODE=yes python:3 bash
 
   # Install Airflow with all the required dependencies,
   # including the devel which will provide the development tools
@@ -150,10 +166,10 @@ There are three ways to setup an Apache Airflow development environment.
   tox -e py35-backend_mysql
   ```
 
-  If you wish to run individual tests inside of docker enviroment you can do as follows:
+  If you wish to run individual tests inside of Docker environment you can do as follows:
 
   ```bash
-    # From the container (with your desired enviroment) with druid hook
+    # From the container (with your desired environment) with druid hook
     tox -e py35-backend_mysql -- tests/hooks/test_druid_hook.py
  ```
 
@@ -186,6 +202,53 @@ docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts
 Alternatively can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
 It is free for open source projects.
 
+Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be triggered and if this pipeline fails (returns an exit code other than `0`) the commit does not come through.
+This "in theory" has the advantage that you can not commit any code that fails that again reduces the errors in the Travis CI Pipelines.
+
+Since there are a lot of tests the script would last very long so you propably only should test your new feature locally.
+
+The following example of a `pre-commit` file allows you..
+- to lint your code via flake8
+- to test your code via nosetests in a docker container based on python 2
+- to test your code via nosetests in a docker container based on python 3
+
+```
+#!/bin/sh
+
+GREEN='\033[0;32m'
+NO_COLOR='\033[0m'
+
+setup_python_env() {
+    local venv_path=${1}
+
+    echo -e "${GREEN}Activating python virtual environment ${venv_path}..${NO_COLOR}"
+    source ${venv_path}
+}
+run_linting() {
+    local project_dir=$(git rev-parse --show-toplevel)
+
+    echo -e "${GREEN}Running flake8 over directory ${project_dir}..${NO_COLOR}"
+    flake8 ${project_dir}
+}
+run_testing_in_docker() {
+    local feature_path=${1}
+    local airflow_py2_container=${2}
+    local airflow_py3_container=${3}
+
+    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 2 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ ${airflow_py2_container} nosetests -v ${feature_path}
+    echo -e "${GREEN}Running tests in ${feature_path} in airflow python 3 docker container..${NO_COLOR}"
+    docker exec -i -w /airflow/ ${airflow_py3_container} nosetests -v ${feature_path}
+}
+
+set -e
+# NOTE: Before running this make sure you have set the function arguments correctly.
+setup_python_env /Users/feluelle/venv/bin/activate
+run_linting
+run_testing_in_docker tests/contrib/hooks/test_imap_hook.py dazzling_chatterjee quirky_stallman
+
+```
+
 For more information on how to run a subset of the tests, take a look at the
 nosetests docs.
 
@@ -204,7 +267,7 @@ meets these guidelines:
 1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and Github PRs for more details about a particular change.
 1. Add an [Apache License](http://www.apache.org/legal/src-headers.html) header to all new files
 1. If the pull request adds functionality, the docs should be updated as part of the same PR. Doc string are often sufficient.  Make sure to follow the Sphinx compatible standards.
-1. The pull request should work for Python 2.7 and 3.4. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
+1. The pull request should work for Python 2.7 and 3.5. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
 1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We track this using [landscape.io](https://landscape.io/github/apache/incubator-airflow/), which you can setup on your fork as well to check before you submit your PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
 1. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and adhere to them. It makes the lives of those who come after you a lot easier.
 

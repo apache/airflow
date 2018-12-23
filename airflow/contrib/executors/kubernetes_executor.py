@@ -40,7 +40,7 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None):
+                 annotations=None, volumes=None, volume_mounts=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -51,15 +51,18 @@ class KubernetesExecutorConfig:
         self.node_selectors = node_selectors
         self.affinity = affinity
         self.annotations = annotations
+        self.volumes = volumes
+        self.volume_mounts = volume_mounts
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
-               "node_selectors={}, affinity={}, annotations={})" \
+               "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
+               "volume_mounts={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
-                    self.affinity, self.annotations)
+                    self.affinity, self.annotations, self.volumes, self.volume_mounts)
 
     @staticmethod
     def from_dict(obj):
@@ -83,6 +86,8 @@ class KubernetesExecutorConfig:
             node_selectors=namespaced.get('node_selectors', None),
             affinity=namespaced.get('affinity', None),
             annotations=namespaced.get('annotations', {}),
+            volumes=namespaced.get('volumes', []),
+            volume_mounts=namespaced.get('volume_mounts', []),
         )
 
     def as_dict(self):
@@ -97,6 +102,8 @@ class KubernetesExecutorConfig:
             'node_selectors': self.node_selectors,
             'affinity': self.affinity,
             'annotations': self.annotations,
+            'volumes': self.volumes,
+            'volume_mounts': self.volume_mounts,
         }
 
 
@@ -129,6 +136,10 @@ class KubeConfig:
         self.worker_service_account_name = conf.get(
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
+
+        # NOTE: user can build the dags into the docker image directly,
+        # this will set to True if so
+        self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
@@ -197,10 +208,12 @@ class KubeConfig:
         self._validate()
 
     def _validate(self):
-        if not self.dags_volume_claim and (not self.git_repo or not self.git_branch):
+        if not self.dags_volume_claim and not self.dags_in_image \
+                and (not self.git_repo or not self.git_branch):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
-                'config section: `dags_volume_claim` or `git_repo and git_branch`')
+                'config section: `dags_volume_claim` or `git_repo and git_branch` '
+                'or `dags_in_image`')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
@@ -332,7 +345,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         self.log.info('Kubernetes job is %s', str(next_job))
         key, command, kube_executor_config = next_job
-        dag_id, task_id, execution_date = key
+        dag_id, task_id, execution_date, try_number = key
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", self.kube_config.kube_image)
         pod = self.worker_configuration.make_pod(
@@ -453,7 +466,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         try:
             return (
                 labels['dag_id'], labels['task_id'],
-                self._label_safe_datestring_to_datetime(labels['execution_date']))
+                self._label_safe_datestring_to_datetime(labels['execution_date']),
+                labels['try_number'])
         except Exception as e:
             self.log.warn(
                 'Error while converting labels to key; labels: %s; exception: %s',
@@ -582,9 +596,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def sync(self):
         if self.running:
-            self.log.info('self.running: %s', self.running)
+            self.log.debug('self.running: %s', self.running)
         if self.queued_tasks:
-            self.log.info('self.queued: %s', self.queued_tasks)
+            self.log.debug('self.queued: %s', self.queued_tasks)
         self.kube_scheduler.sync()
 
         last_resource_version = None
@@ -599,8 +613,14 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             last_resource_version, session=self._session)
 
         if not self.task_queue.empty():
-            key, command, kube_executor_config = self.task_queue.get()
-            self.kube_scheduler.run_next((key, command, kube_executor_config))
+            task = self.task_queue.get()
+
+            try:
+                self.kube_scheduler.run_next(task)
+            except ApiException:
+                self.log.exception('ApiException when attempting ' +
+                                   'to run task, re-queueing.')
+                self.task_queue.put(task)
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:
@@ -612,7 +632,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 self.log.debug('Could not find key: %s', str(key))
                 pass
         self.event_buffer[key] = state
-        (dag_id, task_id, ex_time) = key
+        (dag_id, task_id, ex_time, try_number) = key
         item = self._session.query(TaskInstance).filter_by(
             dag_id=dag_id,
             task_id=task_id,

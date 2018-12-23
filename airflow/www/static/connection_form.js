@@ -54,6 +54,19 @@
                 'login': 'Username',
             }
         },
+        qubole: {
+          hidden_fields: ['login', 'schema', 'port', 'extra'],
+          relabeling: {
+            'host': 'API Endpoint',
+            'password': 'Auth Token',
+          }
+        },
+        ssh: {
+          hidden_fields: ['schema'],
+          relabeling: {
+            'login': 'Username',
+          }
+        },
       }
       function connTypeChange(connectionType) {
         $("div.form-group").removeClass("hide");

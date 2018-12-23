@@ -25,7 +25,7 @@ from __future__ import unicode_literals
 import os
 import random
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -80,7 +80,7 @@ class BaseHook(LoggingMixin):
         conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
             log = LoggingMixin().log
-            log.info("Using connection to: %s", conn.host)
+            log.info("Using connection to: %s", conn.debug_info())
         return conn
 
     @classmethod

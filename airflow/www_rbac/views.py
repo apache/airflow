@@ -41,7 +41,6 @@ from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
-from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from past.builtins import unicode
 from pygments import highlight, lexers
@@ -56,6 +55,7 @@ from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
 from airflow.models import XCom, DagRun
+from airflow.models.connection import Connection
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -301,17 +301,13 @@ class Airflow(AirflowBaseView):
                 if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                     payload[dag.safe_dag_id] = []
                     for state in State.dag_states:
-                        try:
-                            count = data[dag.dag_id][state]
-                        except Exception:
-                            count = 0
-                        d = {
+                        count = data.get(dag.dag_id, {}).get(state, 0)
+                        payload[dag.safe_dag_id].append({
                             'state': state,
                             'count': count,
                             'dag_id': dag.dag_id,
                             'color': State.color(state)
-                        }
-                        payload[dag.safe_dag_id].append(d)
+                        })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -379,17 +375,13 @@ class Airflow(AirflowBaseView):
             if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                 payload[dag.safe_dag_id] = []
                 for state in State.task_states:
-                    try:
-                        count = data[dag.dag_id][state]
-                    except Exception:
-                        count = 0
-                    d = {
+                    count = data.get(dag.dag_id, {}).get(state, 0)
+                    payload[dag.safe_dag_id].append({
                         'state': state,
                         'count': count,
                         'dag_id': dag.dag_id,
                         'color': State.color(state)
-                    }
-                    payload[dag.safe_dag_id].append(d)
+                    })
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -1636,6 +1628,8 @@ class Airflow(AirflowBaseView):
         # sync dag permission
         appbuilder.sm.sync_perm_for_dag(dag_id)
 
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
+
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
@@ -1807,11 +1801,18 @@ class ConfigurationView(AirflowBaseView):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
         subtitle = conf.AIRFLOW_CONFIG
-        with open(conf.AIRFLOW_CONFIG, 'r') as f:
-            config = f.read()
-        table = [(section, key, value, source)
-                 for section, parameters in conf.as_dict(True, True).items()
-                 for key, (value, source) in parameters.items()]
+        # Don't show config when expose_config variable is False in airflow config
+        if conf.getboolean("webserver", "expose_config"):
+            with open(conf.AIRFLOW_CONFIG, 'r') as f:
+                config = f.read()
+            table = [(section, key, value, source)
+                     for section, parameters in conf.as_dict(True, True).items()
+                     for key, (value, source) in parameters.items()]
+        else:
+            config = (
+                "# Your Airflow administrator chose not to expose the "
+                "configuration, most likely for security reasons.")
+            table = None
 
         if raw:
             return Response(
@@ -1847,27 +1848,7 @@ class AirflowModelView(ModelView):
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
-    class CustomSQLAInterface(SQLAInterface):
-        """
-        FAB does not know how to handle columns with leading underscores because
-        they are not supported by WTForm. This hack will remove the leading
-        '_' from the key to lookup the column names.
-
-        """
-        def __init__(self, obj):
-            super(AirflowModelView.CustomSQLAInterface, self).__init__(obj)
-
-            self.session = settings.Session()
-
-            def clean_column_names():
-                if self.list_properties:
-                    self.list_properties = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_properties.items())
-                if self.list_columns:
-                    self.list_columns = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_columns.items())
-
-            clean_column_names()
+    CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
 
 class SlaMissModelView(AirflowModelView):
@@ -1918,7 +1899,7 @@ class XComModelView(AirflowModelView):
 class ConnectionModelView(AirflowModelView):
     route_base = '/connection'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.Connection)
+    datamodel = AirflowModelView.CustomSQLAInterface(Connection)
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 

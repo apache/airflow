@@ -24,8 +24,14 @@ import unittest
 
 import MySQLdb.cursors
 
-from airflow import models
 from airflow.hooks.mysql_hook import MySqlHook
+from airflow.models.connection import Connection
+
+SSL_DICT = {
+    'cert': '/tmp/client-cert.pem',
+    'ca': '/tmp/server-ca.pem',
+    'key': '/tmp/client-key.pem'
+}
 
 
 class TestMySqlHookConn(unittest.TestCase):
@@ -33,7 +39,7 @@ class TestMySqlHookConn(unittest.TestCase):
     def setUp(self):
         super(TestMySqlHookConn, self).setUp()
 
-        self.connection = models.Connection(
+        self.connection = Connection(
             login='login',
             password='password',
             host='host',
@@ -91,6 +97,33 @@ class TestMySqlHookConn(unittest.TestCase):
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['local_infile'], 1)
+
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    def test_get_con_unix_socket(self, mock_connect):
+        self.connection.extra = json.dumps({'unix_socket': "/tmp/socket"})
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once()
+        args, kwargs = mock_connect.call_args
+        self.assertEqual(args, ())
+        self.assertEqual(kwargs['unix_socket'], '/tmp/socket')
+
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    def test_get_conn_ssl_as_dictionary(self, mock_connect):
+        self.connection.extra = json.dumps({'ssl': SSL_DICT})
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once()
+        args, kwargs = mock_connect.call_args
+        self.assertEqual(args, ())
+        self.assertEqual(kwargs['ssl'], SSL_DICT)
+
+    @mock.patch('airflow.hooks.mysql_hook.MySQLdb.connect')
+    def test_get_conn_ssl_as_string(self, mock_connect):
+        self.connection.extra = json.dumps({'ssl': json.dumps(SSL_DICT)})
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once()
+        args, kwargs = mock_connect.call_args
+        self.assertEqual(args, ())
+        self.assertEqual(kwargs['ssl'], SSL_DICT)
 
 
 class TestMySqlHook(unittest.TestCase):

@@ -344,7 +344,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
          "Parameter 'sourceUploadUrl' is empty in the body and argument "
          "'zip_path' is missing or empty."),
         ({'sourceArchiveUrl': 'gs://adasda', 'sourceRepository': ''},
-         "The field 'source_code.sourceRepository' should be dictionary type"),
+         "The field 'source_code.sourceRepository' should be of dictionary type"),
         ({'sourceUploadUrl': '', 'sourceRepository': ''},
          "Parameter 'sourceUploadUrl' is empty in the body and argument 'zip_path' "
          "is missing or empty."),
@@ -360,7 +360,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
         ({'sourceUploadUrl': ''}, "Parameter 'sourceUploadUrl' is empty in the body "
                                   "and argument 'zip_path' is missing or empty."),
         ({'sourceRepository': ''}, "The field 'source_code.sourceRepository' "
-                                   "should be dictionary type"),
+                                   "should be of dictionary type"),
         ({'sourceRepository': {}}, "The required body field "
                                    "'source_code.sourceRepository.url' is missing"),
         ({'sourceRepository': {'url': ''}},
@@ -452,7 +452,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
                            'service': 'service_name',
                            'failurePolicy': {'retry': ''}}},
          "The field 'trigger.eventTrigger.failurePolicy.retry' "
-         "should be dictionary type")
+         "should be of dictionary type")
     ]
     )
     @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')

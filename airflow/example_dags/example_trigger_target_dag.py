@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.python_operator import PythonOperator
-from airflow.models import DAG
+import pprint
 from datetime import datetime
 
-import pprint
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.python_operator import PythonOperator
+
 pp = pprint.PrettyPrinter(indent=4)
 
 # This example illustrates the use of the TriggerDagRunOperator. There are 2
@@ -50,7 +51,8 @@ args = {
 dag = DAG(
     dag_id='example_trigger_target_dag',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+)
 
 
 def run_this_func(ds, **kwargs):
@@ -62,12 +64,13 @@ run_this = PythonOperator(
     task_id='run_this',
     provide_context=True,
     python_callable=run_this_func,
-    dag=dag)
-
+    dag=dag,
+)
 
 # You can also access the DagRun object in templates
 bash_task = BashOperator(
     task_id="bash_task",
     bash_command='echo "Here is the message: '
                  '{{ dag_run.conf["message"] if dag_run else "" }}" ',
-    dag=dag)
+    dag=dag,
+)

@@ -151,6 +151,7 @@ azure_data_lake = [
     'azure-mgmt-datalake-store==0.4.0',
     'azure-datalake-store==0.0.19'
 ]
+azure_cosmos = ['azure-cosmos>=3.0.1']
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery>=4.1.1, <4.2.0',
@@ -172,9 +173,10 @@ doc = [
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
     'sphinx-rtd-theme>=0.1.6',
+    'sphinxcontrib-httpdomain>=1.7.0',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
-docker = ['docker>=2.0.0']
+docker = ['docker~=3.0']
 druid = ['pydruid>=0.4.1']
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
@@ -187,6 +189,8 @@ gcp_api = [
     'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-container>=0.1.1',
+    'google-cloud-spanner>=1.6.0',
+    'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
 ]
@@ -206,7 +210,7 @@ kerberos = ['pykerberos>=1.1.13',
             'snakebite[kerberos]>=2.7.8']
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
-ldap = ['ldap3>=0.9.9.1']
+ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
 mysql = ['mysqlclient>=1.3.6']
 oracle = ['cx_Oracle>=5.1.2']
@@ -216,9 +220,9 @@ password = [
 ]
 pinot = ['pinotdb>=0.1.1']
 postgres = ['psycopg2-binary>=2.7.4']
-qds = ['qds-sdk>=1.9.6']
+qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
-redis = ['redis>=2.10.5']
+redis = ['redis>=2.10.5,<3.0.0']
 s3 = ['boto3>=1.7.0, <1.8.0']
 salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
@@ -256,7 +260,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8'
+    'flake8==3.5.0'
 ]
 
 if not PY3:
@@ -264,10 +268,11 @@ if not PY3:
 
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
+devel_azure = devel_minreq + azure_data_lake + azure_cosmos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch + azure_data_lake +
+             druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
              atlas)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
@@ -298,8 +303,8 @@ def do_setup():
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'flask>=0.12.4, <0.13',
-            'flask-appbuilder>=1.12, <2.0.0',
-            'flask-admin==1.4.1',
+            'flask-appbuilder==1.12.1',
+            'flask-admin==1.5.2',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
@@ -309,8 +314,8 @@ def do_setup():
             'gitpython>=2.0.2',
             'gunicorn>=19.4.0, <20.0',
             'iso8601>=0.1.12',
-            'jinja2>=2.7.3, <2.9.0',
-            'lxml>=4.0.0',
+            'json-merge-patch==0.2',
+            'jinja2>=2.7.3, <=2.10.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
@@ -321,7 +326,7 @@ def do_setup():
             'python-nvd3==0.15.0',
             'requests>=2.5.1, <3',
             'setproctitle>=1.1.8, <2',
-            'sqlalchemy>=1.1.15, <1.2.0',
+            'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
             'tenacity==4.8.0',
             'thrift>=0.9.2',
@@ -341,6 +346,7 @@ def do_setup():
             'async': async_packages,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
+            'azure_cosmos': azure_cosmos,
             'cassandra': cassandra,
             'celery': celery,
             'cgroups': cgroups,
@@ -351,6 +357,7 @@ def do_setup():
             'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
+            'devel_azure': devel_azure,
             'doc': doc,
             'docker': docker,
             'druid': druid,
@@ -397,7 +404,6 @@ def do_setup():
             'Intended Audience :: System Administrators',
             'License :: OSI Approved :: Apache Software License',
             'Programming Language :: Python :: 2.7',
-            'Programming Language :: Python :: 3.4',
             'Programming Language :: Python :: 3.5',
             'Topic :: System :: Monitoring',
         ],
@@ -411,7 +417,7 @@ def do_setup():
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },
-        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+        python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
     )
 
 

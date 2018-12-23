@@ -25,7 +25,7 @@ from mock import patch
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.jira_operator import JiraOperator
-from airflow import models
+from airflow.models.connection import Connection
 from airflow.utils import db
 from airflow.utils import timezone
 
@@ -58,7 +58,7 @@ class TestJiraOperator(unittest.TestCase):
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='jira_default', conn_type='jira',
                 host='https://localhost/jira/', port=443,
                 extra='{"verify": "False", "project": "AIRFLOW"}'))

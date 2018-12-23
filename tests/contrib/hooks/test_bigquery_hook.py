@@ -19,10 +19,10 @@
 #
 
 import unittest
-import warnings
 
 from google.auth.exceptions import GoogleAuthError
 import mock
+from apiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
@@ -207,16 +207,6 @@ def mock_job_cancel(projectId, jobId):
 
 
 class TestBigQueryBaseCursor(unittest.TestCase):
-    def test_bql_deprecation_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            hook.BigQueryBaseCursor("test", "test").run_query(
-                bql='select * from test_table'
-            )
-            yield
-        self.assertIn(
-            'Deprecated parameter `bql`',
-            w[0].message.args[0])
-
     def test_invalid_schema_update_options(self):
         with self.assertRaises(Exception) as context:
             hook.BigQueryBaseCursor("test", "test").run_load(
@@ -226,16 +216,6 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 schema_update_options=["THIS IS NOT VALID"]
             )
         self.assertIn("THIS IS NOT VALID", str(context.exception))
-
-    def test_nobql_nosql_param_error(self):
-        with self.assertRaises(TypeError) as context:
-            hook.BigQueryBaseCursor("test", "test").run_query(
-                sql=None,
-                bql=None
-            )
-        self.assertIn(
-            'missing 1 required positional',
-            str(context.exception))
 
     def test_invalid_schema_update_and_write_disposition(self):
         with self.assertRaises(Exception) as context:
@@ -314,6 +294,106 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 "key_one", key_one, {"key_one": False})
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_insert_all_succeed(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        rows = [
+            {"json": {"a_key": "a_value_0"}}
+        ]
+        body = {
+            "rows": rows,
+            "ignoreUnknownValues": False,
+            "kind": "bigquery#tableDataInsertAllRequest",
+            "skipInvalidRows": False,
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tabledata.return_value.insertAll)
+        method.return_value.execute.return_value = {
+            "kind": "bigquery#tableDataInsertAllResponse"
+        }
+        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        cursor.insert_all(project_id, dataset_id, table_id, rows)
+        method.assert_called_with(projectId=project_id, datasetId=dataset_id,
+                                  tableId=table_id, body=body)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_insert_all_fail(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        rows = [
+            {"json": {"a_key": "a_value_0"}}
+        ]
+
+        mock_service = mock.Mock()
+        method = (mock_service.tabledata.return_value.insertAll)
+        method.return_value.execute.return_value = {
+            "kind": "bigquery#tableDataInsertAllResponse",
+            "insertErrors": [
+                {
+                    "index": 1,
+                    "errors": []
+                }
+            ]
+        }
+        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        with self.assertRaises(Exception):
+            cursor.insert_all(project_id, dataset_id, table_id,
+                              rows, fail_on_error=True)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_view_fails_on_exception(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_view'
+        view = {
+            'incorrect_key': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
+            "useLegacySql": False
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.insert)
+        method.return_value.execute.side_effect = HttpError(
+            resp={'status': '400'}, content=b'Query is required for views')
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        with self.assertRaises(Exception):
+            cursor.create_empty_table(project_id, dataset_id, table_id,
+                                      view=view)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_create_view(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_view'
+        view = {
+            'query': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
+            "useLegacySql": False
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.insert)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_table(project_id, dataset_id, table_id,
+                                  view=view)
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            },
+            'view': view
+        }
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
+
+
+class TestBigQueryCursor(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_execute_with_parameters(self, mocked_rwc):
+        hook.BigQueryCursor("test", "test").execute(
+            "SELECT %(foo)s", {"foo": "bar"})
+        mocked_rwc.assert_called_once()
 
 
 class TestLabelsInRunJob(unittest.TestCase):
@@ -442,6 +522,14 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         )
 
         mocked_rwc.assert_called_once()
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_with_auto_detect(self, run_with_config):
+        destination_project_dataset_table = "autodetect.table"
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_load(destination_project_dataset_table, [], [], autodetect=True)
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['load']['autodetect'], True)
 
     @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
     @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
