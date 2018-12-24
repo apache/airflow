@@ -36,7 +36,7 @@ import sqlalchemy as sa
 
 def upgrade():
     op.add_column('dag', sa.Column('description', sa.Text(), nullable=True))
-    op.add_column('dag', sa.Column('default_view', sa.String(), nullable=True))
+    op.add_column('dag', sa.Column('default_view', sa.String(25), nullable=True))
 
 
 def downgrade():
