@@ -1,0 +1,921 @@
+apiVersion: v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: airflow-ephemeral-template
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+    name: flower
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: flower
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: ${APPLICATION_NAME}
+          deploymentconfig: flower
+      spec:
+        containers:
+        - env:
+          - name: EXECUTOR
+            value: Celery
+          - name: FERNET_KEY
+            valueFrom:
+              secretKeyRef:
+                key: fernet-key
+                name: fernet
+          - name: REDIS_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: redis
+          - name: POSTGRESQL_SERVICE_DB
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: postgresql
+          - name: FLOWER_BASIC_AUTH
+            valueFrom:
+              secretKeyRef:
+                key: flower_basic_auth
+                name: flower-auth
+          image: ${AIRFLOW_IMAGE}
+          args:
+          - flower
+          imagePullPolicy: Always
+          name: flower
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8793
+            protocol: TCP
+          - containerPort: 5555
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - flower
+        from:
+          kind: ImageStreamTag
+          name: ${AIRFLOW_IMAGE_STREAM_NANE}:latest
+          namespace: ${PROJECT_NAME}
+      type: ImageChange
+  status:
+    availableReplicas: 0
+    latestVersion: 0
+    observedGeneration: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      template.alpha.openshift.io/wait-for-ready: "true"
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+      template: postgresql-ephemeral-template
+    name: postgresql
+  spec:
+    replicas: 1
+    selector:
+      name: postgresql
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          name: postgresql
+      spec:
+        containers:
+        - env:
+          - name: POSTGRESQL_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: postgresql
+          - name: POSTGRESQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: postgresql
+          - name: POSTGRESQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: postgresql
+          image: registry.access.redhat.com/rhscl/postgresql-95-rhel7@sha256:de66da4812f0de42cee0bef65899d75f8b1a7440858271f133c8f73c80be663d
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 1
+          name: postgresql
+          ports:
+          - containerPort: 5432
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d $POSTGRESQL_DATABASE -c
+                'SELECT 1'
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 1Gi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /var/lib/pgsql/data
+            name: postgresql-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: postgresql-data
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - postgresql
+        from:
+          kind: ImageStreamTag
+          name: postgresql:9.5
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+  status:
+    availableReplicas: 0
+    latestVersion: 0
+    observedGeneration: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      template.alpha.openshift.io/wait-for-ready: "true"
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+      template: redis-ephemeral-template
+    name: redis
+  spec:
+    replicas: 1
+    selector:
+      name: redis
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          name: redis
+      spec:
+        containers:
+        - env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: redis
+          image: registry.access.redhat.com/rhscl/redis-32-rhel7@sha256:50605070421172c6c41e03bcb4391f418240085f8e03f0f82190da75e51df9e3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 6379
+            timeoutSeconds: 1
+          name: redis
+          ports:
+          - containerPort: 6379
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - test "$(redis-cli -h 127.0.0.1 -a $REDIS_PASSWORD ping)" == "PONG"
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 1Gi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /var/lib/redis/data
+            name: redis-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: redis-data
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - redis
+        from:
+          kind: ImageStreamTag
+          name: redis:3.2
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+  status:
+    availableReplicas: 0
+    latestVersion: 0
+    observedGeneration: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+    name: webserver
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: webserver
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: ${APPLICATION_NAME}
+          deploymentconfig: webserver
+      spec:
+        containers:
+        - name: webserver
+          env:
+          - name: EXECUTOR
+            value: Celery
+          - name: POSTGRESQL_SERVICE_DB
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: postgresql
+          - name: REDIS_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: redis
+          - name: FERNET_KEY
+            valueFrom:
+              secretKeyRef:
+                key: fernet-key
+                name: fernet
+          image: ${AIRFLOW_IMAGE}
+          args:
+          - webserver
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 5555
+            protocol: TCP
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8793
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: "/usr/local/airflow/dags"
+            name: ${VOLUME_NAME}
+        - name: scheduler
+          env:
+          - name: EXECUTOR
+            value: Celery
+          - name: POSTGRESQL_SERVICE_DB
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: postgresql
+          - name: REDIS_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: redis
+          - name: FERNET_KEY
+            valueFrom:
+              secretKeyRef:
+                key: fernet-key
+                name: fernet
+          image: ${AIRFLOW_IMAGE}
+          args:
+          - scheduler
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 5555
+            protocol: TCP
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8793
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: "/usr/local/airflow/dags"
+            name: ${VOLUME_NAME}
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: ${VOLUME_NAME}
+          persistentVolumeClaim:
+            claimName: ${PERSISTANT_VOLUME_CLAIM}
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - webserver
+        - scheduler
+        from:
+          kind: ImageStreamTag
+          name: ${AIRFLOW_IMAGE_STREAM_NANE}:latest
+          namespace: ${PROJECT_NAME}
+      type: ImageChange
+  status:
+    availableReplicas: 0
+    latestVersion: 0
+    observedGeneration: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+    name: worker
+  spec:
+    replicas: 1
+    revisionHistoryLimit: 10
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: worker
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: ${APPLICATION_NAME}
+          deploymentconfig: worker
+      spec:
+        containers:
+        - env:
+          - name: EXECUTOR
+            value: Celery
+          - name: REDIS_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: redis
+          - name: POSTGRESQL_SERVICE_DB
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: postgresql
+          - name: POSTGRESQL_SERVICE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: postgresql
+          - name: FERNET_KEY
+            valueFrom:
+              secretKeyRef:
+                key: fernet-key
+                name: fernet
+          - name: C_FORCE_ROOT
+            value: 'true'
+          image: ${AIRFLOW_IMAGE}
+          args:
+          - worker
+          imagePullPolicy: Always
+          name: worker
+          ports:
+          - containerPort: 5555
+            protocol: TCP
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8793
+            protocol: TCP
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - worker
+        from:
+          kind: ImageStreamTag
+          name: ${AIRFLOW_IMAGE_STREAM_NANE}:latest
+          namespace: ${PROJECT_NAME}
+      type: ImageChange
+  status:
+    availableReplicas: 0
+    latestVersion: 0
+    observedGeneration: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0
+- apiVersion: v1
+  data:
+    fernet-key: RGxNbHRGd0Z3WGx2cDlTR2gyN1ZRX25Da0NtNi0wd3VnQTJUYi1ZVmdyOD0=
+  kind: Secret
+  metadata:
+    annotations:
+      template.openshift.io/expose-fernet-key: '{.data[''fernet-key'']}'
+    creationTimestamp: null
+    name: fernet
+  type: Opaque
+- apiVersion: v1
+  data:
+    flower_basic_auth: ${FLOWER_BASIC_AUTH}
+  kind: Secret
+  metadata:
+    annotations:
+      template.openshift.io/expose-flower_basic_auth: '{.data[''flower_basic_auth'']}'
+    creationTimestamp: null
+    name: flower-auth
+  type: Opaque
+- apiVersion: v1
+  stringData:
+    database-name: ${POSTGRESQL_DATABASE}
+    database-password: ${POSTGRESQL_PASSWORD}
+    database-user: ${POSTGRESQL_USER}
+  kind: Secret
+  metadata:
+    annotations:
+      template.openshift.io/expose-database_name: '{.data[''database-name'']}'
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+      template.openshift.io/expose-username: '{.data[''database-user'']}'
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+      template: postgresql-ephemeral-template
+    name: postgresql
+  type: Opaque
+- apiVersion: v1
+  stringData:
+    database-password: ${REDIS_PASSWORD}
+  kind: Secret
+  metadata:
+    annotations:
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+      template: redis-ephemeral-template
+    name: redis
+  type: Opaque
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: flower
+  spec:
+    ports:
+    - name: 5555-tcp
+      port: 5555
+      protocol: TCP
+      targetPort: 5555
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 8793-tcp
+      port: 8793
+      protocol: TCP
+      targetPort: 8793
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: flower
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: postgres://{.spec.clusterIP}:{.spec.ports[?(.name=="postgresql")].port}
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+      template: postgresql-ephemeral-template
+    name: postgresql
+  spec:
+    ports:
+    - name: postgresql
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+    selector:
+      name: postgresql
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: redis://{.spec.clusterIP}:{.spec.ports[?(.name=="redis")].port}
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+      template: redis-ephemeral-template
+    name: redis
+  spec:
+    ports:
+    - name: redis
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    selector:
+      name: redis
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: scheduler
+  spec:
+    ports:
+    - name: 5555-tcp
+      port: 5555
+      protocol: TCP
+      targetPort: 5555
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 8793-tcp
+      port: 8793
+      protocol: TCP
+      targetPort: 8793
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: scheduler
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: webserver
+  spec:
+    ports:
+    - name: 5555-tcp
+      port: 5555
+      protocol: TCP
+      targetPort: 5555
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 8793-tcp
+      port: 8793
+      protocol: TCP
+      targetPort: 8793
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: webserver
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: worker
+  spec:
+    ports:
+    - name: 5555-tcp
+      port: 5555
+      protocol: TCP
+      targetPort: 5555
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 8793-tcp
+      port: 8793
+      protocol: TCP
+      targetPort: 8793
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: worker
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewBuild
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: ${APPLICATION_NAME}
+      build: ${AIRFLOW_IMAGE_STREAM_NANE}
+    name: ${AIRFLOW_IMAGE_STREAM_NANE}
+  spec:
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: ${AIRFLOW_IMAGE}:latest
+      generation: null
+      importPolicy: {}
+      name: latest
+      referencePolicy:
+        type: ""
+  status:
+    dockerImageRepository: ""
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+      openshift.io/host.generated: "true"
+    creationTimestamp: null
+    labels:
+      app: seism
+    name: airi
+  spec:
+    port:
+      targetPort: 8080-tcp
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: edge
+    to:
+      kind: Service
+      name: webserver
+      weight: 100
+    wildcardPolicy: None
+  status:
+    ingress:
+    - conditions:
+      - lastTransitionTime: 2018-08-07T07:09:48Z
+        status: "True"
+        type: Admitted
+      routerName: router
+      wildcardPolicy: None
+- apiVersion: "v1"
+  kind: "PersistentVolumeClaim"
+  metadata:
+    name: ${PERSISTANT_VOLUME_CLAIM}
+  spec:
+    accessModes:
+      - "ReadWriteOnce"
+    resources:
+      requests:
+        storage: "50Mi"
+parameters:
+- description: Flower basic authentication
+  from: '[A-Z0-9]{12}'
+  generate: expression
+  name: FLOWER_BASIC_AUTH
+- description: Username for PostgreSQL user that will be used for accessing the database.
+  displayName: PostgreSQL Connection Username
+  from: 'user[A-Z0-9]{5}'
+  generate: expression
+  name: POSTGRESQL_USER
+  required: true
+- description: Password for the PostgreSQL connection user.
+  displayName: PostgreSQL Connection Password
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+  name: POSTGRESQL_PASSWORD
+  required: true
+- description: Database name for PostgreSQL database.
+  displayName: PostgreSQL Connection Database
+  from: 'airflow[A-Z0-9]{5}'
+  generate: expression
+  name: POSTGRESQL_DATABASE
+  required: true
+- description: Password for Redis database.
+  displayName: Redis Connection Password
+  from: '[A-Z0-9]{15}'
+  generate: expression
+  name: REDIS_PASSWORD
+  required: true
+- description: Application name.
+  displayName: Airflow Application Name.
+  name: APPLICATION_NAME
+  value: seism
+  required: true
+- description: Airflow image link.
+  displayName: Airflow Image Link.
+  name: AIRFLOW_IMAGE
+  value: 172.30.21.196:5000/bix-airflow-cluster/bix-airflow-base-image
+  required: true
+- description: Airflow base image stream name.
+  displayName: Airflow Base Image Stream Name.
+  name: AIRFLOW_IMAGE_STREAM_NANE
+  value: airflow-base-image
+  required: true
+- description: Namespace
+  displayName: Project Name.
+  name: PROJECT_NAME
+  value: seism
+- description: Attached volume name
+  displayName: Volume Name
+  name: VOLUME_NAME
+  value: airo
+- description: Attached persistant volume claim
+  displayName: Persistant volume claim
+  name: PERSISTANT_VOLUME_CLAIM
+  value: airoc
+
