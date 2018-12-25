@@ -43,7 +43,8 @@ class WorkerConfiguration(LoggingMixin):
     def _get_init_containers(self, volume_mounts):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
         # If we're using volume claims to mount the dags, no init container is needed
-        if self.kube_config.dags_volume_claim or self.kube_config.dags_volume_host or self.kube_config.dags_in_image:
+        if self.kube_config.dags_volume_claim or \
+           self.kube_config.dags_volume_host or self.kube_config.dags_in_image:
             return []
 
         # Otherwise, define a git-sync init container
@@ -173,12 +174,14 @@ class WorkerConfiguration(LoggingMixin):
         }
 
         if self.kube_config.dags_volume_subpath:
-            volume_mounts[self.dags_volume_name][
-                'subPath'] = self.kube_config.dags_volume_subpath
+            volume_mounts[self.dags_volume_name]['subPath'] = self.kube_config.dags_volume_subpath
 
         if self.kube_config.logs_volume_subpath:
-            volume_mounts[self.logs_volume_name][
-                'subPath'] = self.kube_config.logs_volume_subpath
+            volume_mounts[self.logs_volume_name]['subPath'] = self.kube_config.logs_volume_subpath
+
+        if self.kube_config.dags_in_image:
+            del volumes[self.dags_volume_name]
+            del volume_mounts[self.dags_volume_name]
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
