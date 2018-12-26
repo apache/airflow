@@ -278,7 +278,6 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_stats(self, session=None):
         dr = models.DagRun
-        dm = models.DagModel
 
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
@@ -295,7 +294,7 @@ class Airflow(AirflowBaseView):
                 data[dag_id][state] = count
 
             if 'all_dags' in filter_dag_ids:
-                filter_dag_ids = [dag_id for dag_id, in session.query(dm.dag_id)]
+                filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
             for dag_id in filter_dag_ids:
                 if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
@@ -371,15 +370,17 @@ class Airflow(AirflowBaseView):
                 data[dag_id][state] = count
         session.commit()
 
-        for dag in dagbag.dags.values():
-            if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
-                payload[dag.safe_dag_id] = []
+        if 'all_dags' in filter_dag_ids:
+            filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
+        for dag_id in filter_dag_ids:
+            if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
+                payload[dag_id] = []
                 for state in State.task_states:
-                    count = data.get(dag.dag_id, {}).get(state, 0)
-                    payload[dag.safe_dag_id].append({
+                    count = data.get(dag_id, {}).get(state, 0)
+                    payload[dag_id].append({
                         'state': state,
                         'count': count,
-                        'dag_id': dag.dag_id,
+                        'dag_id': dag_id,
                         'color': State.color(state)
                     })
         return wwwutils.json_response(payload)
