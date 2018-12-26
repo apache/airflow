@@ -3259,16 +3259,12 @@ class DAG(BaseDag, LoggingMixin):
 
     # /Context Manager ----------------------------------------------
 
-    @property
-    def default_view(self):
+    def get_default_view(self):
+        """This is only there for backward compatible jinja2 templates"""
         if self._default_view is None:
             return configuration.conf.get('webserver', 'dag_default_view').lower()
         else:
             return self._default_view
-
-    def get_default_view(self):
-        """This is only there for backward compatible jinja2 templates"""
-        return self.default_view
 
     def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
         if num:
