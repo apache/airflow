@@ -20,11 +20,16 @@
 import logging
 import multiprocessing
 import os
-import psutil
 import signal
 import time
 import unittest
+from datetime import datetime
 
+import psutil
+import six
+
+from airflow import DAG
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
 
 
@@ -209,6 +214,16 @@ class HelpersTest(unittest.TestCase):
         self.assertFalse(helpers.is_container('test_str_not_iterable'))
         # Pass an object that is not iter nor a string.
         self.assertFalse(helpers.is_container(10))
+
+    def test_cross_downstream(self):
+        """Test if all dependencies between tasks are all set correctly."""
+        dag = DAG(dag_id="test_dag", start_date=datetime.now())
+        start_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(1, 4)]
+        end_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(4, 7)]
+        helpers.cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
+
+        for start_task in start_tasks:
+            six.assertCountEqual(self, start_task.get_direct_relatives(upstream=False), end_tasks)
 
 
 if __name__ == '__main__':
