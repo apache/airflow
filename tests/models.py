@@ -746,8 +746,8 @@ class DagTest(unittest.TestCase):
         self.assertEqual(set(orm_dag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_dag.last_scheduler_run, now)
         self.assertTrue(orm_dag.is_active)
-        self.assertIsNone(orm_dag._default_view)
-        self.assertEqual(orm_dag.default_view, configuration.conf.get('webserver', 'dag_default_view').lower())
+        self.assertIsNone(orm_dag.default_view)
+        self.assertEqual(orm_dag.get_default_view(), configuration.conf.get('webserver', 'dag_default_view').lower())
 
         orm_subdag = session.query(DagModel).filter(
             DagModel.dag_id == 'dag.subtask').one()
@@ -778,8 +778,8 @@ class DagTest(unittest.TestCase):
         dag.sync_to_db(session=session)
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
-        self.assertIsNotNone(orm_dag._default_view)
-        self.assertEqual(orm_dag.default_view, "graph")
+        self.assertIsNotNone(orm_dag.default_view)
+        self.assertEqual(orm_dag.get_default_view(), "graph")
 
 
 class DagStatTest(unittest.TestCase):
