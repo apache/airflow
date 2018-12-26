@@ -28,6 +28,8 @@ from collections import defaultdict, namedtuple, OrderedDict
 from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
+from airflow.models.base import Base
+
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Hashable
@@ -64,10 +66,10 @@ from urllib.parse import quote
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
-    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, MetaData,
-    and_, asc, func, or_, true as sqltrue
+    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_, asc,
+    func, or_, true as sqltrue
 )
-from sqlalchemy.ext.declarative import declarative_base, declared_attr
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
 
 from croniter import (
@@ -84,6 +86,7 @@ from airflow.exceptions import (
 )
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
+from airflow.models.dagpickle import DagPickle
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -107,13 +110,6 @@ from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
-
-SQL_ALCHEMY_SCHEMA = configuration.get('core', 'SQL_ALCHEMY_SCHEMA')
-
-if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
-    Base = declarative_base()
-else:
-    Base = declarative_base(metadata=MetaData(schema=SQL_ALCHEMY_SCHEMA))
 
 ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
@@ -611,32 +607,6 @@ class User(Base):
 
     def is_superuser(self):
         return self.superuser
-
-
-class DagPickle(Base):
-    """
-    Dags can originate from different places (user repos, master repo, ...)
-    and also get executed in different places (different executors). This
-    object represents a version of a DAG and becomes a source of truth for
-    a BackfillJob execution. A pickle is a native python serialized object,
-    and in this case gets stored in the database for the duration of the job.
-
-    The executors pick up the DagPickle id and read the dag definition from
-    the database.
-    """
-    id = Column(Integer, primary_key=True)
-    pickle = Column(PickleType(pickler=dill))
-    created_dttm = Column(UtcDateTime, default=timezone.utcnow)
-    pickle_hash = Column(Text)
-
-    __tablename__ = "dag_pickle"
-
-    def __init__(self, dag):
-        self.dag_id = dag.dag_id
-        if hasattr(dag, 'template_env'):
-            dag.template_env = None
-        self.pickle_hash = hash(dag)
-        self.pickle = dag
 
 
 class TaskInstance(Base, LoggingMixin):
