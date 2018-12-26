@@ -123,8 +123,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         """
         try:
             return self.hook.get_key(remote_log_location) is not None
-        except Exception:
-            pass
+        except Exception as e:
+            self.log.error('Error listing logs at {}: {}'.format(
+                remote_log_location, e))
         return False
 
     def s3_read(self, remote_log_location, return_error=False):
