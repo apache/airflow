@@ -52,7 +52,7 @@ class DayOfWeekSensorTests(unittest.TestCase):
     def test_weekday_sensor_true(self):
         t = DayOfWeekSensor(
             task_id='weekday_sensor_check_true',
-            week_day_number=4,
+            week_day='Thursday',
             use_task_execution_day=True,
             dag=self.dag)
         t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
@@ -62,21 +62,22 @@ class DayOfWeekSensorTests(unittest.TestCase):
             task_id='weekday_sensor_check_false',
             poke_interval=1,
             timeout=2,
-            week_day_number=2,
+            week_day='Tuesday',
             use_task_execution_day=True,
             dag=self.dag)
         with self.assertRaises(AirflowSensorTimeout):
             t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
     def test_invalid_weekday_number(self):
-        week_day_number = 8
-        t = DayOfWeekSensor(
-            task_id='weekday_sensor_invalid_weekday_num',
-            week_day_number=week_day_number,
-            use_task_execution_day=True,
-            dag=self.dag)
-        with self.assertRaisesRegexp(ValueError, 'Invalid value'):
-            t.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+        invalid_week_day = 'Thsday'
+        with self.assertRaisesRegexp(AttributeError,
+                                     'Invalid Week Day passed: "{}"'.format(
+                                         invalid_week_day)):
+            DayOfWeekSensor(
+                task_id='weekday_sensor_invalid_weekday_num',
+                week_day=invalid_week_day,
+                use_task_execution_day=True,
+                dag=self.dag)
 
 
 class WeekEndSensorTests(unittest.TestCase):
