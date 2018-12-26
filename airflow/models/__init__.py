@@ -3004,12 +3004,12 @@ class DagModel(Base):
     # Default view of the inside the webserver
     default_view = Column(String(25))
 
-    def __init__(self):
-        if not hasattr(self, 'timezone') or not self.timezone:
-            self.timezone = settings.TIMEZONE
-
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
+
+    @property
+    def timezone(self):
+        return settings.TIMEZONE
 
     @classmethod
     @provide_session
