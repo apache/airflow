@@ -287,10 +287,10 @@ setup as separate components on GitHub:
 #### Travis CI GitHub App (new version)
 
 1. Once installed, you can configure the Travis CI GitHub App at
-https://github.com/settings/installations/169040.
+https://github.com/settings/installations -> Configure Travis CI.
 
-1. For the Travis CI GitHub App, you can set repository access to either "all
-repositories" for convenience, or "only select repositories" and choose
+1. For the Travis CI GitHub App, you can set repository access to either "All
+repositories" for convenience, or "Only select repositories" and choose
 `<username>/incubator-airflow` in the dropdown.
 
 1. You can access Travis CI for your fork at
