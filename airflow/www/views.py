@@ -554,12 +554,12 @@ class Airflow(BaseView):
         dm = models.DagModel
         dag_ids = session.query(dm.dag_id)
 
-        states = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
 
         data = {}
         for (dag_id, ) in dag_ids:
             data[dag_id] = {}
-        for dag_id, state, count in states:
+        for dag_id, state, count in dag_state_stats:
             if dag_id not in data:
                 data[dag_id] = {}
             data[dag_id][state] = count
