@@ -3267,7 +3267,7 @@ class DAG(BaseDag, LoggingMixin):
             return self._default_view
 
     def get_default_view(self):
-        """This is only there for backward compatible jina2 templates"""
+        """This is only there for backward compatible jinja2 templates"""
         return self.default_view
 
     def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
