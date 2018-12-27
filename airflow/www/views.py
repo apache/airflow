@@ -727,15 +727,13 @@ class Airflow(BaseView):
     @expose('/rendered')
     @login_required
     @wwwutils.action_logging
-    @provide_session
-    def rendered(self, session=None):
-        dm = models.DagModel
+    def rendered(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag = session.query(dm).filter(dm.dag_id == dag_id).first()
+        dag = dagbag.get_dag(dag_id)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
