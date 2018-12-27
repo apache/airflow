@@ -34,7 +34,7 @@ from six.moves.urllib.parse import quote_plus
 import requests
 from googleapiclient.discovery import build
 
-from airflow import AirflowException, LoggingMixin, models
+from airflow import AirflowException, LoggingMixin
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 # Number of retries - used by googleapiclient method calls to perform retries
@@ -42,7 +42,7 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.utils.db import provide_session
 
 NUM_RETRIES = 5
@@ -457,8 +457,8 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     @provide_session
     def _get_credential_parameters(self, session):
-        connection = session.query(models.Connection). \
-            filter(models.Connection.conn_id == self.gcp_conn_id).first()
+        connection = session.query(Connection). \
+            filter(Connection.conn_id == self.gcp_conn_id).first()
         session.expunge_all()
         if GCP_CREDENTIALS_KEY_PATH in connection.extra_dejson:
             credential_params = [
@@ -851,8 +851,8 @@ class CloudSqlDatabaseHook(BaseHook):
                         decorator).
         """
         self.log.info("Deleting connection {}".format(self.db_conn_id))
-        connection = session.query(models.Connection).filter(
-            models.Connection.conn_id == self.db_conn_id)[0]
+        connection = session.query(Connection).filter(
+            Connection.conn_id == self.db_conn_id)[0]
         session.delete(connection)
         session.commit()
 

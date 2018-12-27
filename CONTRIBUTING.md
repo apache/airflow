@@ -166,10 +166,10 @@ There are three ways to setup an Apache Airflow development environment.
   tox -e py35-backend_mysql
   ```
 
-  If you wish to run individual tests inside of docker enviroment you can do as follows:
+  If you wish to run individual tests inside of Docker environment you can do as follows:
 
   ```bash
-    # From the container (with your desired enviroment) with druid hook
+    # From the container (with your desired environment) with druid hook
     tox -e py35-backend_mysql -- tests/hooks/test_druid_hook.py
  ```
 
@@ -287,10 +287,10 @@ setup as separate components on GitHub:
 #### Travis CI GitHub App (new version)
 
 1. Once installed, you can configure the Travis CI GitHub App at
-https://github.com/settings/installations/169040.
+https://github.com/settings/installations -> Configure Travis CI.
 
-1. For the Travis CI GitHub App, you can set repository access to either "all
-repositories" for convenience, or "only select repositories" and choose
+1. For the Travis CI GitHub App, you can set repository access to either "All
+repositories" for convenience, or "Only select repositories" and choose
 `<username>/incubator-airflow` in the dropdown.
 
 1. You can access Travis CI for your fork at

@@ -23,7 +23,7 @@ import json
 import unittest
 
 from airflow import configuration
-from airflow import models
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 try:
@@ -40,7 +40,7 @@ class TestAzureDataLakeHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='adl_test_key',
                 conn_type='azure_data_lake',
                 login='client_id',

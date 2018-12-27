@@ -39,8 +39,7 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
     DAG_ID = 'dag_for_testing_file_task_handler'
     TASK_ID = 'task_for_testing_file_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
-    LOG_ID = 'dag_for_testing_file_task_handler-task_for_testing' \
-             '_file_log_handler-2016-01-01T00:00:00+00:00-1'
+    LOG_ID = '{dag_id}-{task_id}-2016-01-01T00:00:00+00:00-1'.format(dag_id=DAG_ID, task_id=TASK_ID)
 
     @elasticmock
     def setUp(self):
@@ -90,6 +89,31 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
         self.assertEqual(1, len(logs))
         self.assertEqual(len(logs), len(metadatas))
         self.assertEqual(self.test_message, logs[0])
+        self.assertFalse(metadatas[0]['end_of_log'])
+        self.assertEqual(1, metadatas[0]['offset'])
+        self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
+
+    def test_read_with_match_phrase_query(self):
+        simiar_log_id = '{task_id}-{dag_id}-2016-01-01T00:00:00+00:00-1'.format(
+            dag_id=TestElasticsearchTaskHandler.DAG_ID,
+            task_id=TestElasticsearchTaskHandler.TASK_ID)
+        another_test_message = 'another message'
+
+        another_body = {'message': another_test_message, 'log_id': simiar_log_id, 'offset': 1}
+        self.es.index(index=self.index_name, doc_type=self.doc_type,
+                      body=another_body, id=1)
+
+        ts = pendulum.now()
+        logs, metadatas = self.es_task_handler.read(self.ti,
+                                                    1,
+                                                    {'offset': 0,
+                                                     'last_log_timestamp': str(ts),
+                                                     'end_of_log': False})
+        self.assertEqual(1, len(logs))
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertEqual(self.test_message, logs[0])
+        self.assertNotEqual(another_test_message, logs[0])
+
         self.assertFalse(metadatas[0]['end_of_log'])
         self.assertEqual(1, metadatas[0]['offset'])
         self.assertTrue(timezone.parse(metadatas[0]['last_log_timestamp']) > ts)
