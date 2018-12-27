@@ -3,7 +3,7 @@ import time
 from sqlalchemy.orm import make_transient
 
 from airflow import executors, models, AirflowException
-from airflow.jobs import BaseJob
+from airflow.jobs.base import BaseJob
 from airflow.models import DagRun, DagPickle
 from airflow.ti_deps.dep_context import DepContext, RUN_DEPS
 from airflow.utils import timezone

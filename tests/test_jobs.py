@@ -44,7 +44,7 @@ from airflow import configuration
 from airflow.bin import cli
 import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
-from airflow.jobs import BaseJob
+from airflow.jobs.base import BaseJob
 from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.jobs.scheduler_job import SchedulerJob

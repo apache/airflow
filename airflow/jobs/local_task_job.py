@@ -5,7 +5,7 @@ import time
 from sqlalchemy.exc import OperationalError
 
 from airflow import AirflowException, configuration as conf
-from airflow.jobs import BaseJob
+from airflow.jobs.base import BaseJob
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.utils.db import provide_session

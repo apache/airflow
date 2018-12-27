@@ -11,7 +11,8 @@ from sqlalchemy import func, or_, and_, not_
 from sqlalchemy.orm import make_transient
 
 from airflow import settings, configuration as conf, models, DAG, executors
-from airflow.jobs import BaseJob, DagFileProcessor
+from airflow.jobs.base import BaseJob
+from airflow.jobs.dag_file_processor import DagFileProcessor
 from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagRun
 from airflow.settings import Stats
