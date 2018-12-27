@@ -31,6 +31,7 @@ import airflow
 from airflow import configuration as conf
 from airflow import models, LoggingMixin
 from airflow.models.connection import Connection
+from airflow.models.knownevent import KnownEvent
 from airflow.settings import Session
 
 from airflow.www.blueprints import routes
@@ -90,7 +91,7 @@ def create_app(config=None, testing=False):
             av(vs.ChartModelView(
                 models.Chart, Session, name="Charts", category="Data Profiling"))
         av(vs.KnownEventView(
-            models.KnownEvent,
+            KnownEvent,
             Session, name="Known Events", category="Data Profiling"))
         av(vs.SlaMissModelView(
             models.SlaMiss,

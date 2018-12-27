@@ -34,6 +34,7 @@ from werkzeug.test import Client
 from airflow import models, configuration
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.knownevent import KnownEvent
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
@@ -177,7 +178,7 @@ class TestKnownEventView(unittest.TestCase):
     def setUpClass(cls):
         super(TestKnownEventView, cls).setUpClass()
         session = Session()
-        session.query(models.KnownEvent).delete()
+        session.query(KnownEvent).delete()
         session.query(models.User).delete()
         session.commit()
         user = models.User(username='airflow')
@@ -203,7 +204,7 @@ class TestKnownEventView(unittest.TestCase):
         }
 
     def tearDown(self):
-        self.session.query(models.KnownEvent).delete()
+        self.session.query(KnownEvent).delete()
         self.session.commit()
         self.session.close()
         super(TestKnownEventView, self).tearDown()
@@ -223,7 +224,7 @@ class TestKnownEventView(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.session.query(models.KnownEvent).count(), 1)
+        self.assertEqual(self.session.query(KnownEvent).count(), 1)
 
     def test_create_known_event_with_end_data_earlier_than_start_date(self):
         self.known_event['end_date'] = '2017-06-05 11:00:00'
@@ -236,7 +237,7 @@ class TestKnownEventView(unittest.TestCase):
             'Field must be greater than or equal to Start Date.',
             response.data.decode('utf-8'),
         )
-        self.assertEqual(self.session.query(models.KnownEvent).count(), 0)
+        self.assertEqual(self.session.query(KnownEvent).count(), 0)
 
 
 class TestPoolModelView(unittest.TestCase):
