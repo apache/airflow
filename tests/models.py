@@ -36,10 +36,10 @@ from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
-from mock import ANY, Mock, mock_open, patch
-from parameterized import parameterized
-from freezegun import freeze_time
 from cryptography.fernet import Fernet
+from freezegun import freeze_time
+from mock import ANY, mock_open, patch
+from parameterized import parameterized
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -47,7 +47,6 @@ from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun
-from airflow.models import SkipMixin
 from airflow.models import State as ST
 from airflow.models import Variable
 from airflow.models import clear_task_instances
@@ -3391,66 +3390,3 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password with space')
         self.assertEqual(connection.port, 1234)
-
-
-class TestSkipMixin(unittest.TestCase):
-
-    @patch('airflow.models.timezone.utcnow')
-    def test_skip(self, mock_now):
-        session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
-            tasks = [DummyOperator(task_id='task')]
-        dag_run = dag.create_dagrun(
-            run_id='manual__' + now.isoformat(),
-            state=State.FAILED,
-        )
-        SkipMixin().skip(
-            dag_run=dag_run,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
-
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    @patch('airflow.models.timezone.utcnow')
-    def test_skip_none_dagrun(self, mock_now):
-        session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
-            tasks = [DummyOperator(task_id='task')]
-        SkipMixin().skip(
-            dag_run=None,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
-
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    def test_skip_none_tasks(self):
-        session = Mock()
-        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
-        self.assertFalse(session.query.called)
-        self.assertFalse(session.commit.called)
