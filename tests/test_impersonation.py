@@ -23,6 +23,7 @@ import subprocess
 import unittest
 import logging
 
+import airflow.jobs.backfill_job
 from airflow import jobs, models
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -76,7 +77,7 @@ class ImpersonationTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        jobs.BackfillJob(
+        airflow.jobs.backfill_job.BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE).run()

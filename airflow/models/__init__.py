@@ -227,7 +227,7 @@ def clear_task_instances(tis,
             session.merge(ti)
 
     if job_ids:
-        from airflow.jobs import BaseJob as BJ
+        from airflow.jobs.base import BaseJob as BJ
         for job in session.query(BJ).filter(BJ.id.in_(job_ids)).all():
             job.state = State.SHUTDOWN
 
@@ -4081,7 +4081,7 @@ class DAG(BaseDag, LoggingMixin):
         :param conf: user defined dictionary passed from CLI
         :type conf: dict
         """
-        from airflow.jobs import BackfillJob
+        from airflow.jobs.backfill_job import BackfillJob
         if not executor and local:
             executor = LocalExecutor()
         elif not executor:
@@ -4891,7 +4891,7 @@ class DagRun(Base, LoggingMixin):
             qry = qry.filter(DR.external_trigger == external_trigger)
         if no_backfills:
             # in order to prevent a circular dependency
-            from airflow.jobs import BackfillJob
+            from airflow.jobs.backfill_job import BackfillJob
             qry = qry.filter(DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'))
 
         dr = qry.order_by(DR.execution_date).all()
@@ -5137,7 +5137,7 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def is_backfill(self):
-        from airflow.jobs import BackfillJob
+        from airflow.jobs.backfill_job import BackfillJob
         return (
             self.run_id is not None and
             self.run_id.startswith(BackfillJob.ID_PREFIX)

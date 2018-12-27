@@ -49,6 +49,7 @@ from sqlalchemy import or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
+import airflow.jobs.base
 from airflow import configuration as conf
 from airflow import models, jobs
 from airflow import settings
@@ -2110,7 +2111,7 @@ class VariableModelView(AirflowModelView):
 class JobModelView(AirflowModelView):
     route_base = '/job'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(jobs.BaseJob)
+    datamodel = AirflowModelView.CustomSQLAInterface(airflow.jobs.base.BaseJob)
 
     base_permissions = ['can_list']
 

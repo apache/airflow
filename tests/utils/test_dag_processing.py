@@ -28,7 +28,7 @@ from mock import MagicMock
 from airflow import configuration as conf
 from airflow.configuration import mkdir_p
 from airflow.jobs import DagFileProcessor
-from airflow.jobs import LocalTaskJob as LJ
+from airflow.jobs.local_task_job import LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager,

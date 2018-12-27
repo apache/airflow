@@ -19,7 +19,7 @@
 
 from sqlalchemy import or_
 
-from airflow.jobs import BackfillJob
+from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.settings import Session

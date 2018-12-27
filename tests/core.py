@@ -42,6 +42,8 @@ from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
 from time import sleep
 
+import airflow.jobs.local_task_job
+import airflow.jobs.scheduler_job
 from airflow import configuration
 from airflow.executors import SequentialExecutor
 from airflow.models import Variable
@@ -138,7 +140,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
         self.assertIsNotNone(dag_run)
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
@@ -165,7 +167,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
         self.assertIsNotNone(dag_run)
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
@@ -178,7 +180,7 @@ class CoreTest(unittest.TestCase):
         )
         self.assertEqual(State.RUNNING, dag_run.state)
         self.assertFalse(dag_run.external_trigger)
-        dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run2 = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
         self.assertIsNotNone(dag_run2)
         self.assertEqual(dag.dag_id, dag_run2.dag_id)
         self.assertIsNotNone(dag_run2.run_id)
@@ -207,7 +209,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=DEFAULT_DATE))
 
-        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
+        scheduler = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args)
         dag.create_dagrun(run_id=models.DagRun.id_for_date(DEFAULT_DATE),
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
@@ -237,8 +239,8 @@ class CoreTest(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
-        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
-        dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run2 = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
 
         self.assertIsNotNone(dag_run)
         self.assertIsNone(dag_run2)
@@ -290,7 +292,7 @@ class CoreTest(unittest.TestCase):
 
         # Create and schedule the dag runs
         dag_runs = []
-        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
+        scheduler = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args)
         for i in range(runs):
             dag_runs.append(scheduler.create_dag_run(dag))
 
@@ -324,7 +326,7 @@ class CoreTest(unittest.TestCase):
                                          owner='Also fake'))
 
         dag_runs = []
-        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
+        scheduler = airflow.jobs.scheduler_job.SchedulerJob(**self.default_scheduler_args)
         for i in range(runs):
             dag_run = scheduler.create_dag_run(dag)
             dag_runs.append(dag_run)
@@ -684,7 +686,7 @@ class CoreTest(unittest.TestCase):
         TI = models.TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
-        job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        job = airflow.jobs.local_task_job.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
 
     def test_raw_job(self):
@@ -892,7 +894,7 @@ class CoreTest(unittest.TestCase):
         task = dag.task_dict.get('sleeps_forever')
 
         ti = TI(task=task, execution_date=DEFAULT_DATE)
-        job = jobs.LocalTaskJob(
+        job = airflow.jobs.local_task_job.LocalTaskJob(
             task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
 
         # Running task instance asynchronously

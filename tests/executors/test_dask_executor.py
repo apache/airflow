@@ -21,7 +21,7 @@ import unittest
 
 from airflow import configuration
 from airflow.models import DagBag
-from airflow.jobs import BackfillJob
+from airflow.jobs.backfill_job import BackfillJob
 from airflow.utils import timezone
 
 from datetime import timedelta

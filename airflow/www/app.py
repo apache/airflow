@@ -28,6 +28,7 @@ from werkzeug.wsgi import DispatcherMiddleware
 from werkzeug.contrib.fixers import ProxyFix
 
 import airflow
+import airflow.jobs.base
 from airflow import configuration as conf
 from airflow import models, LoggingMixin
 from airflow.models.connection import Connection
@@ -100,7 +101,7 @@ def create_app(config=None, testing=False):
         av(vs.LogModelView(
             models.Log, Session, name="Logs", category="Browse"))
         av(vs.JobModelView(
-            jobs.BaseJob, Session, name="Jobs", category="Browse"))
+            airflow.jobs.base.BaseJob, Session, name="Jobs", category="Browse"))
         av(vs.PoolModelView(
             models.Pool, Session, name="Pools", category="Admin"))
         av(vs.ConfigurationView(

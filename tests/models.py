@@ -40,7 +40,7 @@ from parameterized import parameterized
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
-from airflow.jobs import BackfillJob
+from airflow.jobs.backfill_job import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun, DagStat
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier

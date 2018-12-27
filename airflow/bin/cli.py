@@ -34,6 +34,8 @@ import argparse
 from builtins import input
 from collections import namedtuple
 
+import airflow.jobs.local_task_job
+import airflow.jobs.scheduler_job
 from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
@@ -435,7 +437,7 @@ def set_is_paused(is_paused, args, dag=None):
 
 def _run(args, dag, ti):
     if args.local:
-        run_job = jobs.LocalTaskJob(
+        run_job = airflow.jobs.local_task_job.LocalTaskJob(
             task_instance=ti,
             mark_success=args.mark_success,
             pickle_id=args.pickle,
@@ -968,7 +970,7 @@ def webserver(args):
 @cli_utils.action_logging
 def scheduler(args):
     print(settings.HEADER)
-    job = jobs.SchedulerJob(
+    job = airflow.jobs.scheduler_job.SchedulerJob(
         dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
         run_duration=args.run_duration,

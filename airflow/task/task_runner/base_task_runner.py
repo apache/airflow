@@ -43,7 +43,7 @@ class BaseTaskRunner(LoggingMixin):
         """
         :param local_task_job: The local task job associated with running the
         associated task instance.
-        :type local_task_job: airflow.jobs.LocalTaskJob
+        :type local_task_job: airflow.jobs.local_task_job.LocalTaskJob
         """
         # Pass task instance context into log handlers to setup the logger.
         super(BaseTaskRunner, self).__init__(local_task_job.task_instance)
