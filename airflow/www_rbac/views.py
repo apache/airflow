@@ -277,35 +277,34 @@ class Airflow(AirflowBaseView):
     @has_access
     @provide_session
     def dag_stats(self, session=None):
-        ds = models.DagStat
-
-        ds.update()
-
-        qry = (
-            session.query(ds.dag_id, ds.state, ds.count)
-        )
+        dr = models.DagRun
 
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+
+        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
 
         payload = {}
         if filter_dag_ids:
             if 'all_dags' not in filter_dag_ids:
-                qry = qry.filter(ds.dag_id.in_(filter_dag_ids))
+                dag_state_stats = dag_state_stats.filter(dr.dag_id.in_(filter_dag_ids))
             data = {}
-            for dag_id, state, count in qry:
+            for dag_id, state, count in dag_state_stats:
                 if dag_id not in data:
                     data[dag_id] = {}
                 data[dag_id][state] = count
 
-            for dag in dagbag.dags.values():
-                if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
-                    payload[dag.safe_dag_id] = []
+            if 'all_dags' in filter_dag_ids:
+                filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
+
+            for dag_id in filter_dag_ids:
+                if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
+                    payload[dag_id] = []
                     for state in State.dag_states:
-                        count = data.get(dag.dag_id, {}).get(state, 0)
-                        payload[dag.safe_dag_id].append({
+                        count = data.get(dag_id, {}).get(state, 0)
+                        payload[dag_id].append({
                             'state': state,
                             'count': count,
-                            'dag_id': dag.dag_id,
+                            'dag_id': dag_id,
                             'color': State.color(state)
                         })
         return wwwutils.json_response(payload)
@@ -371,15 +370,17 @@ class Airflow(AirflowBaseView):
                 data[dag_id][state] = count
         session.commit()
 
-        for dag in dagbag.dags.values():
-            if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
-                payload[dag.safe_dag_id] = []
+        if 'all_dags' in filter_dag_ids:
+            filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
+        for dag_id in filter_dag_ids:
+            if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
+                payload[dag_id] = []
                 for state in State.task_states:
-                    count = data.get(dag.dag_id, {}).get(state, 0)
-                    payload[dag.safe_dag_id].append({
+                    count = data.get(dag_id, {}).get(state, 0)
+                    payload[dag_id].append({
                         'state': state,
                         'count': count,
-                        'dag_id': dag.dag_id,
+                        'dag_id': dag_id,
                         'color': State.color(state)
                     })
         return wwwutils.json_response(payload)
@@ -387,10 +388,11 @@ class Airflow(AirflowBaseView):
     @expose('/code')
     @has_dag_access(can_dag_read=True)
     @has_access
-    def code(self):
+    @provide_session
+    def code(self, session=None):
+        dm = models.DagModel
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
-        title = dag_id
+        dag = session.query(dm).filter(dm.dag_id == dag_id).first()
         try:
             with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
@@ -400,7 +402,7 @@ class Airflow(AirflowBaseView):
             html_code = str(e)
 
         return self.render(
-            'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
+            'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
 
@@ -666,8 +668,12 @@ class Airflow(AirflowBaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag = dagbag.get_dag(dag_id)
-        if not dag or task_id not in dag.task_ids:
+        dm_db = models.DagModel
+        ti_db = models.TaskInstance
+        dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
+        ti = session.query(ti_db).filter(ti_db.dag_id == dag_id and ti_db.task_id == task_id).first()
+
+        if not ti:
             flash(
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),

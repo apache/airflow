@@ -49,7 +49,7 @@
   <div>
     <ul class="nav nav-pills">
       {% if dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for('airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id) }}">
+          <li class="never_active"><a href="{{ url_for('airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
@@ -345,7 +345,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_subdag").click(function(){
-      url = "{{ url_for( 'airflow.' + dag.default_view ) }}" +
+      url = "{{ url_for( 'airflow.' + dag.get_default_view() ) }}" +
         "?dag_id=" + encodeURIComponent(subdag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
