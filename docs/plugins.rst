@@ -134,6 +134,7 @@ definitions in Airflow.
     from flask import Blueprint
     from flask_admin import BaseView, expose
     from flask_admin.base import MenuLink
+    from flask_appbuilder import BaseView as AppBuilderBaseView
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
