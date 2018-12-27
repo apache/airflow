@@ -28,6 +28,7 @@ import os
 import contextlib
 
 from airflow import settings
+from airflow.models.known_event_type import KnownEventType
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -291,7 +292,7 @@ def initdb(rbac=False):
             host='cassandra', port=9042))
 
     # Known event types
-    KET = models.KnownEventType
+    KET = KnownEventType
     if not session.query(KET).filter(KET.know_event_type == 'Holiday').first():
         session.add(KET(know_event_type='Holiday'))
     if not session.query(KET).filter(KET.know_event_type == 'Outage').first():
