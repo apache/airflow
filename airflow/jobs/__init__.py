@@ -23,9 +23,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from airflow import models
-from airflow.jobs import BaseJob
-from airflow.jobs.base import BaseJob
-from airflow.jobs.dag_file_processor import DagFileProcessor
 
 Base = models.base.Base
 ID_LEN = models.ID_LEN
