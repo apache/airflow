@@ -50,7 +50,7 @@ class TestDeleteDAGCatchError(unittest.TestCase):
             delete_dag("non-existent DAG")
 
     def test_delete_dag_dag_still_in_dagbag(self):
-        models_to_check = ['DagModel', 'DagStat', 'DagRun', 'TaskInstance']
+        models_to_check = ['DagModel', 'DagRun', 'TaskInstance']
         record_counts = {}
 
         for model_name in models_to_check:
