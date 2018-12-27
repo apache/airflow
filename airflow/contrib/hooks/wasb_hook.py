@@ -18,7 +18,7 @@
 # under the License.
 #
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 from azure.storage.blob import BlockBlobService
