@@ -390,10 +390,10 @@ Let's run a few commands to validate this script further.
     # print the list of active DAGs
     airflow list_dags
 
-    # prints the list of tasks the "tutorial" dag_id
+    # prints the list of tasks in the "tutorial" DAG
     airflow list_tasks tutorial
 
-    # prints the hierarchy of tasks in the tutorial DAG
+    # prints the hierarchy of tasks in the "tutorial" DAG
     airflow list_tasks tutorial --tree
 
 
