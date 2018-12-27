@@ -507,8 +507,8 @@ directly downstream from the BranchPythonOperator task.
 
 Note that using tasks with ``depends_on_past=True`` downstream from
 ``BranchPythonOperator`` is logically unsound as ``skipped`` status
-will invariably lead to block tasks that depend on their past successes.
-``skipped`` states propagates where all directly upstream tasks are
+will invariably lead to blocked tasks that depend on their past success.
+``skipped`` states propagate where any directly upstream task is
 ``skipped``.
 
 If you want to skip some tasks, keep in mind that you can't have an empty
