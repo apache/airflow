@@ -2897,7 +2897,7 @@ class SchedulerJobTest(unittest.TestCase):
         # Now call manage_slas and see if the sla_miss callback gets called
         scheduler = SchedulerJob(dag_id='test_sla_miss')
 
-        with mock.patch('airflow.jobs.SchedulerJob.log',
+        with mock.patch('airflow.jobs.scheduler_job.SchedulerJob.log',
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
             sla_callback.assert_called()
@@ -2939,7 +2939,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler = SchedulerJob(dag_id='test_sla_miss',
                                  num_runs=1)
 
-        with mock.patch('airflow.jobs.SchedulerJob.log',
+        with mock.patch('airflow.jobs.scheduler_job.SchedulerJob.log',
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
             mock_log().exception.assert_called_with(
