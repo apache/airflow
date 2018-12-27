@@ -20,10 +20,9 @@
 
 import os
 import signal
+from builtins import bytes
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
-
-from builtins import bytes
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -66,13 +65,12 @@ class BashOperator(BaseOperator):
     ui_color = '#f0ede4'
 
     @apply_defaults
-    def __init__(
-            self,
-            bash_command,
-            xcom_push=False,
-            env=None,
-            output_encoding='utf-8',
-            *args, **kwargs):
+    def __init__(self,
+                 bash_command,
+                 xcom_push=False,
+                 env=None,
+                 output_encoding='utf-8',
+                 *args, **kwargs):
 
         super(BashOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
@@ -85,14 +83,14 @@ class BashOperator(BaseOperator):
         Execute the bash command in a temporary directory
         which will be cleaned afterwards
         """
-        self.log.info("Tmp dir root location: \n %s", gettempdir())
+        self.log.info('Tmp dir root location: \n %s', gettempdir())
 
         # Prepare env for child process.
         if self.env is None:
             self.env = os.environ.copy()
-        airflow_context_vars = context_to_airflow_vars(context,
-                                                       in_env_var_format=True)
-        self.log.info("Exporting the following env vars:\n" +
+
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        self.log.info('Exporting the following env vars:\n' +
                       '\n'.join(["{}={}".format(k, v)
                                  for k, v in
                                  airflow_context_vars.items()]))
@@ -101,16 +99,11 @@ class BashOperator(BaseOperator):
         self.lineage_data = self.bash_command
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
-
-                f.write(bytes(self.bash_command, 'utf_8'))
-                f.flush()
-                fname = f.name
-                script_location = os.path.abspath(fname)
-                self.log.info(
-                    "Temporary script location: %s",
-                    script_location
-                )
+            with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as tmp_file:
+                tmp_file.write(bytes(self.bash_command, 'utf_8'))
+                tmp_file.flush()
+                script_location = os.path.abspath(tmp_file.name)
+                self.log.info('Temporary script location: %s', script_location)
 
                 def pre_exec():
                     # Restore default signal disposition and invoke setsid
@@ -119,32 +112,33 @@ class BashOperator(BaseOperator):
                             signal.signal(getattr(signal, sig), signal.SIG_DFL)
                     os.setsid()
 
-                self.log.info("Running command: %s", self.bash_command)
-                sp = Popen(
-                    ['bash', fname],
-                    stdout=PIPE, stderr=STDOUT,
-                    cwd=tmp_dir, env=self.env,
+                self.log.info('Running command: %s', self.bash_command)
+                sub_process = Popen(
+                    ['bash', tmp_file.name],
+                    stdout=PIPE,
+                    stderr=STDOUT,
+                    cwd=tmp_dir,
+                    env=self.env,
                     preexec_fn=pre_exec)
 
-                self.sp = sp
+                self.sub_process = sub_process
 
-                self.log.info("Output:")
+                self.log.info('Output:')
                 line = ''
-                for line in iter(sp.stdout.readline, b''):
-                    line = line.decode(self.output_encoding).rstrip()
+                for raw_line in iter(sub_process.stdout.readline, b''):
+                    line = raw_line.decode(self.output_encoding).rstrip()
                     self.log.info(line)
-                sp.wait()
-                self.log.info(
-                    "Command exited with return code %s",
-                    sp.returncode
-                )
 
-                if sp.returncode:
-                    raise AirflowException("Bash command failed")
+                sub_process.wait()
+
+                self.log.info('Command exited with return code %s', sub_process.returncode)
+
+                if sub_process.returncode:
+                    raise AirflowException('Bash command failed')
 
         if self.xcom_push_flag:
             return line
 
     def on_kill(self):
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.sp.pid), signal.SIGTERM)
+        os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)
