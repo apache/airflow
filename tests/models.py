@@ -746,12 +746,40 @@ class DagTest(unittest.TestCase):
         self.assertEqual(set(orm_dag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_dag.last_scheduler_run, now)
         self.assertTrue(orm_dag.is_active)
+        self.assertIsNone(orm_dag.default_view)
+        self.assertEqual(orm_dag.get_default_view(), configuration.conf.get('webserver', 'dag_default_view').lower())
 
         orm_subdag = session.query(DagModel).filter(
             DagModel.dag_id == 'dag.subtask').one()
         self.assertEqual(set(orm_subdag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_subdag.last_scheduler_run, now)
         self.assertTrue(orm_subdag.is_active)
+
+    @patch('airflow.models.timezone.utcnow')
+    def test_sync_to_db_default_view(self, mock_now):
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_view="graph",
+        )
+        with dag:
+            DummyOperator(task_id='task', owner='owner1')
+            SubDagOperator(
+                task_id='subtask',
+                owner='owner2',
+                subdag=DAG(
+                    'dag.subtask',
+                    start_date=DEFAULT_DATE,
+                )
+            )
+        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
+        mock_now.return_value = now
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+
+        orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
+        self.assertIsNotNone(orm_dag.default_view)
+        self.assertEqual(orm_dag.get_default_view(), "graph")
 
 
 class DagStatTest(unittest.TestCase):

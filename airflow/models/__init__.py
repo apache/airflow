@@ -2969,14 +2969,28 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
+    # Description of the dag
+    description = Column(Text)
+    # Default view of the inside the webserver
+    default_view = Column(String(25))
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
+
+    @property
+    def timezone(self):
+        return settings.TIMEZONE
 
     @classmethod
     @provide_session
     def get_current(cls, dag_id, session=None):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
+
+    def get_default_view(self):
+        if self.default_view is None:
+            return configuration.conf.get('webserver', 'dag_default_view').lower()
+        else:
+            return self.default_view
 
 
 @functools.total_ordering
@@ -3079,7 +3093,7 @@ class DAG(BaseDag, LoggingMixin):
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
             sla_miss_callback=None,
-            default_view=configuration.conf.get('webserver', 'dag_default_view').lower(),
+            default_view=None,
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
             on_success_callback=None, on_failure_callback=None,
@@ -3150,7 +3164,7 @@ class DAG(BaseDag, LoggingMixin):
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
-        self.default_view = default_view
+        self._default_view = default_view
         self.orientation = orientation
         self.catchup = catchup
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
@@ -3218,6 +3232,13 @@ class DAG(BaseDag, LoggingMixin):
         _CONTEXT_MANAGER_DAG = self._old_context_manager_dags.pop()
 
     # /Context Manager ----------------------------------------------
+
+    def get_default_view(self):
+        """This is only there for backward compatible jinja2 templates"""
+        if self._default_view is None:
+            return configuration.conf.get('webserver', 'dag_default_view').lower()
+        else:
+            return self._default_view
 
     def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
         if num:
@@ -4171,6 +4192,8 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
+        orm_dag.default_view = self._default_view
+        orm_dag.description = self.description
         session.merge(orm_dag)
         session.commit()
 
