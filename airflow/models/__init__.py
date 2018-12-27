@@ -3718,7 +3718,6 @@ class DAG(BaseDag, LoggingMixin):
         for dr in drs:
             dr.state = state
             dirty_ids.append(dr.dag_id)
-        DagStat.update(dirty_ids, session=session)
 
     @provide_session
     def clear(
@@ -4148,8 +4147,6 @@ class DAG(BaseDag, LoggingMixin):
             state=state
         )
         session.add(run)
-
-        DagStat.set_dirty(dag_id=self.dag_id, session=session)
 
         session.commit()
 
@@ -4813,13 +4810,6 @@ class DagRun(Base, LoggingMixin):
         if self._state != state:
             self._state = state
             self.end_date = timezone.utcnow() if self._state in State.finished() else None
-
-            if self.dag_id is not None:
-                # FIXME: Due to the scoped_session factor we we don't get a clean
-                # session here, so something really weird goes on:
-                # if you try to close the session dag runs will end up detached
-                session = settings.Session()
-                DagStat.set_dirty(self.dag_id, session=session)
 
     @declared_attr
     def state(self):
