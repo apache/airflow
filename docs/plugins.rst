@@ -134,6 +134,7 @@ definitions in Airflow.
     from flask import Blueprint
     from flask_admin import BaseView, expose
     from flask_admin.base import MenuLink
+    from flask_appbuilder import BaseView as AppBuilderBaseView
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
@@ -183,6 +184,8 @@ definitions in Airflow.
 
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):
+        default_view = "test"
+
         @expose("/")
         def test(self):
             return self.render("test_plugin/test.html", content="Hello galaxy!")
