@@ -70,6 +70,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models import XCom, DagRun
 from airflow.models.connection import Connection
+from airflow import configuration
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
@@ -1505,48 +1506,39 @@ class Airflow(BaseView):
     def graph(self, session=None):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
+        root = request.args.get('root')
+        if root: show_dag_id = root
+        else: show_dag_id = dag_id
+        print(dag_id)
+        orm_dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
         dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+        if not orm_dag:
+            flash('DAG "{0}" seems to be missing.'.format([root if root else dag_id]), "error")
             return redirect('/admin/')
 
-        root = request.args.get('root')
-        if root:
-            dag = dag.sub_dag(
-                task_regex=root,
-                include_upstream=True,
-                include_downstream=False)
+        arrange = request.args.get('arrange', configuration.conf.get('webserver', 'dag_orientation'))
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dt_nr_dr_data['arrange'] = arrange
+        dttm = dt_nr_dr_data['dttm']
 
-        arrange = request.args.get('arrange', dag.orientation)
-
+        task_instances = session.query(models.TaskInstance).filter(models.TaskInstance.dag_id == show_dag_id and models.TaskInstance.execution_date == dttm).all()
         nodes = []
         edges = []
-        for task in dag.tasks:
+        for task in session.query(models.TaskInstance).filter(models.TaskInstance.dag_id == show_dag_id and models.TaskInstance.execution_date == dttm):
             nodes.append({
                 'id': task.task_id,
                 'value': {
                     'label': task.task_id,
-                    'labelStyle': "fill:{0};".format(task.ui_fgcolor),
-                    'style': "fill:{0};".format(task.ui_color),
+                    'labelStyle': "fill:{0};".format("#FFFFFF"),
+                    'style': "fill:{0};".format("#FFFFFF"),
                 }
             })
 
-        def get_upstream(task):
-            for t in task.upstream_list:
-                edge = {
-                    'u': t.task_id,
-                    'v': task.task_id,
-                }
-                if edge not in edges:
-                    edges.append(edge)
-                    get_upstream(t)
-
-        for t in dag.roots:
-            get_upstream(t)
-
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-        dt_nr_dr_data['arrange'] = arrange
-        dttm = dt_nr_dr_data['dttm']
+        for edge in session.query(models.DagEdge).filter(models.DagEdge.dag_id == show_dag_id and models.DagEdge.execution_date == dttm):
+            edges.append({
+                'u': edge.from_task,
+                'v': edge.to_task,
+            })
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
@@ -1559,19 +1551,24 @@ class Airflow(BaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        task_instances = {
+        task_instances_dict = {
             ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(session, dttm, dttm)}
+            for ti in task_instances}
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
-                'task_type': t.task_type,
+                'task_type': 'blablabla',
             }
-            for t in dag.tasks}
+            for t in task_instances}
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
         doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') and dag.doc_md else ''
+
+        print(f"task_instances: {task_instances_dict}")
+        print(f"tasks: {tasks}")
+        print(f"nodes: {nodes}")
+        print(f"edges: {edges}")
 
         return self.render(
             'airflow/graph.html',
@@ -1589,7 +1586,7 @@ class Airflow(BaseView):
             ),
             blur=blur,
             root=root or '',
-            task_instances=json.dumps(task_instances, indent=2),
+            task_instances=json.dumps(task_instances_dict, indent=2),
             tasks=json.dumps(tasks, indent=2),
             nodes=json.dumps(nodes, indent=2),
             edges=json.dumps(edges, indent=2), )
