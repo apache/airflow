@@ -63,52 +63,37 @@
             </tr>
         </thead>
         <tbody>
-        {% for dag_id in dag_ids_in_page %}
-            {% set dag = webserver_dags[dag_id] if dag_id in webserver_dags else None %}
+        {% for dag in dags %}
             <tr>
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
-                    {% if dag_id in orm_dags %}
-                  <a href="{{ url_for('dagmodel.edit_view') }}?id={{ dag_id }}" title="Info">
+                  <a href="{{ url_for('dagmodel.edit_view') }}?id={{ dag.dag_id }}" title="Info">
                         <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
-                    {% endif %}
                 </td>
 
                 <!-- Column 2: Turn dag on/off -->
                 <td>
-                  {% if dag_id in orm_dags %}
-                    <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-                  {% endif %}
+                  <input id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
                 </td>
 
                 <!-- Column 3: Name -->
                 <td>
-                    {% if dag_id in webserver_dags %}
-                    <a href="{{ url_for('airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
-                        {{ dag_id }}
-                    </a>
-                    {% else %}
-                        {{ dag_id }}
-                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metadata database."></span>
-                    {% endif %}
-                    {% if dag_id not in orm_dags %}
-                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG seems to be existing only locally. The master scheduler doesn't seem to be aware of its existence."></span>
-                    {% endif %}
+                  <a href="{{ url_for('airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
+                      {{ dag.dag_id }}
+                  </a>
                 </td>
 
                 <!-- Column 4: Dag Schedule -->
                 <td>
-                    {% if dag_id in webserver_dags %}
                   <a class="label label-default schedule {{ dag.dag_id }}" href="{{ url_for('dagrun.index_view') }}?flt2_dag_id_equals={{ dag.dag_id }}">
-                        {{ dag.schedule_interval }}
+                        {{ dag.schedule_interval | string }}
                     </a>
-                    {% endif %}
                 </td>
 
                 <!-- Column 5: Dag Owners -->
                 <td>
-                  {{ dag.owner if dag else orm_dags[dag_id].owners }}
+                  {{ dag.owners }}
                 </td>
 
                 <!-- Column 6: Recent Tasks -->
@@ -118,14 +103,12 @@
 
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
-                  {% if dag %}
-                    {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
-                    {% if last_run and last_run.execution_date %}
-                      <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
-                        {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
-                      </a>
-                      <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
-                    {% endif %}
+                  {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
+                  {% if last_run and last_run.execution_date %}
+                    <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
+                      {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
+                    </a>
+                    <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
                   {% endif %}
                 </td>
 
@@ -186,14 +169,14 @@
                 {% endif %}
 
                 <!-- Refresh -->
-                <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}">
+                <a href="{{ url_for("airflow.refresh", dag_id=dag.dag_id) }}">
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
                 </a>
 
                 <!-- Delete -->
                 <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
-                <a href="{{ url_for('airflow.delete', dag_id=dag_id) }}"
-                  onclick="return confirmDeleteDag('{{ dag_id }}')">
+                <a href="{{ url_for('airflow.delete', dag_id=dag.dag_id) }}"
+                  onclick="return confirmDeleteDag('{{ dag.dag_id }}')">
                    <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
                 </td>

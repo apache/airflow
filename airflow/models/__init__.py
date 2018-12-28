@@ -241,6 +241,20 @@ def clear_task_instances(tis,
             dr.start_date = timezone.utcnow()
 
 
+def get_last_dagrun(dag_id, session, include_externally_triggered=False):
+    """
+    Returns the last dag run for a dag, None if there was none.
+    Last dag run can be any type of run eg. scheduled or backfilled.
+    Overridden DagRuns are ignored.
+    """
+    DR = DagRun
+    query = session.query(DR).filter(DR.dag_id == dag_id)
+    if not include_externally_triggered:
+        query = query.filter(DR.external_trigger == False)  # noqa
+    query = query.order_by(DR.execution_date.desc())
+    return query.first()
+
+
 class DagBag(BaseDagBag, LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
@@ -2973,6 +2987,8 @@ class DagModel(Base):
     description = Column(Text)
     # Default view of the inside the webserver
     default_view = Column(String(25))
+    # Schedule interval
+    schedule_interval = Column(PickleType(pickler=dill))
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -2991,6 +3007,15 @@ class DagModel(Base):
             return configuration.conf.get('webserver', 'dag_default_view').lower()
         else:
             return self.default_view
+
+    @provide_session
+    def get_last_dagrun(self, session=None, include_externally_triggered=False):
+        return get_last_dagrun(self.dag_id, session=session,
+                               include_externally_triggered=include_externally_triggered)
+
+    @property
+    def safe_dag_id(self):
+        return self.dag_id.replace('.', '__dot__')
 
 
 @functools.total_ordering
@@ -3368,23 +3393,8 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
-        """
-        Returns the last dag run for this dag, None if there was none.
-        Last dag run can be any type of run eg. scheduled or backfilled.
-        Overridden DagRuns are ignored
-        """
-        DR = DagRun
-        qry = session.query(DR).filter(
-            DR.dag_id == self.dag_id,
-        )
-        if not include_externally_triggered:
-            qry = qry.filter(DR.external_trigger.__eq__(False))
-
-        qry = qry.order_by(DR.execution_date.desc())
-
-        last = qry.first()
-
-        return last
+        return get_last_dagrun(self.dag_id, session=session,
+                               include_externally_triggered=include_externally_triggered)
 
     @property
     def dag_id(self):
@@ -4191,6 +4201,7 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.last_scheduler_run = sync_time
         orm_dag.default_view = self._default_view
         orm_dag.description = self.description
+        orm_dag.schedule_interval = self.schedule_interval
         session.merge(orm_dag)
         session.commit()
 
