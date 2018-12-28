@@ -990,6 +990,11 @@ class DagRunTest(unittest.TestCase):
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
 
+        session.query(DagModel).filter(DagModel.dag_id == 'test_dagrun_success_conditions').delete()
+        session.query(DagRun).filter(DagRun.dag_id == 'test_dagrun_success_conditions').delete()
+        session.query(DagEdge).filter(DagEdge.dag_id == 'test_dagrun_success_conditions').delete()
+        session.commit()
+
         # A -> B
         # A -> C -> D
         # ordered: B, D, C, A or D, B, C, A or D, C, B, A
@@ -1020,9 +1025,9 @@ class DagRunTest(unittest.TestCase):
         # Testing Edges in the database
         edges = session.query(DagEdge).filter(DagEdge.dag_id == dag.dag_id and DagEdge.execution_date == now).all()
         self.assertEqual(len(edges), 3)
-        self.assertIn(DagEdge(dag.dag_id, now, 'A', 'B'), edges)
-        self.assertIn(DagEdge(dag.dag_id, now, 'A', 'C'), edges)
-        self.assertIn(DagEdge(dag.dag_id, now, 'C', 'D'), edges)
+        self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'B' for edge in edges))
+        self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'C' for edge in edges))
+        self.assertTrue(any(edge.from_task == 'C' and edge.to_task == 'D' for edge in edges))
 
         # root is successful, but unfinished tasks
         state = dr.update_state()

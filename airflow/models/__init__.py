@@ -4155,13 +4155,15 @@ class DAG(BaseDag, LoggingMixin):
         for task in self.task_dict.values():
             tis.append(TaskInstance(task=task, execution_date=execution_date))
             for down in task.downstream_task_ids:
-                edges.append(DagEdge(self.dag_id, execution_date, task.task_id, down))
+                edges.append(DagEdge(self.dag_id, execution_date, down, task.task_id))
         session.bulk_save_objects(tis)
         session.bulk_save_objects(edges)
 
         session.commit()
 
         run.dag = self
+
+        run.verify_integrity()
 
         run.refresh_from_db()
 

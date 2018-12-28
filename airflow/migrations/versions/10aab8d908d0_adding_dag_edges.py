@@ -32,12 +32,22 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import mysql
 
 
 def upgrade():
-    op.create_table('dag_edge',
+    conn = op.get_bind()
+    if conn.dialect.name == 'mysql':
+        op.create_table('dag_edge',
+                        sa.Column('dag_id', sa.String(length=250), nullable=False),
+                        sa.Column('execution_date', mysql.TIMESTAMP(timezone=True), nullable=False),
+                        sa.Column('from_task', sa.String(length=250), nullable=False),
+                        sa.Column('to_task', sa.String(length=250), nullable=False),
+                        sa.PrimaryKeyConstraint('dag_id', 'execution_date', 'from_task', 'to_task'))
+    else:
+        op.create_table('dag_edge',
                     sa.Column('dag_id', sa.String(length=250), nullable=False),
-                    sa.Column('execution_date', sa.DateTime(), nullable=False),
+                    sa.Column('execution_date', sa.TIMESTAMP(timezone=True), nullable=False),
                     sa.Column('from_task', sa.String(length=250), nullable=False),
                     sa.Column('to_task', sa.String(length=250), nullable=False),
                     sa.PrimaryKeyConstraint('dag_id', 'execution_date', 'from_task', 'to_task'))
