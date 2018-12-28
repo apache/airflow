@@ -51,7 +51,11 @@ def upgrade():
                     sa.Column('from_task', sa.String(length=250), nullable=False),
                     sa.Column('to_task', sa.String(length=250), nullable=False),
                     sa.PrimaryKeyConstraint('dag_id', 'execution_date', 'from_task', 'to_task'))
+    op.add_column('task_instance', sa.Column('ui_color', sa.String(10), nullable=True))
+    op.add_column('task_instance', sa.Column('ui_fgcolor', sa.String(10), nullable=True))
 
 
 def downgrade():
     op.drop_table("dag_edge")
+    op.drop_column('task_instance', 'ui_color')
+    op.drop_column('task_instance', 'ui_fgcolor')

@@ -645,6 +645,8 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    ui_color = Column(String(10))
+    ui_fgcolor = Column(String(10))
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -682,6 +684,9 @@ class TaskInstance(Base, LoggingMixin):
         self.max_tries = self.task.retries
         self.unixname = getpass.getuser()
         self.run_as_user = task.run_as_user
+        self.operator = task.task_type
+        self.ui_color = task.ui_color
+        self.ui_fgcolor = task.ui_fgcolor
         if state:
             self.state = state
         self.hostname = ''

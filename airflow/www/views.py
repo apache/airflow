@@ -319,7 +319,10 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     if dttm:
         dttm = pendulum.parse(dttm)
     else:
-        dttm = dag.latest_execution_date or timezone.utcnow()
+        execution_date = session.query(sqla.func.max(DagRun.execution_date)).filter(
+            DagRun.dag_id == dag.dag_id
+        ).scalar()
+        dttm = execution_date or timezone.utcnow()
 
     base_date = request.args.get('base_date')
     if base_date:
@@ -1509,11 +1512,9 @@ class Airflow(BaseView):
         root = request.args.get('root')
         if root: show_dag_id = root
         else: show_dag_id = dag_id
-        print(dag_id)
-        orm_dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
-        dag = dagbag.get_dag(dag_id)
-        if not orm_dag:
-            flash('DAG "{0}" seems to be missing.'.format([root if root else dag_id]), "error")
+        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
+        if not dag:
+            flash('DAG "{0}" seems to be missing.'.format(show_dag_id), "error")
             return redirect('/admin/')
 
         arrange = request.args.get('arrange', configuration.conf.get('webserver', 'dag_orientation'))
@@ -1521,23 +1522,29 @@ class Airflow(BaseView):
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
 
-        task_instances = session.query(models.TaskInstance).filter(models.TaskInstance.dag_id == show_dag_id and models.TaskInstance.execution_date == dttm).all()
+        task_instances = session.query(models.TaskInstance)\
+            .filter(models.TaskInstance.dag_id == show_dag_id)\
+            .filter(models.TaskInstance.execution_date == dttm).all()
         nodes = []
         edges = []
-        for task in session.query(models.TaskInstance).filter(models.TaskInstance.dag_id == show_dag_id and models.TaskInstance.execution_date == dttm):
+        for task in session.query(models.TaskInstance)\
+            .filter(models.TaskInstance.dag_id == show_dag_id)\
+            .filter(models.TaskInstance.execution_date == dttm):
             nodes.append({
                 'id': task.task_id,
                 'value': {
                     'label': task.task_id,
-                    'labelStyle': "fill:{0};".format("#FFFFFF"),
-                    'style': "fill:{0};".format("#FFFFFF"),
+                    'labelStyle': "fill:{0};".format(task.ui_fgcolor),
+                    'style': "fill:{0};".format(task.ui_color),
                 }
             })
 
-        for edge in session.query(models.DagEdge).filter(models.DagEdge.dag_id == show_dag_id and models.DagEdge.execution_date == dttm):
+        for edge in session.query(models.DagEdge)\
+            .filter(models.DagEdge.dag_id == show_dag_id)\
+            .filter(models.DagEdge.execution_date == dttm):
             edges.append({
-                'u': edge.from_task,
-                'v': edge.to_task,
+                'u': edge.to_task,
+                'v': edge.from_task,
             })
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
@@ -1557,7 +1564,7 @@ class Airflow(BaseView):
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
-                'task_type': 'blablabla',
+                'task_type': t.operator,
             }
             for t in task_instances}
         if not tasks:
