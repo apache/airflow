@@ -29,6 +29,7 @@ from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
 from airflow.models.base import Base
+from airflow.models.dag_edge import DagEdge
 
 try:
     # Fix Python > 3.7 deprecation
@@ -4149,15 +4150,18 @@ class DAG(BaseDag, LoggingMixin):
         )
         session.add(run)
 
-        DagStat.set_dirty(dag_id=self.dag_id, session=session)
+        tis = []
+        edges = []
+        for task in self.task_dict.values():
+            tis.append(TaskInstance(task=task, execution_date=execution_date))
+            for down in task.downstream_task_ids:
+                edges.append(DagEdge(self.dag_id, execution_date, task.task_id, down))
+        session.bulk_save_objects(tis)
+        session.bulk_save_objects(edges)
 
         session.commit()
 
         run.dag = self
-
-        # create the associated task instances
-        # state is None at the moment of creation
-        run.verify_integrity(session=session)
 
         run.refresh_from_db()
 
