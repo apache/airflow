@@ -4150,20 +4150,16 @@ class DAG(BaseDag, LoggingMixin):
         )
         session.add(run)
 
-        tis = []
-        edges = []
+        # FIXME: Needed to use merge instead of add or bulk add.
+        #        This means this method is executed multiple times for 1 single execution date
         for task in self.task_dict.values():
-            tis.append(TaskInstance(task=task, execution_date=execution_date))
+            session.merge(TaskInstance(task=task, execution_date=execution_date))
             for down in task.downstream_task_ids:
-                edges.append(DagEdge(self.dag_id, execution_date, down, task.task_id))
-        session.bulk_save_objects(tis)
-        session.bulk_save_objects(edges)
+                session.merge(DagEdge(self.dag_id, execution_date, down, task.task_id))
 
         session.commit()
 
         run.dag = self
-
-        run.verify_integrity()
 
         run.refresh_from_db()
 
