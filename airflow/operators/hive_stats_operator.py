@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 from builtins import zip
 from collections import OrderedDict
-import json
 
 from airflow.exceptions import AirflowException
+from airflow.hooks.hive_hooks import HiveMetastoreHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
-from airflow.hooks.hive_hooks import HiveMetastoreHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -64,19 +64,17 @@ class HiveStatsCollectionOperator(BaseOperator):
     ui_color = '#aff7a6'
 
     @apply_defaults
-    def __init__(
-            self,
-            table,
-            partition,
-            extra_exprs=None,
-            col_blacklist=None,
-            assignment_func=None,
-            metastore_conn_id='metastore_default',
-            presto_conn_id='presto_default',
-            mysql_conn_id='airflow_db',
-            *args, **kwargs):
+    def __init__(self,
+                 table,
+                 partition,
+                 extra_exprs=None,
+                 col_blacklist=None,
+                 assignment_func=None,
+                 metastore_conn_id='metastore_default',
+                 presto_conn_id='presto_default',
+                 mysql_conn_id='airflow_db',
+                 *args, **kwargs):
         super(HiveStatsCollectionOperator, self).__init__(*args, **kwargs)
-
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}
@@ -92,7 +90,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         if col in self.col_blacklist:
             return {}
         d = {(col, 'non_null'): "COUNT({col})"}
-        if col_type in ['double', 'int', 'bigint', 'float', 'double']:
+        if col_type in ['double', 'int', 'bigint', 'float']:
             d[(col, 'sum')] = 'SUM({col})'
             d[(col, 'min')] = 'MIN({col})'
             d[(col, 'max')] = 'MAX({col})'
@@ -129,8 +127,7 @@ class HiveStatsCollectionOperator(BaseOperator):
             v + " AS " + k[0] + '__' + k[1]
             for k, v in exprs.items()])
 
-        where_clause = [
-            "{0} = '{1}'".format(k, v) for k, v in self.partition.items()]
+        where_clause = ["{} = '{}'".format(k, v) for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause)
         sql = """
         SELECT
@@ -140,9 +137,9 @@ class HiveStatsCollectionOperator(BaseOperator):
             {where_clause};
         """.format(**locals())
 
-        hook = PrestoHook(presto_conn_id=self.presto_conn_id)
+        presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         self.log.info('Executing SQL check: %s', sql)
-        row = hook.get_first(hql=sql)
+        row = presto.get_first(hql=sql)
         self.log.info("Record: %s", row)
         if not row:
             raise AirflowException("The query returned None")
@@ -170,10 +167,8 @@ class HiveStatsCollectionOperator(BaseOperator):
             mysql.run(sql)
 
         self.log.info("Pivoting and loading cells into the Airflow db")
-        rows = [
-            (self.ds, self.dttm, self.table, part_json) +
-            (r[0][0], r[0][1], r[1])
-            for r in zip(exprs, row)]
+        rows = [(self.ds, self.dttm, self.table, part_json) + (r[0][0], r[0][1], r[1])
+                for r in zip(exprs, row)]
         mysql.insert_rows(
             table='hive_stats',
             rows=rows,
