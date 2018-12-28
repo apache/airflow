@@ -78,6 +78,7 @@ if os.environ.get('SKIP_DAGS_PARSING') != 'True':
 else:
     dagbag = models.DagBag
 
+FILTER_BY_OWNER = conf.getboolean('webserver', 'FILTER_BY_OWNER')
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     dttm = request.args.get('execution_date')
@@ -180,7 +181,7 @@ class Airflow(AirflowBaseView):
 	print(current_user.tenant_id)
         # read orm_dags from the db
         roles = {role.name for role in current_user.roles}
-	if {'Admin'} & roles:
+	if ({'Admin'} & roles) or FILTER_BY_OWNER:
 	    sql_query = session.query(DM).filter(
                 ~DM.is_subdag, DM.is_active
             )
