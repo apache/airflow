@@ -41,7 +41,7 @@ from parameterized import parameterized
 from airflow import AirflowException, configuration, models, settings
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI, DagEdge
 from airflow.models import DagModel, DagRun, DagStat
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
@@ -1016,6 +1016,13 @@ class DagRunTest(unittest.TestCase):
         ti_op2 = dr.get_task_instance(task_id=op2.task_id)
         ti_op3 = dr.get_task_instance(task_id=op3.task_id)
         ti_op4 = dr.get_task_instance(task_id=op4.task_id)
+
+        # Testing Edges in the database
+        edges = session.query(DagEdge).filter(DagEdge.dag_id == dag.dag_id and DagEdge.execution_date == now).all()
+        self.assertEqual(len(edges), 3)
+        self.assertIn(DagEdge(dag.dag_id, now, 'A', 'B'), edges)
+        self.assertIn(DagEdge(dag.dag_id, now, 'A', 'C'), edges)
+        self.assertIn(DagEdge(dag.dag_id, now, 'C', 'D'), edges)
 
         # root is successful, but unfinished tasks
         state = dr.update_state()
