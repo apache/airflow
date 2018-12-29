@@ -102,6 +102,10 @@ class BigQueryOperator(BaseOperator):
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
     :type cluster_fields: list of str
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
@@ -130,6 +134,7 @@ class BigQueryOperator(BaseOperator):
                  time_partitioning=None,
                  api_resource_configs=None,
                  cluster_fields=None,
+                 location=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -154,6 +159,7 @@ class BigQueryOperator(BaseOperator):
         self.time_partitioning = time_partitioning
         self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
+        self.location = location
 
         # TODO remove `bql` in Airflow 2.0
         if self.bql:
@@ -175,7 +181,9 @@ class BigQueryOperator(BaseOperator):
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
-                delegate_to=self.delegate_to)
+                delegate_to=self.delegate_to,
+                location=self.location,
+            )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
