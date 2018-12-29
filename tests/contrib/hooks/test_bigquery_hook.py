@@ -228,9 +228,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             )
         self.assertIn("schema_update_options is only", str(context.exception))
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
-    def test_cancel_queries(self, mocked_time, mocked_logging):
+    def test_cancel_queries(self):
         project_id = 12345
         running_job_id = 3
 
@@ -273,8 +271,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             self.assertIs(args[0]['query']['useQueryCache'], bool_val)
             self.assertIs(args[0]['query']['useLegacySql'], True)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_api_resource_configs_duplication_warning(self, run_with_config):
+    def test_api_resource_configs_duplication_warning(self):
         with self.assertRaises(ValueError):
             cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
             cursor.run_query('query',
@@ -295,8 +292,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_insert_all_succeed(self, run_with_config):
+    def test_insert_all_succeed(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -311,7 +307,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
 
         mock_service = mock.Mock()
-        method = (mock_service.tabledata.return_value.insertAll)
+        method = mock_service.tabledata.return_value.insertAll
         method.return_value.execute.return_value = {
             "kind": "bigquery#tableDataInsertAllResponse"
         }
@@ -320,8 +316,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method.assert_called_with(projectId=project_id, datasetId=dataset_id,
                                   tableId=table_id, body=body)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_insert_all_fail(self, run_with_config):
+    def test_insert_all_fail(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -330,7 +325,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         ]
 
         mock_service = mock.Mock()
-        method = (mock_service.tabledata.return_value.insertAll)
+        method = mock_service.tabledata.return_value.insertAll
         method.return_value.execute.return_value = {
             "kind": "bigquery#tableDataInsertAllResponse",
             "insertErrors": [
@@ -345,8 +340,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             cursor.insert_all(project_id, dataset_id, table_id,
                               rows, fail_on_error=True)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_create_view_fails_on_exception(self, run_with_config):
+    def test_create_view_fails_on_exception(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table_view'
@@ -356,7 +350,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
 
         mock_service = mock.Mock()
-        method = (mock_service.tables.return_value.insert)
+        method = mock_service.tables.return_value.insert
         method.return_value.execute.side_effect = HttpError(
             resp={'status': '400'}, content=b'Query is required for views')
         cursor = hook.BigQueryBaseCursor(mock_service, project_id)
@@ -364,8 +358,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             cursor.create_empty_table(project_id, dataset_id, table_id,
                                       view=view)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_create_view(self, run_with_config):
+    def test_create_view(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table_view'
@@ -375,7 +368,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
 
         mock_service = mock.Mock()
-        method = (mock_service.tables.return_value.insert)
+        method = mock_service.tables.return_value.insert
         cursor = hook.BigQueryBaseCursor(mock_service, project_id)
         cursor.create_empty_table(project_id, dataset_id, table_id,
                                   view=view)
@@ -419,18 +412,14 @@ class TestLabelsInRunJob(unittest.TestCase):
 
 class TestDatasetsOperations(unittest.TestCase):
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_create_empty_dataset_no_dataset_id_err(self,
-                                                    run_with_configuration):
+    def test_create_empty_dataset_no_dataset_id_err(self):
 
         with self.assertRaises(ValueError):
             hook.BigQueryBaseCursor(
                 mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
                 dataset_id="", project_id="")
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_create_empty_dataset_duplicates_call_err(self,
-                                                      run_with_configuration):
+    def test_create_empty_dataset_duplicates_call_err(self):
         with self.assertRaises(ValueError):
             hook.BigQueryBaseCursor(
                 mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
@@ -504,10 +493,8 @@ class TestDatasetsOperations(unittest.TestCase):
 
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_load_default(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_load_default(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -531,10 +518,8 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         args, kwargs = run_with_config.call_args
         self.assertIs(args[0]['load']['autodetect'], True)
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_load_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_load_with_arg(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -558,10 +543,8 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         mocked_rwc.assert_called_once()
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_default(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_query_default(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -573,10 +556,8 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         mocked_rwc.assert_called_once()
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_query_with_arg(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -623,10 +604,8 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
 class TestClusteringInRunJob(unittest.TestCase):
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_load_default(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_load_default(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -642,10 +621,8 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         mocked_rwc.assert_called_once()
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_load_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_load_with_arg(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -668,10 +645,8 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         mocked_rwc.assert_called_once()
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_default(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_query_default(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -683,10 +658,8 @@ class TestClusteringInRunJob(unittest.TestCase):
 
         mocked_rwc.assert_called_once()
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_run_query_with_arg(self, mocked_rwc, mocked_time, mocked_logging):
+    def test_run_query_with_arg(self, mocked_rwc):
         project_id = 12345
 
         def run_with_config(config):
@@ -727,6 +700,22 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
             bq_hook.get_first('query')
             args, kwargs = run_with_config.call_args
             self.assertIs(args[0]['query']['useLegacySql'], False)
+
+
+class TestBigQueryHookLocation(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_location_propagates_properly(self, run_with_config):
+        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+            bq_hook = hook.BigQueryHook(location=None)
+            self.assertIsNone(bq_hook.location)
+
+            bq_cursor = hook.BigQueryBaseCursor(mock.Mock(),
+                                                'test-project',
+                                                location=None)
+            self.assertIsNone(bq_cursor.location)
+            bq_cursor.run_query(sql='select 1', location='US')
+            run_with_config.assert_called_once()
+            self.assertEquals(bq_cursor.location, 'US')
 
 
 if __name__ == '__main__':
