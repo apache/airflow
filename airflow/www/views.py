@@ -673,6 +673,7 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         title = "DAG details"
+        root = request.args.get('root', '')
 
         TI = models.TaskInstance
         states = session\
@@ -681,9 +682,17 @@ class Airflow(BaseView):
             .group_by(TI.state)\
             .all()
 
+        active_runs = models.DagRun.find(
+            dag_id=dag.dag_id,
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session
+        )
+
         return self.render(
             'airflow/dag_details.html',
-            dag=dag, title=title, states=states, State=State)
+            dag=dag, title=title, root=root, states=states, State=State,
+            active_runs=active_runs)
 
     @current_app.errorhandler(404)
     def circles(self):
@@ -733,6 +742,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dag = dagbag.get_dag(dag_id)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
@@ -757,7 +767,8 @@ class Airflow(BaseView):
             task_id=task_id,
             execution_date=execution_date,
             form=form,
-            title=title, )
+            root=root,
+            title=title)
 
     @expose('/get_logs_with_metadata')
     @login_required
@@ -836,11 +847,13 @@ class Airflow(BaseView):
             models.TaskInstance.execution_date == dttm).first()
 
         logs = [''] * (ti.next_try_number - 1 if ti is not None else 0)
+        root = request.args.get('root', '')
         return self.render(
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts",
             dag_id=dag.dag_id, task_id=task_id,
-            execution_date=execution_date, form=form)
+            execution_date=execution_date, form=form,
+            root=root)
 
     @expose('/task')
     @login_required
@@ -855,6 +868,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dag = dagbag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
@@ -928,6 +942,7 @@ class Airflow(BaseView):
             execution_date=execution_date,
             special_attrs_rendered=special_attrs_rendered,
             form=form,
+            root=root,
             dag=dag, title=title)
 
     @expose('/xcom')
@@ -942,6 +957,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dm_db = models.DagModel
         ti_db = models.TaskInstance
         dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
@@ -969,6 +985,7 @@ class Airflow(BaseView):
             task_id=task_id,
             execution_date=execution_date,
             form=form,
+            root=root,
             dag=dag, title=title)
 
     @expose('/run')

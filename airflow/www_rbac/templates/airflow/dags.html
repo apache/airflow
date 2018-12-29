@@ -78,8 +78,7 @@
                 <!-- Column 2: Turn dag on/off -->
                 <td>
                   {% if dag_id in orm_dags %}
-                    {% set disabled = 'disabled' if view_only else None %}
-                    <input id="toggle-{{ dag_id }}" {{ disabled }} dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
+                    <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
                   {% endif %}
                 </td>
 
