@@ -3078,6 +3078,7 @@ class TestSkipMixin(unittest.TestCase):
         dag_run = dag.create_dagrun(
             run_id='manual__' + now.isoformat(),
             state=State.FAILED,
+            execution_date=now
         )
         SkipMixin().skip(
             dag_run=dag_run,
