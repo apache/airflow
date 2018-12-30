@@ -4156,7 +4156,7 @@ class DAG(BaseDag, LoggingMixin):
 
         tasks = []
         for task in self.task_dict.values():
-            if task.start_date is None:
+            if task.start_date is None or execution_date is None:
                 tasks.append(task)
             elif task.start_date <= execution_date:
                 tasks.append(task)
