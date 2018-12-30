@@ -101,7 +101,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
             # Google Cloud Storage and not in S3
             bucket_name, _ = S3Hook.parse_s3_url(self.dest_s3_key)
             existing_files = s3_hook.list_keys(bucket_name)
-            files = set(files) - set(existing_files)
+            files = list(set(files) - set(existing_files))
 
         if files:
             hook = GoogleCloudStorageHook(

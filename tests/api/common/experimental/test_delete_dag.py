@@ -28,7 +28,6 @@ from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 
 DM = models.DagModel
-DS = models.DagStat
 DR = models.DagRun
 TI = models.TaskInstance
 LOG = models.Log
@@ -51,7 +50,7 @@ class TestDeleteDAGCatchError(unittest.TestCase):
             delete_dag("non-existent DAG")
 
     def test_delete_dag_dag_still_in_dagbag(self):
-        models_to_check = ['DagModel', 'DagStat', 'DagRun', 'TaskInstance']
+        models_to_check = ['DagModel', 'DagRun', 'TaskInstance']
         record_counts = {}
 
         for model_name in models_to_check:
@@ -84,7 +83,6 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
                              owner='airflow')
 
         self.session.add(DM(dag_id=self.key))
-        self.session.add(DS(dag_id=self.key, state=State.SUCCESS))
         self.session.add(DR(dag_id=self.key))
         self.session.add(TI(task=task,
                             execution_date=days_ago(1),
@@ -96,7 +94,6 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
 
     def tearDown(self):
         self.session.query(DM).filter(DM.dag_id == self.key).delete()
-        self.session.query(DS).filter(DS.dag_id == self.key).delete()
         self.session.query(DR).filter(DR.dag_id == self.key).delete()
         self.session.query(TI).filter(TI.dag_id == self.key).delete()
         self.session.query(LOG).filter(LOG.dag_id == self.key).delete()
@@ -107,7 +104,6 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
     def test_delete_dag_successful_delete(self):
 
         self.assertEqual(self.session.query(DM).filter(DM.dag_id == self.key).count(), 1)
-        self.assertEqual(self.session.query(DS).filter(DS.dag_id == self.key).count(), 1)
         self.assertEqual(self.session.query(DR).filter(DR.dag_id == self.key).count(), 1)
         self.assertEqual(self.session.query(TI).filter(TI.dag_id == self.key).count(), 1)
         self.assertEqual(self.session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
@@ -115,7 +111,6 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         delete_dag(dag_id=self.key)
 
         self.assertEqual(self.session.query(DM).filter(DM.dag_id == self.key).count(), 0)
-        self.assertEqual(self.session.query(DS).filter(DS.dag_id == self.key).count(), 0)
         self.assertEqual(self.session.query(DR).filter(DR.dag_id == self.key).count(), 0)
         self.assertEqual(self.session.query(TI).filter(TI.dag_id == self.key).count(), 0)
         self.assertEqual(self.session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
@@ -123,7 +118,6 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
     def test_delete_dag_successful_delete_not_keeping_records_in_log(self):
 
         self.assertEqual(self.session.query(DM).filter(DM.dag_id == self.key).count(), 1)
-        self.assertEqual(self.session.query(DS).filter(DS.dag_id == self.key).count(), 1)
         self.assertEqual(self.session.query(DR).filter(DR.dag_id == self.key).count(), 1)
         self.assertEqual(self.session.query(TI).filter(TI.dag_id == self.key).count(), 1)
         self.assertEqual(self.session.query(LOG).filter(LOG.dag_id == self.key).count(), 1)
@@ -131,7 +125,6 @@ class TestDeleteDAGSuccessfulDelete(unittest.TestCase):
         delete_dag(dag_id=self.key, keep_records_in_log=False)
 
         self.assertEqual(self.session.query(DM).filter(DM.dag_id == self.key).count(), 0)
-        self.assertEqual(self.session.query(DS).filter(DS.dag_id == self.key).count(), 0)
         self.assertEqual(self.session.query(DR).filter(DR.dag_id == self.key).count(), 0)
         self.assertEqual(self.session.query(TI).filter(TI.dag_id == self.key).count(), 0)
         self.assertEqual(self.session.query(LOG).filter(LOG.dag_id == self.key).count(), 0)
