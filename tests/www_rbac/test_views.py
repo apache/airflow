@@ -622,13 +622,17 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         from airflow.utils.state import State
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        self.session = Session()
+        self.session.query(models.DagRun).filter(models.DagRun.dag_id == self.DAG_ID).delete()
+        self.session.query(models.DagEdge).filter(models.DagEdge.dag_id == self.DAG_ID).delete()
         self.runs = []
         for rd in self.RUNS_DATA:
             run = dag.create_dagrun(
                 run_id=rd[0],
                 execution_date=rd[1],
                 state=State.SUCCESS,
-                external_trigger=True
+                external_trigger=True,
+                session=self.session
             )
             self.runs.append(run)
 

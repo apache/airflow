@@ -1869,7 +1869,6 @@ class Airflow(BaseView):
         session.merge(orm_dag)
         session.commit()
 
-        dagbag.get_dag(dag_id)
         return "OK"
 
     @expose('/refresh')

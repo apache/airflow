@@ -561,7 +561,8 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
                 run_id=rd[0],
                 execution_date=rd[1],
                 state=State.SUCCESS,
-                external_trigger=True
+                external_trigger=True,
+                session=self.session
             )
             self.runs.append(run)
 
