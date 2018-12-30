@@ -1250,8 +1250,10 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         root = request.args.get('root')
-        if root: show_dag_id = root
-        else: show_dag_id = dag_id
+        if root:
+            show_dag_id = root
+        else:
+            show_dag_id = dag_id
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
         if not dag:
             flash('DAG "{0}" seems to be missing.'.format(show_dag_id), "error")
@@ -1267,9 +1269,7 @@ class Airflow(AirflowBaseView):
             .filter(models.TaskInstance.execution_date == dttm).all()
         nodes = []
         edges = []
-        for task in session.query(models.TaskInstance) \
-            .filter(models.TaskInstance.dag_id == show_dag_id) \
-            .filter(models.TaskInstance.execution_date == dttm):
+        for task in task_instances:
             nodes.append({
                 'id': task.task_id,
                 'value': {

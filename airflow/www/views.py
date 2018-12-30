@@ -1510,8 +1510,10 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         root = request.args.get('root')
-        if root: show_dag_id = root
-        else: show_dag_id = dag_id
+        if root:
+            show_dag_id = root
+        else:
+            show_dag_id = dag_id
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
         if not dag:
             flash('DAG "{0}" seems to be missing.'.format(show_dag_id), "error")
@@ -1525,27 +1527,28 @@ class Airflow(BaseView):
         task_instances = session.query(models.TaskInstance)\
             .filter(models.TaskInstance.dag_id == show_dag_id)\
             .filter(models.TaskInstance.execution_date == dttm).all()
-        nodes = []
-        edges = []
-        for task in session.query(models.TaskInstance)\
-            .filter(models.TaskInstance.dag_id == show_dag_id)\
-            .filter(models.TaskInstance.execution_date == dttm):
-            nodes.append({
+        nodes = {
+            {
                 'id': task.task_id,
                 'value': {
                     'label': task.task_id,
                     'labelStyle': "fill:{0};".format(task.ui_fgcolor),
                     'style': "fill:{0};".format(task.ui_color),
                 }
-            })
+            }
+            for task in task_instances
+        }
 
-        for edge in session.query(models.DagEdge)\
-            .filter(models.DagEdge.dag_id == show_dag_id)\
-            .filter(models.DagEdge.execution_date == dttm):
-            edges.append({
+        edge_query = session.query(models.DagEdge) \
+            .filter(models.DagEdge.dag_id == show_dag_id) \
+            .filter(models.DagEdge.execution_date == dttm)
+        edges = {
+            {
                 'u': edge.to_task,
                 'v': edge.from_task,
-            })
+            }
+            for edge in edge_query
+        }
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
