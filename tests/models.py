@@ -42,7 +42,7 @@ from airflow import AirflowException, configuration, models, settings
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
-from airflow.models import DagModel, DagRun, DagStat
+from airflow.models import DagModel, DagRun
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
 from airflow.models import State as ST
@@ -780,75 +780,6 @@ class DagTest(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertIsNotNone(orm_dag.default_view)
         self.assertEqual(orm_dag.get_default_view(), "graph")
-
-
-class DagStatTest(unittest.TestCase):
-    def test_dagstats_crud(self):
-        DagStat.create(dag_id='test_dagstats_crud')
-
-        session = settings.Session()
-        qry = session.query(DagStat).filter(DagStat.dag_id == 'test_dagstats_crud')
-        self.assertEqual(len(qry.all()), len(State.dag_states))
-
-        DagStat.set_dirty(dag_id='test_dagstats_crud')
-        res = qry.all()
-
-        for stat in res:
-            self.assertTrue(stat.dirty)
-
-        # create missing
-        DagStat.set_dirty(dag_id='test_dagstats_crud_2')
-        qry2 = session.query(DagStat).filter(DagStat.dag_id == 'test_dagstats_crud_2')
-        self.assertEqual(len(qry2.all()), len(State.dag_states))
-
-        dag = DAG(
-            'test_dagstats_crud',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
-
-        with dag:
-            DummyOperator(task_id='A')
-
-        now = timezone.utcnow()
-        dag.create_dagrun(
-            run_id='manual__' + now.isoformat(),
-            execution_date=now,
-            start_date=now,
-            state=State.FAILED,
-            external_trigger=False,
-        )
-
-        DagStat.update(dag_ids=['test_dagstats_crud'])
-        res = qry.all()
-        for stat in res:
-            if stat.state == State.FAILED:
-                self.assertEqual(stat.count, 1)
-            else:
-                self.assertEqual(stat.count, 0)
-
-        DagStat.update()
-        res = qry2.all()
-        for stat in res:
-            self.assertFalse(stat.dirty)
-
-    def test_update_exception(self):
-        session = Mock()
-        (session.query.return_value
-            .filter.return_value
-            .with_for_update.return_value
-            .all.side_effect) = RuntimeError('it broke')
-        DagStat.update(session=session)
-        session.rollback.assert_called()
-
-    def test_set_dirty_exception(self):
-        session = Mock()
-        session.query.return_value.filter.return_value.all.return_value = []
-        (session.query.return_value
-            .filter.return_value
-            .with_for_update.return_value
-            .all.side_effect) = RuntimeError('it broke')
-        DagStat.set_dirty('dag', session)
-        session.rollback.assert_called()
 
 
 class DagRunTest(unittest.TestCase):

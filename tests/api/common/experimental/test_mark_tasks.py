@@ -515,7 +515,6 @@ class TestMarkDAGRun(unittest.TestCase):
 
         self.session.query(models.DagRun).delete()
         self.session.query(models.TaskInstance).delete()
-        self.session.query(models.DagStat).delete()
         self.session.commit()
         self.session.close()
 
