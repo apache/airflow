@@ -1814,7 +1814,7 @@ class WebUiTests(unittest.TestCase):
     def test_dag_views(self):
         now = pendulum.utcnow()
         dag = self.dagbag.get_dag("example_bash_operator")
-        dag.create_dagrun(now, state="running", execution_date=now)
+        dag.create_dagrun("test_dag_views", state="running", execution_date=now)
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
