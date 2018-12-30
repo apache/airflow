@@ -46,13 +46,14 @@ class JdbcOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(
-            self, sql,
-            jdbc_conn_id='jdbc_default', autocommit=False, parameters=None,
-            *args, **kwargs):
+    def __init__(self,
+                 sql,
+                 jdbc_conn_id='jdbc_default',
+                 autocommit=False,
+                 parameters=None,
+                 *args, **kwargs):
         super(JdbcOperator, self).__init__(*args, **kwargs)
         self.parameters = parameters
-
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
         self.autocommit = autocommit
