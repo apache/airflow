@@ -63,7 +63,7 @@ class Pod:
     :param hostnetwork: If True enable host networking on the pod
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
-    :type tolerations: list tolerations
+    :type tolerations: list
     """
     def __init__(
             self,
