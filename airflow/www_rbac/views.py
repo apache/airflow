@@ -1267,10 +1267,8 @@ class Airflow(AirflowBaseView):
         task_instances = session.query(models.TaskInstance) \
             .filter(models.TaskInstance.dag_id == show_dag_id) \
             .filter(models.TaskInstance.execution_date == dttm).all()
-        nodes = []
-        edges = []
-        for task in task_instances:
-            nodes.append({
+        nodes = [
+            {
                 'id': task.task_id,
                 'value': {
                     'label': task.task_id,
@@ -1279,15 +1277,20 @@ class Airflow(AirflowBaseView):
                     'rx': 5,
                     'ry': 5,
                 }
-            })
+            }
+            for task in task_instances
+        ]
 
-        for edge in session.query(models.DagEdge) \
+        edge_query = session.query(models.DagEdge) \
             .filter(models.DagEdge.dag_id == show_dag_id) \
-            .filter(models.DagEdge.execution_date == dttm):
-            edges.append({
+            .filter(models.DagEdge.execution_date == dttm)
+        edges = [
+            {
                 'u': edge.to_task,
                 'v': edge.from_task,
-            })
+            }
+            for edge in edge_query
+        ]
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
