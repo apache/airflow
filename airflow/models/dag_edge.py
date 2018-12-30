@@ -17,7 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String
+from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils import timezone
 
 from airflow.models.base import Base
 
@@ -35,7 +37,7 @@ class DagEdge(Base):
     """
 
     dag_id = Column(String(250), primary_key=True)
-    execution_date = Column(DateTime(), primary_key=True)
+    execution_date = Column(UtcDateTime, default=timezone.utcnow, primary_key=True)
     from_task = Column(String(250), primary_key=True)
     to_task = Column(String(250), primary_key=True)
 
