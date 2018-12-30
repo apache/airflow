@@ -1812,6 +1812,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn('{', response.data.decode('utf-8'))
 
     def test_dag_views(self):
+        dag = self.dagbag.get_dag("example_bash_operator")
+        dag.create_dagrun(utcnow(), state="running", execution_date=utcnow())
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))

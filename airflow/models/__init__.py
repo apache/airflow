@@ -4121,7 +4121,7 @@ class DAG(BaseDag, LoggingMixin):
     def create_dagrun(self,
                       run_id,
                       state,
-                      execution_date=None,
+                      execution_date,
                       start_date=None,
                       external_trigger=False,
                       conf=None,
@@ -4143,8 +4143,6 @@ class DAG(BaseDag, LoggingMixin):
         :param session: database session
         :type session: Session
         """
-        if execution_date is None:
-            execution_date = datetime.now()
         run = DagRun(
             dag_id=self.dag_id,
             run_id=run_id,
