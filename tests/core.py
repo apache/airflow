@@ -312,7 +312,7 @@ class CoreTest(unittest.TestCase):
         """
         session = settings.Session()
         delta = timedelta(days=1)
-        now = utcnow()
+        now = pendulum.utcnow()
         start_date = now.subtract(weeks=1)
 
         runs = (now - start_date).days
