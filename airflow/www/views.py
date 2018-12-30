@@ -1069,13 +1069,19 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     @wwwutils.notify_owner
-    def trigger(self):
+    @provide_session
+    def trigger(self, session=None):
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin') or "/admin/"
-        dag = dagbag.get_dag(dag_id)
+        orm_dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
+        if not orm_dag:
+            flash("Cannot find dag {} in database".format(dag_id))
+            return redirect(origin)
+
+        dag = orm_dag.get_dag()
 
         if not dag:
-            flash("Cannot find dag {}".format(dag_id))
+            flash("Cannot find dag {} in file: ".format(dag_id, orm_dag.fileloc))
             return redirect(origin)
 
         execution_date = timezone.utcnow()

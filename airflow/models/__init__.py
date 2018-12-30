@@ -2992,6 +2992,9 @@ class DagModel(Base):
         else:
             return self.default_view
 
+    def get_dag(self):
+        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+
 
 @functools.total_ordering
 class DAG(BaseDag, LoggingMixin):
