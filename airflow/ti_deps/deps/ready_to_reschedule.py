@@ -43,9 +43,9 @@ class ReadyToRescheduleDep(BaseTIDep):
                        "permitted.")
             return
 
-        if ti.state != State.NONE:
+        if ti.state not in [State.UP_FOR_RESCHEDULE, State.NONE]:
             yield self._passing_status(
-                reason="The task instance is not in NONE state.")
+                reason="The task instance is not in State_UP_FOR_RESCHEDULE or NONE state.")
             return
 
         # Lazy import to avoid circular dependency
