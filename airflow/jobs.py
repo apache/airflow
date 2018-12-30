@@ -1446,8 +1446,6 @@ class SchedulerJob(BaseJob):
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 
-        models.DagStat.update([d.dag_id for d in dags])
-
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
         """
@@ -2323,9 +2321,6 @@ class BackfillJob(BaseJob):
                     ti_status.finished_runs += 1
                     ti_status.active_runs.remove(run)
                     executed_run_dates.append(run.execution_date)
-
-                if run.dag.is_paused:
-                    models.DagStat.update([run.dag_id], session=session)
 
             self._log_progress(ti_status)
 
