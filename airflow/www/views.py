@@ -1894,19 +1894,16 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def refresh(self, session=None):
-        DagModel = models.DagModel
+        # TODO: Is this method still needed after AIRFLOW-3561?
+        dm = models.DagModel
         dag_id = request.args.get('dag_id')
-        orm_dag = session.query(
-            DagModel).filter(DagModel.dag_id == dag_id).first()
+        orm_dag = session.query(dm).filter(dm.dag_id == dag_id).first()
 
         if orm_dag:
             orm_dag.last_expired = timezone.utcnow()
             session.merge(orm_dag)
         session.commit()
 
-        models.DagStat.update([dag_id], session=session, dirty_only=False)
-
-        dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
@@ -1914,7 +1911,7 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def refresh_all(self):
-        dagbag.collect_dags(only_if_updated=False)
+        # TODO: Is this method still needed after AIRFLOW-3561?
         flash("All DAGs are now up to date")
         return redirect('/')
 
@@ -2670,7 +2667,6 @@ class DagRunModelView(ModelViewOnly):
         dirty_ids = []
         for row in deleted:
             dirty_ids.append(row.dag_id)
-        models.DagStat.update(dirty_ids, dirty_only=False, session=session)
 
     @action('set_running', "Set state to 'running'", None)
     @provide_session
@@ -2684,7 +2680,6 @@ class DagRunModelView(ModelViewOnly):
                 count += 1
                 dr.state = State.RUNNING
                 dr.start_date = timezone.utcnow()
-            models.DagStat.update(dirty_ids, session=session)
             flash(
                 "{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
@@ -2709,7 +2704,6 @@ class DagRunModelView(ModelViewOnly):
                                                 dr.execution_date,
                                                 commit=True,
                                                 session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
@@ -2736,7 +2730,6 @@ class DagRunModelView(ModelViewOnly):
                                                  dr.execution_date,
                                                  commit=True,
                                                  session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
@@ -2770,7 +2763,6 @@ class DagRunModelView(ModelViewOnly):
                 session=session)
 
         altered_ti_count = len(altered_tis)
-        models.DagStat.update([dagrun.dag_id], session=session)
         flash(
             "1 dag run and {altered_ti_count} task instances "
             "were set to '{dagrun.state}'".format(**locals()))

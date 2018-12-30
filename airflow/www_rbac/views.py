@@ -1654,8 +1654,6 @@ class Airflow(AirflowBaseView):
         # sync dag permission
         appbuilder.sm.sync_perm_for_dag(dag_id)
 
-        models.DagStat.update([dag_id], session=session, dirty_only=False)
-
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
@@ -2175,7 +2173,6 @@ class DagRunModelView(AirflowModelView):
         dirty_ids = []
         for item in items:
             dirty_ids.append(item.dag_id)
-        models.DagStat.update(dirty_ids, dirty_only=False, session=session)
         return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
@@ -2191,7 +2188,6 @@ class DagRunModelView(AirflowModelView):
                 count += 1
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
-            models.DagStat.update(dirty_ids, session=session)
             session.commit()
             flash("{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
@@ -2218,7 +2214,6 @@ class DagRunModelView(AirflowModelView):
                                                 dr.execution_date,
                                                 commit=True,
                                                 session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
@@ -2246,7 +2241,6 @@ class DagRunModelView(AirflowModelView):
                                                  dr.execution_date,
                                                  commit=True,
                                                  session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "

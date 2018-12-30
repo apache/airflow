@@ -514,7 +514,6 @@ class TestMarkDAGRun(unittest.TestCase):
         with create_session() as session:
             session.query(models.DagRun).delete()
             session.query(models.TaskInstance).delete()
-            session.query(models.DagStat).delete()
 
 
 if __name__ == '__main__':
