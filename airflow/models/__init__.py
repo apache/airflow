@@ -4154,9 +4154,10 @@ class DAG(BaseDag, LoggingMixin):
         )
         session.add(run)
 
+        tasks = [task for task in self.task_dict.values() if task.start_date <= execution_date]
         # FIXME: Needed to use merge instead of add or bulk add.
         #        This means this method is executed multiple times for 1 single execution date
-        for task in self.task_dict.values():
+        for task in tasks:
             session.merge(TaskInstance(task=task, execution_date=execution_date))
             for down in task.downstream_task_ids:
                 session.merge(DagEdge(self.dag_id, execution_date, down, task.task_id))
