@@ -1448,7 +1448,11 @@ class TestTriggerDag(TestBase):
         self.session.query(DR).delete()
         self.session.commit()
 
+<<<<<<< HEAD
         self.client.get('trigger?dag_id={}'.format(test_dag_id))
+=======
+        resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+>>>>>>> 548f38a8... [AIRFLOW-3600] Remove dagbag from trigger (#4407)
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
