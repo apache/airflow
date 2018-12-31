@@ -47,8 +47,7 @@ TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
-DEFAULT_DATE = datetime(2015, 1, 1)
-TEST_DAG_ID = 'test-bigquery-operators'
+TEST_LOCATION = 'asia-northeast1'
 
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
@@ -58,7 +57,9 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
         operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
                                                     dataset_id=TEST_DATASET,
                                                     project_id=TEST_PROJECT_ID,
-                                                    table_id=TEST_TABLE_ID)
+                                                    table_id=TEST_TABLE_ID,
+                                                    location=TEST_LOCATION,
+                                                    )
 
         operator.execute(None)
         mock_hook.return_value \
@@ -71,7 +72,8 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={},
-                labels=None
+                labels=None,
+                location=TEST_LOCATION,
             )
 
 
@@ -87,7 +89,8 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
-            source_format=TEST_SOURCE_FORMAT
+            source_format=TEST_SOURCE_FORMAT,
+            location=TEST_LOCATION,
         )
 
         operator.execute(None)
@@ -111,7 +114,8 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 allow_quoted_newlines=False,
                 allow_jagged_rows=False,
                 src_fmt_configs={},
-                labels=None
+                labels=None,
+                location=TEST_LOCATION,
             )
 
 
@@ -121,7 +125,8 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
         operator = BigQueryDeleteDatasetOperator(
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
-            project_id=TEST_PROJECT_ID
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
         )
 
         operator.execute(None)
@@ -131,7 +136,8 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             .delete_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
-                project_id=TEST_PROJECT_ID
+                project_id=TEST_PROJECT_ID,
+                location=TEST_LOCATION,
             )
 
 
@@ -141,7 +147,8 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
         operator = BigQueryCreateEmptyDatasetOperator(
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
-            project_id=TEST_PROJECT_ID
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
         )
 
         operator.execute(None)
@@ -152,7 +159,8 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_PROJECT_ID,
-                dataset_reference={}
+                dataset_reference={},
+                location=TEST_LOCATION,
             )
 
 
@@ -195,6 +203,7 @@ class BigQueryOperatorTest(unittest.TestCase):
             time_partitioning=None,
             api_resource_configs=None,
             cluster_fields=None,
+            location=TEST_LOCATION,
         )
 
         operator.execute(None)
@@ -219,6 +228,7 @@ class BigQueryOperatorTest(unittest.TestCase):
                 time_partitioning=None,
                 api_resource_configs=None,
                 cluster_fields=None,
+                location=TEST_LOCATION,
             )
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -227,7 +237,7 @@ class BigQueryOperatorTest(unittest.TestCase):
         operator = BigQueryOperator(
             task_id=TASK_ID,
             sql='Select * from test_table',
-            dag=self.dag, default_args=self.args
+            location=TEST_LOCATION,
         )
 
         operator.execute(None)
@@ -252,6 +262,7 @@ class BigQueryOperatorTest(unittest.TestCase):
                 time_partitioning=None,
                 api_resource_configs=None,
                 cluster_fields=None,
+                location=TEST_LOCATION,
             )
 
         self.assertTrue(isinstance(operator.sql, six.string_types))
