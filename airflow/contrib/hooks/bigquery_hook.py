@@ -494,7 +494,7 @@ class BigQueryBaseCursor(LoggingMixin):
             table_resource['location'] = self.location
 
         self.log.info('inserting an external table: %s, body = %s',
-                      external_project_dataset_table, table_resource)
+            external_project_dataset_table, table_resource)
 
         try:
             self.service.tables().insert(

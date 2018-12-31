@@ -48,10 +48,13 @@ TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'test-bigquery-operators'
 >>>>>>> fix error
+=======
+>>>>>>> add location support
 TEST_LOCATION = 'asia-northeast1'
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
@@ -63,6 +66,10 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                                                     project_id=TEST_PROJECT_ID,
                                                     table_id=TEST_TABLE_ID,
                                                     location=TEST_LOCATION)
+<<<<<<< HEAD
+=======
+
+>>>>>>> add location support
 
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
@@ -117,7 +124,10 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 labels=None
             )
         self.assertEquals(bq_cursor.location, TEST_LOCATION)
+<<<<<<< HEAD
 
+=======
+>>>>>>> add location support
 
 class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -129,6 +139,7 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             location=TEST_LOCATION,
         )
 
+
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
         bq_cursor.delete_dataset \
@@ -137,7 +148,10 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
                 project_id=TEST_PROJECT_ID
             )
         self.assertEquals(bq_cursor.location, TEST_LOCATION)
+<<<<<<< HEAD
 
+=======
+>>>>>>> add location support
 
 class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -147,6 +161,7 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
             dataset_id=TEST_DATASET,
             project_id=TEST_PROJECT_ID
         )
+
 
         operator.execute(None)
         mock_hook.return_value \
