@@ -1444,7 +1444,6 @@ class TestTriggerDag(TestBase):
 
         test_dag_id = "example_bash_operator"
 
-        session = Session()
         DR = models.DagRun
         self.session.query(DR).delete()
         self.session.commit()

@@ -829,6 +829,7 @@ class TestTriggerDag(unittest.TestCase):
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
+        self.session = Session()
         models.DagBag().get_dag("example_bash_operator").sync_to_db()
 
     def test_trigger_dag_button_normal_exist(self):
@@ -840,14 +841,13 @@ class TestTriggerDag(unittest.TestCase):
 
         test_dag_id = "example_bash_operator"
 
-        session = Session()
         DR = models.DagRun
-        session.query(DR).delete()
-        session.commit()
+        self.session.query(DR).delete()
+        self.session.commit()
 
         self.app.get('/admin/airflow/trigger?dag_id={}'.format(test_dag_id))
 
-        run = session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
 
