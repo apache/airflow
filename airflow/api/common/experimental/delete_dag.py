@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
+
 from sqlalchemy import or_
 
 from airflow import models
@@ -40,10 +42,9 @@ def delete_dag(dag_id, keep_records_in_log=True, session=None):
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
-    dagbag = models.DagBag()
-    if dag_id in dagbag.dags:
+    if dag.fileloc and not os.path.exists(dag.fileloc):
         raise DagFileExists("Dag id {} is still in DagBag. "
-                            "Remove the DAG file first.".format(dag_id))
+                            "Remove the DAG file first: {}".format(dag_id, dag.fileloc))
 
     count = 0
 
