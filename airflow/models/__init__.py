@@ -3000,6 +3000,44 @@ class DagModel(Base):
         else:
             return self.default_view
 
+    def get_dag(self):
+        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+
+    @provide_session
+    def create_dagrun(self,
+                      run_id,
+                      state,
+                      execution_date,
+                      start_date=None,
+                      external_trigger=False,
+                      conf=None,
+                      session=None):
+        """
+        Creates a dag run from this dag including the tasks associated with this dag.
+        Returns the dag run.
+
+        :param run_id: defines the the run id for this dag run
+        :type run_id: str
+        :param execution_date: the execution date of this dag run
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param start_date: the date this dag run should be evaluated
+        :type start_date: datetime
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+
+        return self.get_dag().create_dagrun(run_id=run_id,
+                                            state=state,
+                                            execution_date=execution_date,
+                                            start_date=start_date,
+                                            external_trigger=external_trigger,
+                                            conf=conf,
+                                            session=session)
+
 
 @functools.total_ordering
 class DAG(BaseDag, LoggingMixin):
