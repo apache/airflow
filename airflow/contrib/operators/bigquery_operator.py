@@ -278,7 +278,10 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 google_cloud_storage_conn_id='airflow-service-account'
             )
     :type labels: dict
-
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'project_id',
                        'gcs_schema_object', 'labels')
@@ -296,6 +299,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
+                 location=None,
                  *args, **kwargs):
 
         super(BigQueryCreateEmptyTableOperator, self).__init__(*args, **kwargs)
@@ -310,10 +314,12 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
+        self.location = location
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         if not self.schema_fields and self.gcs_schema_object:
 
@@ -412,6 +418,10 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type src_fmt_configs: dict
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :type labels: dict
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
     template_fields = ('bucket', 'source_objects',
                        'schema_object', 'destination_project_dataset_table', 'labels')
@@ -437,6 +447,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  delegate_to=None,
                  src_fmt_configs={},
                  labels=None,
+                 location=None,
                  *args, **kwargs):
 
         super(BigQueryCreateExternalTableOperator, self).__init__(*args, **kwargs)
@@ -464,10 +475,12 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         self.src_fmt_configs = src_fmt_configs
         self.labels = labels
+        self.location = location
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         if not self.schema_fields and self.schema_object \
                 and self.source_format != 'DATASTORE_BACKUP':
@@ -511,7 +524,10 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     :type project_id: str
     :param dataset_id: The dataset to be deleted.
     :type dataset_id: str
-
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     **Example**: ::
 
         delete_temp_data = BigQueryDeleteDatasetOperator(dataset_id = 'temp-dataset',
@@ -530,11 +546,13 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
                  project_id=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
+                 location=None,
                  *args, **kwargs):
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
+        self.location = location
 
         self.log.info('Dataset id: %s', self.dataset_id)
         self.log.info('Project id: %s', self.project_id)
@@ -543,7 +561,8 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
@@ -580,6 +599,10 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                                     task_id='newDatasetCreator',
                                     dag=dag)
 
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('dataset_id', 'project_id')
@@ -592,12 +615,14 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                  dataset_reference=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
+                 location=None,
                  *args, **kwargs):
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.bigquery_conn_id = bigquery_conn_id
         self.dataset_reference = dataset_reference if dataset_reference else {}
         self.delegate_to = delegate_to
+        self.location = location
 
         self.log.info('Dataset id: %s', self.dataset_id)
         self.log.info('Project id: %s', self.project_id)
@@ -606,7 +631,8 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+                               delegate_to=self.delegate_to,
+                               location=self.location)
 
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
