@@ -39,7 +39,7 @@ TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
-
+TEST_LOCATION = 'asia-northeast1'
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 
@@ -225,3 +225,15 @@ class BigQueryOperatorTest(unittest.TestCase):
                 api_resource_configs=None,
                 cluster_fields=None,
             )
+
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_bigquery_operator_location(self, mock_hook):
+        operator = BigQueryOperator(
+            task_id=TASK_ID,
+            sql='Select * from test_table',
+            location=TEST_LOCATION,
+        )
+
+        operator.execute(None)
+        bq_cursor = mock_hook.return_value.get_conn().cursor()
+        self.assertEquals(bq_cursor.location, TEST_LOCATION)
