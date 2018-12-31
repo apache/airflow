@@ -122,8 +122,6 @@ class KubeConfig:
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = configuration.get(
             self.kubernetes_section, 'worker_container_tag')
-        self.worker_dags_folder = configuration.get(
-            self.kubernetes_section, 'worker_dags_folder')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
         self.kube_image_pull_policy = configuration.get(
@@ -148,6 +146,14 @@ class KubeConfig:
         self.git_branch = conf.get(self.kubernetes_section, 'git_branch')
         # Optionally, the directory in the git repository containing the dags
         self.git_subpath = conf.get(self.kubernetes_section, 'git_subpath')
+        # Optionally, the root directory for git operations
+        self.git_sync_root = conf.get(self.kubernetes_section, 'git_sync_root')
+        # Optionally, the name at which to publish the checked-out files under --root
+        self.git_sync_dest = conf.get(self.kubernetes_section, 'git_sync_dest')
+        # Optionally, if git_dags_folder_mount_point is set the worker will use
+        # {git_dags_folder_mount_point}/{git_sync_dest}/{git_subpath} as dags_folder
+        self.git_dags_folder_mount_point = conf.get(self.kubernetes_section,
+                                                    'git_dags_folder_mount_point')
 
         # Optionally a user may supply a `git_user` and `git_password` for private
         # repositories
@@ -170,6 +176,12 @@ class KubeConfig:
         # on a SubPath
         self.logs_volume_subpath = conf.get(
             self.kubernetes_section, 'logs_volume_subpath')
+
+        # Optionally, hostPath volume containing DAGs
+        self.dags_volume_host = conf.get(self.kubernetes_section, 'dags_volume_host')
+
+        # Optionally, write logs to a hostPath Volume
+        self.logs_volume_host = conf.get(self.kubernetes_section, 'logs_volume_host')
 
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
@@ -208,12 +220,17 @@ class KubeConfig:
         self._validate()
 
     def _validate(self):
-        if not self.dags_volume_claim and not self.dags_in_image \
-                and (not self.git_repo or not self.git_branch):
+        # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
+        if not self.dags_volume_claim \
+           and not self.dags_volume_host \
+           and not self.dags_in_image \
+           and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
-                'config section: `dags_volume_claim` or `git_repo and git_branch` '
-                'or `dags_in_image`')
+                'config section: `dags_volume_claim` '
+                'or `dags_volume_host` '
+                'or `dags_in_image` '
+                'or `git_repo and git_branch and git_dags_folder_mount_point`')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
