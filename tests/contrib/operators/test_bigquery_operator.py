@@ -42,18 +42,6 @@ TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
 
 
-class BigQueryOperatorTest(unittest.TestCase):
-    def test_bql_deprecation_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            BigQueryOperator(
-                task_id='test_deprecation_warning_for_bql',
-                bql='select * from test_table'
-            )
-        self.assertIn(
-            'Deprecated parameter `bql`',
-            w[0].message.args[0])
-
-
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -160,6 +148,16 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
 
 
 class BigQueryOperatorTest(unittest.TestCase):
+    def test_bql_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            BigQueryOperator(
+                task_id='test_deprecation_warning_for_bql',
+                bql='select * from test_table'
+            )
+        self.assertIn(
+            'Deprecated parameter `bql`',
+            w[0].message.args[0])
+
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_execute(self, mock_hook):
         operator = BigQueryOperator(
