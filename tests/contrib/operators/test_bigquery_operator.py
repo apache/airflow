@@ -51,7 +51,7 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                                                     project_id=TEST_PROJECT_ID,
                                                     table_id=TEST_TABLE_ID,
                                                     location=TEST_LOCATION,
-                                                    )
+        )
 
         operator.execute(None)
         mock_hook.return_value \
