@@ -54,6 +54,7 @@ node_modules/*
 coverage/*
 git_version
 flake8_diff.sh
+coverage.xml
 
 rat-results.txt
 apache-airflow-.*\+incubating-source.tar.gz.*
