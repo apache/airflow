@@ -2313,6 +2313,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         session = settings.Session()
         session.query(TI).delete()
+        session.commit()
         dag_id = 'test_task_start_date_scheduling'
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()

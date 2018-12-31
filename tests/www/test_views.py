@@ -550,6 +550,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.session = Session()
         self.session.query(models.DagRun).filter(models.DagRun.dag_id == self.DAG_ID).delete()
         self.session.query(models.DagEdge).filter(models.DagEdge.dag_id == self.DAG_ID).delete()
+        self.session.commit()
         from airflow.www.views import dagbag
         from airflow.utils.state import State
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)

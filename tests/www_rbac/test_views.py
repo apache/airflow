@@ -625,6 +625,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         self.session = Session()
         self.session.query(models.DagRun).filter(models.DagRun.dag_id == self.DAG_ID).delete()
         self.session.query(models.DagEdge).filter(models.DagEdge.dag_id == self.DAG_ID).delete()
+        self.session.commit()
         self.runs = []
         for rd in self.RUNS_DATA:
             run = dag.create_dagrun(
