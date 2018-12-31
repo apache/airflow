@@ -43,7 +43,7 @@ spec:
     spec:
       initContainers:
       - name: "init"
-        image: airflow
+        image: {{AIRFLOW_IMAGE}}:{{AIRFLOW_TAG}}
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: airflow-configmap
@@ -67,7 +67,7 @@ spec:
 {{INIT_GIT_SYNC}}
       containers:
       - name: webserver
-        image: airflow
+        image: {{AIRFLOW_IMAGE}}:{{AIRFLOW_TAG}}
         imagePullPolicy: IfNotPresent
         ports:
         - name: webserver
@@ -92,7 +92,7 @@ spec:
         - name: airflow-logs
           mountPath: /root/airflow/logs
       - name: scheduler
-        image: airflow
+        image: {{AIRFLOW_IMAGE}}:{{AIRFLOW_TAG}}
         imagePullPolicy: IfNotPresent
         args: ["scheduler"]
         env:

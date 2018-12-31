@@ -31,4 +31,7 @@ fi
 $DIRNAME/minikube/start_minikube.sh
 $DIRNAME/docker/build.sh
 
+
+
+
 echo "Airflow environment on kubernetes is good to go!"
