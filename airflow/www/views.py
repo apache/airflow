@@ -1069,11 +1069,11 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     @wwwutils.notify_owner
-    def trigger(self):
+    @provide_session
+    def trigger(self, session=None):
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin') or "/admin/"
-        dag = dagbag.get_dag(dag_id)
-
+        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
             flash("Cannot find dag {}".format(dag_id))
             return redirect(origin)
@@ -1592,7 +1592,7 @@ class Airflow(BaseView):
             task_instances=json.dumps(task_instances, indent=2),
             tasks=json.dumps(tasks, indent=2),
             nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2), )
+            edges=json.dumps(edges, indent=2))
 
     @expose('/duration')
     @login_required
