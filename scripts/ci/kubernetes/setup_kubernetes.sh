@@ -23,6 +23,11 @@ echo "For development, start minikube yourself (ie: minikube start) then run thi
 
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
+# Fix file permissions
+if [[ "${TRAVIS}" == true ]]; then
+  sudo chown -R travis.travis .
+fi
+
 $DIRNAME/minikube/start_minikube.sh
 $DIRNAME/docker/build.sh
 

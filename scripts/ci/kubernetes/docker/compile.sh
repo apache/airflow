@@ -15,15 +15,18 @@
 #  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
 #  KIND, either express or implied.  See the License for the    *
 #  specific language governing permissions and limitations      *
-#  under the License.
+#  under the License.                                           *
 
-set -x
+set -e
 
-cd /usr/local/lib/python2.7/dist-packages/airflow && \
-cp -R example_dags/* /root/airflow/dags/ && \
-cp -R contrib/example_dags/example_kubernetes_*.py /root/airflow/dags/ && \
-cp -a contrib/example_dags/libs /root/airflow/dags/ && \
-airflow initdb && \
-alembic upgrade heads && \
-(airflow users --create --username airflow --lastname airflow --firstname jon --email airflow@apache.org --role Admin --password airflow || true) && \
-echo "retrieved from mount" > /root/test_volume/test.txt
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y --no-install-recommends curl gnupg2
+
+curl -sL https://deb.nodesource.com/setup_8.x | bash -
+
+apt-get update
+apt-get install -y --no-install-recommends git nodejs
+pip install GitPython
+python setup.py compile_assets sdist -q
