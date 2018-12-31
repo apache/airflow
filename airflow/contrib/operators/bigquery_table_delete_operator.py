@@ -39,6 +39,10 @@ class BigQueryTableDeleteOperator(BaseOperator):
     :param ignore_if_missing: if True, then return success even if the
         requested table does not exist.
     :type ignore_if_missing: bool
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
     template_fields = ('deletion_dataset_table',)
     ui_color = '#ffd1dc'
@@ -49,6 +53,7 @@ class BigQueryTableDeleteOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  ignore_if_missing=False,
+                 location=None,
                  *args,
                  **kwargs):
         super(BigQueryTableDeleteOperator, self).__init__(*args, **kwargs)
@@ -56,11 +61,13 @@ class BigQueryTableDeleteOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
         self.ignore_if_missing = ignore_if_missing
+        self.location = location
 
     def execute(self, context):
         self.log.info('Deleting: %s', self.deletion_dataset_table)
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_table_delete(self.deletion_dataset_table, self.ignore_if_missing)

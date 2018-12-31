@@ -66,6 +66,10 @@ class BigQueryGetDataOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
     ui_color = '#e4f0e8'
@@ -78,6 +82,7 @@ class BigQueryGetDataOperator(BaseOperator):
                  selected_fields=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
+                 location=None,                
                  *args,
                  **kwargs):
         super(BigQueryGetDataOperator, self).__init__(*args, **kwargs)
@@ -87,6 +92,7 @@ class BigQueryGetDataOperator(BaseOperator):
         self.selected_fields = selected_fields
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
+        self.location = location
 
     def execute(self, context):
         self.log.info('Fetching Data from:')
@@ -94,7 +100,8 @@ class BigQueryGetDataOperator(BaseOperator):
                       self.dataset_id, self.table_id, self.max_results)
 
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            location=self.location)
 
         conn = hook.get_conn()
         cursor = conn.cursor()
