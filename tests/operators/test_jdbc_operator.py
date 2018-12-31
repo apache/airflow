@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -6,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,11 +17,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[report]
-omit =
-    *contrib*
-    tests/*
-    scripts/*
-    dev/*
-    airflow/migrations/*
-    airflow/www_rbac/node_modules/**
+import unittest
+
+from mock import patch
+
+from airflow.operators.jdbc_operator import JdbcOperator
+
+
+class TestJdbcOperator(unittest.TestCase):
+
+    def setUp(self):
+        self.kwargs = dict(
+            sql='sql',
+            task_id='test_jdbc_operator',
+            dag=None
+        )
+
+    @patch('airflow.operators.jdbc_operator.JdbcHook')
+    def test_execute(self, mock_jdbc_hook):
+        jdbc_operator = JdbcOperator(**self.kwargs)
+        jdbc_operator.execute(context={})
+
+        mock_jdbc_hook.assert_called_once_with(jdbc_conn_id=jdbc_operator.jdbc_conn_id)
+        mock_jdbc_hook.return_value.run.assert_called_once_with(
+            jdbc_operator.sql, jdbc_operator.autocommit, parameters=jdbc_operator.parameters)

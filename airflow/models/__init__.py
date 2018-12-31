@@ -1585,13 +1585,38 @@ class TaskInstance(Base, LoggingMixin):
         if 'tables' in task.params:
             tables = task.params['tables']
 
+        params = {}
+        run_id = ''
+        dag_run = None
+        if hasattr(task, 'dag'):
+            if task.dag.params:
+                params.update(task.dag.params)
+            dag_run = (
+                session.query(DagRun)
+                .filter_by(
+                    dag_id=task.dag.dag_id,
+                    execution_date=self.execution_date)
+                .first()
+            )
+            run_id = dag_run.run_id if dag_run else None
+            session.expunge_all()
+            session.commit()
+
         ds = self.execution_date.strftime('%Y-%m-%d')
         ts = self.execution_date.isoformat()
         yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
         tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
 
-        prev_execution_date = task.dag.previous_schedule(self.execution_date)
-        next_execution_date = task.dag.following_schedule(self.execution_date)
+        # For manually triggered dagruns that aren't run on a schedule, next/previous
+        # schedule dates don't make sense, and should be set to execution date for
+        # consistency with how execution_date is set for manually triggered tasks, i.e.
+        # triggered_date == execution_date.
+        if dag_run and dag_run.external_trigger:
+            prev_execution_date = self.execution_date
+            next_execution_date = self.execution_date
+        else:
+            prev_execution_date = task.dag.previous_schedule(self.execution_date)
+            next_execution_date = task.dag.following_schedule(self.execution_date)
 
         next_ds = None
         next_ds_nodash = None
@@ -1613,23 +1638,6 @@ class TaskInstance(Base, LoggingMixin):
 
         ti_key_str = "{task.dag_id}__{task.task_id}__{ds_nodash}"
         ti_key_str = ti_key_str.format(**locals())
-
-        params = {}
-        run_id = ''
-        dag_run = None
-        if hasattr(task, 'dag'):
-            if task.dag.params:
-                params.update(task.dag.params)
-            dag_run = (
-                session.query(DagRun)
-                .filter_by(
-                    dag_id=task.dag.dag_id,
-                    execution_date=self.execution_date)
-                .first()
-            )
-            run_id = dag_run.run_id if dag_run else None
-            session.expunge_all()
-            session.commit()
 
         if task.params:
             params.update(task.params)
@@ -3002,6 +3010,44 @@ class DagModel(Base):
             return configuration.conf.get('webserver', 'dag_default_view').lower()
         else:
             return self.default_view
+
+    def get_dag(self):
+        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+
+    @provide_session
+    def create_dagrun(self,
+                      run_id,
+                      state,
+                      execution_date,
+                      start_date=None,
+                      external_trigger=False,
+                      conf=None,
+                      session=None):
+        """
+        Creates a dag run from this dag including the tasks associated with this dag.
+        Returns the dag run.
+
+        :param run_id: defines the the run id for this dag run
+        :type run_id: str
+        :param execution_date: the execution date of this dag run
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param start_date: the date this dag run should be evaluated
+        :type start_date: datetime
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+
+        return self.get_dag().create_dagrun(run_id=run_id,
+                                            state=state,
+                                            execution_date=execution_date,
+                                            start_date=start_date,
+                                            external_trigger=external_trigger,
+                                            conf=conf,
+                                            session=session)
 
 
 @functools.total_ordering
