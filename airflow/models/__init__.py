@@ -102,7 +102,7 @@ from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, Interval
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -2988,7 +2988,7 @@ class DagModel(Base):
     # Default view of the inside the webserver
     default_view = Column(String(25))
     # Schedule interval
-    schedule_interval = Column(PickleType(pickler=dill))
+    schedule_interval = Column(Interval)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)

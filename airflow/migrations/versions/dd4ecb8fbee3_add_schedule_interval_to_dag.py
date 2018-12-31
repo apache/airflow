@@ -35,8 +35,8 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.add_column('dag', sa.Column('schedule_interval', sa.PickleType(), nullable=True))
+    op.add_column('dag', sa.Column('schedule_interval', sa.Text(), nullable=True))
 
 
 def downgrade():
-    op.drop_column('dag', sa.Column('schedule_interval', sa.PickleType(), nullable=True))
+    op.drop_column('dag', sa.Column('schedule_interval', sa.Text(), nullable=True))
