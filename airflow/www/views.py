@@ -1575,11 +1575,10 @@ class Airflow(BaseView):
         session.commit()
         doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
-        ops = [{
-            'name': op.operator,
-            'ui_color': op.ui_color,
-            'ui_fgcolor': op.ui_fgcolor
-        } for op in task_instances]
+        unique_ops = {
+            op.operator: {"name": op.operator, "ui_color": op.ui_color, "ui_fgcolor": op.ui_fgcolor}
+            for op in task_instances
+        }.values()
 
         return self.render(
             'airflow/graph.html',
@@ -1591,7 +1590,7 @@ class Airflow(BaseView):
             state_token=state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators={v['name']:v for v in ops}.values(),
+            operators=unique_ops,
             blur=blur,
             root=root or '',
             task_instances=json.dumps(task_instances_dict, indent=2),
