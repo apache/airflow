@@ -1428,5 +1428,32 @@ class TestTaskInstanceView(TestBase):
         pass
 
 
+class TestTriggerDag(TestBase):
+
+    def setUp(self):
+        super(TestTriggerDag, self).setUp()
+        self.session = Session()
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
+
+    def test_trigger_dag_button_normal_exist(self):
+        resp = self.client.get('/', follow_redirects=True)
+        self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+
+    def test_trigger_dag_button(self):
+
+        test_dag_id = "example_bash_operator"
+
+        DR = models.DagRun
+        self.session.query(DR).delete()
+        self.session.commit()
+
+        resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        self.assertIsNotNone(run)
+        self.assertIn("manual__", run.run_id)
+
+
 if __name__ == '__main__':
     unittest.main()
