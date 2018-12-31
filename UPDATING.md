@@ -49,6 +49,10 @@ controlled by the new `dag_processor_manager_log_location` config option in core
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
 
+### Semantics of next_ds/prev_ds changed for manually triggered runs
+
+next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
+
 ### Rename of BashTaskRunner to StandardTaskRunner
 
 BashTaskRunner has been renamed to StandardTaskRunner. It is the default task runner
