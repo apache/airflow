@@ -41,6 +41,10 @@ class BigQueryTableSensor(BaseSensorOperator):
         For this to work, the service account making the request must
         have domain-wide delegation enabled.
     :type delegate_to: str
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
     template_fields = ('project_id', 'dataset_id', 'table_id',)
     ui_color = '#f0eee4'
@@ -52,6 +56,7 @@ class BigQueryTableSensor(BaseSensorOperator):
                  table_id,
                  bigquery_conn_id='bigquery_default_conn',
                  delegate_to=None,
+                 location=None,
                  *args, **kwargs):
 
         super(BigQueryTableSensor, self).__init__(*args, **kwargs)
@@ -60,11 +65,13 @@ class BigQueryTableSensor(BaseSensorOperator):
         self.table_id = table_id
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
+        self.location = location
 
     def poke(self, context):
         table_uri = '{0}:{1}.{2}'.format(self.project_id, self.dataset_id, self.table_id)
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
             bigquery_conn_id=self.bigquery_conn_id,
-            delegate_to=self.delegate_to)
+            delegate_to=self.delegate_to,
+            location=self.location)
         return hook.table_exists(self.project_id, self.dataset_id, self.table_id)

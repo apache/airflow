@@ -58,6 +58,10 @@ class BigQueryCheckOperator(CheckOperator):
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :type use_legacy_sql: bool
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     @apply_defaults
@@ -65,15 +69,18 @@ class BigQueryCheckOperator(CheckOperator):
                  sql,
                  bigquery_conn_id='bigquery_default',
                  use_legacy_sql=True,
+                 location=None,
                  *args, **kwargs):
         super(BigQueryCheckOperator, self).__init__(sql=sql, *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
         self.sql = sql
         self.use_legacy_sql = use_legacy_sql
+        self.location = location
 
     def get_db_hook(self):
         return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                            use_legacy_sql=self.use_legacy_sql)
+                            use_legacy_sql=self.use_legacy_sql,
+                            location=self.location)
 
 
 class BigQueryValueCheckOperator(ValueCheckOperator):
