@@ -15,6 +15,9 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
+# Note: The airflow image used in this example is obtained by
+# building the image from the local docker subdirectory.
+
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
