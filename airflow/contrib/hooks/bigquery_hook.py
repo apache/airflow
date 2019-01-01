@@ -277,7 +277,7 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         if self.location:
-            table_resource['location'] = {'fields': self.location}
+            table_resource['location'] = self.location
 
         if schema_fields:
             table_resource['schema'] = {'fields': schema_fields}
@@ -1447,6 +1447,9 @@ class BigQueryBaseCursor(LoggingMixin):
                 _api_resource_configs_duplication_check(
                     param_name, param,
                     dataset_reference['datasetReference'], 'dataset_reference')
+
+        if self.location:
+            dataset_reference['location'] = self.location
 
         dataset_id = dataset_reference.get("datasetReference").get("datasetId")
         dataset_project_id = dataset_reference.get("datasetReference").get(
