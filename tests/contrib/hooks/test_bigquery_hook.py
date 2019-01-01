@@ -191,6 +191,38 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
         # error string.
         self.assertIn("JSON", str(context.exception))
 
+    def test_table_location(self):
+        project_id="test_project"
+        dataset_id="test_dataset"
+        external_project_dataset_table="{}.{}".format(project_id, dataset_id)
+        schema_fields=[]
+        source_uris=["gs://test_bucket/test_data.csv"]
+        location = "asia-northeast1"
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor("test", project_id, location=location)
+        cursor.create_external_table(external_project_dataset_table, schema_fields, source_uris)
+        body = {
+            "externalDataConfiguration": {
+                "autodetect": False,
+                "sourceFormat": "CSV",
+                "sourceUris": source_uris,
+                "compression": "NONE",
+                "ignoreUnknownValues": False,
+            },
+            "tableReference": {
+                "projectId": project_id,
+                "datasetId": dataset_id,
+                "tableId": 'test_table',
+            },
+            "location": location
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=body)
+
 
 # Helpers to test_cancel_queries that have mock_poll_job_complete returning false,
 # unless mock_job_cancel was called with the same job_id
