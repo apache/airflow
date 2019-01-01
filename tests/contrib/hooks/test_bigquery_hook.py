@@ -380,6 +380,23 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
+    def test_create_empty_table_with_location(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_location'
+        location = 'asia-northeast1'
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id, location=location)
+        cursor.create_empty_table(project_id, dataset_id, table_id)
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            },
+            'location': location
+        }
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
 class TestBigQueryCursor(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
