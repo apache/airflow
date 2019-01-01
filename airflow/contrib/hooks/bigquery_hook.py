@@ -276,6 +276,9 @@ class BigQueryBaseCursor(LoggingMixin):
             }
         }
 
+        if self.location:
+            table_resource['location'] = {'fields': self.location}
+
         if schema_fields:
             table_resource['schema'] = {'fields': schema_fields}
 
