@@ -204,7 +204,9 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
         cursor = hook.BigQueryBaseCursor("test", project_id, location=location)
         cursor.create_external_table(external_project_dataset_table, schema_fields, source_uris)
         body = {
-            "schema": schema_fields,
+            "schema": {
+                "fields": schema_fields,
+            },
             "externalDataConfiguration": {
                 "autodetect": False,
                 "sourceFormat": "CSV",
