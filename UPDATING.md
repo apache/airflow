@@ -24,6 +24,14 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Modification to config file discovery
+
+If the `AIRFLOW_CONFIG` environment variable was not set and the
+`~/airflow/airflow.cfg` file existed, airflow previously used
+`~/airflow/airflow.cfg` instead of `$AIRFLOW_HOME/airflow.cfg`. Now airflow
+will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
+environment variables rather than checking for the presence of a file.
+
 ### Modification to `ts_nodash` macro
 `ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes. 
 
@@ -40,6 +48,10 @@ controlled by the new `dag_processor_manager_log_location` config option in core
 
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+
+### Semantics of next_ds/prev_ds changed for manually triggered runs
+
+next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
 
 ### Rename of BashTaskRunner to StandardTaskRunner
 
@@ -194,6 +206,7 @@ There are five roles created for Airflow by default: Admin, User, Op, Viewer, an
 - All ModelViews in Flask-AppBuilder follow a different pattern from Flask-Admin. The `/admin` part of the URL path will no longer exist. For example: `/admin/connection` becomes `/connection/list`, `/admin/connection/new` becomes `/connection/add`, `/admin/connection/edit` becomes `/connection/edit`, etc.
 - Due to security concerns, the new webserver will no longer support the features in the `Data Profiling` menu of old UI, including `Ad Hoc Query`, `Charts`, and `Known Events`.
 - HiveServer2Hook.get_results() always returns a list of tuples, even when a single column is queried, as per Python API 2.
+- **UTC is now the default timezone**: Either reconfigure your workflows scheduling in UTC or set `default_timezone` as explained in https://airflow.apache.org/timezone.html#default-time-zone 
 
 ### airflow.contrib.sensors.hdfs_sensors renamed to airflow.contrib.sensors.hdfs_sensor
 

@@ -20,7 +20,8 @@
 import json
 import unittest
 
-from airflow import configuration, models, AirflowException
+from airflow import configuration, AirflowException
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 from airflow.contrib.hooks.discord_webhook_hook import DiscordWebhookHook
@@ -50,7 +51,7 @@ class TestDiscordWebhookHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='default-discord-webhook',
                 host='https://discordapp.com/api/',
                 extra='{"webhook_endpoint": "webhooks/00000/some-discord-token_000"}')

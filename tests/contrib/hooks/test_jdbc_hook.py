@@ -26,7 +26,7 @@ from mock import patch
 
 from airflow import configuration
 from airflow.hooks.jdbc_hook import JdbcHook
-from airflow import models
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 jdbc_conn_mock = Mock(
@@ -38,7 +38,7 @@ class TestJdbcHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='jdbc_default', conn_type='jdbc',
                 host='jdbc://localhost/', port=443,
                 extra=json.dumps({"extra__jdbc__drv_path": "/path1/test.jar,/path2/t.jar2",

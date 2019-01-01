@@ -43,6 +43,7 @@ from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
+from airflow.models.dagpickle import DagPickle
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -61,7 +62,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
-Base = models.Base
+Base = models.base.Base
 ID_LEN = models.ID_LEN
 
 
@@ -1213,7 +1214,7 @@ class SchedulerJob(BaseJob):
         task_instance_str = "\n\t".join(
             ["{}".format(x) for x in executable_tis])
         self.log.info(
-            "Setting the follow tasks to queued state:\n\t%s", task_instance_str)
+            "Setting the following tasks to queued state:\n\t%s", task_instance_str)
         # so these dont expire on commit
         for ti in executable_tis:
             copy_dag_id = ti.dag_id
@@ -1408,7 +1409,7 @@ class SchedulerJob(BaseJob):
                 ["{}".format(x) for x in tis_to_set_to_scheduled])
 
             session.commit()
-            self.log.info("Set the follow tasks to scheduled state:\n\t{}"
+            self.log.info("Set the following tasks to scheduled state:\n\t{}"
                           .format(task_instance_str))
 
     def _process_dags(self, dagbag, dags, tis_out):
@@ -1444,8 +1445,6 @@ class SchedulerJob(BaseJob):
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
-
-        models.DagStat.update([d.dag_id for d in dags])
 
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
@@ -2323,9 +2322,6 @@ class BackfillJob(BaseJob):
                     ti_status.active_runs.remove(run)
                     executed_run_dates.append(run.execution_date)
 
-                if run.dag.is_paused:
-                    models.DagStat.update([run.dag_id], session=session)
-
             self._log_progress(ti_status)
 
         # return updated status
@@ -2428,7 +2424,7 @@ class BackfillJob(BaseJob):
         pickle_id = None
         if not self.donot_pickle and self.executor.__class__ not in (
                 executors.LocalExecutor, executors.SequentialExecutor):
-            pickle = models.DagPickle(self.dag)
+            pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()
             pickle_id = pickle.id

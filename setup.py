@@ -152,6 +152,7 @@ azure_data_lake = [
     'azure-datalake-store==0.0.19'
 ]
 azure_cosmos = ['azure-cosmos>=3.0.1']
+azure_container_instances = ['azure-mgmt-containerinstance']
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery>=4.1.1, <4.2.0',
@@ -273,7 +274,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + or
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
-             atlas)
+             atlas + azure_container_instances)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -316,7 +317,6 @@ def do_setup():
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
             'jinja2>=2.7.3, <=2.10.0',
-            'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
@@ -348,6 +348,7 @@ def do_setup():
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
             'azure_cosmos': azure_cosmos,
+            'azure_container_instances': azure_container_instances,
             'cassandra': cassandra,
             'celery': celery,
             'cgroups': cgroups,

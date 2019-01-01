@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
+
 from sqlalchemy import or_
 
 from airflow import models, settings
@@ -39,15 +41,14 @@ def delete_dag(dag_id, keep_records_in_log=True):
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
-    dagbag = models.DagBag()
-    if dag_id in dagbag.dags:
+    if dag.fileloc and not os.path.exists(dag.fileloc):
         raise DagFileExists("Dag id {} is still in DagBag. "
-                            "Remove the DAG file first.".format(dag_id))
+                            "Remove the DAG file first: {}".format(dag_id, dag.fileloc))
 
     count = 0
 
     # noinspection PyUnresolvedReferences,PyProtectedMember
-    for m in models.Base._decl_class_registry.values():
+    for m in models.base.Base._decl_class_registry.values():
         if hasattr(m, "dag_id"):
             if keep_records_in_log and m.__name__ == 'Log':
                 continue

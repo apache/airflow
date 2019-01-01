@@ -20,7 +20,7 @@
 
 import unittest
 import requests_mock
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration, AirflowException

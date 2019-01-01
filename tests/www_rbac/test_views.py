@@ -37,6 +37,7 @@ from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils import dates, timezone
@@ -120,7 +121,7 @@ class TestConnectionModelView(TestBase):
         }
 
     def tearDown(self):
-        self.clear_table(models.Connection)
+        self.clear_table(Connection)
         super(TestConnectionModelView, self).tearDown()
 
     def test_create_connection(self):
@@ -1425,6 +1426,33 @@ class TestTaskInstanceView(TestBase):
         # doesn't blow up!
         self.check_content_in_response('List Task Instance', resp)
         pass
+
+
+class TestTriggerDag(TestBase):
+
+    def setUp(self):
+        super(TestTriggerDag, self).setUp()
+        self.session = Session()
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
+
+    def test_trigger_dag_button_normal_exist(self):
+        resp = self.client.get('/', follow_redirects=True)
+        self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+
+    def test_trigger_dag_button(self):
+
+        test_dag_id = "example_bash_operator"
+
+        DR = models.DagRun
+        self.session.query(DR).delete()
+        self.session.commit()
+
+        resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
+
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        self.assertIsNotNone(run)
+        self.assertIn("manual__", run.run_id)
 
 
 if __name__ == '__main__':
