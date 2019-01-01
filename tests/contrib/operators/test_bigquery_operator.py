@@ -78,14 +78,13 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
-            source_format=TEST_SOURCE_FORMAT
+            source_format=TEST_SOURCE_FORMAT,
+            location=TEST_LOCATION
         )
 
         operator.execute(None)
-        mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
-            .create_external_table \
+        bq_cursor = mock_hook.return_value.get_conn().cursor()
+        bq_cursor.create_external_table \
             .assert_called_once_with(
                 external_project_dataset_table='{}.{}'.format(
                     TEST_DATASET, TEST_TABLE_ID
@@ -104,7 +103,7 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 src_fmt_configs={},
                 labels=None
             )
-
+        self.assertEquals(bq_cursor.location, TEST_LOCATION)
 
 class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')

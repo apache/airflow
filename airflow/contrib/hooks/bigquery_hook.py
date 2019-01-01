@@ -489,6 +489,9 @@ class BigQueryBaseCursor(LoggingMixin):
         if labels:
             table_resource['labels'] = labels
 
+        if self.location:
+            table_resource['location'] = self.location
+
         try:
             self.service.tables().insert(
                 projectId=project_id,
