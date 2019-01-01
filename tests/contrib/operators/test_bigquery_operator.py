@@ -56,12 +56,12 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
         operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
                                                     dataset_id=TEST_DATASET,
                                                     project_id=TEST_PROJECT_ID,
-                                                    table_id=TEST_TABLE_ID)
+                                                    table_id=TEST_TABLE_ID,
+                                                    location=TEST_LOCATION)
 
         operator.execute(None)
-        mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+        bq_cursor = mock_hook.return_value.get_conn().cursor()
+        bq_cursor \
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -71,6 +71,7 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                 time_partitioning={},
                 labels=None
             )
+        self.assertEquals(bq_cursor.location, TEST_LOCATION)
 
 
 class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
