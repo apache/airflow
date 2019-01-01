@@ -195,7 +195,7 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
         project_id="test_project"
         dataset_id="test_dataset"
         external_project_dataset_table="{}.{}".format(project_id, dataset_id)
-        schema_fields= {"fields": [{"name": "test_name", "type": "string", "mode": "REQUIRED", "description": "test_description"}]}
+        schema_fields= [{"name": "test_name", "type": "string", "mode": "REQUIRED", "description": "test_description"}]
         source_uris=["gs://test_bucket/test_data.csv"]
         location = "asia-northeast1"
 
