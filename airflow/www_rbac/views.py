@@ -281,7 +281,8 @@ class Airflow(AirflowBaseView):
 
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
-        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
+            .group_by(dr.dag_id, dr.state)
 
         payload = {}
         if filter_dag_ids:
