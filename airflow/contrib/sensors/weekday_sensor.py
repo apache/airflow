@@ -30,9 +30,9 @@ class DayOfWeekSensor(BaseSensorOperator):
     until next Friday.
 
     :param week_day: Day of the week (full name). Example: "MONDAY"
-    :type week_day_number: str
+    :type week_day: str
     :param use_task_execution_day: If ``True``, uses task's execution day to compare
-        with week_day_number. Execution Date is Useful for backfilling.
+        with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
     :type use_task_execution_day: bool
