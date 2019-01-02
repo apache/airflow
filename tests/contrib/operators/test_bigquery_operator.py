@@ -19,11 +19,18 @@
 
 import unittest
 import warnings
+from datetime import datetime
+
+import six
+
+from airflow import configuration, models
+from airflow.models import TaskInstance, DAG
 
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
     BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator, \
     BigQueryOperator
+from airflow.settings import Session
 
 try:
     from unittest import mock
@@ -40,6 +47,8 @@ TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
+DEFAULT_DATE = datetime(2015, 1, 1)
+TEST_DAG_ID = 'test-bigquery-operators'
 
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
@@ -158,6 +167,22 @@ class BigQueryOperatorTest(unittest.TestCase):
             'Deprecated parameter `bql`',
             w[0].message.args[0])
 
+    def setUp(self):
+        configuration.conf.load_test_config()
+        self.dagbag = models.DagBag(
+            dag_folder='/dev/null', include_examples=True)
+        self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.dag = DAG(TEST_DAG_ID, default_args=self.args)
+
+    def tearDown(self):
+        session = Session()
+        session.query(models.TaskInstance).filter_by(
+            dag_id=TEST_DAG_ID).delete()
+        session.query(models.TaskFail).filter_by(
+            dag_id=TEST_DAG_ID).delete()
+        session.commit()
+        session.close()
+
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_execute(self, mock_hook):
         operator = BigQueryOperator(
@@ -208,9 +233,11 @@ class BigQueryOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_bigquery_operator_defaults(self, mock_hook):
+
         operator = BigQueryOperator(
             task_id=TASK_ID,
             sql='Select * from test_table',
+            dag=self.dag, default_args=self.args
         )
 
         operator.execute(None)
@@ -236,3 +263,8 @@ class BigQueryOperatorTest(unittest.TestCase):
                 api_resource_configs=None,
                 cluster_fields=None,
             )
+
+        self.assertTrue(isinstance(operator.sql, six.string_types))
+        ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
+        ti.render_templates()
+        self.assertTrue(isinstance(ti.task.sql, six.string_types))
