@@ -1449,10 +1449,14 @@ class TestTriggerDag(TestBase):
         self.session.commit()
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.client.get('trigger?dag_id={}'.format(test_dag_id))
 =======
         resp = self.client.get('trigger?dag_id={}'.format(test_dag_id))
 >>>>>>> 548f38a8... [AIRFLOW-3600] Remove dagbag from trigger (#4407)
+=======
+        self.client.get('trigger?dag_id={}'.format(test_dag_id))
+>>>>>>> 0d5c127d... [AIRFLOW-3606] Fix Flake8 test & fix the Flake8 errors introduced since Flake8 test was broken (#4415)
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
