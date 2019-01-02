@@ -16,6 +16,7 @@
 # under the License.
 
 import base64
+import json
 import multiprocessing
 from queue import Queue
 from dateutil import parser
@@ -40,7 +41,7 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None):
+                 annotations=None, volumes=None, volume_mounts=None, tolerations=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -53,16 +54,18 @@ class KubernetesExecutorConfig:
         self.annotations = annotations
         self.volumes = volumes
         self.volume_mounts = volume_mounts
+        self.tolerations = tolerations
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
                "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
-               "volume_mounts={})" \
+               "volume_mounts={}, tolerations={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
-                    self.affinity, self.annotations, self.volumes, self.volume_mounts)
+                    self.affinity, self.annotations, self.volumes, self.volume_mounts,
+                    self.tolerations)
 
     @staticmethod
     def from_dict(obj):
@@ -88,6 +91,7 @@ class KubernetesExecutorConfig:
             annotations=namespaced.get('annotations', {}),
             volumes=namespaced.get('volumes', []),
             volume_mounts=namespaced.get('volume_mounts', []),
+            tolerations=namespaced.get('tolerations', None),
         )
 
     def as_dict(self):
@@ -104,6 +108,7 @@ class KubernetesExecutorConfig:
             'annotations': self.annotations,
             'volumes': self.volumes,
             'volume_mounts': self.volume_mounts,
+            'tolerations': self.tolerations,
         }
 
 
@@ -216,6 +221,18 @@ class KubeConfig:
         # The worker pod may optionally have a  valid Airflow config loaded via a
         # configmap
         self.airflow_configmap = conf.get(self.kubernetes_section, 'airflow_configmap')
+
+        affinity_json = conf.get(self.kubernetes_section, 'affinity')
+        if affinity_json:
+            self.kube_affinity = json.loads(affinity_json)
+        else:
+            self.kube_affinity = None
+
+        tolerations_json = conf.get(self.kubernetes_section, 'tolerations')
+        if tolerations_json:
+            self.kube_tolerations = json.loads(tolerations_json)
+        else:
+            self.kube_tolerations = None
 
         self._validate()
 
