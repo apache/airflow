@@ -114,7 +114,7 @@ interval series.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator

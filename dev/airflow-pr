@@ -73,8 +73,8 @@ GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
 # scope.
 GITHUB_OAUTH_KEY = os.environ.get("GITHUB_OAUTH_KEY")
 
-GITHUB_BASE = "https://github.com/apache/incubator-airflow/pull"
-GITHUB_API_BASE = "https://api.github.com/repos/apache/incubator-airflow"
+GITHUB_BASE = "https://github.com/apache/airflow/pull"
+GITHUB_API_BASE = "https://api.github.com/repos/apache/airflow"
 GITHUB_USER = 'asfgit'
 
 JIRA_BASE = "https://issues.apache.org/jira/browse"
@@ -1013,8 +1013,8 @@ def setup_git_remotes():
         GITHUB_REMOTE_NAME environment variable:
 
           git remote -v
-          github https://github.com/apache/incubator-airflow.git (fetch)
-          github https://github.com/apache/incubator-airflow.git (push)
+          github https://github.com/apache/airflow.git (fetch)
+          github https://github.com/apache/airflow.git (push)
 
         If these remotes already exist, the tool will display an error.
         """))
@@ -1022,7 +1022,7 @@ def setup_git_remotes():
 
     error = False
     try:
-        run_cmd('git remote add github git@github.com:apache/incubator-airflow.git')
+        run_cmd('git remote add github git@github.com:apache/airflow.git')
     except:
         click.echo(click.style(reflow(
             '>>ERROR: Could not create github remote. If it already exists, '

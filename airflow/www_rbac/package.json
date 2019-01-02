@@ -12,7 +12,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apache/incubator-airflow.git"
+    "url": "git+https://github.com/apache/airflow.git"
   },
   "homepage": "http://airflow.apache.org/",
   "keywords": [

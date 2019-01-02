@@ -86,8 +86,8 @@ Users can configure this automatically by running `airflow-pr setup_git_remotes`
 
 ```bash
 $ git remote -v
-github	https://github.com/apache/incubator-airflow.git (fetch)
-github	https://github.com/apache/incubator-airflow.git (push)
+github	https://github.com/apache/airflow.git (fetch)
+github	https://github.com/apache/airflow.git (push)
 origin	https://github.com/<USER>/airflow (fetch)
 origin	https://github.com/<USER>/airflow (push)
 ```

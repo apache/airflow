@@ -51,7 +51,7 @@ Committers
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
-<https://github.com/apache/incubator-airflow/graphs/contributors>`_
+<https://github.com/apache/airflow/graphs/contributors>`_
 
 
 Resources & links
@@ -59,8 +59,8 @@ Resources & links
 
 * `Airflow's official documentation <http://airflow.apache.org/>`_
 * Mailing list (send emails to
-  ``dev-subscribe@airflow.incubator.apache.org`` and/or
-  ``commits-subscribe@airflow.incubator.apache.org``
+  ``dev-subscribe@airflow.apache.org`` and/or
+  ``commits-subscribe@airflow.apache.org``
   to subscribe to each)
 * `Issues on Apache's Jira <https://issues.apache.org/jira/browse/AIRFLOW>`_
 * `Slack (chat) Channel <https://apache-airflow-slack.herokuapp.com/>`_
