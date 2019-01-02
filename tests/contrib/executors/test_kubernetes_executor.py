@@ -243,7 +243,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertTrue(dag_volume_mount[0]['readOnly'])
 
         init_container = worker_config._get_init_containers(volume_mounts)[0]
-        init_container_volume_mount = [mount for mount in init_container['volumeMounts'] if mount['name'] == 'airflow-dags']
+        init_container_volume_mount = [mount for mount in init_container['volumeMounts']
+                                       if mount['name'] == 'airflow-dags']
 
         self.assertEqual('git-sync-clone', init_container['name'])
         self.assertEqual('gcr.io/google-containers/git-sync-amd64:v2.0.5', init_container['image'])
