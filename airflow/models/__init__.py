@@ -297,7 +297,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         return len(self.dags)
 
-    def get_dag(self, dag_id):
+    def get_dag(self, dag_id, only_if_updated=False):
         """
         Gets the DAG out of the dictionary, and refreshes it if expired
         """
@@ -319,7 +319,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         ):
             # Reprocess source file
             found_dags = self.process_file(
-                filepath=orm_dag.fileloc, only_if_updated=False)
+                filepath=orm_dag.fileloc, only_if_updated=only_if_updated)
 
             # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [found_dag.dag_id for found_dag in found_dags]:
@@ -3012,7 +3012,7 @@ class DagModel(Base):
             return self.default_view
 
     def get_dag(self):
-        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id, only_if_updated=True)
 
     @provide_session
     def create_dagrun(self,
