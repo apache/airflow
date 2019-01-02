@@ -17,8 +17,8 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-IMAGE=${1:-airflow}
-TAG=${2:-latest}
+IMAGE=${IMAGE:-airflow}
+TAG=${TAG:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../../../.."
 
