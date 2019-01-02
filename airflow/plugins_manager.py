@@ -35,6 +35,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 
+import_errors = {}
+
 
 class AirflowPluginException(Exception):
     pass
@@ -148,6 +150,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
         except Exception as e:
             log.exception(e)
             log.error('Failed to import plugin %s', filepath)
+            import_errors[filepath] = str(e)
 
 plugins = load_entrypoint_plugins(
     pkg_resources.iter_entry_points('airflow.plugins'),
