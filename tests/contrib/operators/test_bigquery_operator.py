@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import unittest
 from datetime import datetime
 
@@ -49,13 +50,21 @@ TEST_SOURCE_FORMAT = 'CSV'
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'test-bigquery-operators'
 >>>>>>> fix error
 =======
 >>>>>>> add location support
+=======
+>>>>>>> [AIRFLOW-3578] Fix Type Error for BigQueryOperator (#4384)
 TEST_LOCATION = 'asia-northeast1'
+=======
+DEFAULT_DATE = datetime(2015, 1, 1)
+TEST_DAG_ID = 'test-bigquery-operators'
+
+>>>>>>> aa2dc603... [AIRFLOW-3578] Fix Type Error for BigQueryOperator (#4384)
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 
@@ -124,10 +133,7 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 labels=None
             )
         self.assertEquals(bq_cursor.location, TEST_LOCATION)
-<<<<<<< HEAD
 
-=======
->>>>>>> add location support
 
 class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
