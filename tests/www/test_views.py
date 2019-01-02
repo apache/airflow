@@ -30,7 +30,6 @@ import json
 
 from urllib.parse import quote_plus
 from werkzeug.test import Client
-from sqlalchemy import func
 
 from airflow import models, configuration
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG

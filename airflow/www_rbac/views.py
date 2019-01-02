@@ -185,14 +185,25 @@ class Airflow(AirflowBaseView):
         if hide_paused:
             query = query.filter(~DM.is_paused)
 
-        # Get all the dag id the user could access
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+        if arg_search_query:
+            query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
 
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
                 "error")
+
+        from airflow.plugins_manager import import_errors as plugin_import_errors
+        for filename, stacktrace in plugin_import_errors.items():
+            flash(
+                "Broken plugin: [{filename}] {stacktrace}".format(
+                    stacktrace=stacktrace,
+                    filename=filename),
+                "error")
+
+        # Get all the dag id the user could access
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
         if 'all_dags' not in filter_dag_ids:
             query = query.filter(DM.dag_id.in_(filter_dag_ids))
@@ -236,7 +247,8 @@ class Airflow(AirflowBaseView):
 
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
-        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
+            .group_by(dr.dag_id, dr.state)
 
         payload = {}
         if filter_dag_ids:
@@ -252,16 +264,15 @@ class Airflow(AirflowBaseView):
                 filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
             for dag_id in filter_dag_ids:
-                if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                    payload[dag_id] = []
-                    for state in State.dag_states:
-                        count = data.get(dag_id, {}).get(state, 0)
-                        payload[dag_id].append({
-                            'state': state,
-                            'count': count,
-                            'dag_id': dag_id,
-                            'color': State.color(state)
-                        })
+                payload[dag_id] = []
+                for state in State.dag_states:
+                    count = data.get(dag_id, {}).get(state, 0)
+                    payload[dag_id].append({
+                        'state': state,
+                        'count': count,
+                        'dag_id': dag_id,
+                        'color': State.color(state)
+                    })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -328,16 +339,15 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in filter_dag_ids:
             filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
         for dag_id in filter_dag_ids:
-            if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                payload[dag_id] = []
-                for state in State.task_states:
-                    count = data.get(dag_id, {}).get(state, 0)
-                    payload[dag_id].append({
-                        'state': state,
-                        'count': count,
-                        'dag_id': dag_id,
-                        'color': State.color(state)
-                    })
+            payload[dag_id] = []
+            for state in State.task_states:
+                count = data.get(dag_id, {}).get(state, 0)
+                payload[dag_id].append({
+                    'state': state,
+                    'count': count,
+                    'dag_id': dag_id,
+                    'color': State.color(state)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/code')

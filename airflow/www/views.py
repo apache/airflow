@@ -554,7 +554,9 @@ class Airflow(BaseView):
         dm = models.DagModel
         dag_ids = session.query(dm.dag_id)
 
-        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        dag_state_stats = (
+            session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        )
 
         data = {}
         for (dag_id, ) in dag_ids:
@@ -2119,7 +2121,7 @@ class HomeView(AdminIndexView):
             query = query.filter(~DM.is_paused)
 
         if arg_search_query:
-            query = query.filter(sa.func.lower(DM.dag_id) == arg_search_query.lower())
+            query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
 
         query = query.order_by(DM.dag_id)
 
@@ -2132,6 +2134,14 @@ class HomeView(AdminIndexView):
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
+                "error")
+
+        from airflow.plugins_manager import import_errors as plugin_import_errors
+        for filename, stacktrace in plugin_import_errors.items():
+            flash(
+                "Broken plugin: [{filename}] {stacktrace}".format(
+                    stacktrace=stacktrace,
+                    filename=filename),
                 "error")
 
         num_of_all_dags = query.count()
