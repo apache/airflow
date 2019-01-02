@@ -43,7 +43,6 @@ import functools
 import getpass
 import imp
 import importlib
-import itertools
 import zipfile
 import jinja2
 import json
