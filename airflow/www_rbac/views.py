@@ -298,16 +298,15 @@ class Airflow(AirflowBaseView):
                 filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
             for dag_id in filter_dag_ids:
-                if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                    payload[dag_id] = []
-                    for state in State.dag_states:
-                        count = data.get(dag_id, {}).get(state, 0)
-                        payload[dag_id].append({
-                            'state': state,
-                            'count': count,
-                            'dag_id': dag_id,
-                            'color': State.color(state)
-                        })
+                payload[dag_id] = []
+                for state in State.dag_states:
+                    count = data.get(dag_id, {}).get(state, 0)
+                    payload[dag_id].append({
+                        'state': state,
+                        'count': count,
+                        'dag_id': dag_id,
+                        'color': State.color(state)
+                    })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -374,16 +373,15 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in filter_dag_ids:
             filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
         for dag_id in filter_dag_ids:
-            if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                payload[dag_id] = []
-                for state in State.task_states:
-                    count = data.get(dag_id, {}).get(state, 0)
-                    payload[dag_id].append({
-                        'state': state,
-                        'count': count,
-                        'dag_id': dag_id,
-                        'color': State.color(state)
-                    })
+            payload[dag_id] = []
+            for state in State.task_states:
+                count = data.get(dag_id, {}).get(state, 0)
+                payload[dag_id].append({
+                    'state': state,
+                    'count': count,
+                    'dag_id': dag_id,
+                    'color': State.color(state)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/code')
