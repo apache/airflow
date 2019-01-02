@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import unittest
 from datetime import datetime
 
@@ -66,6 +65,7 @@ TEST_DAG_ID = 'test-bigquery-operators'
 
 >>>>>>> aa2dc603... [AIRFLOW-3578] Fix Type Error for BigQueryOperator (#4384)
 
+
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -78,8 +78,11 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 <<<<<<< HEAD
 =======
 
+<<<<<<< HEAD
 >>>>>>> add location support
 
+=======
+>>>>>>> [AIRFLOW-XXX] Fix Flake8 error
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
         bq_cursor \
@@ -145,7 +148,6 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             location=TEST_LOCATION,
         )
 
-
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
         bq_cursor.delete_dataset \
@@ -154,10 +156,7 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
                 project_id=TEST_PROJECT_ID
             )
         self.assertEquals(bq_cursor.location, TEST_LOCATION)
-<<<<<<< HEAD
 
-=======
->>>>>>> add location support
 
 class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -167,7 +166,6 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
             dataset_id=TEST_DATASET,
             project_id=TEST_PROJECT_ID
         )
-
 
         operator.execute(None)
         mock_hook.return_value \
