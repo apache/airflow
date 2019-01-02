@@ -19,6 +19,7 @@
 from __future__ import print_function
 import airflow
 from airflow.operators.python_operator import PythonOperator
+from libs.helper import print_stuff
 from airflow.models import DAG
 import os
 
@@ -31,10 +32,6 @@ dag = DAG(
     dag_id='example_kubernetes_executor_config', default_args=args,
     schedule_interval=None
 )
-
-
-def print_stuff():
-    print("annotated!")
 
 
 def test_volume_mount():
@@ -62,14 +59,14 @@ second_task = PythonOperator(
         "KubernetesExecutor": {
             "volumes": [
                 {
-                    "name": "test-volume",
+                    "name": "example-kubernetes-test-volume",
                     "hostPath": {"path": "/tmp/"},
                 },
             ],
             "volume_mounts": [
                 {
                     "mountPath": "/foo/",
-                    "name": "test-volume",
+                    "name": "example-kubernetes-test-volume",
                 },
             ]
         }
