@@ -554,7 +554,9 @@ class Airflow(BaseView):
         dm = models.DagModel
         dag_ids = session.query(dm.dag_id)
 
-        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        dag_state_stats = (
+            session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        )
 
         data = {}
         for (dag_id, ) in dag_ids:
