@@ -185,13 +185,18 @@ class Airflow(AirflowBaseView):
         if hide_paused:
             sql_query = sql_query.filter(~DM.is_paused)
 
-        # Get all the dag id the user could access
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
+                "error")
+
+        from airflow.plugins_manager import import_errors as plugin_import_errors
+        for filename, stacktrace in plugin_import_errors.items():
+            flash(
+                "Broken plugin: [{filename}] {stacktrace}".format(
+                    stacktrace=stacktrace,
+                    filename=filename),
                 "error")
 
         # get a list of all non-subdag dags visible to everyone
@@ -203,6 +208,9 @@ class Airflow(AirflowBaseView):
         else:
             unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
                                          not dag.parent_dag]
+
+        # Get all the dag id the user could access
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
         if 'all_dags' in filter_dag_ids:
             orm_dags = {dag.dag_id: dag for dag
@@ -281,7 +289,8 @@ class Airflow(AirflowBaseView):
 
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
-        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
+        dag_state_stats = session.query(dr.dag_id, dr.state, sqla.func.count(dr.state))\
+            .group_by(dr.dag_id, dr.state)
 
         payload = {}
         if filter_dag_ids:
@@ -297,16 +306,15 @@ class Airflow(AirflowBaseView):
                 filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
 
             for dag_id in filter_dag_ids:
-                if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                    payload[dag_id] = []
-                    for state in State.dag_states:
-                        count = data.get(dag_id, {}).get(state, 0)
-                        payload[dag_id].append({
-                            'state': state,
-                            'count': count,
-                            'dag_id': dag_id,
-                            'color': State.color(state)
-                        })
+                payload[dag_id] = []
+                for state in State.dag_states:
+                    count = data.get(dag_id, {}).get(state, 0)
+                    payload[dag_id].append({
+                        'state': state,
+                        'count': count,
+                        'dag_id': dag_id,
+                        'color': State.color(state)
+                    })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -373,16 +381,15 @@ class Airflow(AirflowBaseView):
         if 'all_dags' in filter_dag_ids:
             filter_dag_ids = [dag_id for dag_id, in session.query(models.DagModel.dag_id)]
         for dag_id in filter_dag_ids:
-            if 'all_dags' in filter_dag_ids or dag_id in filter_dag_ids:
-                payload[dag_id] = []
-                for state in State.task_states:
-                    count = data.get(dag_id, {}).get(state, 0)
-                    payload[dag_id].append({
-                        'state': state,
-                        'count': count,
-                        'dag_id': dag_id,
-                        'color': State.color(state)
-                    })
+            payload[dag_id] = []
+            for state in State.task_states:
+                count = data.get(dag_id, {}).get(state, 0)
+                payload[dag_id].append({
+                    'state': state,
+                    'count': count,
+                    'dag_id': dag_id,
+                    'color': State.color(state)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -798,11 +805,11 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_edit=True)
     @has_access
     @action_logging
-    def trigger(self):
+    @provide_session
+    def trigger(self, session=None):
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin') or "/"
-        dag = dagbag.get_dag(dag_id)
-
+        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
             flash("Cannot find dag {}".format(dag_id))
             return redirect(origin)
@@ -1634,8 +1641,6 @@ class Airflow(AirflowBaseView):
         # sync dag permission
         appbuilder.sm.sync_perm_for_dag(dag_id)
 
-        models.DagStat.update([dag_id], session=session, dirty_only=False)
-
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
@@ -2172,7 +2177,6 @@ class DagRunModelView(AirflowModelView):
         dirty_ids = []
         for item in items:
             dirty_ids.append(item.dag_id)
-        models.DagStat.update(dirty_ids, dirty_only=False, session=session)
         return redirect(self.get_redirect())
 
     @action('set_running', "Set state to 'running'", '', single=False)
@@ -2188,7 +2192,6 @@ class DagRunModelView(AirflowModelView):
                 count += 1
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
-            models.DagStat.update(dirty_ids, session=session)
             session.commit()
             flash("{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
@@ -2215,7 +2218,6 @@ class DagRunModelView(AirflowModelView):
                                                 dr.execution_date,
                                                 commit=True,
                                                 session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
@@ -2243,7 +2245,6 @@ class DagRunModelView(AirflowModelView):
                                                  dr.execution_date,
                                                  commit=True,
                                                  session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
