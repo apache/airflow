@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import unittest
 from datetime import datetime
 
@@ -46,7 +47,13 @@ TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
+<<<<<<< HEAD
 TEST_LOCATION = 'asia-northeast1'
+=======
+DEFAULT_DATE = datetime(2015, 1, 1)
+TEST_DAG_ID = 'test-bigquery-operators'
+
+>>>>>>> aa2dc603... [AIRFLOW-3578] Fix Type Error for BigQueryOperator (#4384)
 
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
@@ -226,6 +233,7 @@ class BigQueryOperatorTest(unittest.TestCase):
         operator = BigQueryOperator(
             task_id=TASK_ID,
             sql='Select * from test_table',
+            dag=self.dag, default_args=self.args
         )
 
         operator.execute(None)
