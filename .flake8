@@ -1,3 +1,4 @@
 [flake8]
 max-line-length = 110
 ignore = E731,W504
+exclude = .git, env, venv, .venv, VENV, ENV, .tox, .eggs, build, sdist, wheels, develop-eggs
