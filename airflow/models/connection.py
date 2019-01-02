@@ -175,67 +175,67 @@ class Connection(Base, LoggingMixin):
 
     def get_hook(self):
         try:
-            if self.conn_type == 'mysql':
+            if self.conn_type.lower() == 'mysql':
                 from airflow.hooks.mysql_hook import MySqlHook
                 return MySqlHook(mysql_conn_id=self.conn_id)
-            elif self.conn_type == 'google_cloud_platform':
+            elif self.conn_type.lower() == 'google_cloud_platform':
                 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
                 return BigQueryHook(bigquery_conn_id=self.conn_id)
-            elif self.conn_type == 'postgres':
+            elif self.conn_type.lower() == 'postgres':
                 from airflow.hooks.postgres_hook import PostgresHook
                 return PostgresHook(postgres_conn_id=self.conn_id)
-            elif self.conn_type == 'hive_cli':
+            elif self.conn_type.lower() == 'hive_cli':
                 from airflow.hooks.hive_hooks import HiveCliHook
                 return HiveCliHook(hive_cli_conn_id=self.conn_id)
-            elif self.conn_type == 'presto':
+            elif self.conn_type.lower() == 'presto':
                 from airflow.hooks.presto_hook import PrestoHook
                 return PrestoHook(presto_conn_id=self.conn_id)
-            elif self.conn_type == 'hiveserver2':
+            elif self.conn_type.lower() == 'hiveserver2':
                 from airflow.hooks.hive_hooks import HiveServer2Hook
                 return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
-            elif self.conn_type == 'sqlite':
+            elif self.conn_type.lower() == 'sqlite':
                 from airflow.hooks.sqlite_hook import SqliteHook
                 return SqliteHook(sqlite_conn_id=self.conn_id)
-            elif self.conn_type == 'jdbc':
+            elif self.conn_type.lower() == 'jdbc':
                 from airflow.hooks.jdbc_hook import JdbcHook
                 return JdbcHook(jdbc_conn_id=self.conn_id)
-            elif self.conn_type == 'mssql':
+            elif self.conn_type.lower() == 'mssql':
                 from airflow.hooks.mssql_hook import MsSqlHook
                 return MsSqlHook(mssql_conn_id=self.conn_id)
-            elif self.conn_type == 'oracle':
+            elif self.conn_type.lower() == 'oracle':
                 from airflow.hooks.oracle_hook import OracleHook
                 return OracleHook(oracle_conn_id=self.conn_id)
-            elif self.conn_type == 'vertica':
+            elif self.conn_type.lower() == 'vertica':
                 from airflow.contrib.hooks.vertica_hook import VerticaHook
                 return VerticaHook(vertica_conn_id=self.conn_id)
-            elif self.conn_type == 'cloudant':
+            elif self.conn_type.lower() == 'cloudant':
                 from airflow.contrib.hooks.cloudant_hook import CloudantHook
                 return CloudantHook(cloudant_conn_id=self.conn_id)
-            elif self.conn_type == 'jira':
+            elif self.conn_type.lower() == 'jira':
                 from airflow.contrib.hooks.jira_hook import JiraHook
                 return JiraHook(jira_conn_id=self.conn_id)
-            elif self.conn_type == 'redis':
+            elif self.conn_type.lower() == 'redis':
                 from airflow.contrib.hooks.redis_hook import RedisHook
                 return RedisHook(redis_conn_id=self.conn_id)
-            elif self.conn_type == 'wasb':
+            elif self.conn_type.lower() == 'wasb':
                 from airflow.contrib.hooks.wasb_hook import WasbHook
                 return WasbHook(wasb_conn_id=self.conn_id)
-            elif self.conn_type == 'docker':
+            elif self.conn_type.lower() == 'docker':
                 from airflow.hooks.docker_hook import DockerHook
                 return DockerHook(docker_conn_id=self.conn_id)
-            elif self.conn_type == 'azure_data_lake':
+            elif self.conn_type.lower() == 'azure_data_lake':
                 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
                 return AzureDataLakeHook(azure_data_lake_conn_id=self.conn_id)
-            elif self.conn_type == 'azure_cosmos':
+            elif self.conn_type.lower() == 'azure_cosmos':
                 from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
                 return AzureCosmosDBHook(azure_cosmos_conn_id=self.conn_id)
-            elif self.conn_type == 'cassandra':
+            elif self.conn_type.lower() == 'cassandra':
                 from airflow.contrib.hooks.cassandra_hook import CassandraHook
                 return CassandraHook(cassandra_conn_id=self.conn_id)
-            elif self.conn_type == 'mongo':
+            elif self.conn_type.lower() == 'mongo':
                 from airflow.contrib.hooks.mongo_hook import MongoHook
                 return MongoHook(conn_id=self.conn_id)
-            elif self.conn_type == 'gcpcloudsql':
+            elif self.conn_type.lower() == 'gcpcloudsql':
                 from airflow.contrib.hooks.gcp_sql_hook import CloudSqlDatabaseHook
                 return CloudSqlDatabaseHook(gcp_cloudsql_conn_id=self.conn_id)
         except Exception:
