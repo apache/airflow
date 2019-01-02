@@ -185,13 +185,18 @@ class Airflow(AirflowBaseView):
         if hide_paused:
             sql_query = sql_query.filter(~DM.is_paused)
 
-        # Get all the dag id the user could access
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
+                "error")
+
+        from airflow.plugins_manager import import_errors as plugin_import_errors
+        for filename, stacktrace in plugin_import_errors.items():
+            flash(
+                "Broken plugin: [{filename}] {stacktrace}".format(
+                    stacktrace=stacktrace,
+                    filename=filename),
                 "error")
 
         # get a list of all non-subdag dags visible to everyone
@@ -203,6 +208,9 @@ class Airflow(AirflowBaseView):
         else:
             unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
                                          not dag.parent_dag]
+
+        # Get all the dag id the user could access
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
         if 'all_dags' in filter_dag_ids:
             orm_dags = {dag.dag_id: dag for dag

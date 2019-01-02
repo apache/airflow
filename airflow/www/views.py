@@ -2130,6 +2130,14 @@ class HomeView(AdminIndexView):
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
                 "error")
 
+        from airflow.plugins_manager import import_errors as plugin_import_errors
+        for filename, stacktrace in plugin_import_errors.items():
+            flash(
+                "Broken plugin: [{filename}] {stacktrace}".format(
+                    stacktrace=stacktrace,
+                    filename=filename),
+                "error")
+
         # get a list of all non-subdag dags visible to everyone
         # optionally filter out "paused" dags
         if hide_paused:
