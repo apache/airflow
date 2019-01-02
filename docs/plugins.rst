@@ -119,6 +119,8 @@ For example,
 * For ``Operator`` plugin, an ``execute`` method is compulsory.
 * For ``Sensor`` plugin, a ``poke`` method returning a Boolean value is compulsory.
 
+Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
+
 
 Example
 -------

@@ -747,7 +747,8 @@ class DagTest(unittest.TestCase):
         self.assertEqual(orm_dag.last_scheduler_run, now)
         self.assertTrue(orm_dag.is_active)
         self.assertIsNone(orm_dag.default_view)
-        self.assertEqual(orm_dag.get_default_view(), configuration.conf.get('webserver', 'dag_default_view').lower())
+        self.assertEqual(orm_dag.get_default_view(),
+                         configuration.conf.get('webserver', 'dag_default_view').lower())
 
         orm_subdag = session.query(DagModel).filter(
             DagModel.dag_id == 'dag.subtask').one()

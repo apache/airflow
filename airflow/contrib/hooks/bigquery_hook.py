@@ -23,6 +23,7 @@ implementation for BigQuery.
 """
 
 import time
+import six
 from builtins import range
 from copy import deepcopy
 from six import iteritems
@@ -654,8 +655,8 @@ class BigQueryBaseCursor(LoggingMixin):
             cluster_fields = {'fields': cluster_fields}
 
         query_param_list = [
-            (sql, 'query', None, str),
-            (priority, 'priority', 'INTERACTIVE', str),
+            (sql, 'query', None, six.string_types),
+            (priority, 'priority', 'INTERACTIVE', six.string_types),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
             (query_params, 'queryParameters', None, dict),
             (udf_config, 'userDefinedFunctionResources', None, list),
