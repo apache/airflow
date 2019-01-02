@@ -84,8 +84,10 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type xcom_push: bool
-    :param tolerations: Kubernetes tolerations
-    :type list of tolerations
+    :param hostnetwork: If True enable host networking on the pod
+    :type hostnetwork: bool
+    :param tolerations: A list of kubernetes tolerations
+    :type tolerations: list tolerations
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 

@@ -199,6 +199,10 @@ data:
     namespace = default
     gcp_service_account_keys =
 
+    # Example affinity and toleration definitions.
+    affinity = {"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["4e5e6a99-e28a-450b-bba9-e0124853de9b"]}]}]}}}
+    tolerations = [{ "key": "dedicated", "operator": "Equal", "value": "airflow", "effect": "NoSchedule" }, { "key": "prod", "operator": "Exists" }]
+
     # For cloning DAGs from git repositories into volumes: https://github.com/kubernetes/git-sync
     git_sync_container_repository = gcr.io/google-containers/git-sync-amd64
     git_sync_container_tag = v2.0.5
