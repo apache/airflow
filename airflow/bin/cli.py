@@ -420,6 +420,7 @@ def set_is_paused(is_paused, args, dag=None):
     with db.create_session() as session:
         dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
         dm.is_paused = is_paused
+        session.commit()
 
     print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
 
