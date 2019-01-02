@@ -15,6 +15,9 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
+# Note: The airflow image used in this example is obtained by
+# building the image from the local docker subdirectory.
+
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
@@ -43,13 +46,13 @@ spec:
     spec:
       initContainers:
       - name: "init"
-        image: airflow
+        image: {{AIRFLOW_IMAGE}}:{{AIRFLOW_TAG}}
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
-        - name: airflow-dags
+        - name: {{INIT_DAGS_VOLUME_NAME}}
           mountPath: /root/airflow/dags
         - name: test-volume
           mountPath: /root/test_volume
@@ -64,9 +67,10 @@ spec:
         args:
           - "-cx"
           - "./tmp/airflow-test-env-init.sh"
+{{INIT_GIT_SYNC}}
       containers:
       - name: webserver
-        image: airflow
+        image: {{AIRFLOW_IMAGE}}:{{AIRFLOW_TAG}}
         imagePullPolicy: IfNotPresent
         ports:
         - name: webserver
@@ -86,26 +90,12 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
-        - name: airflow-dags
+        - name: {{POD_AIRFLOW_DAGS_VOLUME_NAME}}
           mountPath: /root/airflow/dags
         - name: airflow-logs
           mountPath: /root/airflow/logs
-#        readinessProbe:
-#          initialDelaySeconds: 5
-#          timeoutSeconds: 5
-#          periodSeconds: 5
-#          httpGet:
-#            path: /login
-#            port: 8080
-#        livenessProbe:
-#          initialDelaySeconds: 5
-#          timeoutSeconds: 5
-#          failureThreshold: 5
-#          httpGet:
-#            path: /login
-#            port: 8080
       - name: scheduler
-        image: airflow
+        image: {{AIRFLOW_IMAGE}}:{{AIRFLOW_TAG}}
         imagePullPolicy: IfNotPresent
         args: ["scheduler"]
         env:
@@ -122,7 +112,7 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
-        - name: airflow-dags
+        - name: {{POD_AIRFLOW_DAGS_VOLUME_NAME}}
           mountPath: /root/airflow/dags
         - name: airflow-logs
           mountPath: /root/airflow/logs
@@ -130,6 +120,10 @@ spec:
       - name: airflow-dags
         persistentVolumeClaim:
           claimName: airflow-dags
+      - name: airflow-dags-fake
+        emptyDir: {}
+      - name: airflow-dags-git
+        emptyDir: {}
       - name: test-volume
         persistentVolumeClaim:
           claimName: test-volume

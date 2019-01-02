@@ -55,7 +55,7 @@ from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import GetDefaultExecutor
-from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DagStat, DAG
+from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
 from airflow.models.connection import Connection
 from airflow.models.dagpickle import DagPickle
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
@@ -66,7 +66,6 @@ from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
 from airflow.www.app import cached_app, create_app, cached_appbuilder
 
-from sqlalchemy import func
 from sqlalchemy.orm import exc
 
 api.load_auth()
@@ -1102,18 +1101,6 @@ def resetdb(args):
 def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
     db_utils.upgradedb()
-
-    # Populate DagStats table
-    session = settings.Session()
-    ds_rows = session.query(DagStat).count()
-    if not ds_rows:
-        qry = (
-            session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-                   .group_by(DagRun.dag_id, DagRun.state)
-        )
-        for dag_id, state, count in qry:
-            session.add(DagStat(dag_id=dag_id, state=state, count=count))
-        session.commit()
 
 
 @cli_utils.action_logging

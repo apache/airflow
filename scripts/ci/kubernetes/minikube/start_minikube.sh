@@ -19,7 +19,7 @@
 
 #!/usr/bin/env bash
 
-set -x
+set -ex
 
 _MY_SCRIPT="${BASH_SOURCE[0]}"
 _MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
@@ -52,7 +52,9 @@ source _k8s.sh
 rm -rf tmp
 mkdir -p bin tmp
 
-sudo mkdir -p /usr/local/bin
+if [[ ! -d /usr/local/bin ]]; then
+    sudo mkdir -p /usr/local/bin
+fi
 
 if [[ ! -x /usr/local/bin/kubectl ]]; then
   echo Downloading kubectl, which is a requirement for using minikube.

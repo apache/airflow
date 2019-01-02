@@ -15,8 +15,13 @@
 # limitations under the License.
 #
 
+set -e
+
 # first bump up package.json manually, commit and tag
-rm airflow/www/static/dist/*
+if [ -d airflow/www/static/dist ]; then
+  rm airflow/www/static/dist/*
+fi
+
 cd airflow/www/
 npm install
 npm run build

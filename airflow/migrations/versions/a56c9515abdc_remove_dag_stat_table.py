@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add fields to dag
+"""Remove dag_stat table
 
-Revision ID: c8ffec048a3b
-Revises: 41f5f12752f8
-Create Date: 2018-12-23 21:55:46.463634
+Revision ID: a56c9515abdc
+Revises: c8ffec048a3b
+Create Date: 2018-12-27 10:27:59.715872
 
 """
 
@@ -28,17 +28,20 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = 'c8ffec048a3b'
-down_revision = '41f5f12752f8'
+revision = 'a56c9515abdc'
+down_revision = 'c8ffec048a3b'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    op.add_column('dag', sa.Column('description', sa.Text(), nullable=True))
-    op.add_column('dag', sa.Column('default_view', sa.String(25), nullable=True))
+    op.drop_table("dag_stats")
 
 
 def downgrade():
-    op.drop_column('dag', 'description')
-    op.drop_column('dag', 'default_view')
+    op.create_table('dag_stats',
+                    sa.Column('dag_id', sa.String(length=250), nullable=False),
+                    sa.Column('state', sa.String(length=50), nullable=False),
+                    sa.Column('count', sa.Integer(), nullable=False, default=0),
+                    sa.Column('dirty', sa.Boolean(), nullable=False, default=False),
+                    sa.PrimaryKeyConstraint('dag_id', 'state'))

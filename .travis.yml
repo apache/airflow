@@ -51,11 +51,18 @@ install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then ./scripts/ci/kubernetes/setup_kubernetes.sh; fi
 script:
   - if [ -z "$KUBERNETES_VERSION" ]; then docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh; fi
   - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/kube/deploy.sh &&
+      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
+      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
+      ./scripts/ci/kubernetes/kube/deploy.sh -d persistent_mode &&
+      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
+    fi
+  - if [ ! -z "$KUBERNETES_VERSION" ]; then
+      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
+      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
+      ./scripts/ci/kubernetes/kube/deploy.sh -d git_mode &&
       MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
     fi
 before_cache:
