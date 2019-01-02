@@ -71,7 +71,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any. For this to
         work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: str        
+    :type delegate_to: str
     """
     template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema')
     template_ext = ('.sql',)
