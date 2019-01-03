@@ -384,6 +384,28 @@ class TestLogView(unittest.TestCase):
         self.assertIn('Log by attempts',
                       response.data.decode('utf-8'))
 
+    def test_get_logs_with_metadata_as_download_file(self):
+        url_template = "/admin/airflow/get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}&format=file"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number,
+                                  json.dumps({}))
+        response = self.app.get(url)
+        expected_filename = '{}/{}/{}/{}.log'.format(self.DAG_ID,
+                                                     self.TASK_ID,
+                                                     self.DEFAULT_DATE.isoformat(),
+                                                     try_number)
+
+        content_disposition = response.headers.get('Content-Disposition')
+        self.assertTrue(content_disposition.startswith('attachment'))
+        self.assertTrue(content_disposition.endswith(expected_filename))
+        self.assertEqual(200, response.status_code)
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))
+
     def test_get_logs_with_metadata(self):
         url_template = "/admin/airflow/get_logs_with_metadata?dag_id={}&" \
                        "task_id={}&execution_date={}&" \

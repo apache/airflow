@@ -146,6 +146,12 @@
             View Log
           </button>
           <hr/>
+          <div>
+            <label style="display:inline"> Download Log (by attempts): </label>
+            <ul class="nav nav-pills" role="tablist" id="try_index" style="display:inline">
+            </ul>
+          </div>
+          <hr/>
           <button id="btn_run" type="button" class="btn btn-primary"
             title="Runs a single task instance">
             Run
@@ -302,7 +308,7 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
-    function call_modal(t, d, sd) {
+    function call_modal(t, d, try_numbers, sd) {
       task_id = t;
       loc = String(window.location);
       $("#btn_filter").on("click", function(){
@@ -314,12 +320,35 @@ function updateQueryStringParameter(uri, key, value) {
       $('#execution_date').html(d);
       $('#myModal').modal({});
       $("#myModal").css("margin-top","0px")
-        if (subdag_id===undefined)
-            $("#div_btn_subdag").hide();
-        else {
-            $("#div_btn_subdag").show();
-            subdag_id = "{{ dag.dag_id }}."+t;
+      if (subdag_id === undefined)
+          $("#div_btn_subdag").hide();
+      else {
+          $("#div_btn_subdag").show();
+          subdag_id = "{{ dag.dag_id }}."+t;
+      }
+
+      $("#try_index > li").remove();
+      var startIndex = (try_numbers > 2 ? 0 : 1)
+      for (var index = startIndex; index <  try_numbers; index++) {
+        var url = "{{ url_for('Airflow.get_logs_with_metadata') }}" +
+          "?dag_id=" + encodeURIComponent(dag_id) +
+          "&task_id=" + encodeURIComponent(task_id) +
+          "&execution_date=" + encodeURIComponent(execution_date) +
+          "&metadata=null" +
+          "&format=file";
+
+        var showLabel = index;
+        if (index != 0) {
+          url += "&try_number=" + index;
+        } else {
+          showLabel = 'All';
         }
+
+        $("#try_index").append(`<li role="presentation" style="display:inline">
+          <a href="${url}"> ${showLabel} </a>
+          </li>`
+        );
+      }
     }
 
     function call_modal_dag(dag) {

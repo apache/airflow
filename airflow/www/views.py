@@ -40,7 +40,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
-    current_app, render_template, make_response)
+    current_app, render_template, make_response, send_file)
 from flask import flash
 from flask._compat import PY2
 from flask_admin import BaseView, expose, AdminIndexView
@@ -75,7 +75,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.utils.db import create_session, provide_session
-from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
@@ -84,6 +84,10 @@ from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www.validators import GreaterEqualThan
+if PY2:
+    from cStringIO import StringIO
+else:
+    from io import StringIO
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -770,7 +774,12 @@ class Airflow(BaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
-        try_number = int(request.args.get('try_number'))
+        if request.args.get('try_number') is not None:
+            try_number = int(request.args.get('try_number'))
+        else:
+            try_number = None
+        response_format = request.args.get('format', 'json')
+
         metadata = request.args.get('metadata')
         metadata = json.loads(metadata)
 
@@ -812,8 +821,16 @@ class Airflow(BaseView):
             for i, log in enumerate(logs):
                 if PY2 and not isinstance(log, unicode):
                     logs[i] = log.decode('utf-8')
-            message = logs[0]
-            return jsonify(message=message, metadata=metadata)
+
+            if response_format == 'json':
+                message = logs[0] if try_number is not None else logs
+                return jsonify(message=message, metadata=metadata)
+
+            file_obj = StringIO('\n'.join(logs))
+            filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            return send_file(file_obj, as_attachment=True,
+                             attachment_filename=attachment_filename)
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
                              .format(task_log_reader, str(e))]
