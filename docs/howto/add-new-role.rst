@@ -15,29 +15,19 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guides
-=============
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+Add a new role in RBAC UI
+=========================
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+There are five roles created for Airflow by default: Admin, User, Op, Viewer, and Public.
+The master branch adds beta support for DAG level access for RBAC UI. Each DAG comes with two permissions: read and write.
 
-.. toctree::
-    :maxdepth: 2
+The Admin could create a specific role which is only allowed to read / write certain DAGs. To configure a new role, go to ``Security`` tab
+and click ``List Roles`` in the new UI.
 
-    add-new-role
-    set-config
-    initialize-database
-    operator
-    manage-connections
-    secure-connections
-    write-logs
-    executor/use-celery
-    executor/use-dask
-    executor/use-mesos
-    run-with-systemd
-    run-with-upstart
-    use-test-config
+.. image:: ../img/add-role.png
+.. image:: ../img/new-role.png
 
+
+The image shows a role which could only write to example_python_operator is created.
+And we could assign the given role to a new user using ``airflow users --role`` cli command.
