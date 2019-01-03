@@ -208,6 +208,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             elif self.schema_object is None and self.autodetect is False:
                 raise ValueError('At least one of `schema_fields`, `schema_object`, '
                                  'or `autodetect` must be passed.')
+            else:
+                schema_fields = None
 
         else:
             schema_fields = self.schema_fields
