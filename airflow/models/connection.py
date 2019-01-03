@@ -48,6 +48,7 @@ CONN_TYPE_TO_HOOK = {
         "airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook",
         "elasticsearch_conn_id"
     ),
+    "exasol": ("airflow.providers.exasol.hooks.exasol.ExasolHook", "exasol_conn_id"),
     "gcpcloudsql": (
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook",
         "gcp_cloudsql_conn_id",
@@ -116,6 +117,7 @@ class Connection(Base, LoggingMixin):
     _types = [
         ('docker', 'Docker Registry'),
         ('elasticsearch', 'Elasticsearch'),
+        ('exasol', 'Exasol'),
         ('fs', 'File (path)'),
         ('ftp', 'FTP'),
         ('google_cloud_platform', 'Google Cloud Platform'),

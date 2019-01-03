@@ -213,6 +213,9 @@ elasticsearch = [
     'elasticsearch-dbapi==0.1.0',
     'elasticsearch-dsl>=5.0.0',
 ]
+exasol = [
+    'pyexasol>=0.5.1,<1.0.0',
+]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
@@ -379,7 +382,7 @@ zendesk = [
 ]
 # End dependencies group
 
-all_dbs = (cassandra + cloudant + druid + hdfs + hive + mongo + mssql + mysql +
+all_dbs = (cassandra + cloudant + druid + exasol + hdfs + hive + mongo + mssql + mysql +
            pinot + postgres + presto + vertica)
 
 ############################################################################################################
@@ -427,10 +430,10 @@ else:
 devel_minreq = cgroups + devel + doc + kubernetes + mysql + password
 devel_hadoop = devel_minreq + hdfs + hive + kerberos + presto + webhdfs
 devel_all = (all_dbs + atlas + aws + azure + celery + cgroups + datadog + devel + doc + docker + druid +
-             elasticsearch + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc + oracle +
-             pagerduty + papermill + password + pinot + redis + salesforce + samba + segment + sendgrid +
-             sentry + singularity + slack + snowflake + ssh + statsd + tableau + virtualenv + webhdfs +
-             yandexcloud + zendesk)
+             elasticsearch + exasol + gcp + grpc + jdbc + jenkins + kerberos + kubernetes + ldap + odbc +
+             oracle + pagerduty + papermill + password + pinot + redis + salesforce + samba + segment +
+             sendgrid + sentry + singularity + slack + snowflake + ssh + statsd + tableau + virtualenv +
+             webhdfs + yandexcloud + zendesk)
 
 # Snakebite are not Python 3 compatible :'(
 if PY3:
@@ -541,6 +544,7 @@ def do_setup():
             'docker': docker,
             'druid': druid,
             'elasticsearch': elasticsearch,
+            'exasol': exasol,
             'gcp': gcp,
             'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
             'github_enterprise': flask_oauth,

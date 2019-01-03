@@ -1128,6 +1128,12 @@ These integrations allow you to perform various operations using various softwar
      -
      -
 
+   * - `Exasol <https://docs.exasol.com/home.htm>`__
+     -
+     - :mod:`airflow.providers.exasol.hooks.exasol`
+     - :mod:`airflow.providers.exasol.operators.exasol`
+     -
+
    * - `GNU Bash <https://www.gnu.org/software/bash/>`__
      - :doc:`How to use <howto/operator/bash>`
      -

@@ -155,6 +155,8 @@ Here's the list of the subpackages and what they enable:
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler                                               |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
+| exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                                                        |
++---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
 | kubernetes          | ``pip install 'apache-airflow[kubernetes]'``        | Kubernetes Executor and operator                                                  |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------------------------+
 | mongo               | ``pip install 'apache-airflow[mongo]'``             | Mongo hooks and operators                                                         |

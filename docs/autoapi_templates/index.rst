@@ -106,6 +106,8 @@ All operators are in the following packages:
 
   airflow/providers/email/operators/index
 
+  airflow/providers/exasol/operators/index
+
   airflow/providers/ftp/sensors/index
 
   airflow/providers/google/cloud/operators/index
@@ -240,6 +242,8 @@ All hooks are in the following packages:
   airflow/providers/docker/hooks/index
 
   airflow/providers/elasticsearch/hooks/index
+
+  airflow/providers/exasol/hooks/index
 
   airflow/providers/ftp/hooks/index
 
