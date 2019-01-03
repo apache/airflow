@@ -53,7 +53,7 @@ class DayOfWeekSensor(BaseSensorOperator):
 
         weekend_check = DayOfWeekSensor(
             task_id='weekend_check',
-            week_day={WeekDay.Saturday, WeekDay.Sunday},
+            week_day={WeekDay.SATURDAY, WeekDay.SUNDAY},
             use_task_execution_day=True,
             dag=dag)
 
@@ -63,7 +63,7 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``"MONDAY"``,
             * ``{"Saturday", "Sunday"}``
             * ``{WeekDay.TUESDAY}``
-            * ``{WeekDay.Saturday, WeekDay.Sunday}``
+            * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
     :type week_day: set or str or WeekDay
     :param use_task_execution_day: If ``True``, uses task's execution day to compare
         with week_day. Execution Date is Useful for backfilling.
