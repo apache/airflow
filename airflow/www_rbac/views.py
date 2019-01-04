@@ -35,7 +35,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, url_for)
+    make_response, flash, jsonify, send_file, url_for)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
@@ -58,7 +58,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import provide_session
-from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow._vendor import nvd3
@@ -69,6 +69,10 @@ from airflow.www_rbac.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                     DateTimeWithNumRunsWithDagRunsForm,
                                     DagRunForm, ConnectionForm)
 from airflow.www_rbac.widgets import AirflowModelListWidget
+if PY2:
+    from cStringIO import StringIO
+else:
+    from io import StringIO
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -535,9 +539,13 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
-        try_number = int(request.args.get('try_number'))
+        if request.args.get('try_number') is not None:
+            try_number = int(request.args.get('try_number'))
+        else:
+            try_number = None
         metadata = request.args.get('metadata')
         metadata = json.loads(metadata)
+        response_format = request.args.get('format', 'json')
 
         # metadata may be null
         if not metadata:
@@ -577,8 +585,16 @@ class Airflow(AirflowBaseView):
             for i, log in enumerate(logs):
                 if PY2 and not isinstance(log, unicode):
                     logs[i] = log.decode('utf-8')
-            message = logs[0]
-            return jsonify(message=message, metadata=metadata)
+
+            if response_format == 'json':
+                message = logs[0] if try_number is not None else logs
+                return jsonify(message=message, metadata=metadata)
+
+            file_obj = StringIO('\n'.join(logs))
+            filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            return send_file(file_obj, as_attachment=True,
+                             attachment_filename=attachment_filename)
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
                              .format(task_log_reader, str(e))]
