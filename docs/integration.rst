@@ -819,7 +819,7 @@ Cloud Bigtable
 ''''''''''''''
 
 Cloud Bigtable Operators
-""""""""""""""""""
+""""""""""""""""""""""""
 
 - :ref:`BigtableInstanceCreateOperator` : creates a Cloud Bigtable instance.
 - :ref:`BigtableInstanceDeleteOperator` : deletes a Google Cloud Bigtable instance.
