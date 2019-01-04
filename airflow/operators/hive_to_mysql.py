@@ -70,6 +70,7 @@ class HiveToMySqlTransfer(BaseOperator):
                  mysql_preoperator=None,
                  mysql_postoperator=None,
                  bulk_load=False,
+                 hive_conf=None,
                  *args, **kwargs):
         super(HiveToMySqlTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -79,11 +80,15 @@ class HiveToMySqlTransfer(BaseOperator):
         self.mysql_postoperator = mysql_postoperator
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.bulk_load = bulk_load
+        self.hive_conf = hive_conf
 
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
         self.log.info("Extracting data from Hive: %s", self.sql)
+        hive_conf = context_to_airflow_vars(context)
+        if self.hive_conf:
+            hive_conf.update(self.hive_conf)
         if self.bulk_load:
             tmp_file = NamedTemporaryFile()
             hive.to_csv(self.sql,
@@ -91,9 +96,9 @@ class HiveToMySqlTransfer(BaseOperator):
                         delimiter='\t',
                         lineterminator='\n',
                         output_header=False,
-                        hive_conf=context_to_airflow_vars(context))
+                        hive_conf=hive_conf)
         else:
-            hive_results = hive.get_records(self.sql)
+            hive_results = hive.get_records(self.sql, hive_conf=hive_conf)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
