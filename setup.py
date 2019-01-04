@@ -262,7 +262,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8==3.5.0'
+    'flake8>=3.6.0',
 ]
 
 if not PY3:
