@@ -28,10 +28,7 @@ except ImportError:
 try:
     from unittest import mock
 except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+    import mock
 
 
 @unittest.skipIf(mock_glue is None,

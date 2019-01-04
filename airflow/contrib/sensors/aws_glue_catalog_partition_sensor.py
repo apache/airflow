@@ -38,7 +38,8 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
     :param aws_conn_id: ID of the Airflow connection where
         credentials and extra configuration are stored
     :type aws_conn_id: str
-    :param region_name: aws region name (example: us-east-1)
+    :param region_name: Optional aws region name (example: us-east-1). Uses region from connection
+        if not specified.
     :type region_name: str
     :param database_name: The name of the catalog database where the partitions reside.
     :type database_name: str
@@ -60,8 +61,6 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
                  **kwargs):
         super(AwsGlueCatalogPartitionSensor, self).__init__(
             poke_interval=poke_interval, *args, **kwargs)
-        if not expression:
-            expression = "ds='{{ ds }}'"
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.table_name = table_name
@@ -70,18 +69,25 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
 
     def poke(self, context):
         """
-        Overridden from BaseSensorOperator to implement the check against the AWS Glue Catalog
-        for the table partition.
+        Checks for existence of the partition in the AWS Glue Catalog table
         """
         if '.' in self.table_name:
             self.database_name, self.table_name = self.table_name.split('.')
         self.log.info(
             'Poking for table {self.database_name}.{self.table_name}, '
             'expression {self.expression}'.format(**locals()))
+
+        return self.get_hook().check_for_partition(
+            self.database_name, self.table_name, self.expression)
+
+    def get_hook(self):
+        """
+        Gets the AwsGlueCatalogHook
+        """
         if not hasattr(self, 'hook'):
             from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
             self.hook = AwsGlueCatalogHook(
                 aws_conn_id=self.aws_conn_id,
                 region_name=self.region_name)
-        return self.hook.check_for_partition(
-            self.database_name, self.table_name, self.expression)
+
+        return self.hook
