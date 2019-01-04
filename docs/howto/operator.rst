@@ -361,6 +361,135 @@ More information
 See `Google Compute Engine API documentation
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.
 
+Google Cloud Bigtable Operators
+-------------------------------
+
+Arguments
+"""""""""
+
+All examples below rely on the following variables, which can be passed via environment variables.
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
+    :language: python
+    :start-after: [START howto_operator_gcp_bigtable_args]
+    :end-before: [END howto_operator_gcp_bigtable_args]
+
+
+BigtableInstanceCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator`
+to create a Google Cloud Bigtable instance.
+
+If the Cloud Bigtable instance with the given ID exists, the operator does not compare its configuration
+and immediately succeeds. No changes are made to the existing instance.
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_bigtable_instance_create]
+    :end-before: [END howto_operator_gcp_bigtable_instance_create]
+
+
+BigtableInstanceDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator`
+to delete a Google Cloud Bigtable instance.
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_bigtable_instance_delete]
+    :end-before: [END howto_operator_gcp_bigtable_instance_delete]
+
+BigtableClusterUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator`
+to modify number of nodes in a Cloud Bigtable cluster.
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_bigtable_cluster_update]
+    :end-before: [END howto_operator_gcp_bigtable_cluster_update]
+
+
+BigtableTableCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates a table in a Cloud Bigtable instance.
+
+If the table with given ID exists in the Cloud Bigtable instance, the operator compares the Column Families.
+If the Column Families are identical operator succeeds. Otherwise, the operator fails with the appropriate
+error message.
+
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_bigtable_table_create]
+    :end-before: [END howto_operator_gcp_bigtable_table_create]
+
+Advanced
+""""""""
+
+When creating a table, you can specify the optional ``initial_split_keys`` and ``column_familes``.
+Please refer to the Python Client for Google Cloud Bigtable documentation
+`for Table <https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html>`_ and `for Column
+Families <https://googleapis.github.io/google-cloud-python/latest/bigtable/column-family.html>`_.
+
+
+BigtableTableDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator`
+to delete a table in Google Cloud Bigtable.
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_bigtable_table_delete]
+    :end-before: [END howto_operator_gcp_bigtable_table_delete]
+
+BigtableTableWaitForReplicationSensor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor`
+to wait for the table to replicate fully.
+
+The same arguments apply to this sensor as the BigtableTableCreateOperator_.
+
+**Note:** If the table or the Cloud Bigtable instance does not exist, this sensor waits for the table until
+timeout hits and does not raise any exception.
+
+Using the operator
+""""""""""""""""""
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_bigtable_table_wait_for_replication]
+    :end-before: [END howto_operator_gcp_bigtable_table_wait_for_replication]
+
+
+
 Google Cloud Functions Operators
 --------------------------------
 
@@ -1317,4 +1446,5 @@ More information
 
 See `Google Cloud Storage ObjectAccessControls insert documentation
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
+
 
