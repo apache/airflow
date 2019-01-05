@@ -56,5 +56,5 @@ git_version
 flake8_diff.sh
 
 rat-results.txt
-apache-airflow-.*\+incubating-source.tar.gz.*
-apache-airflow-.*\+incubating-bin.tar.gz.*
+apache-airflow-.*\+source.tar.gz.*
+apache-airflow-.*\+bin.tar.gz.*

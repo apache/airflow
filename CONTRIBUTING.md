@@ -83,7 +83,7 @@ If you are proposing a feature:
 ## Documentation
 
 The latest API documentation is usually available
-[here](https://airflow.incubator.apache.org/). To generate a local version,
+[here](https://airflow.apache.org/). To generate a local version,
 you need to have set up an Airflow development environemnt (see below). Also
 install the `doc` extra.
 
@@ -152,8 +152,8 @@ Before you submit a pull request from your forked repo, check that it
 meets these guidelines:
 
 1. The pull request should include tests, either as doctests, unit tests, or
-both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/incubator-airflow)
-to run the tests and [codecov](https://codecov.io/gh/apache/incubator-airflow)
+both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/airflow)
+to run the tests and [codecov](https://codecov.io/gh/apache/airflow)
 to track coverage. You can set up both for free on your fork. It will
 help you making sure you do not break the build with your PR and that you help
 increase coverage.
@@ -177,7 +177,7 @@ writing code that works in both Python 2 and 3, see the documentation at the
 Airflow requirement and should be used where possible).
 8. As Airflow grows as a project, we try to enforce a more consistent
 style and try to follow the Python community guidelines. We track this
-using [landscape.io](https://landscape.io/github/apache/incubator-airflow/),
+using [landscape.io](https://landscape.io/github/apache/airflow/),
 which you can setup on your fork as well to check before you submit your
 PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/)
 and a few other linting rules. It is usually a good idea to lint locally
