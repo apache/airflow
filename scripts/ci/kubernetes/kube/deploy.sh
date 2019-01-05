@@ -81,7 +81,7 @@ else
     CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT=/root/airflow/dags
     CONFIGMAP_DAGS_VOLUME_CLAIM=
 fi
-CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/incubator-airflow}
+CONFIGMAP_GIT_REPO=${TRAVIS_REPO_SLUG:-apache/airflow}
 CONFIGMAP_BRANCH=${TRAVIS_BRANCH:-master}
 
 _UNAME_OUT=$(uname -s)
