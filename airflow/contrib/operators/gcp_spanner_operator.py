@@ -326,10 +326,11 @@ class CloudSpannerInstanceDatabaseUpdateOperator(BaseOperator):
         if not self._hook.get_database(self.project_id,
                                        self.instance_id,
                                        self.database_id):
-            raise AirflowException("The Cloud Spanner database "
-                                   "'%s' in project '%s' and instance '%s' is missing."
-                                   " Create the database first before you can update it.",
-                                   self.database_id, self.project_id, self.instance_id)
+            raise AirflowException("The Cloud Spanner database '{}' in project '{}' and "
+                                   "instance '{}' is missing. Create the database first "
+                                   "before you can update it.".format(self.database_id,
+                                                                      self.project_id,
+                                                                      self.instance_id))
         else:
             return self._hook.update_database(project_id=self.project_id,
                                               instance_id=self.instance_id,
