@@ -82,7 +82,7 @@ class QuboleFileSensor(QuboleSensor):
     :param qubole_conn_id: Connection id which consists of qds auth_token
     :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked
-        Check this `example <https://github.com/apache/incubator-airflow/blob/master\
+        Check this `example <https://github.com/apache/airflow/blob/master\
         /airflow/contrib/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
     :type data: a JSON object
@@ -105,7 +105,7 @@ class QubolePartitionSensor(QuboleSensor):
     :param qubole_conn_id: Connection id which consists of qds auth_token
     :type qubole_conn_id: str
     :param data: a JSON object containing payload, whose presence needs to be checked.
-        Check this `example <https://github.com/apache/incubator-airflow/blob/master\
+        Check this `example <https://github.com/apache/airflow/blob/master\
         /airflow/contrib/example_dags/example_qubole_sensor.py>`_ for sample payload
         structure.
     :type data: a JSON object

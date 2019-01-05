@@ -119,7 +119,7 @@ data:
     expose_config = False
 
     # Set to true to turn on authentication:
-    # https://airflow.incubator.apache.org/security.html#web-authentication
+    # https://airflow.apache.org/security.html#web-authentication
     authenticate = False
 
     # Filter the list of dags by owner name (requires authentication to be enabled)
@@ -179,7 +179,7 @@ data:
     worker_dags_folder = /tmp/dags
     delete_worker_pods = True
     dags_in_image = False
-    git_repo = https://github.com/apache/incubator-airflow.git
+    git_repo = https://github.com/apache/airflow.git
     git_branch = master
     git_subpath = airflow/example_dags/
     git_user =

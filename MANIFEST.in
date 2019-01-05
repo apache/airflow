@@ -18,7 +18,6 @@
 
 include NOTICE
 include LICENSE
-include DISCLAIMER
 include CHANGELOG.txt
 include README.md
 graft licenses/

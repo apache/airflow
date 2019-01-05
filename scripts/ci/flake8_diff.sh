@@ -30,7 +30,7 @@
 # This script is used in Travis to check that PRs do not add obvious
 # flake8 violations. It relies on two things:
 #   - find common ancestor between branch and
-#     apache/incubator-airflow remote
+#     apache/airflow remote
 #   - run flake8 --diff on the diff between the branch and the common
 #     ancestor
 #
@@ -44,7 +44,7 @@ set -e
 # pipefail is necessary to propagate exit codes
 set -o pipefail
 
-PROJECT=apache/incubator-airflow
+PROJECT=apache/airflow
 PROJECT_URL=https://github.com/$PROJECT.git
 
 # Find the remote with the project name (upstream in most cases)

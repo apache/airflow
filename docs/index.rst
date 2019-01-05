@@ -18,24 +18,9 @@
 
 .. image:: img/pin_large.png
     :width: 100
-.. image:: img/incubator.jpg
-    :width: 150
 
-Apache Airflow (incubating) Documentation
+Apache Airflow Documentation
 =========================================
-
-.. important::
-
-    **Disclaimer**: Apache Airflow is an effort undergoing incubation at The
-    Apache Software Foundation (ASF), sponsored by the Apache Incubator.
-    Incubation is required of all newly accepted projects until a further
-    review indicates that the infrastructure, communications, and
-    decision making process have stabilized in a manner consistent with
-    other successful ASF projects. While incubation status is not
-    necessarily a reflection of the completeness or stability of
-    the code, it does indicate that the project has yet to be fully
-    endorsed by the ASF.
-
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
