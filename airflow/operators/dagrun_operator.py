@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
+import six
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
@@ -47,10 +49,10 @@ class TriggerDagRunOperator(BaseOperator):
         to your tasks while executing that DAG run. Your function header
         should look like ``def foo(context, dag_run_obj):``
     :type python_callable: python callable
-    :param execution_date: Execution date for the dag
-    :type execution_date: datetime.datetime
+    :param execution_date: Execution date for the dag (templated)
+    :type execution_date: str or datetime.datetime
     """
-    template_fields = ('trigger_dag_id',)
+    template_fields = ('trigger_dag_id', 'execution_date')
     template_ext = tuple()
     ui_color = '#ffefeb'
 
@@ -64,10 +66,26 @@ class TriggerDagRunOperator(BaseOperator):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
-        self.execution_date = execution_date
+
+        if isinstance(execution_date, datetime.datetime):
+            self.execution_date = execution_date.isoformat()
+        elif isinstance(execution_date, six.string_types):
+            self.execution_date = execution_date
+        elif execution_date is None:
+            self.execution_date = execution_date
+        else:
+            raise TypeError(
+                'Expected str or datetime.datetime type '
+                'for execution_date. Got {}'.format(
+                    type(execution_date)))
 
     def execute(self, context):
-        dro = DagRunOrder(run_id='trig__' + timezone.utcnow().isoformat())
+        if self.execution_date is not None:
+            run_id = 'trig__{}'.format(self.execution_date)
+            self.execution_date = timezone.parse(self.execution_date)
+        else:
+            run_id = 'trig__' + timezone.utcnow().isoformat()
+        dro = DagRunOrder(run_id=run_id)
         if self.python_callable is not None:
             dro = self.python_callable(context, dro)
         if dro:
