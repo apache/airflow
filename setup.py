@@ -413,7 +413,7 @@ def do_setup():
         author_email='dev@airflow.apache.org',
         url='http://airflow.apache.org/',
         download_url=(
-            'https://dist.apache.org/repos/dist/release//airflow/' + version),
+            'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,
