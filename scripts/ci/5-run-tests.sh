@@ -55,6 +55,12 @@ which airflow > /dev/null || python setup.py develop
 # (which contains /usr/local/bin)
 sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
 
+# Fix codecov build path
+if [ ! -h /home/travis/build/apache/airflow ]; then
+  sudo mkdir -p /home/travis/build/apache
+  sudo ln -s ${ROOTDIR} /home/travis/build/apache/airflow
+fi
+
 if [ -z "$KUBERNETES_VERSION" ]; then
   echo "Initializing the DB"
   yes | airflow initdb
@@ -90,12 +96,6 @@ fi
 
 echo "Starting the unit tests with the following nose arguments: "$nose_args
 nosetests $nose_args
-
-# Fix codecov build path
-if [ ! -h /home/travis/build/apache/airflow ]; then
-  sudo mkdir -p /home/travis/build/apache
-  sudo ln -s ${ROOTDIR} /home/travis/build/apache/airflow
-fi
 
 # To run individual tests:
 # nosetests tests.core:CoreTest.test_scheduler_job
