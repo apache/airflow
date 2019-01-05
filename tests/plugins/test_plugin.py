@@ -101,7 +101,7 @@ bp = Blueprint(
 ml = MenuLink(
     category='Test Plugin',
     name="Test Menu Link",
-    url="https://airflow.incubator.apache.org/")
+    url="https://airflow.apache.org/")
 
 
 # Defining the plugin class

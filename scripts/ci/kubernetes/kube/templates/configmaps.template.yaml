@@ -122,7 +122,7 @@ data:
     expose_config = False
 
     # Set to true to turn on authentication:
-    # https://airflow.incubator.apache.org/security.html#web-authentication
+    # https://airflow.apache.org/security.html#web-authentication
     authenticate = False
 
     # Filter the list of dags by owner name (requires authentication to be enabled)

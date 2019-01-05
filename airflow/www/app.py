@@ -116,11 +116,11 @@ def create_app(config=None, testing=False):
 
         admin.add_link(base.MenuLink(
             category='Docs', name='Documentation',
-            url='https://airflow.incubator.apache.org/'))
+            url='https://airflow.apache.org/'))
         admin.add_link(
             base.MenuLink(category='Docs',
                           name='Github',
-                          url='https://github.com/apache/incubator-airflow'))
+                          url='https://github.com/apache/airflow'))
 
         av(vs.VersionView(name='Version', category="About"))
 

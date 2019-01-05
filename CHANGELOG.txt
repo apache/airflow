@@ -535,7 +535,7 @@ AIRFLOW 1.10.0, 2018-08-03
 [AIRFLOW-2097] tz referenced before assignment
 [AIRFLOW-2152] Add Multiply to list of companies using Airflow
 [AIRFLOW-1551] Add operator to trigger Jenkins job
-[AIRFLOW-2034] Fix mixup between %s and {} when using str.format Convention is to use .format for string formating oustide logging, else use lazy format See comment in related issue https://github.com/apache/incubator-airflow/pull/2823/files Identified problematic case using following command line .git/COMMIT_EDITMSG:`grep -r '%s'./* | grep '\.format('`
+[AIRFLOW-2034] Fix mixup between %s and {} when using str.format Convention is to use .format for string formating oustide logging, else use lazy format See comment in related issue https://github.com/apache/airflow/pull/2823/files Identified problematic case using following command line .git/COMMIT_EDITMSG:`grep -r '%s'./* | grep '\.format('`
 [AIRFLOW-2102] Add custom_args to Sendgrid personalizations
 [AIRFLOW-1035][AIRFLOW-1053] import unicode_literals to parse Unicode in HQL
 [AIRFLOW-2127] Keep loggers during DB migrations
@@ -1829,7 +1829,7 @@ AIRFLOW 1.7.1, 2016-05-19
 -------------------------
 
 - Fix : Don't treat premature tasks as could_not_run tasks
-- AIRFLOW-92 Avoid unneeded upstream_failed session closes apache/incubator-airflow#1485
+- AIRFLOW-92 Avoid unneeded upstream_failed session closes apache/airflow#1485
 - Add logic to lock DB and avoid race condition
 - Handle queued tasks from multiple jobs/executors
 - AIRFLOW-52 Warn about overwriting tasks in a DAG

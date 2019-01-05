@@ -154,7 +154,7 @@ config file.
 
 If you want to use LDAP auth backend without TLS then you will have to create a
 custom-auth backend based on
-https://github.com/apache/incubator-airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
+https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
 
 ## Airflow 1.10
 
@@ -470,11 +470,11 @@ The `file_task_handler` logger has been made more flexible. The default format c
 
 #### I'm using S3Log or GCSLogs, what do I do!?
 
-If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.incubator.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
+If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
 
 If you are using S3, the instructions should be largely the same as the Google cloud platform instructions above. You will need a custom logging config. The `REMOTE_BASE_LOG_FOLDER` configuration key in your airflow config has been removed, therefore you will need to take the following steps:
 
-- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/incubator-airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
+- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
 - Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
 - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
 - Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your `PYTHONPATH`, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
@@ -628,7 +628,7 @@ supported and will be removed entirely in Airflow 2.0
 - Operators no longer accept arbitrary arguments
 
   Previously, `Operator.__init__()` accepted any arguments (either positional `*args` or keyword `**kwargs`) without
-  complaint. Now, invalid arguments will be rejected. (https://github.com/apache/incubator-airflow/pull/1285)
+  complaint. Now, invalid arguments will be rejected. (https://github.com/apache/airflow/pull/1285)
 
 - The config value secure_mode will default to True which will disable some insecure endpoints/features
 

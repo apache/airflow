@@ -411,10 +411,10 @@ def do_setup():
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
-        author_email='dev@airflow.incubator.apache.org',
-        url='http://airflow.incubator.apache.org/',
+        author_email='dev@airflow.apache.org',
+        url='http://airflow.apache.org/',
         download_url=(
-            'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
+            'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,

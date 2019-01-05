@@ -57,5 +57,5 @@ flake8_diff.sh
 coverage.xml
 
 rat-results.txt
-apache-airflow-.*\+incubating-source.tar.gz.*
-apache-airflow-.*\+incubating-bin.tar.gz.*
+apache-airflow-.*\+source.tar.gz.*
+apache-airflow-.*\+bin.tar.gz.*
