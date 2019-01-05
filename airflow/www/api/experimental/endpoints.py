@@ -37,6 +37,9 @@ requires_authentication = airflow.api.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
+# Possible yes values to replace_microseconds parameter for dag_runs (trigger_dag) endpoint
+YES_VALUES = ['true', '1', 't', 'y', 'yes']
+
 
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
@@ -74,8 +77,16 @@ def trigger_dag(dag_id):
 
             return response
 
+    # Default replace_microseconds to True follow convention from trigger.trigger_dag
+    replace_microseconds = True
+    if 'replace_microseconds' in data:
+        if data['replace_microseconds'].lower() in YES_VALUES:
+            replace_microseconds = True
+        else:
+            replace_microseconds = False
+
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date)
+        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
