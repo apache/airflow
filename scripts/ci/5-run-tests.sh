@@ -19,6 +19,7 @@
 #  under the License.
 
 set -o verbose
+set -e
 
 if [ -z "$HADOOP_HOME" ]; then
     echo "HADOOP_HOME not set - abort" >&2
