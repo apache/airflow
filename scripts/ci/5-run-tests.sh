@@ -92,9 +92,9 @@ echo "Starting the unit tests with the following nose arguments: "$nose_args
 nosetests $nose_args
 
 # Fix codecov build path
-if [ ! -h /home/travis/build/apache/incubator-airflow ]; then
+if [ ! -h /home/travis/build/apache/airflow ]; then
   sudo mkdir -p /home/travis/build/apache
-  sudo ln -s ${ROOTDIR} /home/travis/build/apache/incubator-airflow
+  sudo ln -s ${ROOTDIR} /home/travis/build/apache/airflow
 fi
 
 # To run individual tests:
