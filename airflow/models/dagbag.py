@@ -39,7 +39,7 @@ from airflow.exceptions import AirflowDagCycleException
 from airflow.executors import get_default_executor
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dag_processing import list_py_file_paths
+from airflow.utils.dag_processing import list_py_file_paths, correct_maybe_zipped
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import pprinttable
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -363,6 +363,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
+
+        dag_folder = correct_maybe_zipped(dag_folder)
 
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
