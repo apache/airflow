@@ -284,7 +284,7 @@ def correct_maybe_zipped_fileloc(fileloc):
     _, archive, filename = re.search(
         r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
-        return archive                                           
+        return archive
     else:
         return fileloc
 
