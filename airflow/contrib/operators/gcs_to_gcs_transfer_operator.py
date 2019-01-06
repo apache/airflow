@@ -18,28 +18,26 @@
 # under the License.
 
 from airflow.models import BaseOperator
-from airflow.hooks.S3_hook import S3Hook
 from airflow.contrib.hooks.gcp_transfer_hook import GCPTransferServiceHook
 from airflow.utils.decorators import apply_defaults
 
 
-class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
+class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
     """
-    Synchronizes an S3 bucket with a Google Cloud Storage bucket using the
-    GCP Storage Transfer Service.
+    Copies objects from a bucket to another using the GCP Storage Transfer
+    Service.
 
-    :param s3_bucket: The S3 bucket where to find the objects. (templated)
-    :type s3_bucket: str
-    :param gcs_bucket: The destination Google Cloud Storage bucket
-        where you want to store the files. (templated)
-    :type gcs_bucket: str
-    :param project_id: Optional ID of the Google Cloud Platform Console project that
+    :param source_bucket: The source Google cloud storage bucket where the
+         object is. (templated)
+    :type source_bucket: str
+    :param destination_bucket: The destination Google cloud storage bucket
+        where the object should be. (templated)
+    :type destination_bucket: str
+    :param project_id: The ID of the Google Cloud Platform Console project that
         owns the job
     :type project_id: str
-    :param aws_conn_id: The source S3 connection
-    :type aws_conn_id: str
-    :param gcp_conn_id: The destination connection ID to use
-        when connecting to Google Cloud Storage.
+    :param gcp_conn_id: Optional connection ID to use when connecting to Google Cloud
+        Storage.
     :type gcp_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -52,35 +50,34 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         If not set, run transfer job once as soon as the operator runs
     :type schedule: dict
     :param object_conditions: Optional transfer service object conditions; see
-        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
+        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#ObjectConditions
     :type object_conditions: dict
     :param transfer_options: Optional transfer service transfer options; see
-        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
+        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#TransferOptions
     :type transfer_options: dict
-    :param wait: Wait for transfer to finish
+    :param wait: Wait for transfer to finish; defaults to `True`
     :type wait: bool
 
     **Example**:
 
     .. code-block:: python
 
-       s3_to_gcs_transfer_op = S3ToGoogleCloudStorageTransferOperator(
-            task_id='s3_to_gcs_transfer_example',
-            s3_bucket='my-s3-bucket',
+       gcs_to_gcs_transfer_op = GoogleCloudStorageToGoogleCloudStorageTransferOperator(
+            task_id='gcs_to_gcs_transfer_example',
+            source_bucket='my-source-bucket',
+            destination_bucket='my-destination-bucket',
             project_id='my-gcp-project',
-            gcs_bucket='my-gcs-bucket',
             dag=my_dag)
     """
 
-    template_fields = ('s3_bucket', 'gcs_bucket', 'description', 'object_conditions')
+    template_fields = ('source_bucket', 'destination_bucket', 'description', 'object_conditions')
     ui_color = '#e09411'
 
     @apply_defaults
     def __init__(self,
-                 s3_bucket,
-                 gcs_bucket,
+                 source_bucket,
+                 destination_bucket,
                  project_id=None,
-                 aws_conn_id='aws_default',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  description=None,
@@ -91,13 +88,12 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(S3ToGoogleCloudStorageTransferOperator, self).__init__(
+        super(GoogleCloudStorageToGoogleCloudStorageTransferOperator, self).__init__(
             *args,
             **kwargs)
-        self.s3_bucket = s3_bucket
-        self.gcs_bucket = gcs_bucket
+        self.source_bucket = source_bucket
+        self.destination_bucket = destination_bucket
         self.project_id = project_id
-        self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.description = description
@@ -111,22 +107,16 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to)
 
-        s3_creds = S3Hook(aws_conn_id=self.aws_conn_id).get_credentials()
-
         job = transfer_hook.create_transfer_job(
             project_id=self.project_id,
             description=self.description,
             schedule=self.schedule,
             transfer_spec={
-                'awsS3DataSource': {
-                    'bucketName': self.s3_bucket,
-                    'awsAccessKey': {
-                        'accessKeyId': s3_creds.access_key,
-                        'secretAccessKey': s3_creds.secret_key,
-                    }
+                'gcsDataSource': {
+                    'bucketName': self.source_bucket,
                 },
                 'gcsDataSink': {
-                    'bucketName': self.gcs_bucket,
+                    'bucketName': self.destination_bucket,
                 },
                 'objectConditions': self.object_conditions,
                 'transferOptions': self.transfer_options,
