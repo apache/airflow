@@ -205,9 +205,12 @@ class WorkerConfiguration(LoggingMixin):
             limit_cpu=kube_executor_config.limit_cpu
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
-        annotations = kube_executor_config.annotations.copy()
+        annotations = dict(kube_executor_config.annotations)
         if gcp_sa_key:
             annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
+
+        affinity = kube_executor_config.affinity or self.kube_config.kube_affinity
+        tolerations = kube_executor_config.tolerations or self.kube_config.kube_tolerations
 
         return Pod(
             namespace=namespace,
@@ -234,5 +237,6 @@ class WorkerConfiguration(LoggingMixin):
             annotations=annotations,
             node_selectors=(kube_executor_config.node_selectors or
                             self.kube_config.kube_node_selectors),
-            affinity=kube_executor_config.affinity
+            affinity=affinity,
+            tolerations=tolerations
         )
