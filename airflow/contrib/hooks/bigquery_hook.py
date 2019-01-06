@@ -287,6 +287,9 @@ class BigQueryBaseCursor(LoggingMixin):
             }
         }
 
+        if self.location:
+            table_resource['location'] = self.location
+
         if schema_fields:
             table_resource['schema'] = {'fields': schema_fields}
 
@@ -501,6 +504,12 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if labels:
             table_resource['labels'] = labels
+
+        if self.location:
+            table_resource['location'] = self.location
+
+        self.log.info('inserting an external table: %s, body = %s',
+                      external_project_dataset_table, table_resource)
 
         try:
             self.service.tables().insert(
@@ -1372,6 +1381,8 @@ class BigQueryBaseCursor(LoggingMixin):
             optional_params['pageToken'] = page_token
         if start_index:
             optional_params['startIndex'] = start_index
+        if self.location:
+            optional_params['location'] = self.location
         return (self.service.tabledata().list(
             projectId=self.project_id,
             datasetId=dataset_id,
@@ -1571,6 +1582,9 @@ class BigQueryBaseCursor(LoggingMixin):
                 _api_resource_configs_duplication_check(
                     param_name, param,
                     dataset_reference['datasetReference'], 'dataset_reference')
+
+        if self.location:
+            dataset_reference['location'] = self.location
 
         dataset_id = dataset_reference.get("datasetReference").get("datasetId")
         dataset_project_id = dataset_reference.get("datasetReference").get(

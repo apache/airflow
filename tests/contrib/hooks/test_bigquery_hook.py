@@ -220,6 +220,54 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
         # error string.
         self.assertIn("JSON", str(context.exception))
 
+    def test_table_location(self):
+        project_id = "test_project"
+        dataset_id = "test_dataset"
+        table_id = "test_table"
+        external_project_dataset_table = "{}.{}.{}".format(project_id, dataset_id, table_id)
+        schema_fields = [{
+            "type": "string",
+            "mode": "REQUIRED",
+            "name": "test_name",
+            "description": "test_description",
+        }]
+        source_uris = ["gs://test_bucket/test_data.csv"]
+        location = "asia-northeast1"
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id, location=location)
+        cursor.create_external_table(external_project_dataset_table, schema_fields, source_uris)
+        body = {
+            "externalDataConfiguration": {
+                "autodetect": False,
+                "sourceUris": source_uris,
+                "schema": {
+                    "fields": schema_fields,
+                },
+                'csvOptions': {
+                    'fieldDelimiter': ',',
+                    'allowQuotedNewlines': False,
+                    'skipLeadingRows': 0,
+                    'allowJaggedRows': False,
+                    'quote': None,
+                },
+                "compression": "NONE",
+                "ignoreUnknownValues": False,
+                "sourceFormat": "CSV",
+            },
+            "tableReference": {
+                "tableId": table_id,
+                "datasetId": dataset_id,
+                "projectId": project_id,
+            },
+            "location": location,
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=body)
+
 
 # Helpers to test_cancel_queries that have mock_poll_job_complete returning false,
 # unless mock_job_cancel was called with the same job_id
@@ -436,6 +484,24 @@ class TestTableOperations(unittest.TestCase):
         }
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
+    def test_create_empty_table_with_location(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_location'
+        location = 'asia-northeast1'
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id, location=location)
+        cursor.create_empty_table(project_id, dataset_id, table_id)
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            },
+            'location': location
+        }
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
+
     def test_patch_table(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
@@ -510,6 +576,30 @@ class TestTableOperations(unittest.TestCase):
             tableId=view_id,
             body=body
         )
+
+    def test_get_tabledata(self):
+        project_id = 'bq_project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        location = 'asia-northeast1'
+        max_results = 'max_results'
+        selected_fields = 'selected_fields'
+        page_token = 'page_token'
+        start_index = 'start_index'
+
+        mock_service = mock.Mock()
+        method = mock_service.tabledata.return_value.list
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id, location=location)
+        cursor.get_tabledata(dataset_id, table_id, max_results, selected_fields, page_token, start_index)
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            maxResults=max_results,
+            selectedFields=selected_fields,
+            pageToken=page_token,
+            startIndex=start_index,
+            location=location)
 
     def test_create_empty_table_succeed(self):
         project_id = 'bq-project'
@@ -639,6 +729,29 @@ class TestDatasetsOperations(unittest.TestCase):
                     "datasetReference":
                         {"datasetId": "test_dataset",
                          "projectId": "project_test2"}})
+
+    def test_create_empty_dataset(self):
+        projectId = 'bq-project'
+        datasetId = 'dataset_id'
+        location = 'asia-east1'
+        datasetReference = {'datasetId': datasetId, 'projectId': projectId}
+        mock_service = mock.Mock()
+        method = (mock_service.datasets.return_value.insert)
+        bq_hook = hook.BigQueryBaseCursor(mock_service, projectId, location=location)
+        bq_hook.create_empty_dataset(
+            dataset_id=datasetId,
+            project_id=projectId,
+            dataset_reference=datasetReference)
+        body = {
+            'datasetId': datasetId,
+            'projectId': projectId,
+            'datasetReference': {'datasetId': datasetId, 'projectId': projectId},
+            'location': location
+        }
+        method.assert_called_once_with(
+            projectId=projectId,
+            body=body
+        )
 
     def test_get_dataset_without_dataset_id(self):
         with mock.patch.object(hook.BigQueryHook, 'get_service'):
