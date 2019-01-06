@@ -566,7 +566,7 @@ class TestLogView(TestBase):
                                   quote_plus(self.DEFAULT_DATE.isoformat()),
                                   try_number,
                                   json.dumps({}))
-        response = self.app.get(url)
+        response = self.client.get(url)
         expected_filename = '{}/{}/{}/{}.log'.format(self.DAG_ID,
                                                      self.TASK_ID,
                                                      self.DEFAULT_DATE.isoformat(),
@@ -574,7 +574,7 @@ class TestLogView(TestBase):
 
         content_disposition = response.headers.get('Content-Disposition')
         self.assertTrue(content_disposition.startswith('attachment'))
-        self.assertTrue(content_disposition.endswith(expected_filename))
+        self.assertTrue(expected_filename in content_disposition)
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
