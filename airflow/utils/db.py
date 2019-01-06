@@ -209,6 +209,18 @@ def initdb():
             extra='{"db": 0}'))
     merge_conn(
         Connection(
+            conn_id='redis_cluster_default', conn_type='redis_cluster',
+            extra='''
+                {   "startup_nodes": [
+                        {
+                            "host": "redis-cluster",
+                            "port": 7000
+                        }
+                    ]
+                }
+            '''))
+    merge_conn(
+        Connection(
             conn_id='sqoop_default', conn_type='sqoop',
             host='rmdbs', extra=''))
     merge_conn(

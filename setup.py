@@ -212,6 +212,7 @@ postgres = ['psycopg2>=2.7.4']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis>=2.10.5,<3.0.0']
+redis_cluster = ['redis-py-cluster>=1.3.0,<2.0.0']
 salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
@@ -258,7 +259,7 @@ if not PY3:
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + redis + gcp_api +
+             docker + ssh + kubernetes + celery + redis + redis_cluster + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
              atlas + azure + aws)
@@ -371,6 +372,7 @@ def do_setup():
             'qds': qds,
             'rabbitmq': rabbitmq,
             'redis': redis,
+            'redis_cluster': redis_cluster,
             'salesforce': salesforce,
             'samba': samba,
             'sendgrid': sendgrid,

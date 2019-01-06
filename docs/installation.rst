@@ -112,6 +112,8 @@ Here's the list of the subpackages and what they enable:
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | redis               | ``pip install apache-airflow[redis]``             | Redis hooks and sensors                                              |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
+| redis_cluster       | ``pip install apache-airflow[redis_cluster]``     | Redis Cluster hooks and sensors                                      |
++---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | samba               | ``pip install apache-airflow[samba]``             | :class:`airflow.operators.hive_to_samba_operator.Hive2SambaOperator` |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | slack               | ``pip install apache-airflow[slack]``             | :class:`airflow.operators.slack_operator.SlackAPIOperator`           |

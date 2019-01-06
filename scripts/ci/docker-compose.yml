@@ -49,6 +49,10 @@ services:
     image: redis:5.0.1
     restart: always
 
+  redis-cluster:
+    image: grokzen/redis-cluster:5.0.1
+    restart: always
+
   openldap:
     image: osixia/openldap:1.2.0
     restart: always
@@ -91,6 +95,7 @@ services:
       - cassandra
       - rabbitmq
       - redis
+      - redis-cluster
       - openldap
       - krb5-kdc-server
     volumes:
