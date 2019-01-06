@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
-TIME_TO_SLEEP_IN_SECONDS = 1
+TIME_TO_SLEEP_IN_SECONDS = 10
 
 
 # noinspection PyAbstractClass
@@ -56,10 +56,10 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def create_transfer_job(self, project_id, description, schedule, transfer_spec):
+    def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
         transfer_job = {
             'status': 'ENABLED',
-            'projectId': project_id,
+            'projectId': project_id or self.project_id,
             'description': description,
             'transferSpec': transfer_spec,
             'schedule': schedule or self._schedule_once_now(),
