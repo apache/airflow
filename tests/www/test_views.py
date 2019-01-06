@@ -402,7 +402,7 @@ class TestLogView(unittest.TestCase):
 
         content_disposition = response.headers.get('Content-Disposition')
         self.assertTrue(content_disposition.startswith('attachment'))
-        self.assertTrue(content_disposition.endswith(expected_filename))
+        self.assertTrue(expected_filename in content_disposition)
         self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
