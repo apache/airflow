@@ -23,6 +23,7 @@ from airflow.contrib.hooks.gcp_sql_hook import CloudSqlHook, CloudSqlDatabaseHoo
 from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.hooks.base_hook import BaseHook
 
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'
@@ -136,10 +137,10 @@ class CloudSqlBaseOperator(BaseOperator):
     """
     Abstract base operator for Google Cloud SQL operators to inherit from.
 
-    :param project_id: Project ID of the Google Cloud Platform project to operate it.
-    :type project_id: str
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -147,8 +148,8 @@ class CloudSqlBaseOperator(BaseOperator):
     """
     @apply_defaults
     def __init__(self,
-                 project_id,
                  instance,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  *args, **kwargs):
@@ -162,10 +163,10 @@ class CloudSqlBaseOperator(BaseOperator):
         super(CloudSqlBaseOperator, self).__init__(*args, **kwargs)
 
     def _validate_inputs(self):
-        if not self.project_id:
+        if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance:
-            raise AirflowException("The required parameter 'instance' is empty")
+            raise AirflowException("The required parameter 'instance' is empty or None")
 
     def _check_if_instance_exists(self, instance):
         try:
@@ -199,15 +200,14 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
 
-    :param project_id: Project ID of the project to which the newly created Cloud SQL
-        instances should belong.
-    :type project_id: str
     :param body: Body required by the Cloud SQL insert API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert
         #request-body
     :type body: dict
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -221,9 +221,9 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  body,
                  instance,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  validate_body=True,
@@ -269,13 +269,13 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
     to the rules of patch semantics.
     https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
-    :param project_id: Project ID of the project that contains the instance.
-    :type project_id: str
     :param body: Body required by the Cloud SQL patch API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body
     :type body: dict
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -287,9 +287,9 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  body,
                  instance,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  *args, **kwargs):
@@ -316,10 +316,10 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
     """
     Deletes a Cloud SQL instance.
 
-    :param project_id: Project ID of the project that contains the instance to be deleted.
-    :type project_id: str
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -331,8 +331,8 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  instance,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  *args, **kwargs):
@@ -353,13 +353,13 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
     """
     Creates a new database inside a Cloud SQL instance.
 
-    :param project_id: Project ID of the project that contains the instance.
-    :type project_id: str
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body
     :type body: dict
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -373,9 +373,9 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  instance,
                  body,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  validate_body=True,
@@ -419,8 +419,6 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
     instance using patch semantics.
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
-    :param project_id: Project ID of the project that contains the instance.
-    :type project_id: str
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
     :param database: Name of the database to be updated in the instance.
@@ -428,6 +426,8 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch#request-body
     :type body: dict
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -442,10 +442,10 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  instance,
                  database,
                  body,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  validate_body=True,
@@ -485,12 +485,12 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
     """
     Deletes a database from a Cloud SQL instance.
 
-    :param project_id: Project ID of the project that contains the instance.
-    :type project_id: str
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
     :param database: Name of the database to be deleted in the instance.
     :type database: str
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -503,9 +503,9 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  instance,
                  database,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  *args, **kwargs):
@@ -538,14 +538,13 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
     Note: This operator is idempotent. If executed multiple times with the same
     export file URI, the export file in GCS will simply be overridden.
 
-    :param project_id: Project ID of the project that contains the instance to be
-        exported.
-    :type project_id: str
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
     :type body: dict
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -559,9 +558,9 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  instance,
                  body,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  validate_body=True,
@@ -607,13 +606,13 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
     If the import file was generated in a different way, idempotence is not guaranteed.
     It has to be ensured on the SQL file level.
 
-    :param project_id: Project ID of the project that contains the instance.
-    :type project_id: str
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
     :type body: dict
+    :param project_id: Optional, Google Cloud Platform Project ID.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
@@ -627,9 +626,9 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  instance,
                  body,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  validate_body=True,
@@ -699,8 +698,11 @@ class CloudSqlQueryOperator(BaseOperator):
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.autocommit = autocommit
         self.parameters = parameters
+        self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
         self.cloudsql_db_hook = CloudSqlDatabaseHook(
-            gcp_cloudsql_conn_id=gcp_cloudsql_conn_id)
+            gcp_cloudsql_conn_id=gcp_cloudsql_conn_id,
+            default_gcp_project_id=self.gcp_connection.extra_dejson.get(
+                'extra__google_cloud_platform__project'))
         self.cloud_sql_proxy_runner = None
         self.database_hook = None
 
@@ -708,6 +710,7 @@ class CloudSqlQueryOperator(BaseOperator):
         self.cloudsql_db_hook.validate_ssl_certs()
         self.cloudsql_db_hook.create_connection()
         try:
+            self.cloudsql_db_hook.validate_socket_path_length()
             self.database_hook = self.cloudsql_db_hook.get_database_hook()
             try:
                 try:

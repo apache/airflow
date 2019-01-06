@@ -116,10 +116,18 @@ with models.DAG(
         validate_body=GCP_VALIDATE_BODY
     )
     # [END howto_operator_gcf_deploy]
+    # [START howto_operator_gcf_deploy_no_project_id]
+    deploy2_task = GcfFunctionDeployOperator(
+        task_id="gcf_deploy2_task",
+        location=GCP_LOCATION,
+        body=body,
+        validate_body=GCP_VALIDATE_BODY
+    )
+    # [END howto_operator_gcf_deploy_no_project_id]
     # [START howto_operator_gcf_delete]
     delete_task = GcfFunctionDeleteOperator(
         task_id="gcf_delete_task",
         name=FUNCTION_NAME
     )
     # [END howto_operator_gcf_delete]
-    deploy_task >> delete_task
+    deploy_task >> deploy2_task >> delete_task

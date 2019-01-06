@@ -18,6 +18,7 @@
 # under the License.
 #
 import json
+import functools
 
 import httplib2
 import google.auth
@@ -144,7 +145,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         key_path, etc. They get formatted as shown below.
         """
         long_f = 'extra__google_cloud_platform__{}'.format(f)
-        if long_f in self.extras:
+        if hasattr(self, 'extras') and long_f in self.extras:
             return self.extras[long_f]
         else:
             return default
@@ -152,3 +153,38 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     @property
     def project_id(self):
         return self._get_field('project')
+
+    def fallback_to_default_project_id(func):
+        """
+        Decorator that provides fallback for Google Cloud Platform project id. If
+        the project is None it will be replaced with the project_id from the
+        service account the Hook is authenticated with. Project id can be specified
+        either via project_id kwarg or via first parameter in positional args.
+        :param func: function to wrap
+        :return: result of the function call
+        """
+        @functools.wraps(func)
+        def inner_wrapper(self, *args, **kwargs):
+            if 'project_id' in kwargs:
+                kwargs['project_id'] = self._get_project_id(kwargs['project_id'])
+            else:
+                # assume project_id is the first non-keyword parameter if
+                # no project_id in keyword params
+                largs = list(args)
+                largs[0] = self._get_project_id(largs[0])
+                args = tuple(largs)
+                self.log.warning("%s", args)
+            return func(self, *args, **kwargs)
+        return inner_wrapper
+
+    fallback_to_default_project_id = staticmethod(fallback_to_default_project_id)
+
+    def _get_project_id(self, project_id):
+        """
+        In case project_id is None, overrides it with default project_id from
+        the service account that is authorized.
+        :param project_id: project id to
+        :type project_id: str
+        :return: the project_id specified or default project id if project_id is None
+        """
+        return project_id if project_id else self.project_id

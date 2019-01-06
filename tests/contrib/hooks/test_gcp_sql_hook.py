@@ -36,8 +36,8 @@ except ImportError:
 class TestGcpSqlHook(unittest.TestCase):
     def test_instance_import_ex(self):
         # Mocking __init__ with an empty anonymous function
-        with mock.patch.object(CloudSqlHook, "__init__", lambda x, y, z: None):
-            hook = CloudSqlHook(None, None)
+        with mock.patch.object(CloudSqlHook, '__init__', lambda x: None):
+            hook = CloudSqlHook()
             # Simulating HttpError inside import_instance
             hook.get_conn = mock.Mock(
                 side_effect=HttpError(resp={'status': '400'},
@@ -50,8 +50,8 @@ class TestGcpSqlHook(unittest.TestCase):
 
     def test_instance_export_ex(self):
         # Mocking __init__ with an empty anonymous function
-        with mock.patch.object(CloudSqlHook, "__init__", lambda x, y, z: None):
-            hook = CloudSqlHook(None, None)
+        with mock.patch.object(CloudSqlHook, '__init__', lambda x: None):
+            hook = CloudSqlHook()
             # Simulating HttpError inside export_instance
             hook.get_conn = mock.Mock(
                 side_effect=HttpError(resp={'status': '400'},
