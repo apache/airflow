@@ -403,10 +403,10 @@ class TestLogView(unittest.TestCase):
                                                      self.DEFAULT_DATE.isoformat(),
                                                      try_number)
 
-        self.assertEqual(200, response.status_code)
         content_disposition = response.headers.get('Content-Disposition')
-        self.assertTrue(content_disposition.startswith('attachment'), content_disposition)
-        self.assertTrue(content_disposition.endswith(expected_filename + '"'), content_disposition)
+        self.assertTrue(content_disposition.startswith('attachment'))
+        self.assertTrue(expected_filename in content_disposition)
+        self.assertEqual(200, response.status_code)
         self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
     def test_get_logs_with_metadata(self):
