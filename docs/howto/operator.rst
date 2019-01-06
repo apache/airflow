@@ -609,6 +609,15 @@ The code to create the operator:
     :start-after: [START howto_operator_gcf_deploy]
     :end-before: [END howto_operator_gcf_deploy]
 
+You can also create the operator without project id - project id will be retrieved
+from the service account used:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcf_deploy_no_project_id]
+    :end-before: [END howto_operator_gcf_deploy_no_project_id]
+
 Templating
 """"""""""
 

@@ -591,7 +591,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
                 sql=sql,
                 task_id='task_id'
             )
-            operator.pre_execute(None)
+            operator.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
 
@@ -801,7 +801,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
             "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=postgres&"
             "project_id=example-project&location=europe-west1&"
             "instance="
-            "test_db_with_long_name_a_bit_above_the_limit_of_UNIX_socket_asdadadsadasda&"
+            "test_db_with_long_name_a_bit_above_the_limit_of_UNIX_socket_asdadadasadasda&"
             "use_proxy=True&sql_proxy_use_tcp=False")
         get_connections.return_value = [connection]
         operator = CloudSqlQueryOperator(
@@ -810,7 +810,7 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         )
         operator.cloudsql_db_hook.create_connection()
         with self.assertRaises(AirflowException) as cm:
-            operator.pre_execute(None)
+            operator.execute(None)
         err = cm.exception
         self.assertIn("The UNIX socket path length cannot exceed", str(err))
 

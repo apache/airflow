@@ -117,8 +117,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
             'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')
         }
         mock_hook.return_value.create_new_function.assert_called_once_with(
-            'projects/test_project_id/locations/test_region',
-            expected_body
+            'test_project_id', 'test_region', expected_body
         )
 
     @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
@@ -147,18 +146,22 @@ class GcfFunctionDeployTest(unittest.TestCase):
         mock_hook.return_value.create_new_function.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
-    def test_empty_project_id(self, mock_hook):
-        with self.assertRaises(AirflowException) as cm:
-            GcfFunctionDeployOperator(
-                project_id="",
-                location="test_region",
-                body=None,
-                task_id="id"
-            )
-        err = cm.exception
-        self.assertIn("The required parameter 'project_id' is missing", str(err))
+    def test_empty_project_id_is_ok(self, mock_hook):
+        operator = GcfFunctionDeployOperator(
+            location="test_region",
+            body=deepcopy(VALID_BODY),
+            task_id="id"
+        )
+        operator._hook.get_function.side_effect = \
+            HttpError(resp=MOCK_RESP_404, content=b'not found')
+        operator.execute(None)
         mock_hook.assert_called_once_with(api_version='v1',
                                           gcp_conn_id='google_cloud_default')
+        new_body = deepcopy(VALID_BODY)
+        new_body['labels'] = {
+            'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')}
+        mock_hook.return_value.create_new_function.assert_called_once_with(
+            None, "test_region", new_body)
 
     @mock.patch('airflow.contrib.operators.gcp_function_operator.GcfHook')
     def test_empty_location(self, mock_hook):
@@ -419,14 +422,15 @@ class GcfFunctionDeployTest(unittest.TestCase):
                                           gcp_conn_id='google_cloud_default')
         if zip_path:
             mock_hook.return_value.upload_function_zip.assert_called_once_with(
-                parent='projects/test_project_id/locations/test_region',
+                project_id='test_project_id',
+                location='test_region',
                 zip_path='/path/to/file'
             )
         mock_hook.return_value.get_function.assert_called_once_with(
             'projects/test_project_id/locations/test_region/functions/helloWorld'
         )
         mock_hook.return_value.create_new_function.assert_called_once_with(
-            'projects/test_project_id/locations/test_region',
+            'test_project_id', 'test_region',
             body
         )
         mock_hook.reset_mock()
@@ -509,8 +513,7 @@ class GcfFunctionDeployTest(unittest.TestCase):
             'projects/test_project_id/locations/test_region/functions/helloWorld'
         )
         mock_hook.return_value.create_new_function.assert_called_once_with(
-            'projects/test_project_id/locations/test_region',
-            body
+            'test_project_id', 'test_region', body
         )
         mock_hook.reset_mock()
 
