@@ -64,12 +64,14 @@ class GceHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def start_instance(self, project_id, zone, resource_id):
         """
         Starts an existing instance defined by project_id, zone and resource_id.
 
         :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
+            Instance exists. if set to None, default project_id is used from
+            service account
         :type project_id: str
         :param zone: Google Cloud Platform zone where the instance exists
         :type zone: str
@@ -91,12 +93,14 @@ class GceHook(GoogleCloudBaseHook):
                 "'name' field".format(response))
         return self._wait_for_operation_to_complete(project_id, operation_name, zone)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def stop_instance(self, project_id, zone, resource_id):
         """
         Stops an instance defined by project_id, zone and resource_id
 
         :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
+            Instance exists. if set to None, default project_id is used from
+            service account
         :type project_id: str
         :param zone: Google Cloud Platform zone where the instance exists
         :type zone: str
@@ -118,12 +122,14 @@ class GceHook(GoogleCloudBaseHook):
                 "'name' field".format(response))
         return self._wait_for_operation_to_complete(project_id, operation_name, zone)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def set_machine_type(self, project_id, zone, resource_id, body):
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
 
         :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
+            Instance exists. if set to None, default project_id is used from
+            service account
         :type project_id: str
         :param zone: Google Cloud Platform zone where the instance exists.
         :type zone: str
@@ -150,12 +156,14 @@ class GceHook(GoogleCloudBaseHook):
             project=project_id, zone=zone, instance=resource_id, body=body)\
             .execute(num_retries=NUM_RETRIES)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_instance_template(self, project_id, resource_id):
         """
         Retrieves instance template by project_id and resource_id.
 
         :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance template exists
+            Instance exists. if set to None, default project_id is used from
+            service account
         :type project_id: str
         :param resource_id: Name of the instance template
         :type resource_id: str
@@ -169,12 +177,14 @@ class GceHook(GoogleCloudBaseHook):
         ).execute(num_retries=NUM_RETRIES)
         return response
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def insert_instance_template(self, project_id, body, request_id=None):
         """
         Inserts instance template using body specified
 
         :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
+            Instance exists. if set to None, default project_id is used from
+            service account
         :type project_id: str
         :param body: Instance template representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
@@ -200,12 +210,14 @@ class GceHook(GoogleCloudBaseHook):
                 "'name' field".format(response))
         return self._wait_for_operation_to_complete(project_id, operation_name)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_instance_group_manager(self, project_id, zone, resource_id):
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
 
         :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance Group Manager exists
+            Instance Group Manager exists. if set to None, default project_id is
+            used from service account
         :type project_id: str
         :param zone: Google Cloud Platform zone where the Instance Group Manager exists
         :type zone: str
@@ -222,13 +234,15 @@ class GceHook(GoogleCloudBaseHook):
         ).execute(num_retries=NUM_RETRIES)
         return response
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def patch_instance_group_manager(self, project_id, zone, resource_id,
                                      body, request_id=None):
         """
         Patches Instance Group Manager with the specified body.
 
         :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance Group Manager exists
+            Instance Group Manager exists. if set to None, default project_id is
+            used from service account
         :type project_id: str
         :param zone: Google Cloud Platform zone where the Instance Group Manager exists
         :type zone: str

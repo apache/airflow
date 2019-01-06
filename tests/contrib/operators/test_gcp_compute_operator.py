@@ -112,6 +112,15 @@ class GceInstanceStartTest(unittest.TestCase):
         mock_hook.assert_not_called()
 
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    def test_start_should_not_throw_ex_when_project_id_None(self, _):
+        op = GceInstanceStartOperator(
+            zone=GCE_ZONE,
+            resource_id=RESOURCE_ID,
+            task_id='id'
+        )
+        op.execute(None)
+
+    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
     def test_start_should_throw_ex_when_missing_zone(self, mock_hook):
         with self.assertRaises(AirflowException) as cm:
             op = GceInstanceStartOperator(
@@ -198,6 +207,15 @@ class GceInstanceStopTest(unittest.TestCase):
         err = cm.exception
         self.assertIn("The required parameter 'project_id' is missing", str(err))
         mock_hook.assert_not_called()
+
+    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    def test_stop_should_not_throw_ex_when_project_id_none(self, _):
+        op = GceInstanceStopOperator(
+            zone=GCE_ZONE,
+            resource_id=RESOURCE_ID,
+            task_id='id'
+        )
+        op.execute(None)
 
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
     def test_stop_should_throw_ex_when_missing_zone(self, mock_hook):
@@ -289,6 +307,16 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
         err = cm.exception
         self.assertIn("The required parameter 'project_id' is missing", str(err))
         mock_hook.assert_not_called()
+
+    @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
+    def test_set_machine_type_should_not_throw_ex_when_project_id_none(self, _):
+        op = GceSetMachineTypeOperator(
+            zone=GCE_ZONE,
+            resource_id=RESOURCE_ID,
+            body=SET_MACHINE_TYPE_BODY,
+            task_id='id'
+        )
+        op.execute(None)
 
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook')
     def test_set_machine_type_should_throw_ex_when_missing_zone(self, mock_hook):
