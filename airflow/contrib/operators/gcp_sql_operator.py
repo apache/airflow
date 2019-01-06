@@ -708,6 +708,7 @@ class CloudSqlQueryOperator(BaseOperator):
         self.cloudsql_db_hook.validate_ssl_certs()
         self.cloudsql_db_hook.create_connection()
         try:
+            self.cloudsql_db_hook.validate_socket_path_length()
             self.database_hook = self.cloudsql_db_hook.get_database_hook()
             try:
                 try:

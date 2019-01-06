@@ -754,6 +754,8 @@ class CloudSqlDatabaseHook(BaseHook):
             self._check_ssl_file(self.sslcert, "sslcert")
             self._check_ssl_file(self.sslkey, "sslkey")
             self._check_ssl_file(self.sslrootcert, "sslrootcert")
+
+    def validate_socket_path_length(self):
         if self.use_proxy and not self.sql_proxy_use_tcp:
             if self.database_type == 'postgres':
                 suffix = "/.s.PGSQL.5432"
