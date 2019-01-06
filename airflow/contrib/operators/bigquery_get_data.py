@@ -82,7 +82,7 @@ class BigQueryGetDataOperator(BaseOperator):
                  selected_fields=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 location=None,                
+                 location=None,
                  *args,
                  **kwargs):
         super(BigQueryGetDataOperator, self).__init__(*args, **kwargs)
