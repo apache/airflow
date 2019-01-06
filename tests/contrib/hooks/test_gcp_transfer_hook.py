@@ -54,7 +54,10 @@ class TestGCPTransferServiceHook(unittest.TestCase):
             'gcsDataSink': {'bucketName': 'test-gcs-bucket'}
         }
         self.transfer_hook.create_transfer_job(
-            'test-project', 'test-description', None, transfer_spec)
+            project_id='test-project',
+            description='test-description',
+            schedule=None,
+            transfer_spec=transfer_spec)
         mock_create.assert_called_once_with(body={
             'status': 'ENABLED',
             'projectId': 'test-project',
@@ -90,7 +93,10 @@ class TestGCPTransferServiceHook(unittest.TestCase):
             'gcsDataSink': {'bucketName': 'test-gcs-bucket'}
         }
         self.transfer_hook.create_transfer_job(
-            'test-project', 'test-description', schedule, transfer_spec)
+            project_id='test-project',
+            description='test-description',
+            schedule=schedule,
+            transfer_spec=transfer_spec)
         mock_create.assert_called_once_with(body={
             'status': 'ENABLED',
             'projectId': 'test-project',
