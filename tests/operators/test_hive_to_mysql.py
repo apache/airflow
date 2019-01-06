@@ -43,7 +43,7 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
         HiveToMySqlTransfer(**self.kwargs).execute(context={})
 
         mock_hive_hook.assert_called_once_with(hiveserver2_conn_id=self.kwargs['hiveserver2_conn_id'])
-        mock_hive_hook.return_value.get_records.assert_called_once_with(self.kwargs['sql'])
+        mock_hive_hook.return_value.get_records.assert_called_once_with('sql', hive_conf={})
         mock_mysql_hook.assert_called_once_with(mysql_conn_id=self.kwargs['mysql_conn_id'])
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
             table=self.kwargs['mysql_table'],
