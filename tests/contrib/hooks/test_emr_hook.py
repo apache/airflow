@@ -38,7 +38,7 @@ class TestEmrHook(unittest.TestCase):
 
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = EmrHook(aws_conn_id='aws_default')
+        hook = EmrHook(aws_conn_id='aws_default', region_name='ap-southeast-2')
         self.assertIsNotNone(hook.get_conn().list_clusters())
 
     @mock_emr
