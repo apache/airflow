@@ -50,6 +50,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'test-bigquery-operators'
 TEST_LOCATION = 'asia-northeast1'
 
+
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
@@ -59,7 +60,6 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                                                     project_id=TEST_PROJECT_ID,
                                                     table_id=TEST_TABLE_ID,
                                                     location=TEST_LOCATION)
-
 
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
@@ -115,6 +115,7 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
             )
         self.assertEquals(bq_cursor.location, TEST_LOCATION)
 
+
 class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_execute(self, mock_hook):
@@ -125,7 +126,6 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             location=TEST_LOCATION,
         )
 
-
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
         bq_cursor.delete_dataset \
@@ -135,6 +135,7 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             )
         self.assertEquals(bq_cursor.location, TEST_LOCATION)
 
+
 class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_execute(self, mock_hook):
@@ -143,7 +144,6 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
             dataset_id=TEST_DATASET,
             project_id=TEST_PROJECT_ID
         )
-
 
         operator.execute(None)
         mock_hook.return_value \
@@ -259,7 +259,6 @@ class BigQueryOperatorTest(unittest.TestCase):
         ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
         ti.render_templates()
         self.assertTrue(isinstance(ti.task.sql, six.string_types))
-
 
     @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
     def test_bigquery_operator_location(self, mock_hook):
