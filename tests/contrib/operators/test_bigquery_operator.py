@@ -47,12 +47,18 @@ TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+DEFAULT_DATE = datetime(2015, 1, 1)
+TEST_DAG_ID = 'test-bigquery-operators'
+>>>>>>> c3cc653fd9d1d42c76ac6bb0b55a77a535e84523
 TEST_LOCATION = 'asia-northeast1'
 =======
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'test-bigquery-operators'
 
 >>>>>>> aa2dc603... [AIRFLOW-3578] Fix Type Error for BigQueryOperator (#4384)
+
 
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
