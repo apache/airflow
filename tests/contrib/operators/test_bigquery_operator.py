@@ -58,6 +58,7 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                                                     table_id=TEST_TABLE_ID,
                                                     location=TEST_LOCATION)
 
+
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
         bq_cursor \
@@ -122,6 +123,7 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             location=TEST_LOCATION,
         )
 
+
         operator.execute(None)
         bq_cursor = mock_hook.return_value.get_conn().cursor()
         bq_cursor.delete_dataset \
@@ -139,6 +141,7 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
             dataset_id=TEST_DATASET,
             project_id=TEST_PROJECT_ID
         )
+
 
         operator.execute(None)
         mock_hook.return_value \

@@ -192,11 +192,16 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
         self.assertIn("JSON", str(context.exception))
 
     def test_table_location(self):
-        project_id="test_project"
-        dataset_id="test_dataset"
-        external_project_dataset_table="{}.{}".format(project_id, dataset_id)
-        schema_fields= [{"name": "test_name", "type": "string", "mode": "REQUIRED", "description": "test_description"}]
-        source_uris=["gs://test_bucket/test_data.csv"]
+        project_id = "test_project"
+        dataset_id = "test_dataset"
+        external_project_dataset_table = "{}.{}".format(project_id, dataset_id)
+        schema_fields = [{
+            "name": "test_name",
+            "type": "string",
+            "mode": "REQUIRED",
+            "description": "test_description"
+        }]
+        source_uris = ["gs://test_bucket/test_data.csv"]
         location = "asia-northeast1"
 
         mock_service = mock.Mock()
@@ -432,6 +437,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             'location': location
         }
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
+
 
 class TestBigQueryCursor(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
