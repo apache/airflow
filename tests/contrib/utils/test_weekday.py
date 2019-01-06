@@ -16,6 +16,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+import unittest
 
-version = '2.0.0.dev0+'
+from enum import Enum
+
+from airflow.contrib.utils.weekday import WeekDay
+
+
+class WeekDayTest(unittest.TestCase):
+    def test_weekday_enum_length(self):
+        self.assertEqual(len(WeekDay), 7)
+
+    def test_weekday_name_value(self):
+        weekdays = "MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY SUNDAY"
+        weekdays = weekdays.split()
+        for i, weekday in enumerate(weekdays, start=1):
+            e = WeekDay(i)
+            self.assertEqual(e, i)
+            self.assertEqual(int(e), i)
+            self.assertEqual(e.name, weekday)
+            self.assertTrue(e in WeekDay)
+            self.assertTrue(0 < e < 8)
+            self.assertTrue(type(e) is WeekDay)
+            self.assertTrue(isinstance(e, int))
+            self.assertTrue(isinstance(e, Enum))

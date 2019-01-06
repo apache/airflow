@@ -266,6 +266,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor
 .. autoclass:: airflow.contrib.sensors.sftp_sensor.SFTPSensor
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
+.. autoclass:: airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor
 
 .. _macros:
 
