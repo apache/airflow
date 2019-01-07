@@ -90,11 +90,13 @@ class CloudSqlHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_instance(self, project_id, instance):
         """
         Retrieves a resource containing information about a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
         :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
@@ -106,12 +108,13 @@ class CloudSqlHook(GoogleCloudBaseHook):
             instance=instance
         ).execute(num_retries=NUM_RETRIES)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def create_instance(self, project_id, body):
         """
         Creates a new Cloud SQL instance.
 
-        :param project_id: Project ID of the project to which the newly created
-            Cloud SQL instances should belong.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
         :type project_id: str
         :param body: Body required by the Cloud SQL insert API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert#request-body.
@@ -126,6 +129,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         return self._wait_for_operation_to_complete(project_id, operation_name)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def patch_instance(self, project_id, body, instance):
         """
         Updates settings of a Cloud SQL instance.
@@ -133,7 +137,8 @@ class CloudSqlHook(GoogleCloudBaseHook):
         Caution: This is not a partial update, so you must include values for
         all the settings that you want to retain.
 
-        :param project_id: Project ID of the project that contains the instance.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
         :type project_id: str
         :param body: Body required by the Cloud SQL patch API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body.
@@ -151,11 +156,13 @@ class CloudSqlHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         return self._wait_for_operation_to_complete(project_id, operation_name)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def delete_instance(self, project_id, instance):
         """
         Deletes a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
         :type project_id: str
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
@@ -169,11 +176,13 @@ class CloudSqlHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         return self._wait_for_operation_to_complete(project_id, operation_name)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_database(self, project_id, instance, database):
         """
         Retrieves a database resource from a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
         :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
@@ -189,12 +198,14 @@ class CloudSqlHook(GoogleCloudBaseHook):
             database=database
         ).execute(num_retries=NUM_RETRIES)
 
-    def create_database(self, project, instance, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_database(self, project_id, instance, body):
         """
         Creates a new database inside a Cloud SQL instance.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
+        :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param body: The request body, as described in
@@ -204,22 +215,24 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :rtype: bool
         """
         response = self.get_conn().databases().insert(
-            project=project,
+            project=project_id,
             instance=instance,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        return self._wait_for_operation_to_complete(project_id, operation_name)
 
-    def patch_database(self, project, instance, database, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def patch_database(self, project_id, instance, database, body):
         """
         Updates a database resource inside a Cloud SQL instance.
 
         This method supports patch semantics.
         See https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
+        :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database to be updated in the instance.
@@ -231,20 +244,22 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :rtype: bool
         """
         response = self.get_conn().databases().patch(
-            project=project,
+            project=project_id,
             instance=instance,
             database=database,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        return self._wait_for_operation_to_complete(project_id, operation_name)
 
-    def delete_database(self, project, instance, database):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def delete_database(self, project_id, instance, database):
         """
         Deletes a database from a Cloud SQL instance.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
+        :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database to be deleted in the instance.
@@ -253,19 +268,21 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :rtype: bool
         """
         response = self.get_conn().databases().delete(
-            project=project,
+            project=project_id,
             instance=instance,
             database=database
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        return self._wait_for_operation_to_complete(project_id, operation_name)
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def export_instance(self, project_id, instance_id, body):
         """
         Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
         or CSV file.
 
-        :param project_id: Project ID of the project where the instance exists.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
         :type project_id: str
         :param instance_id: Name of the Cloud SQL instance. This does not include the
             project ID.
@@ -289,12 +306,14 @@ class CloudSqlHook(GoogleCloudBaseHook):
                 'Exporting instance {} failed: {}'.format(instance_id, ex.content)
             )
 
+    @GoogleCloudBaseHook.fallback_to_default_project_id
     def import_instance(self, project_id, instance_id, body):
         """
         Imports data into a Cloud SQL instance from a SQL dump or CSV file in
         Cloud Storage.
 
-        :param project_id: Project ID of the project where the instance exists.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None, default project_id from service account is used.
         :type project_id: str
         :param instance_id: Name of the Cloud SQL instance. This does not include the
             project ID.
@@ -665,7 +684,8 @@ class CloudSqlDatabaseHook(BaseHook):
 
     Remaining parameters are retrieved from the extras (URI query parameters):
 
-    * **project_id** - Google Cloud Platform project where the Cloud SQL instance exists.
+    * **project_id** - Optional, Google Cloud Platform project where the Cloud SQL
+       instance exists. If missing, default project id passed is used.
     * **instance** -  Name of the instance of the Cloud SQL database instance.
     * **location** - The location of the Cloud SQL instance (for example europe-west1).
     * **database_type** - The type of the database instance (MySQL or Postgres).
@@ -682,15 +702,22 @@ class CloudSqlDatabaseHook(BaseHook):
     * **sslcert** - Path to client certificate to authenticate when SSL is used.
     * **sslkey** - Path to client private key to authenticate when SSL is used.
     * **sslrootcert** - Path to server's certificate to authenticate when SSL is used.
+
+    :param gcp_cloudsql_conn_id: URL of the connection
+    :type gcp_cloudsql_conn_id: str
+    :param default_gcp_project_id: Default project id used if project_id not specified
+           in the connection URL
+    :type default_gcp_project_id: str
     """
     _conn = None
 
-    def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default'):
+    def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default',
+                 default_gcp_project_id=None):
         super(CloudSqlDatabaseHook, self).__init__(source=None)
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson
-        self.project_id = self.extras.get('project_id')
+        self.project_id = self.extras.get('project_id', default_gcp_project_id)
         self.instance = self.extras.get('instance')
         self.database = self.cloudsql_connection.schema
         self.location = self.extras.get('location')
@@ -737,9 +764,9 @@ class CloudSqlDatabaseHook(BaseHook):
         if not self.project_id:
             raise AirflowException("The required extra 'project_id' is empty")
         if not self.location:
-            raise AirflowException("The required extra 'location' is empty")
+            raise AirflowException("The required extra 'location' is empty or None")
         if not self.instance:
-            raise AirflowException("The required extra 'instance' is empty")
+            raise AirflowException("The required extra 'instance' is empty or None")
         if self.database_type not in CLOUD_SQL_VALID_DATABASE_TYPES:
             raise AirflowException("Invalid database type '{}'. Must be one of {}".format(
                 self.database_type, CLOUD_SQL_VALID_DATABASE_TYPES

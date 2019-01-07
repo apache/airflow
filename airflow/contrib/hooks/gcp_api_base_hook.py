@@ -145,7 +145,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         key_path, etc. They get formatted as shown below.
         """
         long_f = 'extra__google_cloud_platform__{}'.format(f)
-        if long_f in self.extras:
+        if hasattr(self, 'extras') and long_f in self.extras:
             return self.extras[long_f]
         else:
             return default
