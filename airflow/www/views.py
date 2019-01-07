@@ -1149,10 +1149,13 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
-        dag = dagbag.get_dag(dag_id)
+        orm_dag = models.DagModel.get_dagmodel(dag_id)
+        dag = orm_dag.get_dag()
+        if task_id not in dag.task_dict:
+            flash("Task '{}' does not exist in '{}' anymore".format(task_id, orm_dag.fileloc), 'error')
+            return redirect(origin)
 
-        execution_date = request.args.get('execution_date')
-        execution_date = pendulum.parse(execution_date)
+        execution_date = pendulum.parse(request.args.get('execution_date'))
         confirmed = request.args.get('confirmed') == "true"
         upstream = request.args.get('upstream') == "true"
         downstream = request.args.get('downstream') == "true"
@@ -1178,11 +1181,11 @@ class Airflow(BaseView):
     def dagrun_clear(self):
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin')
-        execution_date = request.args.get('execution_date')
         confirmed = request.args.get('confirmed') == "true"
 
-        dag = dagbag.get_dag(dag_id)
-        execution_date = pendulum.parse(execution_date)
+        orm_dag = models.DagModel.get_dagmodel(dag_id)
+        dag = orm_dag.get_dag()
+        execution_date = pendulum.parse(request.args.get('execution_date'))
         start_date = execution_date
         end_date = execution_date
 

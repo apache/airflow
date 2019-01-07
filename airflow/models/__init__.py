@@ -1874,6 +1874,13 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = raw
         self._set_context(self)
 
+    @staticmethod
+    @provide_session
+    def fetch_tis_db(dag_id, execution_date, session=None):
+        return session.query(TaskInstance)\
+            .filter(TaskInstance.dag_id == dag_id)\
+            .filter(TaskInstance.execution_date == execution_date)
+
 
 class TaskFail(Base):
     """
@@ -3303,6 +3310,33 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
+    def create_tis_and_edges(self, execution_date):
+        """
+        This will create all tasks and edges for a single execution date.
+        This will not push to the database.
+        :param execution_date: Execution date of tasks
+        :return:
+        """
+        tasks = []
+        tis = []
+        edges = []
+        for task in self.task_dict.values():
+            if task.start_date is None:
+                tasks.append(task)
+            elif task.start_date <= execution_date:
+                tasks.append(task)
+            # FIXME: Needed to use merge instead of add or bulk add.
+            #        This means this method is executed multiple times for 1 single execution date
+        for task in tasks:
+            tis.append(TaskInstance(task=task, execution_date=execution_date))
+            for down in task.downstream_task_ids:
+                edges.append(DagEdge(self.dag_id, execution_date, down, task.task_id))
+        return tis, edges
+
+    @provide_session
+    def get_db_tis_and_edges(self, execution_date, session=None):
+        tis = session.query()
+
     def is_fixed_time_schedule(self):
         """
         Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
@@ -4202,20 +4236,14 @@ class DAG(BaseDag, LoggingMixin):
             conf=conf,
             state=state
         )
+        (tis, edges) = self.create_tasks_and_edges(execution_date)
         session.add(run)
 
-        tasks = []
-        for task in self.task_dict.values():
-            if task.start_date is None:
-                tasks.append(task)
-            elif task.start_date <= execution_date:
-                tasks.append(task)
-        # FIXME: Needed to use merge instead of add or bulk add.
-        #        This means this method is executed multiple times for 1 single execution date
-        for task in tasks:
-            session.merge(TaskInstance(task=task, execution_date=execution_date))
-            for down in task.downstream_task_ids:
-                session.merge(DagEdge(self.dag_id, execution_date, down, task.task_id))
+
+        for ti in tis:
+            session.merge(ti)
+        for edge in edges:
+            session.merge(edge)
 
         session.commit()
 
@@ -4889,8 +4917,7 @@ class DagRun(Base, LoggingMixin):
         :return: DAG
         """
         if not self.dag:
-            raise AirflowException("The DAG (.dag) for {} needs to be set"
-                                   .format(self))
+            return DagModel.get_dagmodel(self.dag_id).get_dag()
 
         return self.dag
 

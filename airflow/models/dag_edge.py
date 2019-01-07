@@ -18,6 +18,8 @@
 # under the License.
 
 from sqlalchemy import Column, String
+
+from airflow.utils.db import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils import timezone
 
@@ -48,4 +50,12 @@ class DagEdge(Base):
         self.execution_date = execution_date
         self.from_task = from_task
         self.to_task = to_task
+
+    @staticmethod
+    @provide_session
+    def fetch_edges_db(dag_id, execution_date, session=None):
+        return session.query(DagEdge) \
+            .filter(DagEdge.dag_id == dag_id) \
+            .filter(DagEdge.execution_date == execution_date)
+
 
