@@ -273,8 +273,20 @@ with models.DAG(
         object_name=import_url_split[2][1:],  # path (strip first '/')
         task_id='sql_gcp_add_object_permission',
     )
-    # [END howto_operator_cloudsql_import_gcs_permissions]
     prev_task = next_dep(sql_gcp_add_object_permission, prev_task)
+
+    # For import to work we also need to add the Cloud SQL instance's Service Account
+    # write access to the whole bucket!.
+    sql_gcp_add_bucket_permission2 = GoogleCloudStorageBucketCreateAclEntryOperator(
+        entity="user-{{ task_instance.xcom_pull("
+               "'sql_instance_create_2_task', key='service_account_email') "
+               "}}",
+        role="WRITER",
+        bucket=import_url_split[1],  # netloc
+        task_id='sql_gcp_add_bucket_permission2',
+    )
+    # [END howto_operator_cloudsql_import_gcs_permissions]
+    prev_task = next_dep(sql_gcp_add_bucket_permission2, prev_task)
 
     # [START howto_operator_cloudsql_import]
     sql_import_task = CloudSqlInstanceImportOperator(
