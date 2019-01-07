@@ -2198,7 +2198,7 @@ class BaseOperator(LoggingMixin):
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
 
-        If base_executor_config is set in airflow.cfg and an executor_config 
+        If base_executor_config is set in airflow.cfg and an executor_config
         is supplied, the supplied executor_config will be merged into the
         base_executor_config and returned.
 
@@ -2567,17 +2567,18 @@ class BaseOperator(LoggingMixin):
         This hook is triggered right before self.execute() is called.
         """
         pass
-    
+
     def get_executor_config(self):
-        """Try to import base_executor_config and merge supplied 
+        """Try to import base_executor_config and merge supplied
         executor_config into it.
 
         :return: dict"""
 
-        base_executor_config_string = conf.get('core', 'base_executor_config')
+        base_executor_config_string = configuration.conf.get(
+            'core', 'base_executor_config')
 
         if base_executor_config_string and self.executor_config:
-            base_executor_config = import_string(base_executor_config_string)    
+            base_executor_config = import_string(base_executor_config_string)
             return dict_merge(base_executor_config, self.executor_config)
         elif base_executor_config_string and not self.executor_config:
             return import_string(base_executor_config_string)
