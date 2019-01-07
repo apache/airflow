@@ -39,7 +39,8 @@ import os
 import airflow
 from airflow import models
 from airflow.contrib.operators.gcp_spanner_operator import \
-    CloudSpannerInstanceDeployOperator, CloudSpannerInstanceDatabaseQueryOperator, \
+    CloudSpannerInstanceDeployOperator, \
+    CloudSpannerInstanceDatabaseQueryOperator, \
     CloudSpannerInstanceDeleteOperator, \
     CloudSpannerInstanceDatabaseDeployOperator, \
     CloudSpannerInstanceDatabaseUpdateOperator, \
@@ -140,7 +141,7 @@ with models.DAG(
     spanner_instance_query_task = CloudSpannerInstanceDatabaseQueryOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
-        database_id='db1',
+        database_id=GCP_SPANNER_DATABASE_ID,
         query=["DELETE FROM my_table2 WHERE true"],
         task_id='spanner_instance_query'
     )
@@ -149,7 +150,7 @@ with models.DAG(
     spanner_instance_query2_task = CloudSpannerInstanceDatabaseQueryOperator(
         project_id=GCP_PROJECT_ID,
         instance_id=GCP_SPANNER_INSTANCE_ID,
-        database_id='db1',
+        database_id=GCP_SPANNER_DATABASE_ID,
         query="example_gcp_spanner.sql",
         task_id='spanner_instance_query2'
     )
