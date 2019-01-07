@@ -180,6 +180,18 @@ class TestHelpers(unittest.TestCase):
             helpers.as_tuple(["a", "list", "is", "a", "container"]),
             ("a", "list", "is", "a", "container")
         )
+    
+    def test_dict_merge(self):
+        
+        base = {'foo': {'bar': [{'baz': [1,2,3]}]}}
+        mod = {'foo': {'bar': [{'baz': [1,2,3,4]}], 'bacon': {'eggs': 'good'}}}
+        
+        merge = helpers.dict_merge(base, mod)
+        
+        # modify value
+        self.assertEqual(merge['foo']['bar'][0]['baz'], [1,2,3,4])
+        # add key
+        self.assertIn('bacon', merge['foo'])
 
 
 class HelpersTest(unittest.TestCase):
