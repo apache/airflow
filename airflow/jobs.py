@@ -1807,7 +1807,7 @@ class SchedulerJob(BaseJob):
         #
         if not conf.has_option('scheduler', 'liveness_touch_file'):
             return
-        touch_file = conf.get('scheduler', 'liveness_touch_file', None)
+        touch_file = conf.get('scheduler', 'liveness_touch_file')
         if not touch_file:
             return
 
