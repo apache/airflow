@@ -33,6 +33,7 @@ from functools import reduce
 import os
 import re
 import signal
+import collections
 
 from jinja2 import Template
 
