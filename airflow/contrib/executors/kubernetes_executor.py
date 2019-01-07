@@ -143,6 +143,9 @@ class KubeConfig:
         self.dags_in_image = conf.get(
             self.kubernetes_section, 'dags_in_image')
 
+        self.dag_path_in_worker_container = conf.get(
+            self.kubernetes_section, 'worker_container_dag_path')
+
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')
