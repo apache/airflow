@@ -27,6 +27,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
+from sqlalchemy.engine.reflection import Inspector
+
 revision = '64de9cddf6c9'
 down_revision = '211e584da130'
 branch_labels = None
@@ -34,17 +36,22 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table(
-        'task_fail',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('task_id', sa.String(length=250), nullable=False),
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
-        sa.Column('execution_date', sa.DateTime(), nullable=False),
-        sa.Column('start_date', sa.DateTime(), nullable=True),
-        sa.Column('end_date', sa.DateTime(), nullable=True),
-        sa.Column('duration', sa.Integer(), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
-    )
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+
+    if 'task_fail' not in tables:
+        op.create_table(
+            'task_fail',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('task_id', sa.String(length=250), nullable=False),
+            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            sa.Column('execution_date', sa.DateTime(), nullable=False),
+            sa.Column('start_date', sa.DateTime(), nullable=True),
+            sa.Column('end_date', sa.DateTime(), nullable=True),
+            sa.Column('duration', sa.Integer(), nullable=True),
+            sa.PrimaryKeyConstraint('id'),
+        )
 
 
 def downgrade():

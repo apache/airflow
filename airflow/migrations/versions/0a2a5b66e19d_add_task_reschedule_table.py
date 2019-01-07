@@ -26,6 +26,8 @@ Create Date: 2018-06-17 22:50:00.053620
 """
 
 # revision identifiers, used by Alembic.
+from sqlalchemy.engine.reflection import Inspector
+
 revision = '0a2a5b66e19d'
 down_revision = '9635ae0956e7'
 branch_labels = None
@@ -61,22 +63,28 @@ def upgrade():
     else:
         timestamp = sa_timestamp
 
-    op.create_table(
-        TABLE_NAME,
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('task_id', sa.String(length=250), nullable=False),
-        sa.Column('dag_id', sa.String(length=250), nullable=False),
-        # use explicit server_default=None otherwise mysql implies defaults for first timestamp column
-        sa.Column('execution_date', timestamp(), nullable=False, server_default=None),
-        sa.Column('try_number', sa.Integer(), nullable=False),
-        sa.Column('start_date', timestamp(), nullable=False),
-        sa.Column('end_date', timestamp(), nullable=False),
-        sa.Column('duration', sa.Integer(), nullable=False),
-        sa.Column('reschedule_date', timestamp(), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['task_id', 'dag_id', 'execution_date'],
-                                ['task_instance.task_id', 'task_instance.dag_id','task_instance.execution_date'],
-                                name='task_reschedule_dag_task_date_fkey')
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if TABLE_NAME not in tables:
+        op.create_table(
+            TABLE_NAME,
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('task_id', sa.String(length=250), nullable=False),
+            sa.Column('dag_id', sa.String(length=250), nullable=False),
+            # use explicit server_default=None otherwise mysql implies defaults for first
+            # timestamp column
+            sa.Column('execution_date', timestamp(), nullable=False, server_default=None),
+            sa.Column('try_number', sa.Integer(), nullable=False),
+            sa.Column('start_date', timestamp(), nullable=False),
+            sa.Column('end_date', timestamp(), nullable=False),
+            sa.Column('duration', sa.Integer(), nullable=False),
+            sa.Column('reschedule_date', timestamp(), nullable=False),
+            sa.PrimaryKeyConstraint('id'),
+            sa.ForeignKeyConstraint(['task_id', 'dag_id', 'execution_date'],
+                                    ['task_instance.task_id', 'task_instance.dag_id',
+                                     'task_instance.execution_date'],
+                                    name='task_reschedule_dag_task_date_fkey')
     )
     op.create_index(
         INDEX_NAME,

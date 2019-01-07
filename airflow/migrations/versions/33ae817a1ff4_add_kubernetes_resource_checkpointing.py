@@ -29,6 +29,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
+from sqlalchemy.engine.reflection import Inspector
+
 revision = '33ae817a1ff4'
 down_revision = 'd2ae31099d61'
 branch_labels = None
@@ -50,10 +52,14 @@ def upgrade():
     if conn.dialect.name not in ('mssql'):
         columns_and_constraints.append(sa.CheckConstraint("one_row_id", name="kube_resource_version_one_row_id"))
 
-    table = op.create_table(
-        RESOURCE_TABLE,
-        *columns_and_constraints
-    )
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if RESOURCE_TABLE not in tables:
+        table = op.create_table(
+            RESOURCE_TABLE,
+            *columns_and_constraints
+        )
 
     op.bulk_insert(table, [
         {"resource_version": ""}
