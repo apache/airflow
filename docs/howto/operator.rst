@@ -1542,5 +1542,3 @@ More information
 
 See `Google Cloud Storage ObjectAccessControls insert documentation
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
-
-
