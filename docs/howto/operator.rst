@@ -764,6 +764,9 @@ Some arguments in the example DAG are taken from environment variables.
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the service account used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
@@ -809,6 +812,9 @@ Some arguments in the example DAG are taken from environment variables.
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the service account used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
@@ -859,11 +865,20 @@ Some arguments in the example DAG are taken from environment variables.
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the service account used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update]
     :end-before: [END howto_operator_spanner_database_update]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_database_update_idempotent]
+    :end-before: [END howto_operator_spanner_database_update_idempotent]
 
 Templating
 """"""""""
@@ -900,6 +915,9 @@ Some arguments in the example DAG are taken from environment variables.
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the service account used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
@@ -943,6 +961,9 @@ Some arguments in the example DAG are taken from environment variables:
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the service account used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
