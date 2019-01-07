@@ -98,7 +98,8 @@ from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import (
-    as_tuple, is_container, validate_key, pprinttable)
+    as_tuple, is_container, validate_key, pprinttable, dict_merge)
+from airflow.utils.module_loading import import_string
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -2197,6 +2198,10 @@ class BaseOperator(LoggingMixin):
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
 
+        If base_executor_config is set in airflow.cfg and an executor_config 
+        is supplied, the supplied executor_config will be merged into the
+        base_executor_config and returned.
+
         **Example**: to run this task in a specific docker container through
         the KubernetesExecutor ::
 
@@ -2345,7 +2350,7 @@ class BaseOperator(LoggingMixin):
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
-        self.executor_config = executor_config or {}
+        self.executor_config = self.get_executor_config()
 
         # Private attributes
         self._upstream_task_ids = set()
@@ -2562,6 +2567,24 @@ class BaseOperator(LoggingMixin):
         This hook is triggered right before self.execute() is called.
         """
         pass
+    
+    def get_executor_config(self):
+        """Try to import base_executor_config and merge supplied 
+        executor_config into it.
+
+        :return: dict"""
+
+        base_executor_config_string = conf.get('core', 'base_executor_config')
+
+        if base_executor_config_string and self.executor_config:
+            base_executor_config = import_string(base_executor_config_string)    
+            return dict_merge(base_executor_config, self.executor_config)
+        elif base_executor_config_string and not self.executor_config:
+            return import_string(base_executor_config_string)
+        elif not base_executor_config_string and self.executor_config:
+            return self.executor_config
+        elif not (base_executor_config_string or self.executor_config):
+            return {}
 
     def execute(self, context):
         """
