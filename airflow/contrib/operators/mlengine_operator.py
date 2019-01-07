@@ -15,7 +15,7 @@
 # limitations under the License.
 import re
 
-from apiclient import errors
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_mlengine_hook import MLEngineHook
 from airflow.exceptions import AirflowException
@@ -264,7 +264,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         try:
             finished_prediction_job = hook.create_job(
                 self._project_id, prediction_request, check_existing_job)
-        except errors.HttpError:
+        except HttpError:
             raise
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
@@ -614,7 +614,7 @@ class MLEngineTrainingOperator(BaseOperator):
         try:
             finished_training_job = hook.create_job(
                 self._project_id, training_request, check_existing_job)
-        except errors.HttpError:
+        except HttpError:
             raise
 
         if finished_training_job['state'] != 'SUCCEEDED':
