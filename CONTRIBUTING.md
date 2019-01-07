@@ -79,7 +79,7 @@ If you are proposing a feature:
 ## Documentation
 
 The latest API documentation is usually available
-[here](https://airflow.incubator.apache.org/). To generate a local version,
+[here](https://airflow.apache.org/). To generate a local version,
 you need to have set up an Airflow development environment (see below). Also
 install the `doc` extra.
 
@@ -107,7 +107,7 @@ There are three ways to setup an Apache Airflow development environment.
 1. Using tools and libraries installed directly on your system.
 
   Install Python (2.7.x or 3.5.x), MySQL, and libxml by using system-level package
-  managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/incubator-airflow-ci/blob/master/Dockerfile) for
+  managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/airflow-ci/blob/master/Dockerfile) for
   a comprehensive list of required packages.
 
   Then install python development requirements. It is usually best to work in a virtualenv:
@@ -261,14 +261,14 @@ Feel free to customize based on the extras available in [setup.py](./setup.py)
 Before you submit a pull request from your forked repo, check that it
 meets these guidelines:
 
-1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/incubator-airflow) to run the tests and [codecov](https://codecov.io/gh/apache/incubator-airflow) to track coverage. You can set up both for free on your fork (see the "Testing on Travis CI" section below). It will help you making sure you do not break the build with your PR and that you help increase coverage.
+1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/airflow) to run the tests and [codecov](https://codecov.io/gh/apache/airflow) to track coverage. You can set up both for free on your fork (see the "Testing on Travis CI" section below). It will help you making sure you do not break the build with your PR and that you help increase coverage.
 1. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993), squash commits, and resolve all conflicts.
 1. Every pull request should have an associated [JIRA](https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel). The JIRA link should also be contained in the PR description.
 1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and Github PRs for more details about a particular change.
 1. Add an [Apache License](http://www.apache.org/legal/src-headers.html) header to all new files
 1. If the pull request adds functionality, the docs should be updated as part of the same PR. Doc string are often sufficient.  Make sure to follow the Sphinx compatible standards.
 1. The pull request should work for Python 2.7 and 3.5. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
-1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We track this using [landscape.io](https://landscape.io/github/apache/incubator-airflow/), which you can setup on your fork as well to check before you submit your PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
+1. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
 1. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on commit messages and adhere to them. It makes the lives of those who come after you a lot easier.
 
 ### Testing on Travis CI
@@ -291,15 +291,15 @@ https://github.com/settings/installations -> Configure Travis CI.
 
 1. For the Travis CI GitHub App, you can set repository access to either "All
 repositories" for convenience, or "Only select repositories" and choose
-`<username>/incubator-airflow` in the dropdown.
+`<username>/airflow` in the dropdown.
 
 1. You can access Travis CI for your fork at
-`https://travis-ci.com/<username>/incubator-airflow`.
+`https://travis-ci.com/<username>/airflow`.
 
 #### Travis CI GitHub Services (legacy version)
 
 The Travis CI GitHub Services versions uses an Authorized OAuth App.  Note
-that `apache/incubator-airflow` is currently still using the legacy version.
+that `apache/airflow` is currently still using the legacy version.
 
 1. Once installed, you can configure the Travis CI Authorized OAuth App at
 https://github.com/settings/connections/applications/88c5b97de2dbfc50f3ac.
@@ -308,10 +308,10 @@ https://github.com/settings/connections/applications/88c5b97de2dbfc50f3ac.
 organization; otherwise, click the "Request" button.
 
 1. For the Travis CI Authorized OAuth App, you may have to grant access to the
-forked `<organization>/incubator-airflow` repo even though it is public.
+forked `<organization>/airflow` repo even though it is public.
 
 1. You can access Travis CI for your fork at
-`https://travis-ci.org/<organization>/incubator-airflow`.
+`https://travis-ci.org/<organization>/airflow`.
 
 #### Prefer travis-ci.com over travis-ci.org
 

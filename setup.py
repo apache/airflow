@@ -190,7 +190,8 @@ gcp_api = [
     'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-container>=0.1.1',
-    'google-cloud-spanner>=1.6.0',
+    'google-cloud-bigtable==0.31.0',
+    'google-cloud-spanner>=1.7.1',
     'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
@@ -410,10 +411,10 @@ def do_setup():
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
-        author_email='dev@airflow.incubator.apache.org',
-        url='http://airflow.incubator.apache.org/',
+        author_email='dev@airflow.apache.org',
+        url='http://airflow.apache.org/',
         download_url=(
-            'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
+            'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,
