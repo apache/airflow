@@ -406,16 +406,3 @@ class CloudSpannerTest(unittest.TestCase):
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
-
-
-@unittest.skipIf(
-    BaseGcpIntegrationTestCase.skip_check(GCP_SPANNER_KEY), SKIP_TEST_WARNING)
-class CloudSpannerExampleDagsTest(BaseGcpIntegrationTestCase):
-    def __init__(self, method_name='runTest'):
-        super(CloudSpannerExampleDagsTest, self).__init__(
-            method_name,
-            dag_id='example_gcp_spanner',
-            gcp_key=GCP_SPANNER_KEY)
-
-    def test_run_example_dag_cloudsql_query(self):
-        self._run_dag()
