@@ -41,7 +41,7 @@ except ImportError:
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
-TEST_PROJECT_ID = 'test-project'
+TEST_GCP_PROJECT_ID = 'test-project'
 TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
@@ -56,7 +56,7 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
     def test_execute(self, mock_hook):
         operator = BigQueryCreateEmptyTableOperator(task_id=TASK_ID,
                                                     dataset_id=TEST_DATASET,
-                                                    project_id=TEST_PROJECT_ID,
+                                                    project_id=TEST_GCP_PROJECT_ID,
                                                     table_id=TEST_TABLE_ID)
 
         operator.execute(None)
@@ -66,7 +66,7 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
-                project_id=TEST_PROJECT_ID,
+                project_id=TEST_GCP_PROJECT_ID,
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={},
@@ -120,7 +120,7 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
         operator = BigQueryDeleteDatasetOperator(
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
-            project_id=TEST_PROJECT_ID
+            project_id=TEST_GCP_PROJECT_ID
         )
 
         operator.execute(None)
@@ -130,7 +130,7 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
             .delete_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
-                project_id=TEST_PROJECT_ID
+                project_id=TEST_GCP_PROJECT_ID
             )
 
 
@@ -140,7 +140,7 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
         operator = BigQueryCreateEmptyDatasetOperator(
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
-            project_id=TEST_PROJECT_ID
+            project_id=TEST_GCP_PROJECT_ID
         )
 
         operator.execute(None)
@@ -150,7 +150,7 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
             .create_empty_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
-                project_id=TEST_PROJECT_ID,
+                project_id=TEST_GCP_PROJECT_ID,
                 dataset_reference={}
             )
 
