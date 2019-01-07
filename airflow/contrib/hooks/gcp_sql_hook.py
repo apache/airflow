@@ -392,7 +392,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             authentication
         :type: str
         :param project_id: Optional id of the GCP project to connect to - it overwrites
-            default project id taken from the GCP connection
+            default project id taken from the GCP connection.
         :type project_id: str
         :param sql_proxy_version: Specific version of SQL proxy to download
             (for example 'v1.13'). By default latest version is downloaded.
