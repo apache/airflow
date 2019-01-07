@@ -14,6 +14,7 @@
 #
 
 import unittest
+import uuid
 import mock
 import re
 import string
@@ -22,6 +23,7 @@ from datetime import datetime
 
 try:
     from airflow.contrib.executors.kubernetes_executor import AirflowKubernetesScheduler
+    from airflow.contrib.executors.kubernetes_executor import KubernetesExecutorConfig
     from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 except ImportError:
     AirflowKubernetesScheduler = None
@@ -81,13 +83,42 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
     Tests that if dags_volume_subpath/logs_volume_subpath configuration
     options are passed to worker pod config
     """
+
+    affinity_config = {
+        'podAntiAffinity': {
+            'requiredDuringSchedulingIgnoredDuringExecution': [
+                {
+                    'topologyKey': 'kubernetes.io/hostname',
+                    'labelSelector': {
+                        'matchExpressions': [
+                            {
+                                'key': 'app',
+                                'operator': 'In',
+                                'values': ['airflow']
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+
+    tolerations_config = [
+        {
+            'key': 'dedicated',
+            'operator': 'Equal',
+            'value': 'airflow'
+        },
+        {
+            'key': 'prod',
+            'operator': 'Exists'
+        }
+    ]
+
     def setUp(self):
         if AirflowKubernetesScheduler is None:
             self.skipTest("kubernetes python package is not installed")
 
-        self.pod = mock.patch(
-            'airflow.contrib.kubernetes.worker_configuration.Pod'
-        )
         self.resources = mock.patch(
             'airflow.contrib.kubernetes.worker_configuration.Resources'
         )
@@ -95,7 +126,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
             'airflow.contrib.kubernetes.worker_configuration.Secret'
         )
 
-        for patcher in [self.pod, self.resources, self.secret]:
+        for patcher in [self.resources, self.secret]:
             self.mock_foo = patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -151,6 +182,55 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         env = worker_config._get_environment()
 
         self.assertEqual(dags_folder, env['AIRFLOW__CORE__DAGS_FOLDER'])
+
+    def test_make_pod_with_empty_executor_config(self):
+        self.kube_config.kube_affinity = self.affinity_config
+        self.kube_config.kube_tolerations = self.tolerations_config
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[]
+                                                        )
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), "bash -c 'ls /'",
+                                     kube_executor_config)
+
+        self.assertTrue(pod.affinity['podAntiAffinity'] is not None)
+        self.assertEqual('app',
+                         pod.affinity['podAntiAffinity']
+                         ['requiredDuringSchedulingIgnoredDuringExecution'][0]
+                         ['labelSelector']
+                         ['matchExpressions'][0]
+                         ['key'])
+
+        self.assertEqual(2, len(pod.tolerations))
+        self.assertEqual('prod', pod.tolerations[1]['key'])
+
+    def test_make_pod_with_executor_config(self):
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(affinity=self.affinity_config,
+                                                        tolerations=self.tolerations_config,
+                                                        annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[]
+                                                        )
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), "bash -c 'ls /'",
+                                     kube_executor_config)
+
+        self.assertTrue(pod.affinity['podAntiAffinity'] is not None)
+        self.assertEqual('app',
+                         pod.affinity['podAntiAffinity']
+                         ['requiredDuringSchedulingIgnoredDuringExecution'][0]
+                         ['labelSelector']
+                         ['matchExpressions'][0]
+                         ['key'])
+
+        self.assertEqual(2, len(pod.tolerations))
+        self.assertEqual('prod', pod.tolerations[1]['key'])
 
     def test_worker_pvc_dags(self):
         # Tests persistence volume config created when `dags_volume_claim` is set
