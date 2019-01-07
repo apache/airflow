@@ -30,7 +30,7 @@ import subprocess
 import time
 import uuid
 from os.path import isfile
-from googleapiclient import errors
+from googleapiclient.errors import HttpError
 from subprocess import Popen, PIPE
 from six.moves.urllib.parse import quote_plus
 
@@ -284,7 +284,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             ).execute(num_retries=NUM_RETRIES)
             operation_name = response["name"]
             return self._wait_for_operation_to_complete(project_id, operation_name)
-        except errors.HttpError as ex:
+        except HttpError as ex:
             raise AirflowException(
                 'Exporting instance {} failed: {}'.format(instance_id, ex.content)
             )
@@ -313,7 +313,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             ).execute(num_retries=NUM_RETRIES)
             operation_name = response["name"]
             return self._wait_for_operation_to_complete(project_id, operation_name)
-        except errors.HttpError as ex:
+        except HttpError as ex:
             raise AirflowException(
                 'Importing instance {} failed: {}'.format(instance_id, ex.content)
             )
