@@ -45,6 +45,10 @@ services:
     image: rabbitmq:3.7
     restart: always
 
+  redis:
+    image: redis:5.0.1
+    restart: always
+
   openldap:
     image: osixia/openldap:1.2.0
     restart: always
@@ -87,6 +91,7 @@ services:
       - mongo
       - cassandra
       - rabbitmq
+      - redis
       - openldap
       - krb5-kdc-server
     volumes:

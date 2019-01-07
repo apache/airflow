@@ -27,7 +27,6 @@ import time
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
-import hmsclient
 import six
 import unicodecsv as csv
 from past.builtins import basestring
@@ -496,6 +495,7 @@ class HiveMetastoreHook(BaseHook):
         """
         Returns a Hive thrift client.
         """
+        import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
         ms = self.metastore_conn
@@ -902,7 +902,7 @@ class HiveServer2Hook(BaseHook):
 
         self.log.info("Done. Loaded a total of %s rows.", i)
 
-    def get_records(self, hql, schema='default'):
+    def get_records(self, hql, schema='default', hive_conf=None):
         """
         Get a set of records from a Hive query.
 
@@ -911,7 +911,7 @@ class HiveServer2Hook(BaseHook):
         >>> len(hh.get_records(sql))
         100
         """
-        return self.get_results(hql, schema=schema)['data']
+        return self.get_results(hql, schema=schema, hive_conf=hive_conf)['data']
 
     def get_pandas_df(self, hql, schema='default'):
         """

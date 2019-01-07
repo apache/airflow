@@ -48,6 +48,9 @@ log = LoggingMixin().log
 PY3 = version_info[0] == 3
 
 
+client_auth = None
+
+
 class AuthenticationError(Exception):
     pass
 
@@ -95,8 +98,7 @@ class PasswordUser(models.User):
         return True
 
     def is_superuser(self):
-        """Access all the things"""
-        return True
+        return hasattr(self, 'user') and self.user.is_superuser()
 
 
 @login_manager.user_loader

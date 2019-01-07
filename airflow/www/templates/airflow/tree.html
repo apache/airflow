@@ -233,9 +233,9 @@ function update(source) {
         if(d.task_id === undefined)
             call_modal_dag(d);
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
-            call_modal(d.task_id, d.execution_date, true);
+            call_modal(d.task_id, d.execution_date, d.try_number, true);
         else
-            call_modal(d.task_id, d.execution_date);
+            call_modal(d.task_id, d.execution_date, d.try_number);
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")

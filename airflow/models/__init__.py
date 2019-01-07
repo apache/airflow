@@ -22,12 +22,14 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import copy
+from collections import defaultdict, namedtuple, OrderedDict
 
+from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
-from builtins import str, object, bytes, ImportError as BuiltinImportError
-import copy
-from collections import namedtuple, defaultdict
+from airflow.models.base import Base
+
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Hashable
@@ -41,7 +43,6 @@ import functools
 import getpass
 import imp
 import importlib
-import itertools
 import zipfile
 import jinja2
 import json
@@ -60,14 +61,14 @@ import hashlib
 
 import uuid
 from datetime import datetime
-from urllib.parse import urlparse, quote, parse_qsl, unquote
+from urllib.parse import quote
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
-    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint,
-    and_, asc, func, or_, true as sqltrue
+    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_, asc,
+    func, or_, true as sqltrue
 )
-from sqlalchemy.ext.declarative import declarative_base, declared_attr
+from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
 
 from croniter import (
@@ -84,6 +85,7 @@ from airflow.exceptions import (
 )
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
+from airflow.models.dagpickle import DagPickle
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -108,7 +110,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 
-Base = declarative_base()
 ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
 
@@ -286,12 +287,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors = {}
         self.has_logged = False
 
-        if include_examples:
-            example_dag_folder = os.path.join(
-                os.path.dirname(__file__),
-                'example_dags')
-            self.collect_dags(example_dag_folder)
-        self.collect_dags(dag_folder)
+        self.collect_dags(dag_folder, include_examples)
 
     def size(self):
         """
@@ -525,7 +521,8 @@ class DagBag(BaseDagBag, LoggingMixin):
     def collect_dags(
             self,
             dag_folder=None,
-            only_if_updated=True):
+            only_if_updated=True,
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -545,7 +542,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        for filepath in list_py_file_paths(dag_folder):
+        for filepath in list_py_file_paths(dag_folder, include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
@@ -599,7 +596,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String(ID_LEN), unique=True)
     email = Column(String(500))
-    superuser = False
+    superuser = Column(Boolean(), default=False)
 
     def __repr__(self):
         return self.username
@@ -609,259 +606,6 @@ class User(Base):
 
     def is_superuser(self):
         return self.superuser
-
-
-class Connection(Base, LoggingMixin):
-    """
-    Placeholder to store information about different database instances
-    connection information. The idea here is that scripts use references to
-    database instances (conn_id) instead of hard coding hostname, logins and
-    passwords when using operators or hooks.
-    """
-    __tablename__ = "connection"
-
-    id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN))
-    conn_type = Column(String(500))
-    host = Column(String(500))
-    schema = Column(String(500))
-    login = Column(String(500))
-    _password = Column('password', String(5000))
-    port = Column(Integer())
-    is_encrypted = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    _extra = Column('extra', String(5000))
-
-    _types = [
-        ('docker', 'Docker Registry',),
-        ('fs', 'File (path)'),
-        ('ftp', 'FTP',),
-        ('google_cloud_platform', 'Google Cloud Platform'),
-        ('hdfs', 'HDFS',),
-        ('http', 'HTTP',),
-        ('hive_cli', 'Hive Client Wrapper',),
-        ('hive_metastore', 'Hive Metastore Thrift',),
-        ('hiveserver2', 'Hive Server 2 Thrift',),
-        ('jdbc', 'Jdbc Connection',),
-        ('jenkins', 'Jenkins'),
-        ('mysql', 'MySQL',),
-        ('postgres', 'Postgres',),
-        ('oracle', 'Oracle',),
-        ('vertica', 'Vertica',),
-        ('presto', 'Presto',),
-        ('s3', 'S3',),
-        ('samba', 'Samba',),
-        ('sqlite', 'Sqlite',),
-        ('ssh', 'SSH',),
-        ('cloudant', 'IBM Cloudant',),
-        ('mssql', 'Microsoft SQL Server'),
-        ('mesos_framework-id', 'Mesos Framework ID'),
-        ('jira', 'JIRA',),
-        ('redis', 'Redis',),
-        ('wasb', 'Azure Blob Storage'),
-        ('databricks', 'Databricks',),
-        ('aws', 'Amazon Web Services',),
-        ('emr', 'Elastic MapReduce',),
-        ('snowflake', 'Snowflake',),
-        ('segment', 'Segment',),
-        ('azure_data_lake', 'Azure Data Lake'),
-        ('cassandra', 'Cassandra',),
-        ('qubole', 'Qubole'),
-    ]
-
-    def __init__(
-            self, conn_id=None, conn_type=None,
-            host=None, login=None, password=None,
-            schema=None, port=None, extra=None,
-            uri=None):
-        self.conn_id = conn_id
-        if uri:
-            self.parse_from_uri(uri)
-        else:
-            self.conn_type = conn_type
-            self.host = host
-            self.login = login
-            self.password = password
-            self.schema = schema
-            self.port = port
-            self.extra = extra
-
-    def parse_from_uri(self, uri):
-        temp_uri = urlparse(uri)
-        hostname = temp_uri.hostname or ''
-        conn_type = temp_uri.scheme
-        if conn_type == 'postgresql':
-            conn_type = 'postgres'
-        self.conn_type = conn_type
-        self.host = unquote(hostname) if hostname else hostname
-        quoted_schema = temp_uri.path[1:]
-        self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
-        self.login = unquote(temp_uri.username) \
-            if temp_uri.username else temp_uri.username
-        self.password = unquote(temp_uri.password) \
-            if temp_uri.password else temp_uri.password
-        self.port = temp_uri.port
-        if temp_uri.query:
-            self.extra = json.dumps(dict(parse_qsl(temp_uri.query)))
-
-    def get_password(self):
-        if self._password and self.is_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    "Can't decrypt encrypted password for login={}, \
-                    FERNET_KEY configuration is missing".format(self.login))
-            return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
-        else:
-            return self._password
-
-    def set_password(self, value):
-        if value:
-            fernet = get_fernet()
-            self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
-            self.is_encrypted = fernet.is_encrypted
-
-    @declared_attr
-    def password(cls):
-        return synonym('_password',
-                       descriptor=property(cls.get_password, cls.set_password))
-
-    def get_extra(self):
-        if self._extra and self.is_extra_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    "Can't decrypt `extra` params for login={},\
-                    FERNET_KEY configuration is missing".format(self.login))
-            return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
-        else:
-            return self._extra
-
-    def set_extra(self, value):
-        if value:
-            fernet = get_fernet()
-            self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
-            self.is_extra_encrypted = fernet.is_encrypted
-        else:
-            self._extra = value
-            self.is_extra_encrypted = False
-
-    @declared_attr
-    def extra(cls):
-        return synonym('_extra',
-                       descriptor=property(cls.get_extra, cls.set_extra))
-
-    def get_hook(self):
-        try:
-            if self.conn_type == 'mysql':
-                from airflow.hooks.mysql_hook import MySqlHook
-                return MySqlHook(mysql_conn_id=self.conn_id)
-            elif self.conn_type == 'google_cloud_platform':
-                from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-                return BigQueryHook(bigquery_conn_id=self.conn_id)
-            elif self.conn_type == 'postgres':
-                from airflow.hooks.postgres_hook import PostgresHook
-                return PostgresHook(postgres_conn_id=self.conn_id)
-            elif self.conn_type == 'hive_cli':
-                from airflow.hooks.hive_hooks import HiveCliHook
-                return HiveCliHook(hive_cli_conn_id=self.conn_id)
-            elif self.conn_type == 'presto':
-                from airflow.hooks.presto_hook import PrestoHook
-                return PrestoHook(presto_conn_id=self.conn_id)
-            elif self.conn_type == 'hiveserver2':
-                from airflow.hooks.hive_hooks import HiveServer2Hook
-                return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
-            elif self.conn_type == 'sqlite':
-                from airflow.hooks.sqlite_hook import SqliteHook
-                return SqliteHook(sqlite_conn_id=self.conn_id)
-            elif self.conn_type == 'jdbc':
-                from airflow.hooks.jdbc_hook import JdbcHook
-                return JdbcHook(jdbc_conn_id=self.conn_id)
-            elif self.conn_type == 'mssql':
-                from airflow.hooks.mssql_hook import MsSqlHook
-                return MsSqlHook(mssql_conn_id=self.conn_id)
-            elif self.conn_type == 'oracle':
-                from airflow.hooks.oracle_hook import OracleHook
-                return OracleHook(oracle_conn_id=self.conn_id)
-            elif self.conn_type == 'vertica':
-                from airflow.contrib.hooks.vertica_hook import VerticaHook
-                return VerticaHook(vertica_conn_id=self.conn_id)
-            elif self.conn_type == 'cloudant':
-                from airflow.contrib.hooks.cloudant_hook import CloudantHook
-                return CloudantHook(cloudant_conn_id=self.conn_id)
-            elif self.conn_type == 'jira':
-                from airflow.contrib.hooks.jira_hook import JiraHook
-                return JiraHook(jira_conn_id=self.conn_id)
-            elif self.conn_type == 'redis':
-                from airflow.contrib.hooks.redis_hook import RedisHook
-                return RedisHook(redis_conn_id=self.conn_id)
-            elif self.conn_type == 'wasb':
-                from airflow.contrib.hooks.wasb_hook import WasbHook
-                return WasbHook(wasb_conn_id=self.conn_id)
-            elif self.conn_type == 'docker':
-                from airflow.hooks.docker_hook import DockerHook
-                return DockerHook(docker_conn_id=self.conn_id)
-            elif self.conn_type == 'azure_data_lake':
-                from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
-                return AzureDataLakeHook(azure_data_lake_conn_id=self.conn_id)
-            elif self.conn_type == 'cassandra':
-                from airflow.contrib.hooks.cassandra_hook import CassandraHook
-                return CassandraHook(cassandra_conn_id=self.conn_id)
-        except Exception:
-            pass
-
-    def __repr__(self):
-        return self.conn_id
-
-    def debug_info(self):
-        return ("id: {}. Host: {}, Port: {}, Schema: {}, "
-                "Login: {}, Password: {}, extra: {}".
-                format(self.conn_id,
-                       self.host,
-                       self.port,
-                       self.schema,
-                       self.login,
-                       "XXXXXXXX" if self.password else None,
-                       self.extra_dejson))
-
-    @property
-    def extra_dejson(self):
-        """Returns the extra property by deserializing json."""
-        obj = {}
-        if self.extra:
-            try:
-                obj = json.loads(self.extra)
-            except Exception as e:
-                self.log.exception(e)
-                self.log.error("Failed parsing the json for conn_id %s", self.conn_id)
-
-        return obj
-
-
-class DagPickle(Base):
-    """
-    Dags can originate from different places (user repos, master repo, ...)
-    and also get executed in different places (different executors). This
-    object represents a version of a DAG and becomes a source of truth for
-    a BackfillJob execution. A pickle is a native python serialized object,
-    and in this case gets stored in the database for the duration of the job.
-
-    The executors pick up the DagPickle id and read the dag definition from
-    the database.
-    """
-    id = Column(Integer, primary_key=True)
-    pickle = Column(PickleType(pickler=dill))
-    created_dttm = Column(UtcDateTime, default=timezone.utcnow)
-    pickle_hash = Column(Text)
-
-    __tablename__ = "dag_pickle"
-
-    def __init__(self, dag):
-        self.dag_id = dag.dag_id
-        if hasattr(dag, 'template_env'):
-            dag.template_env = None
-        self.pickle_hash = hash(dag)
-        self.pickle = dag
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -1839,34 +1583,6 @@ class TaskInstance(Base, LoggingMixin):
         if 'tables' in task.params:
             tables = task.params['tables']
 
-        ds = self.execution_date.strftime('%Y-%m-%d')
-        ts = self.execution_date.isoformat()
-        yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
-        tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
-
-        prev_execution_date = task.dag.previous_schedule(self.execution_date)
-        next_execution_date = task.dag.following_schedule(self.execution_date)
-
-        next_ds = None
-        next_ds_nodash = None
-        if next_execution_date:
-            next_ds = next_execution_date.strftime('%Y-%m-%d')
-            next_ds_nodash = next_ds.replace('-', '')
-
-        prev_ds = None
-        prev_ds_nodash = None
-        if prev_execution_date:
-            prev_ds = prev_execution_date.strftime('%Y-%m-%d')
-            prev_ds_nodash = prev_ds.replace('-', '')
-
-        ds_nodash = ds.replace('-', '')
-        ts_nodash = ts.replace('-', '').replace(':', '')
-        yesterday_ds_nodash = yesterday_ds.replace('-', '')
-        tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
-
-        ti_key_str = "{task.dag_id}__{task.task_id}__{ds_nodash}"
-        ti_key_str = ti_key_str.format(**locals())
-
         params = {}
         run_id = ''
         dag_run = None
@@ -1883,6 +1599,43 @@ class TaskInstance(Base, LoggingMixin):
             run_id = dag_run.run_id if dag_run else None
             session.expunge_all()
             session.commit()
+
+        ds = self.execution_date.strftime('%Y-%m-%d')
+        ts = self.execution_date.isoformat()
+        yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
+        tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
+
+        # For manually triggered dagruns that aren't run on a schedule, next/previous
+        # schedule dates don't make sense, and should be set to execution date for
+        # consistency with how execution_date is set for manually triggered tasks, i.e.
+        # triggered_date == execution_date.
+        if dag_run and dag_run.external_trigger:
+            prev_execution_date = self.execution_date
+            next_execution_date = self.execution_date
+        else:
+            prev_execution_date = task.dag.previous_schedule(self.execution_date)
+            next_execution_date = task.dag.following_schedule(self.execution_date)
+
+        next_ds = None
+        next_ds_nodash = None
+        if next_execution_date:
+            next_ds = next_execution_date.strftime('%Y-%m-%d')
+            next_ds_nodash = next_ds.replace('-', '')
+
+        prev_ds = None
+        prev_ds_nodash = None
+        if prev_execution_date:
+            prev_ds = prev_execution_date.strftime('%Y-%m-%d')
+            prev_ds_nodash = prev_ds.replace('-', '')
+
+        ds_nodash = ds.replace('-', '')
+        ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
+        ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
+        yesterday_ds_nodash = yesterday_ds.replace('-', '')
+        tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
+
+        ti_key_str = "{task.dag_id}__{task.task_id}__{ds_nodash}"
+        ti_key_str = ti_key_str.format(**locals())
 
         if task.params:
             params.update(task.params)
@@ -1930,6 +1683,7 @@ class TaskInstance(Base, LoggingMixin):
             'ds_nodash': ds_nodash,
             'ts': ts,
             'ts_nodash': ts_nodash,
+            'ts_nodash_with_tz': ts_nodash_with_tz,
             'yesterday_ds': yesterday_ds,
             'yesterday_ds_nodash': yesterday_ds_nodash,
             'tomorrow_ds': tomorrow_ds,
@@ -1979,21 +1733,40 @@ class TaskInstance(Base, LoggingMixin):
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception):
-        task = self.task
-        title = "Airflow alert: {self}".format(**locals())
-        exception = str(exception).replace('\n', '<br>')
+        exception_html = str(exception).replace('\n', '<br>')
+        jinja_context = self.get_template_context()
+        jinja_context.update(dict(
+            exception=exception,
+            exception_html=exception_html,
+            try_number=self.try_number,
+            max_tries=self.max_tries))
+
+        jinja_env = self.task.get_template_env()
+
+        default_subject = 'Airflow alert: {{ti}}'
         # For reporting purposes, we report based on 1-indexed,
         # not 0-indexed lists (i.e. Try 1 instead of
         # Try 0 for the first attempt).
-        body = (
-            "Try {try_number} out of {max_tries}<br>"
-            "Exception:<br>{exception}<br>"
-            "Log: <a href='{self.log_url}'>Link</a><br>"
-            "Host: {self.hostname}<br>"
-            "Log file: {self.log_filepath}<br>"
-            "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
-        ).format(try_number=self.try_number, max_tries=self.max_tries + 1, **locals())
-        send_email(task.email, title, body)
+        default_html_content = (
+            'Try {{try_number}} out of {{max_tries + 1}}<br>'
+            'Exception:<br>{{exception_html}}<br>'
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            'Host: {{ti.hostname}}<br>'
+            'Log file: {{ti.log_filepath}}<br>'
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
+
+        def render(key, content):
+            if configuration.has_option('email', key):
+                path = configuration.get('email', key)
+                with open(path) as f:
+                    content = f.read()
+
+            return jinja_env.from_string(content).render(**jinja_context)
+
+        subject = render('subject_template', default_subject)
+        html_content = render('html_content_template', default_html_content)
+        send_email(self.task.email, subject, html_content)
 
     def set_duration(self):
         if self.end_date and self.start_date:
@@ -2412,7 +2185,7 @@ class BaseOperator(LoggingMixin):
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | dummy}``
+        one_failed | none_failed | dummy}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -2502,14 +2275,14 @@ class BaseOperator(LoggingMixin):
         if args or kwargs:
             # TODO remove *args and **kwargs in Airflow 2.0
             warnings.warn(
-                'Invalid arguments were passed to {c}. Support for '
-                'passing such arguments will be dropped in Airflow 2.0. '
-                'Invalid arguments were:'
+                'Invalid arguments were passed to {c} (task_id: {t}). '
+                'Support for passing such arguments will be dropped in '
+                'Airflow 2.0. Invalid arguments were:'
                 '\n*args: {a}\n**kwargs: {k}'.format(
-                    c=self.__class__.__name__, a=args, k=kwargs),
-                category=PendingDeprecationWarning
+                    c=self.__class__.__name__, a=args, k=kwargs, t=task_id),
+                category=PendingDeprecationWarning,
+                stacklevel=3
             )
-
         validate_key(task_id)
         self.task_id = task_id
         self.owner = owner
@@ -2634,10 +2407,10 @@ class BaseOperator(LoggingMixin):
         }
 
     def __eq__(self, other):
-        return (
-            type(self) == type(other) and
-            all(self.__dict__.get(c, None) == other.__dict__.get(c, None)
-                for c in self._comps))
+        if (type(self) == type(other) and
+                self.task_id == other.task_id):
+            return all(self.__dict__.get(c, None) == other.__dict__.get(c, None) for c in self._comps)
+        return False
 
     def __ne__(self, other):
         return not self == other
@@ -2882,9 +2655,7 @@ class BaseOperator(LoggingMixin):
         Renders a template either from a file or directly in a field, and returns
         the rendered result.
         """
-        jinja_env = self.dag.get_template_env() \
-            if hasattr(self, 'dag') \
-            else jinja2.Environment(cache_size=0)
+        jinja_env = self.get_template_env()
 
         exts = self.__class__.template_ext
         if (
@@ -2893,6 +2664,11 @@ class BaseOperator(LoggingMixin):
             return jinja_env.get_template(content).render(**context)
         else:
             return self.render_template_from_field(attr, content, context, jinja_env)
+
+    def get_template_env(self):
+        return self.dag.get_template_env() \
+            if hasattr(self, 'dag') \
+            else jinja2.Environment(cache_size=0)
 
     def prepare_template(self):
         """
@@ -2907,14 +2683,24 @@ class BaseOperator(LoggingMixin):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if content is not None and \
-                    isinstance(content, six.string_types) and \
+            if content is None:
+                continue
+            elif isinstance(content, six.string_types) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
-                env = self.dag.get_template_env()
+                env = self.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
                 except Exception as e:
                     self.log.exception(e)
+            elif isinstance(content, list):
+                env = self.dag.get_template_env()
+                for i in range(len(content)):
+                    if isinstance(content[i], six.string_types) and \
+                            any([content[i].endswith(ext) for ext in self.template_ext]):
+                        try:
+                            content[i] = env.loader.get_source(env, content[i])[0]
+                        except Exception as e:
+                            self.log.exception(e)
         self.prepare_template()
 
     @property
@@ -3195,14 +2981,66 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
+    # Description of the dag
+    description = Column(Text)
+    # Default view of the inside the webserver
+    default_view = Column(String(25))
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
+
+    @property
+    def timezone(self):
+        return settings.TIMEZONE
 
     @classmethod
     @provide_session
     def get_current(cls, dag_id, session=None):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
+
+    def get_default_view(self):
+        if self.default_view is None:
+            return configuration.conf.get('webserver', 'dag_default_view').lower()
+        else:
+            return self.default_view
+
+    def get_dag(self):
+        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+
+    @provide_session
+    def create_dagrun(self,
+                      run_id,
+                      state,
+                      execution_date,
+                      start_date=None,
+                      external_trigger=False,
+                      conf=None,
+                      session=None):
+        """
+        Creates a dag run from this dag including the tasks associated with this dag.
+        Returns the dag run.
+
+        :param run_id: defines the the run id for this dag run
+        :type run_id: str
+        :param execution_date: the execution date of this dag run
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param start_date: the date this dag run should be evaluated
+        :type start_date: datetime
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+
+        return self.get_dag().create_dagrun(run_id=run_id,
+                                            state=state,
+                                            execution_date=execution_date,
+                                            start_date=start_date,
+                                            external_trigger=external_trigger,
+                                            conf=conf,
+                                            session=session)
 
 
 @functools.total_ordering
@@ -3305,7 +3143,7 @@ class DAG(BaseDag, LoggingMixin):
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
             sla_miss_callback=None,
-            default_view=configuration.conf.get('webserver', 'dag_default_view').lower(),
+            default_view=None,
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
             on_success_callback=None, on_failure_callback=None,
@@ -3344,7 +3182,7 @@ class DAG(BaseDag, LoggingMixin):
                 )
             self.timezone = self.default_args['start_date'].tzinfo
 
-        if not self.timezone:
+        if not hasattr(self, 'timezone') or not self.timezone:
             self.timezone = settings.TIMEZONE
 
         self.start_date = timezone.convert_to_utc(start_date)
@@ -3372,11 +3210,10 @@ class DAG(BaseDag, LoggingMixin):
         self.template_searchpath = template_searchpath
         self.parent_dag = None  # Gets set when DAGs are loaded
         self.last_loaded = timezone.utcnow()
-        self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
-        self.default_view = default_view
+        self._default_view = default_view
         self.orientation = orientation
         self.catchup = catchup
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
@@ -3402,12 +3239,13 @@ class DAG(BaseDag, LoggingMixin):
         return "<DAG: {self.dag_id}>".format(self=self)
 
     def __eq__(self, other):
-        return (
-            type(self) == type(other) and
+        if (type(self) == type(other) and
+                self.dag_id == other.dag_id):
+
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
-            all(getattr(self, c, None) == getattr(other, c, None)
-                for c in self._comps))
+            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
+        return False
 
     def __ne__(self, other):
         return not self == other
@@ -3443,6 +3281,13 @@ class DAG(BaseDag, LoggingMixin):
         _CONTEXT_MANAGER_DAG = self._old_context_manager_dags.pop()
 
     # /Context Manager ----------------------------------------------
+
+    def get_default_view(self):
+        """This is only there for backward compatible jinja2 templates"""
+        if self._default_view is None:
+            return configuration.conf.get('webserver', 'dag_default_view').lower()
+        else:
+            return self._default_view
 
     def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
         if num:
@@ -3590,9 +3435,17 @@ class DAG(BaseDag, LoggingMixin):
 
         return last
 
+    @staticmethod
+    def to_safe_dag_id(dag_id):
+        return dag_id.replace(".", "__dot__")
+
     @property
     def dag_id(self):
         return self._dag_id
+
+    @property
+    def safe_dag_id(self):
+        return DAG.to_safe_dag_id(self.dag_id)
 
     @dag_id.setter
     def dag_id(self, value):
@@ -3863,8 +3716,8 @@ class DAG(BaseDag, LoggingMixin):
         :return: list of tasks in topological order
         """
 
-        # copy the the tasks so we leave it unmodified
-        graph_unsorted = self.tasks[:]
+        # convert into an OrderedDict to speedup lookup while keeping order the same
+        graph_unsorted = OrderedDict((task.task_id, task) for task in self.tasks)
 
         graph_sorted = []
 
@@ -3887,14 +3740,14 @@ class DAG(BaseDag, LoggingMixin):
             # not, we need to bail out as the graph therefore can't be
             # sorted.
             acyclic = False
-            for node in list(graph_unsorted):
+            for node in list(graph_unsorted.values()):
                 for edge in node.upstream_list:
-                    if edge in graph_unsorted:
+                    if edge.task_id in graph_unsorted:
                         break
                 # no edges in upstream tasks
                 else:
                     acyclic = True
-                    graph_unsorted.remove(node)
+                    del graph_unsorted[node.task_id]
                     graph_sorted.append(node)
 
             if not acyclic:
@@ -3922,7 +3775,6 @@ class DAG(BaseDag, LoggingMixin):
         for dr in drs:
             dr.state = state
             dirty_ids.append(dr.dag_id)
-        DagStat.update(dirty_ids, session=session)
 
     @provide_session
     def clear(
@@ -4353,8 +4205,6 @@ class DAG(BaseDag, LoggingMixin):
         )
         session.add(run)
 
-        DagStat.set_dirty(dag_id=self.dag_id, session=session)
-
         session.commit()
 
         run.dag = self
@@ -4396,6 +4246,8 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
+        orm_dag.default_view = self._default_view
+        orm_dag.description = self.description
         session.merge(orm_dag)
         session.commit()
 
@@ -4854,122 +4706,6 @@ class XCom(Base, LoggingMixin):
         session.commit()
 
 
-class DagStat(Base):
-    __tablename__ = "dag_stats"
-
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    state = Column(String(50), primary_key=True)
-    count = Column(Integer, default=0, nullable=False)
-    dirty = Column(Boolean, default=False, nullable=False)
-
-    def __init__(self, dag_id, state, count=0, dirty=False):
-        self.dag_id = dag_id
-        self.state = state
-        self.count = count
-        self.dirty = dirty
-
-    @staticmethod
-    @provide_session
-    def set_dirty(dag_id, session=None):
-        """
-        :param dag_id: the dag_id to mark dirty
-        :param session: database session
-        :return:
-        """
-        DagStat.create(dag_id=dag_id, session=session)
-
-        try:
-            stats = session.query(DagStat).filter(
-                DagStat.dag_id == dag_id
-            ).with_for_update().all()
-
-            for stat in stats:
-                stat.dirty = True
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            log = LoggingMixin().log
-            log.warning("Could not update dag stats for %s", dag_id)
-            log.exception(e)
-
-    @staticmethod
-    @provide_session
-    def update(dag_ids=None, dirty_only=True, session=None):
-        """
-        Updates the stats for dirty/out-of-sync dags
-
-        :param dag_ids: dag_ids to be updated
-        :type dag_ids: list
-        :param dirty_only: only updated for marked dirty, defaults to True
-        :type dirty_only: bool
-        :param session: db session to use
-        :type session: Session
-        """
-        try:
-            qry = session.query(DagStat)
-            if dag_ids:
-                qry = qry.filter(DagStat.dag_id.in_(set(dag_ids)))
-            if dirty_only:
-                qry = qry.filter(DagStat.dirty == True) # noqa
-
-            qry = qry.with_for_update().all()
-
-            ids = set([dag_stat.dag_id for dag_stat in qry])
-
-            # avoid querying with an empty IN clause
-            if len(ids) == 0:
-                session.commit()
-                return
-
-            dagstat_states = set(itertools.product(ids, State.dag_states))
-            qry = (
-                session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-                .filter(DagRun.dag_id.in_(ids))
-                .group_by(DagRun.dag_id, DagRun.state)
-            )
-
-            counts = {(dag_id, state): count for dag_id, state, count in qry}
-            for dag_id, state in dagstat_states:
-                count = 0
-                if (dag_id, state) in counts:
-                    count = counts[(dag_id, state)]
-
-                session.merge(
-                    DagStat(dag_id=dag_id, state=state, count=count, dirty=False)
-                )
-
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            log = LoggingMixin().log
-            log.warning("Could not update dag stat table")
-            log.exception(e)
-
-    @staticmethod
-    @provide_session
-    def create(dag_id, session=None):
-        """
-        Creates the missing states the stats table for the dag specified
-
-        :param dag_id: dag id of the dag to create stats for
-        :param session: database session
-        :return:
-        """
-        # unfortunately sqlalchemy does not know upsert
-        qry = session.query(DagStat).filter(DagStat.dag_id == dag_id).all()
-        states = {dag_stat.state for dag_stat in qry}
-        for state in State.dag_states:
-            if state not in states:
-                try:
-                    session.merge(DagStat(dag_id=dag_id, state=state))
-                    session.commit()
-                except Exception as e:
-                    session.rollback()
-                    log = LoggingMixin().log
-                    log.warning("Could not create stat record")
-                    log.exception(e)
-
-
 class DagRun(Base, LoggingMixin):
     """
     DagRun describes an instance of a Dag. It can be created
@@ -5015,13 +4751,6 @@ class DagRun(Base, LoggingMixin):
         if self._state != state:
             self._state = state
             self.end_date = timezone.utcnow() if self._state in State.finished() else None
-
-            if self.dag_id is not None:
-                # FIXME: Due to the scoped_session factor we we don't get a clean
-                # session here, so something really weird goes on:
-                # if you try to close the session dag runs will end up detached
-                session = settings.Session()
-                DagStat.set_dirty(self.dag_id, session=session)
 
     @declared_attr
     def state(self):
@@ -5439,6 +5168,10 @@ class SlaMiss(Base):
     timestamp = Column(UtcDateTime)
     description = Column(Text)
     notification_sent = Column(Boolean, default=False)
+
+    __table_args__ = (
+        Index('sm_dag', dag_id, unique=False),
+    )
 
     def __repr__(self):
         return str((

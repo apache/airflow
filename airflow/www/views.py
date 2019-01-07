@@ -40,7 +40,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
-    current_app, render_template, make_response)
+    current_app, render_template, make_response, send_file)
 from flask import flash
 from flask._compat import PY2
 from flask_admin import BaseView, expose, AdminIndexView
@@ -69,12 +69,13 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models import XCom, DagRun
+from airflow.models.connection import Connection
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.utils.db import create_session, provide_session
-from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
@@ -83,6 +84,10 @@ from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www.validators import GreaterEqualThan
+if PY2:
+    from cStringIO import StringIO
+else:
+    from io import StringIO
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -388,7 +393,7 @@ class Airflow(BaseView):
             csv = request.args.get('csv') == "true"
             chart = session.query(models.Chart).filter_by(id=chart_id).first()
             db = session.query(
-                models.Connection).filter_by(conn_id=chart.conn_id).first()
+                Connection).filter_by(conn_id=chart.conn_id).first()
 
         payload = {
             "state": "ERROR",
@@ -549,31 +554,31 @@ class Airflow(BaseView):
     @login_required
     @provide_session
     def dag_stats(self, session=None):
-        ds = models.DagStat
+        dr = models.DagRun
+        dm = models.DagModel
+        dag_ids = session.query(dm.dag_id)
 
-        ds.update(
-            dag_ids=[dag.dag_id for dag in dagbag.dags.values() if not dag.is_subdag]
-        )
-
-        qry = (
-            session.query(ds.dag_id, ds.state, ds.count)
+        dag_state_stats = (
+            session.query(dr.dag_id, dr.state, sqla.func.count(dr.state)).group_by(dr.dag_id, dr.state)
         )
 
         data = {}
-        for dag_id, state, count in qry:
+        for (dag_id, ) in dag_ids:
+            data[dag_id] = {}
+        for dag_id, state, count in dag_state_stats:
             if dag_id not in data:
                 data[dag_id] = {}
             data[dag_id][state] = count
 
         payload = {}
-        for dag in dagbag.dags.values():
-            payload[dag.safe_dag_id] = []
+        for dag_id, d in data.items():
+            payload[dag_id] = []
             for state in State.dag_states:
-                count = data.get(dag.dag_id, {}).get(state, 0)
-                payload[dag.safe_dag_id].append({
+                count = d.get(state, 0)
+                payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag.dag_id,
+                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
         return wwwutils.json_response(payload)
@@ -585,6 +590,8 @@ class Airflow(BaseView):
         TI = models.TaskInstance
         DagRun = models.DagRun
         Dag = models.DagModel
+
+        dag_ids = session.query(Dag.dag_id)
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
@@ -633,24 +640,25 @@ class Airflow(BaseView):
         session.commit()
 
         payload = {}
-        for dag in dagbag.dags.values():
-            payload[dag.safe_dag_id] = []
+        for (dag_id, ) in dag_ids:
+            payload[dag_id] = []
             for state in State.task_states:
-                count = data.get(dag.dag_id, {}).get(state, 0)
-                payload[dag.safe_dag_id].append({
+                count = data.get(dag_id, {}).get(state, 0)
+                payload[dag_id].append({
                     'state': state,
                     'count': count,
-                    'dag_id': dag.dag_id,
+                    'dag_id': dag_id,
                     'color': State.color(state)
                 })
         return wwwutils.json_response(payload)
 
     @expose('/code')
     @login_required
-    def code(self):
+    @provide_session
+    def code(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
-        title = dag_id
+        dm = models.DagModel
+        dag = session.query(dm).filter(dm.dag_id == dag_id).first()
         try:
             with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
@@ -660,7 +668,7 @@ class Airflow(BaseView):
             html_code = str(e)
 
         return self.render(
-            'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
+            'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
 
@@ -766,7 +774,12 @@ class Airflow(BaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
-        try_number = int(request.args.get('try_number'))
+        if request.args.get('try_number') is not None:
+            try_number = int(request.args.get('try_number'))
+        else:
+            try_number = None
+        response_format = request.args.get('format', 'json')
+
         metadata = request.args.get('metadata')
         metadata = json.loads(metadata)
 
@@ -808,8 +821,16 @@ class Airflow(BaseView):
             for i, log in enumerate(logs):
                 if PY2 and not isinstance(log, unicode):
                     logs[i] = log.decode('utf-8')
-            message = logs[0]
-            return jsonify(message=message, metadata=metadata)
+
+            if response_format == 'json':
+                message = logs[0] if try_number is not None else logs
+                return jsonify(message=message, metadata=metadata)
+
+            file_obj = StringIO('\n'.join(logs))
+            filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            return send_file(file_obj, as_attachment=True,
+                             attachment_filename=attachment_filename)
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
                              .format(task_log_reader, str(e))]
@@ -940,8 +961,11 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag = dagbag.get_dag(dag_id)
-        if not dag or task_id not in dag.task_ids:
+        dm_db = models.DagModel
+        ti_db = models.TaskInstance
+        dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
+        ti = session.query(ti_db).filter(ti_db.dag_id == dag_id and ti_db.task_id == task_id).first()
+        if not ti:
             flash(
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
@@ -1064,11 +1088,11 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     @wwwutils.notify_owner
-    def trigger(self):
+    @provide_session
+    def trigger(self, session=None):
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin') or "/admin/"
-        dag = dagbag.get_dag(dag_id)
-
+        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
             flash("Cannot find dag {}".format(dag_id))
             return redirect(origin)
@@ -1587,7 +1611,7 @@ class Airflow(BaseView):
             task_instances=json.dumps(task_instances, indent=2),
             tasks=json.dumps(tasks, indent=2),
             nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2), )
+            edges=json.dumps(edges, indent=2))
 
     @expose('/duration')
     @login_required
@@ -1867,17 +1891,16 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def refresh(self, session=None):
-        DagModel = models.DagModel
+        # TODO: Is this method still needed after AIRFLOW-3561?
+        dm = models.DagModel
         dag_id = request.args.get('dag_id')
-        orm_dag = session.query(
-            DagModel).filter(DagModel.dag_id == dag_id).first()
+        orm_dag = session.query(dm).filter(dm.dag_id == dag_id).first()
 
         if orm_dag:
             orm_dag.last_expired = timezone.utcnow()
             session.merge(orm_dag)
         session.commit()
 
-        dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
@@ -1885,7 +1908,7 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def refresh_all(self):
-        dagbag.collect_dags(only_if_updated=False)
+        # TODO: Is this method still needed after AIRFLOW-3561?
         flash("All DAGs are now up to date")
         return redirect('/')
 
@@ -2124,6 +2147,14 @@ class HomeView(AdminIndexView):
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
                 "error")
 
+        from airflow.plugins_manager import import_errors as plugin_import_errors
+        for filename, stacktrace in plugin_import_errors.items():
+            flash(
+                "Broken plugin: [{filename}] {stacktrace}".format(
+                    stacktrace=stacktrace,
+                    filename=filename),
+                "error")
+
         # get a list of all non-subdag dags visible to everyone
         # optionally filter out "paused" dags
         if hide_paused:
@@ -2214,8 +2245,7 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
     @wwwutils.gzipped
     @provide_session
     def query(self, session=None):
-        dbs = session.query(models.Connection).order_by(
-            models.Connection.conn_id).all()
+        dbs = session.query(Connection).order_by(Connection.conn_id).all()
         session.expunge_all()
         db_choices = list(
             ((db.conn_id, db.conn_id) for db in dbs if db.get_hook()))
@@ -2333,8 +2363,8 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
 def _connection_ids(session=None):
     return [(c.conn_id, c.conn_id) for c in (
         session
-            .query(models.Connection.conn_id)
-            .group_by(models.Connection.conn_id))]
+            .query(Connection.conn_id)
+            .group_by(Connection.conn_id))]
 
 
 class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
@@ -2696,7 +2726,6 @@ class DagRunModelView(ModelViewOnly):
         dirty_ids = []
         for row in deleted:
             dirty_ids.append(row.dag_id)
-        models.DagStat.update(dirty_ids, dirty_only=False, session=session)
 
     @action('set_running', "Set state to 'running'", None)
     @provide_session
@@ -2710,7 +2739,6 @@ class DagRunModelView(ModelViewOnly):
                 count += 1
                 dr.state = State.RUNNING
                 dr.start_date = timezone.utcnow()
-            models.DagStat.update(dirty_ids, session=session)
             flash(
                 "{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
@@ -2735,7 +2763,6 @@ class DagRunModelView(ModelViewOnly):
                                                 dr.execution_date,
                                                 commit=True,
                                                 session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
@@ -2762,7 +2789,6 @@ class DagRunModelView(ModelViewOnly):
                                                  dr.execution_date,
                                                  commit=True,
                                                  session=session)
-            models.DagStat.update(dirty_ids, session=session)
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
@@ -2796,7 +2822,6 @@ class DagRunModelView(ModelViewOnly):
                 session=session)
 
         altered_ti_count = len(altered_tis)
-        models.DagStat.update([dagrun.dag_id], session=session)
         flash(
             "1 dag run and {altered_ti_count} task instances "
             "were set to '{dagrun.state}'".format(**locals()))
@@ -2984,7 +3009,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__scope': StringField('Scopes (comma separated)'),
     }
     form_choices = {
-        'conn_type': models.Connection._types
+        'conn_type': Connection._types
     }
 
     def on_model_change(self, form, model, is_created):

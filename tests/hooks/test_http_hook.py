@@ -20,9 +20,10 @@ import requests_mock
 
 import tenacity
 
-from airflow import configuration, models
+from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
+from airflow.models.connection import Connection
 
 try:
     from unittest import mock
@@ -34,7 +35,7 @@ except ImportError:
 
 
 def get_airflow_connection(conn_id=None):
-    return models.Connection(
+    return Connection(
         conn_id='http_default',
         conn_type='http',
         host='test:8080/',
@@ -43,7 +44,7 @@ def get_airflow_connection(conn_id=None):
 
 
 def get_airflow_connection_with_port(conn_id=None):
-    return models.Connection(
+    return Connection(
         conn_id='http_default',
         conn_type='http',
         host='test.com',
@@ -247,8 +248,8 @@ class TestHttpHook(unittest.TestCase):
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_http_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='localhost', schema='http')
+        c = Connection(conn_id='http_default', conn_type='http',
+                       host='localhost', schema='http')
         mock_get_connection.return_value = c
         hook = HttpHook()
         hook.get_conn({})
@@ -256,8 +257,8 @@ class TestHttpHook(unittest.TestCase):
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_https_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='localhost', schema='https')
+        c = Connection(conn_id='http_default', conn_type='http',
+                       host='localhost', schema='https')
         mock_get_connection.return_value = c
         hook = HttpHook()
         hook.get_conn({})
@@ -265,8 +266,8 @@ class TestHttpHook(unittest.TestCase):
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_host_encoded_http_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='http://localhost')
+        c = Connection(conn_id='http_default', conn_type='http',
+                       host='http://localhost')
         mock_get_connection.return_value = c
         hook = HttpHook()
         hook.get_conn({})
@@ -274,8 +275,8 @@ class TestHttpHook(unittest.TestCase):
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_host_encoded_https_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='https://localhost')
+        c = Connection(conn_id='http_default', conn_type='http',
+                       host='https://localhost')
         mock_get_connection.return_value = c
         hook = HttpHook()
         hook.get_conn({})

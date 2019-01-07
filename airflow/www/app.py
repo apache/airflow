@@ -30,6 +30,7 @@ from werkzeug.contrib.fixers import ProxyFix
 import airflow
 from airflow import configuration as conf
 from airflow import models, LoggingMixin
+from airflow.models.connection import Connection
 from airflow.settings import Session
 
 from airflow.www.blueprints import routes
@@ -107,7 +108,7 @@ def create_app(config=None, testing=False):
         av(vs.UserModelView(
             models.User, Session, name="Users", category="Admin"))
         av(vs.ConnectionModelView(
-            models.Connection, Session, name="Connections", category="Admin"))
+            Connection, Session, name="Connections", category="Admin"))
         av(vs.VariableView(
             models.Variable, Session, name="Variables", category="Admin"))
         av(vs.XComView(
@@ -115,11 +116,11 @@ def create_app(config=None, testing=False):
 
         admin.add_link(base.MenuLink(
             category='Docs', name='Documentation',
-            url='https://airflow.incubator.apache.org/'))
+            url='https://airflow.apache.org/'))
         admin.add_link(
             base.MenuLink(category='Docs',
                           name='Github',
-                          url='https://github.com/apache/incubator-airflow'))
+                          url='https://github.com/apache/airflow'))
 
         av(vs.VersionView(name='Version', category="About"))
 

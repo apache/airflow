@@ -34,7 +34,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :type emr_conn_id: str
     :param job_flow_overrides: boto3 style arguments to override
        emr_connection extra. (templated)
-    :type steps: dict
+    :type job_flow_overrides: dict
     """
     template_fields = ['job_flow_overrides']
     template_ext = ()
@@ -46,6 +46,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             aws_conn_id='s3_default',
             emr_conn_id='emr_default',
             job_flow_overrides=None,
+            region_name=None,
             *args, **kwargs):
         super(EmrCreateJobFlowOperator, self).__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
@@ -53,9 +54,12 @@ class EmrCreateJobFlowOperator(BaseOperator):
         if job_flow_overrides is None:
             job_flow_overrides = {}
         self.job_flow_overrides = job_flow_overrides
+        self.region_name = region_name
 
     def execute(self, context):
-        emr = EmrHook(aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id)
+        emr = EmrHook(aws_conn_id=self.aws_conn_id,
+                      emr_conn_id=self.emr_conn_id,
+                      region_name=self.region_name)
 
         self.log.info(
             'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s',

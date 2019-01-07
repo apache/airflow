@@ -183,15 +183,9 @@ class BranchOperatorTest(unittest.TestCase):
                            'owner': 'airflow',
                            'start_date': DEFAULT_DATE},
                        schedule_interval=INTERVAL)
-        self.branch_op = BranchPythonOperator(task_id='make_choice',
-                                              dag=self.dag,
-                                              python_callable=lambda: 'branch_1')
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_1.set_upstream(self.branch_op)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
-        self.branch_2.set_upstream(self.branch_op)
-        self.dag.clear()
 
     def tearDown(self):
         super(BranchOperatorTest, self).tearDown()
@@ -206,6 +200,13 @@ class BranchOperatorTest(unittest.TestCase):
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
+        self.branch_op = BranchPythonOperator(task_id='make_choice',
+                                              dag=self.dag,
+                                              python_callable=lambda: 'branch_1')
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.dag.clear()
+
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         session = Session()
@@ -226,7 +227,48 @@ class BranchOperatorTest(unittest.TestCase):
             else:
                 raise
 
+    def test_branch_list_without_dag_run(self):
+        """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
+        self.branch_op = BranchPythonOperator(task_id='make_choice',
+                                              dag=self.dag,
+                                              python_callable=lambda: ['branch_1', 'branch_2'])
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.branch_3 = DummyOperator(task_id='branch_3', dag=self.dag)
+        self.branch_3.set_upstream(self.branch_op)
+        self.dag.clear()
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        session = Session()
+        tis = session.query(TI).filter(
+            TI.dag_id == self.dag.dag_id,
+            TI.execution_date == DEFAULT_DATE
+        )
+        session.close()
+
+        expected = {
+            "make_choice": State.SUCCESS,
+            "branch_1": State.NONE,
+            "branch_2": State.NONE,
+            "branch_3": State.SKIPPED,
+        }
+
+        for ti in tis:
+            if ti.task_id in expected:
+                self.assertEquals(ti.state, expected[ti.task_id])
+            else:
+                raise
+
     def test_with_dag_run(self):
+        self.branch_op = BranchPythonOperator(task_id='make_choice',
+                                              dag=self.dag,
+                                              python_callable=lambda: 'branch_1')
+
+        self.branch_1.set_upstream(self.branch_op)
+        self.branch_2.set_upstream(self.branch_op)
+        self.dag.clear()
+
         dr = self.dag.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),

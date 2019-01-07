@@ -28,7 +28,7 @@
 {% block body %}
   <h2>DAGs</h2>
 
-  <div id="main_content" style="display:none;">
+  <div id="main_content">
     <div class="row">
       <div class="col-sm-2">
       </div>
@@ -85,7 +85,7 @@
                 <!-- Column 3: Name -->
                 <td>
                     {% if dag_id in webserver_dags %}
-                    <a href="{{ url_for('airflow.'+dag.default_view, dag_id=dag.dag_id) }}" title="{{ dag.description }}">
+                    <a href="{{ url_for('airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}" title="{{ dag.description }}">
                         {{ dag_id }}
                     </a>
                     {% else %}
@@ -100,7 +100,7 @@
                 <!-- Column 4: Dag Schedule -->
                 <td>
                     {% if dag_id in webserver_dags %}
-                  <a class="label label-default schedule {{ dag.dag_id }}" href="{{ url_for('dagrun.index_view') }}?flt2_dag_id_equals={{ dag.dag_id }}">
+                  <a class="label label-default schedule {{ dag.safe_dag_id }}" href="{{ url_for('dagrun.index_view') }}?flt2_dag_id_equals={{ dag.dag_id }}">
                         {{ dag.schedule_interval }}
                     </a>
                     {% endif %}
@@ -191,11 +191,11 @@
                 </a>
 
                 <!-- Delete -->
-                <a href="{{ url_for('airflow.delete', dag_id=dag.dag_id) }}"
-                  onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
+                <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
+                <a href="{{ url_for('airflow.delete', dag_id=dag_id) }}"
+                  onclick="return confirmDeleteDag('{{ dag_id }}')">
                    <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
-
                 </td>
             </tr>
         {% endfor %}
@@ -402,7 +402,7 @@
             states = json[dag_id];
             g = d3.select('svg#task-run-' + dag_id)
               .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '240px')
+              .attr('width', '270px')
               .selectAll("g")
               .data(states)
               .enter()

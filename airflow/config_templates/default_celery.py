@@ -37,7 +37,7 @@ broker_transport_options = configuration.conf.getsection(
 )
 if 'visibility_timeout' not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
-        broker_transport_options = {'visibility_timeout': 21600}
+        broker_transport_options['visibility_timeout'] = 21600
 
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json', 'pickle'],

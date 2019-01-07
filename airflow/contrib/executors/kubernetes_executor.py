@@ -16,6 +16,7 @@
 # under the License.
 
 import base64
+import json
 import multiprocessing
 from queue import Queue
 from dateutil import parser
@@ -40,7 +41,7 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None):
+                 annotations=None, volumes=None, volume_mounts=None, tolerations=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -53,16 +54,18 @@ class KubernetesExecutorConfig:
         self.annotations = annotations
         self.volumes = volumes
         self.volume_mounts = volume_mounts
+        self.tolerations = tolerations
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
                "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
-               "volume_mounts={})" \
+               "volume_mounts={}, tolerations={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
-                    self.affinity, self.annotations, self.volumes, self.volume_mounts)
+                    self.affinity, self.annotations, self.volumes, self.volume_mounts,
+                    self.tolerations)
 
     @staticmethod
     def from_dict(obj):
@@ -88,6 +91,7 @@ class KubernetesExecutorConfig:
             annotations=namespaced.get('annotations', {}),
             volumes=namespaced.get('volumes', []),
             volume_mounts=namespaced.get('volume_mounts', []),
+            tolerations=namespaced.get('tolerations', None),
         )
 
     def as_dict(self):
@@ -104,6 +108,7 @@ class KubernetesExecutorConfig:
             'annotations': self.annotations,
             'volumes': self.volumes,
             'volume_mounts': self.volume_mounts,
+            'tolerations': self.tolerations,
         }
 
 
@@ -122,8 +127,6 @@ class KubeConfig:
             self.kubernetes_section, 'worker_container_repository')
         self.worker_container_tag = configuration.get(
             self.kubernetes_section, 'worker_container_tag')
-        self.worker_dags_folder = configuration.get(
-            self.kubernetes_section, 'worker_dags_folder')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
         self.kube_image_pull_policy = configuration.get(
@@ -137,14 +140,8 @@ class KubeConfig:
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
 
-        # If this is set, we assume the container for the worker contains the dags
-        # which means we are allow to "skip" the volumes and git repo syncing
-        self.dags_in_worker_container = conf.getboolean(
-            self.kubernetes_section, 'worker_container_contains_dags')
-
-        # path inside the worker container for the dags
-        self.dag_path_in_worker_container = conf.get(
-            self.kubernetes_section, 'worker_container_dag_path')
+        self.dags_in_image = conf.get(
+            self.kubernetes_section, 'dags_in_image')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
@@ -153,6 +150,14 @@ class KubeConfig:
         self.git_branch = conf.get(self.kubernetes_section, 'git_branch')
         # Optionally, the directory in the git repository containing the dags
         self.git_subpath = conf.get(self.kubernetes_section, 'git_subpath')
+        # Optionally, the root directory for git operations
+        self.git_sync_root = conf.get(self.kubernetes_section, 'git_sync_root')
+        # Optionally, the name at which to publish the checked-out files under --root
+        self.git_sync_dest = conf.get(self.kubernetes_section, 'git_sync_dest')
+        # Optionally, if git_dags_folder_mount_point is set the worker will use
+        # {git_dags_folder_mount_point}/{git_sync_dest}/{git_subpath} as dags_folder
+        self.git_dags_folder_mount_point = conf.get(self.kubernetes_section,
+                                                    'git_dags_folder_mount_point')
 
         # Optionally a user may supply a `git_user` and `git_password` for private
         # repositories
@@ -175,6 +180,12 @@ class KubeConfig:
         # on a SubPath
         self.logs_volume_subpath = conf.get(
             self.kubernetes_section, 'logs_volume_subpath')
+
+        # Optionally, hostPath volume containing DAGs
+        self.dags_volume_host = conf.get(self.kubernetes_section, 'dags_volume_host')
+
+        # Optionally, write logs to a hostPath Volume
+        self.logs_volume_host = conf.get(self.kubernetes_section, 'logs_volume_host')
 
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
@@ -210,22 +221,33 @@ class KubeConfig:
         # configmap
         self.airflow_configmap = conf.get(self.kubernetes_section, 'airflow_configmap')
 
+        affinity_json = conf.get(self.kubernetes_section, 'affinity')
+        if affinity_json:
+            self.kube_affinity = json.loads(affinity_json)
+        else:
+            self.kube_affinity = None
+
+        tolerations_json = conf.get(self.kubernetes_section, 'tolerations')
+        if tolerations_json:
+            self.kube_tolerations = json.loads(tolerations_json)
+        else:
+            self.kube_tolerations = None
+
         self._validate()
 
     def _validate(self):
-        if (
-            not self.dags_volume_claim and
-            (not self.git_repo or not self.git_branch) and
-            not self.dags_in_worker_container
-        ):
+        # TODO: use XOR for dags_volume_claim and git_dags_folder_mount_point
+        if not self.dags_volume_claim \
+            and not self.dags_volume_host \
+            and not self.dags_in_image \
+            and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
-                'config section: `dags_volume_claim` or `git_repo and git_branch` '
-                'or `worker_container_contains_dags`')
-        if self.dags_in_worker_container and not self.dag_path_in_worker_container:
-            raise AirflowConfigException(
-                'In kubernetes mode if `worker_container_contains_dags` is True '
-                '`worker_container_dag_path` is also required')
+                'config section: `dags_volume_claim` '
+                'or `dags_volume_host` '
+                'or `dags_in_image` '
+                'or `git_repo and git_branch and git_dags_folder_mount_point`')
+
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
     def __init__(self, namespace, watcher_queue, resource_version, worker_uuid):
@@ -484,7 +506,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             return (
                 labels['dag_id'], labels['task_id'],
                 self._label_safe_datestring_to_datetime(labels['execution_date']),
-                try_num
+                try_num,
             )
         except Exception as e:
             self.log.warn(
@@ -613,11 +635,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.task_queue.put((key, command, kube_executor_config))
 
     def sync(self):
-        # way too verbose
-        #if self.running:
-        #    self.log.info('self.running: %s', self.running)
+        if self.running:
+            self.log.debug('self.running: %s', self.running)
         if self.queued_tasks:
-            self.log.info('self.queued: %s', self.queued_tasks)
+            self.log.debug('self.queued: %s', self.queued_tasks)
         self.kube_scheduler.sync()
 
         last_resource_version = None
@@ -632,8 +653,14 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             last_resource_version, session=self._session)
 
         if not self.task_queue.empty():
-            key, command, kube_executor_config = self.task_queue.get()
-            self.kube_scheduler.run_next((key, command, kube_executor_config))
+            task = self.task_queue.get()
+
+            try:
+                self.kube_scheduler.run_next(task)
+            except ApiException:
+                self.log.exception('ApiException when attempting ' +
+                                   'to run task, re-queueing.')
+                self.task_queue.put(task)
 
     def _change_state(self, key, state, pod_id):
         # FIXME -- These failed pods may stack up overtime, might want to revisit saving them.
