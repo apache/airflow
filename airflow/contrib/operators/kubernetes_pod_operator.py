@@ -45,6 +45,12 @@ class KubernetesPodOperator(BaseOperator):
     :param arguments: arguments of to the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
     :type arguments: list of str
+    :param image_pull_policy: Specify a policy to cache or always pull an image
+    :type image_pull_policy: str
+    :param image_pull_secrets: Any image pull secrets to be given to the pod.
+                               If more than one secret is required, provide a
+                               comma separated list: secret_a,secret_b
+    :type image_pull_secrets: str
     :param volume_mounts: volumeMounts for launched pod
     :type volume_mounts: list of VolumeMount
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
@@ -78,8 +84,10 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type xcom_push: bool
-    :param tolerations: Kubernetes tolerations
-    :type list of tolerations
+    :param hostnetwork: If True enable host networking on the pod
+    :type hostnetwork: bool
+    :param tolerations: A list of kubernetes tolerations
+    :type tolerations: list tolerations
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -108,6 +116,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.secrets = self.secrets
             pod.envs = self.env_vars
             pod.image_pull_policy = self.image_pull_policy
+            pod.image_pull_secrets = self.image_pull_secrets
             pod.annotations = self.annotations
             pod.resources = self.resources
             pod.affinity = self.affinity
@@ -117,13 +126,14 @@ class KubernetesPodOperator(BaseOperator):
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.xcom_push)
-            (final_state, result) = launcher.run_pod(
-                pod,
-                startup_timeout=self.startup_timeout_seconds,
-                get_logs=self.get_logs)
-
-            if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
+            try:
+                (final_state, result) = launcher.run_pod(
+                    pod,
+                    startup_timeout=self.startup_timeout_seconds,
+                    get_logs=self.get_logs)
+            finally:
+                if self.is_delete_operator_pod:
+                    launcher.delete_pod(pod)
 
             if final_state != State.SUCCESS:
                 raise AirflowException(

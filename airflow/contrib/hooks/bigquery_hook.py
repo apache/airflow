@@ -23,8 +23,10 @@ implementation for BigQuery.
 """
 
 import time
+import six
 from builtins import range
 from copy import deepcopy
+from six import iteritems
 
 from past.builtins import basestring
 
@@ -52,10 +54,12 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
     def __init__(self,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 use_legacy_sql=True):
+                 use_legacy_sql=True,
+                 location=None):
         super(BigQueryHook, self).__init__(
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
+        self.location = location
 
     def get_conn(self):
         """
@@ -66,7 +70,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         return BigQueryConnection(
             service=service,
             project_id=project,
-            use_legacy_sql=self.use_legacy_sql)
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location,
+        )
 
     def get_service(self):
         """
@@ -200,7 +206,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  service,
                  project_id,
                  use_legacy_sql=True,
-                 api_resource_configs=None):
+                 api_resource_configs=None,
+                 location=None):
 
         self.service = service
         self.project_id = project_id
@@ -210,6 +217,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.api_resource_configs = api_resource_configs \
             if api_resource_configs else {}
         self.running_job_id = None
+        self.location = location
 
     def create_empty_table(self,
                            project_id,
@@ -217,10 +225,11 @@ class BigQueryBaseCursor(LoggingMixin):
                            table_id,
                            schema_fields=None,
                            time_partitioning=None,
-                           labels=None
-                           ):
+                           labels=None,
+                           view=None):
         """
         Creates a new, empty table in the dataset.
+        To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
 
         :param project_id: The project to create the table into.
         :type project_id: str
@@ -245,6 +254,17 @@ class BigQueryBaseCursor(LoggingMixin):
             .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
+        :param view: [Optional] A dictionary containing definition for the view.
+            If set, it will create a view instead of a table:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+        :type view: dict
+
+        **Example**: ::
+
+            view = {
+                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 1000",
+                "useLegacySql": False
+            }
 
         :return:
         """
@@ -265,6 +285,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if labels:
             table_resource['labels'] = labels
+
+        if view:
+            table_resource['view'] = view
 
         self.log.info('Creating Table %s:%s.%s',
                       project_id, dataset_id, table_id)
@@ -496,7 +519,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   priority='INTERACTIVE',
                   time_partitioning=None,
                   api_resource_configs=None,
-                  cluster_fields=None):
+                  cluster_fields=None,
+                  location=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -550,7 +574,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param labels a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
-        :param schema_update_options: Allows the schema of the desitination
+        :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the query job.
         :type schema_update_options: tuple
         :param priority: Specifies a priority for the query.
@@ -564,7 +588,17 @@ class BigQueryBaseCursor(LoggingMixin):
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
         :type cluster_fields: list of str
+        :param location: The geographic location of the job. Required except for
+            US and EU. See details at
+            https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+        :type location: str
         """
+
+        if time_partitioning is None:
+            time_partitioning = {}
+
+        if location:
+            self.location = location
 
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
@@ -621,8 +655,8 @@ class BigQueryBaseCursor(LoggingMixin):
             cluster_fields = {'fields': cluster_fields}
 
         query_param_list = [
-            (sql, 'query', None, str),
-            (priority, 'priority', 'INTERACTIVE', str),
+            (sql, 'query', None, six.string_types),
+            (priority, 'priority', 'INTERACTIVE', six.string_types),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
             (query_params, 'queryParameters', None, dict),
             (udf_config, 'userDefinedFunctionResources', None, list),
@@ -1070,9 +1104,15 @@ class BigQueryBaseCursor(LoggingMixin):
         keep_polling_job = True
         while keep_polling_job:
             try:
-                job = jobs.get(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id).execute()
+                if self.location:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id,
+                        location=self.location).execute()
+                else:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id).execute()
                 if job['status']['state'] == 'DONE':
                     keep_polling_job = False
                     # Check if job had errors.
@@ -1101,7 +1141,13 @@ class BigQueryBaseCursor(LoggingMixin):
     def poll_job_complete(self, job_id):
         jobs = self.service.jobs()
         try:
-            job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
+            if self.location:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id,
+                               location=self.location).execute()
+            else:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id).execute()
             if job['status']['state'] == 'DONE':
                 return True
         except HttpError as err:
@@ -1124,9 +1170,15 @@ class BigQueryBaseCursor(LoggingMixin):
                 not self.poll_job_complete(self.running_job_id)):
             self.log.info('Attempting to cancel job : %s, %s', self.project_id,
                           self.running_job_id)
-            jobs.cancel(
-                projectId=self.project_id,
-                jobId=self.running_job_id).execute()
+            if self.location:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id,
+                    location=self.location).execute()
+            else:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id).execute()
         else:
             self.log.info('No running BigQuery jobs to cancel.')
             return
@@ -1515,6 +1567,79 @@ class BigQueryBaseCursor(LoggingMixin):
 
         return datasets_list
 
+    def insert_all(self, project_id, dataset_id, table_id,
+                   rows, ignore_unknown_values=False,
+                   skip_invalid_rows=False, fail_on_error=False):
+        """
+        Method to stream data into BigQuery one record at a time without needing
+        to run a load job
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+
+        :param project_id: The name of the project where we have the table
+        :type project_id: str
+        :param dataset_id: The name of the dataset where we have the table
+        :type dataset_id: str
+        :param table_id: The name of the table
+        :type table_id: str
+        :param rows: the rows to insert
+        :type rows: list
+
+        **Example or rows**:
+            rows=[{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
+
+        :param ignore_unknown_values: [Optional] Accept rows that contain values
+            that do not match the schema. The unknown values are ignored.
+            The default value  is false, which treats unknown values as errors.
+        :type ignore_unknown_values: bool
+        :param skip_invalid_rows: [Optional] Insert all valid rows of a request,
+            even if invalid rows exist. The default value is false, which causes
+            the entire request to fail if any invalid rows exist.
+        :type skip_invalid_rows: bool
+        :param fail_on_error: [Optional] Force the task to fail if any errors occur.
+            The default value is false, which indicates the task should not fail
+            even if any insertion errors occur.
+        :type fail_on_error: bool
+        """
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        body = {
+            "rows": rows,
+            "ignoreUnknownValues": ignore_unknown_values,
+            "kind": "bigquery#tableDataInsertAllRequest",
+            "skipInvalidRows": skip_invalid_rows,
+        }
+
+        try:
+            self.log.info('Inserting {} row(s) into Table {}:{}.{}'.format(
+                len(rows), dataset_project_id,
+                dataset_id, table_id))
+
+            resp = self.service.tabledata().insertAll(
+                projectId=dataset_project_id, datasetId=dataset_id,
+                tableId=table_id, body=body
+            ).execute()
+
+            if 'insertErrors' not in resp:
+                self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
+                    dataset_project_id, dataset_id, table_id))
+            else:
+                error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
+                    len(resp['insertErrors']),
+                    dataset_project_id, dataset_id, table_id, resp['insertErrors'])
+                if fail_on_error:
+                    raise AirflowException(
+                        'BigQuery job failed. Error was: {}'.format(error_msg)
+                    )
+                self.log.info(error_msg)
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
@@ -1525,11 +1650,13 @@ class BigQueryCursor(BigQueryBaseCursor):
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py
     """
 
-    def __init__(self, service, project_id, use_legacy_sql=True):
+    def __init__(self, service, project_id, use_legacy_sql=True, location=None):
         super(BigQueryCursor, self).__init__(
             service=service,
             project_id=project_id,
-            use_legacy_sql=use_legacy_sql)
+            use_legacy_sql=use_legacy_sql,
+            location=location,
+        )
         self.buffersize = None
         self.page_token = None
         self.job_id = None
@@ -1683,7 +1810,7 @@ def _bind_parameters(operation, parameters):
     """ Helper method that binds parameters to a SQL query. """
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}
-    for (name, value) in parameters.iteritems():
+    for (name, value) in iteritems(parameters):
         if value is None:
             string_parameters[name] = 'NULL'
         elif isinstance(value, basestring):

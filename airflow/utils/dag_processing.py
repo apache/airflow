@@ -34,6 +34,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from collections import namedtuple
 from datetime import timedelta
+from importlib import import_module
 
 import psutil
 from six.moves import range, reload_module
@@ -45,6 +46,7 @@ import airflow.models
 from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+from airflow.settings import logging_class_path
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -146,6 +148,21 @@ class SimpleTaskInstance(object):
         self._end_date = ti.end_date
         self._try_number = ti.try_number
         self._state = ti.state
+        self._executor_config = ti.executor_config
+        if hasattr(ti, 'run_as_user'):
+            self._run_as_user = ti.run_as_user
+        else:
+            self._run_as_user = None
+        if hasattr(ti, 'pool'):
+            self._pool = ti.pool
+        else:
+            self._pool = None
+        if hasattr(ti, 'priority_weight'):
+            self._priority_weight = ti.priority_weight
+        else:
+            self._priority_weight = None
+        self._queue = ti.queue
+        self._key = ti.key
 
     @property
     def dag_id(self):
@@ -174,6 +191,49 @@ class SimpleTaskInstance(object):
     @property
     def state(self):
         return self._state
+
+    @property
+    def pool(self):
+        return self._pool
+
+    @property
+    def priority_weight(self):
+        return self._priority_weight
+
+    @property
+    def queue(self):
+        return self._queue
+
+    @property
+    def key(self):
+        return self._key
+
+    @property
+    def executor_config(self):
+        return self._executor_config
+
+    @provide_session
+    def construct_task_instance(self, session=None, lock_for_update=False):
+        """
+        Construct a TaskInstance from the database based on the primary key
+
+        :param session: DB session.
+        :param lock_for_update: if True, indicates that the database should
+            lock the TaskInstance (issuing a FOR UPDATE clause) until the
+            session is committed.
+        """
+        TI = airflow.models.TaskInstance
+
+        qry = session.query(TI).filter(
+            TI.dag_id == self._dag_id,
+            TI.task_id == self._task_id,
+            TI.execution_date == self._execution_date)
+
+        if lock_for_update:
+            ti = qry.with_for_update().first()
+        else:
+            ti = qry.first()
+        return ti
 
 
 class SimpleDagBag(BaseDagBag):
@@ -215,7 +275,8 @@ class SimpleDagBag(BaseDagBag):
         return self.dag_id_to_simple_dag[dag_id]
 
 
-def list_py_file_paths(directory, safe_mode=True):
+def list_py_file_paths(directory, safe_mode=True,
+                       include_examples=conf.getboolean('core', 'LOAD_EXAMPLES')):
     """
     Traverse a directory and look for Python files.
 
@@ -284,6 +345,10 @@ def list_py_file_paths(directory, safe_mode=True):
                 except Exception:
                     log = LoggingMixin().log
                     log.exception("Error while examining %s", f)
+    if include_examples:
+        import airflow.example_dags
+        example_dag_folder = airflow.example_dags.__path__[0]
+        file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, False))
     return file_paths
 
 
@@ -476,7 +541,9 @@ class DagFileProcessorAgent(LoggingMixin):
             # e.g. RotatingFileHandler. And it can cause connection corruption if we
             # do not recreate the SQLA connection pool.
             os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
-            reload_module(airflow.config_templates.airflow_local_settings)
+            # Replicating the behavior of how logging module was loaded
+            # in logging_config.py
+            reload_module(import_module(logging_class_path.rsplit('.', 1)[0]))
             reload_module(airflow.settings)
             del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
             processor_manager = DagFileProcessorManager(dag_directory,
@@ -566,11 +633,16 @@ class DagFileProcessorAgent(LoggingMixin):
         Terminate (and then kill) the manager process launched.
         :return:
         """
-        if not self._process or not self._process.is_alive():
+        if not self._process:
             self.log.warn('Ending without manager process.')
             return
         this_process = psutil.Process(os.getpid())
-        manager_process = psutil.Process(self._process.pid)
+        try:
+            manager_process = psutil.Process(self._process.pid)
+        except psutil.NoSuchProcess:
+            self.log.info("Manager process not running.")
+            return
+
         # First try SIGTERM
         if manager_process.is_running() \
                 and manager_process.pid in [x.pid for x in this_process.children()]:

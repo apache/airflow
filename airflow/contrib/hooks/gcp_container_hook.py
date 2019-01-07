@@ -21,7 +21,7 @@ import json
 import time
 
 from airflow import AirflowException, version
-from airflow.hooks.base_hook import BaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT
@@ -34,15 +34,24 @@ from google.api_core.gapic_v1.client_info import ClientInfo
 OPERATIONAL_POLL_INTERVAL = 15
 
 
-class GKEClusterHook(BaseHook):
+class GKEClusterHook(GoogleCloudBaseHook):
 
-    def __init__(self, project_id, location):
-        self.project_id = project_id
+    def __init__(self,
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 location=None):
+        super(GKEClusterHook, self).__init__(
+            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
+        self._client = None
         self.location = location
 
-        # Add client library info for better error tracking
-        client_info = ClientInfo(client_library_version='airflow_v' + version.version)
-        self.client = container_v1.ClusterManagerClient(client_info=client_info)
+    def get_client(self):
+        if self._client is None:
+            credentials = self._get_credentials()
+            # Add client library info for better error tracking
+            client_info = ClientInfo(client_library_version='airflow_v' + version.version)
+            self._client = container_v1.ClusterManagerClient(credentials=credentials, client_info=client_info)
+        return self._client
 
     @staticmethod
     def _dict_to_proto(py_dict, proto):
@@ -60,13 +69,15 @@ class GKEClusterHook(BaseHook):
         dict_json_str = json.dumps(py_dict)
         return json_format.Parse(dict_json_str, proto)
 
-    def wait_for_operation(self, operation):
+    def wait_for_operation(self, operation, project_id=None):
         """
         Given an operation, continuously fetches the status from Google Cloud until either
         completion or an error occurring
 
         :param operation: The Operation to wait for
         :type operation: A google.cloud.container_V1.gapic.enums.Operator
+        :param project_id: Google Cloud Platform project ID
+        :type project_id: str
         :return: A new, updated operation fetched from Google Cloud
         """
         self.log.info("Waiting for OPERATION_NAME %s" % operation.name)
@@ -79,20 +90,22 @@ class GKEClusterHook(BaseHook):
                 raise exceptions.GoogleCloudError(
                     "Operation has failed with status: %s" % operation.status)
             # To update status of operation
-            operation = self.get_operation(operation.name)
+            operation = self.get_operation(operation.name, project_id=project_id or self.project_id)
         return operation
 
-    def get_operation(self, operation_name):
+    def get_operation(self, operation_name, project_id=None):
         """
         Fetches the operation from Google Cloud
 
         :param operation_name: Name of operation to fetch
         :type operation_name: str
+        :param project_id: Google Cloud Platform project ID
+        :type project_id: str
         :return: The new, updated operation from Google Cloud
         """
-        return self.client.get_operation(project_id=self.project_id,
-                                         zone=self.location,
-                                         operation_id=operation_name)
+        return self.get_client().get_operation(project_id=project_id or self.project_id,
+                                               zone=self.location,
+                                               operation_id=operation_name)
 
     @staticmethod
     def _append_label(cluster_proto, key, val):
@@ -114,7 +127,7 @@ class GKEClusterHook(BaseHook):
         cluster_proto.resource_labels.update({key: val})
         return cluster_proto
 
-    def delete_cluster(self, name, retry=DEFAULT, timeout=DEFAULT):
+    def delete_cluster(self, name, project_id=None, retry=DEFAULT, timeout=DEFAULT):
         """
         Deletes the cluster, including the Kubernetes endpoint and all
         worker nodes. Firewalls and routes that were configured during
@@ -125,6 +138,8 @@ class GKEClusterHook(BaseHook):
 
         :param name: The name of the cluster to delete
         :type name: str
+        :param project_id: Google Cloud Platform project ID
+        :type project_id: str
         :param retry: Retry object used to determine when/if to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -139,18 +154,18 @@ class GKEClusterHook(BaseHook):
             self.project_id, self.location, name))
 
         try:
-            op = self.client.delete_cluster(project_id=self.project_id,
-                                            zone=self.location,
-                                            cluster_id=name,
-                                            retry=retry,
-                                            timeout=timeout)
+            op = self.get_client().delete_cluster(project_id=project_id or self.project_id,
+                                                  zone=self.location,
+                                                  cluster_id=name,
+                                                  retry=retry,
+                                                  timeout=timeout)
             op = self.wait_for_operation(op)
             # Returns server-defined url for the resource
             return op.self_link
         except NotFound as error:
             self.log.info('Assuming Success: ' + error.message)
 
-    def create_cluster(self, cluster, retry=DEFAULT, timeout=DEFAULT):
+    def create_cluster(self, cluster, project_id=None, retry=DEFAULT, timeout=DEFAULT):
         """
         Creates a cluster, consisting of the specified number and type of Google Compute
         Engine instances.
@@ -158,6 +173,8 @@ class GKEClusterHook(BaseHook):
         :param cluster: A Cluster protobuf or dict. If dict is provided, it must be of
             the same form as the protobuf message google.cloud.container_v1.types.Cluster
         :type cluster: dict or google.cloud.container_v1.types.Cluster
+        :param project_id: Google Cloud Platform project ID
+        :type project_id: str
         :param retry: A retry object (google.api_core.retry.Retry) used to retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -185,11 +202,11 @@ class GKEClusterHook(BaseHook):
             self.location,
             cluster.name))
         try:
-            op = self.client.create_cluster(project_id=self.project_id,
-                                            zone=self.location,
-                                            cluster=cluster,
-                                            retry=retry,
-                                            timeout=timeout)
+            op = self.get_client().create_cluster(project_id=project_id or self.project_id,
+                                                  zone=self.location,
+                                                  cluster=cluster,
+                                                  retry=retry,
+                                                  timeout=timeout)
             op = self.wait_for_operation(op)
 
             return op.target_link
@@ -197,12 +214,14 @@ class GKEClusterHook(BaseHook):
             self.log.info('Assuming Success: ' + error.message)
             return self.get_cluster(name=cluster.name).self_link
 
-    def get_cluster(self, name, retry=DEFAULT, timeout=DEFAULT):
+    def get_cluster(self, name, project_id=None, retry=DEFAULT, timeout=DEFAULT):
         """
         Gets details of specified cluster
 
         :param name: The name of the cluster to retrieve
         :type name: str
+        :param project_id: Google Cloud Platform project ID
+        :type project_id: str
         :param retry: A retry object used to retry requests. If None is specified,
             requests will not be retried.
         :type retry: google.api_core.retry.Retry
@@ -213,12 +232,12 @@ class GKEClusterHook(BaseHook):
         :return: A google.cloud.container_v1.types.Cluster instance
         """
         self.log.info("Fetching cluster (project_id={}, zone={}, cluster_name={})".format(
-            self.project_id,
+            project_id or self.project_id,
             self.location,
             name))
 
-        return self.client.get_cluster(project_id=self.project_id,
-                                       zone=self.location,
-                                       cluster_id=name,
-                                       retry=retry,
-                                       timeout=timeout).self_link
+        return self.get_client().get_cluster(project_id=project_id or self.project_id,
+                                             zone=self.location,
+                                             cluster_id=name,
+                                             retry=retry,
+                                             timeout=timeout).self_link

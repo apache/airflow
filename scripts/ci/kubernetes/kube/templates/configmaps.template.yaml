@@ -22,7 +22,7 @@ data:
   airflow.cfg: |
     [core]
     airflow_home = /root/airflow
-    dags_folder = /root/airflow/dags
+    dags_folder = {{CONFIGMAP_DAGS_FOLDER}}
     base_log_folder = /root/airflow/logs
     logging_level = INFO
     executor = KubernetesExecutor
@@ -56,6 +56,9 @@ data:
     statsd_host = localhost
     statsd_port = 8125
     statsd_prefix = airflow
+
+    # How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
+    min_file_parsing_loop_time = 1
 
     print_stats_interval = 30
     scheduler_zombie_task_threshold = 300
@@ -119,7 +122,7 @@ data:
     expose_config = False
 
     # Set to true to turn on authentication:
-    # https://airflow.incubator.apache.org/security.html#web-authentication
+    # https://airflow.apache.org/security.html#web-authentication
     authenticate = False
 
     # Filter the list of dags by owner name (requires authentication to be enabled)
@@ -176,20 +179,29 @@ data:
     worker_container_repository = airflow
     worker_container_tag = latest
     worker_container_image_pull_policy = IfNotPresent
-    worker_dags_folder = /tmp/dags
     delete_worker_pods = True
-    git_repo = https://github.com/apache/incubator-airflow.git
-    git_branch = master
-    git_subpath = airflow/example_dags/
+    dags_in_image = False
+    git_repo = https://github.com/{{CONFIGMAP_GIT_REPO}}.git
+    git_branch = {{CONFIGMAP_BRANCH}}
+    git_subpath = airflow/contrib/example_dags/
     git_user =
     git_password =
-    dags_volume_claim = airflow-dags
+    git_sync_root = /git
+    git_sync_path = repo
+    git_dags_folder_mount_point = {{CONFIGMAP_GIT_DAGS_FOLDER_MOUNT_POINT}}
+    dags_volume_claim = {{CONFIGMAP_DAGS_VOLUME_CLAIM}}
     dags_volume_subpath =
     logs_volume_claim = airflow-logs
     logs_volume_subpath =
+    dags_volume_host =
+    logs_volume_host =
     in_cluster = True
     namespace = default
     gcp_service_account_keys =
+
+    # Example affinity and toleration definitions.
+    affinity = {"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["4e5e6a99-e28a-450b-bba9-e0124853de9b"]}]}]}}}
+    tolerations = [{ "key": "dedicated", "operator": "Equal", "value": "airflow", "effect": "NoSchedule" }, { "key": "prod", "operator": "Exists" }]
 
     # For cloning DAGs from git repositories into volumes: https://github.com/kubernetes/git-sync
     git_sync_container_repository = gcr.io/google-containers/git-sync-amd64
@@ -252,6 +264,11 @@ data:
 
     # This defines the port that Celery Flower runs on
     flower_port = 5555
+
+    # Securing Flower with Basic Authentication
+    # Accepts user:password pairs separated by a comma
+    # Example: flower_basic_auth = user1:password1,user2:password2
+    flower_basic_auth =
 
     # Default queue that tasks get assigned to and that worker listen on.
     default_queue = default

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { generateTooltipDateTime, converAndFormatUTC } from './datetime-utils';
+import { generateTooltipDateTime, converAndFormatUTC, secondsToString } from './datetime-utils';
 
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
@@ -38,7 +38,7 @@ function update_nodes_states(task_instances) {
           tt += "run_id: <nobr>" + ti.run_id + "</nobr><br>";
         }
         tt += "Operator: " + task.task_type + "<br>";
-        tt += "Duration: " + ti.duration + "<br>";
+        tt += "Duration: " + secondsToString(ti.duration) + "<br>";
         tt += "State: " + ti.state + "<br>";
         tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
         return tt;

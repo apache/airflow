@@ -135,7 +135,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Offset is the unique key for sorting logs given log_id.
         s = Search(using=self.client) \
-            .query('match', log_id=log_id) \
+            .query('match_phrase', log_id=log_id) \
             .sort('offset')
 
         s = s.filter('range', offset={'gt': offset})

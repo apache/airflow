@@ -37,6 +37,7 @@ from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils import dates, timezone
@@ -46,13 +47,16 @@ from airflow.www_rbac import app as application
 
 
 class TestBase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         conf.load_test_config()
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.client = self.app.test_client()
+        cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
+        cls.app.config['WTF_CSRF_ENABLED'] = False
         settings.configure_orm()
-        self.session = Session
+        cls.session = Session
+
+    def setUp(self):
+        self.client = self.app.test_client()
         self.login()
 
     def login(self):
@@ -117,7 +121,7 @@ class TestConnectionModelView(TestBase):
         }
 
     def tearDown(self):
-        self.clear_table(models.Connection)
+        self.clear_table(Connection)
         super(TestConnectionModelView, self).tearDown()
 
     def test_create_connection(self):
@@ -443,11 +447,44 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
 
+    def test_delete_dag_button_normal(self):
+        resp = self.client.get('/', follow_redirects=True)
+        self.check_content_in_response('/delete?dag_id=example_bash_operator', resp)
+        self.check_content_in_response("return confirmDeleteDag('example_bash_operator')", resp)
+
+    def test_delete_dag_button_for_dag_on_scheduler_only(self):
+        # Test for JIRA AIRFLOW-3233 (PR 4069):
+        # The delete-dag URL should be generated correctly for DAGs
+        # that exist on the scheduler (DB) but not the webserver DagBag
+
+        test_dag_id = "non_existent_dag"
+
+        DM = models.DagModel
+        self.session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        self.session.commit()
+
+        resp = self.client.get('/', follow_redirects=True)
+        self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
+        self.check_content_in_response("return confirmDeleteDag('{}')".format(test_dag_id), resp)
+
+        self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        self.session.commit()
+
 
 class TestConfigurationView(TestBase):
-    def test_configuration(self):
+    def test_configuration_do_not_expose_config(self):
         self.logout()
         self.login()
+        conf.set("webserver", "expose_config", "False")
+        resp = self.client.get('configuration', follow_redirects=True)
+        self.check_content_in_response(
+            ['Airflow Configuration', '# Your Airflow administrator chose not to expose the configuration, '
+                                      'most likely for security reasons.'], resp)
+
+    def test_configuration_expose_config(self):
+        self.logout()
+        self.login()
+        conf.set("webserver", "expose_config", "True")
         resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
@@ -518,6 +555,28 @@ class TestLogView(TestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Log by attempts',
                       response.data.decode('utf-8'))
+
+    def test_get_logs_with_metadata_as_download_file(self):
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}&format=file"
+        try_number = 1
+        url = url_template.format(self.DAG_ID,
+                                  self.TASK_ID,
+                                  quote_plus(self.DEFAULT_DATE.isoformat()),
+                                  try_number,
+                                  json.dumps({}))
+        response = self.client.get(url)
+        expected_filename = '{}/{}/{}/{}.log'.format(self.DAG_ID,
+                                                     self.TASK_ID,
+                                                     self.DEFAULT_DATE.isoformat(),
+                                                     try_number)
+
+        content_disposition = response.headers.get('Content-Disposition')
+        self.assertTrue(content_disposition.startswith('attachment'))
+        self.assertTrue(expected_filename in content_disposition)
+        self.assertEqual(200, response.status_code)
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))
 
     def test_get_logs_with_metadata(self):
         url_template = "get_logs_with_metadata?dag_id={}&" \
@@ -962,6 +1021,9 @@ class TestDagACLView(TestBase):
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
 
+        role_user = self.appbuilder.sm.find_role('User')
+        self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
+
         read_only_perm_on_dag = self.appbuilder.sm.\
             find_permission_view_menu('can_dag_read', 'example_bash_operator')
         dag_read_only_role = self.appbuilder.sm.find_role('dag_acl_read_only')
@@ -1386,6 +1448,33 @@ class TestTaskInstanceView(TestBase):
         # doesn't blow up!
         self.check_content_in_response('List Task Instance', resp)
         pass
+
+
+class TestTriggerDag(TestBase):
+
+    def setUp(self):
+        super(TestTriggerDag, self).setUp()
+        self.session = Session()
+        models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
+
+    def test_trigger_dag_button_normal_exist(self):
+        resp = self.client.get('/', follow_redirects=True)
+        self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+
+    def test_trigger_dag_button(self):
+
+        test_dag_id = "example_bash_operator"
+
+        DR = models.DagRun
+        self.session.query(DR).delete()
+        self.session.commit()
+
+        self.client.get('trigger?dag_id={}'.format(test_dag_id))
+
+        run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
+        self.assertIsNotNone(run)
+        self.assertIn("manual__", run.run_id)
 
 
 if __name__ == '__main__':

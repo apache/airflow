@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 
 Tutorial
 ================
@@ -15,7 +32,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -291,7 +308,7 @@ something like this:
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -373,10 +390,10 @@ Let's run a few commands to validate this script further.
     # print the list of active DAGs
     airflow list_dags
 
-    # prints the list of tasks the "tutorial" dag_id
+    # prints the list of tasks in the "tutorial" DAG
     airflow list_tasks tutorial
 
-    # prints the hierarchy of tasks in the tutorial DAG
+    # prints the hierarchy of tasks in the "tutorial" DAG
     airflow list_tasks tutorial --tree
 
 
