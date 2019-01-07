@@ -507,15 +507,15 @@ Arguments
 The following examples of OS environment variables show how you can build function name
 to use in the operator:
 
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_delete.py
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
-    :start-after: [START howto_operator_gcf_delete_args]
-    :end-before: [END howto_operator_gcf_delete_args]
+    :start-after: [START howto_operator_gcf_common_variables]
+    :end-before: [END howto_operator_gcf_common_variables]
 
 Using the operator
 """"""""""""""""""
 
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_delete.py
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_delete]
@@ -527,33 +527,8 @@ Templating
 .. literalinclude:: ../../airflow/contrib/operators/gcp_function_operator.py
     :language: python
     :dedent: 4
-    :start-after: [START gce_function_delete_template_operator_template_fields]
-    :end-before: [END gce_function_delete_template_operator_template_fields]
-
-Troubleshooting
-"""""""""""""""
-If you want to run or deploy an operator using a service account and get “forbidden 403”
-errors, it means that your service account does not have the correct
-Cloud IAM permissions.
-
-1. Assign your Service Account the Cloud Functions Developer role.
-2. Grant the user the Cloud IAM Service Account User role on the Cloud Functions runtime
-   service account.
-
-The typical way of assigning Cloud IAM permissions with `gcloud` is
-shown below. Just replace PROJECT_ID with ID of your Google Cloud Platform project
-and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
-
-.. code-block:: bash
-
-  gcloud iam service-accounts add-iam-policy-binding \
-    PROJECT_ID@appspot.gserviceaccount.com \
-    --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
-    --role="roles/iam.serviceAccountUser"
-
-
-See `Adding the IAM service agent user role to the runtime service
-<https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_.
+    :start-after: [START gcf_function_delete_template_fields]
+    :end-before: [END gcf_function_delete_template_fields]
 
 More information
 """"""""""""""""
@@ -565,6 +540,7 @@ GcfFunctionDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use the operator to deploy a function to Google Cloud Functions.
+If a function with this name already exists, it will be updated.
 
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`.
@@ -573,55 +549,61 @@ For parameter definition, take a look at
 Arguments
 """""""""
 
-The following examples of OS environment variables show several variants of args you can
-use with the operator:
+In the example DAG the following environment variables are used to parameterize the
+operator's definition:
 
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
+    :language: python
+    :start-after: [START howto_operator_gcf_common_variables]
+    :end-before: [END howto_operator_gcf_common_variables]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variables]
     :end-before: [END howto_operator_gcf_deploy_variables]
 
-With those variables you can define the body of the request:
+Some of those variables are used to create the request's body:
 
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_body]
     :end-before: [END howto_operator_gcf_deploy_body]
 
-When you create a DAG, the default_args dictionary can be used to pass
+When a DAG is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_default_args]
     :end-before: [END howto_operator_gcf_default_args]
 
 Note that the neither the body nor the default args are complete in the above examples.
 Depending on the variables set, there might be different variants on how to pass source
-code related fields. Currently, you can pass either sourceArchiveUrl, sourceRepository
-or sourceUploadUrl as described in the
+code related fields. Currently, you can pass either ``sourceArchiveUrl``,
+``sourceRepository`` or ``sourceUploadUrl`` as described in the
 `Cloud Functions API specification
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#CloudFunction>`_.
 
-Additionally, default_args or direct operator args might contain zip_path parameter
+Additionally, ``default_args`` or direct operator args might contain ``zip_path``
+parameter
 to run the extra step of uploading the source code before deploying it.
-In this case, you also need to provide an empty `sourceUploadUrl`
+In this case, you also need to provide an empty ``sourceUploadUrl``
 parameter in the body.
 
 Using the operator
 """"""""""""""""""
 
-Based on the variables defined above, example logic of setting the source code
-related fields is shown here:
+Depending on the combination of parameters, the Function's source code can be obtained
+from different sources:
 
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variants]
     :end-before: [END howto_operator_gcf_deploy_variants]
 
 The code to create the operator:
 
-.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function_deploy_delete.py
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy]
@@ -633,16 +615,20 @@ Templating
 .. literalinclude:: ../../airflow/contrib/operators/gcp_function_operator.py
     :language: python
     :dedent: 4
-    :start-after: [START gce_function_deploy_template_operator_template_fields]
-    :end-before: [END gce_function_deploy_template_operator_template_fields]
+    :start-after: [START gcf_function_deploy_template_fields]
+    :end-before: [END gcf_function_deploy_template_fields]
 
 
 Troubleshooting
 """""""""""""""
 
-If you want to run or deploy an operator using a service account and get “forbidden 403”
-errors, it means that your service account does not have the correct
-Cloud IAM permissions.
+If during the deploy you see an error similar to:
+
+`"HttpError 403: Missing necessary permission iam.serviceAccounts.actAs for on resource
+project-name@appspot.gserviceaccount.com. Please grant the
+roles/iam.serviceAccountUser role."`
+
+it means that your service account does not have the correct Cloud IAM permissions.
 
 1. Assign your Service Account the Cloud Functions Developer role.
 2. Grant the user the Cloud IAM Service Account User role on the Cloud Functions runtime
@@ -659,7 +645,9 @@ and SERVICE_ACCOUNT_EMAIL with the email ID of your service account.
     --member="serviceAccount:[SERVICE_ACCOUNT_EMAIL]" \
     --role="roles/iam.serviceAccountUser"
 
-See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details
+You can also do that via the GCP Web console.
+
+See `Adding the IAM service agent user role to the runtime service <https://cloud.google.com/functions/docs/reference/iam/roles#adding_the_iam_service_agent_user_role_to_the_runtime_service_account>`_  for details.
 
 If the source code for your function is in Google Source Repository, make sure that
 your service account has the Source Repository Viewer role so that the source code

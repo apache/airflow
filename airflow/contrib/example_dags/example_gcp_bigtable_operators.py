@@ -78,7 +78,7 @@ default_args = {
 with models.DAG(
     'example_gcp_bigtable_operators',
     default_args=default_args,
-    schedule_interval=datetime.timedelta(days=1)
+    schedule_interval=None  # Override to match your needs
 ) as dag:
     # [START howto_operator_gcp_bigtable_instance_create]
     create_instance_task = BigtableInstanceCreateOperator(
@@ -128,6 +128,7 @@ with models.DAG(
         instance_id=CBT_INSTANCE_ID,
         table_id=CBT_TABLE_ID,
         poke_interval=int(CBT_POKE_INTERVAL),
+        timeout=180,
         task_id='wait_for_table_replication',
     )
     # [END howto_operator_gcp_bigtable_table_wait_for_replication]

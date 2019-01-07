@@ -31,8 +31,8 @@ except ImportError:
         mock = None
 
 JOB = 'test-job'
-PROJECT_ID = 'test-project-id'
-REGION = 'global'
+GCP_PROJECT_ID = 'test-project-id'
+GCP_REGION = 'global'
 TASK_ID = 'test-task-id'
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
@@ -53,8 +53,8 @@ class DataProcHookTest(unittest.TestCase):
     def test_submit(self, job_mock):
         with mock.patch(DATAPROC_STRING.format('DataProcHook.get_conn',
                                                return_value=None)):
-            self.dataproc_hook.submit(PROJECT_ID, JOB)
-            job_mock.assert_called_once_with(mock.ANY, PROJECT_ID, JOB, REGION,
+            self.dataproc_hook.submit(GCP_PROJECT_ID, JOB)
+            job_mock.assert_called_once_with(mock.ANY, GCP_PROJECT_ID, JOB, GCP_REGION,
                                              job_error_states=mock.ANY)
 
 
