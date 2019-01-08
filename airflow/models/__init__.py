@@ -2350,7 +2350,7 @@ class BaseOperator(LoggingMixin):
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
-        self.executor_config = self.get_executor_config()
+        self.executor_config = self.get_executor_config(executor_config)
 
         # Private attributes
         self._upstream_task_ids = set()
@@ -2568,7 +2568,7 @@ class BaseOperator(LoggingMixin):
         """
         pass
 
-    def get_executor_config(self):
+    def get_executor_config(self, executor_config):
         """Try to import base_executor_config and merge supplied
         executor_config into it.
 
@@ -2577,14 +2577,14 @@ class BaseOperator(LoggingMixin):
         base_executor_config_string = configuration.conf.get(
             'core', 'base_executor_config')
 
-        if base_executor_config_string and self.executor_config:
+        if base_executor_config_string and executor_config:
             base_executor_config = import_string(base_executor_config_string)
-            return dict_merge(base_executor_config, self.executor_config)
-        elif base_executor_config_string and not self.executor_config:
+            return dict_merge(base_executor_config, executor_config)
+        elif base_executor_config_string and not executor_config:
             return import_string(base_executor_config_string)
-        elif not base_executor_config_string and self.executor_config:
-            return self.executor_config
-        elif not (base_executor_config_string or self.executor_config):
+        elif not base_executor_config_string and executor_config:
+            return executor_config
+        elif not (base_executor_config_string or executor_config):
             return {}
 
     def execute(self, context):
