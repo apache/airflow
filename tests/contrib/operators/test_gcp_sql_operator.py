@@ -189,7 +189,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
-            PROJECT_ID, CREATE_BODY
+            CREATE_BODY, project_id=PROJECT_ID
         )
         self.assertIsNone(result)
 
@@ -212,20 +212,6 @@ class CloudSqlTest(unittest.TestCase):
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_not_called()
         self.assertIsNone(result)
-
-    @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
-    def test_create_should_throw_ex_when_empty_project_id(self, mock_hook):
-        with self.assertRaises(AirflowException) as cm:
-            op = CloudSqlInstanceCreateOperator(
-                project_id="",
-                body=CREATE_BODY,
-                instance=INSTANCE_NAME,
-                task_id="id"
-            )
-            op.execute(None)
-        err = cm.exception
-        self.assertIn("The required parameter 'project_id' is empty", str(err))
-        mock_hook.assert_not_called()
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator.CloudSqlHook")
     def test_create_should_throw_ex_when_empty_body(self, mock_hook):
@@ -317,7 +303,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.patch_instance.assert_called_once_with(
-            PROJECT_ID, PATCH_BODY, INSTANCE_NAME
+            PATCH_BODY, INSTANCE_NAME, project_id=PROJECT_ID
         )
         self.assertTrue(result)
 
@@ -356,7 +342,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
-            PROJECT_ID, INSTANCE_NAME
+            INSTANCE_NAME, project_id=PROJECT_ID
         )
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator"
@@ -393,7 +379,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_database.assert_called_once_with(
-            PROJECT_ID, INSTANCE_NAME, DATABASE_INSERT_BODY
+            INSTANCE_NAME, DATABASE_INSERT_BODY, project_id=PROJECT_ID
         )
         self.assertTrue(result)
 
@@ -431,7 +417,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.patch_database.assert_called_once_with(
-            PROJECT_ID, INSTANCE_NAME, DB_NAME, DATABASE_PATCH_BODY
+            INSTANCE_NAME, DB_NAME, DATABASE_PATCH_BODY, project_id=PROJECT_ID
         )
         self.assertTrue(result)
 
@@ -489,7 +475,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_database.assert_called_once_with(
-            PROJECT_ID, INSTANCE_NAME, DB_NAME
+            INSTANCE_NAME, DB_NAME, project_id=PROJECT_ID
         )
 
     @mock.patch("airflow.contrib.operators.gcp_sql_operator"
@@ -523,7 +509,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.export_instance.assert_called_once_with(
-            PROJECT_ID, INSTANCE_NAME, EXPORT_BODY
+            INSTANCE_NAME, EXPORT_BODY, project_id=PROJECT_ID
         )
         self.assertTrue(result)
 
@@ -540,7 +526,7 @@ class CloudSqlTest(unittest.TestCase):
         mock_hook.assert_called_once_with(api_version="v1beta4",
                                           gcp_conn_id="google_cloud_default")
         mock_hook.return_value.import_instance.assert_called_once_with(
-            PROJECT_ID, INSTANCE_NAME, IMPORT_BODY
+            INSTANCE_NAME, IMPORT_BODY, project_id=PROJECT_ID
         )
         self.assertTrue(result)
 

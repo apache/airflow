@@ -90,59 +90,62 @@ class CloudSqlHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def get_instance(self, project_id, instance):
+    def get_instance(self, instance, project_id=None):
         """
         Retrieves a resource containing information about a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :return: A Cloud SQL instance resource.
         :rtype: dict
         """
+        project_id = project_id or self.project_id
         return self.get_conn().instances().get(
             project=project_id,
             instance=instance
         ).execute(num_retries=NUM_RETRIES)
 
-    def create_instance(self, project_id, body):
+    def create_instance(self, body, project_id=None):
         """
         Creates a new Cloud SQL instance.
 
-        :param project_id: Project ID of the project to which the newly created
-            Cloud SQL instances should belong.
-        :type project_id: str
         :param body: Body required by the Cloud SQL insert API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert#request-body.
         :type body: dict
+        :param project_id: Project ID of the project to which the newly created
+            Cloud SQL instances should belong.
+        :type project_id: str
         :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         response = self.get_conn().instances().insert(
             project=project_id,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project_id, operation_name)
+        return self._wait_for_operation_to_complete(operation_name, project_id)
 
-    def patch_instance(self, project_id, body, instance):
+    def patch_instance(self, body, instance, project_id=None):
         """
         Updates settings of a Cloud SQL instance.
 
         Caution: This is not a partial update, so you must include values for
         all the settings that you want to retain.
 
-        :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param body: Body required by the Cloud SQL patch API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body.
         :type body: dict
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         response = self.get_conn().instances().patch(
             project=project_id,
             instance=instance,
@@ -151,17 +154,18 @@ class CloudSqlHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         return self._wait_for_operation_to_complete(project_id, operation_name)
 
-    def delete_instance(self, project_id, instance):
+    def delete_instance(self, instance, project_id=None):
         """
         Deletes a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         response = self.get_conn().instances().delete(
             project=project_id,
             instance=instance,
@@ -169,57 +173,57 @@ class CloudSqlHook(GoogleCloudBaseHook):
         operation_name = response["name"]
         return self._wait_for_operation_to_complete(project_id, operation_name)
 
-    def get_database(self, project_id, instance, database):
+    def get_database(self, instance, database, project_id=None):
         """
         Retrieves a database resource from a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database in the instance.
         :type database: str
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :return: A Cloud SQL database resource, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
         :rtype: dict
         """
+        project_id = project_id or self.project_id
         return self.get_conn().databases().get(
             project=project_id,
             instance=instance,
             database=database
         ).execute(num_retries=NUM_RETRIES)
 
-    def create_database(self, project, instance, body):
+    def create_database(self, instance, body, project_id=None):
         """
         Creates a new database inside a Cloud SQL instance.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         response = self.get_conn().databases().insert(
-            project=project,
+            project=project_id,
             instance=instance,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        return self._wait_for_operation_to_complete(project_id, operation_name)
 
-    def patch_database(self, project, instance, database, body):
+    def patch_database(self, instance, database, body, project_id=None):
         """
         Updates a database resource inside a Cloud SQL instance.
 
         This method supports patch semantics.
         See https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database to be updated in the instance.
@@ -227,55 +231,60 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         response = self.get_conn().databases().patch(
-            project=project,
+            project=project_id,
             instance=instance,
             database=database,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        return self._wait_for_operation_to_complete(project_id, operation_name)
 
-    def delete_database(self, project, instance, database):
+    def delete_database(self, instance, database, project_id=None):
         """
         Deletes a database from a Cloud SQL instance.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database to be deleted in the instance.
         :type database: str
+        :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :return: True if the operation succeeded otherwise raises an error.
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         response = self.get_conn().databases().delete(
-            project=project,
+            project=project_id,
             instance=instance,
             database=database
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        return self._wait_for_operation_to_complete(project_id, operation_name)
 
-    def export_instance(self, project_id, instance_id, body):
+    def export_instance(self, instance_id, body, project_id=None):
         """
         Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
         or CSV file.
 
-        :param project_id: Project ID of the project where the instance exists.
-        :type project_id: str
         :param instance_id: Name of the Cloud SQL instance. This does not include the
             project ID.
         :type instance_id: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
         :type body: dict
+        :param project_id: Project ID of the project where the instance exists.
+        :type project_id: str
         :return: True if the operation succeeded, raises an error otherwise
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         try:
             response = self.get_conn().instances().export(
                 project=project_id,
@@ -289,22 +298,23 @@ class CloudSqlHook(GoogleCloudBaseHook):
                 'Exporting instance {} failed: {}'.format(instance_id, ex.content)
             )
 
-    def import_instance(self, project_id, instance_id, body):
+    def import_instance(self, instance_id, body, project_id=None):
         """
         Imports data into a Cloud SQL instance from a SQL dump or CSV file in
         Cloud Storage.
 
-        :param project_id: Project ID of the project where the instance exists.
-        :type project_id: str
         :param instance_id: Name of the Cloud SQL instance. This does not include the
             project ID.
         :type instance_id: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
         :type body: dict
+        :param project_id: Project ID of the project where the instance exists.
+        :type project_id: str
         :return: True if the operation succeeded, raises an error otherwise
         :rtype: bool
         """
+        project_id = project_id or self.project_id
         try:
             response = self.get_conn().instances().import_(
                 project=project_id,

@@ -35,29 +35,25 @@ except ImportError:
 
 class TestGcpSqlHook(unittest.TestCase):
     def test_instance_import_ex(self):
-        # Mocking __init__ with an empty anonymous function
-        with mock.patch.object(CloudSqlHook, "__init__", lambda x, y, z: None):
-            hook = CloudSqlHook(None, None)
-            # Simulating HttpError inside import_instance
-            hook.get_conn = mock.Mock(
-                side_effect=HttpError(resp={'status': '400'},
-                                      content='Error content'.encode('utf-8'))
-            )
-            with self.assertRaises(AirflowException) as cm:
-                hook.import_instance(None, None, None)
-            err = cm.exception
-            self.assertIn("Importing instance ", str(err))
+        hook = CloudSqlHook('v1')
+        # Simulating HttpError inside import_instance
+        hook.get_conn = mock.Mock(
+            side_effect=HttpError(resp={'status': '400'},
+                                  content='Error content'.encode('utf-8'))
+        )
+        with self.assertRaises(AirflowException) as cm:
+            hook.import_instance(None, None, None)
+        err = cm.exception
+        self.assertIn("Importing instance ", str(err))
 
     def test_instance_export_ex(self):
-        # Mocking __init__ with an empty anonymous function
-        with mock.patch.object(CloudSqlHook, "__init__", lambda x, y, z: None):
-            hook = CloudSqlHook(None, None)
-            # Simulating HttpError inside export_instance
-            hook.get_conn = mock.Mock(
-                side_effect=HttpError(resp={'status': '400'},
-                                      content='Error content'.encode('utf-8'))
-            )
-            with self.assertRaises(AirflowException) as cm:
-                hook.export_instance(None, None, None)
-            err = cm.exception
-            self.assertIn("Exporting instance ", str(err))
+        hook = CloudSqlHook('v1')
+        # Simulating HttpError inside export_instance
+        hook.get_conn = mock.Mock(
+            side_effect=HttpError(resp={'status': '400'},
+                                  content='Error content'.encode('utf-8'))
+        )
+        with self.assertRaises(AirflowException) as cm:
+            hook.export_instance(None, None, None)
+        err = cm.exception
+        self.assertIn("Exporting instance ", str(err))
