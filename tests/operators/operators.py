@@ -312,7 +312,7 @@ class TransferTests(unittest.TestCase):
             hive_table='test_mysql_to_hive',
             recreate=True,
             delimiter=",",
-            tblproperties={'test_property':'test_value'},
+            tblproperties={'test_property': 'test_value'},
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 

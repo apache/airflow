@@ -150,7 +150,6 @@ class DataFlowHookTest(unittest.TestCase):
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
 
-
     @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
     @mock.patch('subprocess.Popen')
     @mock.patch('select.select')

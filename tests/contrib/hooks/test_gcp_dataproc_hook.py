@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -38,8 +38,10 @@ TASK_ID = 'test-task-id'
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 DATAPROC_STRING = 'airflow.contrib.hooks.gcp_dataproc_hook.{}'
 
+
 def mock_init(self, gcp_conn_id, delegate_to=None):
     pass
+
 
 class DataProcHookTest(unittest.TestCase):
     def setUp(self):
