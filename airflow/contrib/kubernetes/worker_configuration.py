@@ -202,7 +202,7 @@ class WorkerConfiguration(LoggingMixin):
 
         return volumes, volume_mounts
 
-  def generate_dag_volume_mount_path(self):
+    def generate_dag_volume_mount_path(self):
         if self.kube_config.dags_volume_claim or self.kube_config.dags_volume_host:
             dag_volume_mount_path = self.worker_airflow_dags
         else:
@@ -210,7 +210,7 @@ class WorkerConfiguration(LoggingMixin):
 
         return dag_volume_mount_path
   
-  def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
+    def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  try_number, airflow_command, kube_executor_config):
         volumes_dict, volume_mounts_dict = self.init_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers(
