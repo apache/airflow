@@ -59,8 +59,7 @@ from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
 from airflow.models.connection import Connection
 from airflow.models.dagpickle import DagPickle
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
-from airflow.utils import cli as cli_utils
-from airflow.utils import db as db_utils
+from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
@@ -343,10 +342,8 @@ def variables(args):
         except ValueError as e:
             print(e)
     if args.delete:
-        session = settings.Session()
-        session.query(Variable).filter_by(key=args.delete).delete()
-        session.commit()
-        session.close()
+        with db.create_session() as session:
+            session.query(Variable).filter_by(key=args.delete).delete()
     if args.set:
         Variable.set(args.set[0], args.set[1])
     # Work around 'import' as a reserved keyword
@@ -360,10 +357,10 @@ def variables(args):
         export_helper(args.export)
     if not (args.set or args.get or imp or args.export or args.delete):
         # list all variables
-        session = settings.Session()
-        vars = session.query(Variable)
-        msg = "\n".join(var.key for var in vars)
-        print(msg)
+        with db.create_session() as session:
+            vars = session.query(Variable)
+            msg = "\n".join(var.key for var in vars)
+            print(msg)
 
 
 def import_helper(filepath):
@@ -390,19 +387,17 @@ def import_helper(filepath):
 
 
 def export_helper(filepath):
-    session = settings.Session()
-    qry = session.query(Variable).all()
-    session.close()
-
     var_dict = {}
-    d = json.JSONDecoder()
-    for var in qry:
-        val = None
-        try:
-            val = d.decode(var.val)
-        except Exception:
-            val = var.val
-        var_dict[var.key] = val
+    with db.create_session() as session:
+        qry = session.query(Variable).all()
+
+        d = json.JSONDecoder()
+        for var in qry:
+            try:
+                val = d.decode(var.val)
+            except Exception:
+                val = var.val
+            var_dict[var.key] = val
 
     with open(filepath, 'w') as varfile:
         varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
@@ -422,14 +417,12 @@ def unpause(args, dag=None):
 def set_is_paused(is_paused, args, dag=None):
     dag = dag or get_dag(args)
 
-    session = settings.Session()
-    dm = session.query(DagModel).filter(
-        DagModel.dag_id == dag.dag_id).first()
-    dm.is_paused = is_paused
-    session.commit()
+    with db.create_session() as session:
+        dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
+        dm.is_paused = is_paused
+        session.commit()
 
-    msg = "Dag: {}, paused: {}".format(dag, str(dag.is_paused))
-    print(msg)
+    print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
 
 
 def _run(args, dag, ti):
@@ -455,14 +448,12 @@ def _run(args, dag, ti):
         if args.ship_dag:
             try:
                 # Running remotely, so pickling the DAG
-                session = settings.Session()
-                pickle = DagPickle(dag)
-                session.add(pickle)
-                session.commit()
-                pickle_id = pickle.id
-                # TODO: This should be written to a log
-                print('Pickled dag {dag} as pickle_id:{pickle_id}'
-                      .format(**locals()))
+                with db.create_session() as session:
+                    pickle = DagPickle(dag)
+                    session.add(pickle)
+                    pickle_id = pickle.id
+                    # TODO: This should be written to a log
+                    print('Pickled dag {dag} as pickle_id:{pickle_id}'.format(**locals()))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -511,13 +502,12 @@ def run(args, dag=None):
     if not args.pickle and not dag:
         dag = get_dag(args)
     elif not dag:
-        session = settings.Session()
-        log.info('Loading pickle id {args.pickle}'.format(args=args))
-        dag_pickle = session.query(
-            DagPickle).filter(DagPickle.id == args.pickle).first()
-        if not dag_pickle:
-            raise AirflowException("Who hid the pickle!? [missing pickle]")
-        dag = dag_pickle.pickle
+        with db.create_session() as session:
+            log.info('Loading pickle id {args.pickle}'.format(args=args))
+            dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
+            if not dag_pickle:
+                raise AirflowException("Who hid the pickle!? [missing pickle]")
+            dag = dag_pickle.pickle
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
@@ -1088,7 +1078,7 @@ def worker(args):
 
 def initdb(args):
     print("DB: " + repr(settings.engine.url))
-    db_utils.initdb(settings.RBAC)
+    db.initdb(settings.RBAC)
     print("Done.")
 
 
@@ -1097,7 +1087,7 @@ def resetdb(args):
     if args.yes or input("This will drop existing tables "
                          "if they exist. Proceed? "
                          "(y/n)").upper() == "Y":
-        db_utils.resetdb(settings.RBAC)
+        db.resetdb(settings.RBAC)
     else:
         print("Bail.")
 
@@ -1105,7 +1095,7 @@ def resetdb(args):
 @cli_utils.action_logging
 def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
-    db_utils.upgradedb()
+    db.upgradedb()
 
 
 @cli_utils.action_logging
@@ -1132,20 +1122,20 @@ def connections(args):
             print(msg)
             return
 
-        session = settings.Session()
-        conns = session.query(Connection.conn_id, Connection.conn_type,
-                              Connection.host, Connection.port,
-                              Connection.is_encrypted,
-                              Connection.is_extra_encrypted,
-                              Connection.extra).all()
-        conns = [map(reprlib.repr, conn) for conn in conns]
-        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
-        print(msg)
-        return
+        with db.create_session() as session:
+            conns = session.query(Connection.conn_id, Connection.conn_type,
+                                  Connection.host, Connection.port,
+                                  Connection.is_encrypted,
+                                  Connection.is_extra_encrypted,
+                                  Connection.extra).all()
+            conns = [map(reprlib.repr, conn) for conn in conns]
+            msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
+                                   'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
+                           tablefmt="fancy_grid")
+            if sys.version_info[0] < 3:
+                msg = msg.encode('utf-8')
+            print(msg)
+            return
 
     if args.delete:
         # Check that only the `conn_id` arg was passed to the command
@@ -1165,31 +1155,30 @@ def connections(args):
                   'the --conn_id flag.\n')
             return
 
-        session = settings.Session()
-        try:
-            to_delete = (session
-                         .query(Connection)
-                         .filter(Connection.conn_id == args.conn_id)
-                         .one())
-        except exc.NoResultFound:
-            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
+        with db.create_session() as session:
+            try:
+                to_delete = (session
+                             .query(Connection)
+                             .filter(Connection.conn_id == args.conn_id)
+                             .one())
+            except exc.NoResultFound:
+                msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
+                msg = msg.format(conn_id=args.conn_id)
+                print(msg)
+                return
+            except exc.MultipleResultsFound:
+                msg = ('\n\tFound more than one connection with ' +
+                       '`conn_id`={conn_id}\n')
+                msg = msg.format(conn_id=args.conn_id)
+                print(msg)
+                return
+            else:
+                deleted_conn_id = to_delete.conn_id
+                session.delete(to_delete)
+                msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
+                msg = msg.format(conn_id=deleted_conn_id)
+                print(msg)
             return
-        except exc.MultipleResultsFound:
-            msg = ('\n\tFound more than one connection with ' +
-                   '`conn_id`={conn_id}\n')
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
-        else:
-            deleted_conn_id = to_delete.conn_id
-            session.delete(to_delete)
-            session.commit()
-            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=deleted_conn_id)
-            print(msg)
-        return
 
     if args.add:
         # Check that the conn_id and conn_uri args were passed to the command:
@@ -1228,26 +1217,25 @@ def connections(args):
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
-        session = settings.Session()
-        if not (session.query(Connection)
-                       .filter(Connection.conn_id == new_conn.conn_id).first()):
-            session.add(new_conn)
-            session.commit()
-            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id,
-                             uri=args.conn_uri or
-                             urlunparse((args.conn_type,
-                                        '{login}:{password}@{host}:{port}'
-                                         .format(login=args.conn_login or '',
-                                                 password=args.conn_password or '',
-                                                 host=args.conn_host or '',
-                                                 port=args.conn_port or ''),
-                                         args.conn_schema or '', '', '', '')))
-            print(msg)
-        else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
-            print(msg)
+        with db.create_session() as session:
+            if not (session.query(Connection)
+                           .filter(Connection.conn_id == new_conn.conn_id).first()):
+                session.add(new_conn)
+                msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
+                msg = msg.format(conn_id=new_conn.conn_id,
+                                 uri=args.conn_uri or
+                                 urlunparse((args.conn_type,
+                                            '{login}:{password}@{host}:{port}'
+                                             .format(login=args.conn_login or '',
+                                                     password=args.conn_password or '',
+                                                     host=args.conn_host or '',
+                                                     port=args.conn_port or ''),
+                                             args.conn_schema or '', '', '', '')))
+                print(msg)
+            else:
+                msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
+                msg = msg.format(conn_id=new_conn.conn_id)
+                print(msg)
 
         return
 

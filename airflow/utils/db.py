@@ -41,7 +41,6 @@ def create_session():
     session = settings.Session()
     try:
         yield session
-        session.expunge_all()
         session.commit()
     except Exception:
         session.rollback()

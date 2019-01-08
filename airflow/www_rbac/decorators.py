@@ -22,7 +22,8 @@ import functools
 import pendulum
 from io import BytesIO as IO
 from flask import after_this_request, redirect, request, url_for, g
-from airflow import models, settings
+from airflow import models
+from airflow.utils.db import create_session
 
 
 def action_logging(f):
@@ -31,26 +32,26 @@ def action_logging(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        session = settings.Session()
-        if g.user.is_anonymous:
-            user = 'anonymous'
-        else:
-            user = g.user.username
 
-        log = models.Log(
-            event=f.__name__,
-            task_instance=None,
-            owner=user,
-            extra=str(list(request.args.items())),
-            task_id=request.args.get('task_id'),
-            dag_id=request.args.get('dag_id'))
+        with create_session() as session:
+            if g.user.is_anonymous:
+                user = 'anonymous'
+            else:
+                user = g.user.username
 
-        if 'execution_date' in request.args:
-            log.execution_date = pendulum.parse(
-                request.args.get('execution_date'))
+            log = models.Log(
+                event=f.__name__,
+                task_instance=None,
+                owner=user,
+                extra=str(list(request.args.items())),
+                task_id=request.args.get('task_id'),
+                dag_id=request.args.get('dag_id'))
 
-        session.add(log)
-        session.commit()
+            if 'execution_date' in request.args:
+                log.execution_date = pendulum.parse(
+                    request.args.get('execution_date'))
+
+            session.add(log)
 
         return f(*args, **kwargs)
 

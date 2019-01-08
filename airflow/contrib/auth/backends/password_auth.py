@@ -35,9 +35,8 @@ from flask_bcrypt import generate_password_hash, check_password_hash
 from sqlalchemy import Column, String
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from airflow import settings
 from airflow import models
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
@@ -165,9 +164,6 @@ def login(self, request, session=None):
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)
-    finally:
-        session.commit()
-        session.close()
 
 
 class LoginForm(Form):
@@ -201,19 +197,16 @@ def requires_authentication(function):
             userpass = ''.join(header.split()[1:])
             username, password = base64.b64decode(userpass).decode("utf-8").split(":", 1)
 
-            session = settings.Session()
-            try:
-                authenticate(session, username, password)
+            with create_session() as session:
+                try:
+                    authenticate(session, username, password)
 
-                response = function(*args, **kwargs)
-                response = make_response(response)
-                return response
+                    response = function(*args, **kwargs)
+                    response = make_response(response)
+                    return response
 
-            except AuthenticationError:
-                return _forbidden()
+                except AuthenticationError:
+                    return _forbidden()
 
-            finally:
-                session.commit()
-                session.close()
         return _unauthorized()
     return decorated

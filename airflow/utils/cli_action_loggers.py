@@ -25,7 +25,7 @@ from __future__ import absolute_import
 
 import logging
 
-import airflow.settings
+from airflow.utils.db import create_session
 
 
 def register_pre_exec_callback(action_logger):
@@ -94,9 +94,8 @@ def default_action_log(log, **_):
     :param **_: other keyword arguments that is not being used by this function
     :return: None
     """
-    session = airflow.settings.Session()
-    session.add(log)
-    session.commit()
+    with create_session() as session:
+        session.add(log)
 
 
 __pre_exec_callbacks = []
