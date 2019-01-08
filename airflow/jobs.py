@@ -2234,7 +2234,7 @@ class BackfillJob(BaseJob):
                             session=session,
                             verbose=self.verbose):
                         ti.refresh_from_db(lock_for_update=True, session=session)
-                        if ti.state in [State.SCHEDULED, State.UP_FOR_RETRY, State.UP_FOR_RESCHEDULE]:
+                        if ti.state in (State.SCHEDULED, State.UP_FOR_RETRY, State.UP_FOR_RESCHEDULE):
                             if executor.has_task(ti):
                                 self.log.debug(
                                     "Task Instance %s already in executor "

@@ -2220,7 +2220,7 @@ class SchedulerJobTest(unittest.TestCase):
         # Create scheduler and mock calls to processor. Run duration is set
         # to a high value to ensure loop is entered. Poll interval is 0 to
         # avoid sleep. Done flag is set to true to exist the loop immediately.
-        scheduler = SchedulerJob(num_runs=0, run_duration=60, processor_poll_interval=0)
+        scheduler = SchedulerJob(num_runs=0, processor_poll_interval=0)
         executor = TestExecutor()
         executor.queued_tasks
         scheduler.executor = executor
@@ -2494,24 +2494,21 @@ class SchedulerJobTest(unittest.TestCase):
             dag=dag,
             owner='airflow')
 
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
 
         scheduler = SchedulerJob()
         dag.clear()
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
 
-        tis = dr.get_task_instances(session=session)
-        for ti in tis:
-            ti.state = state
-            ti.start_date = start_date
-            ti.end_date = end_date
-        session.commit()
-        session.close()
+        with create_session() as session:
+            tis = dr.get_task_instances(session=session)
+            for ti in tis:
+                ti.state = state
+                ti.start_date = start_date
+                ti.end_date = end_date
 
         queue = Mock()
         scheduler._process_task_instances(dag, queue=queue)
