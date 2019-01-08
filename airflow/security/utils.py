@@ -30,7 +30,7 @@ def get_components(principal):
     """
     if not principal:
         return None
-    return re.split('[\/@]', str(principal))
+    return re.split(r'[\/@]', str(principal))
 
 
 def replace_hostname_pattern(components, host=None):

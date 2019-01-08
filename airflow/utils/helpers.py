@@ -170,7 +170,7 @@ def chain(*tasks):
 
 
 def cross_downstream(from_tasks, to_tasks):
-    """
+    r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
     E.g.: cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
     Is equivalent to:

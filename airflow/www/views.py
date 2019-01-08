@@ -476,7 +476,7 @@ class Airflow(BaseView):
                         df[df.columns[x_col]])
                     df[df.columns[x_col]] = df[df.columns[x_col]].apply(
                         lambda x: int(x.strftime("%s")) * 1000)
-                except Exception as e:
+                except Exception:
                     payload['error'] = "Time conversion failed"
 
             if chart_type == 'datatable':

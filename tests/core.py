@@ -1181,7 +1181,7 @@ class CliTests(unittest.TestCase):
                         new_callable=six.StringIO) as mock_stdout:
             cli.connections(self.parser.parse_args(['connections', '--list']))
             stdout = mock_stdout.getvalue()
-        conns = [[x.strip("'") for x in re.findall("'\w+'", line)[:2]]
+        conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
                  for ii, line in enumerate(stdout.split('\n'))
                  if ii % 2 == 1]
         conns = [conn for conn in conns if len(conn) > 0]

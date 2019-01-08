@@ -115,7 +115,7 @@ class WinRMOperator(BaseOperator):
                         self.log.info(line)
                     for line in stderr.decode('utf-8').splitlines():
                         self.log.warning(line)
-                except WinRMOperationTimeoutError as e:
+                except WinRMOperationTimeoutError:
                     # this is an expected error when waiting for a
                     # long-running process, just silently retry
                     pass

@@ -3135,7 +3135,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         try:
             running_date = running_dates[0]
-        except Exception as _:
+        except Exception:
             running_date = 'Except'
 
         self.assertEqual(execution_date, running_date, 'Running Date must match Execution Date')

@@ -87,7 +87,7 @@ class HdfsSensor(BaseSensorOperator):
         """
         if ignore_copying:
             log = LoggingMixin().log
-            regex_builder = "^.*\.(%s$)$" % '$|'.join(ignored_ext)
+            regex_builder = r"^.*\.(%s$)$" % '$|'.join(ignored_ext)
             ignored_extensions_regex = re.compile(regex_builder)
             log.debug(
                 'Filtering result for ignored extensions: %s in files %s',
