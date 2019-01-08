@@ -1462,6 +1462,8 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
 
+    @unittest.skipIf('mysql' in conf.conf.get('core', 'sql_alchemy_conn'),
+                     "flaky when run on mysql")
     def test_trigger_dag_button(self):
 
         test_dag_id = "example_bash_operator"
