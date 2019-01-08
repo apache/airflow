@@ -246,6 +246,16 @@ class WorkerConfiguration(LoggingMixin):
 
         affinity = kube_executor_config.affinity or self.kube_config.kube_affinity
         tolerations = kube_executor_config.tolerations or self.kube_config.kube_tolerations
+        extra_labels = kube_executor_config.extra_labels or self.kube_config.kube_extra_labels
+        base_labels = {
+            'airflow-worker': worker_uuid,
+            'dag_id': dag_id,
+            'task_id': task_id,
+            'execution_date': execution_date,
+            'try_number': "{}".format(try_number),
+        }
+        if extra_labels:
+            base_labels.update(extra_labels)
 
         return Pod(
             namespace=namespace,
@@ -254,13 +264,7 @@ class WorkerConfiguration(LoggingMixin):
             image_pull_policy=(kube_executor_config.image_pull_policy or
                                self.kube_config.kube_image_pull_policy),
             cmds=airflow_command,
-            labels={
-                'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
-                'execution_date': execution_date,
-                'try_number': "{}".format(try_number),
-            },
+            labels=base_labels,
             envs=self._get_environment(),
             secrets=self._get_secrets(),
             service_account_name=self.kube_config.worker_service_account_name,

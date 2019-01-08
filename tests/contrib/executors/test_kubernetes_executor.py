@@ -107,6 +107,11 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         }
     }
 
+    extra_labels_config = {
+        'label1': 'abc',
+        'label2': '123'
+    }
+
     tolerations_config = [
         {
             'key': 'dedicated',
@@ -234,6 +239,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
     def test_make_pod_with_empty_executor_config(self):
         self.kube_config.kube_affinity = self.affinity_config
         self.kube_config.kube_tolerations = self.tolerations_config
+        self.kube_config.kube_extra_labels = self.extra_labels_config
 
         worker_config = WorkerConfiguration(self.kube_config)
         kube_executor_config = KubernetesExecutorConfig(annotations=[],
@@ -255,11 +261,14 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         self.assertEqual(2, len(pod.tolerations))
         self.assertEqual('prod', pod.tolerations[1]['key'])
+        self.assertEqual('abc', pod.labels['label1'])
+        self.assertEqual('123', pod.labels['label2'])
 
     def test_make_pod_with_executor_config(self):
         worker_config = WorkerConfiguration(self.kube_config)
         kube_executor_config = KubernetesExecutorConfig(affinity=self.affinity_config,
                                                         tolerations=self.tolerations_config,
+                                                        extra_labels=self.extra_labels_config,
                                                         annotations=[],
                                                         volumes=[],
                                                         volume_mounts=[]
@@ -279,6 +288,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         self.assertEqual(2, len(pod.tolerations))
         self.assertEqual('prod', pod.tolerations[1]['key'])
+        self.assertEqual('abc', pod.labels['label1'])
+        self.assertEqual('123', pod.labels['label2'])
 
     def test_worker_pvc_dags(self):
         # Tests persistence volume config created when `dags_volume_claim` is set
