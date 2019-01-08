@@ -2256,7 +2256,7 @@ class DagRunModelView(AirflowModelView):
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
                 "were set to failed".format(**locals()))
-        except Exception as ex:
+        except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.route_base + '/list')
 
@@ -2284,7 +2284,7 @@ class DagRunModelView(AirflowModelView):
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
                 "were set to success".format(**locals()))
-        except Exception as ex:
+        except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.route_base + '/list')
 
@@ -2392,7 +2392,7 @@ class TaskInstanceModelView(AirflowModelView):
             session.commit()
             flash(
                 "{count} task instances were set to '{target_state}'".format(**locals()))
-        except Exception as ex:
+        except Exception:
             flash('Failed to set state', 'error')
 
     @action('set_running', "Set state to 'running'", '', single=False)

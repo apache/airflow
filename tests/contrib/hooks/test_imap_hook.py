@@ -99,7 +99,7 @@ class TestImapHook(unittest.TestCase):
 
         with ImapHook() as imap_hook:
             has_attachment_in_inbox = imap_hook.has_mail_attachment(
-                name='test(\d+).csv',
+                name=r'test(\d+).csv',
                 check_regex=True
             )
 
@@ -111,7 +111,7 @@ class TestImapHook(unittest.TestCase):
 
         with ImapHook() as imap_hook:
             has_attachment_in_inbox = imap_hook.has_mail_attachment(
-                name='test_(\d+).csv',
+                name=r'test_(\d+).csv',
                 check_regex=True
             )
 
@@ -141,7 +141,7 @@ class TestImapHook(unittest.TestCase):
 
         with ImapHook() as imap_hook:
             attachments_in_inbox = imap_hook.retrieve_mail_attachments(
-                name='test(\d+).csv',
+                name=r'test(\d+).csv',
                 check_regex=True
             )
 
@@ -153,7 +153,7 @@ class TestImapHook(unittest.TestCase):
 
         with ImapHook() as imap_hook:
             attachments_in_inbox = imap_hook.retrieve_mail_attachments(
-                name='test_(\d+).csv',
+                name=r'test_(\d+).csv',
                 check_regex=True
             )
 
@@ -200,7 +200,7 @@ class TestImapHook(unittest.TestCase):
 
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments(
-                name='test(\d+).csv',
+                name=r'test(\d+).csv',
                 local_output_directory='test_directory',
                 check_regex=True
             )
@@ -215,7 +215,7 @@ class TestImapHook(unittest.TestCase):
 
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments(
-                name='test_(\d+).csv',
+                name=r'test_(\d+).csv',
                 local_output_directory='test_directory',
                 check_regex=True
             )
