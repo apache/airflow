@@ -1988,7 +1988,7 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
 
         dagbag = self._make_simple_dag_bag([dag1, dag2, dag3])
-        scheduler = SchedulerJob(num_runs=0, run_duration=0)
+        scheduler = SchedulerJob(num_runs=0)
         scheduler._change_state_for_tis_without_dagrun(
             simple_dag_bag=dagbag,
             old_states=[State.SCHEDULED, State.QUEUED],
@@ -2110,7 +2110,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         processor = mock.MagicMock()
 
-        scheduler = SchedulerJob(num_runs=0, run_duration=0)
+        scheduler = SchedulerJob(num_runs=0)
         executor = TestExecutor()
         scheduler.executor = executor
         scheduler.processor_agent = processor
@@ -3058,30 +3058,6 @@ class SchedulerJobTest(unittest.TestCase):
         # make sure the counter has increased
         self.assertEqual(ti.try_number, 2)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
-
-    def test_scheduler_run_duration(self):
-        """
-        Verifies that the scheduler run duration limit is followed.
-        """
-        dag_id = 'test_start_date_scheduling'
-        dag = self.dagbag.get_dag(dag_id)
-        dag.clear()
-        self.assertTrue(dag.start_date > DEFAULT_DATE)
-
-        expected_run_duration = 5
-        start_time = timezone.utcnow()
-        scheduler = SchedulerJob(dag_id,
-                                 run_duration=expected_run_duration)
-        scheduler.run()
-        end_time = timezone.utcnow()
-
-        run_duration = (end_time - start_time).total_seconds()
-        logging.info("Test ran in %.2fs, expected %.2fs",
-                     run_duration,
-                     expected_run_duration)
-        # 5s to wait for child process to exit, 1s dummy sleep
-        # in scheduler loop to prevent excessive logs and 1s for last loop to finish.
-        self.assertLess(run_duration - expected_run_duration, 6.0)
 
     def test_dag_with_system_exit(self):
         """
