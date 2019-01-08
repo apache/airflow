@@ -145,12 +145,15 @@ async_packages = [
     'gevent>=0.13'
 ]
 atlas = ['atlasclient>=0.1.2']
+azure_batch_ai = ['azure-mgmt-batchai==0.2.0']
+azure_resources = ['azure-mgmt-resource==2.0.0']
 azure_blob_storage = ['azure-storage>=0.34.0']
 azure_data_lake = [
     'azure-mgmt-resource==1.2.2',
     'azure-mgmt-datalake-store==0.4.0',
     'azure-datalake-store==0.0.19'
 ]
+azure_cosmos = ['azure-cosmos>=3.0.1']
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery>=4.1.1, <4.2.0',
@@ -217,7 +220,7 @@ password = [
 ]
 pinot = ['pinotdb>=0.1.1']
 postgres = ['psycopg2-binary>=2.7.4']
-qds = ['qds-sdk>=1.9.6']
+qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis>=2.10.5,<3.0.0']
 s3 = ['boto3>=1.7.0, <1.8.0']
@@ -265,11 +268,12 @@ if not PY3:
 
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
+devel_azure = devel_minreq + azure_data_lake + azure_cosmos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake +
-             atlas)
+             azure_batch_ai + azure_cosmos + atlas)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -343,6 +347,7 @@ def do_setup():
             'async': async_packages,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
+            'azure_cosmos': azure_cosmos,
             'cassandra': cassandra,
             'celery': celery,
             'cgroups': cgroups,
@@ -353,6 +358,7 @@ def do_setup():
             'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
+            'devel_azure': devel_azure,
             'doc': doc,
             'docker': docker,
             'druid': druid,

@@ -43,6 +43,8 @@ class QuboleOperator(BaseOperator):
             :script_location: s3 location containing query statement
             :sample_size: size of sample in bytes on which to run query
             :macros: macro values which were used in query
+            :sample_size: size of sample in bytes on which to run query
+            :hive-version: Specifies the hive version to be used. eg: 0.13,1.2,etc.
         prestocmd:
             :query: inline query statement
             :script_location: s3 location containing query statement
@@ -77,12 +79,14 @@ class QuboleOperator(BaseOperator):
             :arguments: spark-submit command line arguments
             :user_program_arguments: arguments that the user program takes in
             :macros: macro values which were used in query
+            :note_id: Id of the Notebook to run
         dbtapquerycmd:
             :db_tap_id: data store ID of the target database, in Qubole.
             :query: inline query statement
             :macros: macro values which were used in query
         dbexportcmd:
-            :mode: 1 (simple), 2 (advance)
+            :mode: Can be 1 for Hive export or 2 for HDFS/S3 export
+            :schema: Db schema name assumed accordingly by database if not specified
             :hive_table: Name of the hive table
             :partition_spec: partition specification for Hive table.
             :dbtap_id: data store ID of the target database, in Qubole.
@@ -91,9 +95,15 @@ class QuboleOperator(BaseOperator):
             :db_update_keys: columns used to determine the uniqueness of rows
             :export_dir: HDFS/S3 location from which data will be exported.
             :fields_terminated_by: hex of the char used as column separator in the dataset
+            :use_customer_cluster: To use cluster to run command
+            :customer_cluster_label: the label of the cluster to run the command on
+            :additional_options: Additional Sqoop options which are needed enclose options in
+                double or single quotes e.g. '--map-column-hive id=int,data=string'
         dbimportcmd:
             :mode: 1 (simple), 2 (advance)
             :hive_table: Name of the hive table
+            :schema: Db schema name assumed accordingly by database if not specified
+            :hive_serde: Output format of the Hive Table
             :dbtap_id: data store ID of the target database, in Qubole.
             :db_table: name of the db table
             :where_clause: where clause, if any
@@ -102,6 +112,10 @@ class QuboleOperator(BaseOperator):
                 of the where clause.
             :boundary_query: Query to be used get range of row IDs to be extracted
             :split_column: Column used as row ID to split data into ranges (mode 2)
+            :use_customer_cluster: To use cluster to run command
+            :customer_cluster_label: the label of the cluster to run the command on
+            :additional_options: Additional Sqoop options which are needed enclose options in
+                double or single quotes
 
     .. note:: Following fields are template-supported : ``query``, ``script_location``,
         ``sub_command``, ``script``, ``files``, ``archives``, ``program``, ``cmdline``,

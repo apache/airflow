@@ -94,6 +94,8 @@ Here's the list of the subpackages and what they enable:
 +---------------------+---------------------------------------------------+-------------------------------------------------+
 | kerberos            | ``pip install apache-airflow[kerberos]``          | Kerberos integration for Kerberized Hadoop      |
 +---------------------+---------------------------------------------------+-------------------------------------------------+
+| kubernetes          | ``pip install apache-airflow[kubernetes]``        | Kubernetes Executor and operator                |
++---------------------+---------------------------------------------------+-------------------------------------------------+
 | ldap                | ``pip install apache-airflow[ldap]``              | LDAP authentication for users                   |
 +---------------------+---------------------------------------------------+-------------------------------------------------+
 | mssql               | ``pip install apache-airflow[mssql]``             | Microsoft SQL Server operators and hook,        |

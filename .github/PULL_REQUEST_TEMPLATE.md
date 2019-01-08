@@ -28,6 +28,7 @@ Make sure you have checked _all_ steps below.
 
 - [ ] In case of new functionality, my PR adds documentation that describes how to use it.
   - When adding new operators/hooks/sensors, the autoclass documentation generation needs to be added.
+  - All the public functions and the classes in the PR contain docstrings that explain what it does
 
 ### Code Quality
 

@@ -27,6 +27,5 @@ have been tested on Redhat based systems. You can copy those to
 based system) you probably need to adjust the unit files.
 
 Environment configuration is picked up from ``/etc/sysconfig/airflow``.
-An example file is supplied. Make sure to specify the ``SCHEDULER_RUNS``
-variable in this file when you run the scheduler. You
+An example file is supplied. You
 can also define here, for example, ``AIRFLOW_HOME`` or ``AIRFLOW_CONFIG``.
