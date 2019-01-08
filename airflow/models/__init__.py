@@ -2569,10 +2569,12 @@ class BaseOperator(LoggingMixin):
         pass
 
     def get_executor_config(self, executor_config):
-        """Try to import base_executor_config and merge supplied
+        """
+        Try to import base_executor_config and merge supplied
         executor_config into it.
 
-        :return: dict"""
+        :return: dict
+        """
 
         base_executor_config_string = configuration.conf.get(
             'core', 'base_executor_config')
