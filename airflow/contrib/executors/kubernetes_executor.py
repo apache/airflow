@@ -43,7 +43,8 @@ class KubernetesExecutorConfig:
     def __init__(self, image=None, image_pull_policy=None, request_memory=None,
                  request_cpu=None, limit_memory=None, limit_cpu=None,
                  gcp_service_account_key=None, node_selectors=None, affinity=None,
-                 annotations=None, volumes=None, volume_mounts=None, tolerations=None):
+                 annotations=None, volumes=None, volume_mounts=None, tolerations=None,
+                 extra_labels=None):
         self.image = image
         self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
@@ -57,17 +58,18 @@ class KubernetesExecutorConfig:
         self.volumes = volumes
         self.volume_mounts = volume_mounts
         self.tolerations = tolerations
+        self.extra_labels = extra_labels
 
     def __repr__(self):
         return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
                "limit_memory={}, limit_cpu={}, gcp_service_account_key={}, " \
                "node_selectors={}, affinity={}, annotations={}, volumes={}, " \
-               "volume_mounts={}, tolerations={})" \
+               "volume_mounts={}, tolerations={}, extra_labels={})" \
             .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
                     self.request_memory, self.request_cpu, self.limit_memory,
                     self.limit_cpu, self.gcp_service_account_key, self.node_selectors,
                     self.affinity, self.annotations, self.volumes, self.volume_mounts,
-                    self.tolerations)
+                    self.tolerations, self.extra_labels)
 
     @staticmethod
     def from_dict(obj):
@@ -94,6 +96,7 @@ class KubernetesExecutorConfig:
             volumes=namespaced.get('volumes', []),
             volume_mounts=namespaced.get('volume_mounts', []),
             tolerations=namespaced.get('tolerations', None),
+            extra_labels=namespaced.get('extra_labels', None),
         )
 
     def as_dict(self):
@@ -111,12 +114,16 @@ class KubernetesExecutorConfig:
             'volumes': self.volumes,
             'volume_mounts': self.volume_mounts,
             'tolerations': self.tolerations,
+            'extra_labels': self.extra_labels,
         }
 
 
 class KubeConfig:
     core_section = 'core'
     kubernetes_section = 'kubernetes'
+
+    # labels we are not allowed to as extra labels
+    protected_labels = ('airflow-worker', 'dag_id', 'task_id', 'try_number', 'execution_date',)
 
     def __init__(self):
         configuration_dict = configuration.as_dict(display_sensitive=True)
@@ -237,6 +244,12 @@ class KubeConfig:
         else:
             self.kube_tolerations = None
 
+        extra_labels = conf.get(self.kubernetes_section, 'extra_labels')
+        if extra_labels:
+            self.kube_extra_labels = json.loads(extra_labels)
+        else:
+            self.kube_extra_labels = None
+
         self._validate()
 
     def _validate(self):
@@ -251,6 +264,15 @@ class KubeConfig:
                 'or `dags_volume_host` '
                 'or `dags_in_image` '
                 'or `git_repo and git_branch and git_dags_folder_mount_point`')
+
+        # cannot allow certain labels, as airflow needs them
+        if self.kube_extra_labels:
+            for k in self.protected_labels:
+                if k in self.kube_extra_labels:
+                    raise AirflowConfigException(
+                        'In kubernetes mode `extra_labels` cannot include '
+                        '`airflow-worker`, `dag_id`, `task_id`, `try_number`, or `execution_date`'
+                    )
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
