@@ -1868,8 +1868,69 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("TEST", response.data.decode('utf-8'))
 
     def test_health(self):
-        response = self.app.get('/health')
-        self.assertIn('The server is healthy!', response.data.decode('utf-8'))
+        BJ = jobs.BaseJob
+        session = Session()
+
+        # case-1: healthy scheduler status
+        last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
+        session.add(BJ(job_type='SchedulerJob',
+                       state='running',
+                       latest_heartbeat=last_scheduler_heartbeat_for_testing_1))
+        session.commit()
+
+        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
+
+        self.assertEqual('healthy', response_json['metadatabase']['status'])
+        self.assertEqual('healthy', response_json['scheduler']['status'])
+        self.assertEqual(str(last_scheduler_heartbeat_for_testing_1),
+                         response_json['scheduler']['latest_scheduler_heartbeat'])
+
+        session.query(BJ).\
+            filter(BJ.job_type == 'SchedulerJob',
+                   BJ.state == 'running',
+                   BJ.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
+            delete()
+        session.commit()
+
+        # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
+        last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
+        (session.query(BJ)
+                .filter(BJ.job_type == 'SchedulerJob')
+                .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)}))
+        session.add(BJ(job_type='SchedulerJob',
+                       state='running',
+                       latest_heartbeat=last_scheduler_heartbeat_for_testing_2))
+        session.commit()
+
+        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
+
+        self.assertEqual('healthy', response_json['metadatabase']['status'])
+        self.assertEqual('unhealthy', response_json['scheduler']['status'])
+        self.assertEqual(str(last_scheduler_heartbeat_for_testing_2),
+                         response_json['scheduler']['latest_scheduler_heartbeat'])
+
+        session.query(BJ).\
+            filter(BJ.job_type == 'SchedulerJob',
+                   BJ.state == 'running',
+                   BJ.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
+            delete()
+        session.commit()
+
+        # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
+        session.query(BJ).\
+            filter(BJ.job_type == 'SchedulerJob',
+                   BJ.state == 'running').\
+            delete()
+        session.commit()
+
+        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
+
+        self.assertEqual('healthy', response_json['metadatabase']['status'])
+        self.assertEqual('unhealthy', response_json['scheduler']['status'])
+        self.assertEqual('None',
+                         response_json['scheduler']['latest_scheduler_heartbeat'])
+
+        session.close()
 
     def test_noaccess(self):
         response = self.app.get('/admin/airflow/noaccess')
