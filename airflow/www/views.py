@@ -136,7 +136,8 @@ def dag_run_link(v, c, m, p):
         dag_id=m.dag_id,
         run_id=m.run_id,
         execution_date=m.execution_date)
-    return Markup('<a href="{url}">{m.run_id}</a>'.format(**locals()))
+    title = escape(m.run_id)
+    return Markup('<a href="{url}">{title}</a>'.format(**locals()))
 
 
 def task_instance_link(v, c, m, p):
@@ -207,12 +208,14 @@ def label_link(v, c, m, p):
     url = url_for(
         'airflow.chart', chart_id=m.id, iteration_no=m.iteration_no,
         **default_params)
-    return Markup("<a href='{url}'>{m.label}</a>".format(**locals()))
+    title = escape(m.label)
+    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
 
 
 def pool_link(v, c, m, p):
+    title = escape(m.pool)
     url = '/admin/taskinstance/?flt1_pool_equals=' + m.pool
-    return Markup("<a href='{url}'>{m.pool}</a>".format(**locals()))
+    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):

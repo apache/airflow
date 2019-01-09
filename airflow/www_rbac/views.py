@@ -36,7 +36,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, send_file)
+    make_response, flash, jsonify, send_file, escape)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
@@ -2024,6 +2024,7 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         if pool_id is not None:
             url = '/taskinstance/list/?_flt_3_pool=' + str(pool_id)
+            pool_id = escape(pool_id)
             return Markup("<a href='{url}'>{pool_id}</a>".format(**locals()))
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
