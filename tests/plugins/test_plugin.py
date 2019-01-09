@@ -58,7 +58,7 @@ def plugin_macro():
 
 
 # Creating a flask admin BaseView
-class TestView(BaseView):
+class PluginTestView(BaseView):
     @expose('/')
     def test(self):
         # in this example, put your test_plugin/test.html
@@ -66,11 +66,11 @@ class TestView(BaseView):
         return self.render("test_plugin/test.html", content="Hello galaxy!")
 
 
-v = TestView(category="Test Plugin", name="Test View")
+v = PluginTestView(category="Test Plugin", name="Test View")
 
 
 # Creating a flask appbuilder BaseView
-class TestAppBuilderBaseView(AppBuilderBaseView):
+class PluginTestAppBuilderBaseView(AppBuilderBaseView):
     default_view = "test"
 
     @expose("/")
@@ -78,7 +78,7 @@ class TestAppBuilderBaseView(AppBuilderBaseView):
         return self.render("test_plugin/test.html", content="Hello galaxy!")
 
 
-v_appbuilder_view = TestAppBuilderBaseView()
+v_appbuilder_view = PluginTestAppBuilderBaseView()
 v_appbuilder_package = {"name": "Test View",
                         "category": "Test Plugin",
                         "view": v_appbuilder_view}
