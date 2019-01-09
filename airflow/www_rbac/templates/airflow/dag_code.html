@@ -21,25 +21,7 @@
 {% block content %}
     {{ super() }}
     <h4>{{ title }}</h4>
-    {% if html_code %}
-        {{ html_code|safe }}
-    {% endif %}
-    {% if code %}
-        <pre>{{ code }}</pre>
-    {% endif %}
-
-    {% if code_dict %}
-        {% for k, v in code_dict.items() %}
-            <h5>{{ k }}</h5>
-            <pre>{{ v }}</pre>
-        {% endfor %}
-    {% endif %}
-    {% if html_dict %}
-        {% for k, v in html_dict.items() %}
-            <h5>{{ k }}</h5>
-            {{ v|safe }}
-        {% endfor %}
-    {% endif %}
+    {{ html_code|safe }}
 {% endblock %}
 
 {% block tail %}

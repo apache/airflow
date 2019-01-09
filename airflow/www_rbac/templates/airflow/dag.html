@@ -498,7 +498,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#pause_resume").change(function() {
-      var dag_id =  $(this).attr('dag_id');
+      var dag_id = $(this).attr('dag_id');
       if ($(this).prop('checked')) {
         is_paused = 'true'
       } else {
@@ -508,9 +508,8 @@ function updateQueryStringParameter(uri, key, value) {
       $.post(url);
     });
 
-    $('#btn_edit_dagrun').click(function(){
-      window.location = "{{ url_for('DagModelView.show', pk=id) }}";
-
+    $('#btn_edit_dagrun').click(function() {
+      window.location = "{{ url_for('DagModelView.show', pk=dag.dag_id) }}";
     });
 
   </script>
