@@ -74,8 +74,7 @@
 
                 <!-- Column 2: Turn dag on/off -->
                 <td>
-                    {% set disabled = 'disabled' if view_only else None %}
-                    <input id="toggle-{{ dag.dag_id }}" {{ disabled }} dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
+                    <input id="toggle-{{ dag.dag_id }}" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
                 </td>
 
                 <!-- Column 3: Name -->
