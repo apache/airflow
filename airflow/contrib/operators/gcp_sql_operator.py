@@ -704,30 +704,30 @@ class CloudSqlQueryOperator(BaseOperator):
         self.cloud_sql_proxy_runner = None
         self.database_hook = None
 
-    def pre_execute(self, context):
-        self.cloudsql_db_hook.create_connection()
-        self.database_hook = self.cloudsql_db_hook.get_database_hook()
-        if self.cloudsql_db_hook.use_proxy:
-            self.cloud_sql_proxy_runner = self.cloudsql_db_hook.get_sqlproxy_runner()
-            self.cloudsql_db_hook.free_reserved_port()
-            # There is very, very slim chance that the socket will be taken over
-            # here by another bind(0). It's quite unlikely to happen though!
-            self.cloud_sql_proxy_runner.start_proxy()
-
     def execute(self, context):
-        self.log.info('Executing: "%s"', self.sql)
-        self.database_hook.run(self.sql, self.autocommit, parameters=self.parameters)
-
-    def post_execute(self, context, result=None):
-        # Make sure that all the cleanups happen, no matter if there are some
-        # exceptions thrown
+        self.cloudsql_db_hook.validate_ssl_certs()
+        self.cloudsql_db_hook.create_connection()
         try:
-            self.cloudsql_db_hook.cleanup_database_hook()
-        finally:
+            self.database_hook = self.cloudsql_db_hook.get_database_hook()
             try:
-                if self.cloud_sql_proxy_runner:
-                    self.cloud_sql_proxy_runner.stop_proxy()
-                    self.cloud_sql_proxy_runner = None
+                try:
+                    if self.cloudsql_db_hook.use_proxy:
+                        self.cloud_sql_proxy_runner = self.cloudsql_db_hook.\
+                            get_sqlproxy_runner()
+                        self.cloudsql_db_hook.free_reserved_port()
+                        # There is very, very slim chance that the socket will
+                        # be taken over here by another bind(0).
+                        # It's quite unlikely to happen though!
+                        self.cloud_sql_proxy_runner.start_proxy()
+                    self.log.info('Executing: "%s"', self.sql)
+                    self.database_hook.run(self.sql, self.autocommit,
+                                           parameters=self.parameters)
+                finally:
+                    if self.cloud_sql_proxy_runner:
+                        self.cloud_sql_proxy_runner.stop_proxy()
+                        self.cloud_sql_proxy_runner = None
             finally:
-                self.cloudsql_db_hook.delete_connection()
-                self.cloudsql_db_hook = None
+                self.cloudsql_db_hook.cleanup_database_hook()
+        finally:
+            self.cloudsql_db_hook.delete_connection()
+            self.cloudsql_db_hook = None
