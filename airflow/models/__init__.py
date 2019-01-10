@@ -2573,6 +2573,7 @@ class BaseOperator(LoggingMixin):
         Try to import base_executor_config and merge supplied
         executor_config into it.
 
+        :param executor_config: an operator level executor_config
         :return: dict
         """
 
