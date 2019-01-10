@@ -190,7 +190,8 @@ gcp_api = [
     'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-container>=0.1.1',
-    'google-cloud-spanner>=1.6.0',
+    'google-cloud-bigtable==0.31.0',
+    'google-cloud-spanner>=1.7.1',
     'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
@@ -261,7 +262,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8==3.5.0'
+    'flake8>=3.6.0',
 ]
 
 if not PY3:
@@ -303,6 +304,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
+            'enum34~=1.1.6',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
             'flask-admin==1.5.2',
@@ -410,10 +412,10 @@ def do_setup():
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
-        author_email='dev@airflow.incubator.apache.org',
-        url='http://airflow.incubator.apache.org/',
+        author_email='dev@airflow.apache.org',
+        url='http://airflow.apache.org/',
         download_url=(
-            'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
+            'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,

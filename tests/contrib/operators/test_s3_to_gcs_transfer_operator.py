@@ -59,6 +59,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
             gcs_bucket=GCS_BUCKET,
             project_id=PROJECT_ID,
             description=DESCRIPTION,
+            schedule=SCHEDULE,
         )
 
         self.assertEqual(operator.task_id, TASK_ID)
@@ -66,6 +67,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
         self.assertEqual(operator.gcs_bucket, GCS_BUCKET)
         self.assertEqual(operator.project_id, PROJECT_ID)
         self.assertEqual(operator.description, DESCRIPTION)
+        self.assertEqual(operator.schedule, SCHEDULE)
 
     @mock.patch('airflow.contrib.operators.s3_to_gcs_transfer_operator.GCPTransferServiceHook')
     @mock.patch('airflow.contrib.operators.s3_to_gcs_transfer_operator.S3Hook')

@@ -580,7 +580,8 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
                                                    get_connections):
         connection = Connection()
         connection.parse_from_uri(
-            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type={database_type}&"
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?"
+            "database_type={database_type}&"
             "project_id={project_id}&location={location}&instance={instance_name}&"
             "use_proxy={use_proxy}&use_ssl={use_ssl}".
             format(database_type=database_type,
@@ -591,10 +592,11 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
                    use_ssl=use_ssl))
         get_connections.return_value = [connection]
         with self.assertRaises(AirflowException) as cm:
-            CloudSqlQueryOperator(
+            op = CloudSqlQueryOperator(
                 sql=sql,
                 task_id='task_id'
             )
+            op.execute(None)
         err = cm.exception
         self.assertIn(message, str(err))
 
@@ -796,6 +798,81 @@ class CloudSqlQueryValidationTest(unittest.TestCase):
         self.assertEqual('127.0.0.1', conn.host)
         self.assertNotEqual(3200, conn.port)
         self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_too_long_unix_socket_path(self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=postgres&"
+            "project_id=example-project&location=europe-west1&"
+            "instance="
+            "test_db_with_long_name_a_bit_above_the_limit_of_UNIX_socket&"
+            "use_proxy=True&sql_proxy_use_tcp=False")
+        get_connections.return_value = [connection]
+        with self.assertRaises(AirflowException) as cm:
+            op = CloudSqlQueryOperator(
+                sql=['SELECT * FROM TABLE'],
+                task_id='task_id'
+            )
+            op.execute(None)
+        err = cm.exception
+        self.assertIn("The UNIX socket path length cannot exceed", str(err))
+
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_create_operator_with_not_too_long_unix_socket_path(self, get_connections):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=postgres&"
+            "project_id=example-project&location=europe-west1&"
+            "instance="
+            "test_db_with_longname_but_with_limit_of_UNIX_socket_aaaa&"
+            "use_proxy=True&sql_proxy_use_tcp=False")
+        get_connections.return_value = [connection]
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        operator.cloudsql_db_hook.create_connection()
+        try:
+            db_hook = operator.cloudsql_db_hook.get_database_hook()
+            conn = db_hook._get_connections_from_db(db_hook.postgres_conn_id)[0]
+        finally:
+            operator.cloudsql_db_hook.delete_connection()
+        self.assertEqual('postgres', conn.conn_type)
+        self.assertEqual('testdb', conn.schema)
+
+    @mock.patch("airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook."
+                "delete_connection")
+    @mock.patch("airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook."
+                "get_connection")
+    @mock.patch("airflow.hooks.mysql_hook.MySqlHook.run")
+    @mock.patch("airflow.hooks.base_hook.BaseHook.get_connections")
+    def test_cloudsql_hook_delete_connection_on_exception(
+            self, get_connections, run, get_connection, delete_connection):
+        connection = Connection()
+        connection.parse_from_uri(
+            "gcpcloudsql://user:password@8.8.8.8:3200/testdb?database_type=mysql&"
+            "project_id=example-project&location=europe-west1&instance=testdb&"
+            "use_proxy=False")
+        get_connection.return_value = connection
+
+        db_connection = Connection()
+        db_connection.host = "8.8.8.8"
+        db_connection.set_extra(json.dumps({"project_id": "example-project",
+                                            "location": "europe-west1",
+                                            "instance": "testdb",
+                                            "database_type": "mysql"}))
+        get_connections.return_value = [db_connection]
+        run.side_effect = Exception("Exception when running a query")
+        operator = CloudSqlQueryOperator(
+            sql=['SELECT * FROM TABLE'],
+            task_id='task_id'
+        )
+        with self.assertRaises(Exception) as cm:
+            operator.execute(None)
+        err = cm.exception
+        self.assertEqual("Exception when running a query", str(err))
+        delete_connection.assert_called_once_with()
 
 
 @unittest.skipIf(

@@ -33,7 +33,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
     :param gcs_bucket: The destination Google Cloud Storage bucket
         where you want to store the files. (templated)
     :type gcs_bucket: str
-    :param project_id: The ID of the Google Cloud Platform Console project that
+    :param project_id: Optional ID of the Google Cloud Platform Console project that
         owns the job
     :type project_id: str
     :param aws_conn_id: The source S3 connection
@@ -51,10 +51,10 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs.
         If not set, run transfer job once as soon as the operator runs
     :type schedule: dict
-    :param object_conditions: Transfer service object conditions; see
+    :param object_conditions: Optional transfer service object conditions; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
     :type object_conditions: dict
-    :param transfer_options: Transfer service transfer options; see
+    :param transfer_options: Optional transfer service transfer options; see
         https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec
     :type transfer_options: dict
     :param wait: Wait for transfer to finish
@@ -79,7 +79,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
     def __init__(self,
                  s3_bucket,
                  gcs_bucket,
-                 project_id,
+                 project_id=None,
                  aws_conn_id='aws_default',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,

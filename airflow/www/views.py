@@ -40,7 +40,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
-    current_app, render_template, make_response)
+    current_app, render_template, make_response, send_file)
 from flask import flash
 from flask._compat import PY2
 from flask_admin import BaseView, expose, AdminIndexView
@@ -75,7 +75,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.utils.db import create_session, provide_session
-from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
@@ -84,6 +84,10 @@ from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www.validators import GreaterEqualThan
+if PY2:
+    from cStringIO import StringIO
+else:
+    from io import StringIO
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -132,7 +136,8 @@ def dag_run_link(v, c, m, p):
         dag_id=m.dag_id,
         run_id=m.run_id,
         execution_date=m.execution_date)
-    return Markup('<a href="{url}">{m.run_id}</a>'.format(**locals()))
+    title = escape(m.run_id)
+    return Markup('<a href="{url}">{title}</a>'.format(**locals()))
 
 
 def task_instance_link(v, c, m, p):
@@ -203,12 +208,14 @@ def label_link(v, c, m, p):
     url = url_for(
         'airflow.chart', chart_id=m.id, iteration_no=m.iteration_no,
         **default_params)
-    return Markup("<a href='{url}'>{m.label}</a>".format(**locals()))
+    title = escape(m.label)
+    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
 
 
 def pool_link(v, c, m, p):
+    title = escape(m.pool)
     url = '/admin/taskinstance/?flt1_pool_equals=' + m.pool
-    return Markup("<a href='{url}'>{m.pool}</a>".format(**locals()))
+    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):
@@ -472,7 +479,7 @@ class Airflow(BaseView):
                         df[df.columns[x_col]])
                     df[df.columns[x_col]] = df[df.columns[x_col]].apply(
                         lambda x: int(x.strftime("%s")) * 1000)
-                except Exception as e:
+                except Exception:
                     payload['error'] = "Time conversion failed"
 
             if chart_type == 'datatable':
@@ -590,21 +597,24 @@ class Airflow(BaseView):
         dag_ids = session.query(Dag.dag_id)
 
         LastDagRun = (
-            session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
-                .filter(DagRun.state != State.RUNNING)
-                .filter(Dag.is_active == True)  # noqa: E712
-                .filter(Dag.is_subdag == False)  # noqa: E712
-                .group_by(DagRun.dag_id)
-                .subquery('last_dag_run')
+            session.query(
+                DagRun.dag_id,
+                sqla.func.max(DagRun.execution_date).label('execution_date')
+            )
+            .join(Dag, Dag.dag_id == DagRun.dag_id)
+            .filter(DagRun.state != State.RUNNING,
+                    Dag.is_active,
+                    Dag.is_subdag == False)  # noqa: E712
+            .group_by(DagRun.dag_id)
+            .subquery('last_dag_run')
         )
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
-                .filter(DagRun.state == State.RUNNING)
-                .filter(Dag.is_active == True)  # noqa: E712
-                .filter(Dag.is_subdag == False)  # noqa: E712
-                .subquery('running_dag_run')
+            .join(Dag, Dag.dag_id == DagRun.dag_id)
+            .filter(DagRun.state == State.RUNNING,
+                    Dag.is_active,
+                    Dag.is_subdag == False)  # noqa: E712
+            .subquery('running_dag_run')
         )
 
         # Select all task_instances from active dag_runs.
@@ -675,6 +685,7 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         title = "DAG details"
+        root = request.args.get('root', '')
 
         TI = models.TaskInstance
         states = session\
@@ -683,9 +694,17 @@ class Airflow(BaseView):
             .group_by(TI.state)\
             .all()
 
+        active_runs = models.DagRun.find(
+            dag_id=dag.dag_id,
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session
+        )
+
         return self.render(
             'airflow/dag_details.html',
-            dag=dag, title=title, states=states, State=State)
+            dag=dag, title=title, root=root, states=states, State=State,
+            active_runs=active_runs)
 
     @current_app.errorhandler(404)
     def circles(self):
@@ -735,6 +754,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dag = dagbag.get_dag(dag_id)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
@@ -759,7 +779,8 @@ class Airflow(BaseView):
             task_id=task_id,
             execution_date=execution_date,
             form=form,
-            title=title, )
+            root=root,
+            title=title)
 
     @expose('/get_logs_with_metadata')
     @login_required
@@ -770,7 +791,12 @@ class Airflow(BaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
-        try_number = int(request.args.get('try_number'))
+        if request.args.get('try_number') is not None:
+            try_number = int(request.args.get('try_number'))
+        else:
+            try_number = None
+        response_format = request.args.get('format', 'json')
+
         metadata = request.args.get('metadata')
         metadata = json.loads(metadata)
 
@@ -812,8 +838,16 @@ class Airflow(BaseView):
             for i, log in enumerate(logs):
                 if PY2 and not isinstance(log, unicode):
                     logs[i] = log.decode('utf-8')
-            message = logs[0]
-            return jsonify(message=message, metadata=metadata)
+
+            if response_format == 'json':
+                message = logs[0] if try_number is not None else logs
+                return jsonify(message=message, metadata=metadata)
+
+            file_obj = StringIO('\n'.join(logs))
+            filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            return send_file(file_obj, as_attachment=True,
+                             attachment_filename=attachment_filename)
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
                              .format(task_log_reader, str(e))]
@@ -838,11 +872,13 @@ class Airflow(BaseView):
             models.TaskInstance.execution_date == dttm).first()
 
         logs = [''] * (ti.next_try_number - 1 if ti is not None else 0)
+        root = request.args.get('root', '')
         return self.render(
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts",
             dag_id=dag.dag_id, task_id=task_id,
-            execution_date=execution_date, form=form)
+            execution_date=execution_date, form=form,
+            root=root)
 
     @expose('/task')
     @login_required
@@ -857,6 +893,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dag = dagbag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
@@ -930,6 +967,7 @@ class Airflow(BaseView):
             execution_date=execution_date,
             special_attrs_rendered=special_attrs_rendered,
             form=form,
+            root=root,
             dag=dag, title=title)
 
     @expose('/xcom')
@@ -944,6 +982,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dm_db = models.DagModel
         ti_db = models.TaskInstance
         dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
@@ -971,6 +1010,7 @@ class Airflow(BaseView):
             task_id=task_id,
             execution_date=execution_date,
             form=form,
+            root=root,
             dag=dag, title=title)
 
     @expose('/run')

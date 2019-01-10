@@ -62,7 +62,7 @@ class PigOperator(BaseOperator):
     def prepare_template(self):
         if self.pigparams_jinja_translate:
             self.pig = re.sub(
-                "(\$([a-zA-Z_][a-zA-Z0-9_]*))", "{{ \g<2> }}", self.pig)
+                r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
 
     def execute(self, context):
         self.log.info('Executing: %s', self.pig)
