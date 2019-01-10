@@ -2350,7 +2350,8 @@ class BaseOperator(LoggingMixin):
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
-        self.executor_config = self.get_executor_config(task_executor_config=executor_config)
+        self.executor_config = self.get_executor_config(
+            task_executor_config=executor_config)
 
         # Private attributes
         self._upstream_task_ids = set()
@@ -2573,7 +2574,7 @@ class BaseOperator(LoggingMixin):
         Try to load default_executor_config_yaml and merge
         task_executor_config into it.
 
-        :param executor_config: an operator level executor_config
+        :param task_executor_config: a task level executor_config
         :return: dict
         """
 
