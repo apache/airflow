@@ -107,3 +107,23 @@ class TaskInstanceNotFound(AirflowNotFoundException):
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system"""
     pass
+
+
+class MissingArgument(AirflowBadRequest):
+    """Raise when a required argument is missing"""
+    pass
+
+
+class IncompatibleArgument(AirflowBadRequest):
+    """Raise when one or more argument(s) are incompatible"""
+    pass
+
+
+class ConnectionNotFound(AirflowNotFoundException):
+    """Raise when a connection is not found"""
+    pass
+
+
+class MultipleConnectionsFound(AirflowBadRequest):
+    """Raise when multiple connections are found"""
+    pass

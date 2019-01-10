@@ -23,6 +23,7 @@ from flask import (
 import airflow.api
 from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
+from airflow.api.common.experimental import connections as connection_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
@@ -253,3 +254,70 @@ def delete_pool(name):
         return response
     else:
         return jsonify(pool.to_json())
+
+
+@csrf.exempt
+@api_experimental.route('/connections', methods=['GET'])
+@requires_authentication
+def list_connections():
+    """Get all connections."""
+    try:
+        connections = connection_api.list_connections()
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    else:
+        return jsonify([c.to_json() for c in connections])
+
+
+@csrf.exempt
+@api_experimental.route('/connections/<string:conn_id>', methods=['DELETE'])
+@requires_authentication
+def delete_connection(conn_id):
+    """Delete pool."""
+    params = request.get_json(force=True)
+    try:
+        msg = connection_api.delete_connection(conn_id=conn_id, **params)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    else:
+        return jsonify({"success": msg})
+
+
+@csrf.exempt
+@api_experimental.route('/connections', methods=['POST'])
+@requires_authentication
+def add_connection():
+    """Delete pool."""
+    params = request.get_json(force=True)
+    try:
+        new_conn = connection_api.add_connection(**params)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    else:
+        return jsonify(new_conn.to_json())
+
+
+@csrf.exempt
+@api_experimental.route('/connections', methods=['PATCH'])
+@requires_authentication
+def update_connection():
+    """Delete pool."""
+    params = request.get_json(force=True)
+    try:
+        new_conn = connection_api.update_connection(**params)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    else:
+        return jsonify(new_conn.to_json())

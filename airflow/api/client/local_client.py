@@ -18,7 +18,7 @@
 # under the License.
 
 from airflow.api.client import api_client
-from airflow.api.common.experimental import pool
+from airflow.api.common.experimental import pool, connections
 from airflow.api.common.experimental import trigger_dag
 from airflow.api.common.experimental import delete_dag
 
@@ -51,3 +51,83 @@ class Client(api_client.Client):
     def delete_pool(self, name):
         p = pool.delete_pool(name=name)
         return p.pool, p.slots, p.description
+
+    def add_connection(self, conn_id,
+                       conn_uri=None,
+                       conn_type=None,
+                       conn_host=None,
+                       conn_login=None,
+                       conn_password=None,
+                       conn_schema=None,
+                       conn_port=None,
+                       conn_extra=None):
+        """
+
+        :param conn_id:
+        :param conn_uri:
+        :param conn_type:
+        :param conn_host:
+        :param conn_login:
+        :param conn_password:
+        :param conn_schema:
+        :param conn_port:
+        :param conn_extra:
+        :return: The new Connection
+        """
+        return connections.add_connection(conn_id,
+                                          conn_uri,
+                                          conn_type,
+                                          conn_host,
+                                          conn_login,
+                                          conn_password,
+                                          conn_schema,
+                                          conn_port,
+                                          conn_extra).to_json()
+
+    def delete_connection(self, conn_id, delete_all=False):
+        """
+
+        :param conn_id:
+        :param delete_all:
+        :return: the conn_id(s) of the Connection(s) that were removed
+        """
+        return connections.delete_connection(conn_id, delete_all)
+
+    def list_connections(self):
+        """
+
+        :return: All Connections
+        """
+        return [conn.to_json() for conn in connections.list_connections()]
+
+    def update_connection(self, conn_id,
+                          conn_uri=None,
+                          conn_type=None,
+                          conn_host=None,
+                          conn_login=None,
+                          conn_password=None,
+                          conn_schema=None,
+                          conn_port=None,
+                          conn_extra=None):
+        """
+
+        :param conn_id:
+        :param conn_uri:
+        :param conn_type:
+        :param conn_host:
+        :param conn_login:
+        :param conn_password:
+        :param conn_schema:
+        :param conn_port:
+        :param conn_extra:
+        :return: The updated Connection
+        """
+        return connections.update_connection(conn_id,
+                                             conn_uri,
+                                             conn_type,
+                                             conn_host,
+                                             conn_login,
+                                             conn_password,
+                                             conn_schema,
+                                             conn_port,
+                                             conn_extra).to_json()

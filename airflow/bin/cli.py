@@ -47,16 +47,15 @@ import traceback
 import time
 import psutil
 import re
-from urllib.parse import urlunparse
 
 import airflow
 from airflow import api
 from airflow import jobs, settings
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException, AirflowWebServerTimeout
+from airflow.exceptions import AirflowException, AirflowWebServerTimeout, MissingArgument, \
+    MultipleConnectionsFound, ConnectionNotFound
 from airflow.executors import GetDefaultExecutor
 from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
-from airflow.models.connection import Connection
 from airflow.models.dagpickle import DagPickle
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli as cli_utils, db
@@ -68,7 +67,6 @@ from airflow.www_rbac.app import cached_app as cached_app_rbac
 from airflow.www_rbac.app import create_app as create_app_rbac
 from airflow.www_rbac.app import cached_appbuilder
 
-from sqlalchemy.orm import exc
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))
@@ -1110,133 +1108,77 @@ alternative_conn_specs = ['conn_type', 'conn_host',
 @cli_utils.action_logging
 def connections(args):
     if args.list:
-        # Check that no other flags were passed to the command
-        invalid_args = list()
-        for arg in ['conn_id', 'conn_uri', 'conn_extra'] + alternative_conn_specs:
-            if getattr(args, arg) is not None:
-                invalid_args.append(arg)
-        if invalid_args:
-            msg = ('\n\tThe following args are not compatible with the ' +
-                   '--list flag: {invalid!r}\n')
-            msg = msg.format(invalid=invalid_args)
-            print(msg)
-            return
-
-        with db.create_session() as session:
-            conns = session.query(Connection.conn_id, Connection.conn_type,
-                                  Connection.host, Connection.port,
-                                  Connection.is_encrypted,
-                                  Connection.is_extra_encrypted,
-                                  Connection.extra).all()
-            conns = [map(reprlib.repr, conn) for conn in conns]
-            msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                                   'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                           tablefmt="fancy_grid")
-            if sys.version_info[0] < 3:
-                msg = msg.encode('utf-8')
-            print(msg)
-            return
+        conns = api_client.list_connections()
+        # format it for the cli
+        conns = map(lambda c: (c['conn_id'], c['conn_type'],
+                               c['host'], c['port'],
+                               c['is_encrypted'],
+                               c['is_extra_encrypted'],
+                               c['extra']), conns)
+        conns = [map(reprlib.repr, conn) for conn in conns]
+        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
+                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
+        return
 
     if args.delete:
-        # Check that only the `conn_id` arg was passed to the command
-        invalid_args = list()
-        for arg in ['conn_uri', 'conn_extra'] + alternative_conn_specs:
-            if getattr(args, arg) is not None:
-                invalid_args.append(arg)
-        if invalid_args:
-            msg = ('\n\tThe following args are not compatible with the ' +
-                   '--delete flag: {invalid!r}\n')
-            msg = msg.format(invalid=invalid_args)
-            print(msg)
-            return
-
-        if args.conn_id is None:
-            print('\n\tTo delete a connection, you Must provide a value for ' +
-                  'the --conn_id flag.\n')
-            return
-
-        with db.create_session() as session:
-            try:
-                to_delete = (session
-                             .query(Connection)
-                             .filter(Connection.conn_id == args.conn_id)
-                             .one())
-            except exc.NoResultFound:
-                msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-                msg = msg.format(conn_id=args.conn_id)
-                print(msg)
-                return
-            except exc.MultipleResultsFound:
-                msg = ('\n\tFound more than one connection with ' +
-                       '`conn_id`={conn_id}\n')
-                msg = msg.format(conn_id=args.conn_id)
-                print(msg)
-                return
-            else:
-                deleted_conn_id = to_delete.conn_id
-                session.delete(to_delete)
-                msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-                msg = msg.format(conn_id=deleted_conn_id)
-                print(msg)
-            return
+        try:
+            print(api_client.delete_connection(args.conn_id, args.delete_all))
+        except MissingArgument as ma:
+            print(ma)
+        return
 
     if args.add:
-        # Check that the conn_id and conn_uri args were passed to the command:
-        missing_args = list()
-        invalid_args = list()
-        if not args.conn_id:
-            missing_args.append('conn_id')
-        if args.conn_uri:
-            for arg in alternative_conn_specs:
-                if getattr(args, arg) is not None:
-                    invalid_args.append(arg)
-        elif not args.conn_type:
-            missing_args.append('conn_uri or conn_type')
-        if missing_args:
-            msg = ('\n\tThe following args are required to add a connection:' +
-                   ' {missing!r}\n'.format(missing=missing_args))
-            print(msg)
-        if invalid_args:
-            msg = ('\n\tThe following args are not compatible with the ' +
-                   '--add flag and --conn_uri flag: {invalid!r}\n')
-            msg = msg.format(invalid=invalid_args)
-            print(msg)
-        if missing_args or invalid_args:
-            return
+        try:
+            new_conn = api_client.add_connection(
+                conn_id=args.conn_id,
+                conn_uri=args.conn_uri,
+                conn_type=args.conn_type,
+                conn_host=args.conn_host,
+                conn_login=args.conn_login,
+                conn_password=args.conn_password,
+                conn_schema=args.conn_schema,
+                conn_port=args.conn_port,
+                conn_extra=args.conn_extra)
 
-        if args.conn_uri:
-            new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+        except MissingArgument as ma:
+            print(ma)
         else:
-            new_conn = Connection(conn_id=args.conn_id,
-                                  conn_type=args.conn_type,
-                                  host=args.conn_host,
-                                  login=args.conn_login,
-                                  password=args.conn_password,
-                                  schema=args.conn_schema,
-                                  port=args.conn_port)
-        if args.conn_extra is not None:
-            new_conn.set_extra(args.conn_extra)
+            # format success message!
+            msg = 'Successfully added `conn_id`={conn_id} : {uri}\n'
+            msg = msg.format(conn_id=new_conn['conn_id'],
+                             uri=new_conn['uri'])
+            print(msg)
+        return
 
-        with db.create_session() as session:
-            if not (session.query(Connection)
-                           .filter(Connection.conn_id == new_conn.conn_id).first()):
-                session.add(new_conn)
-                msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-                msg = msg.format(conn_id=new_conn.conn_id,
-                                 uri=args.conn_uri or
-                                 urlunparse((args.conn_type,
-                                            '{login}:{password}@{host}:{port}'
-                                             .format(login=args.conn_login or '',
-                                                     password=args.conn_password or '',
-                                                     host=args.conn_host or '',
-                                                     port=args.conn_port or ''),
-                                             args.conn_schema or '', '', '', '')))
-                print(msg)
-            else:
-                msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-                msg = msg.format(conn_id=new_conn.conn_id)
-                print(msg)
+    if args.update:
+        try:
+            new_conn = api_client.update_connection(
+                conn_id=args.conn_id,
+                conn_uri=args.conn_uri,
+                conn_type=args.conn_type,
+                conn_host=args.conn_host,
+                conn_login=args.conn_login,
+                conn_password=args.conn_password,
+                conn_schema=args.conn_schema,
+                conn_port=args.conn_port,
+                conn_extra=args.conn_extra)
 
+        except MissingArgument as ma:
+            print(ma)
+        except MultipleConnectionsFound as mcf:
+            print(mcf)
+        except ConnectionNotFound as cnf:
+            print(cnf)
+        else:
+            # format success message!
+            msg = 'Successfully updated `conn_id`={conn_id} : {uri}\n'
+            msg = msg.format(conn_id=new_conn['conn_id'],
+                             uri=new_conn['uri'])
+            print(msg)
         return
 
 
@@ -1821,6 +1763,10 @@ class CLIFactory(object):
             ('-d', '--delete'),
             help='Delete a connection',
             action='store_true'),
+        'update_connection': Arg(
+            ('-u', '--update'),
+            help='Update a connection',
+            action='store_true'),
         'conn_id': Arg(
             ('--conn_id',),
             help='Connection id, required to add/delete a connection',
@@ -1857,6 +1803,11 @@ class CLIFactory(object):
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
+        'delete_all': Arg(
+            ('--delete_all',),
+            help='Flag to indicate if multiple connections should be deleted',
+            action="store_true",
+            default=False),
         # users
         'username': Arg(
             ('--username',),
@@ -2059,9 +2010,11 @@ class CLIFactory(object):
             'args': tuple(),
         }, {
             'func': connections,
-            'help': "List/Add/Delete connections",
-            'args': ('list_connections', 'add_connection', 'delete_connection',
-                     'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+            'help': "List/Add/Update/Delete connections",
+            'args': ('list_connections', 'add_connection', 'update_connection',
+                     'delete_connection', 'conn_id', 'conn_uri',
+                     'conn_extra', 'conn_type', 'conn_host',
+                     'conn_login', 'conn_password', 'conn_schema', 'conn_port', 'delete_all'),
         }, {
             'func': users,
             'help': "List/Create/Delete users",

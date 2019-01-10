@@ -89,3 +89,84 @@ class Client(api_client.Client):
         url = urljoin(self._api_base_url, endpoint)
         pool = self._request(url, method='DELETE')
         return pool['pool'], pool['slots'], pool['description']
+
+    def add_connection(self, conn_id,
+                       conn_uri=None,
+                       conn_type=None,
+                       conn_host=None,
+                       conn_login=None,
+                       conn_password=None,
+                       conn_schema=None,
+                       conn_port=None,
+                       conn_extra=None):
+        endpoint = '/api/experimental/connections/'
+        url = urljoin(self._api_base_url, endpoint)
+        conn = self._request(url, method='POST', json={
+            'conn_id': conn_id,
+            'conn_uri': conn_uri,
+            'conn_type': conn_type,
+            'conn_host': conn_host,
+            'conn_login': conn_login,
+            'conn_password': conn_password,
+            'conn_schema': conn_schema,
+            'conn_port': conn_port,
+            'conn_extra': conn_extra})
+        return conn.to_json()
+
+    def delete_connection(self, conn_id, delete_all=False):
+        """
+
+        :param conn_id:
+        :param delete_all:
+        :return: the conn_id(s) of the Connection(s) that were removed
+        """
+        endpoint = '/api/experimental/connections/{}'.format(conn_id)
+        url = urljoin(self._api_base_url, endpoint)
+        conn_id = self._request(url, method='DELETE', json={'delete_all': delete_all})
+        return conn_id
+
+    def list_connections(self):
+        """
+
+        :return: All Connections
+        """
+        endpoint = '/api/experimental/connections'
+        url = urljoin(self._api_base_url, endpoint)
+        conns = self._request(url)
+        return [conn.to_json() for conn in conns]
+
+    def update_connection(self, conn_id,
+                          conn_uri=None,
+                          conn_type=None,
+                          conn_host=None,
+                          conn_login=None,
+                          conn_password=None,
+                          conn_schema=None,
+                          conn_port=None,
+                          conn_extra=None):
+        """
+
+        :param conn_id:
+        :param conn_uri:
+        :param conn_type:
+        :param conn_host:
+        :param conn_login:
+        :param conn_password:
+        :param conn_schema:
+        :param conn_port:
+        :param conn_extra:
+        :return: The updated Connection
+        """
+        endpoint = '/api/experimental/connections/'
+        url = urljoin(self._api_base_url, endpoint)
+        conn = self._request(url, method='PATCH', json={
+            'conn_id': conn_id,
+            'conn_uri': conn_uri,
+            'conn_type': conn_type,
+            'conn_host': conn_host,
+            'conn_login': conn_login,
+            'conn_password': conn_password,
+            'conn_schema': conn_schema,
+            'conn_port': conn_port,
+            'conn_extra': conn_extra})
+        return conn.to_json()
