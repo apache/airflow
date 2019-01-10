@@ -30,6 +30,11 @@ The installation is quick and straightforward.
     # install from pypi using pip
     pip install apache-airflow
 
+    # (optional) install locally with the master branch
+    pip install -r requirements.txt # for python2.7
+    pip install -r requirements3.txt # for python3.x
+
+
     # initialize the database
     airflow initdb
 
