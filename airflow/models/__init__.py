@@ -58,6 +58,7 @@ import textwrap
 import traceback
 import warnings
 import hashlib
+import yaml
 
 import uuid
 from datetime import datetime
@@ -2198,9 +2199,9 @@ class BaseOperator(LoggingMixin):
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
 
-        If base_executor_config is set in airflow.cfg and an executor_config
+        If default_executor_config_yaml is set in airflow.cfg and an executor_config
         is supplied, the supplied executor_config will be merged into the
-        base_executor_config and returned.
+        default_executor_config_yaml and returned.
 
         **Example**: to run this task in a specific docker container through
         the KubernetesExecutor ::
@@ -2350,7 +2351,7 @@ class BaseOperator(LoggingMixin):
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
-        self.executor_config = self.get_executor_config(executor_config)
+        self.executor_config = self.get_executor_config(task_executor_config=executor_config)
 
         # Private attributes
         self._upstream_task_ids = set()
@@ -2568,26 +2569,27 @@ class BaseOperator(LoggingMixin):
         """
         pass
 
-    def get_executor_config(self, executor_config):
+    def get_executor_config(self, task_executor_config):
         """
-        Try to import base_executor_config and merge supplied
-        executor_config into it.
+        Try to load default_executor_config_yaml and merge
+        task_executor_config into it.
 
         :return: dict
         """
 
-        base_executor_config_string = configuration.conf.get(
-            'core', 'base_executor_config')
+        default_executor_config_yaml = configuration.conf.get(
+            'core', 'default_executor_config_yaml')
 
-        if base_executor_config_string and executor_config:
-            base_executor_config = import_string(base_executor_config_string)
-            return dict_merge(base_executor_config, executor_config)
-        elif base_executor_config_string and not executor_config:
-            return import_string(base_executor_config_string)
-        elif not base_executor_config_string and executor_config:
-            return executor_config
-        elif not (base_executor_config_string or executor_config):
-            return {}
+        executor_config = {}
+        if default_executor_config_yaml:
+            with open(default_executor_config_yaml) as f:
+                default_executor_config = yaml.safe_load(f)
+            executor_config = default_executor_config
+
+        if task_executor_config:
+            executor_config = dict_merge(executor_config, task_executor_config)
+
+        return executor_config
 
     def execute(self, context):
         """
