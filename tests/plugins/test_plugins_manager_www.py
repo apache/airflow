@@ -23,15 +23,18 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import unittest
+from mock import MagicMock, PropertyMock
 
 from flask.blueprints import Blueprint
 from flask_admin.menu import MenuLink, MenuView
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
+from airflow.plugins_manager import load_entrypoint_plugins, is_valid_plugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 from airflow.www.app import create_app
+from tests.plugins.test_plugin import MockPluginA, MockPluginB, MockPluginC
 
 
 class PluginsTest(unittest.TestCase):
@@ -83,3 +86,54 @@ class PluginsTest(unittest.TestCase):
         [menu_link] = [ml for ml in category.get_children()
                        if isinstance(ml, MenuLink)]
         self.assertEqual('Test Menu Link', menu_link.name)
+
+
+class PluginsTestEntrypointLoad(unittest.TestCase):
+
+    def setUp(self):
+        self.expected = [MockPluginA, MockPluginB, MockPluginC]
+        self.entrypoints = [
+            self._build_mock(plugin_obj)
+            for plugin_obj in self.expected
+        ]
+
+    def _build_mock(self, plugin_obj):
+        m = MagicMock(**{
+            'load.return_value': plugin_obj
+        })
+        type(m).name = PropertyMock(return_value='plugin-' + plugin_obj.name)
+        return m
+
+    def test_load_entrypoint_plugins(self):
+        self.assertListEqual(
+            load_entrypoint_plugins(self.entrypoints, []),
+            self.expected
+        )
+
+    def test_failed_load_entrpoint_plugins(self):
+        self.assertListEqual(
+            load_entrypoint_plugins(
+                self.entrypoints[:2] + [self._build_mock(
+                    MagicMock(name='other')
+                )], []),
+            self.expected[:2]
+        )
+
+
+class PluginsTestValidator(unittest.TestCase):
+    def setUp(self):
+        self.existing = [MockPluginA, MockPluginB]
+
+    def test_valid_plugin(self):
+        c = MockPluginC
+        self.assertTrue(
+            is_valid_plugin(
+                c, self.existing
+            ))
+
+    def test_invalid_plugin(self):
+        c = MockPluginC
+        self.assertFalse(
+            is_valid_plugin(
+                c, self.existing + [c]
+            ))

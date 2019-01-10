@@ -117,3 +117,15 @@ class AirflowTestPlugin(AirflowPlugin):
     menu_links = [ml]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
+
+
+class MockPluginA(AirflowPlugin):
+    name = 'plugin-a'
+
+
+class MockPluginB(AirflowPlugin):
+    name = 'plugin-b'
+
+
+class MockPluginC(AirflowPlugin):
+    name = 'plugin-c'
