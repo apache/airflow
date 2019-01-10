@@ -17,10 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from datetime import timedelta
 from flask import (
-    url_for, Markup, Blueprint, redirect,
+    url_for, Blueprint, redirect,
 )
-import markdown
+from sqlalchemy import func
+
+from airflow import configuration as conf
+from airflow import jobs, settings
+from airflow.utils import timezone
+from airflow.www import utils as wwwutils
 
 routes = Blueprint('routes', __name__)
 
@@ -32,6 +38,35 @@ def index():
 
 @routes.route('/health')
 def health():
-    """ We can add an array of tests here to check the server's health """
-    content = Markup(markdown.markdown("The server is healthy!"))
-    return content
+    """
+    An endpoint helping check the health status of the Airflow instance,
+    including metadatabase and scheduler.
+    """
+    session = settings.Session()
+    BJ = jobs.BaseJob
+    payload = {}
+    scheduler_health_check_threshold = timedelta(seconds=conf.getint('scheduler',
+                                                                     'scheduler_health_check_threshold'
+                                                                     ))
+
+    latest_scheduler_heartbeat = None
+    payload['metadatabase'] = {'status': 'healthy'}
+    try:
+        latest_scheduler_heartbeat = session.query(func.max(BJ.latest_heartbeat)). \
+            filter(BJ.state == 'running', BJ.job_type == 'SchedulerJob'). \
+            scalar()
+    except Exception:
+        payload['metadatabase']['status'] = 'unhealthy'
+
+    if not latest_scheduler_heartbeat:
+        scheduler_status = 'unhealthy'
+    else:
+        if timezone.utcnow() - latest_scheduler_heartbeat <= scheduler_health_check_threshold:
+            scheduler_status = 'healthy'
+        else:
+            scheduler_status = 'unhealthy'
+
+    payload['scheduler'] = {'status': scheduler_status,
+                            'latest_scheduler_heartbeat': str(latest_scheduler_heartbeat)}
+
+    return wwwutils.json_response(payload)

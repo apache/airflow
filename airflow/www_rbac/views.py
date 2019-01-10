@@ -45,7 +45,7 @@ from flask_babel import lazy_gettext
 from past.builtins import unicode
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import or_, desc, and_, union_all
+from sqlalchemy import func, or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
@@ -151,6 +151,42 @@ class AirflowBaseView(BaseView):
 
 
 class Airflow(AirflowBaseView):
+    @expose('/health')
+    @provide_session
+    def health(self, session=None):
+        """
+        An endpoint helping check the health status of the Airflow instance,
+        including metadatabase and scheduler.
+        """
+
+        BJ = jobs.BaseJob
+        payload = {}
+        scheduler_health_check_threshold = timedelta(seconds=conf.getint('scheduler',
+                                                                         'scheduler_health_check_threshold'
+                                                                         ))
+
+        latest_scheduler_heartbeat = None
+        payload['metadatabase'] = {'status': 'healthy'}
+        try:
+            latest_scheduler_heartbeat = session.query(func.max(BJ.latest_heartbeat)).\
+                filter(BJ.state == 'running', BJ.job_type == 'SchedulerJob').\
+                scalar()
+        except Exception:
+            payload['metadatabase']['status'] = 'unhealthy'
+
+        if not latest_scheduler_heartbeat:
+            scheduler_status = 'unhealthy'
+        else:
+            if timezone.utcnow() - latest_scheduler_heartbeat <= scheduler_health_check_threshold:
+                scheduler_status = 'healthy'
+            else:
+                scheduler_status = 'unhealthy'
+
+        payload['scheduler'] = {'status': scheduler_status,
+                                'latest_scheduler_heartbeat': str(latest_scheduler_heartbeat)}
+
+        return wwwutils.json_response(payload)
+
     @expose('/home')
     @has_access
     @provide_session

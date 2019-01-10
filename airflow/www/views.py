@@ -384,7 +384,6 @@ class Airflow(BaseView):
     @expose('/chart_data')
     @data_profiling_required
     @wwwutils.gzipped
-    # @cache.cached(timeout=3600, key_prefix=wwwutils.make_cache_key)
     def chart_data(self):
         from airflow import macros
         import pandas as pd
