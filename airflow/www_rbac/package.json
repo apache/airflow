@@ -56,7 +56,7 @@
     "bootstrap-toggle": "^2.2.2",
     "d3": "^3.4.4",
     "d3-tip": "^0.9.1",
-    "dagre-d3": "^0.6.1",
+    "dagre-d3": "^0.6.3",
     "datatables.net": "^1.10.19",
     "datatables.net-bs": "^1.10.19",
     "moment-timezone": "^0.5.21",
