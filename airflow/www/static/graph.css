@@ -31,11 +31,12 @@ g.node.success rect {
 g.node.up_for_retry rect {
     stroke: gold;
 }
-
 g.node.queued rect {
     stroke: grey;
 }
-
+g.node.up_for_reschedule rect{
+    stroke: turquoise;
+}
 g.node.running rect{
     stroke: lime;
 }
