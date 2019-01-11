@@ -46,7 +46,8 @@ from airflow.bin import cli
 import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
-from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
+    errors
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -1396,7 +1397,7 @@ class SchedulerJobTest(unittest.TestCase):
             session.query(models.Pool).delete()
             session.query(models.DagModel).delete()
             session.query(models.SlaMiss).delete()
-            session.query(models.ImportError).delete()
+            session.query(errors.ImportError).delete()
             session.commit()
 
     @classmethod
@@ -3500,7 +3501,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3522,7 +3523,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3543,7 +3544,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 
@@ -3568,7 +3569,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3596,7 +3597,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 
@@ -3616,7 +3617,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.run_single_scheduler_loop_with_no_dags(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 

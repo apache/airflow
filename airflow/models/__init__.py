@@ -33,7 +33,7 @@ from airflow.models.base import Base
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Hashable
-except ImportError:
+except BuiltinImportError:
     # Preserve Python < 3.3 compatibility
     from collections import Hashable
 from datetime import timedelta
@@ -87,6 +87,7 @@ from airflow.exceptions import (
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
+from airflow.models.errors import ImportError  # noqa: F401
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -5321,14 +5322,6 @@ class SlaMiss(Base):
     def __repr__(self):
         return str((
             self.dag_id, self.task_id, self.execution_date.isoformat()))
-
-
-class ImportError(Base):
-    __tablename__ = "import_error"
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(UtcDateTime)
-    filename = Column(String(1024))
-    stacktrace = Column(Text)
 
 
 class KubeResourceVersion(Base):
