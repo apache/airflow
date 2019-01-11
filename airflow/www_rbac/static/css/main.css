@@ -78,6 +78,9 @@ span.success{
 span.up_for_retry{
     background-color: gold;
 }
+span.up_for_reschedule{
+    background-color: turquoise;
+}
 span.started{
     background-color: lime;
 }
