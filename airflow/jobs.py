@@ -939,7 +939,8 @@ class SchedulerJob(BaseJob):
             self.log.debug("Examining active DAG run: %s", run)
             # this needs a fresh session sometimes tis get detached
             tis = run.get_task_instances(state=(State.NONE,
-                                                State.UP_FOR_RETRY))
+                                                State.UP_FOR_RETRY,
+                                                State.UP_FOR_RESCHEDULE))
 
             # this loop is quite slow as it uses are_dependencies_met for
             # every task (in ti.is_runnable). This is also called in
@@ -1585,12 +1586,13 @@ class SchedulerJob(BaseJob):
                     self._change_state_for_tis_without_dagrun(simple_dag_bag,
                                                               [State.UP_FOR_RETRY],
                                                               State.FAILED)
-                    # If a task instance is scheduled or queued, but the corresponding
-                    # DAG run isn't running, set the state to NONE so we don't try to
-                    # re-run it.
+                    # If a task instance is scheduled or queued or up for reschedule,
+                    # but the corresponding DAG run isn't running, set the state to
+                    # NONE so we don't try to re-run it.
                     self._change_state_for_tis_without_dagrun(simple_dag_bag,
                                                               [State.QUEUED,
-                                                               State.SCHEDULED],
+                                                               State.SCHEDULED,
+                                                               State.UP_FOR_RESCHEDULE],
                                                               State.NONE)
 
                     self._execute_task_instances(simple_dag_bag,
@@ -1948,6 +1950,11 @@ class BackfillJob(BaseJob):
                 self.log.warning("Task instance %s is up for retry", ti)
                 ti_status.running.pop(key)
                 ti_status.to_run[key] = ti
+            # special case: if the task needs to be rescheduled put it back
+            elif ti.state == State.UP_FOR_RESCHEDULE:
+                self.log.warning("Task instance %s is up for reschedule", ti)
+                ti_status.running.pop(key)
+                ti_status.to_run[key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
             # is changed externally, e.g. by clearing tasks from the ui. We need to cover
@@ -2227,7 +2234,7 @@ class BackfillJob(BaseJob):
                             session=session,
                             verbose=self.verbose):
                         ti.refresh_from_db(lock_for_update=True, session=session)
-                        if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY:
+                        if ti.state in (State.SCHEDULED, State.UP_FOR_RETRY, State.UP_FOR_RESCHEDULE):
                             if executor.has_task(ti):
                                 self.log.debug(
                                     "Task Instance %s already in executor "
@@ -2270,6 +2277,16 @@ class BackfillJob(BaseJob):
                     if ti.state == State.UP_FOR_RETRY:
                         self.log.debug(
                             "Task instance %s retry period not "
+                            "expired yet", ti)
+                        if key in ti_status.running:
+                            ti_status.running.pop(key)
+                        ti_status.to_run[key] = ti
+                        continue
+
+                    # special case
+                    if ti.state == State.UP_FOR_RESCHEDULE:
+                        self.log.debug(
+                            "Task instance %s reschedule period not "
                             "expired yet", ti)
                         if key in ti_status.running:
                             ti_status.running.pop(key)

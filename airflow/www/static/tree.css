@@ -62,6 +62,9 @@ rect.upstream_failed {
 rect.up_for_retry {
     fill: gold;
 }
+rect.up_for_reschedule {
+    fill: turquoise;
+}
 rect.skipped {
     fill: pink;
 }

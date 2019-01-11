@@ -27,6 +27,7 @@ class ReadyToRescheduleDep(BaseTIDep):
     NAME = "Ready To Reschedule"
     IGNOREABLE = True
     IS_TASK_DEP = True
+    RESCHEDULEABLE_STATES = {State.UP_FOR_RESCHEDULE, State.NONE}
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
@@ -43,9 +44,9 @@ class ReadyToRescheduleDep(BaseTIDep):
                        "permitted.")
             return
 
-        if ti.state != State.NONE:
+        if ti.state not in self.RESCHEDULEABLE_STATES:
             yield self._passing_status(
-                reason="The task instance is not in NONE state.")
+                reason="The task instance is not in State_UP_FOR_RESCHEDULE or NONE state.")
             return
 
         # Lazy import to avoid circular dependency

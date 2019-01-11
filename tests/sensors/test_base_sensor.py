@@ -182,7 +182,7 @@ class BaseSensorTest(unittest.TestCase):
         for ti in tis:
             if ti.task_id == SENSOR_OP:
                 # verify task is re-scheduled, i.e. state set to NONE
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
                 # verify one row in task_reschedule table
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEquals(len(task_reschedules), 1)
@@ -201,7 +201,7 @@ class BaseSensorTest(unittest.TestCase):
         for ti in tis:
             if ti.task_id == SENSOR_OP:
                 # verify task is re-scheduled, i.e. state set to NONE
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
                 # verify two rows in task_reschedule table
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEquals(len(task_reschedules), 2)
@@ -239,7 +239,7 @@ class BaseSensorTest(unittest.TestCase):
         self.assertEquals(len(tis), 2)
         for ti in tis:
             if ti.task_id == SENSOR_OP:
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
             if ti.task_id == DUMMY_OP:
                 self.assertEquals(ti.state, State.NONE)
 
@@ -273,7 +273,7 @@ class BaseSensorTest(unittest.TestCase):
         self.assertEquals(len(tis), 2)
         for ti in tis:
             if ti.task_id == SENSOR_OP:
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
             if ti.task_id == DUMMY_OP:
                 self.assertEquals(ti.state, State.NONE)
 
@@ -305,7 +305,7 @@ class BaseSensorTest(unittest.TestCase):
         self.assertEquals(len(tis), 2)
         for ti in tis:
             if ti.task_id == SENSOR_OP:
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
                 # verify one row in task_reschedule table
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEquals(len(task_reschedules), 1)
@@ -337,7 +337,7 @@ class BaseSensorTest(unittest.TestCase):
         self.assertEquals(len(tis), 2)
         for ti in tis:
             if ti.task_id == SENSOR_OP:
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
                 # verify one row in task_reschedule table
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEquals(len(task_reschedules), 1)
@@ -393,7 +393,7 @@ class BaseSensorTest(unittest.TestCase):
         for ti in tis:
             if ti.task_id == SENSOR_OP:
                 # verify task is re-scheduled, i.e. state set to NONE
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
                 # verify one row in task_reschedule table
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEquals(len(task_reschedules), 1)
@@ -410,7 +410,7 @@ class BaseSensorTest(unittest.TestCase):
         for ti in tis:
             if ti.task_id == SENSOR_OP:
                 # verify task is re-scheduled, i.e. state set to NONE
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEquals(ti.state, State.UP_FOR_RESCHEDULE)
                 # verify two rows in task_reschedule table
                 task_reschedules = TaskReschedule.find_for_task_instance(ti)
                 self.assertEquals(len(task_reschedules), 2)

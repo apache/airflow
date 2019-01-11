@@ -95,6 +95,7 @@ QUEUEABLE_STATES = {
     State.SKIPPED,
     State.UPSTREAM_FAILED,
     State.UP_FOR_RETRY,
+    State.UP_FOR_RESCHEDULE,
 }
 
 # Context to get the dependencies that need to be met in order for a task instance to

@@ -37,6 +37,7 @@ import psutil
 import six
 import sqlalchemy
 from mock import Mock, patch, MagicMock, PropertyMock
+from parameterized import parameterized
 
 from airflow.utils.db import create_session
 from airflow import AirflowException, settings, models
@@ -257,6 +258,46 @@ class BackfillJobTest(unittest.TestCase):
         dr = DagRun.find(dag_id='test_backfill_conf')
 
         self.assertEqual(conf, dr[0].conf)
+
+    def test_backfill_run_rescheduled(self):
+        dag = DAG(
+            dag_id='test_backfill_run_rescheduled',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
+
+        with dag:
+            DummyOperator(
+                task_id='test_backfill_run_rescheduled_task-1',
+                dag=dag,
+            )
+
+        dag.clear()
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          )
+        job.run()
+
+        ti = TI(task=dag.get_task('test_backfill_run_rescheduled_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.set_state(State.UP_FOR_RESCHEDULE)
+
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          rerun_failed_tasks=True
+                          )
+        job.run()
+        ti = TI(task=dag.get_task('test_backfill_run_rescheduled_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        self.assertEquals(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_failed_tasks(self):
         dag = DAG(
@@ -1056,8 +1097,31 @@ class BackfillJobTest(unittest.TestCase):
 
         ti_status.failed.clear()
 
+        # test for retry
+        ti.set_state(State.UP_FOR_RETRY, session)
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.running) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 0)
+        self.assertTrue(len(ti_status.skipped) == 0)
+        self.assertTrue(len(ti_status.failed) == 0)
+        self.assertTrue(len(ti_status.to_run) == 1)
+
+        ti_status.to_run.clear()
+
         # test for reschedule
-        # test for failed
+        ti.set_state(State.UP_FOR_RESCHEDULE, session)
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.running) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 0)
+        self.assertTrue(len(ti_status.skipped) == 0)
+        self.assertTrue(len(ti_status.failed) == 0)
+        self.assertTrue(len(ti_status.to_run) == 1)
+
+        ti_status.to_run.clear()
+
+        # test for none
         ti.set_state(State.NONE, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
@@ -1066,6 +1130,8 @@ class BackfillJobTest(unittest.TestCase):
         self.assertTrue(len(ti_status.skipped) == 0)
         self.assertTrue(len(ti_status.failed) == 0)
         self.assertTrue(len(ti_status.to_run) == 1)
+
+        ti_status.to_run.clear()
 
         session.close()
 
@@ -2123,6 +2189,51 @@ class SchedulerJobTest(unittest.TestCase):
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti2.state, State.SCHEDULED)
 
+    @parameterized.expand([
+        [State.UP_FOR_RETRY, State.FAILED],
+        [State.QUEUED, State.NONE],
+        [State.SCHEDULED, State.NONE],
+        [State.UP_FOR_RESCHEDULE, State.NONE],
+    ])
+    def test_execute_helper_should_change_state_for_tis_without_dagrun(
+            self, initial_task_state, expected_task_state):
+        session = settings.Session()
+        dag = DAG(
+            'test_execute_helper_should_change_state_for_tis_without_dagrun',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        # Create DAG run with FAILED state
+        dag.clear()
+        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+                               state=State.FAILED,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = initial_task_state
+        session.commit()
+
+        # Create scheduler and mock calls to processor. Run duration is set
+        # to a high value to ensure loop is entered. Poll interval is 0 to
+        # avoid sleep. Done flag is set to true to exist the loop immediately.
+        scheduler = SchedulerJob(num_runs=0, processor_poll_interval=0)
+        executor = TestExecutor()
+        executor.queued_tasks
+        scheduler.executor = executor
+        processor = mock.MagicMock()
+        processor.harvest_simple_dags.return_value = [dag]
+        processor.done = True
+        scheduler.processor_agent = processor
+
+        scheduler._execute_helper()
+
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        self.assertEqual(ti.state, expected_task_state)
+
     @provide_session
     def evaluate_dagrun(
             self,
@@ -2363,7 +2474,14 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.create_dag_run(dag)
         self.assertIsNone(dr)
 
-    def test_scheduler_process_task_instances(self):
+    @parameterized.expand([
+        [State.NONE, None, None],
+        [State.UP_FOR_RETRY, timezone.utcnow() - datetime.timedelta(minutes=30),
+            timezone.utcnow() - datetime.timedelta(minutes=15)],
+        [State.UP_FOR_RESCHEDULE, timezone.utcnow() - datetime.timedelta(minutes=30),
+            timezone.utcnow() - datetime.timedelta(minutes=15)],
+    ])
+    def test_scheduler_process_task_instances(self, state, start_date, end_date):
         """
         Test if _process_task_instances puts the right task instances into the
         queue.
@@ -2376,16 +2494,21 @@ class SchedulerJobTest(unittest.TestCase):
             dag=dag,
             owner='airflow')
 
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
 
         scheduler = SchedulerJob()
         dag.clear()
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
+
+        with create_session() as session:
+            tis = dr.get_task_instances(session=session)
+            for ti in tis:
+                ti.state = state
+                ti.start_date = start_date
+                ti.end_date = end_date
 
         queue = Mock()
         scheduler._process_task_instances(dag, queue=queue)
