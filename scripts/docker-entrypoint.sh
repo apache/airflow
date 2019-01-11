@@ -3,6 +3,6 @@
 set -e
 
 echo starting airflow with command:
-echo airflow $AIRFLOW_CMD
+echo airflow $@
 
-airflow $AIRFLOW_CMD
+exec airflow $@
