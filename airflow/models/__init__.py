@@ -1400,7 +1400,7 @@ class TaskInstance(Base, LoggingMixin):
                     result = task_copy.execute(context=context)
 
                 # If the task returns a result, push an XCom containing it
-                if result is not None:
+                if task_copy.do_xcom_push and result is not None:
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                 task_copy.post_execute(context=context, result=result)
@@ -2208,6 +2208,9 @@ class BaseOperator(LoggingMixin):
             )
 
     :type executor_config: dict
+    :param do_xcom_push: if True, an XCom is pushed containing the Operator's
+        result
+    :type do_xcom_push: bool
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -2262,6 +2265,7 @@ class BaseOperator(LoggingMixin):
             run_as_user=None,
             task_concurrency=None,
             executor_config=None,
+            do_xcom_push=True,
             inlets=None,
             outlets=None,
             *args,
@@ -2346,6 +2350,7 @@ class BaseOperator(LoggingMixin):
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
+        self.do_xcom_push = do_xcom_push
 
         # Private attributes
         self._upstream_task_ids = set()
@@ -2399,6 +2404,7 @@ class BaseOperator(LoggingMixin):
             'on_failure_callback',
             'on_success_callback',
             'on_retry_callback',
+            'do_xcom_push',
         }
 
     def __eq__(self, other):

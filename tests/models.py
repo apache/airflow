@@ -2389,6 +2389,32 @@ class TaskInstanceTest(unittest.TestCase):
                                       include_prior_dates=True),
                          value)
 
+    def test_xcom_push_flag(self):
+        """
+        Tests the option for Operators to push XComs
+        """
+        value = 'hello'
+        task_id = 'test_no_xcom_push'
+        dag = models.DAG(dag_id='test_xcom')
+
+        # nothing saved to XCom
+        task = PythonOperator(
+            task_id=task_id,
+            dag=dag,
+            python_callable=lambda: value,
+            do_xcom_push=False,
+            owner='airflow',
+            start_date=datetime.datetime(2017, 1, 1)
+        )
+        ti = TI(task=task, execution_date=datetime.datetime(2017, 1, 1))
+        ti.run()
+        self.assertEqual(
+            ti.xcom_pull(
+                task_ids=task_id, key=models.XCOM_RETURN_KEY
+            ),
+            None
+        )
+
     def test_post_execute_hook(self):
         """
         Test that post_execute hook is called with the Operator's result.
