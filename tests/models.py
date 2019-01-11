@@ -47,7 +47,6 @@ from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
 from airflow.models import State as ST
 from airflow.models import XCom
-from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -830,7 +829,7 @@ class DagRunTest(unittest.TestCase):
 
         qry = session.query(TI).filter(
             TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session)
+        TI.clear_task_instances(qry, session)
         session.commit()
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(
@@ -2697,7 +2696,7 @@ class ClearTasksTest(unittest.TestCase):
         session = settings.Session()
         qry = session.query(TI).filter(
             TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session, dag=dag)
+        TI.clear_task_instances(qry, session, dag=dag)
         session.commit()
         ti0.refresh_from_db()
         ti1.refresh_from_db()
@@ -2725,7 +2724,7 @@ class ClearTasksTest(unittest.TestCase):
         session = settings.Session()
         qry = session.query(TI).filter(
             TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session)
+        TI.clear_task_instances(qry, session)
         session.commit()
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
@@ -2749,7 +2748,7 @@ class ClearTasksTest(unittest.TestCase):
         session = settings.Session()
         qry = session.query(TI).filter(
             TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session)
+        TI.clear_task_instances(qry, session)
         session.commit()
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()

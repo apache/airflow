@@ -2373,7 +2373,7 @@ class TaskInstanceModelView(AirflowModelView):
                 tis.append(ti)
 
             for dag, tis in dag_to_tis.items():
-                models.clear_task_instances(tis, session, dag=dag)
+                models.TaskInstance.clear_task_instances(tis, session, dag=dag)
 
             session.commit()
             flash("{0} task instances have been cleared".format(len(tis)))
