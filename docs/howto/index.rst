@@ -40,4 +40,5 @@ configuring an Airflow environment.
     run-with-systemd
     run-with-upstart
     use-test-config
+    check-health
 

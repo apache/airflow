@@ -289,7 +289,7 @@ class HiveCliHook(BaseHook):
                 except AirflowException as e:
                     message = e.args[0].split('\n')[-2]
                     self.log.info(message)
-                    error_loc = re.search('(\d+):(\d+)', message)
+                    error_loc = re.search(r'(\d+):(\d+)', message)
                     if error_loc and error_loc.group(1).isdigit():
                         lst = int(error_loc.group(1))
                         begin = max(lst - 2, 0)

@@ -17,23 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
-import unittest
+from sqlalchemy import Integer, Column, String, Text
+
+from airflow.models.base import Base
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
-def skipUnlessImported(module, obj):
-    import importlib
-    try:
-        m = importlib.import_module(module)
-    except ImportError:
-        m = None
-    return unittest.skipUnless(
-        obj in dir(m),
-        "Skipping test because {} could not be imported from {}".format(
-            obj, module))
-
-
-def assertEqualIgnoreMultipleSpaces(case, first, second, msg=None):
-    def _trim(s):
-        re.sub(r"\s+", " ", s.strip())
-    return case.assertEqual(_trim(first), _trim(second), msg)
+class ImportError(Base):
+    __tablename__ = "import_error"
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(UtcDateTime)
+    filename = Column(String(1024))
+    stacktrace = Column(Text)

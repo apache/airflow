@@ -50,7 +50,6 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     airflow_home_path = conf.get('core', 'AIRFLOW_HOME')
     webserver_config_path = airflow_home_path + '/webserver_config.py'
     app.config.from_pyfile(webserver_config_path, silent=True)
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['APP_NAME'] = app_name
     app.config['TESTING'] = testing
 

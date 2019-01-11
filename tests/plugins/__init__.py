@@ -16,24 +16,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import re
-import unittest
-
-
-def skipUnlessImported(module, obj):
-    import importlib
-    try:
-        m = importlib.import_module(module)
-    except ImportError:
-        m = None
-    return unittest.skipUnless(
-        obj in dir(m),
-        "Skipping test because {} could not be imported from {}".format(
-            obj, module))
-
-
-def assertEqualIgnoreMultipleSpaces(case, first, second, msg=None):
-    def _trim(s):
-        re.sub(r"\s+", " ", s.strip())
-    return case.assertEqual(_trim(first), _trim(second), msg)
