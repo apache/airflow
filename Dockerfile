@@ -12,5 +12,5 @@ USER airflow
 WORKDIR /home/airflow
 ENV AIRFLOW_HOME=/home/airflow/airflow
 RUN mkdir $AIRFLOW_HOME
-ADD docker-entrypoint.sh /docker-entrypoint.sh
+ADD scripts/docker-entrypoint.sh /docker-entrypoint.sh
 CMD ["/docker-entrypoint.sh"]
