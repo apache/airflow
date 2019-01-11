@@ -18,7 +18,6 @@
 
 [report]
 omit =
-    *contrib*
     tests/*
     scripts/*
     dev/*
