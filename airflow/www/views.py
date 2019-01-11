@@ -67,7 +67,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
                                                         set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, errors
 from airflow.models import XCom, DagRun
 from airflow.models.connection import Connection
 from airflow.operators.subdag_operator import SubDagOperator
@@ -2169,7 +2169,7 @@ class HomeView(AdminIndexView):
 
         dags = query.offset(start).limit(dags_per_page).all()
 
-        import_errors = session.query(models.ImportError).all()
+        import_errors = session.query(errors.ImportError).all()
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),

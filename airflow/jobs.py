@@ -42,7 +42,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun
+from airflow.models import DAG, DagRun, errors
 from airflow.models.dagpickle import DagPickle
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
@@ -755,13 +755,13 @@ class SchedulerJob(BaseJob):
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
-            session.query(models.ImportError).filter(
-                models.ImportError.filename == dagbag_file
+            session.query(errors.ImportError).filter(
+                errors.ImportError.filename == dagbag_file
             ).delete()
 
         # Add the errors of the processed files
         for filename, stacktrace in six.iteritems(dagbag.import_errors):
-            session.add(models.ImportError(
+            session.add(errors.ImportError(
                 filename=filename,
                 stacktrace=stacktrace))
         session.commit()

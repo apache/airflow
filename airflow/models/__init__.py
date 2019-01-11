@@ -5183,14 +5183,6 @@ class SlaMiss(Base):
             self.dag_id, self.task_id, self.execution_date.isoformat()))
 
 
-class ImportError(Base):
-    __tablename__ = "import_error"
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(UtcDateTime)
-    filename = Column(String(1024))
-    stacktrace = Column(Text)
-
-
 class KubeResourceVersion(Base):
     __tablename__ = "kube_resource_version"
     one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)

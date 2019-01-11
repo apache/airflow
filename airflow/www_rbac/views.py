@@ -54,7 +54,7 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import XCom, DagRun
+from airflow.models import XCom, DagRun, errors
 from airflow.models.connection import Connection
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
@@ -232,7 +232,7 @@ class Airflow(AirflowBaseView):
         if arg_search_query:
             query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
 
-        import_errors = session.query(models.ImportError).all()
+        import_errors = session.query(errors.ImportError).all()
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),

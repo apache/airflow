@@ -46,6 +46,7 @@ import airflow.models
 from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+from airflow.models import errors
 from airflow.settings import logging_class_path
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
@@ -929,10 +930,10 @@ class DagFileProcessorManager(LoggingMixin):
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         """
-        query = session.query(airflow.models.ImportError)
+        query = session.query(errors.ImportError)
         if self._file_paths:
             query = query.filter(
-                ~airflow.models.ImportError.filename.in_(self._file_paths)
+                ~errors.ImportError.filename.in_(self._file_paths)
             )
         query.delete(synchronize_session='fetch')
         session.commit()
