@@ -3356,7 +3356,10 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_db_tis_and_edges(self, execution_date, session=None):
-        tis = session.query()
+        tis = session.query(TaskInstance).filter(TaskInstance.execution_date == execution_date)
+        edges = session.query(DagEdge).filter(DagEdge.execution_date == execution_date)
+
+        return tis, edges
 
     def is_fixed_time_schedule(self):
         """
@@ -3896,10 +3899,7 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            TI.clear_task_instances(tis.all(),
-                                 session,
-                                 dag=self,
-                                 )
+            TI.clear_task_instances(tis.all(), session, dag=self)
             if reset_dag_runs:
                 self.set_dag_runs_state(session=session,
                                         start_date=start_date,
@@ -4242,7 +4242,6 @@ class DAG(BaseDag, LoggingMixin):
         )
         (tis, edges) = self.create_tasks_and_edges(execution_date)
         session.add(run)
-
 
         for ti in tis:
             session.merge(ti)
@@ -4810,12 +4809,11 @@ class DagRun(Base, LoggingMixin):
         Last dag run can be any type of run eg. scheduled or backfilled.
         Overridden DagRuns are ignored.
         """
-        query = session.query(DagRun).filter(DagRun.dag_id == self.dag_id)
+        query = session.query(DagRun).filter(DagRun.dag_id == dag_id)
         if not include_externally_triggered:
             query = query.filter(DagRun.external_trigger == False)  # noqa
         query = query.order_by(DagRun.execution_date.desc())
         return query.first()
-
 
     @provide_session
     def refresh_from_db(self, session=None):

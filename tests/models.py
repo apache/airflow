@@ -956,7 +956,8 @@ class DagRunTest(unittest.TestCase):
         ti_op4 = dr.get_task_instance(task_id=op4.task_id)
 
         # Testing Edges in the database
-        edges = session.query(DagEdge).filter(DagEdge.dag_id == dag.dag_id and DagEdge.execution_date == now).all()
+        edges = session.query(DagEdge)\
+            .filter(DagEdge.dag_id == dag.dag_id and DagEdge.execution_date == now).all()
         self.assertEqual(len(edges), 3)
         self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'B' for edge in edges))
         self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'C' for edge in edges))

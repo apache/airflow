@@ -57,5 +57,3 @@ class DagEdge(Base):
         return session.query(DagEdge) \
             .filter(DagEdge.dag_id == dag_id) \
             .filter(DagEdge.execution_date == execution_date)
-
-
