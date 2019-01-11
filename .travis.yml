@@ -38,6 +38,7 @@ stages:
   - flake8
   - test
   - docker-push
+    if: [[ $TRAVIS_PULL_REQUEST == “false” ]] && [[ $TRAVIS_BRANCH == “master” ]]
 
 jobs:
   include:
@@ -48,7 +49,7 @@ jobs:
     - stage: docker-push
       name: docker-push
       # require the branch name to be master (note for PRs this is the base branch name)
-      if: branch = master
+      if: [[ $TRAVIS_PULL_REQUEST == “false” ]] && [[ $TRAVIS_BRANCH == “master” ]]
       script: docker build -t apache/airflow:master -t apache/airflow:$TRAVIS_COMMIT . && docker push apache/airflow:$TRAVIS_COMMIT && docker push apache/airflow:master
 
 cache:
