@@ -499,21 +499,39 @@ class BigQueryBaseCursor(LoggingMixin):
                     project_id,
                     dataset_id,
                     table_id,
+                    description=None,
+                    expiration_time=None,
+                    external_data_configuration=None,
+                    friendly_name=None,
+                    labels=None,
                     schema=None,
-                    view=None):
+                    time_partitioning=None,
+                    view=None,
+                    require_partition_filter=None):
         """
-        Patch information in an existing table/view.
-        Schema changes can only be applied to tables, not views.
-        To patch a view, 'view' kwarg is required to parse in.
+        Patch information in an existing table.
+        It only updates fileds that are provided in the request object.
 
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
-        :param project_id: The project containing the table/view to be patched.
+        :param project_id: The project containing the table to be patched.
         :type project_id: str
-        :param dataset_id: The dataset containing the table/view to be patched.
+        :param dataset_id: The dataset containing the tableto be patched.
         :type dataset_id: str
-        :param table_id: The Name of the table/view to be patched.
+        :param table_id: The Name of the table to be patched.
         :type table_id: str
+        :param description: [Optional] A user-friendly description of this table.
+        :type description: str
+        :param expiration_time: [Optional] The time when this table expires,
+            in milliseconds since the epoch.
+        :type expiration_time: int
+        :param external_data_configuration: [Optional] A dictionary containing
+            properties of a table stored outside of BigQuery.
+        :type external_data_configuration: dict
+        :param friendly_name: [Optional] A descriptive name for this table.
+        :type friendly_name: str
+        :param labels: [Optional] A dictionary containing labels associated with this table.
+        :type labels: dict
         :param schema: [Optional] If set, the schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
             The supported schema modifications and unsupported schema modification are listed here:
@@ -525,6 +543,9 @@ class BigQueryBaseCursor(LoggingMixin):
             schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
 
+        :param time_partitioning: [Optional] A dictionary containing time-based partitioning
+             definition for the table.
+        :type time_partitioning: dict
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will patch a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
@@ -537,17 +558,34 @@ class BigQueryBaseCursor(LoggingMixin):
                 "useLegacySql": False
             }
 
+        :param require_partition_filter: [Optional] If true, queries over the this table require a
+            partition filter. If false, queries over the table
+        :type require_partition_filter: bool
+
         """
 
         project_id = project_id if project_id is not None else self.project_id
 
         table_resource = {}
 
+        if description is not None:
+            table_resource['description'] = description
+        if expiration_time is not None:
+            table_resource['expirationTime'] = expiration_time
+        if external_data_configuration:
+            table_resource['externalDataConfiguration'] = external_data_configuration
+        if friendly_name is not None:
+            table_resource['friendlyName'] = friendly_name
+        if labels:
+            table_resource['labels'] = labels
         if schema:
             table_resource['schema'] = {'fields': schema}
-
+        if time_partitioning:
+            table_resource['timePartitioning'] = time_partitioning
         if view:
             table_resource['view'] = view
+        if require_partition_filter is not None:
+            table_resource['requirePartitionFilter'] = require_partition_filter
 
         self.log.info('Patching Table %s:%s.%s',
                       project_id, dataset_id, table_id)
