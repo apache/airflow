@@ -24,8 +24,11 @@ class MongoHook(BaseHook):
     https://docs.mongodb.com/manual/reference/connection-string/index.html
     You can specify connection string options in extra field of your connection
     https://docs.mongodb.com/manual/reference/connection-string/index.html#connection-string-options
+
+    If you want use DNS seedlist, set `srv` to True.
+
     ex.
-        {replicaSet: test, ssl: True, connectTimeoutMS: 30000}
+        {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
     """
     conn_type = 'mongo'
 
@@ -34,8 +37,12 @@ class MongoHook(BaseHook):
 
         self.mongo_conn_id = conn_id
         self.connection = self.get_connection(conn_id)
-        self.extras = self.connection.extra_dejson
+        self.extras = self.connection.extra_dejson.copy()
         self.client = None
+        self.srv = False
+
+        if 'srv' in self.extras:
+            self.srv = self.extras.pop('srv')
 
     def __enter__(self):
         return self
@@ -53,7 +60,10 @@ class MongoHook(BaseHook):
 
         conn = self.connection
 
-        uri = 'mongodb://{creds}{host}{port}/{database}'.format(
+        scheme = 'mongodb+srv' if self.srv else 'mongodb'
+
+        uri = '{scheme}://{creds}{host}{port}/{database}'.format(
+            scheme=scheme,
             creds='{}:{}@'.format(
                 conn.login, conn.password
             ) if conn.login is not None else '',
