@@ -868,13 +868,16 @@ class DagTest(unittest.TestCase):
         self.assertEqual(orm_dag.last_scheduler_run, now)
         self.assertTrue(orm_dag.is_active)
         self.assertIsNone(orm_dag.default_view)
-        self.assertEqual(orm_dag.get_default_view(), configuration.conf.get('webserver', 'dag_default_view').lower())
+        self.assertEqual(orm_dag.get_default_view(),
+                         configuration.conf.get('webserver', 'dag_default_view').lower())
+        self.assertEqual(orm_dag.safe_dag_id, 'dag')
 
         orm_subdag = session.query(DagModel).filter(
             DagModel.dag_id == 'dag.subtask').one()
         self.assertEqual(set(orm_subdag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_subdag.last_scheduler_run, now)
         self.assertTrue(orm_subdag.is_active)
+        self.assertEqual(orm_subdag.safe_dag_id, 'dag__dot__subtask')
 
     @patch('airflow.models.timezone.utcnow')
     def test_sync_to_db_default_view(self, mock_now):
