@@ -15,20 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 #
----
-# This yaml is to store the default executor config
 
-#KubernetesExecutor:
-#  image: string
-#  image_pull_policy: string
-#  request_memory: string
-#  request_cpu: string
-#  limit_memory: string
-#  limit_cpu: float
-#  gcp_service_account_key: string
-#  node_selectors: dict
-#  affinity: string
-#  annotations: dict
-#  volumes: list
-#  volume_mounts: list
-#  tolerations: list
+# Python dict to store default executor config
+
+# DEFAULT_EXECUTOR_CONFIG = {
+#     'KubernetesExecutor': {
+#         'image': str,
+#         'image_pull_policy': str,
+#         'request_memory': str,
+#         'request_cpu': str,
+#         'limit_memory': str,
+#         'limit_cpu': str,
+#         'gcp_service_account_key': str,
+#         'node_selectors': dict,
+#         'affinity': str,
+#         'annotations': dict,
+#         'volumes': list
+#         'volume_mounts': list,
+#         'tolerations': list
+#     }
+# }

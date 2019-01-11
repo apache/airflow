@@ -58,7 +58,6 @@ import textwrap
 import traceback
 import warnings
 import hashlib
-import yaml
 
 import uuid
 from datetime import datetime
@@ -100,6 +99,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable, dict_merge)
+from airflow.utils.module_loading import import_string
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -2198,9 +2198,9 @@ class BaseOperator(LoggingMixin):
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
 
-        If default_executor_config_yaml is set in airflow.cfg and an executor_config
+        If default_executor_config is set in airflow.cfg and an executor_config
         is supplied, the supplied executor_config will be merged into the
-        default_executor_config_yaml and returned.
+        default_executor_config and returned.
 
         **Example**: to run this task in a specific docker container through
         the KubernetesExecutor ::
@@ -2571,21 +2571,19 @@ class BaseOperator(LoggingMixin):
 
     def get_executor_config(self, task_executor_config):
         """
-        Try to load default_executor_config_yaml and merge
+        Try to load default_executor_config and merge
         task_executor_config into it.
 
-        :param task_executor_config: a task level executor_config
+        :param task_executor_config: task level executor_config
         :return: dict
         """
 
-        default_executor_config_yaml = configuration.conf.get(
-            'core', 'default_executor_config_yaml')
+        default_executor_config = configuration.conf.get(
+            'core', 'default_executor_config')
 
         executor_config = {}
-        if default_executor_config_yaml:
-            with open(default_executor_config_yaml) as f:
-                default_executor_config = yaml.safe_load(f)
-            executor_config = default_executor_config
+        if default_executor_config:
+            executor_config = import_string(default_executor_config)
 
         if task_executor_config:
             executor_config = dict_merge(executor_config, task_executor_config)
