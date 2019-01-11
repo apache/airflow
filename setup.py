@@ -251,7 +251,7 @@ devel = [
     'lxml>=4.0.0',
     'mock',
     'mongomock',
-    'moto==1.1.19',
+    'moto==1.3.5',
     'nose',
     'nose-ignore-docstring==0.2',
     'nose-timer',
