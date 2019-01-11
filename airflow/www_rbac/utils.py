@@ -40,7 +40,7 @@ from flask import request, Response, Markup, url_for
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
-from airflow import configuration, settings
+from airflow import configuration
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
@@ -426,8 +426,6 @@ class CustomSQLAInterface(SQLAInterface):
     """
     def __init__(self, obj):
         super(CustomSQLAInterface, self).__init__(obj)
-
-        self.session = settings.Session()
 
         def clean_column_names():
             if self.list_properties:

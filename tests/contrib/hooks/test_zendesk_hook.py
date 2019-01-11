@@ -92,8 +92,8 @@ class TestZendeskHook(unittest.TestCase):
         zendesk_hook = ZendeskHook("conn_id")
         zendesk_hook.get_connection = mock.Mock(return_value=conn_mock)
         zendesk_hook.get_conn()
-        mock_zendesk.assert_called_with('https://conn_host', 'conn_login',
-                                        'conn_pass', True)
+        mock_zendesk.assert_called_with(zdesk_url='https://conn_host', zdesk_email='conn_login',
+                                        zdesk_password='conn_pass', zdesk_token=True)
 
     @mock.patch("airflow.hooks.zendesk_hook.Zendesk")
     def test_zdesk_sideloading_works_correctly(self, mock_zendesk):

@@ -67,7 +67,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_run
                                                         set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, errors
 from airflow.models import XCom, DagRun
 from airflow.models.connection import Connection
 from airflow.operators.subdag_operator import SubDagOperator
@@ -136,7 +136,8 @@ def dag_run_link(v, c, m, p):
         dag_id=m.dag_id,
         run_id=m.run_id,
         execution_date=m.execution_date)
-    return Markup('<a href="{url}">{m.run_id}</a>'.format(**locals()))
+    title = escape(m.run_id)
+    return Markup('<a href="{url}">{title}</a>'.format(**locals()))
 
 
 def task_instance_link(v, c, m, p):
@@ -207,12 +208,14 @@ def label_link(v, c, m, p):
     url = url_for(
         'airflow.chart', chart_id=m.id, iteration_no=m.iteration_no,
         **default_params)
-    return Markup("<a href='{url}'>{m.label}</a>".format(**locals()))
+    title = escape(m.label)
+    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
 
 
 def pool_link(v, c, m, p):
+    title = escape(m.pool)
     url = '/admin/taskinstance/?flt1_pool_equals=' + m.pool
-    return Markup("<a href='{url}'>{m.pool}</a>".format(**locals()))
+    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):
@@ -381,7 +384,6 @@ class Airflow(BaseView):
     @expose('/chart_data')
     @data_profiling_required
     @wwwutils.gzipped
-    # @cache.cached(timeout=3600, key_prefix=wwwutils.make_cache_key)
     def chart_data(self):
         from airflow import macros
         import pandas as pd
@@ -476,7 +478,7 @@ class Airflow(BaseView):
                         df[df.columns[x_col]])
                     df[df.columns[x_col]] = df[df.columns[x_col]].apply(
                         lambda x: int(x.strftime("%s")) * 1000)
-                except Exception as e:
+                except Exception:
                     payload['error'] = "Time conversion failed"
 
             if chart_type == 'datatable':
@@ -594,21 +596,24 @@ class Airflow(BaseView):
         dag_ids = session.query(Dag.dag_id)
 
         LastDagRun = (
-            session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
-                .filter(DagRun.state != State.RUNNING)
-                .filter(Dag.is_active == True)  # noqa: E712
-                .filter(Dag.is_subdag == False)  # noqa: E712
-                .group_by(DagRun.dag_id)
-                .subquery('last_dag_run')
+            session.query(
+                DagRun.dag_id,
+                sqla.func.max(DagRun.execution_date).label('execution_date')
+            )
+            .join(Dag, Dag.dag_id == DagRun.dag_id)
+            .filter(DagRun.state != State.RUNNING,
+                    Dag.is_active,
+                    Dag.is_subdag == False)  # noqa: E712
+            .group_by(DagRun.dag_id)
+            .subquery('last_dag_run')
         )
         RunningDagRun = (
             session.query(DagRun.dag_id, DagRun.execution_date)
-                .join(Dag, Dag.dag_id == DagRun.dag_id)
-                .filter(DagRun.state == State.RUNNING)
-                .filter(Dag.is_active == True)  # noqa: E712
-                .filter(Dag.is_subdag == False)  # noqa: E712
-                .subquery('running_dag_run')
+            .join(Dag, Dag.dag_id == DagRun.dag_id)
+            .filter(DagRun.state == State.RUNNING,
+                    Dag.is_active,
+                    Dag.is_subdag == False)  # noqa: E712
+            .subquery('running_dag_run')
         )
 
         # Select all task_instances from active dag_runs.
@@ -679,6 +684,7 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         title = "DAG details"
+        root = request.args.get('root', '')
 
         TI = models.TaskInstance
         states = session\
@@ -687,9 +693,17 @@ class Airflow(BaseView):
             .group_by(TI.state)\
             .all()
 
+        active_runs = models.DagRun.find(
+            dag_id=dag.dag_id,
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session
+        )
+
         return self.render(
             'airflow/dag_details.html',
-            dag=dag, title=title, states=states, State=State)
+            dag=dag, title=title, root=root, states=states, State=State,
+            active_runs=active_runs)
 
     @current_app.errorhandler(404)
     def circles(self):
@@ -739,6 +753,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dag = dagbag.get_dag(dag_id)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
@@ -763,7 +778,8 @@ class Airflow(BaseView):
             task_id=task_id,
             execution_date=execution_date,
             form=form,
-            title=title, )
+            root=root,
+            title=title)
 
     @expose('/get_logs_with_metadata')
     @login_required
@@ -855,11 +871,13 @@ class Airflow(BaseView):
             models.TaskInstance.execution_date == dttm).first()
 
         logs = [''] * (ti.next_try_number - 1 if ti is not None else 0)
+        root = request.args.get('root', '')
         return self.render(
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts",
             dag_id=dag.dag_id, task_id=task_id,
-            execution_date=execution_date, form=form)
+            execution_date=execution_date, form=form,
+            root=root)
 
     @expose('/task')
     @login_required
@@ -874,6 +892,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dag = dagbag.get_dag(dag_id)
 
         if not dag or task_id not in dag.task_ids:
@@ -947,6 +966,7 @@ class Airflow(BaseView):
             execution_date=execution_date,
             special_attrs_rendered=special_attrs_rendered,
             form=form,
+            root=root,
             dag=dag, title=title)
 
     @expose('/xcom')
@@ -961,6 +981,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+        root = request.args.get('root', '')
         dm_db = models.DagModel
         ti_db = models.TaskInstance
         dag = session.query(dm_db).filter(dm_db.dag_id == dag_id).first()
@@ -988,6 +1009,7 @@ class Airflow(BaseView):
             task_id=task_id,
             execution_date=execution_date,
             form=form,
+            root=root,
             dag=dag, title=title)
 
     @expose('/run')
@@ -2115,33 +2137,39 @@ class HomeView(AdminIndexView):
             hide_paused = hide_paused_dags_by_default
 
         # read orm_dags from the db
-        sql_query = session.query(DM)
+        query = session.query(DM)
 
         if do_filter and owner_mode == 'ldapgroup':
-            sql_query = sql_query.filter(
+            query = query.filter(
                 ~DM.is_subdag,
                 DM.is_active,
                 DM.owners.in_(current_user.ldap_groups)
             )
         elif do_filter and owner_mode == 'user':
-            sql_query = sql_query.filter(
+            query = query.filter(
                 ~DM.is_subdag, DM.is_active,
                 DM.owners == current_user.user.username
             )
         else:
-            sql_query = sql_query.filter(
+            query = query.filter(
                 ~DM.is_subdag, DM.is_active
             )
 
         # optionally filter out "paused" dags
         if hide_paused:
-            sql_query = sql_query.filter(~DM.is_paused)
+            query = query.filter(~DM.is_paused)
 
-        orm_dags = {dag.dag_id: dag for dag
-                    in sql_query
-                    .all()}
+        if arg_search_query:
+            query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
 
-        import_errors = session.query(models.ImportError).all()
+        query = query.order_by(DM.dag_id)
+
+        start = current_page * dags_per_page
+        end = start + dags_per_page
+
+        dags = query.offset(start).limit(dags_per_page).all()
+
+        import_errors = session.query(errors.ImportError).all()
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
@@ -2155,76 +2183,17 @@ class HomeView(AdminIndexView):
                     filename=filename),
                 "error")
 
-        # get a list of all non-subdag dags visible to everyone
-        # optionally filter out "paused" dags
-        if hide_paused:
-            unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
-                                         not dag.parent_dag and not dag.is_paused]
-
-        else:
-            unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
-                                         not dag.parent_dag]
-
-        # optionally filter to get only dags that the user should see
-        if do_filter and owner_mode == 'ldapgroup':
-            # only show dags owned by someone in @current_user.ldap_groups
-            webserver_dags = {
-                dag.dag_id: dag
-                for dag in unfiltered_webserver_dags
-                if dag.owner in current_user.ldap_groups
-            }
-        elif do_filter and owner_mode == 'user':
-            # only show dags owned by @current_user.user.username
-            webserver_dags = {
-                dag.dag_id: dag
-                for dag in unfiltered_webserver_dags
-                if dag.owner == current_user.user.username
-            }
-        else:
-            webserver_dags = {
-                dag.dag_id: dag
-                for dag in unfiltered_webserver_dags
-            }
-
-        if arg_search_query:
-            lower_search_query = arg_search_query.lower()
-            # filter by dag_id
-            webserver_dags_filtered = {
-                dag_id: dag
-                for dag_id, dag in webserver_dags.items()
-                if (lower_search_query in dag_id.lower() or
-                    lower_search_query in dag.owner.lower())
-            }
-
-            all_dag_ids = (set([dag.dag_id for dag in orm_dags.values()
-                                if lower_search_query in dag.dag_id.lower() or
-                                lower_search_query in dag.owners.lower()]) |
-                           set(webserver_dags_filtered.keys()))
-
-            sorted_dag_ids = sorted(all_dag_ids)
-        else:
-            webserver_dags_filtered = webserver_dags
-            sorted_dag_ids = sorted(set(orm_dags.keys()) | set(webserver_dags.keys()))
-
-        start = current_page * dags_per_page
-        end = start + dags_per_page
-
-        num_of_all_dags = len(sorted_dag_ids)
-        page_dag_ids = sorted_dag_ids[start:end]
+        num_of_all_dags = query.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
         auto_complete_data = set()
-        for dag in webserver_dags_filtered.values():
-            auto_complete_data.add(dag.dag_id)
-            auto_complete_data.add(dag.owner)
-        for dag in orm_dags.values():
-            auto_complete_data.add(dag.dag_id)
-            auto_complete_data.add(dag.owners)
+        for row in query.with_entities(DM.dag_id, DM.owners):
+            auto_complete_data.add(row.dag_id)
+            auto_complete_data.add(row.owners)
 
         return self.render(
             'airflow/dags.html',
-            webserver_dags=webserver_dags_filtered,
-            orm_dags=orm_dags,
+            dags=dags,
             hide_paused=hide_paused,
             current_page=current_page,
             search_query=arg_search_query if arg_search_query else '',
@@ -2236,7 +2205,6 @@ class HomeView(AdminIndexView):
             paging=wwwutils.generate_pages(current_page, num_of_pages,
                                            search=arg_search_query,
                                            showPaused=not hide_paused),
-            dag_ids_in_page=page_dag_ids,
             auto_complete_data=auto_complete_data)
 
 

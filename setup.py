@@ -262,7 +262,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8==3.5.0'
+    'flake8>=3.6.0',
 ]
 
 if not PY3:
@@ -304,6 +304,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
+            'enum34~=1.1.6',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
             'flask-admin==1.5.2',

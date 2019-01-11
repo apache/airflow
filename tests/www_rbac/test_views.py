@@ -29,6 +29,7 @@ import tempfile
 import unittest
 import urllib
 
+from datetime import timedelta
 from flask._compat import PY2
 from urllib.parse import quote_plus
 from werkzeug.test import Client
@@ -36,6 +37,7 @@ from werkzeug.test import Client
 from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.jobs import BaseJob
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
@@ -248,6 +250,13 @@ class TestPoolModelView(TestBase):
                                 follow_redirects=True)
         self.check_content_in_response('This field is required.', resp)
 
+    def test_odd_name(self):
+        self.pool['pool'] = 'test-pool<script></script>'
+        self.session.add(models.Pool(**self.pool))
+        self.session.commit()
+        resp = self.client.get('/pool/list/')
+        self.check_content_in_response('test-pool&lt;script&gt;', resp)
+
 
 class TestMountPoint(unittest.TestCase):
     def setUp(self):
@@ -322,8 +331,66 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('DAGs', resp)
 
     def test_health(self):
-        resp = self.client.get('health', follow_redirects=True)
-        self.check_content_in_response('The server is healthy!', resp)
+
+        # case-1: healthy scheduler status
+        last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
+        self.session.add(BaseJob(job_type='SchedulerJob',
+                                 state='running',
+                                 latest_heartbeat=last_scheduler_heartbeat_for_testing_1))
+        self.session.commit()
+
+        resp_json = json.loads(self.client.get('health', follow_redirects=True).data.decode('utf-8'))
+
+        self.assertEqual('healthy', resp_json['metadatabase']['status'])
+        self.assertEqual('healthy', resp_json['scheduler']['status'])
+        self.assertEqual(str(last_scheduler_heartbeat_for_testing_1),
+                         resp_json['scheduler']['latest_scheduler_heartbeat'])
+
+        self.session.query(BaseJob).\
+            filter(BaseJob.job_type == 'SchedulerJob',
+                   BaseJob.state == 'running',
+                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
+            delete()
+        self.session.commit()
+
+        # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
+        last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
+        (self.session
+             .query(BaseJob)
+             .filter(BaseJob.job_type == 'SchedulerJob')
+             .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)}))
+        self.session.add(BaseJob(job_type='SchedulerJob',
+                                 state='running',
+                                 latest_heartbeat=last_scheduler_heartbeat_for_testing_2))
+        self.session.commit()
+
+        resp_json = json.loads(self.client.get('health', follow_redirects=True).data.decode('utf-8'))
+
+        self.assertEqual('healthy', resp_json['metadatabase']['status'])
+        self.assertEqual('unhealthy', resp_json['scheduler']['status'])
+        self.assertEqual(str(last_scheduler_heartbeat_for_testing_2),
+                         resp_json['scheduler']['latest_scheduler_heartbeat'])
+
+        self.session.query(BaseJob).\
+            filter(BaseJob.job_type == 'SchedulerJob',
+                   BaseJob.state == 'running',
+                   BaseJob.latest_heartbeat == last_scheduler_heartbeat_for_testing_2).\
+            delete()
+        self.session.commit()
+
+        # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
+        self.session.query(BaseJob).\
+            filter(BaseJob.job_type == 'SchedulerJob',
+                   BaseJob.state == 'running').\
+            delete()
+        self.session.commit()
+
+        resp_json = json.loads(self.client.get('health', follow_redirects=True).data.decode('utf-8'))
+
+        self.assertEqual('healthy', resp_json['metadatabase']['status'])
+        self.assertEqual('unhealthy', resp_json['scheduler']['status'])
+        self.assertEqual('None',
+                         resp_json['scheduler']['latest_scheduler_heartbeat'])
 
     def test_home(self):
         resp = self.client.get('home', follow_redirects=True)
@@ -1462,6 +1529,8 @@ class TestTriggerDag(TestBase):
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
         self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
 
+    @unittest.skipIf('mysql' in conf.conf.get('core', 'sql_alchemy_conn'),
+                     "flaky when run on mysql")
     def test_trigger_dag_button(self):
 
         test_dag_id = "example_bash_operator"
