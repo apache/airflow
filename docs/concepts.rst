@@ -369,8 +369,7 @@ for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
 Airflow also has the ability to reference connections via environment
-variables from the operating system. But it only supports URI format. If you
-need to specify ``extra`` for your connection, please use web UI.
+variables from the operating system. But it only supports URI format.
 
 If connections with the same ``conn_id`` are defined in both Airflow metadata
 database and environment variables, only the one in environment variables
