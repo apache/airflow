@@ -37,6 +37,7 @@ except ImportError:
     # Preserve Python < 3.3 compatibility
     from collections import Hashable
 from datetime import timedelta
+from deepmerge import Merger
 
 import dill
 import functools
@@ -2606,7 +2607,12 @@ class BaseOperator(LoggingMixin):
             executor_config = import_string(default_executor_config)
 
         if task_executor_config:
-            executor_config = dict_merge(executor_config, task_executor_config)
+            merger = Merger(
+                type_strategies=[(list, ["append"]), (dict, ["override"])],
+                fallback_strategies=["override"],
+                type_conflict_strategies=["override"])
+            executor_config = merger.merge(
+                executor_config, task_executor_config)
 
         return executor_config
 

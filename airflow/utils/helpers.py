@@ -33,7 +33,6 @@ from functools import reduce
 import os
 import re
 import signal
-import collections
 
 from jinja2 import Template
 
@@ -318,26 +317,3 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
-
-
-def dict_merge(dct, merge_dct):
-    """
-    Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
-    updating only top-level keys, dict_merge recurses down into dicts nested
-    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
-    a copy of ``dct``. https://gist.github.com/angstwad/bf22d1822c38a92ec0a9
-
-    :param dct: dict onto which the merge is executed
-    :param merge_dct: dct merged into dct
-    :return: dict
-    """
-
-    new_dct = dct.copy()
-    for k, v in merge_dct.items():
-        if (k in new_dct and isinstance(new_dct[k], dict) and
-                isinstance(merge_dct[k], collections.Mapping)):
-                dict_merge(new_dct[k], merge_dct[k])
-        else:
-            new_dct[k] = merge_dct[k]
-
-    return new_dct

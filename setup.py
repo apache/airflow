@@ -303,6 +303,7 @@ def do_setup():
             'bleach~=2.1.3',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
+            'deepmerge==0.0.4',
             'dill>=0.2.2, <0.3',
             'enum34~=1.1.6',
             'flask>=0.12.4, <0.13',
