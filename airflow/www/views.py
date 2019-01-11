@@ -2607,7 +2607,7 @@ class TaskInstanceModelView(ModelViewOnly):
             ui_signals.send(self, message='set task instance {} - {}'.format(target_state, log_tis))
         except Exception as ex:
             if not self.handle_view_exception(ex):
-                raise Exception("Ooops")
+                raise ex
             flash('Failed to set state', 'error')
 
     @provide_session
