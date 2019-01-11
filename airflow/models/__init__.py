@@ -99,7 +99,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import (
-    as_tuple, is_container, validate_key, pprinttable, dict_merge)
+    as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.module_loading import import_string
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
