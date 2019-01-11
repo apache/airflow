@@ -24,12 +24,14 @@ from __future__ import unicode_literals
 
 import datetime
 import os
+import json
 import pendulum
 import time
 import random
 
+from dateutil import relativedelta
 from sqlalchemy import event, exc, select
-from sqlalchemy.types import DateTime, TypeDecorator
+from sqlalchemy.types import Text, DateTime, TypeDecorator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -169,3 +171,34 @@ class UtcDateTime(TypeDecorator):
                 value = value.astimezone(utc)
 
         return value
+
+
+class Interval(TypeDecorator):
+
+    impl = Text
+
+    attr_keys = {
+        datetime.timedelta: ('days', 'seconds', 'microseconds'),
+        relativedelta.relativedelta: (
+            'years', 'months', 'days', 'leapdays', 'hours', 'minutes', 'seconds', 'microseconds',
+            'year', 'month', 'day', 'hour', 'minute', 'second', 'microsecond',
+        ),
+    }
+
+    def process_bind_param(self, value, dialect):
+        if type(value) in self.attr_keys:
+            attrs = {
+                key: getattr(value, key)
+                for key in self.attr_keys[type(value)]
+            }
+            return json.dumps({'type': type(value).__name__, 'attrs': attrs})
+        return json.dumps(value)
+
+    def process_result_value(self, value, dialect):
+        if not value:
+            return value
+        data = json.loads(value)
+        if isinstance(data, dict):
+            type_map = {key.__name__: key for key in self.attr_keys}
+            return type_map[data['type']](**data['attrs'])
+        return data
