@@ -24,7 +24,6 @@ env:
     - DOCKER_COMPOSE_VERSION=1.20.0
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
-    - TOX_ENV=flake8
     - TOX_ENV=py27-backend_mysql-env_docker
     - TOX_ENV=py27-backend_sqlite-env_docker
     - TOX_ENV=py27-backend_postgres-env_docker
@@ -34,6 +33,16 @@ env:
     - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
     - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
 
+stages:
+  - flake8
+  - test
+
+jobs:
+  include:
+    - stage: flake8
+      name: Flake8
+      script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+      env: TOX_ENV=flake8
 cache:
   directories:
     - $HOME/.wheelhouse/
