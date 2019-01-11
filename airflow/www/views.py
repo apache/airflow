@@ -83,7 +83,6 @@ from airflow.utils.timezone import datetime
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
-from airflow.www.validators import GreaterEqualThan
 if PY2:
     from cStringIO import StringIO
 else:
@@ -2450,88 +2449,6 @@ chart_mapping = (
     ('datatable', 'datatable'),
 )
 chart_mapping = dict(chart_mapping)
-
-
-class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):
-    verbose_name = "known event"
-    verbose_name_plural = "known events"
-    form_columns = (
-        'label',
-        'event_type',
-        'start_date',
-        'end_date',
-        'reported_by',
-        'description',
-    )
-    form_args = {
-        'label': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-        },
-        'event_type': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-        },
-        'start_date': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-            'filters': [
-                parse_datetime_f,
-            ],
-        },
-        'end_date': {
-            'validators': [
-                validators.DataRequired(),
-                GreaterEqualThan(fieldname='start_date'),
-            ],
-            'filters': [
-                parse_datetime_f,
-            ]
-        },
-        'reported_by': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-        }
-    }
-    column_list = (
-        'label',
-        'event_type',
-        'start_date',
-        'end_date',
-        'reported_by',
-    )
-    column_default_sort = ("start_date", True)
-    column_sortable_list = (
-        'label',
-        # todo: yes this has a spelling error
-        ('event_type', 'event_type.know_event_type'),
-        'start_date',
-        'end_date',
-        ('reported_by', 'reported_by.username'),
-    )
-    filter_converter = wwwutils.UtcFilterConverter()
-    form_overrides = dict(start_date=DateTimeField, end_date=DateTimeField)
-
-
-class KnownEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
-    pass
-
-
-# NOTE: For debugging / troubleshooting
-# mv = KnowEventTypeView(
-#     models.KnownEventType,
-#     Session, name="Known Event Types", category="Manage")
-# admin.add_view(mv)
-# class DagPickleView(SuperUserMixin, ModelView):
-#     pass
-# mv = DagPickleView(
-#     models.DagPickle,
-#     Session, name="Pickles", category="Manage")
-# admin.add_view(mv)
 
 
 class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
