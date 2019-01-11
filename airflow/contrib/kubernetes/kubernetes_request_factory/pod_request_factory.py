@@ -61,6 +61,7 @@ spec:
         self.extract_affinity(pod, req)
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
+        self.extract_dnspolicy(pod, req)
         return req
 
 
@@ -120,4 +121,5 @@ spec:
         self.extract_affinity(pod, req)
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
+        self.extract_dnspolicy(pod, req)
         return req

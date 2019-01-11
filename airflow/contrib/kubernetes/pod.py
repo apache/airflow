@@ -64,6 +64,8 @@ class Pod:
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list
+    :param dnspolicy: Specify a dnspolicy for the pod
+    :type dnspolicy: str
     """
     def __init__(
             self,
@@ -88,6 +90,7 @@ class Pod:
             affinity=None,
             hostnetwork=False,
             tolerations=None,
+            dnspolicy=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -110,3 +113,4 @@ class Pod:
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
+        self.dnspolicy = dnspolicy
