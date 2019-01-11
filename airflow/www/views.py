@@ -83,7 +83,6 @@ from airflow.utils.timezone import datetime
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
-from airflow.www.validators import GreaterEqualThan
 if PY2:
     from cStringIO import StringIO
 else:
