@@ -1347,7 +1347,7 @@ GoogleCloudStorageToGoogleCloudStorageOperator
 GoogleCloudStorageToGoogleCloudStorageTransferOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageTransferOperator
+.. autoclass:: airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator
 
 .. _MySqlToGoogleCloudStorageOperator:
 
