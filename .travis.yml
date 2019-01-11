@@ -37,6 +37,7 @@ env:
 stages:
   - flake8
   - test
+  - docker-push
 
 jobs:
   include:
@@ -44,6 +45,11 @@ jobs:
       name: Flake8
       script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
       env: TOX_ENV=flake8
+    - name: docker-push
+      # require the branch name to be master (note for PRs this is the base branch name)
+      if: branch = master
+      script: docker build -t apache/airflow:master -t apache/airflow:$TRAVIS_COMMIT . && docker push apache/airflow:$TRAVIS_COMMIT && docker push apache/airflow:master
+
 cache:
   directories:
     - $HOME/.wheelhouse/
