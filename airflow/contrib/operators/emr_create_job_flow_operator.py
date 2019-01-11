@@ -43,7 +43,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            aws_conn_id='s3_default',
+            aws_conn_id='aws_default',
             emr_conn_id='emr_default',
             job_flow_overrides=None,
             region_name=None,
