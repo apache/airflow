@@ -66,22 +66,6 @@ def upgrade():
             batch_op.create_foreign_key('chart_user_id_fkey', 'users',
                                         ['user_id'], ['id'])
 
-        known_event_table = sa.Table('known_event',
-                                     sa.MetaData(),
-                                     sa.Column('id', sa.Integer(), nullable=False),
-                                     sa.Column('label', sa.String(length=200), nullable=True),
-                                     sa.Column('start_date', sa.DateTime(), nullable=True),
-                                     sa.Column('end_date', sa.DateTime(), nullable=True),
-                                     sa.Column('user_id', sa.Integer(), nullable=True),
-                                     sa.Column('known_event_type_id', sa.Integer(), nullable=True),
-                                     sa.Column('description', sa.Text(), nullable=True),
-                                     sa.ForeignKeyConstraint(['known_event_type_id'],
-                                                             ['known_event_type.id'], ),
-                                     sa.PrimaryKeyConstraint('id'))
-        with op.batch_alter_table('chart', copy_from=known_event_table) as batch_op:
-            batch_op.create_foreign_key('known_event_user_id_fkey', 'users',
-                                        ['user_id'], ['id'])
-
 
 def downgrade():
     # Downgrade would fail because the broken FK constraint can't be re-created.
