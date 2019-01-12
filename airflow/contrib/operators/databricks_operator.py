@@ -24,6 +24,7 @@ import time
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 XCOM_RUN_ID_KEY = 'run_id'
@@ -218,6 +219,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
+    @apply_defaults
     def __init__(
             self,
             json=None,
@@ -419,6 +421,7 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
+    @apply_defaults
     def __init__(
             self,
             job_id,
