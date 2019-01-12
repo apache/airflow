@@ -4770,8 +4770,8 @@ class DagRun(Base, LoggingMixin):
     def id_for_date(cls, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
 
-    @provide_session
     @staticmethod
+    @provide_session
     def get_last_dagrun(dag_id, include_externally_triggered=False, session=None):
         """
         Returns the last dag run for a dag, None if there was none.
