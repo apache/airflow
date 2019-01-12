@@ -1,3 +1,215 @@
+AIRFLOW 1.10.2b1, 2019-01-12
+----------------------------
+
+New features:
+
+[AIRFLOW-2658] Add GCP specific k8s pod operator (#3532)
+[AIRFLOW-2440] Google Cloud SQL import/export operator (#4251)
+[AIRFLOW-3212] Add AwsGlueCatalogPartitionSensor (#4112)
+[AIRFLOW-2750] Add subcommands to delete and list users
+[AIRFLOW-3480] Add GCP Spanner Database Operators (#4353)
+[AIRFLOW-3560] Add DayOfWeek Sensor (#4363)
+[AIRFLOW-3371] BigQueryHook's Ability to Create View (#4213)
+[AIRFLOW-3332] Add method to allow inserting rows into BQ table (#4179)
+[AIRFLOW-3055] add get_dataset and get_datasets_list to bigquery_hook (#3894)
+[AIRFLOW-2887] Added BigQueryCreateEmptyDatasetOperator and create_emty_dataset to bigquery_hook (#3876)
+[AIRFLOW-2758] Add a sensor for MongoDB
+[AIRFLOW-2640] Add Cassandra table sensor
+[AIRFLOW-3398] Google Cloud Spanner instance database query operator (#4314)
+[AIRFLOW-3310] Google Cloud Spanner deploy / delete operators (#4286)
+[AIRFLOW-3406] Implement an Azure CosmosDB operator (#4265)
+[AIRFLOW-3434] Allows creating intermediate dirs in SFTPOperator (#4270)
+[AIRFLOW-3345] Add Google Cloud Storage (GCS) operators for ACL (#4192)
+[AIRFLOW-3266] Add AWS Athena Hook and Operator (#4111)
+[AIRFLOW-3346] Add hook and operator for GCP transfer service (#4189)
+[AIRFLOW-2983] Add prev_ds_nodash and next_ds_nodash macro (#3821)
+[AIRFLOW-3403] Add AWS Athena Sensor (#4244)
+[AIRFLOW-3323] Support HTTP basic authentication for Airflow Flower (#4166)
+[AIRFLOW-3410] Add feature to allow Host Key Change for SSH Op (#4249)
+[AIRFLOW-3275] Add Google Cloud SQL Query operator (#4170)
+[AIRFLOW-2691] Manage JS dependencies via npm
+[AIRFLOW-2795] Oracle to Oracle Transfer Operator (#3639)
+[AIRFLOW-2596] Add Oracle to Azure Datalake Transfer Operator
+[AIRFLOW-3220] Add Instance Group Manager Operators for GCE (#4167)
+[AIRFLOW-2882] Add import and export for pool cli using JSON
+[AIRFLOW-2965] CLI tool to show the next execution datetime (#3834)
+
+Improvements:
+
+[AIRFLOW-3680] Consistency update in tests for All GCP-related operators (#4493)
+[AIRFLOW-3675] Use googlapiclient for google apis (#4484)
+[AIRFLOW-3205] Support multipart uploads to GCS (#4084)
+[AIRFLOW-2826] Add GoogleCloudKMSHook (#3677)
+[AIRFLOW-3676] Add required permission to CloudSQL export/import example (#4489)
+[AIRFLOW-3679] Added Google Cloud Base Hook to documentation (#4487)
+[AIRFLOW-3594] Unify different License Header
+[AIRFLOW-3197] Remove invalid parameter KeepJobFlowAliveWhenNoSteps in example DAG (#4404)
+[AIRFLOW-3504] Refine the functionality of "/health" endpoint (#4309)
+[AIRFLOW-3103][AIRFLOW-3147] Update flask-appbuilder (#3937)
+[AIRFLOW-3168] More resillient database use in CI (#4014)
+[AIRFLOW-3076] Remove preloading of MySQL testdata (#3911)
+[AIRFLOW-3035] Allow custom 'job_error_states' in dataproc ops (#3884)
+[AIRFLOW-3246] Make hmsclient optional in airflow.hooks.hive_hooks (#4080)
+[AIRFLOW-3059] Log how many rows are read from Postgres (#3905)
+[AIRFLOW-2463] Make task instance context available for hive queries
+[AIRFLOW-3190] Make flake8 compliant
+[AIRFLOW-3190] Make flake8 compliant (#4035)
+[AIRFLOW-1998] Implemented DatabricksRunNowOperator for jobs/run-now … (#3813)
+[AIRFLOW-2267] Airflow DAG level access (#3197)
+[AIRFLOW-2359] Add set failed for DagRun and task in tree view (#3255)
+[AIRFLOW-3008] Move Kubernetes example DAGs to contrib
+[AIRFLOW-3402] Support global k8s affinity and toleration configs (#4247)
+[AIRFLOW-3610] Add region param for EMR jobflow creation (#4418)
+[AIRFLOW-3531] Fix test for GCS to GCS Transfer Hook (#4452)
+[AIRFLOW-3531] Add gcs to gcs transfer operator. (#4331)
+[AIRFLOW-3034]: Readme updates : Add Slack & Twitter, remove Gitter
+[AIRFLOW-3028] Update Text & Images in Readme.md
+[AIRFLOW-208] Add badge to show supported Python versions (#3839)
+[AIRFLOW-2238] Update PR tool to push directly to Github
+[AIRFLOW-2238] Flake8 fixes on dev/airflow-pr
+[AIRFLOW-2238] Update PR tool to remove outdated info (#3978)
+[AIRFLOW-3005] Replace 'Airbnb Airflow' with 'Apache Airflow' (#3845)
+[AIRFLOW-3150] Make execution_date templated in TriggerDagRunOperator (#4359)
+[AIRFLOW-1196][AIRFLOW-2399] Add templated field in TriggerDagRunOperator (#4228)
+[AIRFLOW-3340] Placeholder support in connections form (#4185)
+[AIRFLOW-3446] Add Google Cloud BigTable operators (#4354)
+[AIRFLOW-1921] Add support for https and user auth (#2879)
+[AIRFLOW-2770] Read `dags_in_image` config value as a boolean (#4319)
+[AIRFLOW-3022] Add volume mount to KubernetesExecutorConfig (#3855)
+[AIRFLOW-2917] Set AIRFLOW__CORE__SQL_ALCHEMY_CONN only when needed (#3766)
+[AIRFLOW-2712] Pass annotations to KubernetesExecutorConfig
+[AIRFLOW-461]  Support autodetected schemas in BigQuery run_load (#3880)
+[AIRFLOW-2997] Support cluster fields in bigquery (#3838)
+[AIRFLOW-2916] Arg `verify` for AwsHook() & S3 sensors/operators (#3764)
+[AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
+[AIRFLOW-2889] Fix typos detected by github.com/client9/misspell (#3732)
+[AIRFLOW-850] Add a PythonSensor (#4349)
+[AIRFLOW-3246] Make hmsclient optional in airflow.hooks.hive_hooks (#4080)
+[AIRFLOW-2747] Explicit re-schedule of sensors (#3596)
+[AIRFLOW-3392] Add index on dag_id in sla_miss table (#4235)
+[AIRFLOW-3001] Add index 'ti_dag_date' to taskinstance (#3885)
+[AIRFLOW-2861] Add index on log table (#3709)
+[AIRFLOW-3518] Performance fixes for topological_sort of Tasks (#4322)
+[AIRFLOW-3521] Fetch more than 50 items in `airflow-jira compare` script (#4300)
+[AIRFLOW-1919] Add option to query for DAG runs given a DAG ID
+[AIRFLOW-3444] Explicitly set transfer operator description. (#4279)
+[AIRFLOW-3411]  Add OpenFaaS hook (#4267)
+[AIRFLOW-2785] Add context manager entry points to mongoHook
+[AIRFLOW-2524] Add SageMaker doc to AWS integration section (#4278)
+[AIRFLOW-3479] Keeps records in Log Table when DAG is deleted (#4287)
+[AIRFLOW-2524] Add SageMaker doc to AWS integration section (#4278)
+[AIRFLOW-2948] Arg check & better doc - SSHOperator & SFTPOperator (#3793)
+[AIRFLOW-2245] Add remote_host of SSH/SFTP operator as templated field (#3765)
+[AIRFLOW-2670] Update SSH Operator's Hook to respect timeout (#3666)
+[AIRFLOW-3380] Add metrics documentation (#4219)
+[AIRFLOW-3361] Log the task_id in the PendingDeprecationWarning from BaseOperator (#4030)
+[AIRFLOW-3213] Create ADLS to GCS operator (#4134)
+[AIRFLOW-3395] added the REST API endpoints to the doc (#4236)
+[AIRFLOW-3294] Update connections form and integration docs (#4129)
+[AIRFLOW-3236] Create AzureDataLakeStorageListOperator (#4094)
+[AIRFLOW-3062] Add Qubole in integration docs (#3946)
+[AIRFLOW-3306] Disable flask-sqlalchemy modification tracking. (#4146)
+[AIRFLOW-2867] Refactor Code to conform standards (#3714)
+[AIRFLOW-2753] Add dataproc_job_id instance var holding actual DP jobId
+[AIRFLOW-3132] Enable specifying auto_remove option for DockerOperator (#3977)
+[AIRFLOW-2731] Raise psutil restriction to <6.0.0
+[AIRFLOW-3384] Allow higher versions of Sqlalchemy and Jinja2 (#4227)
+[Airflow-2760] Decouple DAG parsing loop from scheduler loop (#3873)
+[AIRFLOW-3004] Add config disabling scheduler cron (#3899)
+[AIRFLOW-3175] Fix docstring format in airflow/jobs.py (#4025)
+[AIRFLOW-3589] Visualize reschedule state in all views (#4408)
+[AIRFLOW-2698] Simplify Kerberos code (#3563)
+[AIRFLOW-2499] Dockerise CI pipeline (#3393)
+[AIRFLOW-3432] Add test for feature "Delete DAG in UI" (#4266)
+[AIRFLOW-3301] Update DockerOperator CI test for PR #3977 (#4138)
+[AIRFLOW-3478] Make sure that the session is closed
+[AIRFLOW-3687] Add missing @apply_defaults decorators (#4498)
+
+Bug fixes:
+
+[AIRFLOW-3191] Fix not being able to specify execution_date when creating dagrun (#4037)
+[AIRFLOW-3657] Fix zendesk integration (#4466)
+[AIRFLOW-3605] Load plugins from entry_points (#4412)
+[AIRFLOW-3646] Rename plugins_manager.py to test_xx to trigger tests (#4464)
+[AIRFLOW-3655] Escape links generated in model views (#4463)
+[AIRFLOW-3662] Add dependency for Enum (#4468)
+[AIRFLOW-3630] Cleanup of GCP Cloud SQL Connection (#4451)
+[AIRFLOW-1837] Respect task start_date when different from dag's (#4010)
+[AIRFLOW-2829] Brush up the CI script for minikube
+[AIRFLOW-3519] Fix example http operator (#4455)
+[AIRFLOW-2811] Fix scheduler_ops_metrics.py to work (#3653)
+[AIRFLOW-2751] add job properties update in hive to druid operator.
+[AIRFLOW-2918] Remove unused imports
+[AIRFLOW-2918] Fix Flake8 violations (#3931)
+[AIRFLOW-2771] Add except type to broad S3Hook try catch clauses
+[AIRFLOW-2918] Fix Flake8 violations (#3772)
+[AIRFLOW-2099] Handle getsource() calls gracefully
+[AIRFLOW-3397] Fix integrety error in rbac AirflowSecurityManager (#4305)
+[AIRFLOW-3281] Fix Kubernetes operator with git-sync (#3770)
+[AIRFLOW-2615] Limit DAGs parsing to once only
+[AIRFLOW-2952] Fix Kubernetes CI (#3922)
+[AIRFLOW-2933] Enable Codecov on Docker-CI Build (#3780)
+[AIRFLOW-2082] Resolve a bug in adding password_auth to api as auth method (#4343)
+[AIRFLOW-3612] Remove incubation/incubator mention (#4419)
+[AIRFLOW-3581] Fix next_ds/prev_ds semantics for manual runs (#4385)
+[AIRFLOW-3527] Update Cloud SQL Proxy to have shorter path for UNIX socket (#4350)
+[AIRFLOW-3316] For gcs_to_bq: add missing init of schema_fields var (#4430)
+[AIRFLOW-3583] Fix AirflowException import (#4389)
+[AIRFLOW-3578] Fix Type Error for BigQueryOperator (#4384)
+[AIRFLOW-2755] Added `kubernetes.worker_dags_folder` configuration (#3612)
+[AIRFLOW-2655] Fix inconsistency of default config of kubernetes worker
+[AIRFLOW-2645][AIRFLOW-2617] Add worker_container_image_pull_policy
+[AIRFLOW-2661] fix config dags_volume_subpath and logs_volume_subpath
+[AIRFLOW-3550] Standardize GKE hook (#4364)
+[AIRFLOW-2863] Fix GKEClusterHook catching wrong exception (#3711)
+[AIRFLOW-2939][AIRFLOW-3568] Fix TypeError in GCSToS3Op & S3ToGCSOp (#4371)
+[AIRFLOW-3327] Add support for location in BigQueryHook (#4324)
+[AIRFLOW-3438] Fix default values in BigQuery Hook & BigQueryOperator (…
+[AIRFLOW-3355] Fix BigQueryCursor.execute to work with Python3 (#4198)
+[AIRFLOW-3447] Add 2 options for ts_nodash Macro (#4323)
+[AIRFLOW-1552] Airflow Filter_by_owner not working with password_auth (#4276)
+[AIRFLOW-3484] Fix Over-logging in the k8s executor (#4296)
+[AIRFLOW-3309] Add MongoDB connection (#4154)
+[AIRFLOW-3414] Fix reload_module in DagFileProcessorAgent (#4253)
+[AIRFLOW-1252] API accept JSON when invoking a trigger dag (#2334)
+[AIRFLOW-3425] Fix setting default scope in hook (#4261)
+[AIRFLOW-3416] Fixes Python 3 compatibility with CloudSqlQueryOperator (#4254)
+[AIRFLOW-3263] Ignore exception when 'run' kills already killed job (#4108)
+[AIRFLOW-3264] URL decoding when parsing URI for connection (#4109)
+[AIRFLOW-3365][AIRFLOW-3366] Allow celery_broker_transport_options to be set with environment variables (#4211)
+[AIRFLOW-2642] fix wrong value git-sync initcontainer env GIT_SYNC_ROOT (#3519)
+[AIRFLOW-3353] Pin redis verison (#4195)
+[AIRFLOW-3251] KubernetesPodOperator now uses 'image_pull_secrets' argument when creating Pods (#4188)
+[AIRFLOW-2705] Move class-level moto decorator to method-level
+[AIRFLOW-3233] Fix deletion of DAGs in the UI (#4069)
+[AIRFLOW-2908] Allow retries with KubernetesExecutor. (#3758)
+[AIRFLOW-1561] Fix scheduler to pick up example DAGs without other DAGs (#2635)
+[AIRFLOW-3352] Fix expose_config not honoured on RBAC UI (#4194)
+[AIRFLOW-3592] Fix logs when task is in rescheduled state (#4492)
+[AIRFLOW-3634] Fix GCP Spanner Test (#4440)
+[AIRFLOW-XXX] Fix PythonVirtualenvOperator tests (#3968)
+[AIRFLOW-3239] Fix/refine tests for api/common/experimental/ (#4255)
+[AIRFLOW-2951] Update dag_run table end_date when state change (#3798)
+[AIRFLOW-2756] Fix bug in set DAG run state workflow (#3606)
+
+Doc-only changes:
+
+[AIRFLOW-XXX] GCP operators documentation clarifications (#4273)
+[AIRFLOW-XXX] Docs: Fix paths to GCS transfer operator (#4479)
+[AIRFLOW-XXX] Add missing GCP operators to Docs (#4260)
+[AIRFLOW-XXX] Fix Docstrings for Operators (#3820)
+[AIRFLOW-XXX] Fix inconsistent comment in example_python_operator.py (#4337)
+[AIRFLOW-XXX] Fix incorrect parameter in SFTPOperator example (#4344)
+[AIRFLOW-XXX] Add missing remote logging field (#4333)
+[AIRFLOW-XXX] Revise template variables documentation (#4172)
+[AIRFLOW-XXX] Fix typo in docstring of gcs_to_bq (#3833)
+[AIRFLOW-XXX] Fix display of SageMaker operators/hook docs (#4263)
+[AIRFLOW-XXX] Better instructions for airflow flower (#4214)
+[AIRFLOW-XXX] Make pip install commands consistent (#3752)
+[AIRFLOW-XXX] Add `BigQueryGetDataOperator` to Integration Docs (#4063)
+[AIRFLOW-XXX] Don't spam test logs with "bad cron expression" messages (#3973)
+[AIRFLOW-XXX] Update committer list based on latest TLP discussion (#4427)
+
 AIRFLOW 1.10.1, 2018-11-13
 
 New features:
