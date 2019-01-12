@@ -103,3 +103,9 @@ class PinotDbApiHook(DbApiHook):
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
         raise NotImplementedError()
+
+    def bulk_dump(self, table, tmp_file):
+        raise NotImplementedError()
+
+    def bulk_load(self, table, tmp_file):
+        raise NotImplementedError()

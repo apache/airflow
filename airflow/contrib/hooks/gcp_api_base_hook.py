@@ -57,7 +57,6 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
 
     JSON data provided in the UI: Specify 'Keyfile JSON'.
     """
-
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
         """
         :param gcp_conn_id: The connection ID to use when fetching connection info.

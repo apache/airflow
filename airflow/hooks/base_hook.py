@@ -87,15 +87,3 @@ class BaseHook(LoggingMixin):
     def get_hook(cls, conn_id):
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
-
-    def get_conn(self):
-        raise NotImplementedError()
-
-    def get_records(self, sql):
-        raise NotImplementedError()
-
-    def get_pandas_df(self, sql):
-        raise NotImplementedError()
-
-    def run(self, sql):
-        raise NotImplementedError()

@@ -39,7 +39,6 @@ class PrestoHook(DbApiHook):
     >>> ph.get_records(sql)
     [[340698]]
     """
-
     conn_name_attr = 'presto_conn_id'
     default_conn_name = 'presto_default'
 
@@ -138,3 +137,9 @@ class PrestoHook(DbApiHook):
         :type target_fields: iterable of strings
         """
         super(PrestoHook, self).insert_rows(table, rows, target_fields, 0)
+
+    def bulk_dump(self, table, tmp_file):
+        raise NotImplementedError()
+
+    def bulk_load(self, table, tmp_file):
+        raise NotImplementedError()

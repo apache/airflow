@@ -141,6 +141,28 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
                 return False
             raise
 
+    def bulk_dump(self, table, tmp_file):
+        """
+        Dumps a database table into a tab-delimited file
+
+        :param table: The name of the source table
+        :type table: str
+        :param tmp_file: The path of the target file
+        :type tmp_file: str
+        """
+        raise NotImplementedError()
+
+    def bulk_load(self, table, tmp_file):
+        """
+        Loads a tab-delimited file into a database table
+
+        :param table: The name of the target table
+        :type table: str
+        :param tmp_file: The path of the file to load into the table
+        :type tmp_file: str
+        """
+        raise NotImplementedError()
+
 
 class BigQueryPandasConnector(GbqConnector):
     """

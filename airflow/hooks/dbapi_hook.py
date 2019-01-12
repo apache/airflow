@@ -27,9 +27,10 @@ from sqlalchemy import create_engine
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.abstract_db_hook import AbstractDbHook
 
 
-class DbApiHook(BaseHook):
+class DbApiHook(BaseHook, AbstractDbHook):
     """
     Abstract base class for sql hooks.
     """

@@ -40,6 +40,7 @@ from airflow.security import utils
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+from airflow.hooks.abstract_db_hook import AbstractDbHook
 
 HIVE_QUEUE_PRIORITIES = ['VERY_HIGH', 'HIGH', 'NORMAL', 'LOW', 'VERY_LOW']
 
@@ -750,13 +751,17 @@ class HiveMetastoreHook(BaseHook):
             return False
 
 
-class HiveServer2Hook(BaseHook):
+class HiveServer2Hook(BaseHook, AbstractDbHook):
     """
     Wrapper around the pyhive library
 
     Note that the default authMechanism is PLAIN, to override it you
     can specify it in the ``extra`` of your connection in the UI as in
     """
+
+    def run(self, sql):
+        raise NotImplementedError()
+
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
