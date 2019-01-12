@@ -42,7 +42,7 @@ jobs:
   include:
     - name: Flake8
       stage: pre-test
-      script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+      script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run --no-deps airflow-testing /app/scripts/ci/run-ci.sh
       env: TOX_ENV=flake8
     - name: Check license header
       stage: pre-test
