@@ -4246,7 +4246,7 @@ class DAG(BaseDag, LoggingMixin):
             conf=conf,
             state=state
         )
-        (tis, edges) = self.create_tasks_and_edges(execution_date)
+        (tis, edges) = self.create_tis_and_edges(execution_date)
         session.add(run)
 
         for ti in tis:
