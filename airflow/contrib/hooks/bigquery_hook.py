@@ -516,7 +516,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param project_id: The project containing the table to be patched.
         :type project_id: str
-        :param dataset_id: The dataset containing the tableto be patched.
+        :param dataset_id: The dataset containing the table to be patched.
         :type dataset_id: str
         :param table_id: The Name of the table to be patched.
         :type table_id: str
