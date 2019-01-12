@@ -84,7 +84,6 @@ from airflow.utils.timezone import datetime
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
-from airflow.www.validators import GreaterEqualThan
 if PY2:
     from cStringIO import StringIO
 else:
@@ -874,7 +873,13 @@ class Airflow(BaseView):
             models.TaskInstance.task_id == task_id,
             models.TaskInstance.execution_date == dttm).first()
 
-        logs = [''] * (ti.next_try_number - 1 if ti is not None else 0)
+        num_logs = 0
+        if ti is not None:
+            num_logs = ti.next_try_number - 1
+            if ti.state == State.UP_FOR_RESCHEDULE:
+                # Tasks in reschedule state decremented the try number
+                num_logs += 1
+        logs = [''] * num_logs
         root = request.args.get('root', '')
         return self.render(
             'airflow/ti_log.html',
@@ -2456,88 +2461,6 @@ chart_mapping = (
     ('datatable', 'datatable'),
 )
 chart_mapping = dict(chart_mapping)
-
-
-class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):
-    verbose_name = "known event"
-    verbose_name_plural = "known events"
-    form_columns = (
-        'label',
-        'event_type',
-        'start_date',
-        'end_date',
-        'reported_by',
-        'description',
-    )
-    form_args = {
-        'label': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-        },
-        'event_type': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-        },
-        'start_date': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-            'filters': [
-                parse_datetime_f,
-            ],
-        },
-        'end_date': {
-            'validators': [
-                validators.DataRequired(),
-                GreaterEqualThan(fieldname='start_date'),
-            ],
-            'filters': [
-                parse_datetime_f,
-            ]
-        },
-        'reported_by': {
-            'validators': [
-                validators.DataRequired(),
-            ],
-        }
-    }
-    column_list = (
-        'label',
-        'event_type',
-        'start_date',
-        'end_date',
-        'reported_by',
-    )
-    column_default_sort = ("start_date", True)
-    column_sortable_list = (
-        'label',
-        # todo: yes this has a spelling error
-        ('event_type', 'event_type.know_event_type'),
-        'start_date',
-        'end_date',
-        ('reported_by', 'reported_by.username'),
-    )
-    filter_converter = wwwutils.UtcFilterConverter()
-    form_overrides = dict(start_date=DateTimeField, end_date=DateTimeField)
-
-
-class KnownEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
-    pass
-
-
-# NOTE: For debugging / troubleshooting
-# mv = KnowEventTypeView(
-#     models.KnownEventType,
-#     Session, name="Known Event Types", category="Manage")
-# admin.add_view(mv)
-# class DagPickleView(SuperUserMixin, ModelView):
-#     pass
-# mv = DagPickleView(
-#     models.DagPickle,
-#     Session, name="Pickles", category="Manage")
-# admin.add_view(mv)
 
 
 class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):

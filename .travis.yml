@@ -44,6 +44,7 @@ jobs:
       name: Flake8
       script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
       env: TOX_ENV=flake8
+
 cache:
   directories:
     - $HOME/.wheelhouse/
