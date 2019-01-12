@@ -44,9 +44,9 @@ jobs:
       stage: pre-test
       script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
       env: TOX_ENV=flake8
-    - name: Check licence header
+    - name: Check license header
       stage: pre-test
-      script: scripts/ci/6-check-licence.sh
+      script: scripts/ci/6-check-license.sh
 
 cache:
   directories:
