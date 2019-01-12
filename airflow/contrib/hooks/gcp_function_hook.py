@@ -71,26 +71,12 @@ class GcfHook(GoogleCloudBaseHook):
         return self.get_conn().projects().locations().functions().get(
             name=name).execute(num_retries=NUM_RETRIES)
 
-    def list_functions(self, full_location):
-        """
-        Lists all Cloud Functions created in the location.
-
-        :param full_location: full location including the project in the form of
-            of /projects/<PROJECT>/location/<LOCATION>
-        :type full_location: str
-        :return: array of Cloud Functions objects - representing functions in the location
-        :rtype: [dict]
-        """
-        list_response = self.get_conn().projects().locations().functions().list(
-            parent=full_location).execute(num_retries=NUM_RETRIES)
-        return list_response.get("functions", [])
-
     def create_new_function(self, full_location, body):
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
         :param full_location: full location including the project in the form of
-            of /projects/<PROJECT>/location/<LOCATION>
+            of /projects/<PROJECT>/location/<GCP_LOCATION>
         :type full_location: str
         :param body: body required by the Cloud Functions insert API
         :type body: dict
@@ -130,7 +116,7 @@ class GcfHook(GoogleCloudBaseHook):
         Uploads zip file with sources.
 
         :param parent: Google Cloud Platform project id and region where zip file should
-         be uploaded in the form of /projects/<PROJECT>/location/<LOCATION>
+            be uploaded in the form of /projects/<PROJECT>/location/<GCP_LOCATION>
         :type parent: str
         :param zip_path: path of the valid .zip file to upload
         :type zip_path: str
@@ -143,7 +129,7 @@ class GcfHook(GoogleCloudBaseHook):
         with open(zip_path, 'rb') as fp:
             requests.put(
                 url=upload_url,
-                data=fp.read(),
+                data=fp,
                 # Those two headers needs to be specified according to:
                 # https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/generateUploadUrl
                 # nopep8

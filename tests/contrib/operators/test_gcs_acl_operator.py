@@ -22,8 +22,6 @@ import unittest
 from airflow.contrib.operators.gcs_acl_operator import \
     GoogleCloudStorageBucketCreateAclEntryOperator, \
     GoogleCloudStorageObjectCreateAclEntryOperator
-from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
-    SKIP_TEST_WARNING, GCP_GCS_KEY
 
 try:
     from unittest import mock
@@ -72,16 +70,3 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
             generation="test-generation",
             user_project="test-user-project"
         )
-
-
-@unittest.skipIf(
-    BaseGcpIntegrationTestCase.skip_check(GCP_GCS_KEY), SKIP_TEST_WARNING)
-class CloudStorageExampleDagsIntegrationTest(BaseGcpIntegrationTestCase):
-    def __init__(self, method_name='runTest'):
-        super(CloudStorageExampleDagsIntegrationTest, self).__init__(
-            method_name,
-            dag_id='example_gcs_acl',
-            gcp_key=GCP_GCS_KEY)
-
-    def test_run_example_dag_gcs_acl(self):
-        self._run_dag()

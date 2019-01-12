@@ -22,26 +22,25 @@ Example Airflow DAG that performs query in a Cloud SQL instance.
 
 This DAG relies on the following OS environment variables
 
-* PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance
-* LOCATION - Google Cloud location where the database is created
+* GCP_PROJECT_ID - Google Cloud Platform project for the Cloud SQL instance
+* GCP_REGION - Google Cloud region where the database is created
 *
-* POSTGRES_INSTANCE_NAME - Name of the postgres Cloud SQL instance
-* POSTGRES_USER - Name of the postgres database user
-* POSTGRES_PASSWORD - Password of the postgres database user
-* POSTGRES_PROXY_PORT - Local port number for proxy connections for postgres
-* POSTGRES_PUBLIC_IP - Public IP of the Postgres database
-* POSTGRES_PUBLIC_PORT - Port of the postgres database
+* GCSQL_POSTGRES_INSTANCE_NAME - Name of the postgres Cloud SQL instance
+* GCSQL_POSTGRES_USER - Name of the postgres database user
+* GCSQL_POSTGRES_PASSWORD - Password of the postgres database user
+* GCSQL_POSTGRES_PUBLIC_IP - Public IP of the Postgres database
+* GCSQL_POSTGRES_PUBLIC_PORT - Port of the postgres database
 *
-* MYSQL_INSTANCE_NAME - Name of the postgres Cloud SQL instance
-* MYSQL_USER - Name of the mysql database user
-* MYSQL_PASSWORD - Password of the mysql database user
-* MYSQL_PROXY_PORT - Local port number for proxy connections for mysql
-* MYSQL_PUBLIC_IP - Public IP of the mysql database
-* MYSQL_PUBLIC_PORT - Port of the mysql database
+* GCSQL_MYSQL_INSTANCE_NAME - Name of the postgres Cloud SQL instance
+* GCSQL_MYSQL_USER - Name of the mysql database user
+* GCSQL_MYSQL_PASSWORD - Password of the mysql database user
+* GCSQL_MYSQL_PUBLIC_IP - Public IP of the mysql database
+* GCSQL_MYSQL_PUBLIC_PORT - Port of the mysql database
 """
 
 import os
 import subprocess
+from os.path import expanduser
 
 from six.moves.urllib.parse import quote_plus
 
@@ -51,34 +50,38 @@ from airflow.contrib.operators.gcp_sql_operator import CloudSqlQueryOperator
 
 # [START howto_operator_cloudsql_query_arguments]
 
-PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
-LOCATION = os.environ.get('REGION', 'europe-west-1')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
+GCP_REGION = os.environ.get('GCP_REGION', 'europe-west-1b')
 
-POSTGRES_INSTANCE_NAME = os.environ.get('POSTGRES_INSTANCE_NAME', 'testpostgres')
-POSTGRES_DATABASE_NAME = os.environ.get('POSTGRES_DATABASE_NAME', 'postgresdb')
-POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres_user')
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'password')
-POSTGRES_PUBLIC_IP = os.environ.get('POSTGRES_PUBLIC_IP', '0.0.0.0')
-POSTGRES_PUBLIC_PORT = os.environ.get('POSTGRES_PUBLIC_PORT', 5432)
-POSTGRES_CLIENT_CERT_FILE = os.environ.get('POSTGRES_CLIENT_CERT_FILE',
-                                           "/tmp/client-cert.pem")
-POSTGRES_CLIENT_KEY_FILE = os.environ.get('POSTGRES_CLIENT_KEY_FILE',
-                                          "/tmp/client-key.pem")
-POSTGRES_SERVER_CA_FILE = os.environ.get('POSTGRES_SERVER_CA_FILE',
-                                         "/tmp/server-ca.pem")
+GCSQL_POSTGRES_INSTANCE_NAME_QUERY = os.environ.get(
+    'GCSQL_POSTGRES_INSTANCE_NAME_QUERY',
+    'testpostgres')
+GCSQL_POSTGRES_DATABASE_NAME = os.environ.get('GCSQL_POSTGRES_DATABASE_NAME',
+                                              'postgresdb')
+GCSQL_POSTGRES_USER = os.environ.get('GCSQL_POSTGRES_USER', 'postgres_user')
+GCSQL_POSTGRES_PASSWORD = os.environ.get('GCSQL_POSTGRES_PASSWORD', 'password')
+GCSQL_POSTGRES_PUBLIC_IP = os.environ.get('GCSQL_POSTGRES_PUBLIC_IP', '0.0.0.0')
+GCSQL_POSTGRES_PUBLIC_PORT = os.environ.get('GCSQL_POSTGRES_PUBLIC_PORT', 5432)
+GCSQL_POSTGRES_CLIENT_CERT_FILE = os.environ.get('GCSQL_POSTGRES_CLIENT_CERT_FILE',
+                                                 ".key/postgres-client-cert.pem")
+GCSQL_POSTGRES_CLIENT_KEY_FILE = os.environ.get('GCSQL_POSTGRES_CLIENT_KEY_FILE',
+                                                ".key/postgres-client-key.pem")
+GCSQL_POSTGRES_SERVER_CA_FILE = os.environ.get('GCSQL_POSTGRES_SERVER_CA_FILE',
+                                               ".key/postgres-server-ca.pem")
 
-MYSQL_INSTANCE_NAME = os.environ.get('MYSQL_INSTANCE_NAME', 'testmysql')
-MYSQL_DATABASE_NAME = os.environ.get('MYSQL_DATABASE_NAME', 'mysqldb')
-MYSQL_USER = os.environ.get('MYSQL_USER', 'mysql_user')
-MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'password')
-MYSQL_PUBLIC_IP = os.environ.get('MYSQL_PUBLIC_IP', '0.0.0.0')
-MYSQL_PUBLIC_PORT = os.environ.get('MYSQL_PUBLIC_PORT', 3306)
-MYSQL_CLIENT_CERT_FILE = os.environ.get('MYSQL_CLIENT_CERT_FILE',
-                                        "/tmp/client-cert.pem")
-MYSQL_CLIENT_KEY_FILE = os.environ.get('MYSQL_CLIENT_KEY_FILE',
-                                       "/tmp/client-key.pem")
-MYSQL_SERVER_CA_FILE = os.environ.get('MYSQL_SERVER_CA_FILE',
-                                      "/tmp/server-ca.pem")
+GCSQL_MYSQL_INSTANCE_NAME_QUERY = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME_QUERY',
+                                                 'testmysql')
+GCSQL_MYSQL_DATABASE_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'mysqldb')
+GCSQL_MYSQL_USER = os.environ.get('GCSQL_MYSQL_USER', 'mysql_user')
+GCSQL_MYSQL_PASSWORD = os.environ.get('GCSQL_MYSQL_PASSWORD', 'password')
+GCSQL_MYSQL_PUBLIC_IP = os.environ.get('GCSQL_MYSQL_PUBLIC_IP', '0.0.0.0')
+GCSQL_MYSQL_PUBLIC_PORT = os.environ.get('GCSQL_MYSQL_PUBLIC_PORT', 3306)
+GCSQL_MYSQL_CLIENT_CERT_FILE = os.environ.get('GCSQL_MYSQL_CLIENT_CERT_FILE',
+                                              ".key/mysql-client-cert.pem")
+GCSQL_MYSQL_CLIENT_KEY_FILE = os.environ.get('GCSQL_MYSQL_CLIENT_KEY_FILE',
+                                             ".key/mysql-client-key.pem")
+GCSQL_MYSQL_SERVER_CA_FILE = os.environ.get('GCSQL_MYSQL_SERVER_CA_FILE',
+                                            ".key/mysql-server-ca.pem")
 
 SQL = [
     'CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER)',
@@ -97,18 +100,28 @@ default_args = {
 
 # [START howto_operator_cloudsql_query_connections]
 
+HOME_DIR = expanduser("~")
+
+
+def get_absolute_path(path):
+    if path.startswith("/"):
+        return path
+    else:
+        return os.path.join(HOME_DIR, path)
+
+
 postgres_kwargs = dict(
-    user=quote_plus(POSTGRES_USER),
-    password=quote_plus(POSTGRES_PASSWORD),
-    public_port=POSTGRES_PUBLIC_PORT,
-    public_ip=quote_plus(POSTGRES_PUBLIC_IP),
-    project_id=quote_plus(PROJECT_ID),
-    location=quote_plus(LOCATION),
-    instance=quote_plus(POSTGRES_INSTANCE_NAME),
-    database=quote_plus(POSTGRES_DATABASE_NAME),
-    client_cert_file=quote_plus(POSTGRES_CLIENT_CERT_FILE),
-    client_key_file=quote_plus(POSTGRES_CLIENT_KEY_FILE),
-    server_ca_file=quote_plus(POSTGRES_SERVER_CA_FILE)
+    user=quote_plus(GCSQL_POSTGRES_USER),
+    password=quote_plus(GCSQL_POSTGRES_PASSWORD),
+    public_port=GCSQL_POSTGRES_PUBLIC_PORT,
+    public_ip=quote_plus(GCSQL_POSTGRES_PUBLIC_IP),
+    project_id=quote_plus(GCP_PROJECT_ID),
+    location=quote_plus(GCP_REGION),
+    instance=quote_plus(GCSQL_POSTGRES_INSTANCE_NAME_QUERY),
+    database=quote_plus(GCSQL_POSTGRES_DATABASE_NAME),
+    client_cert_file=quote_plus(get_absolute_path(GCSQL_POSTGRES_CLIENT_CERT_FILE)),
+    client_key_file=quote_plus(get_absolute_path(GCSQL_POSTGRES_CLIENT_KEY_FILE)),
+    server_ca_file=quote_plus(get_absolute_path(GCSQL_POSTGRES_SERVER_CA_FILE))
 )
 
 # The connections below are created using one of the standard approaches - via environment
@@ -161,17 +174,17 @@ os.environ['AIRFLOW_CONN_PUBLIC_POSTGRES_TCP_SSL'] = \
     .format(**postgres_kwargs)
 
 mysql_kwargs = dict(
-    user=quote_plus(MYSQL_USER),
-    password=quote_plus(MYSQL_PASSWORD),
-    public_port=MYSQL_PUBLIC_PORT,
-    public_ip=quote_plus(MYSQL_PUBLIC_IP),
-    project_id=quote_plus(PROJECT_ID),
-    location=quote_plus(LOCATION),
-    instance=quote_plus(MYSQL_INSTANCE_NAME),
-    database=quote_plus(MYSQL_DATABASE_NAME),
-    client_cert_file=quote_plus(MYSQL_CLIENT_CERT_FILE),
-    client_key_file=quote_plus(MYSQL_CLIENT_KEY_FILE),
-    server_ca_file=quote_plus(MYSQL_SERVER_CA_FILE)
+    user=quote_plus(GCSQL_MYSQL_USER),
+    password=quote_plus(GCSQL_MYSQL_PASSWORD),
+    public_port=GCSQL_MYSQL_PUBLIC_PORT,
+    public_ip=quote_plus(GCSQL_MYSQL_PUBLIC_IP),
+    project_id=quote_plus(GCP_PROJECT_ID),
+    location=quote_plus(GCP_REGION),
+    instance=quote_plus(GCSQL_MYSQL_INSTANCE_NAME_QUERY),
+    database=quote_plus(GCSQL_MYSQL_DATABASE_NAME),
+    client_cert_file=quote_plus(get_absolute_path(GCSQL_MYSQL_CLIENT_CERT_FILE)),
+    client_key_file=quote_plus(get_absolute_path(GCSQL_MYSQL_CLIENT_KEY_FILE)),
+    server_ca_file=quote_plus(get_absolute_path(GCSQL_MYSQL_SERVER_CA_FILE))
 )
 
 # MySQL: connect via proxy over TCP (specific proxy version)
@@ -243,17 +256,23 @@ connection_names = [
 
 tasks = []
 
+
 with models.DAG(
     dag_id='example_gcp_sql_query',
     default_args=default_args,
     schedule_interval=None
 ) as dag:
+    prev_task = None
+
     for connection_name in connection_names:
-        tasks.append(
-            CloudSqlQueryOperator(
-                gcp_cloudsql_conn_id=connection_name,
-                task_id="example_gcp_sql_task_" + connection_name,
-                sql=SQL
-            )
+        task = CloudSqlQueryOperator(
+            gcp_cloudsql_conn_id=connection_name,
+            task_id="example_gcp_sql_task_" + connection_name,
+            sql=SQL
         )
+        tasks.append(task)
+        if prev_task:
+            prev_task >> task
+        prev_task = task
+
 # [END howto_operator_cloudsql_query_operators]

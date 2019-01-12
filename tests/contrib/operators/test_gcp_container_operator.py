@@ -33,7 +33,7 @@ except ImportError:
     except ImportError:
         mock = None
 
-PROJECT_ID = 'test-id'
+TEST_GCP_PROJECT_ID = 'test-id'
 PROJECT_LOCATION = 'test-location'
 PROJECT_TASK_ID = 'test-task-id'
 CLUSTER_NAME = 'test-cluster-name'
@@ -55,7 +55,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_create_execute(self, mock_hook):
-        operator = GKEClusterCreateOperator(project_id=PROJECT_ID,
+        operator = GKEClusterCreateOperator(project_id=TEST_GCP_PROJECT_ID,
                                             location=PROJECT_LOCATION,
                                             body=PROJECT_BODY_CREATE,
                                             task_id=PROJECT_TASK_ID)
@@ -67,7 +67,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_create_execute_error_body(self, mock_hook):
         with self.assertRaises(AirflowException):
-            operator = GKEClusterCreateOperator(project_id=PROJECT_ID,
+            operator = GKEClusterCreateOperator(project_id=TEST_GCP_PROJECT_ID,
                                                 location=PROJECT_LOCATION,
                                                 body=None,
                                                 task_id=PROJECT_TASK_ID)
@@ -88,7 +88,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_create_execute_error_location(self, mock_hook):
         with self.assertRaises(AirflowException):
-            operator = GKEClusterCreateOperator(project_id=PROJECT_ID,
+            operator = GKEClusterCreateOperator(project_id=TEST_GCP_PROJECT_ID,
                                                 body=PROJECT_BODY,
                                                 task_id=PROJECT_TASK_ID)
 
@@ -97,7 +97,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute(self, mock_hook):
-        operator = GKEClusterDeleteOperator(project_id=PROJECT_ID,
+        operator = GKEClusterDeleteOperator(project_id=TEST_GCP_PROJECT_ID,
                                             name=CLUSTER_NAME,
                                             location=PROJECT_LOCATION,
                                             task_id=PROJECT_TASK_ID)
@@ -118,7 +118,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute_error_cluster_name(self, mock_hook):
         with self.assertRaises(AirflowException):
-            operator = GKEClusterDeleteOperator(project_id=PROJECT_ID,
+            operator = GKEClusterDeleteOperator(project_id=TEST_GCP_PROJECT_ID,
                                                 location=PROJECT_LOCATION,
                                                 task_id=PROJECT_TASK_ID)
 
@@ -128,7 +128,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEClusterHook')
     def test_delete_execute_error_location(self, mock_hook):
         with self.assertRaises(AirflowException):
-            operator = GKEClusterDeleteOperator(project_id=PROJECT_ID,
+            operator = GKEClusterDeleteOperator(project_id=TEST_GCP_PROJECT_ID,
                                                 name=CLUSTER_NAME,
                                                 task_id=PROJECT_TASK_ID)
 
@@ -138,7 +138,7 @@ class GoogleCloudPlatformContainerOperatorTest(unittest.TestCase):
 
 class GKEPodOperatorTest(unittest.TestCase):
     def setUp(self):
-        self.gke_op = GKEPodOperator(project_id=PROJECT_ID,
+        self.gke_op = GKEPodOperator(project_id=TEST_GCP_PROJECT_ID,
                                      location=PROJECT_LOCATION,
                                      cluster_name=CLUSTER_NAME,
                                      task_id=PROJECT_TASK_ID,
@@ -167,7 +167,7 @@ class GKEPodOperatorTest(unittest.TestCase):
 
         # Assert the gcloud command being called correctly
         proc_mock.assert_called_with(
-            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, PROJECT_ID).split())
+            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
 
@@ -197,7 +197,7 @@ class GKEPodOperatorTest(unittest.TestCase):
 
         # Assert the gcloud command being called correctly
         proc_mock.assert_called_with(
-            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, PROJECT_ID).split())
+            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
 
@@ -232,7 +232,7 @@ class GKEPodOperatorTest(unittest.TestCase):
 
         # Assert the gcloud command being called correctly
         proc_mock.assert_called_with(
-            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, PROJECT_ID).split())
+            GCLOUD_COMMAND.format(CLUSTER_NAME, PROJECT_LOCATION, TEST_GCP_PROJECT_ID).split())
 
         self.assertEqual(self.gke_op.config_file, FILE_NAME)
 

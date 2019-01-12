@@ -22,11 +22,12 @@ from parameterized import parameterized
 
 from airflow import AirflowException
 from airflow.contrib.operators.gcp_spanner_operator import \
-    CloudSpannerInstanceDeployOperator, CloudSpannerInstanceDeleteOperator, \
-    CloudSpannerInstanceDatabaseQueryOperator, CloudSpannerInstanceDatabaseDeployOperator, \
-    CloudSpannerInstanceDatabaseDeleteOperator, CloudSpannerInstanceDatabaseUpdateOperator
-from tests.contrib.operators.test_gcp_base import BaseGcpIntegrationTestCase, \
-    SKIP_TEST_WARNING, GCP_SPANNER_KEY
+    CloudSpannerInstanceDeployOperator, \
+    CloudSpannerInstanceDeleteOperator, \
+    CloudSpannerInstanceDatabaseQueryOperator, \
+    CloudSpannerInstanceDatabaseDeployOperator, \
+    CloudSpannerInstanceDatabaseDeleteOperator, \
+    CloudSpannerInstanceDatabaseUpdateOperator
 
 try:
     # noinspection PyProtectedMember
@@ -45,8 +46,8 @@ NODE_COUNT = '1'
 DISPLAY_NAME = 'Test Instance'
 INSERT_QUERY = "INSERT my_table1 (id, name) VALUES (1, 'One')"
 INSERT_QUERY_2 = "INSERT my_table2 (id, name) VALUES (1, 'One')"
-CREATE_QUERY = "CREATE TABLE my_table1 (id INT64, name STRING(MAX)) PRIMARY KEY (id)"
-CREATE_QUERY_2 = "CREATE TABLE my_table2 (id INT64, name STRING(MAX)) PRIMARY KEY (id)"
+CREATE_QUERY = "CREATE TABLE my_table1 (id INT64, name STRING(100)) PRIMARY KEY (id)"
+CREATE_QUERY_2 = "CREATE TABLE my_table2 (id INT64, name STRING(100)) PRIMARY KEY (id)"
 DDL_STATEMENTS = [CREATE_QUERY, CREATE_QUERY_2]
 
 
@@ -405,16 +406,3 @@ class CloudSpannerTest(unittest.TestCase):
         err = cm.exception
         self.assertIn("The required parameter '{}' is empty".format(exp_msg), str(err))
         mock_hook.assert_not_called()
-
-
-@unittest.skipIf(
-    BaseGcpIntegrationTestCase.skip_check(GCP_SPANNER_KEY), SKIP_TEST_WARNING)
-class CloudSpannerExampleDagsTest(BaseGcpIntegrationTestCase):
-    def __init__(self, method_name='runTest'):
-        super(CloudSpannerExampleDagsTest, self).__init__(
-            method_name,
-            dag_id='example_gcp_spanner',
-            gcp_key=GCP_SPANNER_KEY)
-
-    def test_run_example_dag_cloudsql_query(self):
-        self._run_dag()
