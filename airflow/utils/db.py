@@ -281,6 +281,14 @@ def initdb(rbac=False):
             conn_id='azure_cosmos_default', conn_type='azure_cosmos',
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }'))
     merge_conn(
+        models.Connection(
+            conn_id='azure_batchai_default', conn_type='azure_batch_ai',
+            extra='{"key_path": "<AZURE_AUTH_LOCATION>" }'))
+    merge_conn(
+        models.Connection(
+            conn_id='azure_cosmos_default', conn_type='azure_cosmos',
+            extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }'))
+    merge_conn(
         Connection(
             conn_id='azure_container_instances_default', conn_type='azure_container_instances',
             extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }'))
