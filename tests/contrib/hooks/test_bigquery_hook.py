@@ -22,7 +22,7 @@ import unittest
 
 from google.auth.exceptions import GoogleAuthError
 import mock
-from apiclient.errors import HttpError
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \

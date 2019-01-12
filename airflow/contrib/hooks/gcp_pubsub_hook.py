@@ -19,8 +19,8 @@
 
 from uuid import uuid4
 
-from apiclient.discovery import build
-from apiclient import errors
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
@@ -50,7 +50,7 @@ class PubSubHook(GoogleCloudBaseHook):
     def get_conn(self):
         """Returns a Pub/Sub service object.
 
-        :rtype: apiclient.discovery.Resource
+        :rtype: googleapiclient.discovery.Resource
         """
         http_authorized = self._authorize()
         return build(
@@ -75,7 +75,7 @@ class PubSubHook(GoogleCloudBaseHook):
             topic=full_topic, body=body)
         try:
             request.execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             raise PubSubException(
                 'Error publishing to topic {}'.format(full_topic), e)
 
@@ -97,7 +97,7 @@ class PubSubHook(GoogleCloudBaseHook):
         try:
             service.projects().topics().create(
                 name=full_topic, body={}).execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             # Status code 409 indicates that the topic already exists.
             if str(e.resp['status']) == '409':
                 message = 'Topic already exists: {}'.format(full_topic)
@@ -124,7 +124,7 @@ class PubSubHook(GoogleCloudBaseHook):
         full_topic = _format_topic(project, topic)
         try:
             service.projects().topics().delete(topic=full_topic).execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             # Status code 409 indicates that the topic was not found
             if str(e.resp['status']) == '404':
                 message = 'Topic does not exist: {}'.format(full_topic)
@@ -178,7 +178,7 @@ class PubSubHook(GoogleCloudBaseHook):
         try:
             service.projects().subscriptions().create(
                 name=full_subscription, body=body).execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             # Status code 409 indicates that the subscription already exists.
             if str(e.resp['status']) == '409':
                 message = 'Subscription already exists: {}'.format(
@@ -210,7 +210,7 @@ class PubSubHook(GoogleCloudBaseHook):
         try:
             service.projects().subscriptions().delete(
                 subscription=full_subscription).execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             # Status code 404 indicates that the subscription was not found
             if str(e.resp['status']) == '404':
                 message = 'Subscription does not exist: {}'.format(
@@ -255,7 +255,7 @@ class PubSubHook(GoogleCloudBaseHook):
             response = service.projects().subscriptions().pull(
                 subscription=full_subscription, body=body).execute()
             return response.get('receivedMessages', [])
-        except errors.HttpError as e:
+        except HttpError as e:
             raise PubSubException(
                 'Error pulling messages from subscription {}'.format(
                     full_subscription), e)
@@ -279,7 +279,7 @@ class PubSubHook(GoogleCloudBaseHook):
             service.projects().subscriptions().acknowledge(
                 subscription=full_subscription, body={'ackIds': ack_ids}
             ).execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             raise PubSubException(
                 'Error acknowledging {} messages pulled from subscription {}'
                 .format(len(ack_ids), full_subscription), e)

@@ -22,7 +22,7 @@ import base64
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 
 
 def _b64encode(s):
@@ -48,7 +48,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
         """
         Returns a KMS service object.
 
-        :rtype: apiclient.discovery.Resource
+        :rtype: googleapiclient.discovery.Resource
         """
         http_authorized = self._authorize()
         return build(

@@ -23,7 +23,7 @@ from __future__ import unicode_literals
 from base64 import b64encode as b64e
 import unittest
 
-from apiclient.errors import HttpError
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_pubsub_hook import PubSubException, PubSubHook
 

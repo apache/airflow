@@ -22,7 +22,7 @@ import datetime
 import unittest
 
 import httplib2
-from apiclient import errors
+from googleapiclient.errors import HttpError
 from mock import ANY, patch
 
 from airflow import DAG, configuration
@@ -85,7 +85,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             success_message['predictionInput'] = input_with_model
 
             hook_instance = mock_hook.return_value
-            hook_instance.get_job.side_effect = errors.HttpError(
+            hook_instance.get_job.side_effect = HttpError(
                 resp=httplib2.Response({
                     'status': 404
                 }), content=b'some bytes')
@@ -123,7 +123,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             success_message['predictionInput'] = input_with_version
 
             hook_instance = mock_hook.return_value
-            hook_instance.get_job.side_effect = errors.HttpError(
+            hook_instance.get_job.side_effect = HttpError(
                 resp=httplib2.Response({
                     'status': 404
                 }), content=b'some bytes')
@@ -161,7 +161,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             success_message['predictionInput'] = input_with_uri
 
             hook_instance = mock_hook.return_value
-            hook_instance.get_job.side_effect = errors.HttpError(
+            hook_instance.get_job.side_effect = HttpError(
                 resp=httplib2.Response({
                     'status': 404
                 }), content=b'some bytes')
@@ -238,13 +238,13 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
                 'projects/experimental/models/test_model'
 
             hook_instance = mock_hook.return_value
-            hook_instance.create_job.side_effect = errors.HttpError(
+            hook_instance.create_job.side_effect = HttpError(
                 resp=httplib2.Response({
                     'status': http_error_code
                 }),
                 content=b'Forbidden')
 
-            with self.assertRaises(errors.HttpError) as context:
+            with self.assertRaises(HttpError) as context:
                 prediction_task = MLEngineBatchPredictionOperator(
                     job_id='test_prediction',
                     project_id='test-project',
@@ -356,13 +356,13 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
         with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
             hook_instance = mock_hook.return_value
-            hook_instance.create_job.side_effect = errors.HttpError(
+            hook_instance.create_job.side_effect = HttpError(
                 resp=httplib2.Response({
                     'status': http_error_code
                 }),
                 content=b'Forbidden')
 
-            with self.assertRaises(errors.HttpError) as context:
+            with self.assertRaises(HttpError) as context:
                 training_op = MLEngineTrainingOperator(
                     **self.TRAINING_DEFAULT_ARGS)
                 training_op.execute(None)

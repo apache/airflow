@@ -20,7 +20,7 @@
 import time
 import uuid
 
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 from zope.deprecation import deprecation
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
