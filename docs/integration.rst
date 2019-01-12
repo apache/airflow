@@ -571,6 +571,13 @@ Logging
 Airflow can be configured to read and write task logs in Google Cloud Storage.
 See :ref:`write-logs-gcp`.
 
+GoogleCloudBaseHook
+'''''''''''''''''''
+
+.. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
+
+.. _GoogleCloudBaseHook:
+
 BigQuery
 ''''''''
 
@@ -1004,7 +1011,6 @@ GcfFunctionDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
-
 
 .. _GcfHook:
 
