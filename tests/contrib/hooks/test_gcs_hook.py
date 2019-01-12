@@ -24,7 +24,7 @@ import os
 import airflow.contrib.hooks.gcs_hook as gcs_hook
 
 from airflow.exceptions import AirflowException
-from apiclient.errors import HttpError
+from googleapiclient.errors import HttpError
 
 try:
     from unittest import mock

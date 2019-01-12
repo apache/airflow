@@ -34,8 +34,8 @@ from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from apiclient.discovery import HttpError, build
-from googleapiclient import errors
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from pandas_gbq.gbq import \
     _check_google_client_version as gbq_check_google_client_version
 from pandas_gbq import read_gbq
@@ -136,7 +136,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
                 projectId=project_id, datasetId=dataset_id,
                 tableId=table_id).execute()
             return True
-        except errors.HttpError as e:
+        except HttpError as e:
             if e.resp['status'] == '404':
                 return False
             raise

@@ -37,22 +37,24 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
     This class helps construct and authorize the credentials needed to then
-    call apiclient.discovery.build() to actually discover and build a client
+    call googleapiclient.discovery.build() to actually discover and build a client
     for a Google cloud service.
 
     The class also contains some miscellaneous helper functions.
 
     All hook derived from this base hook use the 'Google Cloud Platform' connection
-    type. Two ways of authentication are supported:
+    type. Three ways of authentication are supported:
 
     Default credentials: Only the 'Project Id' is required. You'll need to
     have set up default credentials, such as by the
     ``GOOGLE_APPLICATION_DEFAULT`` environment variable or from the metadata
     server on Google Compute Engine.
 
-    JSON key file: Specify 'Project Id', 'Key Path' and 'Scope'.
+    JSON key file: Specify 'Project Id', 'Keyfile Path' and 'Scope'.
 
     Legacy P12 key files are not supported.
+
+    JSON data provided in the UI: Specify 'Keyfile JSON'.
     """
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
