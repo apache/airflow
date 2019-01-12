@@ -3026,13 +3026,16 @@ class DagModel(Base):
         else:
             return self.default_view
 
-    def get_last_dagrun(self, include_externally_triggered=False):
+    @provide_session
+    def get_last_dagrun(self, include_externally_triggered=False, session=None):
         """
         Returns the last dag run for a dag, None if there was none.
         Last dag run can be any type of run eg. scheduled or backfilled.
         Overridden DagRuns are ignored.
         """
-        return DagRun.get_last_dagrun(self.dag_id, include_externally_triggered=include_externally_triggered)
+        return DagRun.get_last_dagrun(self.dag_id,
+                                      include_externally_triggered=include_externally_triggered,
+                                      session=session)
 
     @property
     def safe_dag_id(self):
@@ -3480,8 +3483,11 @@ class DAG(BaseDag, LoggingMixin):
 
         return dttm
 
-    def get_last_dagrun(self, include_externally_triggered=False):
-        return DagRun.get_last_dagrun(self.dag_id, include_externally_triggered=include_externally_triggered)
+    @provide_session
+    def get_last_dagrun(self, include_externally_triggered=False, session=None):
+        return DagRun.get_last_dagrun(self.dag_id,
+                                      include_externally_triggered=include_externally_triggered,
+                                      session=session)
 
     @property
     def dag_id(self):
