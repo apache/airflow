@@ -2,7 +2,7 @@
 
 set -e
 
-echo starting airflow with command:
+echo Starting Apache Airflow with command:
 echo airflow $@
 
 exec airflow $@
