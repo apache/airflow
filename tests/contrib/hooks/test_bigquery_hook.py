@@ -412,7 +412,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method = (mock_service.tables.return_value.patch)
         cursor = hook.BigQueryBaseCursor(mock_service, project_id)
         cursor.patch_table(
-            project_id, dataset_id, table_id,
+            dataset_id, table_id, project_id,
             description=description_patched,
             expiration_time=expiration_time_patched,
             friendly_name=friendly_name_patched,
@@ -452,7 +452,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         mock_service = mock.Mock()
         method = (mock_service.tables.return_value.patch)
         cursor = hook.BigQueryBaseCursor(mock_service, project_id)
-        cursor.patch_table(project_id, dataset_id, view_id, view=view_patched)
+        cursor.patch_table(dataset_id, view_id, project_id, view=view_patched)
         body = {
             'view': view_patched
         }
