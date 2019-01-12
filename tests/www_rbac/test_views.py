@@ -31,6 +31,7 @@ import urllib
 
 from datetime import timedelta
 from flask._compat import PY2
+from parameterized import parameterized
 from urllib.parse import quote_plus
 from werkzeug.test import Client
 
@@ -43,6 +44,7 @@ from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils import dates, timezone
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.www_rbac import app as application
@@ -592,17 +594,16 @@ class TestLogView(TestBase):
         self.app.config['WTF_CSRF_ENABLED'] = False
         self.client = self.app.test_client()
         settings.configure_orm()
-        self.session = Session
         self.login()
 
         from airflow.www_rbac.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         task = DummyOperator(task_id=self.TASK_ID, dag=dag)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
-        ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
-        ti.try_number = 1
-        self.session.merge(ti)
-        self.session.commit()
+        with create_session() as session:
+            self.ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
+            self.ti.try_number = 1
+            session.merge(self.ti)
 
     def tearDown(self):
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
@@ -614,14 +615,31 @@ class TestLogView(TestBase):
         self.logout()
         super(TestLogView, self).tearDown()
 
-    def test_get_file_task_log(self):
+    @parameterized.expand([
+        [State.NONE, 0, 0],
+        [State.UP_FOR_RETRY, 2, 2],
+        [State.UP_FOR_RESCHEDULE, 0, 1],
+        [State.UP_FOR_RESCHEDULE, 1, 2],
+        [State.RUNNING, 1, 1],
+        [State.SUCCESS, 1, 1],
+        [State.FAILED, 3, 3],
+    ])
+    def test_get_file_task_log(self, state, try_number, expected_num_logs_visible):
+        with create_session() as session:
+            self.ti.state = state
+            self.ti.try_number = try_number
+            session.merge(self.ti)
+
         response = self.client.get(
             TestLogView.ENDPOINT, data=dict(
                 username='test',
                 password='test'), follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Log by attempts',
-                      response.data.decode('utf-8'))
+        self.assertIn('Log by attempts', response.data.decode('utf-8'))
+        for num in range(1, expected_num_logs_visible + 1):
+            self.assertIn('try-{}'.format(num), response.data.decode('utf-8'))
+        self.assertNotIn('try-0', response.data.decode('utf-8'))
+        self.assertNotIn('try-{}'.format(expected_num_logs_visible + 1), response.data.decode('utf-8'))
 
     def test_get_logs_with_metadata_as_download_file(self):
         url_template = "get_logs_with_metadata?dag_id={}&" \
