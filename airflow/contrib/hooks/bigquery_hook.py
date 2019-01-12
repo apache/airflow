@@ -496,9 +496,9 @@ class BigQueryBaseCursor(LoggingMixin):
             )
 
     def patch_table(self,
-                    project_id,
                     dataset_id,
                     table_id,
+                    project_id=None,
                     description=None,
                     expiration_time=None,
                     external_data_configuration=None,
@@ -514,12 +514,12 @@ class BigQueryBaseCursor(LoggingMixin):
 
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
-        :param project_id: The project containing the table to be patched.
-        :type project_id: str
         :param dataset_id: The dataset containing the table to be patched.
         :type dataset_id: str
         :param table_id: The Name of the table to be patched.
         :type table_id: str
+        :param project_id: The project containing the table to be patched.
+        :type project_id: str
         :param description: [Optional] A user-friendly description of this table.
         :type description: str
         :param expiration_time: [Optional] The time when this table expires,
