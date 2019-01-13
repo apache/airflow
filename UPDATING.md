@@ -39,6 +39,68 @@ MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
 
 [redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
 
+### Change of two methods signatures in `GCPTransferServiceHook`
+
+The signature of the `create_transfer_job` method in `GCPTransferServiceHook`
+class has changed. The change does not change the behavior of the method.
+
+Old signature:
+```python
+def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
+```
+New signature:
+```python
+def create_transfer_job(self, body):
+```
+
+It is necessary to rewrite calls to method. The new call looks like this:
+```python
+body = {
+  'status': 'ENABLED',
+  'projectId': project_id,
+  'description': description,
+  'transferSpec': transfer_spec,
+  'schedule': schedule,
+}
+gct_hook.create_transfer_job(body)
+```
+The change results from the unification of all hooks and adjust to
+[the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
+for the Google Cloud Platform.
+
+The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
+
+Old signature:
+```python
+def wait_for_transfer_job(self, job):
+```
+New signature:
+```python
+def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS, )):
+```
+
+The behavior of `wait_for_transfer_job` has changed:
+
+Old behavior:
+
+`wait_for_transfer_job` would wait for the SUCCESS status in specified jobs operations.
+
+New behavior:
+
+You can now specify an array of expected statuses. `wait_for_transfer_job` now waits for any of them.
+
+The default value of `expected_statuses` is SUCCESS so that change is backwards compatible.
+
+### Moved two classes to different modules
+
+The class `GoogleCloudStorageToGoogleCloudStorageTransferOperator` has been moved from
+`airflow.contrib.operators.gcs_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+the class `S3ToGoogleCloudStorageTransferOperator` has been moved from  
+`airflow.contrib.operators.s3_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+The change was made to keep all the operators related to GCS Transfer Services in one file.
+
 ### New `dag_discovery_safe_mode` config option
 
 If `dag_discovery_safe_mode` is enabled, only check files for DAGs if

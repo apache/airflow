@@ -26,10 +26,15 @@ from google.api_core.exceptions import RetryError, AlreadyExists
 from google.cloud.exceptions import MovedPermanently
 
 from airflow import AirflowException, LoggingMixin
+from googleapiclient.errors import HttpError
+
+from airflow import AirflowException
 from airflow.contrib.hooks import gcp_api_base_hook as hook
 
 import google.auth
 from google.auth.exceptions import GoogleAuthError
+
+from airflow.hooks.base_hook import BaseHook
 
 try:
     from StringIO import StringIO
@@ -100,22 +105,36 @@ class TestCatchHttpException(unittest.TestCase):
 
         self.assertTrue(self.called)
 
+    def test_raise_http_error(self):
+        self.called = False
+
+        class FixtureClass(BaseHook):
+            @hook.GoogleCloudBaseHook.catch_http_exception
+            def test_fixtue(*args, **kwargs):
+                self.called = True
+                raise HttpError(mock.Mock(**{"reason.return_value": None}), b"CONTENT")
+
+        with self.assertRaises(AirflowException):
+            FixtureClass(None).test_fixtue()
+
+        self.assertTrue(self.called)
+
 
 class TestGoogleCloudBaseHook(unittest.TestCase):
     def setUp(self):
         self.instance = hook.GoogleCloudBaseHook()
 
-    @unittest.skipIf(
-        not default_creds_available,
-        'Default GCP credentials not available to run tests')
+    @unittest.skipIf(not default_creds_available, 'Default GCP credentials not available to run tests')
     def test_default_creds_with_scopes(self):
         self.instance.extras = {
             'extra__google_cloud_platform__project': default_project,
             'extra__google_cloud_platform__scope': (
-                ','.join((
-                    'https://www.googleapis.com/auth/bigquery',
-                    'https://www.googleapis.com/auth/devstorage.read_only',
-                ))
+                ','.join(
+                    (
+                        'https://www.googleapis.com/auth/bigquery',
+                        'https://www.googleapis.com/auth/devstorage.read_only',
+                    )
+                )
             ),
         }
 
