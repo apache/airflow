@@ -29,6 +29,26 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 10
 
 
+class GcpTransferJobsStatus:
+    ENABLED = "ENABLED"
+    DISABLED = "DISABLED"
+    DELETED = "DELETED"
+
+
+class GcpTransferOperationStatus:
+    IN_PROGRESS = "IN_PROGRESS"
+    PAUSED = "PAUSED"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    ABORTED = "ABORTED"
+
+
+class GcpTransferSource:
+    GCS = "GCS"
+    AWS_S3 = "AWS_S3"
+    HTTP = "HTTP"
+
+
 # noinspection PyAbstractClass
 class GCPTransferServiceHook(GoogleCloudBaseHook):
     """
@@ -56,15 +76,143 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
-        transfer_job = {
-            'status': 'ENABLED',
-            'projectId': project_id or self.project_id,
-            'description': description,
-            'transferSpec': transfer_spec,
-            'schedule': schedule or self._schedule_once_now(),
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_transfer_job(self,
+                            project_id,
+                            data_source,
+                            target_bucket_name,
+                            status=None,
+                            description=None,
+                            min_time_elapsed_since_last_modification=None,
+                            max_time_elapsed_since_last_modification=None,
+                            include_prefixes=None,
+                            exclude_prefixes=None,
+                            source_bucket_name=None,
+                            list_url=None,
+                            overwrite_objects_already_existing_in_sink=None,
+                            delete_objects_unique_in_sink=None,
+                            delete_objects_from_source_after_transfer=None,
+                            schedule_start_date=None,
+                            schedule_end_date=None,
+                            start_time_of_day=None,
+                            aws_access_key_id=None,
+                            aws_secret_access_key=None
+                            ):
+
+        transferSpec = {
+            "object_conditions": {
+                "min_time_elapsed_since_last_modification": min_time_elapsed_since_last_modification,
+                "max_time_elapsed_since_last_modification": max_time_elapsed_since_last_modification,
+                "include_prefixes": include_prefixes,
+                "exclude_prefixes": exclude_prefixes,
+            },
+            "transfer_options": {
+                "overwrite_objects_already_existing_in_sink": overwrite_objects_already_existing_in_sink,
+                "delete_objects_unique_in_sink": delete_objects_unique_in_sink,
+                "delete_objects_from_source_after_transfer": delete_objects_from_source_after_transfer
+            },
+            "gcs_data_sink": {
+                "gcs_data_sink": target_bucket_name
+            }
         }
-        return self.get_conn().transferJobs().create(body=transfer_job).execute()
+
+        if data_source == GcpTransferSource.GCS:
+            transferSpec["gcs_data_source"] = {
+                "bucket_name": source_bucket_name
+            }
+        elif data_source == GcpTransferSource.AWS_S3:
+            transferSpec["aws_s3_data_source"] = {
+                "bucket_name": source_bucket_name,
+                "aws_access_key": {
+                    "access_key_id": aws_access_key_id,
+                    "aws_secret_access_key": aws_secret_access_key
+                }
+            }
+        elif data_source == GcpTransferSource.HTTP:
+            transferSpec["http_data_source"] = {
+                "list_url": list_url
+            }
+        else:
+            raise AirflowException("The parameter 'data_source' received an "
+                                   "unexpected value %s. Allowed values: %s" %
+                                   (data_source, (GcpTransferSource.AWS_S3,
+                                                  GcpTransferSource.GCS,
+                                                  GcpTransferSource.HTTP)))
+
+        body = {
+            "description": description,
+            "project_id": project_id,
+            "transfer_spec": transferSpec,
+            "schedule": {
+                "schedule_start_date": {
+                    "year": schedule_start_date.year,
+                    "month": schedule_start_date.month,
+                    "day": schedule_start_date.day
+                },
+                "schedule_end_date": {
+                    "year": schedule_end_date.year,
+                    "month": schedule_end_date.month,
+                    "day": schedule_end_date.day
+                },
+                "start_time_of_day": {
+                    "hours": start_time_of_day.hour,
+                    "minutes": start_time_of_day.minutes,
+                    "seconds": start_time_of_day.seconds,
+                }
+            },
+            "status": status, # ENABLED/DISABLED
+        }
+        self.get_conn().transferOperations().create(body=body).execute()
+
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def update_transfer_job(self, project_id, job_name, description):
+        bdoy = {
+            "project_id": project_id,
+            "transfer_job": {
+                "description": "",
+                "transferSpec": {},
+                "status": GcpTransferJobsStatus.ENABLED
+            },
+            "update_transfer_job_field_mask": ""
+        }
+        self.get_conn().transferOperations().update(jobName=job_name, body=bdoy)
+
+    def cancel_transfer_operation(self, operation_name):
+        self.get_conn().transferOperations().cancel(name=operation_name)
+
+    def delete_transfer_operation(self, operation_name):
+        self.get_conn().transferOperations().delete(name=operation_name)
+
+    def get_transfer_operation(self,  operation_name):
+        return self.get_conn().transferOperations().list(name=operation_name)
+
+    def list_transfer_operations(self, operation_name):
+        conn = self.get_conn()
+
+        operations = []
+
+        request = conn.transferOperations().list(name=operation_name)
+        while request is not None:
+            response = request.execute()
+            operations.extend(response['operations'])
+
+            request = conn.transferOperations().list_next(
+                previous_request=request,
+                previous_response=response)
+
+        return operations
+
+    def pause_transfer_operation(self,  operation_name):
+        self.get_conn()\
+            .transferOperations()\
+            .pause(name=operation_name)\
+            .execute()
+
+    def resume_transfer_operation(self,  operation_name):
+        self.get_conn()\
+            .transferOperations()\
+            .resume(name=operation_name)\
+            .execute()
 
     def wait_for_transfer_job(self, job):
         while True:
@@ -75,33 +223,25 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
                     'job_names': [job['name']],
                 }),
             ).execute()
-            if self._check_operations_result(result):
+            if GCPTransferServiceHook._check_operations_result(result):
                 return True
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 
-    def _check_operations_result(self, result):
+    @staticmethod
+    def _check_operations_result(result):
         operations = result.get('operations', [])
         if len(operations) == 0:
             return False
         for operation in operations:
-            if operation['metadata']['status'] in {'FAILED', 'ABORTED'}:
+            status = operation['metadata']['status']
+            if status in {
+                GcpTransferOperationStatus.FAILED,
+                GcpTransferOperationStatus.ABORTED
+            }:
+                name = operation['name']
+                # TODO: Better error message
                 raise AirflowException('Operation {} {}'.format(
-                    operation['name'], operation['metadata']['status']))
-            if operation['metadata']['status'] != 'SUCCESS':
+                    name, status))
+            if status != GcpTransferOperationStatus.SUCCESS:
                 return False
         return True
-
-    def _schedule_once_now(self):
-        now = datetime.datetime.utcnow()
-        return {
-            'scheduleStartDate': {
-                'day': now.day,
-                'month': now.month,
-                'year': now.year,
-            },
-            'scheduleEndDate': {
-                'day': now.day,
-                'month': now.month,
-                'year': now.year,
-            }
-        }
