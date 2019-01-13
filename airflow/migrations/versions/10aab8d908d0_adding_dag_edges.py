@@ -53,9 +53,11 @@ def upgrade():
     op.add_column(
         "task_instance", sa.Column("ui_fgcolor", sa.String(10), nullable=True)
     )
+    op.add_column("dag", sa.Column("parent_dag", sa.String(250), nullable=True))
 
 
 def downgrade():
     op.drop_table("dag_edge")
     op.drop_column("task_instance", "ui_color")
     op.drop_column("task_instance", "ui_fgcolor")
+    op.drop_column("dag", "parent_dag")

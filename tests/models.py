@@ -1341,8 +1341,40 @@ class DagModelTest(unittest.TestCase):
         orm_dag = DagModel(dag_id=dag_id,
                            fileloc=os.path.join(TEST_DAGS_FOLDER, "{}.py".format(dag_id)))
         dag = orm_dag.get_dag()
-        self.assertEqual(dag.dag_id, dag_id)
         self.assertIsInstance(dag, DAG)
+        self.assertEqual(dag.dag_id, dag_id)
+
+    def test_get_sub_dag_same_file(self):
+        dag_id = "impersonation_subdag"
+        orm_dag = DagModel(dag_id=dag_id,
+                           fileloc=os.path.join(TEST_DAGS_FOLDER, "test_{}.py".format(dag_id)))
+        dag = orm_dag.get_dag()
+        dag.sync_to_db()
+        self.assertIsInstance(dag, DAG)
+        self.assertEqual(dag.dag_id, dag_id)
+
+        subdag_id = "impersonation_subdag.test_subdag_operation"
+        orm_sub_dag = DagModel.get_dagmodel(subdag_id)
+        sub_dag = orm_sub_dag.get_dag()
+        self.assertIsInstance(sub_dag, DAG)
+        self.assertEqual(sub_dag.dag_id, subdag_id)
+
+    def test_get_sub_dag_other_file(self):
+        from airflow.example_dags import example_subdag_operator
+        file = example_subdag_operator.__file__
+        dag_id = "example_subdag_operator"
+        orm_dag = DagModel(dag_id=dag_id,
+                           fileloc=file)
+        dag = orm_dag.get_dag()
+        dag.sync_to_db()
+        self.assertIsInstance(dag, DAG)
+        self.assertEqual(dag.dag_id, dag_id)
+
+        subdag_id = "example_subdag_operator.section-1"
+        orm_sub_dag = DagModel.get_dagmodel(subdag_id)
+        sub_dag = orm_sub_dag.get_dag()
+        self.assertIsInstance(sub_dag, DAG)
+        self.assertEqual(sub_dag.dag_id, subdag_id)
 
 
 class DagBagTest(unittest.TestCase):

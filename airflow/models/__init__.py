@@ -453,7 +453,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             for subdag in subdags:
                 subdag.full_filepath = dag.full_filepath
                 subdag.parent_dag = dag
-                subdag.is_subdag = True
                 self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
 
             self.dags[dag.dag_id] = dag
@@ -2981,6 +2980,8 @@ class DagModel(Base):
     is_subdag = Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
     is_active = Column(Boolean, default=False)
+    # parent dag, if set this dag is a subdag
+    parent_dag = Column(String(ID_LEN))
     # Last time the scheduler started
     last_scheduler_run = Column(UtcDateTime)
     # Last time this DAG was pickled
@@ -3042,7 +3043,20 @@ class DagModel(Base):
         return self.dag_id.replace('.', '__dot__')
 
     def get_dag(self):
-        return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+        if self.is_subdag:
+            root_dag, path = self._get_nested_path_dag()
+            dagbag = DagBag(dag_folder=root_dag.fileloc)
+            return dagbag.get_dag(self.dag_id)
+        else:
+            return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+
+    def _get_nested_path_dag(self, _path=None):
+        if _path is None:
+            _path = []
+        if self.is_subdag:
+            _path.insert(0, self.dag_id)
+            return self.get_dagmodel(self.parent_dag)._get_nested_path_dag(_path)
+        else: return self, _path
 
     @provide_session
     def create_dagrun(self,
@@ -4286,8 +4300,11 @@ class DAG(BaseDag, LoggingMixin):
         if not orm_dag:
             orm_dag = DagModel(dag_id=self.dag_id)
             self.log.info("Creating ORM DAG for %s", self.dag_id)
-        orm_dag.fileloc = self.fileloc
-        orm_dag.is_subdag = self.is_subdag
+        if self.is_subdag:
+            orm_dag.parent_dag = self.parent_dag.dag_id
+            orm_dag.is_subdag = True
+        else:
+            orm_dag.fileloc = self.fileloc
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
