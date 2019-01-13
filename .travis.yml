@@ -35,15 +35,18 @@ env:
     - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
 
 stages:
-  - flake8
+  - pre-test
   - test
 
 jobs:
   include:
-    - stage: flake8
-      name: Flake8
+    - name: Flake8
+      stage: pre-test
       script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
       env: TOX_ENV=flake8
+    - name: Check license header
+      stage: pre-test
+      script: scripts/ci/6-check-license.sh
 
 cache:
   directories:

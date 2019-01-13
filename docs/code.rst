@@ -243,6 +243,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
 .. autoclass:: airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor
 .. autoclass:: airflow.contrib.sensors.cassandra_table_sensor.CassandraTableSensor
+.. autoclass:: airflow.contrib.sensors.celery_queue_sensor.CeleryQueueSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
 .. autoclass:: airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor
 .. autoclass:: airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor
