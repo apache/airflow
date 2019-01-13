@@ -41,7 +41,7 @@ else
 fi
 
 cd $AIRFLOW_ROOT
-docker run -ti --rm -e SLUGIFY_USES_TEXT_UNIDECODE -v ${AIRFLOW_ROOT}:/airflow \
+docker run -ti --rm -v ${AIRFLOW_ROOT}:/airflow \
     -w /airflow ${PYTHON_DOCKER_IMAGE} ./scripts/ci/kubernetes/docker/compile.sh \
 
 sudo rm -rf ${AIRFLOW_ROOT}/airflow/www_rbac/node_modules

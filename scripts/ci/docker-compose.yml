@@ -67,7 +67,6 @@ services:
     init: true
     environment:
       - USER=airflow
-      - SLUGIFY_USES_TEXT_UNIDECODE=yes
       - TOX_ENV
       - PYTHON_VERSION
       - CI

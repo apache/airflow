@@ -17,8 +17,6 @@
 
 FROM ubuntu:16.04
 
-ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
-
 # install deps
 RUN apt-get update -y && apt-get install -y \
         wget \
