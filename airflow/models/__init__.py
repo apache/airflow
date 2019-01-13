@@ -3013,7 +3013,7 @@ class DagModel(Base):
     @staticmethod
     @provide_session
     def get_dagmodel(dag_id, session=None):
-        session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+        return session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
 
     @classmethod
     @provide_session
