@@ -121,7 +121,7 @@ There are three ways to setup an Apache Airflow development environment.
 
   ```
   # Start docker in your Airflow directory
-  docker run -t -i -v `pwd`:/airflow/ -w /airflow/ -e SLUGIFY_USES_TEXT_UNIDECODE=yes python:2 bash
+  docker run -t -i -v `pwd`:/airflow/ -w /airflow/ python:2 bash
 
   # Go to the Airflow directory
   cd /airflow/
