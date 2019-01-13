@@ -32,4 +32,4 @@ Make sure you have checked _all_ steps below.
 
 ### Code Quality
 
-- [ ] Passes `flake8`
+- [ ] Passes `Pylint`

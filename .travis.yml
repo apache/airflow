@@ -40,10 +40,12 @@ stages:
 
 jobs:
   include:
-    - name: Flake8
+    - name: Pylint
       stage: pre-test
-      script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
-      env: TOX_ENV=flake8
+      install:
+        - pip install diff-cover pylint>=2.2.2  # Note: match the version in setup.py!
+        - git fetch origin master:refs/remotes/origin/master
+      script: diff-quality --violations=pylint --fail-under=100 --options="--output-format=colorized"
     - name: Check license header
       stage: pre-test
       script: scripts/ci/6-check-license.sh

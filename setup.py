@@ -248,7 +248,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8>=3.6.0',
+    'pylint>=2.2.2',  # Note: match the version in .travis.yml!
 ]
 
 if not PY3:
