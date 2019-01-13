@@ -15,8 +15,8 @@
 # limitations under the License.
 
 FROM python:3.6-slim
-COPY setup.* /opt/airflow/
-COPY airflow /opt/airflow/airflow
+
+COPY . /opt/airflow/
 
 ARG AIRFLOW_HOME=/usr/local/airflow
 ARG AIRFLOW_DEPS="all"
