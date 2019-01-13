@@ -3056,7 +3056,8 @@ class DagModel(Base):
         if self.is_subdag:
             _path.insert(0, self.dag_id)
             return self.get_dagmodel(self.parent_dag)._get_nested_path_dag(_path)
-        else: return self, _path
+        else:
+            return self, _path
 
     @provide_session
     def create_dagrun(self,
