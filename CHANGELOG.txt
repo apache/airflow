@@ -124,6 +124,11 @@ Improvements:
 [AIRFLOW-3301] Update DockerOperator CI test for PR #3977 (#4138)
 [AIRFLOW-3478] Make sure that the session is closed
 [AIRFLOW-3687] Add missing @apply_defaults decorators (#4498)
+[AIRFLOW-3691] Update notice to 2019 (#4503)
+[AIRFLOW-3689] Update pop-up message when deleting DAG in RBAC UI (#4505)
+[AIRFLOW-2801] Skip test_mark_success_no_kill in PostgreSQL on CI (#3642)
+[AIRFLOW-3692] Remove ENV variables to avoid GPL (#4506)
+[AIRFLOW-3693] Replace psycopg2-binary by psycopg2 (#4508)
 
 Bug fixes:
 
@@ -191,6 +196,7 @@ Bug fixes:
 [AIRFLOW-3239] Fix/refine tests for api/common/experimental/ (#4255)
 [AIRFLOW-2951] Update dag_run table end_date when state change (#3798)
 [AIRFLOW-2756] Fix bug in set DAG run state workflow (#3606)
+[AIRFLOW-3690] Fix bug to set state of a task for manually-triggered DAGs (#4504)
 
 Doc-only changes:
 
@@ -209,6 +215,10 @@ Doc-only changes:
 [AIRFLOW-XXX] Add `BigQueryGetDataOperator` to Integration Docs (#4063)
 [AIRFLOW-XXX] Don't spam test logs with "bad cron expression" messages (#3973)
 [AIRFLOW-XXX] Update committer list based on latest TLP discussion (#4427)
+[AIRFLOW-XXX] Fix incorrect statement in contributing guide (#4104)
+[AIRFLOW-XXX] Fix Broken Link in CONTRIBUTING.md
+[AIRFLOW-XXX] Update Contributing Guide - Git Hooks (#4120)
+[AIRFLOW-3426] Correct Python Version Documentation Reference (#4259)
 
 AIRFLOW 1.10.1, 2018-11-13
 
