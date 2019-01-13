@@ -1268,7 +1268,13 @@ class TaskInstance(Base, LoggingMixin):
         msg = "Starting attempt {attempt} of {total}".format(
             attempt=self.try_number,
             total=self.max_tries + 1)
+
+        # Set the task start date. In case it was re-scheduled use the initial
+        # start date that is recorded in task_reschedule table
         self.start_date = timezone.utcnow()
+        task_reschedules = TaskReschedule.find_for_task_instance(self, session)
+        if task_reschedules:
+            self.start_date = task_reschedules[0].start_date
 
         dep_context = DepContext(
             deps=RUN_DEPS - QUEUE_DEPS,
@@ -1362,6 +1368,7 @@ class TaskInstance(Base, LoggingMixin):
         self.operator = task.__class__.__name__
 
         context = {}
+        actual_start_date = timezone.utcnow()
         try:
             if not mark_success:
                 context = self.get_template_context()
@@ -1411,7 +1418,7 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
-            self._handle_reschedule(reschedule_exception, test_mode, context)
+            self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
             return
         except AirflowException as e:
             self.refresh_from_db()
@@ -1483,7 +1490,7 @@ class TaskInstance(Base, LoggingMixin):
         task_copy.dry_run()
 
     @provide_session
-    def _handle_reschedule(self, reschedule_exception, test_mode=False, context=None,
+    def _handle_reschedule(self, actual_start_date, reschedule_exception, test_mode=False, context=None,
                            session=None):
         # Don't record reschedule request in test mode
         if test_mode:
@@ -1494,7 +1501,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Log reschedule request
         session.add(TaskReschedule(self.task, self.execution_date, self._try_number,
-                    self.start_date, self.end_date,
+                    actual_start_date, self.end_date,
                     reschedule_exception.reschedule_date))
 
         # set state

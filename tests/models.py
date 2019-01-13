@@ -37,8 +37,10 @@ import pendulum
 import six
 from mock import ANY, Mock, mock_open, patch
 from parameterized import parameterized
+from freezegun import freeze_time
 
 from airflow import AirflowException, configuration, models, settings
+from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
@@ -46,6 +48,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
 from airflow.models import State as ST
+from airflow.models import TaskReschedule as TR
 from airflow.models import XCom
 from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
@@ -1821,6 +1824,12 @@ class DagBagTest(unittest.TestCase):
 
 class TaskInstanceTest(unittest.TestCase):
 
+    def tearDown(self):
+        with create_session() as session:
+            session.query(models.TaskFail).delete()
+            session.query(models.TaskReschedule).delete()
+            session.query(models.TaskInstance).delete()
+
     def test_set_task_dates(self):
         """
         Test that tasks properly take start/end dates from DAGs
@@ -2190,6 +2199,102 @@ class TaskInstanceTest(unittest.TestCase):
         ti.try_number = 50
         dt = ti.next_retry_datetime()
         self.assertEqual(dt, ti.end_date + max_delay)
+
+    @patch.object(TI, 'pool_full')
+    def test_reschedule_handling(self, mock_pool_full):
+        """
+        Test that task reschedules are handled properly
+        """
+        # Mock the pool with a pool with slots open since the pool doesn't actually exist
+        mock_pool_full.return_value = False
+
+        # Return values of the python sensor callable, modified during tests
+        done = False
+        fail = False
+
+        def callable():
+            if fail:
+                raise AirflowException()
+            return done
+
+        dag = models.DAG(dag_id='test_reschedule_handling')
+        task = PythonSensor(
+            task_id='test_reschedule_handling_sensor',
+            poke_interval=0,
+            mode='reschedule',
+            python_callable=callable,
+            retries=1,
+            retry_delay=datetime.timedelta(seconds=0),
+            dag=dag,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        self.assertEqual(ti._try_number, 0)
+        self.assertEqual(ti.try_number, 1)
+
+        def run_ti_and_assert(run_date, expected_start_date, expected_end_date, expected_duration,
+                              expected_state, expected_try_number, expected_task_reschedule_count):
+            with freeze_time(run_date):
+                try:
+                    ti.run()
+                except AirflowException:
+                    if not fail:
+                        raise
+            ti.refresh_from_db()
+            self.assertEqual(ti.state, expected_state)
+            self.assertEqual(ti._try_number, expected_try_number)
+            self.assertEqual(ti.try_number, expected_try_number + 1)
+            self.assertEqual(ti.start_date, expected_start_date)
+            self.assertEqual(ti.end_date, expected_end_date)
+            self.assertEqual(ti.duration, expected_duration)
+            trs = TR.find_for_task_instance(ti)
+            self.assertEqual(len(trs), expected_task_reschedule_count)
+
+        date1 = timezone.utcnow()
+        date2 = date1 + datetime.timedelta(minutes=1)
+        date3 = date2 + datetime.timedelta(minutes=1)
+        date4 = date3 + datetime.timedelta(minutes=1)
+
+        # Run with multiple reschedules.
+        # During reschedule the try number remains the same, but each reschedule is recorded.
+        # The start date is expected to remain the inital date, hence the duration increases.
+        # When finished the try number is incremented and there is no reschedule expected
+        # for this try.
+
+        done, fail = False, False
+        run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 0, 1)
+
+        done, fail = False, False
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RESCHEDULE, 0, 2)
+
+        done, fail = False, False
+        run_ti_and_assert(date3, date1, date3, 120, State.UP_FOR_RESCHEDULE, 0, 3)
+
+        done, fail = True, False
+        run_ti_and_assert(date4, date1, date4, 180, State.SUCCESS, 1, 0)
+
+        # Clear the task instance.
+        dag.clear()
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.NONE)
+        self.assertEqual(ti._try_number, 1)
+
+        # Run again after clearing with reschedules and a retry.
+        # The retry increments the try number, and for that try no reschedule is expected.
+        # After the retry the start date is reset, hence the duration is also reset.
+
+        done, fail = False, False
+        run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
+
+        done, fail = False, True
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 2, 0)
+
+        done, fail = False, False
+        run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
+
+        done, fail = True, False
+        run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
     def test_depends_on_past(self):
         dagbag = models.DagBag()
