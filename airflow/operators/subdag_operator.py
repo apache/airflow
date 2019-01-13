@@ -92,6 +92,7 @@ class SubDagOperator(BaseOperator):
 
         self.subdag = subdag
         self.subdag.is_subdag = True
+        self.subdag.parent_dag = dag
         # Airflow pool is not honored by SubDagOperator.
         # Hence resources could be consumed by SubdagOperators
         # Use other executor with your own risk.
