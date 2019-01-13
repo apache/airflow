@@ -108,6 +108,12 @@ class CoreTest(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
+        session = Session()
+        session.query(models.DagRun).delete()
+        session.query(models.TaskInstance).delete()
+        session.commit()
+        session.close()
+
         configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
@@ -1805,6 +1811,11 @@ class SecurityTests(unittest.TestCase):
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
+        session = Session()
+        session.query(models.DagRun).delete()
+        session.query(models.TaskInstance).delete()
+        session.commit()
+        session.close()
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
