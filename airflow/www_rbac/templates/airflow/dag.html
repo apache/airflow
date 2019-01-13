@@ -362,6 +362,7 @@ function updateQueryStringParameter(uri, key, value) {
     function confirmDeleteDag(dag_id){
         return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
           This option will delete ALL metadata, DAG runs, etc.\n\
+          EXCEPT Log.\n\
           This cannot be undone.");
     }
 
