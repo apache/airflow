@@ -225,6 +225,7 @@ Doc-only changes
 - [AIRFLOW-XXX] Remove redundant space in Kerberos (#3866)
 - [AIRFLOW-3086] Add extras group for google auth to setup.py (#3917)
 - [AIRFLOW-XXX] Add Kubernetes Dependency in Extra Packages Doc (#4281)
+- [AIRFLOW-3696] Add Version info to Airflow Documentation (#4512)
 
 Airflow 1.10.1, 2018-11-13
 --------------------------
