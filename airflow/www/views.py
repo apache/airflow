@@ -1194,6 +1194,9 @@ class Airflow(BaseView):
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
         orm_dag = models.DagModel.get_dagmodel(dag_id)
+        if not orm_dag:
+            flash("Dag '{}' does not exist".format(dag_id), 'error')
+            return redirect(origin)
         dag = orm_dag.get_dag()
         if task_id not in dag.task_dict:
             flash("Task '{}' does not exist in '{}' anymore".format(task_id, orm_dag.fileloc), 'error')
