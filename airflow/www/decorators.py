@@ -19,10 +19,10 @@
 
 import gzip
 import functools
-import pendulum
 from io import BytesIO as IO
 from flask import after_this_request, redirect, request, url_for, g
 from airflow import models
+from airflow.utils import timezone
 from airflow.utils.db import create_session
 
 
@@ -48,7 +48,7 @@ def action_logging(f):
                 dag_id=request.args.get('dag_id'))
 
             if 'execution_date' in request.args:
-                log.execution_date = pendulum.parse(
+                log.execution_date = timezone.parse(
                     request.args.get('execution_date'))
 
             session.add(log)

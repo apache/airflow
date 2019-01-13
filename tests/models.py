@@ -2535,7 +2535,7 @@ class TaskInstanceTest(unittest.TestCase):
             keep_blank_values=True, strict_parsing=True)
         self.assertEqual(d['dag_id'][0], 'dag')
         self.assertEqual(d['task_id'][0], 'op')
-        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
+        self.assertEqual(timezone.parse(d['execution_date'][0]), now)
 
     def test_overwrite_params_with_dag_run_conf(self):
         task = DummyOperator(task_id='op')
