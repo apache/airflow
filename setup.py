@@ -21,6 +21,7 @@ from setuptools import setup, find_packages, Command
 from setuptools.command.test import test as TestCommand
 
 import imp
+import io
 import logging
 import os
 import sys
@@ -33,6 +34,9 @@ version = imp.load_source(
     'airflow.version', os.path.join('airflow', 'version.py')).version
 
 PY3 = sys.version_info[0] == 3
+
+with io.open('README.md', encoding='utf-8') as f:
+    long_description = f.read()
 
 
 # See LEGAL-362
@@ -291,6 +295,8 @@ def do_setup():
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
+        long_description=long_description,
+        long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
