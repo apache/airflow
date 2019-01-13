@@ -1327,6 +1327,24 @@ class DagRunTest(unittest.TestCase):
         self.assertEquals(State.NONE, flaky_ti.state)
 
 
+class DagModelTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.empty_dir = mkdtemp()
+
+    @classmethod
+    def tearDownClass(cls):
+        os.rmdir(cls.empty_dir)
+
+    def test_get_dag(self):
+        dag_id = "test_example_bash_operator"
+        orm_dag = DagModel(dag_id=dag_id,
+                           fileloc=os.path.join(TEST_DAGS_FOLDER, "{}.py".format(dag_id)))
+        dag = orm_dag.get_dag()
+        self.assertEqual(dag.dag_id, dag_id)
+        self.assertIsInstance(dag, DAG)
+
+
 class DagBagTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
