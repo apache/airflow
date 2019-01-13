@@ -52,7 +52,6 @@ Improvements:
 [AIRFLOW-3246] Make hmsclient optional in airflow.hooks.hive_hooks (#4080)
 [AIRFLOW-3059] Log how many rows are read from Postgres (#3905)
 [AIRFLOW-2463] Make task instance context available for hive queries
-[AIRFLOW-3190] Make flake8 compliant
 [AIRFLOW-3190] Make flake8 compliant (#4035)
 [AIRFLOW-1998] Implemented DatabricksRunNowOperator for jobs/run-now … (#3813)
 [AIRFLOW-2267] Airflow DAG level access (#3197)
@@ -84,7 +83,6 @@ Improvements:
 [AIRFLOW-491] Add feature to pass extra api configs to BQ Hook (#3733)
 [AIRFLOW-2889] Fix typos detected by github.com/client9/misspell (#3732)
 [AIRFLOW-850] Add a PythonSensor (#4349)
-[AIRFLOW-3246] Make hmsclient optional in airflow.hooks.hive_hooks (#4080)
 [AIRFLOW-2747] Explicit re-schedule of sensors (#3596)
 [AIRFLOW-3392] Add index on dag_id in sla_miss table (#4235)
 [AIRFLOW-3001] Add index 'ti_dag_date' to taskinstance (#3885)
@@ -97,7 +95,6 @@ Improvements:
 [AIRFLOW-2785] Add context manager entry points to mongoHook
 [AIRFLOW-2524] Add SageMaker doc to AWS integration section (#4278)
 [AIRFLOW-3479] Keeps records in Log Table when DAG is deleted (#4287)
-[AIRFLOW-2524] Add SageMaker doc to AWS integration section (#4278)
 [AIRFLOW-2948] Arg check & better doc - SSHOperator & SFTPOperator (#3793)
 [AIRFLOW-2245] Add remote_host of SSH/SFTP operator as templated field (#3765)
 [AIRFLOW-2670] Update SSH Operator's Hook to respect timeout (#3666)
