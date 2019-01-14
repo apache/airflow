@@ -108,14 +108,14 @@ class CoreTest(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
     def clear_db(self):
-        self.clear_db()
-
-    def setUp(self):
         session = Session()
         session.query(models.DagRun).delete()
         session.query(models.TaskInstance).delete()
         session.commit()
         session.close()
+
+    def setUp(self):
+        self.clear_db()
 
         configuration.conf.load_test_config()
         self.dagbag = models.DagBag(
