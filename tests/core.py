@@ -111,6 +111,7 @@ class CoreTest(unittest.TestCase):
         session = Session()
         session.query(models.DagRun).delete()
         session.query(models.TaskInstance).delete()
+        session.query(models.DagEdge).delete()
         session.commit()
         session.close()
 
