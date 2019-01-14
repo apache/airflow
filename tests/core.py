@@ -107,6 +107,9 @@ class OperatorSubclass(BaseOperator):
 class CoreTest(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
+    def clear_db(self):
+        self.clear_db()
+
     def setUp(self):
         session = Session()
         session.query(models.DagRun).delete()
@@ -977,6 +980,7 @@ class CoreTest(unittest.TestCase):
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
     def test_trigger_dagrun_with_execution_date(self):
+        self.clear_db()
         utc_now = timezone.utcnow()
         run_id = 'trig__' + utc_now.isoformat()
 
@@ -997,6 +1001,7 @@ class CoreTest(unittest.TestCase):
         self.assertEquals(dag_run.execution_date, utc_now)
 
     def test_trigger_dagrun_with_str_execution_date(self):
+        self.clear_db()
         utc_now_str = timezone.utcnow().isoformat()
         self.assertIsInstance(utc_now_str, six.string_types)
         run_id = 'trig__' + utc_now_str
