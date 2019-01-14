@@ -95,6 +95,13 @@
         </a>
       </li>
       <li>
+        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin="/tree?dag_id="+dag.dag_id) }}"
+          onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
+          <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
+          Trigger DAG
+        </a>
+      </li>
+      <li>
         <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh">
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
           Refresh
@@ -357,6 +364,10 @@ function updateQueryStringParameter(uri, key, value) {
       $('#dag_id').html(dag_id);
       $('#dagModal').modal({});
       $("#dagModal").css("margin-top","0px");
+    }
+
+    function confirmTriggerDag(dag_id){
+        return confirm("Are you sure you want to run '"+dag_id+"' now?");
     }
 
     function confirmDeleteDag(dag_id){
