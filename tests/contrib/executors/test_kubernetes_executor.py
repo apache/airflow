@@ -247,7 +247,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                                         )
 
         pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), "bash -c 'ls /'",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
                                      kube_executor_config)
 
         self.assertTrue(pod.affinity['podAntiAffinity'] is not None)
@@ -271,7 +271,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                                         )
 
         pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
-                                     "test_task_id", str(datetime.utcnow()), "bash -c 'ls /'",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
                                      kube_executor_config)
 
         self.assertTrue(pod.affinity['podAntiAffinity'] is not None)
