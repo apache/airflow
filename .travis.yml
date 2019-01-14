@@ -19,6 +19,8 @@
 sudo: true
 dist: trusty
 language: python
+python:
+  - "3.6"
 env:
   global:
     - DOCKER_COMPOSE_VERSION=1.20.0
@@ -42,8 +44,7 @@ jobs:
   include:
     - name: Flake8
       stage: pre-test
-      script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
-      env: TOX_ENV=flake8
+      script: pip install flake8 && flake8
     - name: Check license header
       stage: pre-test
       script: scripts/ci/6-check-license.sh
