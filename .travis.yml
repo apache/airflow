@@ -25,7 +25,6 @@ env:
     - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
-    - TOX_ENV=flake8
     - TOX_ENV=py27-backend_mysql-env_docker
     - TOX_ENV=py27-backend_sqlite-env_docker
     - TOX_ENV=py27-backend_postgres-env_docker
@@ -34,6 +33,20 @@ env:
     - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
     - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
     - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
+
+stages:
+  - pre-test
+  - test
+
+jobs:
+  include:
+    - name: Flake8
+      stage: pre-test
+      script: docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
+      env: TOX_ENV=flake8
+    - name: Check license header
+      stage: pre-test
+      script: scripts/ci/6-check-license.sh
 
 cache:
   directories:

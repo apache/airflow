@@ -225,7 +225,7 @@ class BranchOperatorTest(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
-                raise
+                raise Exception
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
@@ -258,7 +258,7 @@ class BranchOperatorTest(unittest.TestCase):
             if ti.task_id in expected:
                 self.assertEquals(ti.state, expected[ti.task_id])
             else:
-                raise
+                raise Exception
 
     def test_with_dag_run(self):
         self.branch_op = BranchPythonOperator(task_id='make_choice',
@@ -287,7 +287,7 @@ class BranchOperatorTest(unittest.TestCase):
             elif ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
-                raise
+                raise Exception
 
 
 class ShortCircuitOperatorTest(unittest.TestCase):
@@ -345,11 +345,11 @@ class ShortCircuitOperatorTest(unittest.TestCase):
                 self.assertEquals(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
                 # should not exist
-                raise
+                raise Exception
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
-                raise
+                raise Exception
 
         value = True
         dag.clear()
@@ -360,11 +360,11 @@ class ShortCircuitOperatorTest(unittest.TestCase):
                 self.assertEquals(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
                 # should not exist
-                raise
+                raise Exception
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.NONE)
             else:
-                raise
+                raise Exception
 
         session.close()
 
@@ -408,7 +408,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
-                raise
+                raise Exception
 
         value = True
         dag.clear()
@@ -426,4 +426,4 @@ class ShortCircuitOperatorTest(unittest.TestCase):
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.NONE)
             else:
-                raise
+                raise Exception

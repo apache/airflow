@@ -101,7 +101,7 @@ from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, Interval
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -238,6 +238,20 @@ def clear_task_instances(tis,
         for dr in drs:
             dr.state = State.RUNNING
             dr.start_date = timezone.utcnow()
+
+
+def get_last_dagrun(dag_id, session, include_externally_triggered=False):
+    """
+    Returns the last dag run for a dag, None if there was none.
+    Last dag run can be any type of run eg. scheduled or backfilled.
+    Overridden DagRuns are ignored.
+    """
+    DR = DagRun
+    query = session.query(DR).filter(DR.dag_id == dag_id)
+    if not include_externally_triggered:
+        query = query.filter(DR.external_trigger == False)  # noqa
+    query = query.order_by(DR.execution_date.desc())
+    return query.first()
 
 
 class DagBag(BaseDagBag, LoggingMixin):
@@ -1400,7 +1414,7 @@ class TaskInstance(Base, LoggingMixin):
                     result = task_copy.execute(context=context)
 
                 # If the task returns a result, push an XCom containing it
-                if result is not None:
+                if task_copy.do_xcom_push and result is not None:
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                 task_copy.post_execute(context=context, result=result)
@@ -1502,7 +1516,7 @@ class TaskInstance(Base, LoggingMixin):
                     reschedule_exception.reschedule_date))
 
         # set state
-        self.state = State.NONE
+        self.state = State.UP_FOR_RESCHEDULE
 
         # Decrement try_number so subsequent runs will use the same try number and write
         # to same log file.
@@ -1510,7 +1524,7 @@ class TaskInstance(Base, LoggingMixin):
 
         session.merge(self)
         session.commit()
-        self.log.info('Rescheduling task, marking task as NONE')
+        self.log.info('Rescheduling task, marking task as UP_FOR_RESCHEDULE')
 
     @provide_session
     def handle_failure(self, error, test_mode=False, context=None, session=None):
@@ -2208,6 +2222,9 @@ class BaseOperator(LoggingMixin):
             )
 
     :type executor_config: dict
+    :param do_xcom_push: if True, an XCom is pushed containing the Operator's
+        result
+    :type do_xcom_push: bool
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -2262,6 +2279,7 @@ class BaseOperator(LoggingMixin):
             run_as_user=None,
             task_concurrency=None,
             executor_config=None,
+            do_xcom_push=True,
             inlets=None,
             outlets=None,
             *args,
@@ -2346,6 +2364,7 @@ class BaseOperator(LoggingMixin):
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
+        self.do_xcom_push = do_xcom_push
 
         # Private attributes
         self._upstream_task_ids = set()
@@ -2399,6 +2418,7 @@ class BaseOperator(LoggingMixin):
             'on_failure_callback',
             'on_success_callback',
             'on_retry_callback',
+            'do_xcom_push',
         }
 
     def __eq__(self, other):
@@ -2980,6 +3000,8 @@ class DagModel(Base):
     description = Column(Text)
     # Default view of the inside the webserver
     default_view = Column(String(25))
+    # Schedule interval
+    schedule_interval = Column(Interval)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -2998,6 +3020,15 @@ class DagModel(Base):
             return configuration.conf.get('webserver', 'dag_default_view').lower()
         else:
             return self.default_view
+
+    @provide_session
+    def get_last_dagrun(self, session=None, include_externally_triggered=False):
+        return get_last_dagrun(self.dag_id, session=session,
+                               include_externally_triggered=include_externally_triggered)
+
+    @property
+    def safe_dag_id(self):
+        return self.dag_id.replace('.', '__dot__')
 
     def get_dag(self):
         return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
@@ -3413,23 +3444,8 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def get_last_dagrun(self, session=None, include_externally_triggered=False):
-        """
-        Returns the last dag run for this dag, None if there was none.
-        Last dag run can be any type of run eg. scheduled or backfilled.
-        Overridden DagRuns are ignored
-        """
-        DR = DagRun
-        qry = session.query(DR).filter(
-            DR.dag_id == self.dag_id,
-        )
-        if not include_externally_triggered:
-            qry = qry.filter(DR.external_trigger.__eq__(False))
-
-        qry = qry.order_by(DR.execution_date.desc())
-
-        last = qry.first()
-
-        return last
+        return get_last_dagrun(self.dag_id, session=session,
+                               include_externally_triggered=include_externally_triggered)
 
     @property
     def dag_id(self):
@@ -4236,6 +4252,7 @@ class DAG(BaseDag, LoggingMixin):
         orm_dag.last_scheduler_run = sync_time
         orm_dag.default_view = self._default_view
         orm_dag.description = self.description
+        orm_dag.schedule_interval = self.schedule_interval
         session.merge(orm_dag)
         session.commit()
 
@@ -4371,37 +4388,6 @@ class Chart(Base):
     x_is_date = Column(Boolean, default=True)
     iteration_no = Column(Integer, default=0)
     last_modified = Column(UtcDateTime, default=timezone.utcnow)
-
-    def __repr__(self):
-        return self.label
-
-
-class KnownEventType(Base):
-    __tablename__ = "known_event_type"
-
-    id = Column(Integer, primary_key=True)
-    know_event_type = Column(String(200))
-
-    def __repr__(self):
-        return self.know_event_type
-
-
-class KnownEvent(Base):
-    __tablename__ = "known_event"
-
-    id = Column(Integer, primary_key=True)
-    label = Column(String(200))
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    user_id = Column(Integer(), ForeignKey('users.id'),)
-    known_event_type_id = Column(Integer(), ForeignKey('known_event_type.id'),)
-    reported_by = relationship(
-        "User", cascade=False, cascade_backrefs=False, backref='known_events')
-    event_type = relationship(
-        "KnownEventType",
-        cascade=False,
-        cascade_backrefs=False, backref='known_events')
-    description = Column(Text)
 
     def __repr__(self):
         return self.label
@@ -5164,14 +5150,6 @@ class SlaMiss(Base):
     def __repr__(self):
         return str((
             self.dag_id, self.task_id, self.execution_date.isoformat()))
-
-
-class ImportError(Base):
-    __tablename__ = "import_error"
-    id = Column(Integer, primary_key=True)
-    timestamp = Column(UtcDateTime)
-    filename = Column(String(1024))
-    stacktrace = Column(Text)
 
 
 class KubeResourceVersion(Base):

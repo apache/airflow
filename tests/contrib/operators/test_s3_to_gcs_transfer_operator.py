@@ -35,7 +35,7 @@ except ImportError:
 TASK_ID = 'test-s3-gcs-transfer-operator'
 S3_BUCKET = 'test-s3-bucket'
 GCS_BUCKET = 'test-gcs-bucket'
-PROJECT_ID = 'test-project'
+GCP_PROJECT_ID = 'test-project'
 DESCRIPTION = 'test-description'
 ACCESS_KEY = 'test-access-key'
 SECRET_KEY = 'test-secret-key'
@@ -57,7 +57,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
             gcs_bucket=GCS_BUCKET,
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             description=DESCRIPTION,
             schedule=SCHEDULE,
         )
@@ -65,7 +65,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
         self.assertEqual(operator.task_id, TASK_ID)
         self.assertEqual(operator.s3_bucket, S3_BUCKET)
         self.assertEqual(operator.gcs_bucket, GCS_BUCKET)
-        self.assertEqual(operator.project_id, PROJECT_ID)
+        self.assertEqual(operator.project_id, GCP_PROJECT_ID)
         self.assertEqual(operator.description, DESCRIPTION)
         self.assertEqual(operator.schedule, SCHEDULE)
 
@@ -78,7 +78,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
             gcs_bucket=GCS_BUCKET,
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             description=DESCRIPTION,
             schedule=SCHEDULE,
         )
@@ -91,7 +91,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
         operator.execute(None)
 
         mock_transfer_hook.return_value.create_transfer_job.assert_called_once_with(
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             description=DESCRIPTION,
             schedule=SCHEDULE,
             transfer_spec={
@@ -123,7 +123,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
             task_id=TASK_ID,
             s3_bucket=S3_BUCKET,
             gcs_bucket=GCS_BUCKET,
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             description=DESCRIPTION,
             wait=False,
         )
@@ -136,7 +136,7 @@ class S3ToGoogleCloudStorageTransferOperatorTest(unittest.TestCase):
         operator.execute(None)
 
         mock_transfer_hook.return_value.create_transfer_job.assert_called_once_with(
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             description=DESCRIPTION,
             schedule=None,
             transfer_spec={

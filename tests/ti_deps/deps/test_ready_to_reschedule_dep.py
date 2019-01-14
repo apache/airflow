@@ -44,7 +44,7 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
         return tr
 
     def test_should_pass_if_ignore_in_reschedule_period_is_set(self):
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         dep_context = DepContext(ignore_in_reschedule_period=True)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context))
 
@@ -62,7 +62,7 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
         find_for_task_instance.return_value = [
             self._get_task_reschedule(utcnow() - timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
     @patch('airflow.models.TaskReschedule.find_for_task_instance')
@@ -72,7 +72,7 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
             self._get_task_reschedule(utcnow() - timedelta(minutes=11)),
             self._get_task_reschedule(utcnow() - timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
     @patch('airflow.models.TaskReschedule.find_for_task_instance')
@@ -80,7 +80,7 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
         find_for_task_instance.return_value = [
             self._get_task_reschedule(utcnow() + timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertFalse(ReadyToRescheduleDep().is_met(ti=ti))
 
     @patch('airflow.models.TaskReschedule.find_for_task_instance')
@@ -90,5 +90,5 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
             self._get_task_reschedule(utcnow() - timedelta(minutes=9)),
             self._get_task_reschedule(utcnow() + timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertFalse(ReadyToRescheduleDep().is_met(ti=ti))

@@ -76,10 +76,6 @@ def set_state(task, execution_date, upstream=False, downstream=False,
     """
     assert timezone.is_localized(execution_date)
 
-    # microseconds are supported by the database, but is not handled
-    # correctly by airflow on e.g. the filesystem and in other places
-    execution_date = execution_date.replace(microsecond=0)
-
     assert task.dag is not None
     dag = task.dag
 

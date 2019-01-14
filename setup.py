@@ -21,6 +21,7 @@ from setuptools import setup, find_packages, Command
 from setuptools.command.test import test as TestCommand
 
 import imp
+import io
 import logging
 import os
 import sys
@@ -34,23 +35,8 @@ version = imp.load_source(
 
 PY3 = sys.version_info[0] == 3
 
-
-# See LEGAL-362
-def verify_gpl_dependency():
-    # The Read the Docs build environment [1] does a pip install of Airflow which cannot
-    # be overridden with custom environment variables, so we detect the READTHEDOCS env
-    # var they provide to set the env var that avoids the GPL dependency on install when
-    # building the docs site.
-    # [1]: http://docs.readthedocs.io/en/latest/builds.html#build-environment
-    if os.getenv("READTHEDOCS") == "True":
-        os.environ["SLUGIFY_USES_TEXT_UNIDECODE"] = "yes"
-
-    if not os.getenv("AIRFLOW_GPL_UNIDECODE") and not os.getenv("SLUGIFY_USES_TEXT_UNIDECODE") == "yes":
-        raise RuntimeError("By default one of Airflow's dependencies installs a GPL "
-                           "dependency (unidecode). To avoid this dependency set "
-                           "SLUGIFY_USES_TEXT_UNIDECODE=yes in your environment when you "
-                           "install or upgrade Airflow. To force installing the GPL "
-                           "version set AIRFLOW_GPL_UNIDECODE")
+with io.open('README.md', encoding='utf-8') as f:
+    long_description = f.read()
 
 
 class Tox(TestCommand):
@@ -167,7 +153,7 @@ crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
 ]
-databricks = ['requests>=2.5.1, <3']
+databricks = ['requests>=2.20.0, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
     'mock',
@@ -221,7 +207,7 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = ['pinotdb>=0.1.1']
-postgres = ['psycopg2-binary>=2.7.4']
+postgres = ['psycopg2>=2.7.4']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis>=2.10.5,<3.0.0']
@@ -251,7 +237,7 @@ devel = [
     'lxml>=4.0.0',
     'mock',
     'mongomock',
-    'moto==1.1.19',
+    'moto==1.3.5',
     'nose',
     'nose-ignore-docstring==0.2',
     'nose-timer',
@@ -262,7 +248,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8==3.5.0'
+    'flake8>=3.6.0',
 ]
 
 if not PY3:
@@ -286,11 +272,12 @@ else:
 
 
 def do_setup():
-    verify_gpl_dependency()
     write_version()
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
+        long_description=long_description,
+        long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
@@ -304,6 +291,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
+            'enum34~=1.1.6',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
             'flask-admin==1.5.2',
@@ -326,11 +314,12 @@ def do_setup():
             'python-daemon>=2.1.1, <2.2',
             'python-dateutil>=2.3, <3',
             'python-nvd3==0.15.0',
-            'requests>=2.5.1, <3',
+            'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
             'tenacity==4.8.0',
+            'text-unidecode==1.2',  # Avoid GPL dependency, pip uses reverse order(!)
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'unicodecsv>=0.14.1',

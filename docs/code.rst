@@ -181,7 +181,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
-.. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageTransferOperator
+.. autoclass:: airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
@@ -236,12 +236,14 @@ Sensors
 ^^^^^^^
 
 .. autoclass:: airflow.contrib.sensors.aws_athena_sensor.AthenaSensor
+.. autoclass:: airflow.contrib.sensors.aws_glue_catalog_partition_sensor.AwsGlueCatalogPartitionSensor
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
 .. autoclass:: airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
 .. autoclass:: airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor
 .. autoclass:: airflow.contrib.sensors.cassandra_table_sensor.CassandraTableSensor
+.. autoclass:: airflow.contrib.sensors.celery_queue_sensor.CeleryQueueSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
 .. autoclass:: airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor
 .. autoclass:: airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor
@@ -420,6 +422,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
+.. autoclass:: airflow.contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
 .. autoclass:: airflow.contrib.hooks.aws_sns_hook.AwsSnsHook
