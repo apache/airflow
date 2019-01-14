@@ -209,7 +209,7 @@ class WorkerConfiguration(LoggingMixin):
             dag_volume_mount_path = self.kube_config.git_dags_folder_mount_point
 
         return dag_volume_mount_path
-  
+
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  try_number, airflow_command, kube_executor_config):
         volumes_dict, volume_mounts_dict = self.init_volumes_and_mounts()
