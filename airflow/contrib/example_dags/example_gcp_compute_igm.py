@@ -109,12 +109,13 @@ with models.DAG(
     )
     # [END howto_operator_gce_igm_copy_template]
     # Added to check for idempotence
+    # [START howto_operator_gce_igm_copy_template_no_project_id]
     gce_instance_template_copy2 = GceInstanceTemplateCopyOperator(
-        project_id=GCP_PROJECT_ID,
         resource_id=GCE_TEMPLATE_NAME,
         body_patch=GCE_INSTANCE_TEMPLATE_BODY_UPDATE,
         task_id='gcp_compute_igm_copy_template_task_2'
     )
+    # [END howto_operator_gce_igm_copy_template_no_project_id]
     # [START howto_operator_gce_igm_update_template]
     gce_instance_group_manager_update_template = \
         GceInstanceGroupManagerUpdateTemplateOperator(
@@ -128,15 +129,16 @@ with models.DAG(
         )
     # [END howto_operator_gce_igm_update_template]
     # Added to check for idempotence (and without UPDATE_POLICY)
+    # [START howto_operator_gce_igm_update_template_no_project_id]
     gce_instance_group_manager_update_template2 = \
         GceInstanceGroupManagerUpdateTemplateOperator(
-            project_id=GCP_PROJECT_ID,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
             zone=GCE_ZONE,
             source_template=SOURCE_TEMPLATE_URL,
             destination_template=DESTINATION_TEMPLATE_URL,
             task_id='gcp_compute_igm_group_manager_update_template_2'
         )
+    # [END howto_operator_gce_igm_update_template_no_project_id]
     gce_instance_template_copy >> gce_instance_template_copy2 >> \
         gce_instance_group_manager_update_template >> \
         gce_instance_group_manager_update_template2
