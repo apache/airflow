@@ -148,7 +148,7 @@ Currently **officially** using Airflow:
 1. [California Data Collaborative](https://github.com/California-Data-Collaborative) powered by [ARGO Labs](http://www.argolabs.org)
 1. [Carbonite](https://www.carbonite.com) [[@ajbosco](https://github.com/ajbosco)]
 1. [CarLabs](https://www.carlabs.ai/) [[@sganz](https://github.com/sganz) & [@odannyc](https://github.com/odannyc)]
-1. [CAVA](https://www.cava.com) [[@minh5](http://github.com/minh5)]
+1. [CAVA](https://www.cava.com) [[@minh5](http://github.com/minh5) & [@patchus](http://github.com/patchus)]
 1. [Celect](http://www.celect.com) [[@superdosh](https://github.com/superdosh) & [@chadcelect](https://github.com/chadcelect)]
 1. [Censys](https://censys.io) [[@zakird](https://github.com/zakird), [@dadrian](https://github.com/dadrian), & [@andrewsardone](https://github.com/andrewsardone)]
 1. [Change.org](https://www.change.org) [[@change](https://github.com/change), [@vijaykramesh](https://github.com/vijaykramesh)]
@@ -279,6 +279,7 @@ Currently **officially** using Airflow:
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
 1. [Publicis Pixelpark](https://www.publicispixelpark.de/) [[@feluelle](https://github.com/feluelle)]
 1. [PubNub](https://pubnub.com) [[@jzucker2](https://github.com/jzucker2)]
+1. [PXYData](https://www.pxydata.com) [[@patchus](http://github.com/patchus)]
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
 1. [Quantopian](https://www.quantopian.com/) [[@eronarn](http://github.com/eronarn)]
 1. [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
