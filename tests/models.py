@@ -749,12 +749,14 @@ class DagTest(unittest.TestCase):
         self.assertIsNone(orm_dag.default_view)
         self.assertEqual(orm_dag.get_default_view(),
                          configuration.conf.get('webserver', 'dag_default_view').lower())
+        self.assertEqual(orm_dag.safe_dag_id, 'dag')
 
         orm_subdag = session.query(DagModel).filter(
             DagModel.dag_id == 'dag.subtask').one()
         self.assertEqual(set(orm_subdag.owners.split(', ')), {'owner1', 'owner2'})
         self.assertEqual(orm_subdag.last_scheduler_run, now)
         self.assertTrue(orm_subdag.is_active)
+        self.assertEqual(orm_subdag.safe_dag_id, 'dag__dot__subtask')
 
     @patch('airflow.models.timezone.utcnow')
     def test_sync_to_db_default_view(self, mock_now):
@@ -2388,6 +2390,32 @@ class TaskInstanceTest(unittest.TestCase):
                                       key=key,
                                       include_prior_dates=True),
                          value)
+
+    def test_xcom_push_flag(self):
+        """
+        Tests the option for Operators to push XComs
+        """
+        value = 'hello'
+        task_id = 'test_no_xcom_push'
+        dag = models.DAG(dag_id='test_xcom')
+
+        # nothing saved to XCom
+        task = PythonOperator(
+            task_id=task_id,
+            dag=dag,
+            python_callable=lambda: value,
+            do_xcom_push=False,
+            owner='airflow',
+            start_date=datetime.datetime(2017, 1, 1)
+        )
+        ti = TI(task=task, execution_date=datetime.datetime(2017, 1, 1))
+        ti.run()
+        self.assertEqual(
+            ti.xcom_pull(
+                task_ids=task_id, key=models.XCOM_RETURN_KEY
+            ),
+            None
+        )
 
     def test_post_execute_hook(self):
         """

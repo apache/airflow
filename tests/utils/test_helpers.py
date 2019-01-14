@@ -29,8 +29,9 @@ import psutil
 import six
 
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import helpers
+from airflow.models import TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 
 
 class TestHelpers(unittest.TestCase):
@@ -61,6 +62,28 @@ class TestHelpers(unittest.TestCase):
         setup_done.release()
         while True:
             time.sleep(1)
+
+    def test_render_log_filename(self):
+        try_number = 1
+        dag_id = 'test_render_log_filename_dag'
+        task_id = 'test_render_log_filename_task'
+        execution_date = datetime(2016, 1, 1)
+
+        dag = DAG(dag_id, start_date=execution_date)
+        task = DummyOperator(task_id=task_id, dag=dag)
+        ti = TaskInstance(task=task, execution_date=execution_date)
+
+        filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
+
+        ts = ti.get_template_context()['ts']
+        expected_filename = "{dag_id}/{task_id}/{ts}/{try_number}.log".format(dag_id=dag_id,
+                                                                              task_id=task_id,
+                                                                              ts=ts,
+                                                                              try_number=try_number)
+
+        rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
+
+        self.assertEqual(rendered_filename, expected_filename)
 
     def test_reap_process_group(self):
         """

@@ -43,7 +43,7 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
         HiveToMySqlTransfer(**self.kwargs).execute(context={})
 
         mock_hive_hook.assert_called_once_with(hiveserver2_conn_id=self.kwargs['hiveserver2_conn_id'])
-        mock_hive_hook.return_value.get_records.assert_called_once_with(self.kwargs['sql'])
+        mock_hive_hook.return_value.get_records.assert_called_once_with('sql', hive_conf={})
         mock_mysql_hook.assert_called_once_with(mysql_conn_id=self.kwargs['mysql_conn_id'])
         mock_mysql_hook.return_value.insert_rows.assert_called_once_with(
             table=self.kwargs['mysql_table'],
@@ -92,3 +92,18 @@ class TestHiveToMySqlTransfer(unittest.TestCase):
             tmp_file=mock_tmp_file.return_value.name
         )
         mock_tmp_file.return_value.close.assert_called_once_with()
+
+    @patch('airflow.operators.hive_to_mysql.MySqlHook')
+    @patch('airflow.operators.hive_to_mysql.HiveServer2Hook')
+    def test_execute_with_hive_conf(self, mock_hive_hook, mock_mysql_hook):
+        context = {}
+        self.kwargs.update(dict(hive_conf={'mapreduce.job.queuename': 'fake_queue'}))
+
+        HiveToMySqlTransfer(**self.kwargs).execute(context=context)
+
+        hive_conf = context_to_airflow_vars(context)
+        hive_conf.update(self.kwargs['hive_conf'])
+        mock_hive_hook.return_value.get_records.assert_called_once_with(
+            self.kwargs['sql'],
+            hive_conf=hive_conf
+        )

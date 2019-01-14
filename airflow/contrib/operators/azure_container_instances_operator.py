@@ -186,7 +186,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 raise AirflowException("Container had a non-zero exit code, %s"
                                        % exit_code)
 
-        except CloudError as e:
+        except CloudError:
             self.log.exception("Could not start container group")
             raise AirflowException("Could not start container group")
 
@@ -216,7 +216,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     try:
                         logs = ci_hook.get_logs(resource_group, name)
                         last_line_logged = self._log_last(logs, last_line_logged)
-                    except CloudError as err:
+                    except CloudError:
                         self.log.exception("Exception while getting logs from "
                                            "container instance, retrying...")
 

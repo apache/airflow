@@ -23,14 +23,13 @@ Engine instance.
 
 This DAG relies on the following OS environment variables
 
-* PROJECT_ID - Google Cloud Platform project where the Compute Engine instance exists.
-* ZONE - Google Cloud Platform zone where the instance exists.
-* INSTANCE - Name of the Compute Engine instance.
-* SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
+* GCP_PROJECT_ID - Google Cloud Platform project where the Compute Engine instance exists.
+* GCE_ZONE - Google Cloud Platform zone where the instance exists.
+* GCE_INSTANCE - Name of the Compute Engine instance.
+* GCE_SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
     See https://cloud.google.com/compute/docs/machine-types
 """
 import os
-import datetime
 
 import airflow
 from airflow import models
@@ -38,19 +37,19 @@ from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOpera
     GceInstanceStopOperator, GceSetMachineTypeOperator
 
 # [START howto_operator_gce_args_common]
-PROJECT_ID = os.environ.get('PROJECT_ID', 'example-project')
-ZONE = os.environ.get('ZONE', 'europe-west1-b')
-INSTANCE = os.environ.get('INSTANCE', 'testinstance')
+GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
+GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
+GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
 # [END howto_operator_gce_args_common]
 
 default_args = {
-    'start_date': airflow.utils.dates.days_ago(1)
+    'start_date': airflow.utils.dates.days_ago(1),
 }
 
 # [START howto_operator_gce_args_set_machine_type]
-SHORT_MACHINE_TYPE_NAME = os.environ.get('SHORT_MACHINE_TYPE_NAME', 'n1-standard-1')
+GCE_SHORT_MACHINE_TYPE_NAME = os.environ.get('GCE_SHORT_MACHINE_TYPE_NAME', 'n1-standard-1')
 SET_MACHINE_TYPE_BODY = {
-    'machineType': 'zones/{}/machineTypes/{}'.format(ZONE, SHORT_MACHINE_TYPE_NAME)
+    'machineType': 'zones/{}/machineTypes/{}'.format(GCE_ZONE, GCE_SHORT_MACHINE_TYPE_NAME)
 }
 # [END howto_operator_gce_args_set_machine_type]
 
@@ -58,52 +57,52 @@ SET_MACHINE_TYPE_BODY = {
 with models.DAG(
     'example_gcp_compute',
     default_args=default_args,
-    schedule_interval=datetime.timedelta(days=1)
+    schedule_interval=None  # Override to match your needs
 ) as dag:
     # [START howto_operator_gce_start]
     gce_instance_start = GceInstanceStartOperator(
-        project_id=PROJECT_ID,
-        zone=ZONE,
-        resource_id=INSTANCE,
+        project_id=GCP_PROJECT_ID,
+        zone=GCE_ZONE,
+        resource_id=GCE_INSTANCE,
         task_id='gcp_compute_start_task'
     )
     # [END howto_operator_gce_start]
     # Duplicate start for idempotence testing
     gce_instance_start2 = GceInstanceStartOperator(
-        project_id=PROJECT_ID,
-        zone=ZONE,
-        resource_id=INSTANCE,
+        project_id=GCP_PROJECT_ID,
+        zone=GCE_ZONE,
+        resource_id=GCE_INSTANCE,
         task_id='gcp_compute_start_task2'
     )
     # [START howto_operator_gce_stop]
     gce_instance_stop = GceInstanceStopOperator(
-        project_id=PROJECT_ID,
-        zone=ZONE,
-        resource_id=INSTANCE,
+        project_id=GCP_PROJECT_ID,
+        zone=GCE_ZONE,
+        resource_id=GCE_INSTANCE,
         task_id='gcp_compute_stop_task'
     )
     # [END howto_operator_gce_stop]
     # Duplicate stop for idempotence testing
     gce_instance_stop2 = GceInstanceStopOperator(
-        project_id=PROJECT_ID,
-        zone=ZONE,
-        resource_id=INSTANCE,
+        project_id=GCP_PROJECT_ID,
+        zone=GCE_ZONE,
+        resource_id=GCE_INSTANCE,
         task_id='gcp_compute_stop_task2'
     )
     # [START howto_operator_gce_set_machine_type]
     gce_set_machine_type = GceSetMachineTypeOperator(
-        project_id=PROJECT_ID,
-        zone=ZONE,
-        resource_id=INSTANCE,
+        project_id=GCP_PROJECT_ID,
+        zone=GCE_ZONE,
+        resource_id=GCE_INSTANCE,
         body=SET_MACHINE_TYPE_BODY,
         task_id='gcp_compute_set_machine_type'
     )
     # [END howto_operator_gce_set_machine_type]
     # Duplicate set machine type for idempotence testing
     gce_set_machine_type2 = GceSetMachineTypeOperator(
-        project_id=PROJECT_ID,
-        zone=ZONE,
-        resource_id=INSTANCE,
+        project_id=GCP_PROJECT_ID,
+        zone=GCE_ZONE,
+        resource_id=GCE_INSTANCE,
         body=SET_MACHINE_TYPE_BODY,
         task_id='gcp_compute_set_machine_type2'
     )

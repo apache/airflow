@@ -21,6 +21,7 @@ from setuptools import setup, find_packages, Command
 from setuptools.command.test import test as TestCommand
 
 import imp
+import io
 import logging
 import os
 import sys
@@ -34,23 +35,8 @@ version = imp.load_source(
 
 PY3 = sys.version_info[0] == 3
 
-
-# See LEGAL-362
-def verify_gpl_dependency():
-    # The Read the Docs build environment [1] does a pip install of Airflow which cannot
-    # be overridden with custom environment variables, so we detect the READTHEDOCS env
-    # var they provide to set the env var that avoids the GPL dependency on install when
-    # building the docs site.
-    # [1]: http://docs.readthedocs.io/en/latest/builds.html#build-environment
-    if os.getenv("READTHEDOCS") == "True":
-        os.environ["SLUGIFY_USES_TEXT_UNIDECODE"] = "yes"
-
-    if not os.getenv("AIRFLOW_GPL_UNIDECODE") and not os.getenv("SLUGIFY_USES_TEXT_UNIDECODE") == "yes":
-        raise RuntimeError("By default one of Airflow's dependencies installs a GPL "
-                           "dependency (unidecode). To avoid this dependency set "
-                           "SLUGIFY_USES_TEXT_UNIDECODE=yes in your environment when you "
-                           "install or upgrade Airflow. To force installing the GPL "
-                           "version set AIRFLOW_GPL_UNIDECODE")
+with io.open('README.md', encoding='utf-8') as f:
+    long_description = f.read()
 
 
 class Tox(TestCommand):
@@ -190,7 +176,8 @@ gcp_api = [
     'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-cloud-container>=0.1.1',
-    'google-cloud-spanner>=1.6.0',
+    'google-cloud-bigtable==0.31.0',
+    'google-cloud-spanner>=1.7.1',
     'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
@@ -250,7 +237,7 @@ devel = [
     'lxml>=4.0.0',
     'mock',
     'mongomock',
-    'moto==1.1.19',
+    'moto==1.3.5',
     'nose',
     'nose-ignore-docstring==0.2',
     'nose-timer',
@@ -261,7 +248,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8==3.5.0'
+    'flake8>=3.6.0',
 ]
 
 if not PY3:
@@ -285,11 +272,12 @@ else:
 
 
 def do_setup():
-    verify_gpl_dependency()
     write_version()
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
+        long_description=long_description,
+        long_description_content_type='text/markdown',
         license='Apache License 2.0',
         version=version,
         packages=find_packages(exclude=['tests*']),
@@ -303,6 +291,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
+            'enum34~=1.1.6',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
             'flask-admin==1.5.2',
@@ -330,6 +319,7 @@ def do_setup():
             'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
             'tenacity==4.8.0',
+            'text-unidecode==1.2',  # Avoid GPL dependency, pip uses reverse order(!)
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'unicodecsv>=0.14.1',
@@ -410,10 +400,10 @@ def do_setup():
             'Topic :: System :: Monitoring',
         ],
         author='Apache Software Foundation',
-        author_email='dev@airflow.incubator.apache.org',
-        url='http://airflow.incubator.apache.org/',
+        author_email='dev@airflow.apache.org',
+        url='http://airflow.apache.org/',
         download_url=(
-            'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
+            'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,

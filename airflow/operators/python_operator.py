@@ -226,6 +226,7 @@ class PythonVirtualenvOperator(PythonOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list(str)
     """
+    @apply_defaults
     def __init__(self, python_callable,
                  requirements=None,
                  python_version=None, use_dill=False,

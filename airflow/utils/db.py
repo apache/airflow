@@ -41,7 +41,6 @@ def create_session():
     session = settings.Session()
     try:
         yield session
-        session.expunge_all()
         session.commit()
     except Exception:
         session.rollback()
@@ -289,20 +288,6 @@ def initdb():
         Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
-
-    # Known event types
-    KET = models.KnownEventType
-    if not session.query(KET).filter(KET.know_event_type == 'Holiday').first():
-        session.add(KET(know_event_type='Holiday'))
-    if not session.query(KET).filter(KET.know_event_type == 'Outage').first():
-        session.add(KET(know_event_type='Outage'))
-    if not session.query(KET).filter(
-            KET.know_event_type == 'Natural Disaster').first():
-        session.add(KET(know_event_type='Natural Disaster'))
-    if not session.query(KET).filter(
-            KET.know_event_type == 'Marketing Campaign').first():
-        session.add(KET(know_event_type='Marketing Campaign'))
-    session.commit()
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM

@@ -45,10 +45,6 @@ data:
     # how often the scheduler should run (in seconds).
     scheduler_heartbeat_sec = 5
 
-    # after how much time should the scheduler terminate in seconds
-    # -1 indicates to run continuously (see also num_runs)
-    run_duration = -1
-
     # after how much time a new DAGs should be picked up from the filesystem
     min_file_process_interval = 0
 
@@ -122,7 +118,7 @@ data:
     expose_config = False
 
     # Set to true to turn on authentication:
-    # https://airflow.incubator.apache.org/security.html#web-authentication
+    # https://airflow.apache.org/security.html#web-authentication
     authenticate = False
 
     # Filter the list of dags by owner name (requires authentication to be enabled)
@@ -195,6 +191,10 @@ data:
     in_cluster = True
     namespace = default
     gcp_service_account_keys =
+
+    # Example affinity and toleration definitions.
+    affinity = {"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/hostname","operator":"NotIn","values":["4e5e6a99-e28a-450b-bba9-e0124853de9b"]}]}]}}}
+    tolerations = [{ "key": "dedicated", "operator": "Equal", "value": "airflow", "effect": "NoSchedule" }, { "key": "prod", "operator": "Exists" }]
 
     # For cloning DAGs from git repositories into volumes: https://github.com/kubernetes/git-sync
     git_sync_container_repository = gcr.io/google-containers/git-sync-amd64

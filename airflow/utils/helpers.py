@@ -170,7 +170,7 @@ def chain(*tasks):
 
 
 def cross_downstream(from_tasks, to_tasks):
-    """
+    r"""
     Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
     E.g.: cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
     Is equivalent to:
@@ -297,3 +297,23 @@ def parse_template_string(template_string):
         return None, Template(template_string)
     else:
         return template_string, None
+
+
+def render_log_filename(ti, try_number, filename_template):
+    """
+    Given task instance, try_number, filename_template, return the rendered log filename
+
+    :param ti: task instance
+    :param try_number: try_number of the task
+    :param filename_template: filename template, which can be jinja template or python string template
+    """
+    filename_template, filename_jinja_template = parse_template_string(filename_template)
+    if filename_jinja_template:
+        jinja_context = ti.get_template_context()
+        jinja_context['try_number'] = try_number
+        return filename_jinja_template.render(**jinja_context)
+
+    return filename_template.format(dag_id=ti.dag_id,
+                                    task_id=ti.task_id,
+                                    execution_date=ti.execution_date.isoformat(),
+                                    try_number=try_number)
