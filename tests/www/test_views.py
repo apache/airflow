@@ -258,6 +258,7 @@ class TestPoolModelView(TestBase):
         self.session.commit()
         resp = self.client.get('/pool/list/')
         self.check_content_in_response('test-pool&lt;script&gt;', resp)
+        self.check_content_not_in_response('test-pool<script>', resp)
 
 
 class TestMountPoint(unittest.TestCase):

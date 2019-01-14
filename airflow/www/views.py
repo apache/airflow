@@ -36,7 +36,7 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, send_file, escape)
+    make_response, flash, jsonify, send_file, escape, url_for)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
@@ -2023,7 +2023,7 @@ class PoolModelView(AirflowModelView):
     def pool_link(attr):
         pool_id = attr.get('pool')
         if pool_id is not None:
-            url = '/taskinstance/list/?_flt_3_pool=' + str(pool_id)
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id)
             pool_id = escape(pool_id)
             return Markup("<a href='{url}'>{pool_id}</a>".format(**locals()))
         else:
@@ -2033,8 +2033,7 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         used_slots = attr.get('used_slots')
         if pool_id is not None and used_slots is not None:
-            url = '/taskinstance/list/?_flt_3_pool=' + str(pool_id) + \
-                  '&_flt_3_state=running'
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
             return Markup("<a href='{url}'>{used_slots}</a>".format(**locals()))
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
@@ -2043,8 +2042,7 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         queued_slots = attr.get('queued_slots')
         if pool_id is not None and queued_slots is not None:
-            url = '/taskinstance/list/?_flt_3_pool=' + str(pool_id) + \
-                  '&_flt_3_state=queued'
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='queued')
             return Markup("<a href='{url}'>{queued_slots}</a>".format(**locals()))
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
