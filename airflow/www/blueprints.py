@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import Markup, Blueprint, redirect
-import markdown
+from flask import Blueprint, redirect
 
 routes = Blueprint('routes', __name__)
 
@@ -26,10 +25,3 @@ routes = Blueprint('routes', __name__)
 @routes.route('/')
 def index():
     return redirect('/home')
-
-
-@routes.route('/health')
-def health():
-    """ We can add an array of tests here to check the server's health """
-    content = Markup(markdown.markdown("The server is healthy!"))
-    return content
