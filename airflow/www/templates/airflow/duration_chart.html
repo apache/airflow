@@ -21,17 +21,17 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='tree.css') }}">
-<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
+    href="{{ url_for('static', filename='css/tree.css') }}">
 <link rel="stylesheet" type="text/css"
-      href="{{ url_for("static", filename="dataTables.bootstrap.css") }}">
+    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
+<link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
 <link rel="stylesheet" type="text/css"
-      href="{{ url_for("static", filename="nv.d3.css") }}">
-<script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-<script src="{{ url_for('static', filename='nv.d3.js') }}"></script>
+      href="{{ url_for_asset('nv.d3.min.css') }}">
+<script src="{{ url_for_asset('d3.min.js') }}"></script>
+<script src="{{ url_for_asset('nv.d3.min.js') }}"></script>
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
 <div>
   <label for="isCumulative">Cumulative Duration</label>
@@ -71,7 +71,6 @@
       handleCheck();
     });
   </script>
-  <script src="{{ admin_static.url(
-    filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
+  <script src="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js')}}"></script>
   {{ super() }}
 {% endblock %}

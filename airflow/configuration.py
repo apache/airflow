@@ -528,16 +528,14 @@ conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
 
 conf.read(AIRFLOW_CONFIG)
 
+DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
 
-if conf.getboolean('webserver', 'rbac'):
-    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
+WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
-    WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
-
-    if not os.path.isfile(WEBSERVER_CONFIG):
-        log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
-        with open(WEBSERVER_CONFIG, 'w') as f:
-            f.write(DEFAULT_WEBSERVER_CONFIG)
+if not os.path.isfile(WEBSERVER_CONFIG):
+    log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
+    with open(WEBSERVER_CONFIG, 'w') as f:
+        f.write(DEFAULT_WEBSERVER_CONFIG)
 
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()

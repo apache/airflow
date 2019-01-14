@@ -23,7 +23,7 @@ from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagRun
 from airflow.settings import Session
-from airflow.www_rbac import app as application
+from airflow.www import app as application
 
 
 class TestDagRunsEndpoint(unittest.TestCase):

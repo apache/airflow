@@ -16,37 +16,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-# flake8: noqa: E402
-import inspect
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
-from builtins import str, object
 
-from cgi import escape
-from io import BytesIO as IO
-import functools
-import gzip
-import io
+from future import standard_library  # noqa
+standard_library.install_aliases()  # noqa
+
+import inspect
 import json
-import os
-import re
 import time
 import wtforms
-from wtforms.compat import text_type
+import bleach
+import markdown
+import re
 import zipfile
+import os
+import io
 
-from flask import after_this_request, request, Response
-from flask_admin.model import filters
-import flask_admin.contrib.sqla.filters as sqlafilters
-from flask_login import current_user
+from builtins import str
+from past.builtins import basestring
 
-from airflow import configuration, models, settings
-from airflow.utils.db import create_session
+from pygments import highlight, lexers
+from pygments.formatters import HtmlFormatter
+from flask import request, Response, Markup, url_for
+from flask_appbuilder.models.sqla.interface import SQLAInterface
+import flask_appbuilder.models.sqla.filters as fab_sqlafilters
+import sqlalchemy as sqla
+from airflow import configuration
+from airflow.models import BaseOperator
+from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.state import State
 
-AUTHENTICATE = configuration.conf.getboolean('webserver', 'AUTHENTICATE')
+AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -67,32 +68,6 @@ def should_hide_value_for_key(key_name):
         field_comp = any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS)
         return config_set and field_comp
     return False
-
-
-class LoginMixin(object):
-    def is_accessible(self):
-        return (
-            not AUTHENTICATE or (
-                not current_user.is_anonymous and
-                current_user.is_authenticated
-            )
-        )
-
-
-class SuperUserMixin(object):
-    def is_accessible(self):
-        return (
-            not AUTHENTICATE or
-            (not current_user.is_anonymous and current_user.is_superuser())
-        )
-
-
-class DataProfilingMixin(object):
-    def is_accessible(self):
-        return (
-            not AUTHENTICATE or
-            (not current_user.is_anonymous and current_user.data_profiling())
-        )
 
 
 def get_params(**kwargs):
@@ -218,114 +193,9 @@ def generate_pages(current_page, num_of_pages,
     return wtforms.widgets.core.HTMLString('\n'.join(output))
 
 
-def limit_sql(sql, limit, conn_type):
-    sql = sql.strip()
-    sql = sql.rstrip(';')
-    if sql.lower().startswith("select"):
-        if conn_type in ['mssql']:
-            sql = """\
-            SELECT TOP {limit} * FROM (
-            {sql}
-            ) qry
-            """.format(**locals())
-        elif conn_type in ['oracle']:
-            sql = """\
-            SELECT * FROM (
-            {sql}
-            ) qry
-            WHERE ROWNUM <= {limit}
-            """.format(**locals())
-        else:
-            sql = """\
-            SELECT * FROM (
-            {sql}
-            ) qry
-            LIMIT {limit}
-            """.format(**locals())
-    return sql
-
-
 def epoch(dttm):
     """Returns an epoch-type date"""
     return int(time.mktime(dttm.timetuple())) * 1000,
-
-
-def action_logging(f):
-    """
-    Decorator to log user actions
-    """
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        # AnonymousUserMixin() has user attribute but its value is None.
-        if current_user and hasattr(current_user, 'user') and current_user.user:
-            user = current_user.user.username
-        else:
-            user = 'anonymous'
-
-        log = models.Log(
-            event=f.__name__,
-            task_instance=None,
-            owner=user,
-            extra=str(list(request.args.items())),
-            task_id=request.args.get('task_id'),
-            dag_id=request.args.get('dag_id'))
-
-        if request.args.get('execution_date'):
-            log.execution_date = timezone.parse(request.args.get('execution_date'))
-
-        with create_session() as session:
-            session.add(log)
-            session.commit()
-
-        return f(*args, **kwargs)
-
-    return wrapper
-
-
-def notify_owner(f):
-    """
-    Decorator to notify owner of actions taken on their DAGs by others
-    """
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        """
-        if request.args.get('confirmed') == "true":
-            dag_id = request.args.get('dag_id')
-            task_id = request.args.get('task_id')
-            dagbag = models.DagBag(settings.DAGS_FOLDER)
-            dag = dagbag.get_dag(dag_id)
-            task = dag.get_task(task_id)
-
-            if current_user and hasattr(current_user, 'user') and current_user.user:
-                user = current_user.username
-            else:
-                user = 'anonymous'
-
-            if task.owner != user:
-                subject = (
-                    'Actions taken on DAG {0} by {1}'.format(
-                        dag_id, user))
-                items = request.args.items()
-                content = Template('''
-                    action: <i>{{ f.__name__ }}</i><br>
-                    <br>
-                    <b>Parameters</b>:<br>
-                    <table>
-                    {% for k, v in items %}
-                        {% if k != 'origin' %}
-                            <tr>
-                                <td>{{ k }}</td>
-                                <td>{{ v }}</td>
-                            </tr>
-                        {% endif %}
-                    {% endfor %}
-                    </table>
-                    ''').render(**locals())
-                if task.email:
-                    send_email(task.email, subject, content)
-        """
-        return f(*args, **kwargs)
-    return wrapper
 
 
 def json_response(obj):
@@ -337,43 +207,6 @@ def json_response(obj):
             obj, indent=4, cls=AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
-
-
-def gzipped(f):
-    """
-    Decorator to make a view compressed
-    """
-    @functools.wraps(f)
-    def view_func(*args, **kwargs):
-        @after_this_request
-        def zipper(response):
-            accept_encoding = request.headers.get('Accept-Encoding', '')
-
-            if 'gzip' not in accept_encoding.lower():
-                return response
-
-            response.direct_passthrough = False
-
-            if (response.status_code < 200 or
-                response.status_code >= 300 or
-                'Content-Encoding' in response.headers):
-                return response
-            gzip_buffer = IO()
-            gzip_file = gzip.GzipFile(mode='wb',
-                                      fileobj=gzip_buffer)
-            gzip_file.write(response.data)
-            gzip_file.close()
-
-            response.data = gzip_buffer.getvalue()
-            response.headers['Content-Encoding'] = 'gzip'
-            response.headers['Vary'] = 'Accept-Encoding'
-            response.headers['Content-Length'] = len(response.data)
-
-            return response
-
-        return f(*args, **kwargs)
-
-    return view_func
 
 
 def open_maybe_zipped(f, mode='r'):
@@ -401,90 +234,214 @@ def make_cache_key(*args, **kwargs):
     return (path + args).encode('ascii', 'ignore')
 
 
-def get_python_source(x):
+def task_instance_link(attr):
+    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
+    task_id = bleach.clean(attr.get('task_id')) if attr.get('task_id') else None
+    execution_date = attr.get('execution_date')
+    url = url_for(
+        'Airflow.task',
+        dag_id=dag_id,
+        task_id=task_id,
+        execution_date=execution_date.isoformat())
+    url_root = url_for(
+        'Airflow.graph',
+        dag_id=dag_id,
+        root=task_id,
+        execution_date=execution_date.isoformat())
+    return Markup(
+        """
+        <span style="white-space: nowrap;">
+        <a href="{url}">{task_id}</a>
+        <a href="{url_root}" title="Filter on this task and upstream">
+        <span class="glyphicon glyphicon-filter" style="margin-left: 0px;"
+            aria-hidden="true"></span>
+        </a>
+        </span>
+        """.format(**locals()))
+
+
+def state_token(state):
+    color = State.color(state)
+    return Markup(
+        '<span class="label" style="background-color:{color};">'
+        '{state}</span>'.format(**locals()))
+
+
+def state_f(attr):
+    state = attr.get('state')
+    return state_token(state)
+
+
+def nobr_f(attr_name):
+    def nobr(attr):
+        f = attr.get(attr_name)
+        return Markup("<nobr>{}</nobr>".format(f))
+    return nobr
+
+
+def datetime_f(attr_name):
+    def dt(attr):
+        f = attr.get(attr_name)
+        f = f.isoformat() if f else ''
+        if timezone.utcnow().isoformat()[:4] == f[:4]:
+            f = f[5:]
+        return Markup("<nobr>{}</nobr>".format(f))
+    return dt
+
+
+def dag_link(attr):
+    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
+    execution_date = attr.get('execution_date')
+    url = url_for(
+        'Airflow.graph',
+        dag_id=dag_id,
+        execution_date=execution_date)
+    return Markup(
+        '<a href="{}">{}</a>'.format(url, dag_id))
+
+
+def dag_run_link(attr):
+    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
+    run_id = bleach.clean(attr.get('run_id')) if attr.get('run_id') else None
+    execution_date = attr.get('execution_date')
+    url = url_for(
+        'Airflow.graph',
+        dag_id=dag_id,
+        run_id=run_id,
+        execution_date=execution_date)
+    return Markup(
+        '<a href="{url}">{run_id}</a>'.format(**locals()))
+
+
+def pygment_html_render(s, lexer=lexers.TextLexer):
+    return highlight(
+        s,
+        lexer(),
+        HtmlFormatter(linenos=True),
+    )
+
+
+def render(obj, lexer):
+    out = ""
+    if isinstance(obj, basestring):
+        out += pygment_html_render(obj, lexer)
+    elif isinstance(obj, (tuple, list)):
+        for i, s in enumerate(obj):
+            out += "<div>List item #{}</div>".format(i)
+            out += "<div>" + pygment_html_render(s, lexer) + "</div>"
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            out += '<div>Dict item "{}"</div>'.format(k)
+            out += "<div>" + pygment_html_render(v, lexer) + "</div>"
+    return out
+
+
+def wrapped_markdown(s):
+    return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+
+
+def get_attr_renderer():
+    attr_renderer = {
+        'bash_command': lambda x: render(x, lexers.BashLexer),
+        'hql': lambda x: render(x, lexers.SqlLexer),
+        'sql': lambda x: render(x, lexers.SqlLexer),
+        'doc': lambda x: render(x, lexers.TextLexer),
+        'doc_json': lambda x: render(x, lexers.JsonLexer),
+        'doc_rst': lambda x: render(x, lexers.RstLexer),
+        'doc_yaml': lambda x: render(x, lexers.YamlLexer),
+        'doc_md': wrapped_markdown,
+        'python_callable': lambda x: render(
+            inspect.getsource(x), lexers.PythonLexer),
+    }
+    return attr_renderer
+
+
+def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
+    if isinstance(tasks, list):
+        for task in tasks:
+            recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
+        return
+    if isinstance(tasks, SubDagOperator):
+        subtasks = tasks.subdag.tasks
+        dag_ids.append(tasks.subdag.dag_id)
+        for subtask in subtasks:
+            if subtask.task_id not in task_ids:
+                task_ids.append(subtask.task_id)
+                task_id_to_dag[subtask.task_id] = tasks.subdag
+        recurse_tasks(subtasks, task_ids, dag_ids, task_id_to_dag)
+    if isinstance(tasks, BaseOperator):
+        task_id_to_dag[tasks.task_id] = tasks.dag
+
+
+def get_chart_height(dag):
     """
-    Helper function to get Python source (or not), preventing exceptions
+    TODO(aoen): See [AIRFLOW-1263] We use the number of tasks in the DAG as a heuristic to
+    approximate the size of generated chart (otherwise the charts are tiny and unreadable
+    when DAGs have a large number of tasks). Ideally nvd3 should allow for dynamic-height
+    charts, that is charts that take up space based on the size of the components within.
     """
-    source_code = None
-
-    if isinstance(x, functools.partial):
-        source_code = inspect.getsource(x.func)
-
-    if source_code is None:
-        try:
-            source_code = inspect.getsource(x)
-        except TypeError:
-            pass
-
-    if source_code is None:
-        try:
-            source_code = inspect.getsource(x.__call__)
-        except (TypeError, AttributeError):
-            pass
-
-    if source_code is None:
-        source_code = 'No source code available for {}'.format(type(x))
-
-    return source_code
+    return 600 + len(dag.tasks) * 10
 
 
-class AceEditorWidget(wtforms.widgets.TextArea):
+class UtcAwareFilterMixin(object):
+    def apply(self, query, value):
+        value = timezone.parse(value, timezone=timezone.utc)
+
+        return super(UtcAwareFilterMixin, self).apply(query, value)
+
+
+class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
+    pass
+
+
+class UtcAwareFilterGreater(UtcAwareFilterMixin, fab_sqlafilters.FilterGreater):
+    pass
+
+
+class UtcAwareFilterSmaller(UtcAwareFilterMixin, fab_sqlafilters.FilterSmaller):
+    pass
+
+
+class UtcAwareFilterNotEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterNotEqual):
+    pass
+
+
+class UtcAwareFilterConverter(fab_sqlafilters.SQLAFilterConverter):
+
+    conversion_table = (
+        (('is_utcdatetime', [UtcAwareFilterEqual,
+                             UtcAwareFilterGreater,
+                             UtcAwareFilterSmaller,
+                             UtcAwareFilterNotEqual]),) +
+        fab_sqlafilters.SQLAFilterConverter.conversion_table
+    )
+
+
+class CustomSQLAInterface(SQLAInterface):
     """
-    Renders an ACE code editor.
+    FAB does not know how to handle columns with leading underscores because
+    they are not supported by WTForm. This hack will remove the leading
+    '_' from the key to lookup the column names.
+
     """
-    def __call__(self, field, **kwargs):
-        kwargs.setdefault('id', field.id)
-        html = '''
-        <div id="{el_id}" style="height:100px;">{contents}</div>
-        <textarea
-            id="{el_id}_ace" name="{form_name}"
-            style="display:none;visibility:hidden;">
-        </textarea>
-        '''.format(
-            el_id=kwargs.get('id', field.id),
-            contents=escape(text_type(field._value())),
-            form_name=field.id,
-        )
-        return wtforms.widgets.core.HTMLString(html)
+    def __init__(self, obj):
+        super(CustomSQLAInterface, self).__init__(obj)
 
+        def clean_column_names():
+            if self.list_properties:
+                self.list_properties = dict(
+                    (k.lstrip('_'), v) for k, v in self.list_properties.items())
+            if self.list_columns:
+                self.list_columns = dict(
+                    (k.lstrip('_'), v) for k, v in self.list_columns.items())
 
-class UtcDateTimeFilterMixin(object):
-    def clean(self, value):
-        dt = super(UtcDateTimeFilterMixin, self).clean(value)
-        return timezone.make_aware(dt, timezone=timezone.utc)
+        clean_column_names()
 
+    def is_utcdatetime(self, col_name):
+        from airflow.utils.sqlalchemy import UtcDateTime
+        obj = self.list_columns[col_name].type
+        return isinstance(obj, UtcDateTime) or \
+            isinstance(obj, sqla.types.TypeDecorator) and \
+            isinstance(obj.impl, UtcDateTime)
 
-class UtcDateTimeEqualFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeEqualFilter):
-    pass
-
-
-class UtcDateTimeNotEqualFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeNotEqualFilter):
-    pass
-
-
-class UtcDateTimeGreaterFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeGreaterFilter):
-    pass
-
-
-class UtcDateTimeSmallerFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeSmallerFilter):
-    pass
-
-
-class UtcDateTimeBetweenFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeBetweenFilter):
-    pass
-
-
-class UtcDateTimeNotBetweenFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeNotBetweenFilter):
-    pass
-
-
-class UtcFilterConverter(sqlafilters.FilterConverter):
-
-    utcdatetime_filters = (UtcDateTimeEqualFilter, UtcDateTimeNotEqualFilter,
-                           UtcDateTimeGreaterFilter, UtcDateTimeSmallerFilter,
-                           UtcDateTimeBetweenFilter, UtcDateTimeNotBetweenFilter,
-                           sqlafilters.FilterEmpty)
-
-    @filters.convert('utcdatetime')
-    def conv_utcdatetime(self, column, name, **kwargs):
-        return [f(column, name, **kwargs) for f in self.utcdatetime_filters]
+    filter_converter_class = UtcAwareFilterConverter

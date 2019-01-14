@@ -30,7 +30,7 @@ from flask_appbuilder.views import ModelView, BaseView
 
 from sqlalchemy import Column, Integer, String, Date, Float
 
-from airflow.www_rbac.security import AirflowSecurityManager, dag_perms
+from airflow.www.security import AirflowSecurityManager, dag_perms
 
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
@@ -129,7 +129,7 @@ class TestSecurity(unittest.TestCase):
         user.roles = roles
         self.assertEqual(self.security_manager.get_user_roles(user), roles)
 
-    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager.get_user_roles')
+    @mock.patch('airflow.www.security.AirflowSecurityManager.get_user_roles')
     def test_get_all_permissions_views(self, mock_get_user_roles):
         role_name = 'MyRole1'
         role_perms = ['can_some_action']
@@ -146,9 +146,9 @@ class TestSecurity(unittest.TestCase):
         self.assertEquals(len(self.security_manager
                               .get_all_permissions_views()), 0)
 
-    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager'
+    @mock.patch('airflow.www.security.AirflowSecurityManager'
                 '.get_all_permissions_views')
-    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager'
+    @mock.patch('airflow.www.security.AirflowSecurityManager'
                 '.get_user_roles')
     def test_get_accessible_dag_ids(self, mock_get_user_roles,
                                     mock_get_all_permissions_views):
@@ -166,7 +166,7 @@ class TestSecurity(unittest.TestCase):
         self.assertEquals(self.security_manager
                           .get_accessible_dag_ids(user), set(['dag_id']))
 
-    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager._has_view_access')
+    @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):
         user = mock.MagicMock()
         user.is_anonymous = False
@@ -180,8 +180,8 @@ class TestSecurity(unittest.TestCase):
             self.assertIsNotNone(self.security_manager.
                                  find_permission_view_menu(dag_perm, test_dag_id))
 
-    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager._has_perm')
-    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager._has_role')
+    @mock.patch('airflow.www.security.AirflowSecurityManager._has_perm')
+    @mock.patch('airflow.www.security.AirflowSecurityManager._has_role')
     def test_has_all_dag_access(self, mock_has_role, mock_has_perm):
         mock_has_role.return_value = True
         self.assertTrue(self.security_manager.has_all_dags_access())

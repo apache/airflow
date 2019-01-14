@@ -63,10 +63,7 @@ from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
-from airflow.www.app import (cached_app, create_app)
-from airflow.www_rbac.app import cached_app as cached_app_rbac
-from airflow.www_rbac.app import create_app as create_app_rbac
-from airflow.www_rbac.app import cached_appbuilder
+from airflow.www.app import cached_app, create_app, cached_appbuilder
 
 from sqlalchemy.orm import exc
 
@@ -842,16 +839,13 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        if settings.RBAC:
-            app, _ = create_app_rbac(conf, testing=conf.get('core', 'unit_test_mode'))
-        else:
-            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app, _ = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
+        app = cached_app(conf)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         os.environ.pop('SKIP_DAGS_PARSING')
@@ -878,7 +872,6 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
-            '-c', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -893,7 +886,7 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        webserver_module = 'www_rbac' if settings.RBAC else 'www'
+        webserver_module = 'www'
         run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
         gunicorn_master_proc = None
@@ -1078,7 +1071,7 @@ def worker(args):
 
 def initdb(args):
     print("DB: " + repr(settings.engine.url))
-    db.initdb(settings.RBAC)
+    db.initdb()
     print("Done.")
 
 
@@ -1087,7 +1080,7 @@ def resetdb(args):
     if args.yes or input("This will drop existing tables "
                          "if they exist. Proceed? "
                          "(y/n)").upper() == "Y":
-        db.resetdb(settings.RBAC)
+        db.resetdb()
     else:
         print("Bail.")
 
@@ -1445,12 +1438,9 @@ def list_dag_runs(args, dag=None):
 
 @cli_utils.action_logging
 def sync_perm(args):
-    if settings.RBAC:
-        appbuilder = cached_appbuilder()
-        print('Update permission, view-menu for all existing roles')
-        appbuilder.sm.sync_roles()
-    else:
-        print('The sync_perm command only works for rbac UI.')
+    appbuilder = cached_appbuilder()
+    print('Update permission, view-menu for all existing roles')
+    appbuilder.sm.sync_roles()
 
 
 Arg = namedtuple(

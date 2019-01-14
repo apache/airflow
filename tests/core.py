@@ -58,7 +58,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
-from airflow.www import app as application
+from airflow.www.app import create_app
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
@@ -1068,8 +1068,8 @@ class CliTests(unittest.TestCase):
 
     def setUp(self):
         super(CliTests, self).setUp()
-        from airflow.www_rbac import app as application
         configuration.load_test_config()
+        from airflow.www import app as application
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['TESTING'] = True
 
@@ -1168,13 +1168,13 @@ class CliTests(unittest.TestCase):
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
-        initdb_mock.assert_called_once_with(False)
+        initdb_mock.assert_called_once_with()
 
     @mock.patch("airflow.bin.cli.db.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
 
-        resetdb_mock.assert_called_once_with(False)
+        resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
@@ -1712,12 +1712,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class SecurityTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -1803,12 +1804,13 @@ class SecurityTests(unittest.TestCase):
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -2134,12 +2136,13 @@ class WebUiTests(unittest.TestCase):
         session.close()
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class SecureModeWebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("core", "secure_mode", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -2155,6 +2158,7 @@ class SecureModeWebUiTests(unittest.TestCase):
         configuration.conf.remove_option("core", "SECURE_MODE")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class PasswordUserTest(unittest.TestCase):
     def setUp(self):
         user = models.User()
@@ -2198,12 +2202,13 @@ class PasswordUserTest(unittest.TestCase):
         session.close()
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebPasswordAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
         configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.password_auth")
 
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
         from airflow.contrib.auth.backends.password_auth import PasswordUser
@@ -2265,6 +2270,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebLdapAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
@@ -2281,7 +2287,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
         configuration.conf.set("ldap", "cacert", "")
 
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -2352,6 +2358,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class LdapGroupTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")

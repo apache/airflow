@@ -21,14 +21,12 @@ include LICENSE
 include CHANGELOG.txt
 include README.md
 graft licenses/
-graft airflow/www/templates
+graft airflow/www
 graft airflow/www/static
-graft airflow/www_rbac
-graft airflow/www_rbac/static
-graft airflow/www_rbac/templates
-graft airflow/www_rbac/translations
+graft airflow/www/templates
+graft airflow/www/translations
 include airflow/alembic.ini
 graft scripts/systemd
 graft scripts/upstart
 graft airflow/config_templates
-recursive-exclude airflow/www_rbac/node_modules *
+recursive-exclude airflow/www/node_modules *

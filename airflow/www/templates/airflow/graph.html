@@ -16,20 +16,16 @@
 
 #}
 {% extends "airflow/dag.html" %}
-{% import 'admin/lib.html' as lib with context %}
-{% import 'admin/static.html' as admin_static with context %}
 
 {% block title %}Airflow - DAGs{% endblock %}
 
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='dagre.css') }}">
-<link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='graph.css') }}">
+      href="{{ url_for('static', filename='css/graph.css') }}">
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
     {% if doc_md %}
         <div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
@@ -98,32 +94,70 @@
 {% block tail %}
     {{ super() }}
 
-    <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='dagre-d3.js') }}"></script>
+    <script src="{{ url_for_asset('d3.min.js') }}"></script>
+    <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
     <script>
 
     var highlight_color = "#000000";
     var upstream_color = "#2020A0";
     var downstream_color = "#0000FF";
+    var initialStrokeWidth = '3px';
+    var highlightStrokeWidth = '5px';
 
     var nodes = {{ nodes|safe }};
     var edges = {{ edges|safe }};
-    var tasks = {{ tasks|safe }};
-    var task_instances = {{ task_instances|safe }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
-    var g = dagreD3.json.decode(nodes, edges);
+
+    // Below variables are being used in dag.js
+    var tasks = {{ tasks|safe }};
+    var task_instances = {{ task_instances|safe }};
+    var getTaskInstanceURL = '{{ url_for("Airflow.task_instances", dag_id='+
+      dag.dag_id + ', execution_date=' + execution_date + ') }}';
+
     var duration = 500;
     var stateFocusMap = {
         'no status':false, 'failed':false, 'running':false,
         'queued': false, 'success': false};
 
+    // Preparation of DagreD3 data structures
+    var g = new dagreD3.graphlib.Graph().setGraph({
+        nodesep: 15,
+        ranksep: 15,
+        rankdir: arrange,
+      })
+      .setDefaultEdgeLabel(function() { return { lineInterpolate: 'basis' } });
 
-    var layout = dagreD3.layout().rankDir(arrange).nodeSep(15).rankSep(15);
-    var renderer = new dagreD3.Renderer();
-    renderer.layout(layout).run(g, d3.select("#dig"));
+    // Set all nodes and styles
+    nodes.forEach(function(node) {
+      g.setNode(node.id, node.value)
+    });
+
+    // Set edges
+    edges.forEach(function(edge) {
+      g.setEdge(edge.u, edge.v)
+    });
+
+    var render = dagreD3.render(),
+      svg = d3.select("svg"),
+      innerSvg = d3.select("svg g");
+
+    innerSvg.call(render, g);
+
+    function setUpZoomSupport() {
+      // Set up zoom support for Graph
+      var zoom = d3.behavior.zoom().on("zoom", function() {
+            innerSvg.attr("transform", "translate(" + d3.event.translate + ")" +
+                                        "scale(" + d3.event.scale + ")");
+          });
+      svg.call(zoom);
+    }
+
+    // Centering the DAG on load (Not implemented yet)
+    // https://github.com/dagrejs/dagre-d3/issues/245
+
+    setUpZoomSupport();
     inject_node_ids(tasks);
-    update_nodes_states(task_instances);
 
     d3.selectAll("g.node").on("click", function(d){
         task = tasks[d];
@@ -136,14 +170,14 @@
 
     function highlight_nodes(nodes, color) {
         nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid + ' rect');
-            my_node.style("stroke", color) ;
+            my_node = d3.select('#' + nodeid).node().parentNode;
+            d3.select(my_node).selectAll("rect").style("stroke", color) ;
         })
     }
 
     d3.selectAll("g.node").on("mouseover", function(d){
         d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
-        highlight_nodes(g.predecessors(d), upstream_color)
+        highlight_nodes(g.predecessors(d), upstream_color);
         highlight_nodes(g.successors(d), downstream_color)
 
     });
@@ -212,7 +246,7 @@
                     .transition().duration(duration)
                     .style("opacity", 1)
                     .selectAll("rect")
-                    .style("stroke-width", "2px");
+                    .style("stroke-width", initialStrokeWidth);
             }
             else{
                 d3.select("g.edgePaths")
@@ -225,17 +259,21 @@
                         .transition().duration(duration)
                         .style("opacity", 1)
                         .selectAll("rect")
-                        .style("stroke-width", "10px");
+                        .style("stroke-width", highlightStrokeWidth);
                 }
                 else {
                     d3.select(this)
                         .transition()
                         .style("opacity", 0.2).duration(duration)
                         .selectAll("rect")
-                        .style("stroke-width", "2px");
+                        .style("stroke-width", initialStrokeWidth);
                 }
             }
         });
+
+        // This moves the matched node in the center of the graph area
+        // ToDo: Should we keep this here as it has no added value
+        // and does not fit the graph on small screens, and has to scroll
         if(match) {
             var transform = d3.transform(d3.select(match).attr("transform"));
             transform.translate = [
@@ -247,8 +285,8 @@
             d3.select("g.zoom")
                 .transition()
                 .attr("transform", transform.toString());
-            renderer.zoom_obj.translate(transform.translate);
-            renderer.zoom_obj.scale(1);
+            innerSvg.attr("transform", "translate(" + transform.translate + ")" +
+                                        "scale(1)");
         }
     });
 
@@ -264,50 +302,13 @@
         });
     }
 
-
-    // Assigning css classes based on state to nodes
-    function update_nodes_states(task_instances) {
-        $.each(task_instances, function(task_id, ti) {
-          $('tspan').filter(function(index) { return $(this).text() === task_id; })
-            .parent().parent().parent()
-            .attr("class", "node enter " + ti.state)
-            .attr("data-toggle", "tooltip")
-            .attr("data-original-title", function(d) {
-              // Tooltip
-              task = tasks[task_id];
-              tt =  "Task_id: " + ti.task_id + "<br>";
-              tt += "Run: " + ti.execution_date + "<br>";
-              if(ti.run_id != undefined){
-                tt += "run_id: <nobr>" + ti.run_id + "</nobr><br>";
-              }
-              tt += "Operator: " + task.task_type + "<br>";
-              tt += "Started: " + ti.start_date + "<br>";
-              tt += "Ended: " + ti.end_date + "<br>";
-              tt += "Duration: " + secondsToString(ti.duration) + "<br>";
-              tt += "State: " + ti.state + "<br>";
-              return tt;
-            });
-        });
-    }
-
-    function secondsToString(seconds) {
-        var numdays = Math.floor((seconds % 31536000) / 86400); 
-        var numhours = Math.floor(((seconds % 31536000) % 86400) / 3600);
-        var numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
-        var numseconds = Math.floor((((seconds % 31536000) % 86400) % 3600) % 60);
-        return (numdays > 0    ? numdays    + (numdays    === 1 ? " day "    : " days ")    : "") +
-               (numhours > 0   ? numhours   + (numhours   === 1 ? " hour "   : " hours ")   : "") +
-               (numminutes > 0 ? numminutes + (numminutes === 1 ? " minute " : " minutes ") : "") +
-               (numseconds > 0 ? numseconds + (numseconds === 1 ? " second"  : " seconds")  : "");
-    }
-
     function clearFocus(){
         d3.selectAll("g.node")
             .transition(duration)
             .style("opacity", 1);
         d3.selectAll("g.node rect")
             .transition(duration)
-            .style("stroke-width", "2px");
+            .style("stroke-width", initialStrokeWidth);
         d3.select("g.edgePaths")
             .transition().duration(duration)
             .style("opacity", 1);
@@ -324,7 +325,7 @@
             .style("opacity", 1);
         d3.selectAll("g.node." + state + " rect")
             .transition(duration)
-            .style("stroke-width", "10px")
+            .style("stroke-width", highlightStrokeWidth)
             .style("opacity", 1);
         d3.select("g.edgePaths")
             .transition().duration(duration)
@@ -350,36 +351,8 @@
         }
         return false
     }
-
-    function error(msg){
-      $('#error_msg').html(msg);
-      $('#error').show();
-      $('#loading').hide();
-      $('#chart_section').hide(1000);
-      $('#datatable_section').hide(1000);
-    }
-
-    d3.select("#refresh_button").on("click",
-        function() {
-            $("#loading").css("display", "block");
-            $("div#svg_container").css("opacity", "0.2");
-            $.get(
-                "{{ url_for('airflow.task_instances') }}",
-                {dag_id : "{{ dag.dag_id }}", execution_date : "{{ execution_date }}"})
-            .done(
-                function(task_instances) {
-                    update_nodes_states(JSON.parse(task_instances));
-                    $("#loading").hide();
-                    $("div#svg_container").css("opacity", "1");
-                    $('#error').hide();
-                }
-            ).fail(function(jqxhr, textStatus, err) {
-                error(textStatus + ': ' + err);
-            });
-        }
-    );
-
     </script>
+    <script src="{{ url_for_asset('graph.js') }}"></script>
 
 
 {% endblock %}

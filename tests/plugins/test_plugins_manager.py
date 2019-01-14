@@ -26,7 +26,7 @@ import unittest
 
 
 from airflow.configuration import conf
-from airflow.www_rbac import app as application
+from airflow.www import app as application
 
 
 class PluginsTestRBAC(unittest.TestCase):

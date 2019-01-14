@@ -18,11 +18,11 @@
 set -e
 
 # first bump up package.json manually, commit and tag
-if [ -d airflow/www_rbac/static/dist ]; then
-  rm airflow/www_rbac/static/dist/*
+if [ -d airflow/www/static/dist ]; then
+  rm airflow/www/static/dist/*
 fi
 
-cd airflow/www_rbac/
+cd airflow/www/
 npm install
 npm run build
 cd ../..

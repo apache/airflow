@@ -24,11 +24,11 @@ const CleanWebpackPlugin = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
-// Input Directory (airflow/www_rbac)
+// Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
 const STATIC_DIR = path.resolve(__dirname, './static');
 
-// Output Directory (airflow/www_rbac/static/dist)
+// Output Directory (airflow/www/static/dist)
 // noinspection JSUnresolvedVariable
 const BUILD_DIR = path.resolve(__dirname, './static/dist');
 
