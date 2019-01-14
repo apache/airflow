@@ -24,6 +24,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+#### Change default aws_conn_id in EMR operators
+
+The aws_conn_id was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous versions. This was leading to emr_step_sensors not being able to find their corresponding emr cluster. With the new changes in the emr_add_steps_operator, emr_terminate_job_flow_operator and emr_create_job_flow_operator this issue is solved.
+
 #### Remove run_duration
 
 We should not use the `run_duration` option anymore. This used to be for restarting the scheduler from time to time, but right now the scheduler is getting more stable and therefore using this setting is considered bad and might cause an inconsistent state.
