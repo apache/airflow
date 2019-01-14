@@ -126,7 +126,6 @@ Improvements
 - [AIRFLOW-3691] Update notice to 2019 (#4503)
 - [AIRFLOW-3689] Update pop-up message when deleting DAG in RBAC UI (#4505)
 - [AIRFLOW-2801] Skip test_mark_success_no_kill in PostgreSQL on CI (#3642)
-- [AIRFLOW-3692] Remove ENV variables to avoid GPL (#4506)
 - [AIRFLOW-3693] Replace psycopg2-binary by psycopg2 (#4508)
 
 Bug fixes
