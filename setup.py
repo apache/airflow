@@ -153,7 +153,7 @@ crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
 ]
-databricks = ['requests>=2.5.1, <3']
+databricks = ['requests>=2.20.0, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
     'mock',
@@ -314,7 +314,7 @@ def do_setup():
             'python-daemon>=2.1.1, <2.2',
             'python-dateutil>=2.3, <3',
             'python-nvd3==0.15.0',
-            'requests>=2.5.1, <3',
+            'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
