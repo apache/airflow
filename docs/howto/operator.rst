@@ -144,11 +144,23 @@ The following examples of OS environment variables used to pass arguments to the
 Using the operator
 """"""""""""""""""
 
+The code to create the operator:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start]
     :end-before: [END howto_operator_gce_start]
+
+You can also create the operator without project id - project id will be retrieved
+from the GCP connection id used:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_start_no_project_id]
+    :end-before: [END howto_operator_gce_start_no_project_id]
+
 
 Templating
 """"""""""
@@ -187,11 +199,22 @@ The following examples of OS environment variables used to pass arguments to the
 Using the operator
 """"""""""""""""""
 
+The code to create the operator:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop]
     :end-before: [END howto_operator_gce_stop]
+
+You can also create the operator without project id - project id will be retrieved
+from the GCP connection used:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_stop_no_project_id]
+    :end-before: [END howto_operator_gce_stop_no_project_id]
 
 Templating
 """"""""""
@@ -236,11 +259,22 @@ The following examples of OS environment variables used to pass arguments to the
 Using the operator
 """"""""""""""""""
 
+The code to create the operator:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type]
     :end-before: [END howto_operator_gce_set_machine_type]
+
+You can also create the operator without project id - project id will be retrieved
+from the GCP connection used:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_set_machine_type_no_project_id]
+    :end-before: [END howto_operator_gce_set_machine_type_no_project_id]
 
 Templating
 """"""""""
@@ -285,11 +319,22 @@ The following examples of OS environment variables used to pass arguments to the
 Using the operator
 """"""""""""""""""
 
+The code to create the operator:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template]
     :end-before: [END howto_operator_gce_igm_copy_template]
+
+You can also create the operator without project id - project id will be retrieved
+from the GCP connection used:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_igm_copy_template_no_project_id]
+    :end-before: [END howto_operator_gce_igm_copy_template_no_project_id]
 
 Templating
 """"""""""
@@ -332,11 +377,23 @@ The following examples of OS environment variables used to pass arguments to the
 Using the operator
 """"""""""""""""""
 
+The code to create the operator:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template]
     :end-before: [END howto_operator_gce_igm_update_template]
+
+You can also create the operator without project id - project id will be retrieved
+from the GCP connection used:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_compute_igm.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gce_igm_update_template_no_project_id]
+    :end-before: [END howto_operator_gce_igm_update_template_no_project_id]
+
 
 Templating
 """"""""""
@@ -387,12 +444,14 @@ and immediately succeeds. No changes are made to the existing instance.
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_instance_create]
     :end-before: [END howto_operator_gcp_bigtable_instance_create]
-
 
 BigtableInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -402,6 +461,9 @@ to delete a Google Cloud Bigtable instance.
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
@@ -418,12 +480,14 @@ to modify number of nodes in a Cloud Bigtable cluster.
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_cluster_update]
     :end-before: [END howto_operator_gcp_bigtable_cluster_update]
-
 
 BigtableTableCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -437,6 +501,9 @@ error message.
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
@@ -462,6 +529,9 @@ to delete a table in Google Cloud Bigtable.
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_bigtable_operators.py
     :language: python
     :dedent: 4
@@ -470,6 +540,9 @@ Using the operator
 
 BigtableTableWaitForReplicationSensor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 Use the :class:`~airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor`
 to wait for the table to replicate fully.
@@ -487,8 +560,6 @@ Using the operator
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_wait_for_replication]
     :end-before: [END howto_operator_gcp_bigtable_table_wait_for_replication]
-
-
 
 Google Cloud Functions Operators
 --------------------------------
@@ -609,6 +680,15 @@ The code to create the operator:
     :start-after: [START howto_operator_gcf_deploy]
     :end-before: [END howto_operator_gcf_deploy]
 
+You can also create the operator without project id - project id will be retrieved
+from the GCP connection used:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_function.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcf_deploy_no_project_id]
+    :end-before: [END howto_operator_gcf_deploy_no_project_id]
+
 Templating
 """"""""""
 
@@ -684,6 +764,9 @@ Some arguments in the example DAG are taken from environment variables.
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
@@ -729,6 +812,9 @@ Some arguments in the example DAG are taken from environment variables.
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
@@ -779,11 +865,20 @@ Some arguments in the example DAG are taken from environment variables.
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update]
     :end-before: [END howto_operator_spanner_database_update]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spanner_database_update_idempotent]
+    :end-before: [END howto_operator_spanner_database_update_idempotent]
 
 Templating
 """"""""""
@@ -820,6 +915,9 @@ Some arguments in the example DAG are taken from environment variables.
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
@@ -863,6 +961,9 @@ Some arguments in the example DAG are taken from environment variables:
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
@@ -908,6 +1009,9 @@ Some arguments in the example DAG are taken from environment variables:
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
@@ -958,6 +1062,9 @@ Some arguments in the example DAG are taken from environment variables:
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
@@ -1001,6 +1108,9 @@ Some arguments in the example DAG are taken from environment variables:
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
@@ -1050,6 +1160,9 @@ Some arguments in the example DAG are taken from OS environment variables:
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
@@ -1110,6 +1223,9 @@ Example body defining the export operation:
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
@@ -1205,6 +1321,9 @@ Example body defining the import operation:
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
@@ -1277,6 +1396,9 @@ Example body defining the instance:
 Using the operator
 """"""""""""""""""
 
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
+
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :dedent: 4
@@ -1331,6 +1453,9 @@ Example body defining the instance:
 
 Using the operator
 """"""""""""""""""
+
+You can create the operator with or without project id. If project id is missing
+it will be retrieved from the GCP connection used. Both variants are shown:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python

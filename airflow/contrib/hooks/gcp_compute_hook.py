@@ -41,11 +41,15 @@ class GceOperationStatus:
 class GceHook(GoogleCloudBaseHook):
     """
     Hook for Google Compute Engine APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
+
     """
     _conn = None
 
     def __init__(self,
-                 api_version,
+                 api_version='v1',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
         super(GceHook, self).__init__(gcp_conn_id, delegate_to)
@@ -64,19 +68,21 @@ class GceHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def start_instance(self, project_id, zone, resource_id):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def start_instance(self, zone, resource_id, project_id=None):
         """
         Starts an existing instance defined by project_id, zone and resource_id.
+        Must be called with keyword arguments rather than positional.
 
-        :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
-        :type project_id: str
         :param zone: Google Cloud Platform zone where the instance exists
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
-        :return: True if the operation succeeded, raises an error otherwise.
-        :rtype: bool
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().instances().start(
             project=project_id,
@@ -89,21 +95,25 @@ class GceHook(GoogleCloudBaseHook):
             raise AirflowException(
                 "Wrong response '{}' returned - it should contain "
                 "'name' field".format(response))
-        return self._wait_for_operation_to_complete(project_id, operation_name, zone)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name,
+                                             zone=zone)
 
-    def stop_instance(self, project_id, zone, resource_id):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def stop_instance(self, zone, resource_id, project_id=None):
         """
         Stops an instance defined by project_id, zone and resource_id
+        Must be called with keyword arguments rather than positional.
 
-        :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
-        :type project_id: str
         :param zone: Google Cloud Platform zone where the instance exists
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
         :type resource_id: str
-        :return: True if the operation succeeded, raises an error otherwise.
-        :rtype: bool
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().instances().stop(
             project=project_id,
@@ -116,15 +126,16 @@ class GceHook(GoogleCloudBaseHook):
             raise AirflowException(
                 "Wrong response '{}' returned - it should contain "
                 "'name' field".format(response))
-        return self._wait_for_operation_to_complete(project_id, operation_name, zone)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name,
+                                             zone=zone)
 
-    def set_machine_type(self, project_id, zone, resource_id, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def set_machine_type(self, zone, resource_id, body, project_id=None):
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
+        Must be called with keyword arguments rather than positional.
 
-        :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
-        :type project_id: str
         :param zone: Google Cloud Platform zone where the instance exists.
         :type zone: str
         :param resource_id: Name of the Compute Engine instance resource
@@ -133,32 +144,40 @@ class GceHook(GoogleCloudBaseHook):
             as described in
             https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType
         :type body: dict
-        :return: True if the operation succeeded, raises an error otherwise.
-        :rtype: bool
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
-        response = self._execute_set_machine_type(project_id, zone, resource_id, body)
+        response = self._execute_set_machine_type(zone, resource_id, body, project_id)
         try:
             operation_name = response["name"]
         except KeyError:
             raise AirflowException(
                 "Wrong response '{}' returned - it should contain "
                 "'name' field".format(response))
-        return self._wait_for_operation_to_complete(project_id, operation_name, zone)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name,
+                                             zone=zone)
 
-    def _execute_set_machine_type(self, project_id, zone, resource_id, body):
+    def _execute_set_machine_type(self, zone, resource_id, body, project_id):
         return self.get_conn().instances().setMachineType(
             project=project_id, zone=zone, instance=resource_id, body=body)\
             .execute(num_retries=NUM_RETRIES)
 
-    def get_instance_template(self, project_id, resource_id):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def get_instance_template(self, resource_id, project_id=None):
         """
         Retrieves instance template by project_id and resource_id.
+        Must be called with keyword arguments rather than positional.
 
-        :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance template exists
-        :type project_id: str
         :param resource_id: Name of the instance template
         :type resource_id: str
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type project_id: str
         :return: Instance template representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
@@ -169,13 +188,12 @@ class GceHook(GoogleCloudBaseHook):
         ).execute(num_retries=NUM_RETRIES)
         return response
 
-    def insert_instance_template(self, project_id, body, request_id=None):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def insert_instance_template(self, body, request_id=None, project_id=None):
         """
         Inserts instance template using body specified
+        Must be called with keyword arguments rather than positional.
 
-        :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance exists
-        :type project_id: str
         :param body: Instance template representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :type body: dict
@@ -184,8 +202,11 @@ class GceHook(GoogleCloudBaseHook):
             with the same request id will not create a new instance template again)
             It should be in UUID format as defined in RFC 4122
         :type request_id: str
-        :return: True if the operation succeeded
-        :rtype: bool
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().instanceTemplates().insert(
             project=project_id,
@@ -198,19 +219,23 @@ class GceHook(GoogleCloudBaseHook):
             raise AirflowException(
                 "Wrong response '{}' returned - it should contain "
                 "'name' field".format(response))
-        return self._wait_for_operation_to_complete(project_id, operation_name)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name)
 
-    def get_instance_group_manager(self, project_id, zone, resource_id):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def get_instance_group_manager(self, zone, resource_id, project_id=None):
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
+        Must be called with keyword arguments rather than positional.
 
-        :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance Group Manager exists
-        :type project_id: str
         :param zone: Google Cloud Platform zone where the Instance Group Manager exists
         :type zone: str
         :param resource_id: Name of the Instance Group Manager
         :type resource_id: str
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type project_id: str
         :return: Instance group manager representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers
         :rtype: dict
@@ -222,14 +247,13 @@ class GceHook(GoogleCloudBaseHook):
         ).execute(num_retries=NUM_RETRIES)
         return response
 
-    def patch_instance_group_manager(self, project_id, zone, resource_id,
-                                     body, request_id=None):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def patch_instance_group_manager(self, zone, resource_id,
+                                     body, request_id=None, project_id=None):
         """
         Patches Instance Group Manager with the specified body.
+        Must be called with keyword arguments rather than positional.
 
-        :param project_id: Google Cloud Platform project ID where the Compute Engine
-            Instance Group Manager exists
-        :type project_id: str
         :param zone: Google Cloud Platform zone where the Instance Group Manager exists
         :type zone: str
         :param resource_id: Name of the Instance Group Manager
@@ -243,8 +267,11 @@ class GceHook(GoogleCloudBaseHook):
             with the same request id will not create a new instance template again).
             It should be in UUID format as defined in RFC 4122
         :type request_id: str
-        :return: True if the operation succeeded
-        :rtype: bool
+        :param project_id: Optional, Google Cloud Platform project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return None
         """
         response = self.get_conn().instanceGroupManagers().patch(
             project=project_id,
@@ -259,7 +286,9 @@ class GceHook(GoogleCloudBaseHook):
             raise AirflowException(
                 "Wrong response '{}' returned - it should contain "
                 "'name' field".format(response))
-        return self._wait_for_operation_to_complete(project_id, operation_name, zone)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name,
+                                             zone=zone)
 
     def _wait_for_operation_to_complete(self, project_id, operation_name, zone=None):
         """
@@ -269,8 +298,7 @@ class GceHook(GoogleCloudBaseHook):
         :type operation_name: str
         :param zone: optional region of the request (might be None for global operations)
         :type zone: str
-        :return: True if the operation succeeded, raises an error otherwise
-        :rtype: bool
+        :return: None
         """
         service = self.get_conn()
         while True:
@@ -291,7 +319,7 @@ class GceHook(GoogleCloudBaseHook):
                     error_msg = str(error.get("errors"))[1:-1]
                     raise AirflowException("{} {}: ".format(code, msg) + error_msg)
                 # No meaningful info to return from the response in case of success
-                return True
+                return
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 
     @staticmethod

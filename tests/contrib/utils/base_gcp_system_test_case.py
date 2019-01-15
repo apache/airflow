@@ -40,7 +40,7 @@ ENV_FILE_RETRIEVER = os.path.join(AIRFLOW_PARENT_FOLDER,
 
 
 # Retrieve environment variables from parent directory retriever - it should be
-# in the path ${AIRFLOW_SOOURCE_DIR}/../../get_system_test_environment_variables.py
+# in the path ${AIRFLOW_SOURCE_DIR}/../../get_system_test_environment_variables.py
 # and it should print all the variables in form of key=value to the stdout
 class RetrieveVariables:
     @staticmethod
@@ -243,6 +243,7 @@ You can create the database via these commands:
             # and move them back after reset
             self._store_dags_to_temporary_directory()
             try:
+                db_utils.upgradedb()
                 db_utils.resetdb(settings.RBAC)
             finally:
                 self._restore_dags_from_temporary_directory()

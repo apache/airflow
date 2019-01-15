@@ -46,11 +46,25 @@ class GcfHook(GoogleCloudBaseHook):
         super(GcfHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
 
+    @staticmethod
+    def _full_location(project_id, location):
+        """
+        Retrieve full location of the function in the form of
+        projects/<GCP_PROJECT_ID>/locations/<GCP_LOCATION>
+
+        :param project_id: The Google Cloud Project project_id where the function belongs.
+        :type project_id: str
+        :param location: The location where the function is created.
+        :type location: str
+        :return:
+        """
+        return 'projects/{}/locations/{}'.format(project_id, location)
+
     def get_conn(self):
         """
         Retrieves the connection to Cloud Functions.
 
-        :return: Google Cloud Function services object
+        :return: Google Cloud Function services object.
         :rtype: dict
         """
         if not self._conn:
@@ -63,45 +77,46 @@ class GcfHook(GoogleCloudBaseHook):
         """
         Returns the Cloud Function with the given name.
 
-        :param name: name of the function
+        :param name: Name of the function.
         :type name: str
-        :return: a Cloud Functions object representing the function
+        :return: A Cloud Functions object representing the function.
         :rtype: dict
         """
         return self.get_conn().projects().locations().functions().get(
             name=name).execute(num_retries=NUM_RETRIES)
 
-    def create_new_function(self, full_location, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_new_function(self, location, body, project_id=None):
         """
         Creates a new function in Cloud Function in the location specified in the body.
 
-        :param full_location: full location including the project in the form of
-            of /projects/<PROJECT>/location/<GCP_LOCATION>
-        :type full_location: str
-        :param body: body required by the Cloud Functions insert API
+        :param location: The location of the function.
+        :type location: str
+        :param body: The body required by the Cloud Functions insert API.
         :type body: dict
-        :return: response returned by the operation
-        :rtype: dict
+        :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+            If set to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().projects().locations().functions().create(
-            location=full_location,
+            location=self._full_location(project_id, location),
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(operation_name)
+        self._wait_for_operation_to_complete(operation_name=operation_name)
 
     def update_function(self, name, body, update_mask):
         """
         Updates Cloud Functions according to the specified update mask.
 
-        :param name: name of the function
+        :param name: The name of the function.
         :type name: str
-        :param body: body required by the cloud function patch API
-        :type body: str
-        :param update_mask: update mask - array of fields that should be patched
+        :param body: The body required by the cloud function patch API.
+        :type body: dict
+        :param update_mask: The update mask - array of fields that should be patched.
         :type update_mask: [str]
-        :return: response returned by the operation
-        :rtype: dict
+        :return: None
         """
         response = self.get_conn().projects().locations().functions().patch(
             updateMask=",".join(update_mask),
@@ -109,21 +124,24 @@ class GcfHook(GoogleCloudBaseHook):
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(operation_name)
+        self._wait_for_operation_to_complete(operation_name=operation_name)
 
-    def upload_function_zip(self, parent, zip_path):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def upload_function_zip(self, location, zip_path, project_id=None):
         """
         Uploads zip file with sources.
 
-        :param parent: Google Cloud Platform project id and region where zip file should
-            be uploaded in the form of /projects/<PROJECT>/location/<GCP_LOCATION>
-        :type parent: str
-        :param zip_path: path of the valid .zip file to upload
+        :param location: The location where the function is created.
+        :type location: str
+        :param zip_path: The path of the valid .zip file to upload.
         :type zip_path: str
-        :return: Upload URL that was returned by generateUploadUrl method
+        :param project_id: Optional, Google Cloud Project project_id where the function belongs.
+            If set to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: The upload URL that was returned by generateUploadUrl method.
         """
         response = self.get_conn().projects().locations().functions().generateUploadUrl(
-            parent=parent
+            parent=self._full_location(project_id, location)
         ).execute(num_retries=NUM_RETRIES)
         upload_url = response.get('uploadUrl')
         with open(zip_path, 'rb') as fp:
@@ -144,26 +162,25 @@ class GcfHook(GoogleCloudBaseHook):
         """
         Deletes the specified Cloud Function.
 
-        :param name: name of the function
+        :param name: The name of the function.
         :type name: str
-        :return: response returned by the operation
-        :rtype: dict
+        :return: None
         """
         response = self.get_conn().projects().locations().functions().delete(
             name=name).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(operation_name)
+        self._wait_for_operation_to_complete(operation_name=operation_name)
 
     def _wait_for_operation_to_complete(self, operation_name):
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.
 
-        :param operation_name: name of the operation
+        :param operation_name: The name of the operation.
         :type operation_name: str
-        :return: response  returned by the operation
+        :return: The response returned by the operation.
         :rtype: dict
-        :exception: AirflowException in case error is returned
+        :exception: AirflowException in case error is returned.
         """
         service = self.get_conn()
         while True:

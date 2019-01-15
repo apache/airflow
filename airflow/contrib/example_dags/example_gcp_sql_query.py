@@ -239,6 +239,21 @@ os.environ['AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL'] = \
     "sslkey={client_key_file}&" \
     "sslrootcert={server_ca_file}".format(**mysql_kwargs)
 
+# Special case: MySQL: connect directly via TCP (SSL) and with fixed Cloud Sql
+# Proxy binary path AND with missing project_id
+
+os.environ['AIRFLOW_CONN_PUBLIC_MYSQL_TCP_SSL_NO_PROJECT_ID'] = \
+    "gcpcloudsql://{user}:{password}@{public_ip}:{public_port}/{database}?" \
+    "database_type=mysql&" \
+    "location={location}&" \
+    "instance={instance}&" \
+    "use_proxy=False&" \
+    "use_ssl=True&" \
+    "sslcert={client_cert_file}&" \
+    "sslkey={client_key_file}&" \
+    "sslrootcert={server_ca_file}".format(**mysql_kwargs)
+
+
 # [END howto_operator_cloudsql_query_connections]
 
 # [START howto_operator_cloudsql_query_operators]
@@ -251,7 +266,8 @@ connection_names = [
     "proxy_mysql_tcp",
     "proxy_mysql_socket",
     "public_mysql_tcp",
-    "public_mysql_tcp_ssl"
+    "public_mysql_tcp_ssl",
+    "public_mysql_tcp_ssl_no_project_id"
 ]
 
 tasks = []

@@ -36,16 +36,14 @@ class GceBaseOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  zone,
                  resource_id,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  *args, **kwargs):
         self.project_id = project_id
         self.zone = zone
-        self.full_location = 'projects/{}/zones/{}'.format(self.project_id,
-                                                           self.zone)
         self.resource_id = resource_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -54,7 +52,7 @@ class GceBaseOperator(BaseOperator):
         super(GceBaseOperator, self).__init__(*args, **kwargs)
 
     def _validate_inputs(self):
-        if not self.project_id:
+        if self.project_id == '':
             raise AirflowException("The required parameter 'project_id' is missing")
         if not self.zone:
             raise AirflowException("The required parameter 'zone' is missing")
@@ -69,17 +67,22 @@ class GceInstanceStartOperator(GceBaseOperator):
     """
     Starts an instance in Google Compute Engine.
 
-    :param project_id: Google Cloud Platform Project ID where the Compute Engine
-        Instance exists.
-    :type project_id: str
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
     :type resource_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection is
+        used.
+    :type project_id: str
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
+        Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
-    :param api_version: API version used (for example v1 or beta).
+    :param api_version: Optional, API version used (for example v1 - or beta). Defaults
+        to v1.
     :type api_version: str
+    :param validate_body: Optional, If set to False, body validation is not performed.
+        Defaults to False.
     """
     # [START gce_instance_start_template_fields]
     template_fields = ('project_id', 'zone', 'resource_id', 'gcp_conn_id', 'api_version')
@@ -87,9 +90,9 @@ class GceInstanceStartOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  zone,
                  resource_id,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  *args, **kwargs):
@@ -98,24 +101,31 @@ class GceInstanceStartOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        return self._hook.start_instance(self.project_id, self.zone, self.resource_id)
+        return self._hook.start_instance(zone=self.zone,
+                                         resource_id=self.resource_id,
+                                         project_id=self.project_id)
 
 
 class GceInstanceStopOperator(GceBaseOperator):
     """
     Stops an instance in Google Compute Engine.
 
-    :param project_id: Google Cloud Platform Project ID where the Compute Engine
-        Instance exists.
-    :type project_id: str
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
     :type resource_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+        Engine Instance exists. If set to None or missing, the default project_id from the GCP connection is
+        used.
+    :type project_id: str
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
+        Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
-    :param api_version: API version used (for example v1 or beta).
+    :param api_version: Optional, API version used (for example v1 - or beta). Defaults
+        to v1.
     :type api_version: str
+    :param validate_body: Optional, If set to False, body validation is not performed.
+        Defaults to False.
     """
     # [START gce_instance_stop_template_fields]
     template_fields = ('project_id', 'zone', 'resource_id', 'gcp_conn_id', 'api_version')
@@ -123,9 +133,9 @@ class GceInstanceStopOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  zone,
                  resource_id,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  *args, **kwargs):
@@ -134,7 +144,9 @@ class GceInstanceStopOperator(GceBaseOperator):
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
     def execute(self, context):
-        return self._hook.stop_instance(self.project_id, self.zone, self.resource_id)
+        self._hook.stop_instance(zone=self.zone,
+                                 resource_id=self.resource_id,
+                                 project_id=self.project_id)
 
 
 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
@@ -147,9 +159,6 @@ class GceSetMachineTypeOperator(GceBaseOperator):
     Changes the machine type for a stopped instance to the machine type specified in
         the request.
 
-    :param project_id: Google Cloud Platform Project ID where the Compute Engine
-        Instance exists.
-    :type project_id: str
     :param zone: Google Cloud Platform zone where the instance exists.
     :type zone: str
     :param resource_id: Name of the Compute Engine instance resource.
@@ -157,11 +166,18 @@ class GceSetMachineTypeOperator(GceBaseOperator):
     :param body: Body required by the Compute Engine setMachineType API, as described in
         https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType#request-body
     :type body: dict
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+        Engine Instance exists. If set to None or missing, the default project_id from the GCP connection
+        is used.
+    :type project_id: str
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
+        Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
-    :param api_version: API version used (for example v1 or beta).
+    :param api_version: Optional, API version used (for example v1 - or beta). Defaults
+        to v1.
     :type api_version: str
-    :param validate_body: If set to False, body validation is not performed.
+    :param validate_body: Optional, If set to False, body validation is not performed.
+        Defaults to False.
     :type validate_body: bool
     """
     # [START gce_instance_set_machine_type_template_fields]
@@ -170,10 +186,10 @@ class GceSetMachineTypeOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  zone,
                  resource_id,
                  body,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  validate_body=True,
@@ -193,8 +209,10 @@ class GceSetMachineTypeOperator(GceBaseOperator):
 
     def execute(self, context):
         self._validate_all_body_fields()
-        return self._hook.set_machine_type(self.project_id, self.zone,
-                                           self.resource_id, self.body)
+        return self._hook.set_machine_type(zone=self.zone,
+                                           resource_id=self.resource_id,
+                                           body=self.body,
+                                           project_id=self.project_id)
 
 
 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION = [
@@ -249,9 +267,6 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
     """
     Copies the instance template, applying specified changes.
 
-    :param project_id: Google Cloud Platform Project ID where the Compute Engine
-        instance exists.
-    :type project_id: str
     :param resource_id: Name of the Instance Template
     :type resource_id: str
     :param body_patch: Patch to the body of instanceTemplates object following rfc7386
@@ -262,16 +277,23 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
         - arrays are replaced fully, so if you need to update an array you should
         provide the whole target array as patch element.
     :type body_patch: dict
+    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection
+        is used.
+    :type project_id: str
     :param request_id: Optional, unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again).
         It should be in UUID format as defined in RFC 4122.
     :type request_id: str
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
+        Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
-    :param api_version: API version used (for example v1 or beta).
+    :param api_version: Optional, API version used (for example v1 - or beta). Defaults
+        to v1.
     :type api_version: str
-    :param validate_body: If set to False, body validation is not performed.
+    :param validate_body: Optional, If set to False, body validation is not performed.
+        Defaults to False.
     :type validate_body: bool
     """
     # [START gce_instance_template_copy_operator_template_fields]
@@ -281,9 +303,9 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  resource_id,
                  body_patch,
+                 project_id=None,
                  request_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
@@ -320,7 +342,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             # that we cannot delete template if it is already used in some Instance
             # Group Manager. We assume success if the template is simply present
             existing_template = self._hook.get_instance_template(
-                project_id=self.project_id, resource_id=self.body_patch['name'])
+                resource_id=self.body_patch['name'], project_id=self.project_id)
             self.log.info("The {} template already existed. It was likely "
                           "created by previous run of the operator. Assuming success.")
             return existing_template
@@ -329,18 +351,18 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             # not yet exist
             if not e.resp.status == 404:
                 raise e
-        old_body = self._hook.get_instance_template(project_id=self.project_id,
-                                                    resource_id=self.resource_id)
+        old_body = self._hook.get_instance_template(resource_id=self.resource_id,
+                                                    project_id=self.project_id)
         new_body = deepcopy(old_body)
         self._field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: {}".
                       format(new_body))
-        self._hook.insert_instance_template(project_id=self.project_id,
-                                            body=new_body,
-                                            request_id=self.request_id)
-        return self._hook.get_instance_template(project_id=self.project_id,
-                                                resource_id=self.body_patch['name'])
+        self._hook.insert_instance_template(body=new_body,
+                                            request_id=self.request_id,
+                                            project_id=self.project_id)
+        return self._hook.get_instance_template(resource_id=self.body_patch['name'],
+                                                project_id=self.project_id)
 
 
 class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
@@ -349,26 +371,32 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
     destination one. API V1 does not have update/patch operations for Instance
     Group Manager, so you must use beta or newer API version. Beta is the default.
 
-    :param project_id: Google Cloud Platform Project ID where the Compute Engine
-        Instance exists.
-    :type project_id: str
     :param resource_id: Name of the Instance Group Manager
     :type resource_id: str
     :param zone: Google Cloud Platform zone where the Instance Group Manager exists.
     :type zone: str
+    :param source_template: URL of the template to replace.
+    :type source_template: str
+    :param destination_template: URL of the target template.
+    :type destination_template: str
+    :param project_id: Optional, Google Cloud Platform Project ID where the Compute
+        Engine Instance exists.  If set to None or missing, the default project_id from the GCP connection is
+        used.
+    :type project_id: str
     :param request_id: Optional, unique request_id that you might add to achieve
         full idempotence (for example when client call times out repeating the request
         with the same request id will not create a new instance template again).
-        It should be in UUID format as defined in RFC 4122
+        It should be in UUID format as defined in RFC 4122.
     :type request_id: str
-    :param update_policy: The update policy for this managed instance group. See
-        https://cloud.google.com/compute/docs/reference/rest/beta/instanceGroupManagers/patch
-        for details of the updatePolicy fields. It's an optional field.
-    :type dict
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud
+        Platform. Defaults to 'google_cloud_default'.
     :type gcp_conn_id: str
-    :param api_version: API version used (for example beta).
+    :param api_version: Optional, API version used (for example v1 - or beta). Defaults
+        to v1.
     :type api_version: str
+    :param validate_body: Optional, If set to False, body validation is not performed.
+        Defaults to False.
+    :type validate_body: bool
     """
     # [START gce_igm_update_template_operator_template_fields]
     template_fields = ('project_id', 'resource_id', 'zone', 'request_id',
@@ -378,11 +406,11 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  resource_id,
                  zone,
                  source_template,
                  destination_template,
+                 project_id=None,
                  update_policy=None,
                  request_id=None,
                  gcp_conn_id='google_cloud_default',
@@ -410,9 +438,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
 
     def execute(self, context):
         old_instance_group_manager = self._hook.get_instance_group_manager(
-            project_id=self.project_id,
-            zone=self.zone,
-            resource_id=self.resource_id)
+            zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
         patch_body = {}
         if 'versions' in old_instance_group_manager:
             patch_body['versions'] = old_instance_group_manager['versions']
@@ -428,8 +454,9 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             self.log.info("Calling patch instance template with updated body: {}".
                           format(patch_body))
             return self._hook.patch_instance_group_manager(
-                project_id=self.project_id, zone=self.zone, resource_id=self.resource_id,
-                body=patch_body, request_id=self.request_id)
+                zone=self.zone, resource_id=self.resource_id,
+                body=patch_body, request_id=self.request_id,
+                project_id=self.project_id)
         else:
             # Idempotence achieved
             return True
