@@ -286,6 +286,10 @@ def initdb():
             extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }'))
     merge_conn(
         Connection(
+            conn_id='azure_kubernetes_default', conn_type='azure_kubernetes_instances',
+            extra='{"key_path": "<AZURE_AUTH_LOCATION>" }'))
+    merge_conn(
+        Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
 

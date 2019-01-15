@@ -84,6 +84,7 @@ class Connection(Base, LoggingMixin):
         ('segment', 'Segment',),
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
+        ('azure_kubernetes_instances', 'Azure Kubernetes Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),
         ('cassandra', 'Cassandra',),
         ('qubole', 'Qubole'),
