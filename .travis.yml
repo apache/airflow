@@ -24,7 +24,6 @@ python:
 env:
   global:
     - DOCKER_COMPOSE_VERSION=1.20.0
-    - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
     - TOX_ENV=py27-backend_mysql-env_docker
