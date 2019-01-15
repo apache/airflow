@@ -13,10 +13,7 @@ except ImportError:
     _unicode_type = str
     unichr = chr
 
-try:
-    import unidecode
-except ImportError:
-    import text_unidecode as unidecode
+import text_unidecode as unidecode
 
 __all__ = ['slugify', 'smart_truncate']
 
