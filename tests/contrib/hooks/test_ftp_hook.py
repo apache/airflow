@@ -137,16 +137,14 @@ class TestIntegrationFTPHook(unittest.TestCase):
 
         configuration.load_test_config()
         db.merge_conn(
-                models.Connection(
-                        conn_id='ftp_passive', conn_type='ftp',
-                        host='localhost',
-                        extra='{"passive": true}'))
+                models.Connection(conn_id='ftp_passive', conn_type='ftp',
+                                  host='localhost',
+                                  extra='{"passive": true}'))
 
         db.merge_conn(
-                models.Connection(
-                        conn_id='ftp_active', conn_type='ftp',
-                        host='localhost',
-                        extra='{"passive": false}'))
+                models.Connection(conn_id='ftp_active', conn_type='ftp',
+                                  host='localhost',
+                                  extra='{"passive": false}'))
 
     def _test_mode(self, hook_type, connection_id, expected_mode):
         hook = hook_type(connection_id)
