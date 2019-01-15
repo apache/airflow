@@ -61,6 +61,19 @@ class ExternalTaskSensor(BaseSensorOperator):
                  **kwargs):
         super(ExternalTaskSensor, self).__init__(*args, **kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
+        if external_task_id:
+            if not set(self.allowed_states) <= set(State.task_states):
+                raise ValueError(
+                    'Valid values for `allowed_states` '
+                    'when `external_task_id` is not `None`: {}'.format(State.task_states)
+                )
+        else:
+            if not set(self.allowed_states) <= set(State.dag_states):
+                raise ValueError(
+                    'Valid values for `allowed_states` '
+                    'when `external_task_id` is `None`: {}'.format(State.dag_states)
+                )
+
         if execution_delta is not None and execution_date_fn is not None:
             raise ValueError(
                 'Only one of `execution_date` or `execution_date_fn` may'
