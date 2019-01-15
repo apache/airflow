@@ -297,5 +297,4 @@ class FTPSHook(FTPHook):
                 params.host, params.login, params.password
             )
             self.conn.set_pasv(pasv)
-
-return self.conn
+            return self.conn
