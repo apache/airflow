@@ -21,19 +21,18 @@ import json
 import functools
 
 import httplib2
-import google.auth
+from google.oauth2 import service_account as google_oauth2_service_account
+from google.auth import default as google_auth_default
 import google_auth_httplib2
-import google.oauth2.service_account
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 
 
-class GoogleCloudBaseHook(BaseHook, LoggingMixin):
+class GoogleCloudBaseHook(BaseHook):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
@@ -67,6 +66,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
             domain-wide delegation enabled.
         :type delegate_to: str
         """
+        super(GoogleCloudBaseHook, self).__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson
@@ -86,13 +86,13 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `google.auth.default()` '
                           'since no key file is defined for hook.')
-            credentials, _ = google.auth.default(scopes=scopes)
+            credentials, _ = google_auth_default(scopes=scopes)
         elif key_path:
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
                 self.log.debug('Getting connection using JSON key file %s' % key_path)
                 credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_file(
+                    google_oauth2_service_account.Credentials.from_service_account_file(
                         key_path, scopes=scopes)
                 )
             elif key_path.endswith('.p12'):
@@ -111,7 +111,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                     '\\n', '\n')
 
                 credentials = (
-                    google.oauth2.service_account.Credentials.from_service_account_info(
+                    google_oauth2_service_account.Credentials.from_service_account_info(
                         keyfile_dict, scopes=scopes)
                 )
             except json.decoder.JSONDecodeError:

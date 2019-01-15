@@ -41,8 +41,8 @@ class BaseHook(LoggingMixin):
     instances of these systems, and expose consistent methods to interact
     with them.
     """
-    def __init__(self, source):
-        pass
+    def __init__(self, source=None):
+        super(LoggingMixin, self).__init__()
 
     @classmethod
     @provide_session

@@ -35,7 +35,7 @@ class MongoHook(BaseHook):
     conn_type = 'mongo'
 
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
-        super(MongoHook, self).__init__(source='mongo')
+        super(MongoHook, self).__init__()
 
         self.mongo_conn_id = conn_id
         self.connection = self.get_connection(conn_id)

@@ -714,7 +714,7 @@ class CloudSqlDatabaseHook(BaseHook):
 
     def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default',
                  default_gcp_project_id=None):
-        super(CloudSqlDatabaseHook, self).__init__(source=None)
+        super(CloudSqlDatabaseHook, self).__init__()
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson

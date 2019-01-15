@@ -33,7 +33,7 @@ class CloudantHook(BaseHook):
     documentation `here <https://github.com/cloudant-labs/cloudant-python>`_.
     """
     def __init__(self, cloudant_conn_id='cloudant_default'):
-        super(CloudantHook, self).__init__('cloudant')
+        super(CloudantHook, self).__init__()
         self.cloudant_conn_id = cloudant_conn_id
 
     def get_conn(self):
