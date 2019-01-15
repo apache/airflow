@@ -1876,6 +1876,7 @@ class BackfillJob(BaseJob):
             verbose=False,
             conf=None,
             rerun_failed_tasks=False,
+            reverse_backfill_order=False,
             *args, **kwargs):
         """
         :param dag: DAG object.
@@ -1902,7 +1903,9 @@ class BackfillJob(BaseJob):
         :param rerun_failed_tasks: flag to whether to
                                    auto rerun the failed task in backfill
         :type rerun_failed_tasks: bool
-        :param args:
+        :param reverse_backfill_order: flag to whether to create dagrun from most latest date
+                                       to oldest date
+        :param args: bool
         :param kwargs:
         """
         self.dag = dag
@@ -1918,6 +1921,7 @@ class BackfillJob(BaseJob):
         self.verbose = verbose
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
+        self.reverse_backfill_order = reverse_backfill_order
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
@@ -2391,6 +2395,10 @@ class BackfillJob(BaseJob):
         :param session: the current session object
         :type session: Session
         """
+        if self.reverse_backfill_order and self.ignore_first_depends_on_past:
+            # create dag run in reversed chronological order,
+            # depends_on_past option should be ignored
+            run_dates = run_dates[::-1]
         for next_run_date in run_dates:
             dag_run = self._get_dag_run(next_run_date, session=session)
             tis_map = self._task_instances_for_dag_run(dag_run,

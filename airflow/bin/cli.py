@@ -170,6 +170,11 @@ def backfill(args, dag=None):
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
 
+    if args.reverse_backfill_order and not args.ignore_first_depends_on_past:
+        # if we backfill in reversed chronological order,
+        # we should specify ignore depends on past explicitly
+        raise AirflowException("Provide -I option when using --reverse_backfill_order option")
+
     # If only one date is passed, using same as start and end
     args.end_date = args.end_date or args.start_date
     args.start_date = args.start_date or args.end_date
@@ -214,6 +219,7 @@ def backfill(args, dag=None):
             verbose=args.verbose,
             conf=run_conf,
             rerun_failed_tasks=args.rerun_failed_tasks,
+            reverse_backfill_order=args.reverse_backfill_order,
         )
 
 
@@ -1565,6 +1571,13 @@ class CLIFactory(object):
                 "all the failed tasks for the backfill date range "
                 "instead of throwing exceptions"),
             "store_true"),
+        'reverse_backfill_order': Arg(
+            ('--reverse_backfill_order',),
+            (
+                "if set, the backfill dagrun will be "
+                "created in reverse order if dag doesnt depends on past."
+            ),
+            'store_true'),
 
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
@@ -1924,7 +1937,7 @@ class CLIFactory(object):
                 'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                 'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
-                'reset_dag_run', 'rerun_failed_tasks',
+                'reset_dag_run', 'rerun_failed_tasks', 'reverse_backfill_order',
             )
         }, {
             'func': list_dag_runs,

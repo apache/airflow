@@ -915,6 +915,33 @@ class BackfillJobTest(unittest.TestCase):
             elif ti.task_id == op5.task_id:
                 self.assertEqual(ti.state, State.UPSTREAM_FAILED)
 
+    def test_backfill_reversed_order(self):
+        dag = self.dagbag.get_dag('example_bash_operator')
+        dag.clear()
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE + datetime.timedelta(days=2),
+            end_date=DEFAULT_DATE + datetime.timedelta(days=3),
+            ignore_first_depends_on_past=True,
+            reverse_backfill_order=True
+        )
+        job.run()
+
+        session = settings.Session()
+        drs = session.query(DagRun).filter(
+            DagRun.dag_id == 'example_bash_operator'
+        ).order_by(DagRun.execution_date).all()
+
+        self.assertTrue(drs[0].execution_date == DEFAULT_DATE + datetime.timedelta(days=3))
+        self.assertTrue(drs[0].state == State.SUCCESS)
+        self.assertTrue(drs[1].execution_date ==
+                        DEFAULT_DATE + datetime.timedelta(days=2))
+        self.assertTrue(drs[1].state == State.SUCCESS)
+
+        dag.clear()
+        session.close()
+
     def test_backfill_execute_subdag(self):
         dag = self.dagbag.get_dag('example_subdag_operator')
         subdag_op_task = dag.get_task('section-1')
