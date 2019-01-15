@@ -30,12 +30,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 def mlsd(conn, path="", facts=None):
     """
     BACKPORT FROM PYTHON3 FTPLIB.
-
     List a directory in a standardized format by using MLSD
     command (RFC-3659). If path is omitted the current directory
     is assumed. "facts" is a list of strings representing the type
     of information desired (e.g. ["type", "size", "perm"]).
-
     Return a generator object yielding a tuple of two elements
     for every file found in path.
     First element is the file name, the second one is a dictionary
@@ -63,9 +61,10 @@ def mlsd(conn, path="", facts=None):
 class FTPHook(BaseHook, LoggingMixin):
     """
     Interact with FTP.
+    Errors that may occur throughout but should be handled downstream.
+    You can specify mode for data transfers in the extra field of your
+    connection as ``{"passive": "true"}``.
 
-    Errors that may occur throughout but should be handled
-    downstream.
     """
 
     def __init__(self, ftp_conn_id='ftp_default'):
@@ -85,7 +84,9 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
             self.conn = ftplib.FTP(params.host, params.login, params.password)
+            self.conn.set_pasv(pasv)
 
         return self.conn
 
@@ -102,7 +103,6 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         Returns a dictionary of {filename: {attributes}} for all files
         on the remote system (where the MLSD command is supported).
-
         :param path: full path to the remote directory
         :type path: str
         """
@@ -118,7 +118,6 @@ class FTPHook(BaseHook, LoggingMixin):
     def list_directory(self, path, nlst=False):
         """
         Returns a list of files on the remote system.
-
         :param path: full path to the remote directory to list
         :type path: str
         """
@@ -131,7 +130,6 @@ class FTPHook(BaseHook, LoggingMixin):
     def create_directory(self, path):
         """
         Creates a directory on the remote system.
-
         :param path: full path to the remote directory to create
         :type path: str
         """
@@ -141,7 +139,6 @@ class FTPHook(BaseHook, LoggingMixin):
     def delete_directory(self, path):
         """
         Deletes a directory on the remote system.
-
         :param path: full path to the remote directory to delete
         :type path: str
         """
@@ -155,11 +152,9 @@ class FTPHook(BaseHook, LoggingMixin):
             callback=None):
         """
         Transfers the remote file to a local location.
-
         If local_full_path_or_buffer is a string path, the file will be put
         at that location; if it is a file-like buffer, the file will
         be written to the buffer but not closed.
-
         :param remote_full_path: full path to the remote file
         :type remote_full_path: str
         :param local_full_path_or_buffer: full path to the local file or a
@@ -172,17 +167,13 @@ class FTPHook(BaseHook, LoggingMixin):
             callback.
             [default: output_handle.write()]
         :type callback: callable
-
         Example::
             hook = FTPHook(ftp_conn_id='my_conn')
-
             remote_path = '/path/to/remote/file'
             local_path = '/path/to/local/file'
-
             # with a custom callback (in this case displaying progress on each read)
             def print_progress(percent_progress):
                 self.log.info('Percent Downloaded: %s%%' % percent_progress)
-
             total_downloaded = 0
             total_file_size = hook.get_size(remote_path)
             output_handle = open(local_path, 'wb')
@@ -192,7 +183,6 @@ class FTPHook(BaseHook, LoggingMixin):
                 percent_progress = (total_downloaded / total_file_size) * 100
                 print_progress(percent_progress)
             hook.retrieve_file(remote_path, None, callback=write_to_file_with_progress)
-
             # without a custom callback data is written to the local_path
             hook.retrieve_file(remote_path, local_path)
         """
@@ -223,11 +213,9 @@ class FTPHook(BaseHook, LoggingMixin):
     def store_file(self, remote_full_path, local_full_path_or_buffer):
         """
         Transfers a local file to the remote location.
-
         If local_full_path_or_buffer is a string path, the file will be read
         from that location; if it is a file-like buffer, the file will
         be read from the buffer but not closed.
-
         :param remote_full_path: full path to the remote file
         :type remote_full_path: str
         :param local_full_path_or_buffer: full path to the local file or a
@@ -252,7 +240,6 @@ class FTPHook(BaseHook, LoggingMixin):
     def delete_file(self, path):
         """
         Removes a file on the FTP Server.
-
         :param path: full path to the remote file
         :type path: str
         """
@@ -262,7 +249,6 @@ class FTPHook(BaseHook, LoggingMixin):
     def rename(self, from_name, to_name):
         """
         Rename a file.
-
         :param from_name: rename file from name
         :param to_name: rename file to name
         """
@@ -272,7 +258,6 @@ class FTPHook(BaseHook, LoggingMixin):
     def get_mod_time(self, path):
         """
         Returns a datetime object representing the last time the file was modified
-
         :param path: remote file path
         :type path: string
         """
@@ -288,7 +273,6 @@ class FTPHook(BaseHook, LoggingMixin):
     def get_size(self, path):
         """
         Returns the size of a file (in bytes)
-
         :param path: remote file path
         :type path: string
         """
@@ -304,6 +288,7 @@ class FTPSHook(FTPHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
 
             if params.port:
                 ftplib.FTP_TLS.port = params.port
@@ -311,5 +296,5 @@ class FTPSHook(FTPHook):
             self.conn = ftplib.FTP_TLS(
                 params.host, params.login, params.password
             )
-
-        return self.conn
+            self.conn.set_pasv(pasv)
+            return self.conn
