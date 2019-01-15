@@ -1494,14 +1494,14 @@ class CliTests(unittest.TestCase):
     def test_trigger_dag(self):
         cli.trigger_dag(self.parser.parse_args([
             'trigger_dag', 'example_bash_operator',
-            '-c', '{"foo": "bar"}']))
+            '-c', '{"foo": "bar"}', '-e', '2019-01-01']))
         self.assertRaises(
             ValueError,
             cli.trigger_dag,
             self.parser.parse_args([
                 'trigger_dag', 'example_bash_operator',
                 '--run_id', 'trigger_dag_xxx',
-                '-c', 'NOT JSON'])
+                '-c', 'NOT JSON', '-e', '2019-01-02'])
         )
 
     def test_delete_dag(self):

@@ -83,6 +83,11 @@ def trigger_dag(dag_id):
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
+    except Exception as e:
+        _log.error(e)
+        response = jsonify(error="{}".format(e))
+        response.status_code = e.status_code
+        return response
 
     if getattr(g, 'user', None):
         _log.info("User {} created {}".format(g.user, dr))

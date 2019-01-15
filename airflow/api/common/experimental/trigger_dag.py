@@ -19,7 +19,7 @@
 
 import json
 
-from airflow.exceptions import DagRunAlreadyExists, DagNotFound
+from airflow.exceptions import DagRunAlreadyExists, DagNotFound, ExecutionDateAlreadyExists
 from airflow.models import DagRun, DagBag, DagModel
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -33,6 +33,7 @@ def _trigger_dag(
         conf,
         execution_date,
         replace_microseconds,
+        UniqueExecutionDate=True,
 ):
     if dag_id not in dag_bag.dags:
         raise DagNotFound("Dag id {} not found".format(dag_id))
@@ -54,6 +55,12 @@ def _trigger_dag(
     if dr:
         raise DagRunAlreadyExists("Run id {} already exists for dag id {}".format(
             run_id,
+            dag_id
+        ))
+
+    if UniqueExecutionDate and dag_run.find(dag_id=dag_id, execution_date=execution_date):
+        raise ExecutionDateAlreadyExists("Execution date {} already exists for dag id {}".format(
+            execution_date,
             dag_id
         ))
 
