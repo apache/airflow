@@ -21,6 +21,7 @@
 import unittest
 from airflow.contrib.hooks.gcp_dataproc_hook import _DataProcJob
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
+from tests.contrib.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 
 try:
     from unittest import mock
@@ -31,7 +32,6 @@ except ImportError:
         mock = None
 
 JOB = 'test-job'
-GCP_PROJECT_ID = 'test-project-id'
 GCP_REGION = 'global'
 TASK_ID = 'test-task-id'
 
@@ -53,8 +53,8 @@ class DataProcHookTest(unittest.TestCase):
     def test_submit(self, job_mock):
         with mock.patch(DATAPROC_STRING.format('DataProcHook.get_conn',
                                                return_value=None)):
-            self.dataproc_hook.submit(GCP_PROJECT_ID, JOB)
-            job_mock.assert_called_once_with(mock.ANY, GCP_PROJECT_ID, JOB, GCP_REGION,
+            self.dataproc_hook.submit(GCP_PROJECT_ID_HOOK_UNIT_TEST, JOB)
+            job_mock.assert_called_once_with(mock.ANY, GCP_PROJECT_ID_HOOK_UNIT_TEST, JOB, GCP_REGION,
                                              job_error_states=mock.ANY)
 
 

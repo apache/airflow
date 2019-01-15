@@ -83,9 +83,6 @@ class GcfFunctionDeployOperator(BaseOperator):
     Creates a function in Google Cloud Functions.
     If a function with this name already exists, it will be updated.
 
-    :param project_id: Google Cloud Platform project ID where the function should
-        be created.
-    :type project_id: str
     :param location: Google Cloud Platform region where the function should be created.
     :type location: str
     :param body: Body of the Cloud Functions definition. The body must be a
@@ -94,9 +91,14 @@ class GcfFunctionDeployOperator(BaseOperator):
         . Different API versions require different variants of the Cloud Functions
         dictionary.
     :type body: dict or google.cloud.functions.v1.CloudFunction
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param project_id: (Optional) Google Cloud Platform project ID where the function
+        should be created.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud
+         Platform - default 'google_cloud_default'.
     :type gcp_conn_id: str
-    :param api_version: API version used (for example v1 or v1beta1).
+    :param api_version: (Optional) API version used (for example v1 - default -  or
+        v1beta1).
     :type api_version: str
     :param zip_path: Path to zip file containing source code of the function. If the path
         is set, the sourceUploadUrl should not be specified in the body or it should
@@ -112,9 +114,9 @@ class GcfFunctionDeployOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  location,
                  body,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  zip_path=None,
@@ -122,8 +124,6 @@ class GcfFunctionDeployOperator(BaseOperator):
                  *args, **kwargs):
         self.project_id = project_id
         self.location = location
-        self.full_location = 'projects/{}/locations/{}'.format(self.project_id,
-                                                               self.location)
         self.body = body
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -138,8 +138,6 @@ class GcfFunctionDeployOperator(BaseOperator):
         super(GcfFunctionDeployOperator, self).__init__(*args, **kwargs)
 
     def _validate_inputs(self):
-        if not self.project_id:
-            raise AirflowException("The required parameter 'project_id' is missing")
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
         if not self.body:
@@ -151,7 +149,10 @@ class GcfFunctionDeployOperator(BaseOperator):
             self._field_validator.validate(self.body)
 
     def _create_new_function(self):
-        self._hook.create_new_function(self.full_location, self.body)
+        self._hook.create_new_function(
+            project_id=self.project_id,
+            location=self.location,
+            body=self.body)
 
     def _update_function(self):
         self._hook.update_function(self.body['name'], self.body, self.body.keys())
@@ -171,7 +172,8 @@ class GcfFunctionDeployOperator(BaseOperator):
         return True
 
     def _upload_source_code(self):
-        return self._hook.upload_function_zip(parent=self.full_location,
+        return self._hook.upload_function_zip(project_id=self.project_id,
+                                              location=self.location,
                                               zip_path=self.zip_path)
 
     def _set_airflow_version_label(self):

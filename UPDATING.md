@@ -29,6 +29,12 @@ assists users migrating to a new version.
 
 The aws_conn_id was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous versions. This was leading to emr_step_sensors not being able to find their corresponding emr cluster. With the new changes in the emr_add_steps_operator, emr_terminate_job_flow_operator and emr_create_job_flow_operator this issue is solved.
 
+### Deprecate legacy UI in favor of FAB RBAC UI
+Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
+in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the 
+RBAC UI explicitly in the configuration now as this is the only default UI.  
+Please note that that custom auth backends will need re-writing to target new FAB based UI.
+
 #### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
 
 It is no longer required to set one of the environment variables to avoid

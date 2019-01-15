@@ -885,44 +885,26 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
-        if settings.RBAC:
-            return BASE_URL + (
-                "/log?"
-                "execution_date={iso}"
-                "&task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-            ).format(**locals())
-        else:
-            return BASE_URL + (
-                "/admin/airflow/log"
-                "?dag_id={self.dag_id}"
-                "&task_id={self.task_id}"
-                "&execution_date={iso}"
-            ).format(**locals())
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/log?"
+            "execution_date={iso}"
+            "&task_id={self.task_id}"
+            "&dag_id={self.dag_id}"
+        ).format(**locals())
 
     @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
-        if settings.RBAC:
-            return BASE_URL + (
-                "/success"
-                "?task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-                "&execution_date={iso}"
-                "&upstream=false"
-                "&downstream=false"
-            ).format(**locals())
-        else:
-            return BASE_URL + (
-                "/admin/airflow/success"
-                "?task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-                "&execution_date={iso}"
-                "&upstream=false"
-                "&downstream=false"
-            ).format(**locals())
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/success"
+            "?task_id={self.task_id}"
+            "&dag_id={self.dag_id}"
+            "&execution_date={iso}"
+            "&upstream=false"
+            "&downstream=false"
+        ).format(**locals())
 
     @provide_session
     def current_state(self, session=None):

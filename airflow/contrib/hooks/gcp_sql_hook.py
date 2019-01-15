@@ -29,7 +29,8 @@ import platform
 import subprocess
 import time
 import uuid
-from os.path import isfile
+import os.path
+
 from googleapiclient.errors import HttpError
 from subprocess import Popen, PIPE
 from six.moves.urllib.parse import quote_plus
@@ -90,14 +91,16 @@ class CloudSqlHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def get_instance(self, project_id, instance):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def get_instance(self, instance, project_id=None):
         """
         Retrieves a resource containing information about a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
         :return: A Cloud SQL instance resource.
         :rtype: dict
         """
@@ -106,42 +109,44 @@ class CloudSqlHook(GoogleCloudBaseHook):
             instance=instance
         ).execute(num_retries=NUM_RETRIES)
 
-    def create_instance(self, project_id, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_instance(self, body, project_id=None):
         """
         Creates a new Cloud SQL instance.
 
-        :param project_id: Project ID of the project to which the newly created
-            Cloud SQL instances should belong.
-        :type project_id: str
         :param body: Body required by the Cloud SQL insert API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert#request-body.
         :type body: dict
-        :return: True if the operation succeeded otherwise raises an error.
-        :rtype: bool
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().instances().insert(
             project=project_id,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project_id, operation_name)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name)
 
-    def patch_instance(self, project_id, body, instance):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def patch_instance(self, body, instance, project_id=None):
         """
         Updates settings of a Cloud SQL instance.
 
         Caution: This is not a partial update, so you must include values for
         all the settings that you want to retain.
 
-        :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param body: Body required by the Cloud SQL patch API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body.
         :type body: dict
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
-        :return: True if the operation succeeded otherwise raises an error.
-        :rtype: bool
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().instances().patch(
             project=project_id,
@@ -149,36 +154,41 @@ class CloudSqlHook(GoogleCloudBaseHook):
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project_id, operation_name)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name)
 
-    def delete_instance(self, project_id, instance):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def delete_instance(self, instance, project_id=None):
         """
         Deletes a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
         :param instance: Cloud SQL instance ID. This does not include the project ID.
         :type instance: str
-        :return: True if the operation succeeded otherwise raises an error.
-        :rtype: bool
+        :return: None
         """
         response = self.get_conn().instances().delete(
             project=project_id,
             instance=instance,
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project_id, operation_name)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name)
 
-    def get_database(self, project_id, instance, database):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def get_database(self, instance, database, project_id=None):
         """
         Retrieves a database resource from a Cloud SQL instance.
 
-        :param project_id: Project ID of the project that contains the instance.
-        :type project_id: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database in the instance.
         :type database: str
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
         :return: A Cloud SQL database resource, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
         :rtype: dict
@@ -189,37 +199,38 @@ class CloudSqlHook(GoogleCloudBaseHook):
             database=database
         ).execute(num_retries=NUM_RETRIES)
 
-    def create_database(self, project, instance, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def create_database(self, instance, body, project_id=None):
         """
         Creates a new database inside a Cloud SQL instance.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
-        :return: True if the operation succeeded otherwise raises an error.
-        :rtype: bool
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().databases().insert(
-            project=project,
+            project=project_id,
             instance=instance,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name)
 
-    def patch_database(self, project, instance, database, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def patch_database(self, instance, database, body, project_id=None):
         """
         Updates a database resource inside a Cloud SQL instance.
 
         This method supports patch semantics.
         See https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database to be updated in the instance.
@@ -227,95 +238,104 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
         :type body: dict
-        :return: True if the operation succeeded otherwise raises an error.
-        :rtype: bool
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().databases().patch(
-            project=project,
+            project=project_id,
             instance=instance,
             database=database,
             body=body
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name)
 
-    def delete_database(self, project, instance, database):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def delete_database(self, instance, database, project_id=None):
         """
         Deletes a database from a Cloud SQL instance.
 
-        :param project: Project ID of the project that contains the instance.
-        :type project: str
         :param instance: Database instance ID. This does not include the project ID.
         :type instance: str
         :param database: Name of the database to be deleted in the instance.
         :type database: str
-        :return: True if the operation succeeded otherwise raises an error.
-        :rtype: bool
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         response = self.get_conn().databases().delete(
-            project=project,
+            project=project_id,
             instance=instance,
             database=database
         ).execute(num_retries=NUM_RETRIES)
         operation_name = response["name"]
-        return self._wait_for_operation_to_complete(project, operation_name)
+        self._wait_for_operation_to_complete(project_id=project_id,
+                                             operation_name=operation_name)
 
-    def export_instance(self, project_id, instance_id, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def export_instance(self, instance, body, project_id=None):
         """
         Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
         or CSV file.
 
-        :param project_id: Project ID of the project where the instance exists.
-        :type project_id: str
-        :param instance_id: Name of the Cloud SQL instance. This does not include the
+        :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
-        :type instance_id: str
+        :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
         :type body: dict
-        :return: True if the operation succeeded, raises an error otherwise
-        :rtype: bool
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         try:
             response = self.get_conn().instances().export(
                 project=project_id,
-                instance=instance_id,
+                instance=instance,
                 body=body
             ).execute(num_retries=NUM_RETRIES)
             operation_name = response["name"]
-            return self._wait_for_operation_to_complete(project_id, operation_name)
+            self._wait_for_operation_to_complete(project_id=project_id,
+                                                 operation_name=operation_name)
         except HttpError as ex:
             raise AirflowException(
-                'Exporting instance {} failed: {}'.format(instance_id, ex.content)
+                'Exporting instance {} failed: {}'.format(instance, ex.content)
             )
 
-    def import_instance(self, project_id, instance_id, body):
+    @GoogleCloudBaseHook.fallback_to_default_project_id
+    def import_instance(self, instance, body, project_id=None):
         """
         Imports data into a Cloud SQL instance from a SQL dump or CSV file in
         Cloud Storage.
 
-        :param project_id: Project ID of the project where the instance exists.
-        :type project_id: str
-        :param instance_id: Name of the Cloud SQL instance. This does not include the
+        :param instance: Database instance ID. This does not include the
             project ID.
-        :type instance_id: str
+        :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
         :type body: dict
-        :return: True if the operation succeeded, raises an error otherwise
-        :rtype: bool
+        :param project_id: Project ID of the project that contains the instance. If set
+            to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
+        :return: None
         """
         try:
             response = self.get_conn().instances().import_(
                 project=project_id,
-                instance=instance_id,
+                instance=instance,
                 body=body
             ).execute(num_retries=NUM_RETRIES)
             operation_name = response["name"]
-            return self._wait_for_operation_to_complete(project_id, operation_name)
+            self._wait_for_operation_to_complete(project_id=project_id,
+                                                 operation_name=operation_name)
         except HttpError as ex:
             raise AirflowException(
-                'Importing instance {} failed: {}'.format(instance_id, ex.content)
+                'Importing instance {} failed: {}'.format(instance, ex.content)
             )
 
     def _wait_for_operation_to_complete(self, project_id, operation_name):
@@ -327,8 +347,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         :type project_id: str
         :param operation_name: Name of the operation.
         :type operation_name: str
-        :return: Response returned by the operation.
-        :rtype: dict
+        :return: None
         """
         service = self.get_conn()
         while True:
@@ -343,7 +362,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                     error_msg = str(error.get("errors"))[1:-1]
                     raise AirflowException(error_msg)
                 # No meaningful info to return from the response in case of success
-                return True
+                return
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 
 
@@ -368,6 +387,7 @@ class CloudSqlProxyRunner(LoggingMixin):
     https://cloud.google.com/sql/docs/mysql/sql-proxy
 
     """
+
     def __init__(self,
                  path_prefix,
                  instance_specification,
@@ -392,7 +412,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             authentication
         :type: str
         :param project_id: Optional id of the GCP project to connect to - it overwrites
-            default project id taken from the GCP connection
+            default project id taken from the GCP connection.
         :type project_id: str
         :param sql_proxy_version: Specific version of SQL proxy to download
             (for example 'v1.13'). By default latest version is downloaded.
@@ -570,7 +590,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         else:
             self.log.info("Skipped removing proxy - it was not downloaded: %s",
                           self.sql_proxy_path)
-        if isfile(self.credentials_path):
+        if os.path.isfile(self.credentials_path):
             self.log.info("Removing generated credentials file %s",
                           self.credentials_path)
             # Here file cannot be delete by concurrent task (each task has its own copy)
@@ -665,7 +685,8 @@ class CloudSqlDatabaseHook(BaseHook):
 
     Remaining parameters are retrieved from the extras (URI query parameters):
 
-    * **project_id** - Google Cloud Platform project where the Cloud SQL instance exists.
+    * **project_id** - Optional, Google Cloud Platform project where the Cloud SQL
+       instance exists. If missing, default project id passed is used.
     * **instance** -  Name of the instance of the Cloud SQL database instance.
     * **location** - The location of the Cloud SQL instance (for example europe-west1).
     * **database_type** - The type of the database instance (MySQL or Postgres).
@@ -682,15 +703,22 @@ class CloudSqlDatabaseHook(BaseHook):
     * **sslcert** - Path to client certificate to authenticate when SSL is used.
     * **sslkey** - Path to client private key to authenticate when SSL is used.
     * **sslrootcert** - Path to server's certificate to authenticate when SSL is used.
+
+    :param gcp_cloudsql_conn_id: URL of the connection
+    :type gcp_cloudsql_conn_id: str
+    :param default_gcp_project_id: Default project id used if project_id not specified
+           in the connection URL
+    :type default_gcp_project_id: str
     """
     _conn = None
 
-    def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default'):
+    def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default',
+                 default_gcp_project_id=None):
         super(CloudSqlDatabaseHook, self).__init__(source=None)
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson
-        self.project_id = self.extras.get('project_id')
+        self.project_id = self.extras.get('project_id', default_gcp_project_id)
         self.instance = self.extras.get('instance')
         self.database = self.cloudsql_connection.schema
         self.location = self.extras.get('location')
@@ -729,17 +757,17 @@ class CloudSqlDatabaseHook(BaseHook):
         if not file_to_check:
             raise AirflowException("SSL connections requires {name} to be set".
                                    format(name=name))
-        if not isfile(file_to_check):
+        if not os.path.isfile(file_to_check):
             raise AirflowException("The {file_to_check} must be a readable file".
                                    format(file_to_check=file_to_check))
 
     def _validate_inputs(self):
-        if not self.project_id:
+        if self.project_id == '':
             raise AirflowException("The required extra 'project_id' is empty")
         if not self.location:
-            raise AirflowException("The required extra 'location' is empty")
+            raise AirflowException("The required extra 'location' is empty or None")
         if not self.instance:
-            raise AirflowException("The required extra 'instance' is empty")
+            raise AirflowException("The required extra 'instance' is empty or None")
         if self.database_type not in CLOUD_SQL_VALID_DATABASE_TYPES:
             raise AirflowException("Invalid database type '{}'. Must be one of {}".format(
                 self.database_type, CLOUD_SQL_VALID_DATABASE_TYPES
@@ -754,6 +782,8 @@ class CloudSqlDatabaseHook(BaseHook):
             self._check_ssl_file(self.sslcert, "sslcert")
             self._check_ssl_file(self.sslkey, "sslkey")
             self._check_ssl_file(self.sslrootcert, "sslrootcert")
+
+    def validate_socket_path_length(self):
         if self.use_proxy and not self.sql_proxy_use_tcp:
             if self.database_type == 'postgres':
                 suffix = "/.s.PGSQL.5432"
@@ -824,22 +854,30 @@ class CloudSqlDatabaseHook(BaseHook):
                 }
             else:
                 format_string = public_uris['non-ssl']
+        if not self.user:
+            raise AirflowException("The login parameter needs to be set in connection")
+        if not self.public_ip:
+            raise AirflowException("The location parameter needs to be set in connection")
+        if not self.password:
+            raise AirflowException("The password parameter needs to be set in connection")
+        if not self.database:
+            raise AirflowException("The database parameter needs to be set in connection")
 
         connection_uri = format_string.format(
-            user=quote_plus(self.user),
-            password=quote_plus(self.password),
-            database=quote_plus(self.database),
+            user=quote_plus(self.user) if self.user else '',
+            password=quote_plus(self.password) if self.password else '',
+            database=quote_plus(self.database) if self.database else '',
             public_ip=self.public_ip,
             public_port=self.public_port,
             proxy_port=self.sql_proxy_tcp_port,
             socket_path=self._quote(socket_path),
-            ssl_spec=self._quote(json.dumps(ssl_spec)) if ssl_spec else None,
-            client_cert_file=self._quote(self.sslcert),
-            client_key_file=self._quote(self.sslkey),
-            server_ca_file=self._quote(self.sslrootcert)
+            ssl_spec=self._quote(json.dumps(ssl_spec)) if ssl_spec else '',
+            client_cert_file=self._quote(self.sslcert) if self.sslcert else '',
+            client_key_file=self._quote(self.sslkey) if self.sslcert else '',
+            server_ca_file=self._quote(self.sslrootcert if self.sslcert else '')
         )
         self.log.info("DB connection URI %s", connection_uri.replace(
-            quote_plus(self.password), 'XXXXXXXXXXXX'))
+            quote_plus(self.password) if self.password else 'PASSWORD', 'XXXXXXXXXXXX'))
         return connection_uri
 
     def _get_instance_socket_name(self):
@@ -868,6 +906,21 @@ class CloudSqlDatabaseHook(BaseHook):
         session.commit()
 
     @provide_session
+    def retrieve_connection(self, session=None):
+        """
+        Retrieves the dynamically created connection from the Connection table.
+
+        :param session: Session of the SQL Alchemy ORM (automatically generated with
+                        decorator).
+        """
+        self.log.info("Retrieving connection %s", self.db_conn_id)
+        connections = session.query(Connection).filter(
+            Connection.conn_id == self.db_conn_id)
+        if connections.count():
+            return connections[0]
+        return None
+
+    @provide_session
     def delete_connection(self, session=None):
         """
         Delete the dynamically created connection from the Connection table.
@@ -876,10 +929,14 @@ class CloudSqlDatabaseHook(BaseHook):
                         decorator).
         """
         self.log.info("Deleting connection %s", self.db_conn_id)
-        connection = session.query(Connection).filter(
-            Connection.conn_id == self.db_conn_id)[0]
-        session.delete(connection)
-        session.commit()
+        connections = session.query(Connection).filter(
+            Connection.conn_id == self.db_conn_id)
+        if connections.count():
+            connection = connections[0]
+            session.delete(connection)
+            session.commit()
+        else:
+            self.log.info("Connection was already deleted!")
 
     def get_sqlproxy_runner(self):
         """
@@ -889,6 +946,8 @@ class CloudSqlDatabaseHook(BaseHook):
         :return: The Cloud SQL Proxy runner.
         :rtype: CloudSqlProxyRunner
         """
+        if not self.use_proxy:
+            raise AirflowException("Proxy runner can only be retrieved in case of use_proxy = True")
         return CloudSqlProxyRunner(
             path_prefix=self.sql_proxy_unique_path,
             instance_specification=self._get_sqlproxy_instance_specification(),
@@ -915,7 +974,8 @@ class CloudSqlDatabaseHook(BaseHook):
         Clean up database hook after it was used.
         """
         if self.database_type == 'postgres':
-            if self.db_hook.conn and self.db_hook.conn.notices:
+            if hasattr(self.db_hook,
+                       'conn') and self.db_hook.conn and self.db_hook.conn.notices:
                 for output in self.db_hook.conn.notices:
                     self.log.info(output)
 

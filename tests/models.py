@@ -2500,20 +2500,19 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
         self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
 
-    def test_log_url(self):
-        now = pendulum.now('Europe/Brussels')
-        dag = DAG('dag', start_date=DEFAULT_DATE)
-        task = DummyOperator(task_id='op', dag=dag)
-        ti = TI(task=task, execution_date=now)
-        d = urllib.parse.parse_qs(
-            urllib.parse.urlparse(ti.log_url).query,
-            keep_blank_values=True, strict_parsing=True)
-        self.assertEqual(d['dag_id'][0], 'dag')
-        self.assertEqual(d['task_id'][0], 'op')
-        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
+    # def test_log_url(self):
+    #     now = pendulum.now('Europe/Brussels')
+    #     dag = DAG('dag', start_date=DEFAULT_DATE)
+    #     task = DummyOperator(task_id='op', dag=dag)
+    #     ti = TI(task=task, execution_date=now)
+    #     d = urllib.parse.parse_qs(
+    #         urllib.parse.urlparse(ti.log_url).query,
+    #         keep_blank_values=True, strict_parsing=True)
+    #     self.assertEqual(d['dag_id'][0], 'dag')
+    #     self.assertEqual(d['task_id'][0], 'op')
+    #     self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
 
-    @patch('airflow.settings.RBAC', True)
-    def test_log_url_rbac(self):
+    def test_log_url(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
         ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))

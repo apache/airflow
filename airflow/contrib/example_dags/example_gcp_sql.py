@@ -187,8 +187,11 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         body=body2,
         instance=INSTANCE_NAME2,
-        task_id='sql_instance_create_2_task'
+        task_id='sql_instance_create_task2'
     )
+    # [END howto_operator_cloudsql_create]
+
+    prev_task = sql_instance_create_task
     prev_task = next_dep(sql_instance_create_2_task, prev_task)
 
     # ############################################## #
@@ -202,8 +205,15 @@ with models.DAG(
         instance=INSTANCE_NAME,
         task_id='sql_instance_patch_task'
     )
+
+    sql_instance_patch_task2 = CloudSqlInstancePatchOperator(
+        body=patch_body,
+        instance=INSTANCE_NAME,
+        task_id='sql_instance_patch_task2'
+    )
     # [END howto_operator_cloudsql_patch]
     prev_task = next_dep(sql_instance_patch_task, prev_task)
+    prev_task = next_dep(sql_instance_patch_task2, prev_task)
 
     # [START howto_operator_cloudsql_db_create]
     sql_db_create_task = CloudSqlInstanceDatabaseCreateOperator(
@@ -212,8 +222,14 @@ with models.DAG(
         instance=INSTANCE_NAME,
         task_id='sql_db_create_task'
     )
+    sql_db_create_task2 = CloudSqlInstanceDatabaseCreateOperator(
+        body=db_create_body,
+        instance=INSTANCE_NAME,
+        task_id='sql_db_create_task2'
+    )
     # [END howto_operator_cloudsql_db_create]
     prev_task = next_dep(sql_db_create_task, prev_task)
+    prev_task = next_dep(sql_db_create_task2, prev_task)
 
     # [START howto_operator_cloudsql_db_patch]
     sql_db_patch_task = CloudSqlInstanceDatabasePatchOperator(
@@ -223,8 +239,15 @@ with models.DAG(
         database=DB_NAME,
         task_id='sql_db_patch_task'
     )
+    sql_db_patch_task2 = CloudSqlInstanceDatabasePatchOperator(
+        body=db_patch_body,
+        instance=INSTANCE_NAME,
+        database=DB_NAME,
+        task_id='sql_db_patch_task2'
+    )
     # [END howto_operator_cloudsql_db_patch]
     prev_task = next_dep(sql_db_patch_task, prev_task)
+    prev_task = next_dep(sql_db_patch_task2, prev_task)
 
     # ############################################## #
     # ### EXPORTING SQL FROM INSTANCE 1 ############ #
@@ -252,8 +275,14 @@ with models.DAG(
         instance=INSTANCE_NAME,
         task_id='sql_export_task'
     )
+    sql_export_task2 = CloudSqlInstanceExportOperator(
+        body=export_body,
+        instance=INSTANCE_NAME,
+        task_id='sql_export_task2'
+    )
     # [END howto_operator_cloudsql_export]
     prev_task = next_dep(sql_export_task, prev_task)
+    prev_task = next_dep(sql_export_task2, prev_task)
 
     # ############################################## #
     # ### IMPORTING SQL TO INSTANCE 2 ############## #
@@ -265,7 +294,7 @@ with models.DAG(
     # [START howto_operator_cloudsql_import_gcs_permissions]
     sql_gcp_add_object_permission_task = GoogleCloudStorageObjectCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
-               "'sql_instance_create_2_task', key='service_account_email')"
+               "'sql_instance_create_task2', key='service_account_email')"
                " }}",
         role="READER",
         bucket=import_url_split[1],  # netloc (bucket)
@@ -278,7 +307,7 @@ with models.DAG(
     # write access to the whole bucket!.
     sql_gcp_add_bucket_permission_2_task = GoogleCloudStorageBucketCreateAclEntryOperator(
         entity="user-{{ task_instance.xcom_pull("
-               "'sql_instance_create_2_task', key='service_account_email') "
+               "'sql_instance_create_task2', key='service_account_email') "
                "}}",
         role="WRITER",
         bucket=import_url_split[1],  # netloc
@@ -294,8 +323,14 @@ with models.DAG(
         instance=INSTANCE_NAME2,
         task_id='sql_import_task'
     )
+    sql_import_task2 = CloudSqlInstanceImportOperator(
+        body=import_body,
+        instance=INSTANCE_NAME2,
+        task_id='sql_import_task2'
+    )
     # [END howto_operator_cloudsql_import]
     prev_task = next_dep(sql_import_task, prev_task)
+    prev_task = next_dep(sql_import_task2, prev_task)
 
     # ############################################## #
     # ### DELETING A DATABASE FROM AN INSTANCE ##### #
@@ -308,8 +343,14 @@ with models.DAG(
         database=DB_NAME,
         task_id='sql_db_delete_task'
     )
+    sql_db_delete_task2 = CloudSqlInstanceDatabaseDeleteOperator(
+        instance=INSTANCE_NAME,
+        database=DB_NAME,
+        task_id='sql_db_delete_task2'
+    )
     # [END howto_operator_cloudsql_db_delete]
     prev_task = next_dep(sql_db_delete_task, prev_task)
+    prev_task = next_dep(sql_db_delete_task2, prev_task)
 
     # ############################################## #
     # ### INSTANCES TEAR DOWN ###################### #
@@ -320,6 +361,10 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME,
         task_id='sql_instance_delete_task'
+    )
+    sql_instance_delete_task2 = CloudSqlInstanceDeleteOperator(
+        instance=INSTANCE_NAME2,
+        task_id='sql_instance_delete_task2'
     )
     # [END howto_operator_cloudsql_delete]
     prev_task = next_dep(sql_instance_delete_task, prev_task)
