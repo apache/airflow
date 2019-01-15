@@ -12,7 +12,8 @@ Project location : https://github.com/areski/python-nvd3
 from __future__ import unicode_literals
 from optparse import OptionParser
 from jinja2 import Environment, PackageLoader
-from slugify import slugify
+from airflow._vendor.slugify import slugify
+
 try:
     import simplejson as json
 except ImportError:
@@ -22,7 +23,7 @@ CONTENT_FILENAME = "./content.html"
 PAGE_FILENAME = "./page.html"
 
 
-pl = PackageLoader('nvd3', 'templates')
+pl = PackageLoader('airflow._vendor.nvd3', 'templates')
 jinja2_env = Environment(lstrip_blocks=True, trim_blocks=True, loader=pl)
 
 template_content = jinja2_env.get_template(CONTENT_FILENAME)
