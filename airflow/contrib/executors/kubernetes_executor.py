@@ -138,7 +138,8 @@ class KubeConfig:
         self.kube_annotations = configuration_dict.get('kubernetes_annotations', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
-
+        self.worker_pods_creation_batch_size = conf.getint(
+            self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
@@ -650,7 +651,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
         KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 
-        if not self.task_queue.empty():
+        for i in range(min((self.kube_config.worker_pods_creation_batch_size, self.task_queue.qsize()))):
             task = self.task_queue.get()
 
             try:
