@@ -24,7 +24,7 @@ from shutil import move
 from tempfile import mkdtemp
 
 from airflow.utils import db as db_utils
-from airflow import models, settings, AirflowException, LoggingMixin
+from airflow import models, AirflowException, LoggingMixin
 from airflow.utils.timezone import datetime
 from tests.contrib.utils.gcp_authenticator import GcpAuthenticator
 from tests.contrib.utils.run_once_decorator import run_once
@@ -244,7 +244,7 @@ You can create the database via these commands:
             self._store_dags_to_temporary_directory()
             try:
                 db_utils.upgradedb()
-                db_utils.resetdb(settings.RBAC)
+                db_utils.resetdb()
             finally:
                 self._restore_dags_from_temporary_directory()
             self._symlink_dag_and_associated_files()
