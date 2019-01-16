@@ -68,6 +68,9 @@ class CloudSqlOperationStatus:
 class CloudSqlHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud SQL APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
     _conn = None
 
