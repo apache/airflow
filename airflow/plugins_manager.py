@@ -54,6 +54,7 @@ class AirflowPlugin(object):
     menu_links = []  # type: List[Any]
     appbuilder_views = []  # type: List[Any]
     appbuilder_menu_items = []  # type: List[Any]
+    dag_sources = [] # type: List[Any]
 
     # A function that validate the statsd stat name, apply changes
     # to the stat name if necessary and return the transformed stat name.
@@ -66,6 +67,10 @@ class AirflowPlugin(object):
     def validate(cls):
         if not cls.name:
             raise AirflowPluginException("Your plugin needs a name.")
+        if len(cls.dag_sources):
+            for dag_source in cls.dag_sources:
+                if not dag_source.name:
+                    raise AirflowPluginException("Your AirflowPluginDagSource needs a name")
 
     @classmethod
     def on_load(cls, *args, **kwargs):
@@ -176,13 +181,14 @@ macros_modules = []
 
 # Plugin components to integrate directly
 admin_views = []  # type: List[Any]
+dag_sources = [] # type: List[Any]
 flask_blueprints = []  # type: List[Any]
 menu_links = []  # type: List[Any]
 flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
 stat_name_handler = None  # type: Any
+stat_name_handlers = [] # type: List[Any]
 
-stat_name_handlers = []
 for p in plugins:
     operators_modules.append(
         make_module('airflow.operators.' + p.name, p.operators + p.sensors))
@@ -195,6 +201,9 @@ for p in plugins:
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
 
     admin_views.extend(p.admin_views)
+    dag_sources.extend(
+        [src(configuration.conf) for src in p.dag_sources])
+    flask_blueprints.extend(p.flask_blueprints)
     menu_links.extend(p.menu_links)
     flask_appbuilder_views.extend(p.appbuilder_views)
     flask_appbuilder_menu_links.extend(p.appbuilder_menu_items)
