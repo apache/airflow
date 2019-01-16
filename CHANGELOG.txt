@@ -1,4 +1,4 @@
-Airflow 1.10.2b2, 2019-01-12
+Airflow 1.10.2, 2019-01-16
 ----------------------------
 
 New features
@@ -127,6 +127,13 @@ Improvements
 - [AIRFLOW-3689] Update pop-up message when deleting DAG in RBAC UI (#4505)
 - [AIRFLOW-2801] Skip test_mark_success_no_kill in PostgreSQL on CI (#3642)
 - [AIRFLOW-3693] Replace psycopg2-binary by psycopg2 (#4508)
+- [AIRFLOW-3700] Change the lowest allowed version of "requests" (#4517)
+- [AIRFLOW-3704] Support SSL Protection When Redis is Used as Broker for CeleryExecutor (#4521)
+- [AIRFLOW-3681] All GCP operators have now optional GCP Project ID (#4500)
+- [Airflow 2782] Upgrades Dagre D3 version to latest possible
+- [Airflow 2783] Implement eslint for JS code check (#3641)
+- [AIRFLOW-2805] Display multiple timezones on UI (#3687)
+
 
 Bug fixes
 """""""""
@@ -196,6 +203,7 @@ Bug fixes
 - [AIRFLOW-2951] Update dag_run table end_date when state change (#3798)
 - [AIRFLOW-2756] Fix bug in set DAG run state workflow (#3606)
 - [AIRFLOW-3690] Fix bug to set state of a task for manually-triggered DAGs (#4504)
+- [AIRFLOW-3319] - KubernetsExecutor: Need in try_number in labels if getting them later (#4163)
 
 Doc-only changes
 """"""""""""""""
