@@ -18,7 +18,7 @@ limitations under the License.
 {% extends "airflow/task_instance.html" %}
 {% block title %}Airflow - DAGs{% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
 <h4>{{ title }}</h4>
 <ul class="nav nav-pills" role="tablist">
@@ -77,7 +77,7 @@ limitations under the License.
 
       return Promise.resolve(
         $.ajax({
-          url: "{{ url_for("airflow.get_logs_with_metadata") }}",
+          url: "{{ url_for("Airflow.get_logs_with_metadata") }}",
           data: {
             dag_id: "{{ dag_id }}",
             task_id: "{{ task_id }}",

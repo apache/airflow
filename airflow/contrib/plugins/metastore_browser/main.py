@@ -29,6 +29,7 @@ from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import utils as wwwutils
+from airflow.www.decorators import gzipped
 
 METASTORE_CONN_ID = 'metastore_default'
 METASTORE_MYSQL_CONN_ID = 'metastore_mysql'
@@ -86,7 +87,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         return self.render(
             "metastore_browser/db.html", tables=tables, db=db)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/partitions/')
     def partitions(self):
         schema, table = request.args.get("table").split('.')
@@ -114,7 +115,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
             index=False,
             na_rep='',)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/objects/')
     def objects(self):
         where_clause = ''
@@ -142,7 +143,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
             for row in h.get_records(sql)]
         return json.dumps(d)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/data/')
     def data(self):
         table = request.args.get("table")

@@ -270,3 +270,22 @@ exit 0
                 allowed_states=['success'],
                 dag=self.dag
             )
+
+    def test_catch_invalid_allowed_states(self):
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                allowed_states=['invalid_state'],
+                dag=self.dag
+            )
+
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=None,
+                allowed_states=['invalid_state'],
+                dag=self.dag
+            )
