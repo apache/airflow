@@ -76,7 +76,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if execution_delta is not None and execution_date_fn is not None:
             raise ValueError(
-                'Only one of `execution_date` or `execution_date_fn` may'
+                'Only one of `execution_delta` or `execution_date_fn` may '
                 'be provided to ExternalTaskSensor; not both.')
 
         self.execution_delta = execution_delta
