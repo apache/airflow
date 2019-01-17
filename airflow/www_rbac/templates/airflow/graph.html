@@ -112,8 +112,9 @@
     // Below variables are being used in dag.js
     var tasks = {{ tasks|safe }};
     var task_instances = {{ task_instances|safe }};
-    var getTaskInstanceURL = '{{ url_for("Airflow.task_instances", dag_id='+
-      dag.dag_id + ', execution_date=' + execution_date + ') }}';
+    var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
+      "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
+      encodeURIComponent(execution_date);
 
     var duration = 500;
     var stateFocusMap = {
