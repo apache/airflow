@@ -36,6 +36,9 @@ TIME_TO_SLEEP_IN_SECONDS = 1
 class GcfHook(GoogleCloudBaseHook):
     """
     Hook for the Google Cloud Functions APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
     _conn = None
 

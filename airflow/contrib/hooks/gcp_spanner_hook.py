@@ -27,6 +27,9 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 class CloudSpannerHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Spanner APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
     _client = None
 

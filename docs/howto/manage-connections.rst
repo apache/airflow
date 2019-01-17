@@ -114,18 +114,25 @@ The following connection IDs are used by default.
     hook.
 
 ``google_cloud_default``
-    Used by the
-    :class:`~airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`,
-    :class:`~airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook`,
-    :class:`~airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook`,
-    :class:`~airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook`, and
-    :class:`~airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` hooks.
+    Used by those hooks:
+* :class:`~airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`
+* :class:`~airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook`
+* :class:`~airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook`
+* :class:`~airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook`
+* :class:`~airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook`
+* :class:`~airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook`
+* :class:`~airflow.contrib.hooks.gcp_compute_hook.GceHook`
+* :class:`~airflow.contrib.hooks.gcp_function_hook.GcfHook`
+* :class:`~airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook`
+* :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook`
+
 
 Configuring the Connection
 ''''''''''''''''''''''''''
 
-Project Id (required)
-    The Google Cloud project ID to connect to.
+Project Id (optional)
+    The Google Cloud project ID to connect to. It is used as default project id by operators using it and
+    can usually be overridden at the operator level.
 
 Keyfile Path
     Path to a `service account
@@ -165,10 +172,10 @@ Schema (optional)
 
 Login (required)
     Specify the user name to connect.
-    
+
 Password (required)
-    Specify the password to connect.    
-    
+    Specify the password to connect.
+
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in MySQL
     connection. The following parameters are supported:
