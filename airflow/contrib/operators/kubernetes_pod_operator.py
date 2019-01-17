@@ -24,6 +24,7 @@ from airflow.utils.state import State
 from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
 from airflow.contrib.kubernetes.volume import Volume  # noqa
 from airflow.contrib.kubernetes.secret import Secret  # noqa
+from airflow.contrib.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv  # noqa
 
 template_fields = ('templates_dict',)
 template_ext = tuple()
@@ -88,6 +89,9 @@ class KubernetesPodOperator(BaseOperator):
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list tolerations
+    :param pod_runtime_info_envs: environment variables about
+                                  pod runtime information (ip, namespace, nodeName, podName)
+    :type pod_runtime_info_envs: list of PodRuntimeEnv
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -123,6 +127,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.node_selectors = self.node_selectors
             pod.hostnetwork = self.hostnetwork
             pod.tolerations = self.tolerations
+            pod.pod_runtime_info_envs = self.pod_runtime_info_envs
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.xcom_push)
@@ -172,6 +177,7 @@ class KubernetesPodOperator(BaseOperator):
                  is_delete_operator_pod=False,
                  hostnetwork=False,
                  tolerations=None,
+                 pod_runtime_info_envs=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -201,3 +207,4 @@ class KubernetesPodOperator(BaseOperator):
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
         self.tolerations = tolerations or []
+        self.pod_runtime_info_envs = pod_runtime_info_envs or []

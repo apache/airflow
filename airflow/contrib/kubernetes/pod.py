@@ -64,6 +64,9 @@ class Pod:
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list
+    :param pod_runtime_info_envs: environment variables about
+                                  pod runtime information (ip, namespace, nodeName, podName)
+    :type pod_runtime_info_envs: list of PodRuntimeEnv
     """
     def __init__(
             self,
@@ -88,6 +91,7 @@ class Pod:
             affinity=None,
             hostnetwork=False,
             tolerations=None,
+            pod_runtime_info_envs=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -110,3 +114,4 @@ class Pod:
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
+        self.pod_runtime_info_envs = pod_runtime_info_envs or []
