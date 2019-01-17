@@ -63,6 +63,47 @@ If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
 they contain the strings "airflow" and "DAG". For backwards
 compatibility, this option is enabled by default.
 
+### Changes in Google Cloud Platform related operators
+
+Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
+the project id configured in
+[GCP Connection](https://airflow.apache.org/howto/manage-connections.html#connection-type-gcp) is used.
+There will be an `AirflowException` thrown in case `PROJECT_ID` parameter is not specified and the
+connection used has no project id defined. This change should be  backwards compatible as earlier version
+of the operators had `PROJECT_ID` mandatory.
+
+Operators involved:
+
+  * GCP Compute Operators
+    * GceInstanceStartOperator
+    * GceInstanceStopOperator
+    * GceSetMachineTypeOperator
+  * GCP Function Operators
+    * GcfFunctionDeployOperator
+  * GCP Cloud SQL Operators
+    * CloudSqlInstanceCreateOperator
+    * CloudSqlInstancePatchOperator
+    * CloudSqlInstanceDeleteOperator
+    * CloudSqlInstanceDatabaseCreateOperator
+    * CloudSqlInstanceDatabasePatchOperator
+    * CloudSqlInstanceDatabaseDeleteOperator
+
+Other GCP operators are unaffected.
+
+### Changes in Google Cloud Platform related hooks
+
+The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
+than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
+in case they are called using positional parameters.
+
+Hooks involved:
+
+  * GceHook
+  * GcfHook
+  * CloudSqlHook
+
+Other GCP hooks are unaffected.
+
 ## Airflow 1.10.2
 
 ### Modification to `ts_nodash` macro
