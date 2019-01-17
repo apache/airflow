@@ -27,9 +27,10 @@ assists users migrating to a new version.
 
 #### Change default aws_conn_id in EMR operators
 
-The aws_conn_id was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous versions. 
-This was leading to emr_step_sensors not being able to find their corresponding emr cluster. 
-With the new changes in the emr_add_steps_operator, emr_terminate_job_flow_operator and emr_create_job_flow_operator this issue is solved.
+The aws_conn_id was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous 
+versions. This was leading to emr_step_sensors not being able to find their corresponding emr cluster. With the new 
+changes in the emr_add_steps_operator, emr_terminate_job_flow_operator and emr_create_job_flow_operator this issue is 
+solved.
 
 ### Deprecate legacy UI in favor of FAB RBAC UI
 Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
