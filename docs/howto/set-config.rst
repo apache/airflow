@@ -58,7 +58,7 @@ The following config options support this ``_cmd`` version:
 
 The idea behind this is to not store passwords on boxes in plain text files.
 
-The order of precedence for all connfig options is as follows -
+The order of precedence for all config options is as follows -
 
 1. environment variable
 2. configuration in airflow.cfg
