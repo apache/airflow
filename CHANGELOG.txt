@@ -1,5 +1,5 @@
-Airflow 1.10.2, 2019-01-16
-----------------------------
+Airflow 1.10.2, 2019-01-17
+--------------------------
 
 New features
 """"""""""""
@@ -203,7 +203,8 @@ Bug fixes
 - [AIRFLOW-2951] Update dag_run table end_date when state change (#3798)
 - [AIRFLOW-2756] Fix bug in set DAG run state workflow (#3606)
 - [AIRFLOW-3690] Fix bug to set state of a task for manually-triggered DAGs (#4504)
-- [AIRFLOW-3319] - KubernetsExecutor: Need in try_number in labels if getting them later (#4163)
+- [AIRFLOW-3319] KubernetsExecutor: Need in try_number in labels if getting them later (#4163)
+- [AIRFLOW-3724] Fix the broken refresh button on Graph View in RBAC UI
 
 Doc-only changes
 """"""""""""""""
@@ -233,6 +234,8 @@ Doc-only changes
 - [AIRFLOW-3086] Add extras group for google auth to setup.py (#3917)
 - [AIRFLOW-XXX] Add Kubernetes Dependency in Extra Packages Doc (#4281)
 - [AIRFLOW-3696] Add Version info to Airflow Documentation (#4512)
+- [AIRFLOW-XXX] Correct Typo in sensor's exception (#4545)
+- [AIRFLOW-XXX] Fix a typo of config (#4544)
 
 Airflow 1.10.1, 2018-11-13
 --------------------------
