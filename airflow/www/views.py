@@ -1728,33 +1728,15 @@ class Airflow(AirflowBaseView):
                     TF.execution_date == ti.execution_date)
             .all()
         ) for ti in tis]))
-        TR = models.TaskReschedule
-        ti_reschedules = list(itertools.chain(*[(
-            session
-            .query(TR)
-            .filter(TR.dag_id == ti.dag_id,
-                    TR.task_id == ti.task_id,
-                    TR.execution_date == ti.execution_date)
-            .all()
-        ) for ti in tis]))
 
         # determine bars to show in the gantt chart
-        # all reschedules of one attempt are combinded into one bar
         gantt_bar_items = []
-        for task_id, items in itertools.groupby(
-                sorted(tis + ti_fails + ti_reschedules, key=lambda ti: ti.task_id),
-                key=lambda ti: ti.task_id):
-            start_date = None
-            for i in sorted(items, key=lambda ti: ti.start_date):
-                start_date = start_date or i.start_date
-                end_date = i.end_date or timezone.utcnow()
-                if type(i) == models.TaskInstance:
-                    gantt_bar_items.append((task_id, start_date, end_date, i.state))
-                    start_date = None
-                elif type(i) == TF and (len(gantt_bar_items) == 0 or
-                                        end_date != gantt_bar_items[-1][2]):
-                    gantt_bar_items.append((task_id, start_date, end_date, State.FAILED))
-                    start_date = None
+        for ti in tis:
+            end_date = ti.end_date or timezone.utcnow()
+            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state))
+        for tf in ti_fails:
+            end_date = tf.end_date or timezone.utcnow()
+            gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED))
 
         tasks = []
         for gantt_bar_item in gantt_bar_items:
