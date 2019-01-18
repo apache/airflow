@@ -647,9 +647,9 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def clear_task_instances(tis,
-                             session=None,
                              activate_dag_runs=True,
                              dag=None,
+                             session=None
                              ):
         """
         Clears a set of task instances, but makes sure the running ones
@@ -4255,7 +4255,7 @@ class DAG(BaseDag, LoggingMixin):
 
         run.dag = self
 
-        run.refresh_from_db()
+        run.refresh_from_db(session)
 
         return run
 

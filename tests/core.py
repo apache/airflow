@@ -58,6 +58,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
+from airflow.utils.db import create_session
 from airflow.www.app import create_app
 from airflow.settings import Session
 from airflow.utils import timezone
@@ -108,12 +109,10 @@ class CoreTest(unittest.TestCase):
     default_scheduler_args = {"num_runs": 1}
 
     def clear_db(self):
-        session = Session()
-        session.query(models.DagRun).delete()
-        session.query(models.TaskInstance).delete()
-        session.query(models.DagEdge).delete()
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.TaskInstance).delete()
+            session.query(models.DagEdge).delete()
 
     def setUp(self):
         self.clear_db()
@@ -1819,11 +1818,9 @@ class SecurityTests(unittest.TestCase):
 @unittest.skip(reason="Skipping because now we are using FAB")
 class WebUiTests(unittest.TestCase):
     def setUp(self):
-        session = Session()
-        session.query(models.DagRun).delete()
-        session.query(models.TaskInstance).delete()
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.TaskInstance).delete()
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
