@@ -162,6 +162,11 @@ Authenticating to AWS
 
 Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
+Default Connection IDs
+''''''''''''''''''''''
+
+The default connection ID is ``aws_default``.
+
 Configuring the Connection
 ''''''''''''''''''''''''''
 
