@@ -864,7 +864,7 @@ class HiveServer2Hook(BaseHook):
         Execute hql in target schema and write results to a csv file.
         :param hql: hql to be executed.
         :param csv_filepath: filepath of csv to write results into.
-        :param schema: target schema, , default to 'default'.
+        :param schema: target schema, default to 'default'.
         :param delimiter: delimiter of the csv file.
         :param lineterminator: lineterminator of the csv file.
         :param output_header: header of the csv file.
