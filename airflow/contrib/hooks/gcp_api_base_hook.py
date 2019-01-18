@@ -168,8 +168,8 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         def inner_wrapper(self, *args, **kwargs):
             if len(args) > 0:
                 raise AirflowException(
-                    "Use keyword arguments when initializing method with the "
-                    "'fallback_to_default_project_id' decorator")
+                    "You must use keyword arguments in this methods rather than"
+                    " positional")
             if 'project_id' in kwargs:
                 kwargs['project_id'] = self._get_project_id(kwargs['project_id'])
             else:

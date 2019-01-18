@@ -24,10 +24,51 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+## Changes in Google Cloud Platform related operators
+
+Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
+the project id configured in
+[GCP Connection](https://airflow.apache.org/howto/manage-connections.html#connection-type-gcp) is used.
+There will be an `AirflowException` thrown in case `PROJECT_ID` parameter is not specified and the
+connection used has no project id defined. This change should be  backwards compatible as earlier version
+of the operators had `PROJECT_ID` mandatory.
+
+Operators involved:
+
+  * GCP Compute Operators
+    * GceInstanceStartOperator
+    * GceInstanceStopOperator
+    * GceSetMachineTypeOperator
+  * GCP Function Operators
+    * GcfFunctionDeployOperator
+  * GCP Cloud SQL Operators
+    * CloudSqlInstanceCreateOperator
+    * CloudSqlInstancePatchOperator
+    * CloudSqlInstanceDeleteOperator
+    * CloudSqlInstanceDatabaseCreateOperator
+    * CloudSqlInstanceDatabasePatchOperator
+    * CloudSqlInstanceDatabaseDeleteOperator
+
+Other GCP operators are unaffected.
+
+## Changes in Google Cloud Platform related hooks
+
+The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
+than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
+in case they are called using positional parameters.
+
+Hooks involved:
+
+  * GceHook
+  * GcfHook
+  * CloudSqlHook
+
+Other GCP hooks are unaffected.
+
 ### Deprecate legacy UI in favor of FAB RBAC UI
 Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the 
-RBAC UI explicitly in the configuration now as this is the only default UI.  
+in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
+RBAC UI explicitly in the configuration now as this is the only default UI.
 Please note that that custom auth backends will need re-writing to target new FAB based UI.
 
 

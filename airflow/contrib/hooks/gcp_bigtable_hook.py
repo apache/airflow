@@ -28,6 +28,9 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 class BigtableHook(GoogleCloudBaseHook):
     """
     Hook for Google Cloud Bigtable APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
     """
 
     _client = None
@@ -48,7 +51,6 @@ class BigtableHook(GoogleCloudBaseHook):
         """
         Retrieves and returns the specified Cloud Bigtable instance if it exists.
         Otherwise, returns None.
-        Must be called with keyword arguments rather than positional.
 
         :param instance_id: The ID of the Cloud Bigtable instance.
         :type instance_id: str
@@ -67,7 +69,6 @@ class BigtableHook(GoogleCloudBaseHook):
     def delete_instance(self, instance_id, project_id=None):
         """
         Deletes the specified Cloud Bigtable instance.
-        Must be called with keyword arguments rather than positional.
         Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
         not exist.
 

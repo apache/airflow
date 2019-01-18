@@ -42,7 +42,7 @@ class KubernetesPodOperator(BaseOperator):
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provide.
     :type cmds: list of str
-    :param arguments: arguments of to the entrypoint. (templated)
+    :param arguments: arguments of the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
     :type arguments: list of str
     :param image_pull_policy: Specify a policy to cache or always pull an image
