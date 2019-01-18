@@ -149,10 +149,10 @@ class KubernetesPodOperator(BaseOperator):
 
     def _set_resources(self, resources):
         inputResource = Resources()
-        try:
+        if resources is not None:
             for item in resources.keys():
                 setattr(inputResource, item, resources[item])
-        except:
+        else:
             pass
         return inputResource
 
