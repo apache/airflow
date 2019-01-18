@@ -24,6 +24,7 @@ from airflow.utils.state import State
 from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
 from airflow.contrib.kubernetes.volume import Volume  # noqa
 from airflow.contrib.kubernetes.secret import Secret  # noqa
+from collections import namedtuple
 
 template_fields = ('templates_dict',)
 template_ext = tuple()
@@ -74,6 +75,8 @@ class KubernetesPodOperator(BaseOperator):
     :type cluster_context: str
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
+    :param resources: A dict containing a group of resources requests and limits
+    :type resources: dict
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
     :param node_selectors: A dict containing a group of scheduling rules
@@ -144,6 +147,15 @@ class KubernetesPodOperator(BaseOperator):
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
+    def _set_resources(self, resources):
+        inputResource = Resources()
+        try:
+            for item in resources.keys():
+                setattr(inputResource, item, resources[item])
+        except:
+            pass
+        return inputResource
+
     @apply_defaults
     def __init__(self,
                  namespace,
@@ -194,7 +206,7 @@ class KubernetesPodOperator(BaseOperator):
         self.annotations = annotations or {}
         self.affinity = affinity or {}
         self.xcom_push = xcom_push
-        self.resources = resources or Resources()
+        self.resources = self._set_resources(resources)
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets
         self.service_account_name = service_account_name
