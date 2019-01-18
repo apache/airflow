@@ -38,20 +38,23 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :type source_project_dataset_tables: list|string
     :param destination_project_dataset_table: The destination BigQuery
         table. Format is: (project:|project.)<dataset>.<table> (templated)
-    :type destination_project_dataset_table: string
+    :type destination_project_dataset_table: str
     :param write_disposition: The write disposition if the table already exists.
-    :type write_disposition: string
+    :type write_disposition: str
     :param create_disposition: The create disposition if the table doesn't exist.
-    :type create_disposition: string
+    :type create_disposition: str
     :param bigquery_conn_id: reference to a specific BigQuery hook.
-    :type bigquery_conn_id: string
+    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
+    :param labels: a dictionary containing labels for the job/query,
+        passed to BigQuery
+    :type labels: dict
     """
     template_fields = ('source_project_dataset_tables',
-                       'destination_project_dataset_table')
+                       'destination_project_dataset_table', 'labels')
     template_ext = ('.sql',)
     ui_color = '#e6f0e4'
 
@@ -63,6 +66,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  create_disposition='CREATE_IF_NEEDED',
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
+                 labels=None,
                  *args,
                  **kwargs):
         super(BigQueryToBigQueryOperator, self).__init__(*args, **kwargs)
@@ -72,6 +76,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.create_disposition = create_disposition
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
+        self.labels = labels
 
     def execute(self, context):
         self.log.info(
@@ -86,4 +91,5 @@ class BigQueryToBigQueryOperator(BaseOperator):
             self.source_project_dataset_tables,
             self.destination_project_dataset_table,
             self.write_disposition,
-            self.create_disposition)
+            self.create_disposition,
+            self.labels)

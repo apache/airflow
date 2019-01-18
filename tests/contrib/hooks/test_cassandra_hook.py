@@ -27,7 +27,7 @@ from cassandra.cluster import Cluster
 from cassandra.policies import (
     TokenAwarePolicy, RoundRobinPolicy, DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
 )
-from airflow import models
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 
@@ -35,14 +35,14 @@ class CassandraHookTest(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='cassandra_test', conn_type='cassandra',
                 host='host-1,host-2', port='9042', schema='test_keyspace',
                 extra='{"load_balancing_policy":"TokenAwarePolicy"}'))
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='cassandra_default_with_schema', conn_type='cassandra',
-                host='localhost', port='9042', schema='s'))
+                host='cassandra', port='9042', schema='s'))
 
         hook = CassandraHook("cassandra_default")
         session = hook.get_conn()

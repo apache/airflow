@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,6 +19,7 @@
 
 import unittest
 from base64 import b64encode
+import six
 
 from airflow import configuration
 from airflow import models
@@ -39,6 +40,7 @@ def reset(dag_id=TEST_DAG_ID):
     session.commit()
     session.close()
 
+
 reset()
 
 
@@ -58,20 +60,37 @@ class SSHOperatorTest(unittest.TestCase):
         self.hook = hook
         self.dag = dag
 
+    def test_hook_created_correctly(self):
+        TIMEOUT = 20
+        SSH_ID = "ssh_default"
+        task = SSHOperator(
+            task_id="test",
+            command="echo -n airflow",
+            dag=self.dag,
+            timeout=TIMEOUT,
+            ssh_conn_id="ssh_default"
+        )
+        self.assertIsNotNone(task)
+
+        task.execute(None)
+
+        self.assertEquals(TIMEOUT, task.ssh_hook.timeout)
+        self.assertEquals(SSH_ID, task.ssh_hook.ssh_conn_id)
+
     def test_json_command_execution(self):
         configuration.conf.set("core", "enable_xcom_pickling", "False")
         task = SSHOperator(
-                task_id="test",
-                ssh_hook=self.hook,
-                command="echo -n airflow",
-                do_xcom_push=True,
-                dag=self.dag,
+            task_id="test",
+            ssh_hook=self.hook,
+            command="echo -n airflow",
+            do_xcom_push=True,
+            dag=self.dag,
         )
 
         self.assertIsNotNone(task)
 
         ti = TaskInstance(
-                task=task, execution_date=timezone.utcnow())
+            task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertIsNotNone(ti.duration)
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'),
@@ -80,17 +99,17 @@ class SSHOperatorTest(unittest.TestCase):
     def test_pickle_command_execution(self):
         configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
-                task_id="test",
-                ssh_hook=self.hook,
-                command="echo -n airflow",
-                do_xcom_push=True,
-                dag=self.dag,
+            task_id="test",
+            ssh_hook=self.hook,
+            command="echo -n airflow",
+            do_xcom_push=True,
+            dag=self.dag,
         )
 
         self.assertIsNotNone(task)
 
         ti = TaskInstance(
-                task=task, execution_date=timezone.utcnow())
+            task=task, execution_date=timezone.utcnow())
         ti.run()
         self.assertIsNotNone(ti.duration)
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
@@ -130,6 +149,65 @@ class SSHOperatorTest(unittest.TestCase):
         ti.run()
         self.assertIsNotNone(ti.duration)
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'')
+
+    def test_arg_checking(self):
+        import os
+        from airflow.exceptions import AirflowException
+        conn_id = "conn_id_for_testing"
+        TIMEOUT = 5
+        os.environ['AIRFLOW_CONN_' + conn_id.upper()] = "ssh://test_id@localhost"
+
+        # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
+        if six.PY2:
+            self.assertRaisesRegex = self.assertRaisesRegexp
+        with self.assertRaisesRegex(AirflowException,
+                                    "Cannot operate without ssh_hook or ssh_conn_id."):
+            task_0 = SSHOperator(task_id="test", command="echo -n airflow",
+                                 timeout=TIMEOUT, dag=self.dag)
+            task_0.execute(None)
+
+        # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
+        task_1 = SSHOperator(
+            task_id="test_1",
+            ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
+            ssh_conn_id=conn_id,
+            command="echo -n airflow",
+            timeout=TIMEOUT,
+            dag=self.dag
+        )
+        try:
+            task_1.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task_1.ssh_hook.ssh_conn_id, conn_id)
+
+        task_2 = SSHOperator(
+            task_id="test_2",
+            ssh_conn_id=conn_id,  # no ssh_hook provided
+            command="echo -n airflow",
+            timeout=TIMEOUT,
+            dag=self.dag
+        )
+        try:
+            task_2.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task_2.ssh_hook.ssh_conn_id, conn_id)
+
+        # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
+        task_3 = SSHOperator(
+            task_id="test_3",
+            ssh_hook=self.hook,
+            ssh_conn_id=conn_id,
+            command="echo -n airflow",
+            timeout=TIMEOUT,
+            dag=self.dag
+        )
+        try:
+            task_3.execute(None)
+        except Exception:
+            pass
+        self.assertEqual(task_3.ssh_hook.ssh_conn_id, self.hook.ssh_conn_id)
 
 
 if __name__ == '__main__':

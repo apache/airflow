@@ -30,9 +30,10 @@ class SqlSensor(BaseSensorOperator):
     sql returns no row, or if the first cell in (0, '0', '').
 
     :param conn_id: The connection to run the sensor against
-    :type conn_id: string
+    :type conn_id: str
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
+    :type sql: str
     """
     template_fields = ('sql',)
     template_ext = ('.hql', '.sql',)
@@ -51,8 +52,4 @@ class SqlSensor(BaseSensorOperator):
         records = hook.get_records(self.sql)
         if not records:
             return False
-        else:
-            if str(records[0][0]) in ('0', '',):
-                return False
-            else:
-                return True
+        return str(records[0][0]) not in ('0', '')

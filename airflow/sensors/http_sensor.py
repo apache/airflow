@@ -28,15 +28,18 @@ from airflow.utils.decorators import apply_defaults
 
 class HttpSensor(BaseSensorOperator):
     """
-    Executes a HTTP get statement and returns False on failure:
-        404 not found or response_check function returned False
+    Executes a HTTP GET statement and returns False on failure caused by
+    404 Not Found or `response_check` returning False.
+
+    HTTP Error codes other than 404 (like 403) or Connection Refused Error
+    would fail the sensor itself directly (no more poking).
 
     :param http_conn_id: The connection to run the sensor against
-    :type http_conn_id: string
+    :type http_conn_id: str
     :param method: The HTTP request method to use
-    :type method: string
+    :type method: str
     :param endpoint: The relative part of the full url
-    :type endpoint: string
+    :type endpoint: str
     :param request_params: The parameters to be added to the GET url
     :type request_params: a dictionary of string key/value pairs
     :param headers: The HTTP headers to be added to the GET request

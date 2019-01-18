@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,6 +19,7 @@
 #
 
 import mock
+import six
 import unittest
 
 from airflow.contrib.hooks import ftp_hook as fh
@@ -82,24 +83,46 @@ class TestFTPHook(unittest.TestCase):
 
         self.conn_mock.rename.assert_called_once_with(from_path, to_path)
         self.conn_mock.quit.assert_called_once_with()
-        
+
     def test_mod_time(self):
         self.conn_mock.sendcmd.return_value = '213 20170428010138'
-        
+
         path = '/path/file'
         with fh.FTPHook() as ftp_hook:
             ftp_hook.get_mod_time(path)
 
         self.conn_mock.sendcmd.assert_called_once_with('MDTM ' + path)
-        
+
     def test_mod_time_micro(self):
         self.conn_mock.sendcmd.return_value = '213 20170428010138.003'
-        
+
         path = '/path/file'
         with fh.FTPHook() as ftp_hook:
             ftp_hook.get_mod_time(path)
 
         self.conn_mock.sendcmd.assert_called_once_with('MDTM ' + path)
+
+    def test_get_size(self):
+        self.conn_mock.size.return_value = 1942
+
+        path = '/path/file'
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.get_size(path)
+
+        self.conn_mock.size.assert_called_once_with(path)
+
+    def test_retrieve_file(self):
+        _buffer = six.StringIO('buffer')
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.retrieve_file(self.path, _buffer)
+        self.conn_mock.retrbinary.assert_called_once_with('RETR path', _buffer.write)
+
+    def test_retrieve_file_with_callback(self):
+        func = mock.Mock()
+        _buffer = six.StringIO('buffer')
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.retrieve_file(self.path, _buffer, callback=func)
+        self.conn_mock.retrbinary.assert_called_once_with('RETR path', func)
 
 
 if __name__ == '__main__':

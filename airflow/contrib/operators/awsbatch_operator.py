@@ -24,7 +24,7 @@ from time import sleep
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 
@@ -42,18 +42,20 @@ class AWSBatchOperator(BaseOperator):
     :type job_definition: str
     :param job_queue: the queue name on AWS Batch
     :type job_queue: str
-    :param: overrides: the same parameter that boto3 will receive on
-            containerOverrides (templated):
-            http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
-    :type: overrides: dict
-    :param max_retries: exponential backoff retries while waiter is not merged, 4200 = 48 hours
+    :param overrides: the same parameter that boto3 will receive on
+        containerOverrides (templated):
+        http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
+    :type overrides: dict
+    :param max_retries: exponential backoff retries while waiter is not
+        merged, 4200 = 48 hours
     :type max_retries: int
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
-            credential boto3 strategy will be used
-            (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+        credential boto3 strategy will be used
+        (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :type aws_conn_id: str
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
+    :type region_name: str
     """
 
     ui_color = '#c3dae0'
@@ -139,7 +141,7 @@ class AWSBatchOperator(BaseOperator):
                 if response['jobs'][-1]['status'] in ['SUCCEEDED', 'FAILED']:
                     retry = False
 
-                sleep( 1 + pow(retries * 0.1, 2))
+                sleep(1 + pow(retries * 0.1, 2))
                 retries += 1
 
     def _check_success_task(self):

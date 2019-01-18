@@ -31,12 +31,15 @@ class SlackWebhookOperator(SimpleHttpOperator):
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
 
-    :param conn_id: connection that has Slack webhook token in the extra field
-    :type conn_id: str
+    :param http_conn_id: connection that has Slack webhook token in the extra field
+    :type http_conn_id: str
     :param webhook_token: Slack webhook token
     :type webhook_token: str
     :param message: The message you want to send on Slack
     :type message: str
+    :param attachments: The attachments to send on Slack. Should be a list of
+                        dictionaries representing Slack attachments.
+    :type attachments: list
     :param channel: The channel the message should be posted to
     :type channel: str
     :param username: The username to post to slack with
@@ -55,6 +58,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  http_conn_id=None,
                  webhook_token=None,
                  message="",
+                 attachments=None,
                  channel=None,
                  username=None,
                  icon_emoji=None,
@@ -68,6 +72,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
         self.http_conn_id = http_conn_id
         self.webhook_token = webhook_token
         self.message = message
+        self.attachments = attachments
         self.channel = channel
         self.username = username
         self.icon_emoji = icon_emoji
@@ -77,12 +82,13 @@ class SlackWebhookOperator(SimpleHttpOperator):
 
     def execute(self, context):
         """
-        Call the SparkSqlHook to run the provided sql query
+        Call the SlackWebhookHook to post the provided Slack message
         """
         self.hook = SlackWebhookHook(
             self.http_conn_id,
             self.webhook_token,
             self.message,
+            self.attachments,
             self.channel,
             self.username,
             self.icon_emoji,

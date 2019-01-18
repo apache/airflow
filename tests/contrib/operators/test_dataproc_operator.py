@@ -45,24 +45,27 @@ except ImportError:
     except ImportError:
         mock = None
 
-from mock import Mock
+from mock import MagicMock, Mock
 from mock import patch
 
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'
-PROJECT_ID = 'test-project-id'
+GCP_PROJECT_ID = 'test-project-id'
 NUM_WORKERS = 123
-ZONE = 'us-central1-a'
+GCE_ZONE = 'us-central1-a'
 NETWORK_URI = '/projects/project_id/regions/global/net'
 SUBNETWORK_URI = '/projects/project_id/regions/global/subnet'
 INTERNAL_IP_ONLY = True
 TAGS = ['tag1', 'tag2']
 STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
+CUSTOM_IMAGE = 'test-custom-image'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
 MASTER_DISK_SIZE = 100
+MASTER_DISK_TYPE = 'pd-standard'
 WORKER_MACHINE_TYPE = 'n1-standard-2'
 WORKER_DISK_SIZE = 100
+WORKER_DISK_TYPE = 'pd-standard'
 NUM_PREEMPTIBLE_WORKERS = 2
 GET_INIT_ACTION_TIMEOUT = "600s"  # 10m
 LABEL1 = {}
@@ -75,11 +78,32 @@ IDLE_DELETE_TTL = 321
 AUTO_DELETE_TIME = datetime.datetime(2017, 6, 7)
 AUTO_DELETE_TTL = 654
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
-REGION = 'test-region'
+GCP_REGION = 'test-region'
 MAIN_URI = 'test-uri'
 TEMPLATE_ID = 'template-id'
 
 HOOK = 'airflow.contrib.operators.dataproc_operator.DataProcHook'
+DATAPROC_JOB_ID = 'dataproc_job_id'
+DATAPROC_JOB_TO_SUBMIT = {
+    'job': {
+        'reference': {
+            'projectId': GCP_PROJECT_ID,
+            'jobId': DATAPROC_JOB_ID,
+        },
+        'placement': {
+            'clusterName': CLUSTER_NAME
+        }
+    }
+}
+
+
+def _assert_dataproc_job_id(mock_hook, dataproc_task):
+    hook = mock_hook.return_value
+    job = MagicMock()
+    job.build.return_value = DATAPROC_JOB_TO_SUBMIT
+    hook.create_job_template.return_value = job
+    dataproc_task.execute(None)
+    assert dataproc_task.dataproc_job_id == DATAPROC_JOB_ID
 
 
 class DataprocClusterCreateOperatorTest(unittest.TestCase):
@@ -90,13 +114,13 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.dataproc_operators = []
         self.mock_conn = Mock()
         for labels in self.labels:
-             self.dataproc_operators.append(
+            self.dataproc_operators.append(
                 DataprocClusterCreateOperator(
                     task_id=TASK_ID,
                     cluster_name=CLUSTER_NAME,
-                    project_id=PROJECT_ID,
+                    project_id=GCP_PROJECT_ID,
                     num_workers=NUM_WORKERS,
-                    zone=ZONE,
+                    zone=GCE_ZONE,
                     network_uri=NETWORK_URI,
                     subnetwork_uri=SUBNETWORK_URI,
                     internal_ip_only=INTERNAL_IP_ONLY,
@@ -104,8 +128,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     storage_bucket=STORAGE_BUCKET,
                     image_version=IMAGE_VERSION,
                     master_machine_type=MASTER_MACHINE_TYPE,
+                    master_disk_type=MASTER_DISK_TYPE,
                     master_disk_size=MASTER_DISK_SIZE,
                     worker_machine_type=WORKER_MACHINE_TYPE,
+                    worker_disk_type=WORKER_DISK_TYPE,
                     worker_disk_size=WORKER_DISK_SIZE,
                     num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
                     labels=deepcopy(labels),
@@ -114,7 +140,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     auto_delete_time=AUTO_DELETE_TIME,
                     auto_delete_ttl=AUTO_DELETE_TTL
                 )
-             )
+            )
         self.dag = DAG(
             'test_dag',
             default_args={
@@ -128,9 +154,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         """Test DataProcClusterOperator instance is properly initialized."""
         for suffix, dataproc_operator in enumerate(self.dataproc_operators):
             self.assertEqual(dataproc_operator.cluster_name, CLUSTER_NAME)
-            self.assertEqual(dataproc_operator.project_id, PROJECT_ID)
+            self.assertEqual(dataproc_operator.project_id, GCP_PROJECT_ID)
             self.assertEqual(dataproc_operator.num_workers, NUM_WORKERS)
-            self.assertEqual(dataproc_operator.zone, ZONE)
+            self.assertEqual(dataproc_operator.zone, GCE_ZONE)
             self.assertEqual(dataproc_operator.network_uri, NETWORK_URI)
             self.assertEqual(dataproc_operator.subnetwork_uri, SUBNETWORK_URI)
             self.assertEqual(dataproc_operator.tags, TAGS)
@@ -138,8 +164,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.image_version, IMAGE_VERSION)
             self.assertEqual(dataproc_operator.master_machine_type, MASTER_MACHINE_TYPE)
             self.assertEqual(dataproc_operator.master_disk_size, MASTER_DISK_SIZE)
+            self.assertEqual(dataproc_operator.master_disk_type, MASTER_DISK_TYPE)
             self.assertEqual(dataproc_operator.worker_machine_type, WORKER_MACHINE_TYPE)
             self.assertEqual(dataproc_operator.worker_disk_size, WORKER_DISK_SIZE)
+            self.assertEqual(dataproc_operator.worker_disk_type, WORKER_DISK_TYPE)
             self.assertEqual(dataproc_operator.num_preemptible_workers,
                              NUM_PREEMPTIBLE_WORKERS)
             self.assertEqual(dataproc_operator.labels, self.labels[suffix])
@@ -158,7 +186,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         for suffix, dataproc_operator in enumerate(self.dataproc_operators):
             cluster_data = dataproc_operator._build_cluster_data()
             self.assertEqual(cluster_data['clusterName'], CLUSTER_NAME)
-            self.assertEqual(cluster_data['projectId'], PROJECT_ID)
+            self.assertEqual(cluster_data['projectId'], GCP_PROJECT_ID)
             self.assertEqual(cluster_data['config']['softwareConfig'],
                              {'imageVersion': IMAGE_VERSION})
             self.assertEqual(cluster_data['config']['configBucket'], STORAGE_BUCKET)
@@ -186,7 +214,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             # set to the dataproc operator.
             merged_labels = {}
             merged_labels.update(self.labels[suffix])
-            merged_labels.update({'airflow-version': 'v' + version.replace('.', '-').replace('+','-')})
+            merged_labels.update({'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
             self.assertTrue(re.match(r'[a-z]([-a-z0-9]*[a-z0-9])?',
                                      cluster_data['labels']['airflow-version']))
             self.assertEqual(cluster_data['labels'], merged_labels)
@@ -195,9 +223,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
             cluster_name=CLUSTER_NAME,
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             num_workers=NUM_WORKERS,
-            zone=ZONE,
+            zone=GCE_ZONE,
             dag=self.dag,
             auto_delete_time=AUTO_DELETE_TIME,
         )
@@ -209,9 +237,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
             cluster_name=CLUSTER_NAME,
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             num_workers=NUM_WORKERS,
-            zone=ZONE,
+            zone=GCE_ZONE,
             dag=self.dag,
             auto_delete_ttl=AUTO_DELETE_TTL,
         )
@@ -223,9 +251,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         dataproc_operator = DataprocClusterCreateOperator(
             task_id=TASK_ID,
             cluster_name=CLUSTER_NAME,
-            project_id=PROJECT_ID,
+            project_id=GCP_PROJECT_ID,
             num_workers=NUM_WORKERS,
-            zone=ZONE,
+            zone=GCE_ZONE,
             dag=self.dag,
             auto_delete_time=AUTO_DELETE_TIME,
             auto_delete_ttl=AUTO_DELETE_TTL,
@@ -237,33 +265,92 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
         self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
                          "2017-06-07T00:00:00.000000Z")
 
+    def test_init_with_image_version_and_custom_image_both_set(self):
+        with self.assertRaises(AssertionError):
+            DataprocClusterCreateOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                project_id=GCP_PROJECT_ID,
+                num_workers=NUM_WORKERS,
+                zone=GCE_ZONE,
+                dag=self.dag,
+                image_version=IMAGE_VERSION,
+                custom_image=CUSTOM_IMAGE
+            )
+
+    def test_init_with_custom_image(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=GCE_ZONE,
+            dag=self.dag,
+            custom_image=CUSTOM_IMAGE
+        )
+
+        cluster_data = dataproc_operator._build_cluster_data()
+        expected_custom_image_url = \
+            'https://www.googleapis.com/compute/beta/projects/' \
+            '{}/global/images/{}'.format(GCP_PROJECT_ID, CUSTOM_IMAGE)
+        self.assertEqual(cluster_data['config']['masterConfig']['imageUri'],
+                         expected_custom_image_url)
+        self.assertEqual(cluster_data['config']['workerConfig']['imageUri'],
+                         expected_custom_image_url)
+
+    def test_build_single_node_cluster(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT_ID,
+            num_workers=0,
+            num_preemptible_workers=0,
+            zone=GCE_ZONE,
+            dag=self.dag
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertEqual(
+            cluster_data['config']['softwareConfig']['properties']
+            ['dataproc:dataproc.allow.zero.workers'], "true")
+
+    def test_init_cluster_with_zero_workers_and_not_non_zero_preemtibles(self):
+        with self.assertRaises(AssertionError):
+            DataprocClusterCreateOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                project_id=GCP_PROJECT_ID,
+                num_workers=0,
+                num_preemptible_workers=2,
+                zone=GCE_ZONE,
+                dag=self.dag,
+                image_version=IMAGE_VERSION,
+            )
+
     def test_cluster_name_log_no_sub(self):
-        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') \
-                as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterCreateOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
-                project_id=PROJECT_ID,
+                project_id=GCP_PROJECT_ID,
                 num_workers=NUM_WORKERS,
-                zone=ZONE,
+                zone=GCE_ZONE,
                 dag=self.dag
             )
             with patch.object(dataproc_task.log, 'info') as mock_info:
-                with self.assertRaises(TypeError) as _:
+                with self.assertRaises(TypeError):
                     dataproc_task.execute(None)
                 mock_info.assert_called_with('Creating cluster: %s', CLUSTER_NAME)
 
     def test_cluster_name_log_sub(self):
-        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') \
-                as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterCreateOperator(
                 task_id=TASK_ID,
                 cluster_name='smoke-cluster-{{ ts_nodash }}',
-                project_id=PROJECT_ID,
+                project_id=GCP_PROJECT_ID,
                 num_workers=NUM_WORKERS,
-                zone=ZONE,
+                zone=GCE_ZONE,
                 dag=self.dag
             )
             with patch.object(dataproc_task.log, 'info') as mock_info:
@@ -275,20 +362,18 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                 setattr(dataproc_task, 'cluster_name', rendered)
                 with self.assertRaises(TypeError):
                     dataproc_task.execute(None)
-                mock_info.assert_called_with('Creating cluster: %s',
-                                             u'smoke-cluster-testnodash')
+                mock_info.assert_called_with('Creating cluster: %s', u'smoke-cluster-testnodash')
 
     def test_build_cluster_data_internal_ip_only_without_subnetwork(self):
 
         def create_cluster_with_invalid_internal_ip_only_setup():
-
             # Given
             create_cluster = DataprocClusterCreateOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
-                project_id=PROJECT_ID,
+                project_id=GCP_PROJECT_ID,
                 num_workers=NUM_WORKERS,
-                zone=ZONE,
+                zone=GCE_ZONE,
                 dag=self.dag,
                 internal_ip_only=True)
 
@@ -300,8 +385,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             create_cluster_with_invalid_internal_ip_only_setup()
 
         self.assertEqual(str(cm.exception),
-                         "Set internal_ip_only to true only when"
-                         " you pass a subnetwork_uri.")
+                         "Set internal_ip_only to true only when you pass a subnetwork_uri.")
 
 
 class DataprocClusterScaleOperatorTest(unittest.TestCase):
@@ -334,7 +418,7 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
             dataproc_task = DataprocClusterScaleOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
-                project_id=PROJECT_ID,
+                project_id=GCP_PROJECT_ID,
                 num_workers=NUM_WORKERS,
                 num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
                 dag=self.dag
@@ -345,13 +429,12 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
                 mock_info.assert_called_with('Scaling cluster: %s', CLUSTER_NAME)
 
     def test_cluster_name_log_sub(self):
-        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') \
-                as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterScaleOperator(
                 task_id=TASK_ID,
                 cluster_name='smoke-cluster-{{ ts_nodash }}',
-                project_id=PROJECT_ID,
+                project_id=GCP_PROJECT_ID,
                 num_workers=NUM_WORKERS,
                 num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
                 dag=self.dag
@@ -366,22 +449,21 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
                 setattr(dataproc_task, 'cluster_name', rendered)
                 with self.assertRaises(TypeError):
                     dataproc_task.execute(None)
-                mock_info.assert_called_with('Scaling cluster: %s',
-                                             u'smoke-cluster-testnodash')
+                mock_info.assert_called_with('Scaling cluster: %s', u'smoke-cluster-testnodash')
 
 
 class DataprocClusterDeleteOperatorTest(unittest.TestCase):
     # Unit test for the DataprocClusterDeleteOperator
     def setUp(self):
         self.mock_execute = Mock()
-        self.mock_execute.execute = Mock(return_value={'done' : True})
+        self.mock_execute.execute = Mock(return_value={'done': True})
         self.mock_get = Mock()
         self.mock_get.get = Mock(return_value=self.mock_execute)
         self.mock_operations = Mock()
         self.mock_operations.get = Mock(return_value=self.mock_get)
         self.mock_regions = Mock()
         self.mock_regions.operations = Mock(return_value=self.mock_operations)
-        self.mock_projects=Mock()
+        self.mock_projects = Mock()
         self.mock_projects.regions = Mock(return_value=self.mock_regions)
         self.mock_conn = Mock()
         self.mock_conn.projects = Mock(return_value=self.mock_projects)
@@ -400,11 +482,11 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             dataproc_task = DataprocClusterDeleteOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
-                project_id=PROJECT_ID,
+                project_id=GCP_PROJECT_ID,
                 dag=self.dag
             )
             with patch.object(dataproc_task.log, 'info') as mock_info:
-                with self.assertRaises(TypeError) as _:
+                with self.assertRaises(TypeError):
                     dataproc_task.execute(None)
                 mock_info.assert_called_with('Deleting cluster: %s', CLUSTER_NAME)
 
@@ -414,7 +496,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             dataproc_task = DataprocClusterDeleteOperator(
                 task_id=TASK_ID,
                 cluster_name='smoke-cluster-{{ ts_nodash }}',
-                project_id=PROJECT_ID,
+                project_id=GCP_PROJECT_ID,
                 dag=self.dag
             )
 
@@ -433,52 +515,100 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
 
 class DataProcHadoopOperatorTest(unittest.TestCase):
     # Unit test for the DataProcHadoopOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcHadoopOperator(
                 task_id=TASK_ID,
-                region=REGION
+                region=GCP_REGION
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  GCP_REGION, mock.ANY)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcHadoopOperator(
+                task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
 
 class DataProcHiveOperatorTest(unittest.TestCase):
     # Unit test for the DataProcHiveOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcHiveOperator(
                 task_id=TASK_ID,
-                region=REGION
+                region=GCP_REGION
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  GCP_REGION, mock.ANY)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcHiveOperator(
+                task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
 
 class DataProcPySparkOperatorTest(unittest.TestCase):
     # Unit test for the DataProcPySparkOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcPySparkOperator(
                 task_id=TASK_ID,
                 main=MAIN_URI,
-                region=REGION
+                region=GCP_REGION
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  GCP_REGION, mock.ANY)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcPySparkOperator(
+                task_id=TASK_ID,
+                main=MAIN_URI
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
+
 
 class DataProcSparkOperatorTest(unittest.TestCase):
     # Unit test for the DataProcSparkOperator
-    def test_hook_correct_region(self):
-       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+    @staticmethod
+    def test_hook_correct_region():
+        with patch(HOOK) as mock_hook:
             dataproc_task = DataProcSparkOperator(
                 task_id=TASK_ID,
-                region=REGION
+                region=GCP_REGION
             )
 
             dataproc_task.execute(None)
-            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY,
+                                                                  GCP_REGION, mock.ANY)
+
+    @staticmethod
+    def test_dataproc_job_id_is_set():
+        with patch(HOOK) as mock_hook:
+            dataproc_task = DataProcSparkOperator(
+                task_id=TASK_ID
+            )
+
+            _assert_dataproc_job_id(mock_hook, dataproc_task)
 
 
 class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
@@ -508,12 +638,12 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
         with patch(HOOK) as MockHook:
             hook = MockHook()
             hook.get_conn.return_value = self.mock_conn
-            hook.await.return_value = None
+            hook.wait.return_value = None
 
             dataproc_task = DataprocWorkflowTemplateInstantiateOperator(
                 task_id=TASK_ID,
-                project_id=PROJECT_ID,
-                region=REGION,
+                project_id=GCP_PROJECT_ID,
+                region=GCP_REGION,
                 template_id=TEMPLATE_ID,
                 dag=self.dag
             )
@@ -525,7 +655,7 @@ class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
             self.mock_workflows.instantiate.assert_called_once_with(
                 name=template_name,
                 body=mock.ANY)
-            hook.await.assert_called_once_with(self.operation)
+            hook.wait.assert_called_once_with(self.operation)
 
 
 class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
@@ -556,7 +686,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
         with patch(HOOK) as MockHook:
             hook = MockHook()
             hook.get_conn.return_value = self.mock_conn
-            hook.await.return_value = None
+            hook.wait.return_value = None
 
             template = {
                 "placement": {
@@ -564,7 +694,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
                         "cluster_name": CLUSTER_NAME,
                         "config": {
                             "gce_cluster_config": {
-                                "zone_uri": ZONE,
+                                "zone_uri": GCE_ZONE,
                             }
                         }
                     }
@@ -580,8 +710,8 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
 
             dataproc_task = DataprocWorkflowTemplateInstantiateInlineOperator(
                 task_id=TASK_ID,
-                project_id=PROJECT_ID,
-                region=REGION,
+                project_id=GCP_PROJECT_ID,
+                region=GCP_REGION,
                 template=template,
                 dag=self.dag
             )
@@ -591,4 +721,4 @@ class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
                 parent='projects/test-project-id/regions/test-region',
                 instanceId=mock.ANY,
                 body=template)
-            hook.await.assert_called_once_with(self.operation)
+            hook.wait.assert_called_once_with(self.operation)

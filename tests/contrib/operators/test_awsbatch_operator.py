@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,7 +32,6 @@ except ImportError:
         import mock
     except ImportError:
         mock = None
-
 
 RESPONSE_WITHOUT_FAILURES = {
     "jobName": "51455483-c62c-48ac-9b88-53a6a725baa3",
@@ -58,7 +57,6 @@ class TestAWSBatchOperator(unittest.TestCase):
             region_name='eu-west-1')
 
     def test_init(self):
-
         self.assertEqual(self.batch.job_name, '51455483-c62c-48ac-9b88-53a6a725baa3')
         self.assertEqual(self.batch.job_queue, 'queue')
         self.assertEqual(self.batch.job_definition, 'hello-world')
@@ -76,13 +74,13 @@ class TestAWSBatchOperator(unittest.TestCase):
     @mock.patch.object(AWSBatchOperator, '_wait_for_task_ended')
     @mock.patch.object(AWSBatchOperator, '_check_success_task')
     def test_execute_without_failures(self, check_mock, wait_mock):
-
         client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
         client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.batch.execute(None)
 
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('batch', region_name='eu-west-1')
+        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('batch',
+                                                                                region_name='eu-west-1')
         client_mock.submit_job.assert_called_once_with(
             jobQueue='queue',
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
@@ -95,14 +93,14 @@ class TestAWSBatchOperator(unittest.TestCase):
         self.assertEqual(self.batch.jobId, '8ba9d676-4108-4474-9dca-8bbac1da9b19')
 
     def test_execute_with_failures(self):
-
         client_mock = self.aws_hook_mock.return_value.get_client_type.return_value
         client_mock.submit_job.return_value = ""
 
         with self.assertRaises(AirflowException):
             self.batch.execute(None)
 
-        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('batch', region_name='eu-west-1')
+        self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('batch',
+                                                                                region_name='eu-west-1')
         client_mock.submit_job.assert_called_once_with(
             jobQueue='queue',
             jobName='51455483-c62c-48ac-9b88-53a6a725baa3',
@@ -111,7 +109,6 @@ class TestAWSBatchOperator(unittest.TestCase):
         )
 
     def test_wait_end_tasks(self):
-
         client_mock = mock.Mock()
         self.batch.jobId = '8ba9d676-4108-4474-9dca-8bbac1da9b19'
         self.batch.client = client_mock

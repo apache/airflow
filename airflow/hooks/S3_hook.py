@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -42,7 +43,7 @@ class S3Hook(AwsHook):
         else:
             bucket_name = parsed_url.netloc
             key = parsed_url.path.strip('/')
-            return (bucket_name, key)
+            return bucket_name, key
 
     def check_for_bucket(self, bucket_name):
         """
@@ -54,7 +55,8 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_bucket(self, bucket_name):
@@ -67,9 +69,36 @@ class S3Hook(AwsHook):
         s3 = self.get_resource_type('s3')
         return s3.Bucket(bucket_name)
 
+    def create_bucket(self, bucket_name, region_name=None):
+        """
+        Creates an Amazon S3 bucket.
+
+        :param bucket_name: The name of the bucket
+        :type bucket_name: str
+        :param region_name: The name of the aws region in which to create the bucket.
+        :type region_name: str
+        """
+        s3_conn = self.get_conn()
+        if not region_name:
+            region_name = s3_conn.meta.region_name
+        if region_name == 'us-east-1':
+            self.get_conn().create_bucket(Bucket=bucket_name)
+        else:
+            self.get_conn().create_bucket(Bucket=bucket_name,
+                                          CreateBucketConfiguration={
+                                              'LocationConstraint': region_name
+                                          })
+
     def check_for_prefix(self, bucket_name, prefix, delimiter):
         """
         Checks that a prefix exists in a bucket
+
+        :param bucket_name: the name of the bucket
+        :type bucket_name: str
+        :param prefix: a key prefix
+        :type prefix: str
+        :param delimiter: the delimiter marks key hierarchy.
+        :type delimiter: str
         """
         prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
         prefix_split = re.split(r'(\w+[{d}])$'.format(d=delimiter), prefix, 1)
@@ -168,7 +197,8 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_key(self, key, bucket_name=None):
@@ -203,8 +233,8 @@ class S3Hook(AwsHook):
     def select_key(self, key, bucket_name=None,
                    expression='SELECT * FROM S3Object',
                    expression_type='SQL',
-                   input_serialization={'CSV': {}},
-                   output_serialization={'CSV': {}}):
+                   input_serialization=None,
+                   output_serialization=None):
         """
         Reads a key with S3 Select.
 
@@ -227,6 +257,10 @@ class S3Hook(AwsHook):
             For more details about S3 Select parameters:
             http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
         """
+        if input_serialization is None:
+            input_serialization = {'CSV': {}}
+        if output_serialization is None:
+            output_serialization = {'CSV': {}}
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
 
@@ -246,6 +280,13 @@ class S3Hook(AwsHook):
                                wildcard_key, bucket_name=None, delimiter=''):
         """
         Checks that a key matching a wildcard expression exists in a bucket
+
+        :param wildcard_key: the path to the key
+        :type wildcard_key: str
+        :param bucket_name: the name of the bucket
+        :type bucket_name: str
+        :param delimiter: the delimiter marks key hierarchy
+        :type delimiter: str
         """
         return self.get_wildcard_key(wildcard_key=wildcard_key,
                                      bucket_name=bucket_name,
@@ -259,6 +300,8 @@ class S3Hook(AwsHook):
         :type wildcard_key: str
         :param bucket_name: the name of the bucket
         :type bucket_name: str
+        :param delimiter: the delimiter marks key hierarchy
+        :type delimiter: str
         """
         if not bucket_name:
             (bucket_name, wildcard_key) = self.parse_s3_url(wildcard_key)
@@ -319,7 +362,7 @@ class S3Hook(AwsHook):
         This is provided as a convenience to drop a string in S3. It uses the
         boto infrastructure to ship a file to s3.
 
-        :param string_data: string to set as content for the key.
+        :param string_data: str to set as content for the key.
         :type string_data: str
         :param key: S3 key that will point to the file
         :type key: str
@@ -377,3 +420,124 @@ class S3Hook(AwsHook):
 
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)
+
+    def load_file_obj(self,
+                      file_obj,
+                      key,
+                      bucket_name=None,
+                      replace=False,
+                      encrypt=False):
+        """
+        Loads a file object to S3
+
+        :param file_obj: The file-like object to set as the content for the S3 key.
+        :type file_obj: file-like object
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which to store the file
+        :type bucket_name: str
+        :param replace: A flag that indicates whether to overwrite the key
+            if it already exists.
+        :type replace: bool
+        :param encrypt: If True, S3 encrypts the file on the server,
+            and the file is stored in encrypted form at rest in S3.
+        :type encrypt: bool
+        """
+        if not bucket_name:
+            (bucket_name, key) = self.parse_s3_url(key)
+
+        if not replace and self.check_for_key(key, bucket_name):
+            raise ValueError("The key {key} already exists.".format(key=key))
+
+        extra_args = {}
+        if encrypt:
+            extra_args['ServerSideEncryption'] = "AES256"
+
+        client = self.get_conn()
+        client.upload_fileobj(file_obj, bucket_name, key, ExtraArgs=extra_args)
+
+    def copy_object(self,
+                    source_bucket_key,
+                    dest_bucket_key,
+                    source_bucket_name=None,
+                    dest_bucket_name=None,
+                    source_version_id=None):
+        """
+        Creates a copy of an object that is already stored in S3.
+
+        Note: the S3 connection used here needs to have access to both
+        source and destination bucket/key.
+
+        :param source_bucket_key: The key of the source object.
+
+            It can be either full s3:// style url or relative path from root level.
+
+            When it's specified as a full s3:// url, please omit source_bucket_name.
+        :type source_bucket_key: str
+        :param dest_bucket_key: The key of the object to copy to.
+
+            The convention to specify `dest_bucket_key` is the same
+            as `source_bucket_key`.
+        :type dest_bucket_key: str
+        :param source_bucket_name: Name of the S3 bucket where the source object is in.
+
+            It should be omitted when `source_bucket_key` is provided as a full s3:// url.
+        :type source_bucket_name: str
+        :param dest_bucket_name: Name of the S3 bucket to where the object is copied.
+
+            It should be omitted when `dest_bucket_key` is provided as a full s3:// url.
+        :type dest_bucket_name: str
+        :param source_version_id: Version ID of the source object (OPTIONAL)
+        :type source_version_id: str
+        """
+
+        if dest_bucket_name is None:
+            dest_bucket_name, dest_bucket_key = self.parse_s3_url(dest_bucket_key)
+        else:
+            parsed_url = urlparse(dest_bucket_key)
+            if parsed_url.scheme != '' or parsed_url.netloc != '':
+                raise AirflowException('If dest_bucket_name is provided, ' +
+                                       'dest_bucket_key should be relative path ' +
+                                       'from root level, rather than a full s3:// url')
+
+        if source_bucket_name is None:
+            source_bucket_name, source_bucket_key = self.parse_s3_url(source_bucket_key)
+        else:
+            parsed_url = urlparse(source_bucket_key)
+            if parsed_url.scheme != '' or parsed_url.netloc != '':
+                raise AirflowException('If source_bucket_name is provided, ' +
+                                       'source_bucket_key should be relative path ' +
+                                       'from root level, rather than a full s3:// url')
+
+        CopySource = {'Bucket': source_bucket_name,
+                      'Key': source_bucket_key,
+                      'VersionId': source_version_id}
+        response = self.get_conn().copy_object(Bucket=dest_bucket_name,
+                                               Key=dest_bucket_key,
+                                               CopySource=CopySource)
+        return response
+
+    def delete_objects(self,
+                       bucket,
+                       keys):
+        """
+        :param bucket: Name of the bucket in which you are going to delete object(s)
+        :type bucket: str
+        :param keys: The key(s) to delete from S3 bucket.
+
+            When ``keys`` is a string, it's supposed to be the key name of
+            the single object to delete.
+
+            When ``keys`` is a list, it's supposed to be the list of the
+            keys to delete.
+        :type keys: str or list
+        """
+        if isinstance(keys, list):
+            keys = keys
+        else:
+            keys = [keys]
+
+        delete_dict = {"Objects": [{"Key": k} for k in keys]}
+        response = self.get_conn().delete_objects(Bucket=bucket,
+                                                  Delete=delete_dict)
+        return response

@@ -19,13 +19,12 @@
 from future.utils import native
 
 import flask_login
-from flask_login import login_required, current_user, logout_user
+from flask_login import login_required, current_user, logout_user  # noqa: F401
 from flask import flash
-from wtforms import (
-    Form, PasswordField, StringField)
+from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE, BASE
+from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE
 import ssl
 
 from flask import url_for, redirect
@@ -56,16 +55,18 @@ class LdapException(Exception):
 
 
 def get_ldap_connection(dn=None, password=None):
-    tls_configuration = None
-    use_ssl = False
     try:
         cacert = configuration.conf.get("ldap", "cacert")
-        tls_configuration = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cacert)
-        use_ssl = True
-    except:
+    except AirflowConfigException:
         pass
 
-    server = Server(configuration.conf.get("ldap", "uri"), use_ssl, tls_configuration)
+    tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
+                            ca_certs_file=cacert)
+
+    server = Server(configuration.conf.get("ldap", "uri"),
+                    use_ssl=True,
+                    tls=tls_configuration)
+
     conn = Connection(server, native(dn), native(password))
 
     if not conn.bind():
@@ -94,7 +95,7 @@ def groups_user(conn, search_base, user_filter, user_name_att, username):
     search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
     try:
         memberof_attr = configuration.conf.get("ldap", "group_member_attr")
-    except:
+    except Exception:
         memberof_attr = "memberOf"
     res = conn.search(native(search_base), native(search_filter),
                       attributes=[native(memberof_attr)])
@@ -236,14 +237,17 @@ class LdapUser(models.User):
             log.info("Password incorrect for user %s", username)
             raise AuthenticationError("Invalid username or password")
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False
@@ -274,7 +278,7 @@ def load_user(userid, session=None):
 
 @provide_session
 def login(self, request, session=None):
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('admin.index'))
 

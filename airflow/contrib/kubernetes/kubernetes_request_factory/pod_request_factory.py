@@ -59,6 +59,8 @@ spec:
         self.extract_image_pull_secrets(pod, req)
         self.extract_annotations(pod, req)
         self.extract_affinity(pod, req)
+        self.extract_hostnetwork(pod, req)
+        self.extract_tolerations(pod, req)
         return req
 
 
@@ -116,4 +118,6 @@ spec:
         self.extract_image_pull_secrets(pod, req)
         self.extract_annotations(pod, req)
         self.extract_affinity(pod, req)
+        self.extract_hostnetwork(pod, req)
+        self.extract_tolerations(pod, req)
         return req

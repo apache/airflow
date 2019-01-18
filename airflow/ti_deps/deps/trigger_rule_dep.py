@@ -105,20 +105,20 @@ class TriggerRuleDep(BaseTIDep):
         :param ti: the task instance to evaluate the trigger rule of
         :type ti: TaskInstance
         :param successes: Number of successful upstream tasks
-        :type successes: boolean
+        :type successes: bool
         :param skipped: Number of skipped upstream tasks
-        :type skipped: boolean
+        :type skipped: bool
         :param failed: Number of failed upstream tasks
-        :type failed: boolean
+        :type failed: bool
         :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: boolean
+        :type upstream_failed: bool
         :param done: Number of completed upstream tasks
-        :type done: boolean
+        :type done: bool
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
             path to add the feature
-        :type flag_upstream_failed: boolean
+        :type flag_upstream_failed: bool
         :param session: database session
         :type session: Session
         """
@@ -151,6 +151,11 @@ class TriggerRuleDep(BaseTIDep):
                     ti.set_state(State.SKIPPED, session)
             elif tr == TR.ONE_FAILED:
                 if upstream_done and not (failed or upstream_failed):
+                    ti.set_state(State.SKIPPED, session)
+            elif tr == TR.NONE_FAILED:
+                if upstream_failed or failed:
+                    ti.set_state(State.UPSTREAM_FAILED, session)
+                elif skipped == upstream:
                     ti.set_state(State.SKIPPED, session)
 
         if tr == TR.ONE_SUCCESS:
@@ -193,6 +198,15 @@ class TriggerRuleDep(BaseTIDep):
                     "weren't done. upstream_tasks_state={2}, "
                     "upstream_task_ids={3}"
                     .format(tr, upstream_done, upstream_tasks_state,
+                            task.upstream_task_ids))
+        elif tr == TR.NONE_FAILED:
+            num_failures = upstream - successes - skipped
+            if num_failures > 0:
+                yield self._failing_status(
+                    reason="Task's trigger rule '{0}' requires all upstream "
+                    "tasks to have succeeded or been skipped, but found {1} non-success(es). "
+                    "upstream_tasks_state={2}, upstream_task_ids={3}"
+                    .format(tr, num_failures, upstream_tasks_state,
                             task.upstream_task_ids))
         else:
             yield self._failing_status(

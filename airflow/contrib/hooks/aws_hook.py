@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 import boto3
 import configparser
 import logging
@@ -72,7 +71,7 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
         try:
             access_key = config.get(cred_section, key_id_option)
             secret_key = config.get(cred_section, secret_key_option)
-        except:
+        except Exception:
             logging.warning("Option Error in parsing s3 config file")
             raise
         return access_key, secret_key
@@ -84,8 +83,9 @@ class AwsHook(BaseHook):
     This class is a thin wrapper around the boto3 python library.
     """
 
-    def __init__(self, aws_conn_id='aws_default'):
+    def __init__(self, aws_conn_id='aws_default', verify=None):
         self.aws_conn_id = aws_conn_id
+        self.verify = verify
 
     def _get_credentials(self, region_name):
         aws_access_key_id = None
@@ -96,32 +96,36 @@ class AwsHook(BaseHook):
         if self.aws_conn_id:
             try:
                 connection_object = self.get_connection(self.aws_conn_id)
+                extra_config = connection_object.extra_dejson
                 if connection_object.login:
                     aws_access_key_id = connection_object.login
                     aws_secret_access_key = connection_object.password
 
-                elif 'aws_secret_access_key' in connection_object.extra_dejson:
-                    aws_access_key_id = connection_object.extra_dejson[
+                elif 'aws_secret_access_key' in extra_config:
+                    aws_access_key_id = extra_config[
                         'aws_access_key_id']
-                    aws_secret_access_key = connection_object.extra_dejson[
+                    aws_secret_access_key = extra_config[
                         'aws_secret_access_key']
 
-                elif 's3_config_file' in connection_object.extra_dejson:
+                elif 's3_config_file' in extra_config:
                     aws_access_key_id, aws_secret_access_key = \
                         _parse_s3_config(
-                            connection_object.extra_dejson['s3_config_file'],
-                            connection_object.extra_dejson.get('s3_config_format'))
+                            extra_config['s3_config_file'],
+                            extra_config.get('s3_config_format'),
+                            extra_config.get('profile'))
 
                 if region_name is None:
-                    region_name = connection_object.extra_dejson.get('region_name')
+                    region_name = extra_config.get('region_name')
 
-                role_arn = connection_object.extra_dejson.get('role_arn')
-                aws_account_id = connection_object.extra_dejson.get('aws_account_id')
-                aws_iam_role = connection_object.extra_dejson.get('aws_iam_role')
+                role_arn = extra_config.get('role_arn')
+                external_id = extra_config.get('external_id')
+                aws_account_id = extra_config.get('aws_account_id')
+                aws_iam_role = extra_config.get('aws_iam_role')
 
                 if role_arn is None and aws_account_id is not None and \
                         aws_iam_role is not None:
-                    role_arn = "arn:aws:iam::" + aws_account_id + ":role/" + aws_iam_role
+                    role_arn = "arn:aws:iam::{}:role/{}" \
+                        .format(aws_account_id, aws_iam_role)
 
                 if role_arn is not None:
                     sts_session = boto3.session.Session(
@@ -130,14 +134,23 @@ class AwsHook(BaseHook):
                         region_name=region_name)
 
                     sts_client = sts_session.client('sts')
-                    sts_response = sts_client.assume_role(
-                        RoleArn=role_arn,
-                        RoleSessionName='Airflow_' + self.aws_conn_id)
-                    aws_access_key_id = sts_response['Credentials']['AccessKeyId']
-                    aws_secret_access_key = sts_response['Credentials']['SecretAccessKey']
-                    aws_session_token = sts_response['Credentials']['SessionToken']
 
-                endpoint_url = connection_object.extra_dejson.get('host')
+                    if external_id is None:
+                        sts_response = sts_client.assume_role(
+                            RoleArn=role_arn,
+                            RoleSessionName='Airflow_' + self.aws_conn_id)
+                    else:
+                        sts_response = sts_client.assume_role(
+                            RoleArn=role_arn,
+                            RoleSessionName='Airflow_' + self.aws_conn_id,
+                            ExternalId=external_id)
+
+                    credentials = sts_response['Credentials']
+                    aws_access_key_id = credentials['AccessKeyId']
+                    aws_secret_access_key = credentials['SecretAccessKey']
+                    aws_session_token = credentials['SessionToken']
+
+                endpoint_url = extra_config.get('host')
 
             except AirflowException:
                 # No connection found: fallback on boto3 credential strategy
@@ -150,15 +163,17 @@ class AwsHook(BaseHook):
             aws_session_token=aws_session_token,
             region_name=region_name), endpoint_url
 
-    def get_client_type(self, client_type, region_name=None):
+    def get_client_type(self, client_type, region_name=None, config=None):
         session, endpoint_url = self._get_credentials(region_name)
 
-        return session.client(client_type, endpoint_url=endpoint_url)
+        return session.client(client_type, endpoint_url=endpoint_url,
+                              config=config, verify=self.verify)
 
-    def get_resource_type(self, resource_type, region_name=None):
+    def get_resource_type(self, resource_type, region_name=None, config=None):
         session, endpoint_url = self._get_credentials(region_name)
 
-        return session.resource(resource_type, endpoint_url=endpoint_url)
+        return session.resource(resource_type, endpoint_url=endpoint_url,
+                                config=config, verify=self.verify)
 
     def get_session(self, region_name=None):
         """Get the underlying boto3.session."""
@@ -168,10 +183,23 @@ class AwsHook(BaseHook):
     def get_credentials(self, region_name=None):
         """Get the underlying `botocore.Credentials` object.
 
-        This contains the attributes: access_key, secret_key and token.
+        This contains the following authentication attributes: access_key, secret_key and token.
         """
         session, _ = self._get_credentials(region_name)
-        # Credentials are refreshable, so accessing your access key / secret key
-        # separately can lead to a race condition.
+        # Credentials are refreshable, so accessing your access key and
+        # secret key separately can lead to a race condition.
         # See https://stackoverflow.com/a/36291428/8283373
         return session.get_credentials().get_frozen_credentials()
+
+    def expand_role(self, role):
+        """
+        If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
+        If IAM role is already an IAM role ARN, no change is made.
+
+        :param role: IAM role name or ARN
+        :return: IAM role ARN
+        """
+        if '/' in role:
+            return role
+        else:
+            return self.get_client_type('iam').get_role(RoleName=role)['Role']['Arn']

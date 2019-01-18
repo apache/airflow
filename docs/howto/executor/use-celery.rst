@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Scaling Out with Celery
 =======================
 
@@ -40,8 +57,15 @@ Note that you can also run "Celery Flower", a web UI built on top of Celery,
 to monitor your workers. You can use the shortcut command ``airflow flower``
 to start a Flower web server.
 
+Please note that you must have the ``flower`` python library already installed on your system. The recommend way is to install the airflow celery bundle.
+
+.. code-block:: bash
+
+    pip install 'apache-airflow[celery]'
+
+
 Some caveats:
 
 - Make sure to use a database backed result backend
 - Make sure to set a visibility timeout in [celery_broker_transport_options] that exceeds the ETA of your longest running task
-- Tasks can and consume resources, make sure your worker as enough resources to run `worker_concurrency` tasks
+- Tasks can consume resources. Make sure your worker has enough resources to run `worker_concurrency` tasks

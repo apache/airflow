@@ -19,20 +19,19 @@
 
 import logging
 import flask_login
+from airflow.exceptions import AirflowConfigException
 from flask_login import current_user
 from flask import flash
-from wtforms import (
-    Form, PasswordField, StringField)
+from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
 # pykerberos should be used as it verifies the KDC, the "kerberos" module does not do so
 # and make it possible to spoof the KDC
 import kerberos
-import airflow.security.utils as utils
+from airflow.security import utils
 
 from flask import url_for, redirect
 
-from airflow import settings
 from airflow import models
 from airflow import configuration
 from airflow.utils.db import provide_session
@@ -58,7 +57,13 @@ class KerberosUser(models.User, LoggingMixin):
             utils.get_fqdn()
         )
         realm = configuration.conf.get("kerberos", "default_realm")
-        user_principal = utils.principal_from_username(username)
+
+        try:
+            user_realm = configuration.conf.get("security", "default_realm")
+        except AirflowConfigException:
+            user_realm = realm
+
+        user_principal = utils.principal_from_username(username, user_realm)
 
         try:
             # this is pykerberos specific, verify = True is needed to prevent KDC spoofing
@@ -68,19 +73,23 @@ class KerberosUser(models.User, LoggingMixin):
                 raise AuthenticationError()
         except kerberos.KrbError as e:
             logging.error(
-                'Password validation for principal %s failed %s', user_principal, e)
+                'Password validation for user '
+                '%s in realm %s failed %s', user_principal, realm, e)
             raise AuthenticationError(e)
 
         return
 
+    @property
     def is_active(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
         """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
         """Required by flask_login"""
         return False
@@ -110,7 +119,7 @@ def load_user(userid, session=None):
 
 @provide_session
 def login(self, request, session=None):
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('index'))
 

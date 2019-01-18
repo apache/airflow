@@ -32,15 +32,28 @@ class S3KeySensor(BaseSensorOperator):
     a resource.
 
     :param bucket_key: The key being waited on. Supports full s3:// style url
-        or relative path from root level.
+        or relative path from root level. When it's specified as a full s3://
+        url, please leave bucket_name as `None`.
     :type bucket_key: str
-    :param bucket_name: Name of the S3 bucket
+    :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
+        is not provided as a full s3:// url.
     :type bucket_name: str
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
     :type wildcard_match: bool
     :param aws_conn_id: a reference to the s3 connection
     :type aws_conn_id: str
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+        You can provide the following values:
+
+        - ``False``: do not validate SSL certificates. SSL will still be used
+                 (unless use_ssl is False), but SSL certificates will not be
+                 verified.
+        - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+    :type verify: bool or str
     """
     template_fields = ('bucket_key', 'bucket_name')
 
@@ -50,6 +63,7 @@ class S3KeySensor(BaseSensorOperator):
                  bucket_name=None,
                  wildcard_match=False,
                  aws_conn_id='aws_default',
+                 verify=None,
                  *args,
                  **kwargs):
         super(S3KeySensor, self).__init__(*args, **kwargs)
@@ -60,22 +74,25 @@ class S3KeySensor(BaseSensorOperator):
                 raise AirflowException('Please provide a bucket_name')
             else:
                 bucket_name = parsed_url.netloc
-                if parsed_url.path[0] == '/':
-                    bucket_key = parsed_url.path[1:]
-                else:
-                    bucket_key = parsed_url.path
+                bucket_key = parsed_url.path.lstrip('/')
+        else:
+            parsed_url = urlparse(bucket_key)
+            if parsed_url.scheme != '' or parsed_url.netloc != '':
+                raise AirflowException('If bucket_name is provided, bucket_key' +
+                                       ' should be relative path from root' +
+                                       ' level, rather than a full s3:// url')
         self.bucket_name = bucket_name
         self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.aws_conn_id = aws_conn_id
+        self.verify = verify
 
     def poke(self, context):
         from airflow.hooks.S3_hook import S3Hook
-        hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
         self.log.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
             return hook.check_for_wildcard_key(self.bucket_key,
                                                self.bucket_name)
-        else:
-            return hook.check_for_key(self.bucket_key, self.bucket_name)
+        return hook.check_for_key(self.bucket_key, self.bucket_name)

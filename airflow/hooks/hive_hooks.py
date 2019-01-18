@@ -27,17 +27,16 @@ import time
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
-import hmsclient
 import six
 import unicodecsv as csv
 from past.builtins import basestring
 from past.builtins import unicode
 from six.moves import zip
 
-import airflow.security.utils as utils
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.security import utils
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -72,13 +71,13 @@ class HiveCliHook(BaseHook):
     connection string as is.
 
     :param mapred_queue: queue used by the Hadoop Scheduler (Capacity or Fair)
-    :type  mapred_queue: string
+    :type  mapred_queue: str
     :param mapred_queue_priority: priority within the job queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
-    :type  mapred_queue_priority: string
+    :type  mapred_queue_priority: str
     :param mapred_job_name: This name will appear in the jobtracker.
         This can make monitoring easier.
-    :type  mapred_job_name: string
+    :type  mapred_job_name: str
     """
 
     def __init__(
@@ -148,7 +147,8 @@ class HiveCliHook(BaseHook):
 
         return [hive_bin] + cmd_extra + hive_params_list
 
-    def _prepare_hiveconf(self, d):
+    @staticmethod
+    def _prepare_hiveconf(d):
         """
         This function prepares a list of hiveconf params
         from a dictionary of key value pairs.
@@ -289,7 +289,7 @@ class HiveCliHook(BaseHook):
                 except AirflowException as e:
                     message = e.args[0].split('\n')[-2]
                     self.log.info(message)
-                    error_loc = re.search('(\d+):(\d+)', message)
+                    error_loc = re.search(r'(\d+):(\d+)', message)
                     if error_loc and error_loc.group(1).isdigit():
                         lst = int(error_loc.group(1))
                         begin = max(lst - 2, 0)
@@ -323,7 +323,7 @@ class HiveCliHook(BaseHook):
         :type field_dict: OrderedDict
         :param delimiter: field delimiter in the file
         :type delimiter: str
-        :param encoding: string encoding to use when writing DataFrame to file
+        :param encoding: str encoding to use when writing DataFrame to file
         :type encoding: str
         :param pandas_kwargs: passed to DataFrame.to_csv
         :type pandas_kwargs: dict
@@ -495,6 +495,7 @@ class HiveMetastoreHook(BaseHook):
         """
         Returns a Hive thrift client.
         """
+        import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
         ms = self.metastore_conn
@@ -535,13 +536,13 @@ class HiveMetastoreHook(BaseHook):
         Checks whether a partition exists
 
         :param schema: Name of hive schema (database) @table belongs to
-        :type schema: string
+        :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type schema: string
+        :type schema: str
         :partition: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :type schema: string
-        :rtype: boolean
+        :type schema: str
+        :rtype: bool
 
         >>> hh = HiveMetastoreHook()
         >>> t = 'static_babynames_partitioned'
@@ -562,12 +563,12 @@ class HiveMetastoreHook(BaseHook):
         Checks whether a partition with a given name exists
 
         :param schema: Name of hive schema (database) @table belongs to
-        :type schema: string
+        :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type schema: string
+        :type schema: str
         :partition: Name of the partitions to check for (eg `a=b/c=d`)
-        :type schema: string
-        :rtype: boolean
+        :type schema: str
+        :rtype: bool
 
         >>> hh = HiveMetastoreHook()
         >>> t = 'static_babynames_partitioned'
@@ -651,7 +652,7 @@ class HiveMetastoreHook(BaseHook):
         :param part_specs: list of partition specs.
         :type part_specs: list
         :param partition_key: partition key name.
-        :type partition_key: string
+        :type partition_key: str
         :param filter_map: partition_key:partition_value map used for partition filtering,
                            e.g. {'key1': 'value1', 'key2': 'value2'}.
                            Only partitions matching all partition_key:partition_value
@@ -691,11 +692,11 @@ class HiveMetastoreHook(BaseHook):
         filter out partitions.
 
         :param schema: schema name.
-        :type schema: string
+        :type schema: str
         :param table_name: table name.
-        :type table_name: string
+        :type table_name: str
         :param field: partition key to get max partition from.
-        :type field: string
+        :type field: str
         :param filter_map: partition_key:partition_value map used for partition filtering.
         :type filter_map: map
 
@@ -809,6 +810,7 @@ class HiveServer2Hook(BaseHook):
                 lowered_statement = statement.lower().strip()
                 if (lowered_statement.startswith('select') or
                     lowered_statement.startswith('with') or
+                    lowered_statement.startswith('show') or
                     (lowered_statement.startswith('set') and
                      '=' not in lowered_statement)):
                     description = [c for c in cur.description]
@@ -900,7 +902,7 @@ class HiveServer2Hook(BaseHook):
 
         self.log.info("Done. Loaded a total of %s rows.", i)
 
-    def get_records(self, hql, schema='default'):
+    def get_records(self, hql, schema='default', hive_conf=None):
         """
         Get a set of records from a Hive query.
 
@@ -909,7 +911,7 @@ class HiveServer2Hook(BaseHook):
         >>> len(hh.get_records(sql))
         100
         """
-        return self.get_results(hql, schema=schema)['data']
+        return self.get_results(hql, schema=schema, hive_conf=hive_conf)['data']
 
     def get_pandas_df(self, hql, schema='default'):
         """

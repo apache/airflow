@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,8 +24,8 @@ from mock import Mock
 from mock import patch
 
 from airflow import DAG, configuration
-from airflow import models
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
+from airflow.models.connection import Connection
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -57,7 +57,7 @@ class TestJiraSensor(unittest.TestCase):
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='jira_default', conn_type='jira',
                 host='https://localhost/jira/', port=443,
                 extra='{"verify": "False", "project": "AIRFLOW"}'))
@@ -67,13 +67,13 @@ class TestJiraSensor(unittest.TestCase):
     def test_issue_label_set(self, jira_mock):
         jira_mock.return_value.issue.return_value = minimal_test_ticket
 
-        ticket_label_sensor = JiraTicketSensor(task_id='search-ticket-test',
-                                               ticket_id='TEST-1226',
-                                               field_checker_func=
-                                               TestJiraSensor.field_checker_func,
-                                               timeout=518400,
-                                               poke_interval=10,
-                                               dag=self.dag)
+        ticket_label_sensor = JiraTicketSensor(
+            task_id='search-ticket-test',
+            ticket_id='TEST-1226',
+            field_checker_func=TestJiraSensor.field_checker_func,
+            timeout=518400,
+            poke_interval=10,
+            dag=self.dag)
 
         ticket_label_sensor.run(start_date=DEFAULT_DATE,
                                 end_date=DEFAULT_DATE, ignore_ti_state=True)

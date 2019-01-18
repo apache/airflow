@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Concepts
 ########
 
@@ -115,13 +132,12 @@ Airflow provides operators for many common tasks, including:
 - ``BashOperator`` - executes a bash command
 - ``PythonOperator`` - calls an arbitrary Python function
 - ``EmailOperator`` - sends an email
-- ``HTTPOperator`` - sends an HTTP request
+- ``SimpleHttpOperator`` - sends an HTTP request
 - ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
-
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransferOperator``,
+operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransformOperator``,
 ``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
@@ -224,6 +240,25 @@ We can put this all together to build a simple pipeline:
                 python_callable=lambda: print("GOODBYE!"))
         )
 
+Bitshift can also be used with lists. For example:
+
+.. code:: python
+
+    op1 >> [op2, op3]
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> op2
+    op1 >> op3
+    
+and equivalent to:
+
+.. code:: python
+
+    op1.set_downstream([op2, op3])
+
 Tasks
 =====
 
@@ -268,7 +303,7 @@ Hooks
 Hooks are interfaces to external platforms and databases like Hive, S3,
 MySQL, Postgres, HDFS, and Pig. Hooks implement a common interface when
 possible, and act as a building block for operators. They also use
-the ``airflow.models.Connection`` model to retrieve hostnames
+the ``airflow.models.connection.Connection`` model to retrieve hostnames
 and authentication information. Hooks keep authentication code and
 information out of pipelines, centralized in the metadata database.
 
@@ -321,7 +356,7 @@ Connections
 ===========
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``)
+metadata database and managed in the UI (``Menu -> Admin -> Connections``).
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
@@ -333,6 +368,17 @@ from ``BaseHook``, Airflow will choose one connection randomly, allowing
 for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
+Airflow also has the ability to reference connections via environment
+variables from the operating system. But it only supports URI format. If you
+need to specify ``extra`` for your connection, please use web UI.
+
+If connections with the same ``conn_id`` are defined in both Airflow metadata
+database and environment variables, only the one in environment variables
+will be referenced by Airflow (for example, given ``conn_id`` ``postgres_master``,
+Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+in environment variables first and directly reference it if found,
+before it starts to search in metadata database).
+
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default
 ``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
@@ -343,7 +389,7 @@ See :doc:`howto/manage-connections` for how to create and manage connections.
 Queues
 ======
 
-When using the CeleryExecutor, the celery queues that tasks are sent to
+When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any
 task can be assigned to any queue. The default queue for the environment
 is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
@@ -351,7 +397,7 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma delimited
+started (using the command ``airflow worker``), a set of comma-delimited
 queue names can be specified (e.g. ``airflow worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
@@ -454,8 +500,8 @@ that happened in an upstream task. One way to do this is by using the
 ``BranchPythonOperator``.
 
 The ``BranchPythonOperator`` is much like the PythonOperator except that it
-expects a python_callable that returns a task_id. The task_id returned
-is followed, and all of the other paths are skipped.
+expects a python_callable that returns a task_id (or list of task_ids). The
+task_id returned is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to be referencing a task
 directly downstream from the BranchPythonOperator task.
 
@@ -475,6 +521,37 @@ like this, the dummy task "branch_false" is skipped
 Not like this, where the join task is skipped
 
 .. image:: img/branch_bad.png
+
+The ``BranchPythonOperator`` can also be used with XComs allowing branching
+context to dynamically decide what branch to follow based on previous tasks.
+For example:
+
+.. code:: python
+
+  def branch_func(**kwargs):
+      ti = kwargs['ti']
+      xcom_value = int(ti.xcom_pull(task_ids='start_task'))
+      if xcom_value >= 5:
+          return 'continue_task'
+      else:
+          return 'stop_task'
+
+  start_op = BashOperator(
+      task_id='start_task',
+      bash_command="echo 5",
+      xcom_push=True,
+      dag=dag)
+
+  branch_op = BranchPythonOperator(
+      task_id='branch_task',
+      provide_context=True,
+      python_callable=branch_func,
+      dag=dag)
+
+  continue_op = DummyOperator(task_id='continue_task', dag=dag)
+  stop_op = DummyOperator(task_id='stop_task', dag=dag)
+
+  start_op >> branch_op >> [continue_op, stop_op]
 
 SubDAGs
 =======
@@ -606,6 +683,7 @@ while creating tasks:
 * ``all_done``: all parents are done with their execution
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
+* ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
 * ``dummy``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)
@@ -853,3 +931,31 @@ do the same, but then it is more to use a virtualenv and pip.
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
 
+
+.airflowignore
+''''''''''''''
+
+A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+that Airflow should intentionally ignore. Each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names
+(not DAG id) match any of the patterns would be ignored (under the hood,
+``re.findall()`` is used to match the pattern). Overall it works like a
+``.gitignore`` file.
+
+``.airflowignore`` file should be put in your ``DAG_FOLDER``.
+For example, you can prepare a ``.airflowignore`` file with contents
+
+.. code::
+
+    project_a
+    tenant_[\d]
+
+
+Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
+"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+(If a directory's name matches any of the patterns, this directory and all its subfolders
+would not be scanned by Airflow at all. This improves efficiency of DAG finding).
+
+The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
+You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
+would only be applicable for that subfolder.

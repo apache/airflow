@@ -163,10 +163,11 @@ class DbApiHook(BaseHook):
                 for s in sql:
                     if sys.version_info[0] < 3:
                         s = s.encode('utf-8')
-                    self.log.info(s)
                     if parameters is not None:
+                        self.log.info("{} with parameters {}".format(s, parameters))
                         cur.execute(s, parameters)
                     else:
+                        self.log.info(s)
                         cur.execute(s)
 
             # If autocommit was set to False for db that supports autocommit,
@@ -191,6 +192,7 @@ class DbApiHook(BaseHook):
         Return True if conn.autocommit is set to True.
         Return False if conn.autocommit is not set or set to False or conn
         does not support autocommit.
+
         :param conn: Connection to get autocommit setting from.
         :type conn: connection object.
         :return: connection autocommit setting.

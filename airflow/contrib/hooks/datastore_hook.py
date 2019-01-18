@@ -19,7 +19,7 @@
 #
 
 import time
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 
@@ -41,7 +41,7 @@ class DatastoreHook(GoogleCloudBaseHook):
 
     def get_conn(self, version='v1'):
         """
-        Returns a Google Cloud Storage service object.
+        Returns a Google Cloud Datastore service object.
         """
         http_authorized = self._authorize()
         return build(
@@ -172,7 +172,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         Export entities from Cloud Datastore to Cloud Storage for backup
         """
-        output_uri_prefix = 'gs://' + ('/').join(filter(None, [bucket, namespace]))
+        output_uri_prefix = 'gs://' + '/'.join(filter(None, [bucket, namespace]))
         if not entity_filter:
             entity_filter = {}
         if not labels:
@@ -191,7 +191,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         Import a backup from Cloud Storage to Cloud Datastore
         """
-        input_url = 'gs://' + ('/').join(filter(None, [bucket, namespace, file]))
+        input_url = 'gs://' + '/'.join(filter(None, [bucket, namespace, file]))
         if not entity_filter:
             entity_filter = {}
         if not labels:

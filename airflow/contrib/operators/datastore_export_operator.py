@@ -29,19 +29,19 @@ class DatastoreExportOperator(BaseOperator):
     Export entities from Google Cloud Datastore to Cloud Storage
 
     :param bucket: name of the cloud storage bucket to backup data
-    :type bucket: string
+    :type bucket: str
     :param namespace: optional namespace path in the specified Cloud Storage bucket
         to backup data. If this namespace does not exist in GCS, it will be created.
     :type namespace: str
     :param datastore_conn_id: the name of the Datastore connection id to use
-    :type datastore_conn_id: string
+    :type datastore_conn_id: str
     :param cloud_storage_conn_id: the name of the cloud storage connection id to
         force-write backup
-    :type cloud_storage_conn_id: string
+    :type cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param entity_filter: description of what data from the project is included in the
         export, refer to
         https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter

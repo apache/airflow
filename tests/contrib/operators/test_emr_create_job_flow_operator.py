@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -71,12 +71,14 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
             aws_conn_id='aws_default',
             emr_conn_id='emr_default',
             job_flow_overrides=self._config,
+            region_name='ap-southeast-2',
             dag=DAG('test_dag_id', default_args=args)
         )
 
     def test_init(self):
         self.assertEqual(self.operator.aws_conn_id, 'aws_default')
         self.assertEqual(self.operator.emr_conn_id, 'emr_default')
+        self.assertEqual(self.operator.region_name, 'ap-southeast-2')
 
     def test_render_template(self):
         ti = TaskInstance(self.operator, DEFAULT_DATE)

@@ -18,8 +18,8 @@
 
 [report]
 omit =
-    *contrib*
     tests/*
     scripts/*
     dev/*
     airflow/migrations/*
+    airflow/www/node_modules/**

@@ -33,11 +33,11 @@ This example illustrates the following features :
 2. A Target DAG : c.f. example_trigger_target_dag.py
 """
 
-from airflow import DAG
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
+import pprint
 from datetime import datetime
 
-import pprint
+from airflow import DAG
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -53,16 +53,20 @@ def conditionally_trigger(context, dag_run_obj):
 
 
 # Define the DAG
-dag = DAG(dag_id='example_trigger_controller_dag',
-          default_args={"owner": "airflow",
-                        "start_date": datetime.utcnow()},
-          schedule_interval='@once')
-
+dag = DAG(
+    dag_id='example_trigger_controller_dag',
+    default_args={
+        "owner": "airflow",
+        "start_date": datetime.utcnow(),
+    },
+    schedule_interval='@once',
+)
 
 # Define the single task in this controller example DAG
-trigger = TriggerDagRunOperator(task_id='test_trigger_dagrun',
-                                trigger_dag_id="example_trigger_target_dag",
-                                python_callable=conditionally_trigger,
-                                params={'condition_param': True,
-                                        'message': 'Hello World'},
-                                dag=dag)
+trigger = TriggerDagRunOperator(
+    task_id='test_trigger_dagrun',
+    trigger_dag_id="example_trigger_target_dag",
+    python_callable=conditionally_trigger,
+    params={'condition_param': True, 'message': 'Hello World'},
+    dag=dag,
+)

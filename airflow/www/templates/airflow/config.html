@@ -21,7 +21,7 @@
     {{ title }}
 {% endblock %}
 
-{% block body %}
+{% block content %}
     {{ super() }}
     <h2>{{ title }}</h2>
 
@@ -31,10 +31,6 @@
 
     {% if subtitle %}
         <h5>{{ subtitle }}</h5>
-    {% endif %}
-
-    {% if code %}
-        <pre>{{ code }}</pre>
     {% endif %}
 
     {% if code_html %}
