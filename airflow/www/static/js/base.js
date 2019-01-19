@@ -20,12 +20,13 @@
 import {defaultFormatWithTZ, moment} from './datetime-utils';
 
 function displayTime() {
-  let utcTime = moment().utc().format(defaultFormatWithTZ);
+  let time = moment().tz(timezone).format(defaultFormatWithTZ);
+
   $('#clock')
     .attr("data-original-title", function() {
       return hostName
     })
-    .html(utcTime);
+    .html(time);
 
   setTimeout(displayTime, 1000);
 }

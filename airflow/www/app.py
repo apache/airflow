@@ -182,6 +182,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         def jinja_globals():
             return {
                 'hostname': socket.getfqdn(),
+                'timezone': settings.TIMEZONE.name,
                 'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
 
