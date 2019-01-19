@@ -200,7 +200,7 @@ kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
-mysql = ['mysqlclient>=1.3.6']
+mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
 password = [
     'bcrypt>=2.0.0',
