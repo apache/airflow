@@ -115,9 +115,7 @@ class TestFTPHook(unittest.TestCase):
         _buffer = six.StringIO('buffer')
         with fh.FTPHook() as ftp_hook:
             ftp_hook.retrieve_file(self.path, _buffer)
-        self.conn_mock.retrbinary.assert_called_once_with(
-            'RETR path',
-            self.conn_mock.retrbinary.assert_called_once_with('RETR path', _buffer.write)
+        self.conn_mock.retrbinary.assert_called_once_with('RETR path', _buffer.write)
 
     def test_retrieve_file_with_callback(self):
         func = mock.Mock()
