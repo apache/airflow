@@ -878,6 +878,7 @@ class HiveServer2Hook(BaseHook):
         header = next(results_iter)
         message = None
 
+        i = 0
         with open(csv_filepath, 'wb') as f:
             writer = csv.writer(f,
                                 delimiter=delimiter,
