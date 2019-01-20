@@ -20,7 +20,8 @@ Plugins
 
 Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
-``$AIRFLOW_HOME/plugins`` folder.
+``$AIRFLOW_HOME/plugins`` folder or providing pip packages which provide
+an entrypoint in the `airflow.plugins` namespace.
 
 The python modules in the ``plugins`` folder get imported,
 and **hooks**, **operators**, **sensors**, **macros**, **executors** and web **views**
@@ -98,6 +99,9 @@ looks like:
         # The function should have the following signature:
         # def func_name(stat_name: str) -> str:
         stat_name_handler = None
+        # A list containing `airflow.plugin.AirflowPluginDagSource` objects. Describes sources for DAGs to be pulled in from at runtime.
+        dag_sources = []
+
         # A callback to perform actions when airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
@@ -105,7 +109,6 @@ looks like:
         def on_load(*args, **kwargs):
            # ... perform Plugin boot actions
            pass
-
 
 
 
@@ -127,7 +130,9 @@ For example,
 
 * For ``Operator`` plugin, an ``execute`` method is compulsory.
 * For ``Sensor`` plugin, a ``poke`` method returning a Boolean value is compulsory.
-
+* For ``AirflowPluginDagSource`` plugin, ``name``, ``add_dags_to_dagbag`, and
+    ``put_dags_on_disk`` must be overridden. If you only wish to implement
+    one of the two, simple use ``pass``.
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
 
@@ -150,6 +155,7 @@ definitions in Airflow.
     from airflow.models import BaseOperator
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
     from airflow.executors.base_executor import BaseExecutor
+    from airflow.plugin import AirflowPluginDagSource
 
     # Will show up under airflow.hooks.test_plugin.PluginHook
     class PluginHook(BaseHook):
@@ -202,6 +208,25 @@ definitions in Airflow.
     def stat_name_dummy_handler(stat_name):
         return stat_name
 
+    # Define a DAG source
+    class CustomDagSource(AirflowPluginDagSource):
+        name = 'MyDagRepository'
+
+        def add_dags_to_dagbag(self, dagbags, *args, **kwargs):
+            from my_custom_dags import DagClassLoader
+            for dag, parent_dag, root_dag in DagClassLoader().load_dags():
+                dagbag.bag_dag(dag, parent_dag, root_dag)
+
+        def put_dags_on_disk(self, dag_path, *args, **kwargs):
+            from my_custom_dags import DagFileLoader
+            import os.path
+            for dag_file in DagClassLoader().load_dag_files():
+                dag_path = os.path.join(dag_path,
+                    self.name+'_'+dag_file.name+'.py')
+                with dag_file.stream() as dag_fp:
+                  with open(dag_path, 'w+') as fp:
+                      fp.write(dag_fp)
+
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
@@ -214,6 +239,7 @@ definitions in Airflow.
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
         stat_name_handler = staticmethod(stat_name_dummy_handler)
+        dag_sources = [CustomDagSource]
 
 
 Note on role based views
