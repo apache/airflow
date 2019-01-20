@@ -133,16 +133,16 @@ class TestIntegrationFTPHook(unittest.TestCase):
         super(TestIntegrationFTPHook, self).setUp()
         from airflow import configuration
         from airflow.utils import db
-        from airflow import models
+        from airflow.models.connection import Connection
 
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='ftp_passive', conn_type='ftp',
                 host='localhost', extra='{"passive": true}'))
 
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='ftp_active', conn_type='ftp',
                 host='localhost', extra='{"passive": false}'))
 
