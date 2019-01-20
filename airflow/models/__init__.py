@@ -558,24 +558,24 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         ModuleLoadStat = namedtuple(
             'ModuleLoadStat', "plugin duration dag_num task_num dags")
+        ts = timezone.utcnow()
+        found_dags = []
         for plugin in plugins_manager.dag_sources:
             try:
-                ts = timezone.utcnow()
-
-                found_dags = plugin.add_dags_to_dagbag(self)
-
-                td = timezone.utcnow() - ts
-                td = td.total_seconds() + (
-                    float(td.microseconds) / 1000000)
-                stats.append(ModuleLoadStat(
-                    plugin.name,
-                    td,
-                    len(found_dags),
-                    sum([len(dag.tasks) for dag in found_dags]),
-                    str([dag.dag_id for dag in found_dags]),
-                ))
+                found_dags += plugin.add_dags_to_dagbag(self)
             except Exception as e:
                 self.log.exception(e)
+
+            td = timezone.utcnow() - ts
+            td = td.total_seconds() + (
+                float(td.microseconds) / 1000000)
+            stats.append(ModuleLoadStat(
+                plugin.name,
+                td,
+                len(found_dags),
+                sum([len(dag.tasks) for dag in found_dags]),
+                str([dag.dag_id for dag in found_dags]),
+            ))
 
             Stats.gauge(
                 'collect_plugin_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
