@@ -165,7 +165,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
 
 v = MetastoreBrowserView(category="Plugins", name="Hive Metadata Browser")
 
-# Creating a flask blueprint to intergrate the templates and static folder
+# Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
     "metastore_browser", __name__,
     template_folder='templates',

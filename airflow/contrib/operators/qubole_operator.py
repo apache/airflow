@@ -59,7 +59,7 @@ class QuboleOperator(BaseOperator):
                 copied into the working directory where the qubole command is being
                 executed.
             :archives: list of archives in s3 bucket as archive1,archive2 format. These
-                will be unarchived intothe working directory where the qubole command is
+                will be unarchived into the working directory where the qubole command is
                 being executed
             :parameters: any extra args which need to be passed to script (only when
                 script_location is supplied)

@@ -47,7 +47,7 @@ class OracleToAzureDataLakeTransfer(BaseOperator):
     :type sql_params: str
     :param delimiter: field delimiter in the file.
     :type delimiter: str
-    :param encoding: enconding type for the file.
+    :param encoding: encoding type for the file.
     :type encoding: str
     :param quotechar: Character to use in quoting.
     :type quotechar: str

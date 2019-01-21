@@ -68,7 +68,7 @@ def setup_event_handlers(engine,
 
             try:
                 connection.scalar(select([1]))
-                # If we made it here then the connection appears to be healty
+                # If we made it here then the connection appears to be healthy
                 break
             except exc.DBAPIError as err:
                 if time.time() - start >= reconnect_timeout_seconds:

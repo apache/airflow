@@ -272,7 +272,7 @@ class DataFlowPythonOperator(BaseOperator):
         For more detail on job submission have a look at the reference:
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
-    :param py_file: Reference to the python dataflow pipleline file.py, e.g.,
+    :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file.
     :type py_file: str
     :param job_name: The 'job_name' to use when executing the DataFlow job

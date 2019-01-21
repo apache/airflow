@@ -48,7 +48,7 @@ class S3FileTransformOperator(BaseOperator):
     :type source_s3_key: str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
-    :param source_verify: Whether or not to verify SSL certificates for S3 connetion.
+    :param source_verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
 
