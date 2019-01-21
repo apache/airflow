@@ -145,6 +145,8 @@ class GKEPodOperatorTest(unittest.TestCase):
                                      name=TASK_NAME,
                                      namespace=NAMESPACE,
                                      image=IMAGE)
+        if GAC_ENV_VAR in os.environ:
+            del os.environ[GAC_ENV_VAR]
 
     def test_template_fields(self):
         self.assertTrue(set(KubernetesPodOperator.template_fields).issubset(

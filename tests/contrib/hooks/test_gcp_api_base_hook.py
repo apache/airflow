@@ -18,12 +18,24 @@
 # under the License.
 #
 
+import os
 import unittest
 
 from airflow.contrib.hooks import gcp_api_base_hook as hook
 
 import google.auth
 from google.auth.exceptions import GoogleAuthError
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
 
 
 default_creds_available = True
@@ -81,3 +93,35 @@ class TestGoogleCloudBaseHook(unittest.TestCase):
 
         scopes = credentials.scopes
         self.assertEqual(tuple(hook._DEFAULT_SCOPES), tuple(scopes))
+
+    def test_provide_gcp_credential_file_decorator_key_path(self):
+        key_path = '/test/key-path'
+        self.instance.extras = {
+            'extra__google_cloud_platform__key_path': key_path
+        }
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(hook_instance):
+            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+                             key_path)
+        assert_gcp_credential_file_in_env(self.instance)
+
+    @mock.patch('tempfile.NamedTemporaryFile')
+    def test_provide_gcp_credential_file_decorator_key_content(self,
+                                                               mock_file):
+        string_file = StringIO()
+        file_content = '{"foo": "bar"}'
+        file_name = '/test/mock-file'
+        self.instance.extras = {
+            'extra__google_cloud_platform__keyfile_dict': file_content
+        }
+        mock_file_handler = mock_file.return_value.__enter__.return_value
+        mock_file_handler.name = file_name
+        mock_file_handler.write = string_file.write
+
+        @hook.GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+        def assert_gcp_credential_file_in_env(hook_instance):
+            self.assertEqual(os.environ[hook._G_APP_CRED_ENV_VAR],
+                             file_name)
+            self.assertEqual(file_content, string_file.getvalue())
+        assert_gcp_credential_file_in_env(self.instance)
