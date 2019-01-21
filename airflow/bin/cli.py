@@ -117,17 +117,13 @@ def setup_logging(filename):
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     if not stderr:
-        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.err'.format(process))
+        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
     if not stdout:
-        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.out'.format(process))
+        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
     if not log:
-        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.log'.format(process))
+        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
     if not pid:
-        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.pid'.format(process))
+        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
 
     return pid, stdout, stderr, log
 

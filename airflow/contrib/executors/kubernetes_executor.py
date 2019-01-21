@@ -36,7 +36,7 @@ from airflow.models import TaskInstance
 from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
-from airflow import configuration
+from airflow import configuration, settings
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -125,7 +125,7 @@ class KubeConfig:
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
         self.kube_env_vars = configuration_dict.get('kubernetes_environment_variables', {})
-        self.airflow_home = configuration.get(self.core_section, 'airflow_home')
+        self.airflow_home = settings.AIRFLOW_HOME
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
         self.worker_container_repository = configuration.get(

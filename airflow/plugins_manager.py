@@ -27,11 +27,10 @@ import imp
 import inspect
 import os
 import re
-import sys
 import pkg_resources
 from typing import List, Any
 
-from airflow import configuration
+from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -122,20 +121,12 @@ def is_valid_plugin(plugin_obj, existing_plugins):
     return False
 
 
-plugins_folder = configuration.conf.get('core', 'plugins_folder')
-if not plugins_folder:
-    plugins_folder = configuration.conf.get('core', 'airflow_home') + '/plugins'
-plugins_folder = os.path.expanduser(plugins_folder)
-
-if plugins_folder not in sys.path:
-    sys.path.append(plugins_folder)
-
 plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
-for root, dirs, files in os.walk(plugins_folder, followlinks=True):
+for root, dirs, files in os.walk(settings.PLUGINS_FOLDER, followlinks=True):
     for f in files:
         try:
             filepath = os.path.join(root, f)

@@ -26,13 +26,13 @@ import atexit
 import logging
 import os
 import pendulum
-
+import sys
 
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from airflow import configuration as conf
+from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.sqlalchemy import setup_event_handlers
 
@@ -67,9 +67,10 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get('core', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
 
-AIRFLOW_HOME = None
 SQL_ALCHEMY_CONN = None
 DAGS_FOLDER = None
+PLUGINS_FOLDER = None
+LOGGING_CLASS_PATH = None
 
 engine = None
 Session = None
@@ -103,12 +104,17 @@ def policy(task_instance):
 
 
 def configure_vars():
-    global AIRFLOW_HOME
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
-    AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
+    global PLUGINS_FOLDER
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+
+    PLUGINS_FOLDER = conf.get(
+        'core',
+        'plugins_folder',
+        fallback=os.path.join(AIRFLOW_HOME, 'plugins')
+    )
 
 
 def configure_orm(disable_connection_pool=False):
@@ -216,21 +222,44 @@ def configure_action_logging():
     pass
 
 
+def prepare_classpath():
+    """
+    Ensures that certain subfolders of AIRFLOW_HOME are on the classpath
+    """
+
+    if DAGS_FOLDER not in sys.path:
+        sys.path.append(DAGS_FOLDER)
+
+    # Add ./config/ for loading custom log parsers etc, or
+    # airflow_local_settings etc.
+    config_path = os.path.join(AIRFLOW_HOME, 'config')
+    if config_path not in sys.path:
+        sys.path.append(config_path)
+
+    if PLUGINS_FOLDER not in sys.path:
+        sys.path.append(PLUGINS_FOLDER)
+
+
 try:
     from airflow_local_settings import *  # noqa F403 F401
     log.info("Loaded airflow_local_settings.")
 except Exception:
     pass
 
-logging_class_path = configure_logging()
-configure_vars()
-configure_adapters()
-# The webservers import this file from models.py with the default settings.
-configure_orm()
-configure_action_logging()
 
-# Ensure we close DB connections at scheduler and gunicon worker terminations
-atexit.register(dispose_orm)
+def initialize():
+    configure_vars()
+    prepare_classpath()
+    global LOGGING_CLASS_PATH
+    LOGGING_CLASS_PATH = configure_logging()
+    configure_adapters()
+    # The webservers import this file from models.py with the default settings.
+    configure_orm()
+    configure_action_logging()
+
+    # Ensure we close DB connections at scheduler and gunicon worker terminations
+    atexit.register(dispose_orm)
+
 
 # Const stuff
 
