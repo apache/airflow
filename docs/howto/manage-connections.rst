@@ -162,6 +162,8 @@ Authenticating to AWS
 
 Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
+To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified).
+
 Default Connection IDs
 ''''''''''''''''''''''
 
@@ -177,14 +179,13 @@ Password (optional)
     Specify the AWS secret access key.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in ssh
+    Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. The following parameters are supported:
 
-    * **aws_access_key_id**: AWS access key ID of the connection. To use this, the `aws_secret_access_key` parameter must also be passed in.
-    * **aws_secret_access_key**: AWS secret access key of the connection
     * **aws_account_id**: AWS account ID for the connection
     * **aws_iam_role**: AWS IAM role for the connection
     * **external_id**: AWS external ID for the connection
+    * **host**: Endpoint URL for the connection
     * **region_name**: AWS region for the connection
     * **role_arn**: AWS role ARN for the connection
 
