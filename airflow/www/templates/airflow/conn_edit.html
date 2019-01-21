@@ -19,5 +19,5 @@
 
 {% block tail %}
   {{ super() }}
-    <script src="{{ url_for_asset('static', filename='connectionForm.js') }}"></script>
+    <script src="{{ url_for_asset(filename='connectionForm.js') }}"></script>
 {% endblock %}
