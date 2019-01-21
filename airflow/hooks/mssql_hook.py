@@ -34,6 +34,8 @@ class MsSqlHook(DbApiHook):
     def __init__(self, *args, **kwargs):
         super(MsSqlHook, self).__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self.timeout = kwargs.pop("timeout", 0)
+        self.login_timeout = kwargs.pop("login_timeout", 60)
 
     def get_conn(self):
         """
@@ -45,7 +47,9 @@ class MsSqlHook(DbApiHook):
             user=conn.login,
             password=conn.password,
             database=self.schema or conn.schema,
-            port=conn.port)
+            port=conn.port,
+            timeout=self.timeout,
+            login_timeout=self.login_timeout or conn.login_timeout)
         return conn
 
     def set_autocommit(self, conn, autocommit):
