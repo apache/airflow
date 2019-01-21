@@ -83,6 +83,9 @@ class SparkSubmitOperator(BaseOperator):
     :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
+    :param spark_binary: The command to use for spark submit.
+                         Some distros may use spark2-submit.
+    :type spark_binary: string
     """
     template_fields = ('_name', '_application_args', '_packages')
     ui_color = WEB_COLORS['LIGHTORANGE']
@@ -111,6 +114,7 @@ class SparkSubmitOperator(BaseOperator):
                  application_args=None,
                  env_vars=None,
                  verbose=False,
+                 spark_binary="spark-submit",
                  *args,
                  **kwargs):
         super(SparkSubmitOperator, self).__init__(*args, **kwargs)
@@ -135,6 +139,7 @@ class SparkSubmitOperator(BaseOperator):
         self._application_args = application_args
         self._env_vars = env_vars
         self._verbose = verbose
+        self._spark_binary = spark_binary
         self._hook = None
         self._conn_id = conn_id
 
@@ -163,7 +168,8 @@ class SparkSubmitOperator(BaseOperator):
             num_executors=self._num_executors,
             application_args=self._application_args,
             env_vars=self._env_vars,
-            verbose=self._verbose
+            verbose=self._verbose,
+            spark_binary=self._spark_binary
         )
         self._hook.submit(self._application)
 
