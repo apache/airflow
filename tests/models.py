@@ -232,7 +232,7 @@ class DagTest(unittest.TestCase):
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
 
-        self.assertEquals(tuple(), dag.topological_sort())
+        self.assertEqual(tuple(), dag.topological_sort())
 
     def test_dag_naive_default_args_start_date(self):
         dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
@@ -277,7 +277,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = ((depth - (task_depth + 1)) * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Same test as above except use 'upstream' for weight calculation
         weight = 3
@@ -303,7 +303,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = (task_depth * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Same test as above except use 'absolute' for weight calculation
         weight = 10
@@ -329,7 +329,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Test if we enter an invalid weight rule
         with DAG('dag', start_date=DEFAULT_DATE,
@@ -842,7 +842,7 @@ class DagRunTest(unittest.TestCase):
             DagRun.dag_id == dag_id,
             DagRun.execution_date == now
         ).first()
-        self.assertEquals(dr0.state, State.RUNNING)
+        self.assertEqual(dr0.state, State.RUNNING)
 
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
@@ -1304,20 +1304,20 @@ class DagRunTest(unittest.TestCase):
 
         dagrun = self.create_dag_run(dag)
         flaky_ti = dagrun.get_task_instances()[0]
-        self.assertEquals('flaky_task', flaky_ti.task_id)
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual('flaky_task', flaky_ti.task_id)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
         dagrun.dag = with_all_tasks_removed(dag)
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
         dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
 
 class DagBagTest(unittest.TestCase):
@@ -1472,12 +1472,12 @@ class DagBagTest(unittest.TestCase):
 
         for dag_id in expected_dag_ids:
             actual_dagbag.log.info('validating %s' % dag_id)
-            self.assertEquals(
+            self.assertEqual(
                 dag_id in actual_found_dag_ids, should_be_found,
                 'dag "%s" should %shave been found after processing dag "%s"' %
                 (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
             )
-            self.assertEquals(
+            self.assertEqual(
                 dag_id in actual_dagbag.dags, should_be_found,
                 'dag "%s" should %sbe in dagbag.dags after processing dag "%s"' %
                 (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
@@ -1816,7 +1816,7 @@ class DagBagTest(unittest.TestCase):
             if dag.dag_id in expected_active_dags:
                 self.assertTrue(dag.is_active)
             else:
-                self.assertEquals(dag.dag_id, 'test_deactivate_unknown_dags')
+                self.assertEqual(dag.dag_id, 'test_deactivate_unknown_dags')
                 self.assertFalse(dag.is_active)
 
         # clean up
@@ -1878,7 +1878,7 @@ class TaskInstanceTest(unittest.TestCase):
         op_no_dag = DummyOperator(task_id='op_no_dag')
         ti = TI(task=op_no_dag, execution_date=NAIVE_DATETIME)
 
-        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+        self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
         # check with dag without localized execution_date
         dag = DAG('dag', start_date=DEFAULT_DATE)
@@ -1886,14 +1886,14 @@ class TaskInstanceTest(unittest.TestCase):
         dag.add_task(op1)
         ti = TI(task=op1, execution_date=NAIVE_DATETIME)
 
-        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+        self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
         # with dag and localized execution_date
         tz = pendulum.timezone("Europe/Amsterdam")
         execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tz)
         utc_date = timezone.convert_to_utc(execution_date)
         ti = TI(task=op1, execution_date=execution_date)
-        self.assertEquals(ti.execution_date, utc_date)
+        self.assertEqual(ti.execution_date, utc_date)
 
     def test_task_naive_datetime(self):
         NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
@@ -2603,9 +2603,9 @@ class TaskInstanceTest(unittest.TestCase):
         session.add(ti3)
         session.commit()
 
-        self.assertEquals(1, ti1.get_num_running_task_instances(session=session))
-        self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
-        self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti1.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti2.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti3.get_num_running_task_instances(session=session))
 
     # def test_log_url(self):
     #     now = pendulum.now('Europe/Brussels')

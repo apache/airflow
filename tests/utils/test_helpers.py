@@ -171,12 +171,12 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
 
     def test_as_tuple(self):
-        self.assertEquals(
+        self.assertEqual(
             helpers.as_tuple("a string is not a container"),
             ("a string is not a container",)
         )
 
-        self.assertEquals(
+        self.assertEqual(
             helpers.as_tuple(["a", "list", "is", "a", "container"]),
             ("a", "list", "is", "a", "container")
         )

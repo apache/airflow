@@ -161,7 +161,7 @@ class GKEClusterHookCreateTest(unittest.TestCase):
 
         self.gke_hook.create_cluster({})
         wait_mock.assert_not_called()
-        self.assertEquals(convert_mock.call_count, 1)
+        self.assertEqual(convert_mock.call_count, 1)
         log_mock.info.assert_any_call("Assuming Success: " + message)
 
 
