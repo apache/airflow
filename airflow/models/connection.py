@@ -173,6 +173,13 @@ class Connection(Base, LoggingMixin):
         return synonym('_extra',
                        descriptor=property(cls.get_extra, cls.set_extra))
 
+    def rotate_fernet_key(self):
+        fernet = get_fernet()
+        if self._password and self.is_encrypted:
+            self._password = fernet.rotate(self._password.encode('utf-8')).decode()
+        if self._extra and self.is_extra_encrypted:
+            self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
+
     def get_hook(self):
         try:
             if self.conn_type == 'mysql':

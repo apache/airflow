@@ -38,6 +38,7 @@ import six
 from mock import ANY, Mock, mock_open, patch
 from parameterized import parameterized
 from freezegun import freeze_time
+from cryptography.fernet import Fernet
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -50,6 +51,7 @@ from airflow.models import SkipMixin
 from airflow.models import State as ST
 from airflow.models import TaskReschedule as TR
 from airflow.models import XCom
+from airflow.models import Variable
 from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
 from airflow.operators.bash_operator import BashOperator
@@ -3083,27 +3085,118 @@ class ClearTasksTest(unittest.TestCase):
             self.assertEqual(result.value, json_obj)
 
 
+class VariableTest(unittest.TestCase):
+    def setUp(self):
+        models._fernet = None
+
+    def tearDown(self):
+        models._fernet = None
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_variable_no_encryption(self, mock_get):
+        """
+        Test variables without encryption
+        """
+        mock_get.return_value = ''
+        Variable.set('key', 'value')
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        self.assertFalse(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_variable_with_encryption(self, mock_get):
+        """
+        Test variables with encryption
+        """
+        mock_get.return_value = Fernet.generate_key().decode()
+        Variable.set('key', 'value')
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        self.assertTrue(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_var_with_encryption_rotate_fernet_key(self, mock_get):
+        """
+        Tests rotating encrypted variables.
+        """
+        key1 = Fernet.generate_key()
+        key2 = Fernet.generate_key()
+
+        mock_get.return_value = key1.decode()
+        Variable.set('key', 'value')
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        self.assertTrue(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+        self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), b'value')
+
+        # Test decrypt of old value with new key
+        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
+        models._fernet = None
+        self.assertEqual(test_var.val, 'value')
+
+        # Test decrypt of new value with new key
+        test_var.rotate_fernet_key()
+        self.assertTrue(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+        self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
+
+
 class ConnectionTest(unittest.TestCase):
-    @patch.object(configuration, 'get')
+    def setUp(self):
+        models._fernet = None
+
+    def tearDown(self):
+        models._fernet = None
+
+    @patch('airflow.models.configuration.conf.get')
     def test_connection_extra_no_encryption(self, mock_get):
         """
         Tests extras on a new connection without encryption. The fernet key
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
+        mock_get.return_value = ''
         test_connection = Connection(extra='testextra')
+        self.assertFalse(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
 
-    @patch.object(configuration, 'get')
+    @patch('airflow.models.configuration.conf.get')
     def test_connection_extra_with_encryption(self, mock_get):
         """
-        Tests extras on a new connection with encryption. The fernet key
-        is set to a base64 encoded string and the extra is encrypted.
+        Tests extras on a new connection with encryption.
         """
-        # 'dGVzdA==' is base64 encoded 'test'
-        mock_get.return_value = 'dGVzdA=='
+        mock_get.return_value = Fernet.generate_key().decode()
         test_connection = Connection(extra='testextra')
+        self.assertTrue(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_connection_extra_with_encryption_rotate_fernet_key(self, mock_get):
+        """
+        Tests rotating encrypted extras.
+        """
+        key1 = Fernet.generate_key()
+        key2 = Fernet.generate_key()
+
+        mock_get.return_value = key1.decode()
+        test_connection = Connection(extra='testextra')
+        self.assertTrue(test_connection.is_extra_encrypted)
+        self.assertEqual(test_connection.extra, 'testextra')
+        self.assertEqual(Fernet(key1).decrypt(test_connection._extra.encode()), b'testextra')
+
+        # Test decrypt of old value with new key
+        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
+        models._fernet = None
+        self.assertEqual(test_connection.extra, 'testextra')
+
+        # Test decrypt of new value with new key
+        test_connection.rotate_fernet_key()
+        self.assertTrue(test_connection.is_extra_encrypted)
+        self.assertEqual(test_connection.extra, 'testextra')
+        self.assertEqual(Fernet(key2).decrypt(test_connection._extra.encode()), b'testextra')
 
     def test_connection_from_uri_without_extras(self):
         uri = 'scheme://user:password@host%2flocation:1234/schema'
