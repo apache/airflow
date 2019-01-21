@@ -100,7 +100,7 @@ extras to build the full API reference.
 
 ## Development and Testing
 
-### Set up a development environment
+### Setting up a development environment
 
 There are three ways to setup an Apache Airflow development environment.
 
