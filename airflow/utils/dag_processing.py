@@ -48,7 +48,7 @@ from tabulate import tabulate
 import airflow.models
 from airflow import configuration as conf, configuration
 from airflow.dag.base_dag import BaseDag, BaseDagBag
-from airflow.exceptions import AirflowException, AirflowDagCycleException
+from airflow.exceptions import AirflowException
 from airflow.models import errors
 from airflow.settings import logging_class_path
 from airflow.utils import timezone
@@ -58,6 +58,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
 log = LoggingMixin().log
+
 
 class SimpleDag(BaseDag):
     """
