@@ -81,10 +81,8 @@ CLOUD_FUNCTION_VALIDATION = [
 class GcfFunctionDeployOperator(BaseOperator):
     """
     Creates a function in Google Cloud Functions.
+    If a function with this name already exists, it will be updated.
 
-    :param project_id: Google Cloud Platform Project ID where the function should
-        be created.
-    :type project_id: str
     :param location: Google Cloud Platform region where the function should be created.
     :type location: str
     :param body: Body of the Cloud Functions definition. The body must be a
@@ -93,9 +91,14 @@ class GcfFunctionDeployOperator(BaseOperator):
         . Different API versions require different variants of the Cloud Functions
         dictionary.
     :type body: dict or google.cloud.functions.v1.CloudFunction
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :param project_id: (Optional) Google Cloud Platform project ID where the function
+        should be created.
+    :type project_id: str
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud
+         Platform - default 'google_cloud_default'.
     :type gcp_conn_id: str
-    :param api_version: API version used (for example v1 or v1beta1).
+    :param api_version: (Optional) API version used (for example v1 - default -  or
+        v1beta1).
     :type api_version: str
     :param zip_path: Path to zip file containing source code of the function. If the path
         is set, the sourceUploadUrl should not be specified in the body or it should
@@ -105,15 +108,15 @@ class GcfFunctionDeployOperator(BaseOperator):
     :param validate_body: If set to False, body validation is not performed.
     :type validate_body: bool
     """
-    # [START gce_function_deploy_template_operator_template_fields]
+    # [START gcf_function_deploy_template_fields]
     template_fields = ('project_id', 'location', 'gcp_conn_id', 'api_version')
-    # [END gce_function_deploy_template_operator_template_fields]
+    # [END gcf_function_deploy_template_fields]
 
     @apply_defaults
     def __init__(self,
-                 project_id,
                  location,
                  body,
+                 project_id=None,
                  gcp_conn_id='google_cloud_default',
                  api_version='v1',
                  zip_path=None,
@@ -121,8 +124,6 @@ class GcfFunctionDeployOperator(BaseOperator):
                  *args, **kwargs):
         self.project_id = project_id
         self.location = location
-        self.full_location = 'projects/{}/locations/{}'.format(self.project_id,
-                                                               self.location)
         self.body = body
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -137,8 +138,6 @@ class GcfFunctionDeployOperator(BaseOperator):
         super(GcfFunctionDeployOperator, self).__init__(*args, **kwargs)
 
     def _validate_inputs(self):
-        if not self.project_id:
-            raise AirflowException("The required parameter 'project_id' is missing")
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
         if not self.body:
@@ -150,7 +149,10 @@ class GcfFunctionDeployOperator(BaseOperator):
             self._field_validator.validate(self.body)
 
     def _create_new_function(self):
-        self._hook.create_new_function(self.full_location, self.body)
+        self._hook.create_new_function(
+            project_id=self.project_id,
+            location=self.location,
+            body=self.body)
 
     def _update_function(self):
         self._hook.update_function(self.body['name'], self.body, self.body.keys())
@@ -170,7 +172,8 @@ class GcfFunctionDeployOperator(BaseOperator):
         return True
 
     def _upload_source_code(self):
-        return self._hook.upload_function_zip(parent=self.full_location,
+        return self._hook.upload_function_zip(project_id=self.project_id,
+                                              location=self.location,
                                               zip_path=self.zip_path)
 
     def _set_airflow_version_label(self):
@@ -181,7 +184,7 @@ class GcfFunctionDeployOperator(BaseOperator):
 
     def execute(self, context):
         if self.zip_path_preprocessor.should_upload_function():
-            self.body[SOURCE_UPLOAD_URL] = self._upload_source_code()
+            self.body[GCF_SOURCE_UPLOAD_URL] = self._upload_source_code()
         self._validate_all_body_fields()
         self._set_airflow_version_label()
         if not self._check_if_function_exists():
@@ -190,10 +193,10 @@ class GcfFunctionDeployOperator(BaseOperator):
             self._update_function()
 
 
-SOURCE_ARCHIVE_URL = 'sourceArchiveUrl'
-SOURCE_UPLOAD_URL = 'sourceUploadUrl'
+GCF_SOURCE_ARCHIVE_URL = 'sourceArchiveUrl'
+GCF_SOURCE_UPLOAD_URL = 'sourceUploadUrl'
 SOURCE_REPOSITORY = 'sourceRepository'
-ZIP_PATH = 'zip_path'
+GCF_ZIP_PATH = 'zip_path'
 
 
 class ZipPathPreprocessor:
@@ -226,28 +229,28 @@ class ZipPathPreprocessor:
         return field in dictionary and not dictionary[field]
 
     def _verify_upload_url_and_no_zip_path(self):
-        if self._is_present_and_empty(self.body, SOURCE_UPLOAD_URL):
+        if self._is_present_and_empty(self.body, GCF_SOURCE_UPLOAD_URL):
             if not self.zip_path:
                 raise AirflowException(
                     "Parameter '{}' is empty in the body and argument '{}' "
                     "is missing or empty. You need to have non empty '{}' "
                     "when '{}' is present and empty.".
-                    format(SOURCE_UPLOAD_URL, ZIP_PATH, ZIP_PATH, SOURCE_UPLOAD_URL))
+                    format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH, GCF_ZIP_PATH, GCF_SOURCE_UPLOAD_URL))
 
     def _verify_upload_url_and_zip_path(self):
-        if SOURCE_UPLOAD_URL in self.body and self.zip_path:
-            if not self.body[SOURCE_UPLOAD_URL]:
+        if GCF_SOURCE_UPLOAD_URL in self.body and self.zip_path:
+            if not self.body[GCF_SOURCE_UPLOAD_URL]:
                 self.upload_function = True
             else:
                 raise AirflowException("Only one of '{}' in body or '{}' argument "
                                        "allowed. Found both."
-                                       .format(SOURCE_UPLOAD_URL, ZIP_PATH))
+                                       .format(GCF_SOURCE_UPLOAD_URL, GCF_ZIP_PATH))
 
     def _verify_archive_url_and_zip_path(self):
-        if SOURCE_ARCHIVE_URL in self.body and self.zip_path:
+        if GCF_SOURCE_ARCHIVE_URL in self.body and self.zip_path:
             raise AirflowException("Only one of '{}' in body or '{}' argument "
                                    "allowed. Found both."
-                                   .format(SOURCE_ARCHIVE_URL, ZIP_PATH))
+                                   .format(GCF_SOURCE_ARCHIVE_URL, GCF_ZIP_PATH))
 
     def should_upload_function(self):
         if self.upload_function is None:
@@ -279,9 +282,9 @@ class GcfFunctionDeleteOperator(BaseOperator):
     :param api_version: API version used (for example v1 or v1beta1).
     :type api_version: str
     """
-    # [START gce_function_delete_template_operator_template_fields]
+    # [START gcf_function_delete_template_fields]
     template_fields = ('name', 'gcp_conn_id', 'api_version')
-    # [END gce_function_delete_template_operator_template_fields]
+    # [END gcf_function_delete_template_fields]
 
     @apply_defaults
     def __init__(self,

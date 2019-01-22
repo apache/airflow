@@ -522,6 +522,37 @@ Not like this, where the join task is skipped
 
 .. image:: img/branch_bad.png
 
+The ``BranchPythonOperator`` can also be used with XComs allowing branching
+context to dynamically decide what branch to follow based on previous tasks.
+For example:
+
+.. code:: python
+
+  def branch_func(**kwargs):
+      ti = kwargs['ti']
+      xcom_value = int(ti.xcom_pull(task_ids='start_task'))
+      if xcom_value >= 5:
+          return 'continue_task'
+      else:
+          return 'stop_task'
+
+  start_op = BashOperator(
+      task_id='start_task',
+      bash_command="echo 5",
+      xcom_push=True,
+      dag=dag)
+
+  branch_op = BranchPythonOperator(
+      task_id='branch_task',
+      provide_context=True,
+      python_callable=branch_func,
+      dag=dag)
+
+  continue_op = DummyOperator(task_id='continue_task', dag=dag)
+  stop_op = DummyOperator(task_id='stop_task', dag=dag)
+
+  start_op >> branch_op >> [continue_op, stop_op]
+
 SubDAGs
 =======
 
@@ -629,9 +660,37 @@ Service Level Agreements, or time by which a task or DAG should have
 succeeded, can be set at a task level as a ``timedelta``. If
 one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded
-in the database and made available in the web UI under ``Browse->Missed SLAs``
+in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
 
+Email Configuration
+-------------------
+
+You can configure the email that is being sent in your ``airflow.cfg``
+by setting a ``subject_template`` and/or a ``html_content_template``
+in the ``email`` section.
+
+.. code::
+
+  [email]
+
+  email_backend = airflow.utils.email.send_email_smtp
+
+  subject_template = /path/to/my_subject_template_file
+  html_content_template = /path/to/my_html_content_template_file
+
+To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
+
+For example a ``html_content_template`` file could look like this:
+
+.. code::
+
+  Try {{try_number}} out of {{max_tries + 1}}<br>
+  Exception:<br>{{exception_html}}<br>
+  Log: <a href="{{ti.log_url}}">Link</a><br>
+  Host: {{ti.hostname}}<br>
+  Log file: {{ti.log_filepath}}<br>
+  Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
 
 Trigger Rules
 =============

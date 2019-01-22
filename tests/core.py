@@ -44,7 +44,7 @@ from time import sleep
 
 from airflow import configuration
 from airflow.executors import SequentialExecutor
-from airflow.models import Variable
+from airflow.models import Variable, TaskInstance
 
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
@@ -58,7 +58,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
-from airflow.www import app as application
+from airflow.www.app import create_app
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
@@ -956,77 +956,6 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(1, len(f_fails))
         self.assertGreaterEqual(sum([f.duration for f in f_fails]), 3)
 
-    def test_dag_stats(self):
-        """Correctly sets/dirties/cleans rows of DagStat table"""
-
-        session = settings.Session()
-
-        session.query(models.DagRun).delete()
-        session.query(models.DagStat).delete()
-        session.commit()
-
-        models.DagStat.update([], session=session)
-
-        self.dag_bash.create_dagrun(
-            run_id="run1",
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING)
-
-        models.DagStat.update([self.dag_bash.dag_id], session=session)
-
-        qry = session.query(models.DagStat).all()
-
-        self.assertEqual(3, len(qry))
-        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
-        for stats in qry:
-            if stats.state == State.RUNNING:
-                self.assertEqual(stats.count, 1)
-            else:
-                self.assertEqual(stats.count, 0)
-            self.assertFalse(stats.dirty)
-
-        self.dag_bash.create_dagrun(
-            run_id="run2",
-            execution_date=DEFAULT_DATE + timedelta(days=1),
-            state=State.RUNNING)
-
-        models.DagStat.update([self.dag_bash.dag_id], session=session)
-
-        qry = session.query(models.DagStat).all()
-
-        self.assertEqual(3, len(qry))
-        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
-        for stats in qry:
-            if stats.state == State.RUNNING:
-                self.assertEqual(stats.count, 2)
-            else:
-                self.assertEqual(stats.count, 0)
-            self.assertFalse(stats.dirty)
-
-        session.query(models.DagRun).first().state = State.SUCCESS
-        session.commit()
-
-        models.DagStat.update([self.dag_bash.dag_id], session=session)
-
-        qry = session.query(models.DagStat).filter(models.DagStat.state == State.SUCCESS).all()
-        self.assertEqual(1, len(qry))
-        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
-        self.assertEqual(State.SUCCESS, qry[0].state)
-        self.assertEqual(1, qry[0].count)
-        self.assertFalse(qry[0].dirty)
-
-        qry = session.query(models.DagStat).filter(models.DagStat.state == State.RUNNING).all()
-        self.assertEqual(1, len(qry))
-        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
-        self.assertEqual(State.RUNNING, qry[0].state)
-        self.assertEqual(1, qry[0].count)
-        self.assertFalse(qry[0].dirty)
-
-        session.query(models.DagRun).delete()
-        session.query(models.DagStat).delete()
-        session.commit()
-        session.close()
-
     def test_run_command(self):
         if six.PY3:
             write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
@@ -1061,6 +990,74 @@ class CoreTest(unittest.TestCase):
         dag_run = dag_runs[0]
         self.assertEquals(dag_run.execution_date, utc_now)
 
+    def test_trigger_dagrun_with_str_execution_date(self):
+        utc_now_str = timezone.utcnow().isoformat()
+        self.assertIsInstance(utc_now_str, six.string_types)
+        run_id = 'trig__' + utc_now_str
+
+        def payload_generator(context, object):
+            object.run_id = run_id
+            return object
+
+        task = TriggerDagRunOperator(
+            task_id='test_trigger_dagrun_with_str_execution_date',
+            trigger_dag_id='example_bash_operator',
+            python_callable=payload_generator,
+            execution_date=utc_now_str,
+            dag=self.dag)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dag_runs = models.DagRun.find(dag_id='example_bash_operator',
+                                      run_id=run_id)
+        self.assertEquals(len(dag_runs), 1)
+        dag_run = dag_runs[0]
+        self.assertEquals(dag_run.execution_date.isoformat(), utc_now_str)
+
+    def test_trigger_dagrun_with_templated_execution_date(self):
+        task = TriggerDagRunOperator(
+            task_id='test_trigger_dagrun_with_str_execution_date',
+            trigger_dag_id='example_bash_operator',
+            execution_date='{{ execution_date }}',
+            dag=self.dag)
+
+        self.assertTrue(isinstance(task.execution_date, six.string_types))
+        self.assertEqual(task.execution_date, '{{ execution_date }}')
+
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.render_templates()
+        self.assertEqual(timezone.parse(task.execution_date), DEFAULT_DATE)
+
+    def test_externally_triggered_dagrun(self):
+        TI = models.TaskInstance
+
+        # Create the dagrun between two "scheduled" execution dates of the DAG
+        EXECUTION_DATE = DEFAULT_DATE + timedelta(days=2)
+        EXECUTION_DS = EXECUTION_DATE.strftime('%Y-%m-%d')
+        EXECUTION_DS_NODASH = EXECUTION_DS.replace('-', '')
+
+        dag = DAG(
+            TEST_DAG_ID,
+            default_args=self.args,
+            schedule_interval=timedelta(weeks=1),
+            start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='test_externally_triggered_dag_context',
+                             dag=dag)
+        dag.create_dagrun(run_id=models.DagRun.id_for_date(EXECUTION_DATE),
+                          execution_date=EXECUTION_DATE,
+                          state=State.RUNNING,
+                          external_trigger=True)
+        task.run(
+            start_date=EXECUTION_DATE, end_date=EXECUTION_DATE)
+
+        ti = TI(task=task, execution_date=EXECUTION_DATE)
+        context = ti.get_template_context()
+
+        # next_ds/prev_ds should be the execution date for manually triggered runs
+        self.assertEquals(context['next_ds'], EXECUTION_DS)
+        self.assertEquals(context['next_ds_nodash'], EXECUTION_DS_NODASH)
+
+        self.assertEquals(context['prev_ds'], EXECUTION_DS)
+        self.assertEquals(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
+
 
 class CliTests(unittest.TestCase):
 
@@ -1071,8 +1068,8 @@ class CliTests(unittest.TestCase):
 
     def setUp(self):
         super(CliTests, self).setUp()
-        from airflow.www_rbac import app as application
         configuration.load_test_config()
+        from airflow.www import app as application
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['TESTING'] = True
 
@@ -1167,24 +1164,24 @@ class CliTests(unittest.TestCase):
             'list_tasks', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
-    @mock.patch("airflow.bin.cli.db_utils.initdb")
+    @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
-        initdb_mock.assert_called_once_with(False)
+        initdb_mock.assert_called_once_with()
 
-    @mock.patch("airflow.bin.cli.db_utils.resetdb")
+    @mock.patch("airflow.bin.cli.db.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
 
-        resetdb_mock.assert_called_once_with(False)
+        resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
             cli.connections(self.parser.parse_args(['connections', '--list']))
             stdout = mock_stdout.getvalue()
-        conns = [[x.strip("'") for x in re.findall("'\w+'", line)[:2]]
+        conns = [[x.strip("'") for x in re.findall(r"'\w+'", line)[:2]]
                  for ii, line in enumerate(stdout.split('\n'))
                  if ii % 2 == 1]
         conns = [conn for conn in conns if len(conn) > 0]
@@ -1715,12 +1712,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class SecurityTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -1806,12 +1804,13 @@ class SecurityTests(unittest.TestCase):
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -1871,8 +1870,69 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("TEST", response.data.decode('utf-8'))
 
     def test_health(self):
-        response = self.app.get('/health')
-        self.assertIn('The server is healthy!', response.data.decode('utf-8'))
+        BJ = jobs.BaseJob
+        session = Session()
+
+        # case-1: healthy scheduler status
+        last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
+        session.add(BJ(job_type='SchedulerJob',
+                       state='running',
+                       latest_heartbeat=last_scheduler_heartbeat_for_testing_1))
+        session.commit()
+
+        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
+
+        self.assertEqual('healthy', response_json['metadatabase']['status'])
+        self.assertEqual('healthy', response_json['scheduler']['status'])
+        self.assertEqual(str(last_scheduler_heartbeat_for_testing_1),
+                         response_json['scheduler']['latest_scheduler_heartbeat'])
+
+        session.query(BJ).\
+            filter(BJ.job_type == 'SchedulerJob',
+                   BJ.state == 'running',
+                   BJ.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
+            delete()
+        session.commit()
+
+        # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
+        last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
+        (session.query(BJ)
+                .filter(BJ.job_type == 'SchedulerJob')
+                .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)}))
+        session.add(BJ(job_type='SchedulerJob',
+                       state='running',
+                       latest_heartbeat=last_scheduler_heartbeat_for_testing_2))
+        session.commit()
+
+        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
+
+        self.assertEqual('healthy', response_json['metadatabase']['status'])
+        self.assertEqual('unhealthy', response_json['scheduler']['status'])
+        self.assertEqual(str(last_scheduler_heartbeat_for_testing_2),
+                         response_json['scheduler']['latest_scheduler_heartbeat'])
+
+        session.query(BJ).\
+            filter(BJ.job_type == 'SchedulerJob',
+                   BJ.state == 'running',
+                   BJ.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
+            delete()
+        session.commit()
+
+        # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
+        session.query(BJ).\
+            filter(BJ.job_type == 'SchedulerJob',
+                   BJ.state == 'running').\
+            delete()
+        session.commit()
+
+        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
+
+        self.assertEqual('healthy', response_json['metadatabase']['status'])
+        self.assertEqual('unhealthy', response_json['scheduler']['status'])
+        self.assertEqual('None',
+                         response_json['scheduler']['latest_scheduler_heartbeat'])
+
+        session.close()
 
     def test_noaccess(self):
         response = self.app.get('/admin/airflow/noaccess')
@@ -2076,12 +2136,13 @@ class WebUiTests(unittest.TestCase):
         session.close()
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class SecureModeWebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("core", "secure_mode", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -2097,6 +2158,7 @@ class SecureModeWebUiTests(unittest.TestCase):
         configuration.conf.remove_option("core", "SECURE_MODE")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class PasswordUserTest(unittest.TestCase):
     def setUp(self):
         user = models.User()
@@ -2140,12 +2202,13 @@ class PasswordUserTest(unittest.TestCase):
         session.close()
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebPasswordAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
         configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.password_auth")
 
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
         from airflow.contrib.auth.backends.password_auth import PasswordUser
@@ -2207,6 +2270,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebLdapAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
@@ -2223,7 +2287,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
         configuration.conf.set("ldap", "cacert", "")
 
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -2294,6 +2358,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class LdapGroupTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")

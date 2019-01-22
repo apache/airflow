@@ -41,7 +41,6 @@ def create_session():
     session = settings.Session()
     try:
         yield session
-        session.expunge_all()
         session.commit()
     except Exception:
         session.rollback()
@@ -84,7 +83,7 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb(rbac=False):
+def initdb():
     session = settings.Session()
 
     from airflow import models
@@ -283,22 +282,12 @@ def initdb(rbac=False):
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }'))
     merge_conn(
         Connection(
+            conn_id='azure_container_instances_default', conn_type='azure_container_instances',
+            extra='{"tenantId": "<TENANT>", "subscriptionId": "<SUBSCRIPTION ID>" }'))
+    merge_conn(
+        Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
-
-    # Known event types
-    KET = models.KnownEventType
-    if not session.query(KET).filter(KET.know_event_type == 'Holiday').first():
-        session.add(KET(know_event_type='Holiday'))
-    if not session.query(KET).filter(KET.know_event_type == 'Outage').first():
-        session.add(KET(know_event_type='Outage'))
-    if not session.query(KET).filter(
-            KET.know_event_type == 'Natural Disaster').first():
-        session.add(KET(know_event_type='Natural Disaster'))
-    if not session.query(KET).filter(
-            KET.know_event_type == 'Marketing Campaign').first():
-        session.add(KET(know_event_type='Marketing Campaign'))
-    session.commit()
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
@@ -325,10 +314,8 @@ def initdb(rbac=False):
         session.add(chart)
         session.commit()
 
-    if rbac:
-        from flask_appbuilder.security.sqla import models
-        from flask_appbuilder.models.sqla import Base
-        Base.metadata.create_all(settings.engine)
+    from flask_appbuilder.models.sqla import Base
+    Base.metadata.create_all(settings.engine)
 
 
 def upgradedb():
@@ -347,7 +334,7 @@ def upgradedb():
     command.upgrade(config, 'heads')
 
 
-def resetdb(rbac):
+def resetdb():
     """
     Clear out the database
     """
@@ -358,15 +345,12 @@ def resetdb(rbac):
 
     log.info("Dropping tables that exist")
 
-    models.Base.metadata.drop_all(settings.engine)
+    models.base.Base.metadata.drop_all(settings.engine)
     mc = MigrationContext.configure(settings.engine)
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
 
-    if rbac:
-        # drop rbac security tables
-        from flask_appbuilder.security.sqla import models
-        from flask_appbuilder.models.sqla import Base
-        Base.metadata.drop_all(settings.engine)
+    from flask_appbuilder.models.sqla import Base
+    Base.metadata.drop_all(settings.engine)
 
-    initdb(rbac)
+    initdb()

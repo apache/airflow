@@ -85,6 +85,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
+    :param spark_binary: The command to use for spark submit.
+                         Some distros may use spark2-submit.
+    :type spark_binary: string
     """
     def __init__(self,
                  conf=None,
@@ -107,7 +110,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  num_executors=None,
                  application_args=None,
                  env_vars=None,
-                 verbose=False):
+                 verbose=False,
+                 spark_binary="spark-submit"):
         self._conf = conf
         self._conn_id = conn_id
         self._files = files
@@ -132,6 +136,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._submit_sp = None
         self._yarn_application_id = None
         self._kubernetes_driver_pod = None
+        self._spark_binary = spark_binary
 
         self._connection = self._resolve_connection()
         self._is_yarn = 'yarn' in self._connection['master']
@@ -161,7 +166,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                      'queue': None,
                      'deploy_mode': None,
                      'spark_home': None,
-                     'spark_binary': 'spark-submit',
+                     'spark_binary': self._spark_binary,
                      'namespace': 'default'}
 
         try:
@@ -178,7 +183,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             conn_data['queue'] = extra.get('queue', None)
             conn_data['deploy_mode'] = extra.get('deploy-mode', None)
             conn_data['spark_home'] = extra.get('spark-home', None)
-            conn_data['spark_binary'] = extra.get('spark-binary', 'spark-submit')
+            conn_data['spark_binary'] = extra.get('spark-binary', "spark-submit")
             conn_data['namespace'] = extra.get('namespace', 'default')
         except AirflowException:
             self.log.debug(
@@ -391,14 +396,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
             # from the logs so we can kill the application when we stop it unexpectedly
             elif self._is_kubernetes:
-                match = re.search('\s*pod name: ((.+?)-([a-z0-9]+)-driver)', line)
+                match = re.search(r'\s*pod name: ((.+?)-([a-z0-9]+)-driver)', line)
                 if match:
                     self._kubernetes_driver_pod = match.groups()[0]
                     self.log.info("Identified spark driver pod: %s",
                                   self._kubernetes_driver_pod)
 
                 # Store the Spark Exit code
-                match_exit_code = re.search('\s*Exit code: (\d+)', line)
+                match_exit_code = re.search(r'\s*Exit code: (\d+)', line)
                 if match_exit_code:
                     self._spark_exit_code = int(match_exit_code.groups()[0])
 
@@ -406,7 +411,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # we need to extract the driver id from the logs. This allows us to poll for
             # the status using the driver id. Also, we can kill the driver when needed.
             elif self._should_track_driver_status and not self._driver_id:
-                match_driver_id = re.search('(driver-[0-9\-]+)', line)
+                match_driver_id = re.search(r'(driver-[0-9\-]+)', line)
                 if match_driver_id:
                     self._driver_id = match_driver_id.groups()[0]
                     self.log.info("identified spark driver id: {}"

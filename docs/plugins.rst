@@ -119,6 +119,8 @@ For example,
 * For ``Operator`` plugin, an ``execute`` method is compulsory.
 * For ``Sensor`` plugin, a ``poke`` method returning a Boolean value is compulsory.
 
+Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
+
 
 Example
 -------
@@ -134,6 +136,7 @@ definitions in Airflow.
     from flask import Blueprint
     from flask_admin import BaseView, expose
     from flask_admin.base import MenuLink
+    from flask_appbuilder import BaseView as AppBuilderBaseView
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
@@ -179,10 +182,12 @@ definitions in Airflow.
     ml = MenuLink(
         category='Test Plugin',
         name='Test Menu Link',
-        url='https://airflow.incubator.apache.org/')
+        url='https://airflow.apache.org/')
 
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):
+        default_view = "test"
+
         @expose("/")
         def test(self):
             return self.render("test_plugin/test.html", content="Hello galaxy!")
@@ -218,3 +223,56 @@ Note on role based views
 Airflow 1.10 introduced role based views using FlaskAppBuilder. You can configure which UI is used by setting
 rbac = True. To support plugin views and links for both versions of the UI and maintain backwards compatibility,
 the fields appbuilder_views and appbuilder_menu_items were added to the AirflowTestPlugin class.
+
+
+Plugins as Python packages
+--------------------------
+
+It is possible to load plugins via `setuptools' entrypoint<https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_ mechanism. To do this link
+your plugin using an entrypoint in your package. If the package is installed, airflow
+will automatically load the registered plugins from the entrypoint list.
+
+_Note_: Neither the entrypoint name (eg, `my_plugin`) nor the name of the
+plugin class will contribute towards the module and class name of the plugin
+itself. The structure is determined by
+`airflow.plugins_manager.AirflowPlugin.name` and the class name of the plugin
+component with the pattern `airflow.{component}.{name}.{component_class_name}`.
+
+.. code-block:: python
+
+    # my_package/my_plugin.py
+    from airflow.plugins_manager import AirflowPlugin
+    from airflow.models import BaseOperator
+    from airflow.hooks.base_hook import BaseHook
+
+    class MyOperator(BaseOperator):
+      pass
+
+    class MyHook(BaseHook):
+      pass
+
+    class MyAirflowPlugin(AirflowPlugin):
+      name = 'my_namespace'
+      operators = [MyOperator]
+      hooks = [MyHook]
+
+
+.. code-block:: python
+
+    from setuptools import setup
+
+    setup(
+        name="my-package",
+        ...
+        entry_points = {
+            'airflow.plugins': [
+                'my_plugin = my_package.my_plugin:MyAirflowPlugin'
+            ]
+        }
+    )
+
+::
+
+This will create a hook, and an operator accessible at:
+ - `airflow.hooks.my_namespace.MyHook`
+ - `airflow.operators.my_namespace.MyOperator`

@@ -17,13 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
+
 from sqlalchemy import or_
 
-from airflow import models, settings
+from airflow import models
+from airflow.utils.db import provide_session
 from airflow.exceptions import DagNotFound, DagFileExists
 
 
-def delete_dag(dag_id, keep_records_in_log=True):
+@provide_session
+def delete_dag(dag_id, keep_records_in_log=True, session=None):
     """
     :param dag_id: the dag_id of the DAG to delete
     :type dag_id: str
@@ -32,22 +36,19 @@ def delete_dag(dag_id, keep_records_in_log=True):
         The default value is True.
     :type keep_records_in_log: bool
     """
-    session = settings.Session()
-
     DM = models.DagModel
     dag = session.query(DM).filter(DM.dag_id == dag_id).first()
     if dag is None:
         raise DagNotFound("Dag id {} not found".format(dag_id))
 
-    dagbag = models.DagBag()
-    if dag_id in dagbag.dags:
+    if dag.fileloc and os.path.exists(dag.fileloc):
         raise DagFileExists("Dag id {} is still in DagBag. "
-                            "Remove the DAG file first.".format(dag_id))
+                            "Remove the DAG file first: {}".format(dag_id, dag.fileloc))
 
     count = 0
 
     # noinspection PyUnresolvedReferences,PyProtectedMember
-    for m in models.Base._decl_class_registry.values():
+    for m in models.base.Base._decl_class_registry.values():
         if hasattr(m, "dag_id"):
             if keep_records_in_log and m.__name__ == 'Log':
                 continue
@@ -58,7 +59,5 @@ def delete_dag(dag_id, keep_records_in_log=True):
         p, c = dag_id.rsplit(".", 1)
         for m in models.DagRun, models.TaskFail, models.TaskInstance:
             count += session.query(m).filter(m.dag_id == p, m.task_id == c).delete()
-
-    session.commit()
 
     return count

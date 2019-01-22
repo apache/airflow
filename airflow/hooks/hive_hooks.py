@@ -289,7 +289,7 @@ class HiveCliHook(BaseHook):
                 except AirflowException as e:
                     message = e.args[0].split('\n')[-2]
                     self.log.info(message)
-                    error_loc = re.search('(\d+):(\d+)', message)
+                    error_loc = re.search(r'(\d+):(\d+)', message)
                     if error_loc and error_loc.group(1).isdigit():
                         lst = int(error_loc.group(1))
                         begin = max(lst - 2, 0)
@@ -864,7 +864,7 @@ class HiveServer2Hook(BaseHook):
         Execute hql in target schema and write results to a csv file.
         :param hql: hql to be executed.
         :param csv_filepath: filepath of csv to write results into.
-        :param schema: target schema, , default to 'default'.
+        :param schema: target schema, default to 'default'.
         :param delimiter: delimiter of the csv file.
         :param lineterminator: lineterminator of the csv file.
         :param output_header: header of the csv file.
@@ -902,7 +902,7 @@ class HiveServer2Hook(BaseHook):
 
         self.log.info("Done. Loaded a total of %s rows.", i)
 
-    def get_records(self, hql, schema='default'):
+    def get_records(self, hql, schema='default', hive_conf=None):
         """
         Get a set of records from a Hive query.
 
@@ -911,7 +911,7 @@ class HiveServer2Hook(BaseHook):
         >>> len(hh.get_records(sql))
         100
         """
-        return self.get_results(hql, schema=schema)['data']
+        return self.get_results(hql, schema=schema, hive_conf=hive_conf)['data']
 
     def get_pandas_df(self, hql, schema='default'):
         """

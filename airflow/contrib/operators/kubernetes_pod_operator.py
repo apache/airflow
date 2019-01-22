@@ -42,7 +42,7 @@ class KubernetesPodOperator(BaseOperator):
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provide.
     :type cmds: list of str
-    :param arguments: arguments of to the entrypoint. (templated)
+    :param arguments: arguments of the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
     :type arguments: list of str
     :param image_pull_policy: Specify a policy to cache or always pull an image
@@ -84,8 +84,10 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type xcom_push: bool
-    :param tolerations: Kubernetes tolerations
-    :type list of tolerations
+    :param hostnetwork: If True enable host networking on the pod
+    :type hostnetwork: bool
+    :param tolerations: A list of kubernetes tolerations
+    :type tolerations: list tolerations
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 

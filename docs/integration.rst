@@ -1,3 +1,4 @@
+
 ..  Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -161,34 +162,34 @@ Logging
 Airflow can be configured to read and write task logs in Azure Blob Storage.
 See :ref:`write-logs-azure`.
 
-Azure CosmosDB 
+Azure CosmosDB
 ''''''''''''''
- 
-AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a 
-Airflow connection of type `azure_cosmos` exists. Authorization can be done by supplying a 
-login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify the  
-default database and collection to use (see connection `azure_cosmos_default` for an example). 
- 
-- :ref:`AzureCosmosDBHook`: Interface with Azure CosmosDB. 
-- :ref:`AzureCosmosInsertDocumentOperator`: Simple operator to insert document into CosmosDB. 
-- :ref:`AzureCosmosDocumentSensor`: Simple sensor to detect document existence in CosmosDB. 
+
+AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a
+Airflow connection of type `azure_cosmos` exists. Authorization can be done by supplying a
+login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify the
+default database and collection to use (see connection `azure_cosmos_default` for an example).
+
+- :ref:`AzureCosmosDBHook`: Interface with Azure CosmosDB.
+- :ref:`AzureCosmosInsertDocumentOperator`: Simple operator to insert document into CosmosDB.
+- :ref:`AzureCosmosDocumentSensor`: Simple sensor to detect document existence in CosmosDB.
 
 .. _AzureCosmosDBHook:
 
-AzureCosmosDBHook 
+AzureCosmosDBHook
 """""""""""""""""
- 
-.. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook 
- 
-AzureCosmosInsertDocumentOperator 
+
+.. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook
+
+AzureCosmosInsertDocumentOperator
 """""""""""""""""""""""""""""""""
- 
+
 .. autoclass:: airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator
- 
-AzureCosmosDocumentSensor 
+
+AzureCosmosDocumentSensor
 """""""""""""""""""""""""
- 
-.. autoclass:: airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor 
+
+.. autoclass:: airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor
 
 Azure Data Lake
 '''''''''''''''
@@ -222,6 +223,51 @@ AdlsToGoogleCloudStorageOperator
 """"""""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+
+Azure Container Instances
+'''''''''''''''''''''''''
+
+Azure Container Instances provides a method to run a docker container without having to worry
+about managing infrastructure. The AzureContainerInstanceHook requires a service principal. The
+credentials for this principal can either be defined in the extra field `key_path`, as an
+environment variable named `AZURE_AUTH_LOCATION`,
+or by providing a login/password and tenantId in extras.
+
+The AzureContainerRegistryHook requires a host/login/password to be defined in the connection.
+
+- :ref:`AzureContainerInstancesOperator` : Start/Monitor a new ACI.
+- :ref:`AzureContainerInstanceHook` : Wrapper around a single ACI.
+- :ref:`AzureContainerRegistryHook` : Wrapper around a ACR
+- :ref:`AzureContainerVolumeHook` : Wrapper around Container Volumes
+
+.. _AzureContainerInstancesOperator:
+
+AzureContainerInstancesOperator
+"""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.azure_container_instances_operator.AzureContainerInstancesOperator
+
+.. _AzureContainerInstanceHook:
+
+AzureContainerInstanceHook
+""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook
+
+.. _AzureContainerRegistryHook:
+
+AzureContainerRegistryHook
+""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook
+
+.. _AzureContainerVolumeHook:
+
+AzureContainerVolumeHook
+""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook
+
 
 .. _AWS:
 
@@ -525,6 +571,13 @@ Logging
 Airflow can be configured to read and write task logs in Google Cloud Storage.
 See :ref:`write-logs-gcp`.
 
+GoogleCloudBaseHook
+'''''''''''''''''''
+
+.. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
+
+.. _GoogleCloudBaseHook:
+
 BigQuery
 ''''''''
 
@@ -642,11 +695,38 @@ Cloud Spanner
 Cloud Spanner Operators
 """""""""""""""""""""""
 
+- :ref:`CloudSpannerInstanceDatabaseDeleteOperator` : deletes an existing database from
+  a Google Cloud Spanner instance or returns success if the database is missing.
+- :ref:`CloudSpannerInstanceDatabaseDeployOperator` : creates a new database in a Google
+  Cloud instance or returns success if the database already exists.
+- :ref:`CloudSpannerInstanceDatabaseUpdateOperator` : updates the structure of a
+  Google Cloud Spanner database.
 - :ref:`CloudSpannerInstanceDatabaseQueryOperator` : executes an arbitrary DML query
   (INSERT, UPDATE, DELETE).
-- :ref:`CloudSpannerInstanceDeployOperator` : creates a new Cloud Spanner instance or,
-  if an instance with the same name exists, updates it.
-- :ref:`CloudSpannerInstanceDeleteOperator` : deletes a Cloud Spanner instance.
+- :ref:`CloudSpannerInstanceDeployOperator` : creates a new Google Cloud Spanner instance,
+  or if an instance with the same name exists, updates the instance.
+- :ref:`CloudSpannerInstanceDeleteOperator` : deletes a Google Cloud Spanner instance.
+
+.. _CloudSpannerInstanceDatabaseDeleteOperator:
+
+CloudSpannerInstanceDatabaseDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator
+
+.. _CloudSpannerInstanceDatabaseDeployOperator:
+
+CloudSpannerInstanceDatabaseDeployOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator
+
+.. _CloudSpannerInstanceDatabaseUpdateOperator:
+
+CloudSpannerInstanceDatabaseUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator
 
 .. _CloudSpannerInstanceDatabaseQueryOperator:
 
@@ -668,6 +748,14 @@ CloudSpannerInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator
+
+
+CloudSpannerHook
+""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook
+    :members:
+
 
 Cloud SQL
 '''''''''
@@ -769,6 +857,69 @@ Cloud SQL Hooks
     :members:
 
 
+Cloud Bigtable
+''''''''''''''
+
+Cloud Bigtable Operators
+""""""""""""""""""""""""
+
+- :ref:`BigtableInstanceCreateOperator` : creates a Cloud Bigtable instance.
+- :ref:`BigtableInstanceDeleteOperator` : deletes a Google Cloud Bigtable instance.
+- :ref:`BigtableClusterUpdateOperator` : updates the number of nodes in a Google Cloud Bigtable cluster.
+- :ref:`BigtableTableCreateOperator` : creates a table in a Google Cloud Bigtable instance.
+- :ref:`BigtableTableDeleteOperator` : deletes a table in a Google Cloud Bigtable instance.
+- :ref:`BigtableTableWaitForReplicationSensor` : (sensor) waits for a table to be fully replicated.
+
+.. _BigtableInstanceCreateOperator:
+
+BigtableInstanceCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator
+
+.. _BigtableInstanceDeleteOperator:
+
+BigtableInstanceDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator
+
+.. _BigtableClusterUpdateOperator:
+
+BigtableClusterUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator
+
+.. _BigtableTableCreateOperator:
+
+BigtableTableCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator
+
+.. _BigtableTableDeleteOperator:
+
+BigtableTableDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator
+
+.. _BigtableTableWaitForReplicationSensor:
+
+BigtableTableWaitForReplicationSensor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor
+
+.. _BigtableHook:
+
+Cloud Bigtable Hook
+""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook
+    :members:
+
 Compute Engine
 ''''''''''''''
 
@@ -860,7 +1011,6 @@ GcfFunctionDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
-
 
 .. _GcfHook:
 
@@ -1139,6 +1289,7 @@ Storage Operators
 - :ref:`GoogleCloudStorageObjectCreateAclEntryOperator` : Creates a new ACL entry on the specified object.
 - :ref:`GoogleCloudStorageToBigQueryOperator` : Loads files from Google cloud storage into BigQuery.
 - :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies objects from a bucket to another, with renaming if requested.
+- :ref:`GoogleCloudStorageToGoogleCloudStorageTransferOperator` : Copies objects from a bucket to another using Google Transfer service.
 - :ref:`MySqlToGoogleCloudStorageOperator`: Copy data from any MySQL Database to Google cloud storage in JSON format.
 
 .. _FileToGoogleCloudStorageOperator:
@@ -1196,6 +1347,13 @@ GoogleCloudStorageToGoogleCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+
+.. _GoogleCloudStorageToGoogleCloudStorageTransferOperator:
+
+GoogleCloudStorageToGoogleCloudStorageTransferOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator
 
 .. _MySqlToGoogleCloudStorageOperator:
 

@@ -38,7 +38,6 @@ from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
-RBAC = conf.getboolean('webserver', 'rbac')
 
 TIMEZONE = pendulum.timezone('UTC')
 try:
@@ -84,13 +83,13 @@ try:
 except (socket.gaierror, ImportError):
     log.warning("Could not configure StatsClient, using DummyStatsLogger instead.")
 
-HEADER = """\
-  ____________       _____________
- ____    |__( )_________  __/__  /________      __
-____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /
-___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
- _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
- """
+HEADER = '\n'.join([
+    r'  ____________       _____________',
+    r' ____    |__( )_________  __/__  /________      __',
+    r'____  /| |_  /__  ___/_  /_ __  /_  __ \_ | /| / /',
+    r'___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /',
+    r' _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/',
+])
 
 LOGGING_LEVEL = logging.INFO
 
@@ -172,8 +171,8 @@ def configure_orm(disable_connection_pool=False):
         except conf.AirflowConfigException:
             pool_recycle = 1800
 
-        log.info("setting.configure_orm(): Using pool settings. pool_size={}, "
-                 "pool_recycle={}".format(pool_size, pool_recycle))
+        log.info("settings.configure_orm(): Using pool settings. pool_size={}, "
+                 "pool_recycle={}, pid={}".format(pool_size, pool_recycle, os.getpid()))
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
 

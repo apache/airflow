@@ -42,7 +42,8 @@ from sqlalchemy.orm.session import make_transient
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun
+from airflow.models import DAG, DagRun, errors
+from airflow.models.dagpickle import DagPickle
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -61,7 +62,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
-Base = models.Base
+Base = models.base.Base
 ID_LEN = models.ID_LEN
 
 
@@ -544,7 +545,6 @@ class SchedulerJob(BaseJob):
             subdir=settings.DAGS_FOLDER,
             num_runs=-1,
             processor_poll_interval=1.0,
-            run_duration=None,
             do_pickle=False,
             log=None,
             *args, **kwargs):
@@ -562,8 +562,6 @@ class SchedulerJob(BaseJob):
         :param processor_poll_interval: The number of seconds to wait between
             polls of running processors
         :type processor_poll_interval: int
-        :param run_duration: how long to run (in seconds) before exiting
-        :type run_duration: int
         :param do_pickle: once a DAG object is obtained by executing the Python
             file, whether to serialize the DAG object to the DB
         :type do_pickle: bool
@@ -577,7 +575,6 @@ class SchedulerJob(BaseJob):
         self.subdir = subdir
 
         self.num_runs = num_runs
-        self.run_duration = run_duration
         self._processor_poll_interval = processor_poll_interval
 
         self.do_pickle = do_pickle
@@ -594,10 +591,6 @@ class SchedulerJob(BaseJob):
             self.using_sqlite = True
 
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
-        if run_duration is None:
-            self.run_duration = conf.getint('scheduler',
-                                            'run_duration')
-
         self.processor_agent = None
         self._last_loop = False
 
@@ -762,13 +755,13 @@ class SchedulerJob(BaseJob):
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
-            session.query(models.ImportError).filter(
-                models.ImportError.filename == dagbag_file
+            session.query(errors.ImportError).filter(
+                errors.ImportError.filename == dagbag_file
             ).delete()
 
         # Add the errors of the processed files
         for filename, stacktrace in six.iteritems(dagbag.import_errors):
-            session.add(models.ImportError(
+            session.add(errors.ImportError(
                 filename=filename,
                 stacktrace=stacktrace))
         session.commit()
@@ -946,7 +939,8 @@ class SchedulerJob(BaseJob):
             self.log.debug("Examining active DAG run: %s", run)
             # this needs a fresh session sometimes tis get detached
             tis = run.get_task_instances(state=(State.NONE,
-                                                State.UP_FOR_RETRY))
+                                                State.UP_FOR_RETRY,
+                                                State.UP_FOR_RESCHEDULE))
 
             # this loop is quite slow as it uses are_dependencies_met for
             # every task (in ti.is_runnable). This is also called in
@@ -1445,8 +1439,6 @@ class SchedulerJob(BaseJob):
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 
-        models.DagStat.update([d.dag_id for d in dags])
-
     @provide_session
     def _process_executor_events(self, simple_dag_bag, session=None):
         """
@@ -1500,7 +1492,6 @@ class SchedulerJob(BaseJob):
                 (executors.LocalExecutor, executors.SequentialExecutor):
             pickle_dags = True
 
-        self.log.info("Running execute loop for %s seconds", self.run_duration)
         self.log.info("Processing each file at most %s times", self.num_runs)
 
         # Build up a list of Python files that could contain DAGs
@@ -1563,8 +1554,7 @@ class SchedulerJob(BaseJob):
         last_self_heartbeat_time = timezone.utcnow()
 
         # For the execute duration, parse and schedule DAGs
-        while (timezone.utcnow() - execute_start_time).total_seconds() < \
-                self.run_duration or self.run_duration < 0:
+        while True:
             self.log.debug("Starting Loop...")
             loop_start_time = time.time()
 
@@ -1596,12 +1586,13 @@ class SchedulerJob(BaseJob):
                     self._change_state_for_tis_without_dagrun(simple_dag_bag,
                                                               [State.UP_FOR_RETRY],
                                                               State.FAILED)
-                    # If a task instance is scheduled or queued, but the corresponding
-                    # DAG run isn't running, set the state to NONE so we don't try to
-                    # re-run it.
+                    # If a task instance is scheduled or queued or up for reschedule,
+                    # but the corresponding DAG run isn't running, set the state to
+                    # NONE so we don't try to re-run it.
                     self._change_state_for_tis_without_dagrun(simple_dag_bag,
                                                               [State.QUEUED,
-                                                               State.SCHEDULED],
+                                                               State.SCHEDULED,
+                                                               State.UP_FOR_RESCHEDULE],
                                                               State.NONE)
 
                     self._execute_task_instances(simple_dag_bag,
@@ -1959,6 +1950,11 @@ class BackfillJob(BaseJob):
                 self.log.warning("Task instance %s is up for retry", ti)
                 ti_status.running.pop(key)
                 ti_status.to_run[key] = ti
+            # special case: if the task needs to be rescheduled put it back
+            elif ti.state == State.UP_FOR_RESCHEDULE:
+                self.log.warning("Task instance %s is up for reschedule", ti)
+                ti_status.running.pop(key)
+                ti_status.to_run[key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
             # is changed externally, e.g. by clearing tasks from the ui. We need to cover
@@ -2238,7 +2234,7 @@ class BackfillJob(BaseJob):
                             session=session,
                             verbose=self.verbose):
                         ti.refresh_from_db(lock_for_update=True, session=session)
-                        if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY:
+                        if ti.state in (State.SCHEDULED, State.UP_FOR_RETRY, State.UP_FOR_RESCHEDULE):
                             if executor.has_task(ti):
                                 self.log.debug(
                                     "Task Instance %s already in executor "
@@ -2287,6 +2283,16 @@ class BackfillJob(BaseJob):
                         ti_status.to_run[key] = ti
                         continue
 
+                    # special case
+                    if ti.state == State.UP_FOR_RESCHEDULE:
+                        self.log.debug(
+                            "Task instance %s reschedule period not "
+                            "expired yet", ti)
+                        if key in ti_status.running:
+                            ti_status.running.pop(key)
+                        ti_status.to_run[key] = ti
+                        continue
+
                     # all remaining tasks
                     self.log.debug('Adding %s to not_ready', ti)
                     ti_status.not_ready.add(key)
@@ -2322,9 +2328,6 @@ class BackfillJob(BaseJob):
                     ti_status.finished_runs += 1
                     ti_status.active_runs.remove(run)
                     executed_run_dates.append(run.execution_date)
-
-                if run.dag.is_paused:
-                    models.DagStat.update([run.dag_id], session=session)
 
             self._log_progress(ti_status)
 
@@ -2428,7 +2431,7 @@ class BackfillJob(BaseJob):
         pickle_id = None
         if not self.donot_pickle and self.executor.__class__ not in (
                 executors.LocalExecutor, executors.SequentialExecutor):
-            pickle = models.DagPickle(self.dag)
+            pickle = DagPickle(self.dag)
             session.add(pickle)
             session.commit()
             pickle_id = pickle.id

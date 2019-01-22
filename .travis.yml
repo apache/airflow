@@ -19,13 +19,14 @@
 sudo: true
 dist: trusty
 language: python
+python:
+  - "3.6"
 env:
   global:
     - DOCKER_COMPOSE_VERSION=1.20.0
     - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
-    - TOX_ENV=flake8
     - TOX_ENV=py27-backend_mysql-env_docker
     - TOX_ENV=py27-backend_sqlite-env_docker
     - TOX_ENV=py27-backend_postgres-env_docker
@@ -34,6 +35,19 @@ env:
     - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
     - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
     - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
+
+stages:
+  - pre-test
+  - test
+
+jobs:
+  include:
+    - name: Flake8
+      stage: pre-test
+      script: pip install flake8 && flake8
+    - name: Check license header
+      stage: pre-test
+      script: scripts/ci/6-check-license.sh
 
 cache:
   directories:
@@ -51,11 +65,18 @@ install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then ./scripts/ci/kubernetes/setup_kubernetes.sh; fi
 script:
   - if [ -z "$KUBERNETES_VERSION" ]; then docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh; fi
   - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/kube/deploy.sh &&
+      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
+      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
+      ./scripts/ci/kubernetes/kube/deploy.sh -d persistent_mode &&
+      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
+    fi
+  - if [ ! -z "$KUBERNETES_VERSION" ]; then
+      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
+      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
+      ./scripts/ci/kubernetes/kube/deploy.sh -d git_mode &&
       MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
     fi
 before_cache:
