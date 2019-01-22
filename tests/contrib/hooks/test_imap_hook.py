@@ -125,7 +125,7 @@ class TestImapHook(unittest.TestCase):
         with ImapHook() as imap_hook:
             attachments_in_inbox = imap_hook.retrieve_mail_attachments('test1.csv')
 
-        self.assertEquals(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
+        self.assertEqual(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
 
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_not_found(self, mock_imaplib):
@@ -134,7 +134,7 @@ class TestImapHook(unittest.TestCase):
         with ImapHook() as imap_hook:
             attachments_in_inbox = imap_hook.retrieve_mail_attachments('test1.txt')
 
-        self.assertEquals(attachments_in_inbox, [])
+        self.assertEqual(attachments_in_inbox, [])
 
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_with_regex_found(self, mock_imaplib):
@@ -146,7 +146,7 @@ class TestImapHook(unittest.TestCase):
                 check_regex=True
             )
 
-        self.assertEquals(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
+        self.assertEqual(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
 
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_with_regex_not_found(self, mock_imaplib):
@@ -158,7 +158,7 @@ class TestImapHook(unittest.TestCase):
                 check_regex=True
             )
 
-        self.assertEquals(attachments_in_inbox, [])
+        self.assertEqual(attachments_in_inbox, [])
 
     @patch(imaplib_string)
     def test_retrieve_mail_attachments_latest_only(self, mock_imaplib):
@@ -170,7 +170,7 @@ class TestImapHook(unittest.TestCase):
                 latest_only=True
             )
 
-        self.assertEquals(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
+        self.assertEqual(attachments_in_inbox, [('test1.csv', b'SWQsTmFtZQoxLEZlbGl4')])
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)

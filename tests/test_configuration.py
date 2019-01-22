@@ -245,12 +245,12 @@ key3 = value3
 
         with self.assertWarns(DeprecationWarning):
             os.environ['AIRFLOW__CELERY__CELERYD_CONCURRENCY'] = '99'
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             os.environ.pop('AIRFLOW__CELERY__CELERYD_CONCURRENCY')
 
         with self.assertWarns(DeprecationWarning):
             conf.set('celery', 'celeryd_concurrency', '99')
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             conf.remove_option('celery', 'celeryd_concurrency')
 
     def test_deprecated_options_cmd(self):
@@ -266,6 +266,6 @@ key3 = value3
             tmp = None
             if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
                 tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-            self.assertEquals(conf.getint('celery', 'result_backend'), 99)
+            self.assertEqual(conf.getint('celery', 'result_backend'), 99)
             if tmp:
                 os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp

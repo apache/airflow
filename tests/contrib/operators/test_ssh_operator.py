@@ -74,8 +74,8 @@ class SSHOperatorTest(unittest.TestCase):
 
         task.execute(None)
 
-        self.assertEquals(TIMEOUT, task.ssh_hook.timeout)
-        self.assertEquals(SSH_ID, task.ssh_hook.ssh_conn_id)
+        self.assertEqual(TIMEOUT, task.ssh_hook.timeout)
+        self.assertEqual(SSH_ID, task.ssh_hook.ssh_conn_id)
 
     def test_json_command_execution(self):
         configuration.conf.set("core", "enable_xcom_pickling", "False")

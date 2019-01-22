@@ -133,7 +133,7 @@ class TestBigtableHookNoDefaultProjectId(unittest.TestCase):
             main_cluster_zone=CBT_ZONE)
         get_client.assert_called_once_with(project_id='example-project')
         instance_create.assert_called_once_with(clusters=mock.ANY)
-        self.assertEquals(res.instance_id, 'instance')
+        self.assertEqual(res.instance_id, 'instance')
 
     @mock.patch('airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook._get_client')
     def test_delete_table_missing_project_id(self, get_client):
@@ -263,7 +263,7 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
             main_cluster_zone=CBT_ZONE)
         get_client.assert_called_once_with(project_id='example-project')
         instance_create.assert_called_once_with(clusters=mock.ANY)
-        self.assertEquals(res.instance_id, 'instance')
+        self.assertEqual(res.instance_id, 'instance')
 
     @mock.patch('google.cloud.bigtable.instance.Instance.create')
     @mock.patch('airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook._get_client')
@@ -278,7 +278,7 @@ class TestBigtableHookDefaultProjectId(unittest.TestCase):
             main_cluster_zone=CBT_ZONE)
         get_client.assert_called_once_with(project_id='new-project')
         instance_create.assert_called_once_with(clusters=mock.ANY)
-        self.assertEquals(res.instance_id, 'instance')
+        self.assertEqual(res.instance_id, 'instance')
 
     @mock.patch('airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook._get_client')
     def test_delete_table(self, get_client):

@@ -180,11 +180,11 @@ class DatabricksHookTest(unittest.TestCase):
 
     def test_parse_host_with_proper_host(self):
         host = self.hook._parse_host(HOST)
-        self.assertEquals(host, HOST)
+        self.assertEqual(host, HOST)
 
     def test_parse_host_with_scheme(self):
         host = self.hook._parse_host(HOST_WITH_SCHEME)
-        self.assertEquals(host, HOST)
+        self.assertEqual(host, HOST)
 
     def test_init_bad_retry_limit(self):
         with self.assertRaises(ValueError):
@@ -203,7 +203,7 @@ class DatabricksHookTest(unittest.TestCase):
                     with self.assertRaises(AirflowException):
                         self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    self.assertEquals(mock_errors.call_count, self.hook.retry_limit)
+                    self.assertEqual(mock_errors.call_count, self.hook.retry_limit)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
@@ -234,8 +234,8 @@ class DatabricksHookTest(unittest.TestCase):
 
                     response = self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    self.assertEquals(mock_errors.call_count, 2)
-                    self.assertEquals(response, {'run_id': '1'})
+                    self.assertEqual(mock_errors.call_count, 2)
+                    self.assertEqual(response, {'run_id': '1'})
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.sleep')
     def test_do_api_call_waits_between_retries(self, mock_sleep):
@@ -255,7 +255,7 @@ class DatabricksHookTest(unittest.TestCase):
                     with self.assertRaises(AirflowException):
                         self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                    self.assertEquals(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
+                    self.assertEqual(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
                     mock_sleep.assert_called_with(retry_delay)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
@@ -267,7 +267,7 @@ class DatabricksHookTest(unittest.TestCase):
         }
         run_id = self.hook.submit_run(json)
 
-        self.assertEquals(run_id, '1')
+        self.assertEqual(run_id, '1')
         mock_requests.post.assert_called_once_with(
             submit_run_endpoint(HOST),
             json={
@@ -291,7 +291,7 @@ class DatabricksHookTest(unittest.TestCase):
         }
         run_id = self.hook.run_now(json)
 
-        self.assertEquals(run_id, '1')
+        self.assertEqual(run_id, '1')
 
         mock_requests.post.assert_called_once_with(
             run_now_endpoint(HOST),
@@ -310,7 +310,7 @@ class DatabricksHookTest(unittest.TestCase):
 
         run_page_url = self.hook.get_run_page_url(RUN_ID)
 
-        self.assertEquals(run_page_url, RUN_PAGE_URL)
+        self.assertEqual(run_page_url, RUN_PAGE_URL)
         mock_requests.get.assert_called_once_with(
             get_run_endpoint(HOST),
             json={'run_id': RUN_ID},
@@ -324,7 +324,7 @@ class DatabricksHookTest(unittest.TestCase):
 
         run_state = self.hook.get_run_state(RUN_ID)
 
-        self.assertEquals(run_state, RunState(
+        self.assertEqual(run_state, RunState(
             LIFE_CYCLE_STATE,
             RESULT_STATE,
             STATE_MESSAGE))
@@ -424,10 +424,10 @@ class DatabricksHookTokenTest(unittest.TestCase):
         }
         run_id = self.hook.submit_run(json)
 
-        self.assertEquals(run_id, '1')
+        self.assertEqual(run_id, '1')
         args = mock_requests.post.call_args
         kwargs = args[1]
-        self.assertEquals(kwargs['auth'].token, TOKEN)
+        self.assertEqual(kwargs['auth'].token, TOKEN)
 
 
 class RunStateTest(unittest.TestCase):

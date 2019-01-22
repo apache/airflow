@@ -93,8 +93,8 @@ class PubSubHookTest(unittest.TestCase):
         with self.assertRaises(PubSubException) as e:
             self.pubsub_hook.delete_topic(TEST_PROJECT, TEST_TOPIC, True)
 
-        self.assertEquals(str(e.exception),
-                          'Topic does not exist: %s' % EXPANDED_TOPIC)
+        self.assertEqual(str(e.exception),
+                         'Topic does not exist: %s' % EXPANDED_TOPIC)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_preexisting_topic_failifexists(self, mock_service):
@@ -104,8 +104,8 @@ class PubSubHookTest(unittest.TestCase):
 
         with self.assertRaises(PubSubException) as e:
             self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC, True)
-        self.assertEquals(str(e.exception),
-                          'Topic already exists: %s' % EXPANDED_TOPIC)
+        self.assertEqual(str(e.exception),
+                         'Topic already exists: %s' % EXPANDED_TOPIC)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_preexisting_topic_nofailifexists(self, mock_service):
@@ -130,7 +130,7 @@ class PubSubHookTest(unittest.TestCase):
         create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
                                          body=expected_body)
         create_method.return_value.execute.assert_called_with()
-        self.assertEquals(TEST_SUBSCRIPTION, response)
+        self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_subscription_different_project_topic(self, mock_service):
@@ -150,7 +150,7 @@ class PubSubHookTest(unittest.TestCase):
         create_method.assert_called_with(name=expected_subscription,
                                          body=expected_body)
         create_method.return_value.execute.assert_called_with()
-        self.assertEquals(TEST_SUBSCRIPTION, response)
+        self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_subscription(self, mock_service):
@@ -172,9 +172,9 @@ class PubSubHookTest(unittest.TestCase):
             self.pubsub_hook.delete_subscription(
                 TEST_PROJECT, TEST_SUBSCRIPTION, fail_if_not_exists=True)
 
-        self.assertEquals(str(e.exception),
-                          'Subscription does not exist: %s' %
-                          EXPANDED_SUBSCRIPTION)
+        self.assertEqual(str(e.exception),
+                         'Subscription does not exist: %s' %
+                         EXPANDED_SUBSCRIPTION)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     @mock.patch(PUBSUB_STRING.format('uuid4'),
@@ -194,7 +194,7 @@ class PubSubHookTest(unittest.TestCase):
         create_method.assert_called_with(name=expected_name,
                                          body=expected_body)
         create_method.return_value.execute.assert_called_with()
-        self.assertEquals('sub-%s' % TEST_UUID, response)
+        self.assertEqual('sub-%s' % TEST_UUID, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_subscription_with_ack_deadline(self, mock_service):
@@ -211,7 +211,7 @@ class PubSubHookTest(unittest.TestCase):
         create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
                                          body=expected_body)
         create_method.return_value.execute.assert_called_with()
-        self.assertEquals(TEST_SUBSCRIPTION, response)
+        self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_subscription_failifexists(self, mock_service):
@@ -225,9 +225,9 @@ class PubSubHookTest(unittest.TestCase):
                 TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION,
                 fail_if_exists=True)
 
-        self.assertEquals(str(e.exception),
-                          'Subscription already exists: %s' %
-                          EXPANDED_SUBSCRIPTION)
+        self.assertEqual(str(e.exception),
+                         'Subscription already exists: %s' %
+                         EXPANDED_SUBSCRIPTION)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_subscription_nofailifexists(self, mock_service):
@@ -238,7 +238,7 @@ class PubSubHookTest(unittest.TestCase):
         response = self.pubsub_hook.create_subscription(
             TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION
         )
-        self.assertEquals(TEST_SUBSCRIPTION, response)
+        self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_publish(self, mock_service):

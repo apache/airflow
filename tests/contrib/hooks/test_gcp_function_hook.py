@@ -118,7 +118,7 @@ class TestFunctionHookNoDefaultProjectId(unittest.TestCase):
                 location=GCF_LOCATION,
                 zip_path="/tmp/path.zip"
             )
-            self.assertEquals("http://uploadHere", res)
+            self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_with(
                 parent='projects/example-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)
@@ -183,7 +183,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
             name=GCF_FUNCTION
         )
         self.assertIsNotNone(res)
-        self.assertEquals('function', res['name'])
+        self.assertEqual('function', res['name'])
         get_method.assert_called_once_with(name='function')
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -238,7 +238,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 location=GCF_LOCATION,
                 zip_path="/tmp/path.zip"
             )
-            self.assertEquals("http://uploadHere", res)
+            self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_with(
                 parent='projects/example-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)
@@ -264,7 +264,7 @@ class TestFunctionHookDefaultProjectId(unittest.TestCase):
                 location=GCF_LOCATION,
                 zip_path="/tmp/path.zip"
             )
-            self.assertEquals("http://uploadHere", res)
+            self.assertEqual("http://uploadHere", res)
             generate_upload_url_method.assert_called_with(
                 parent='projects/new-project/locations/location')
             execute_method.assert_called_once_with(num_retries=5)

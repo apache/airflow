@@ -205,11 +205,11 @@ class TestDagFileProcessorManager(unittest.TestCase):
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
                 seconds=manager._zombie_threshold_secs + 1)
             zombies = manager._find_zombies()
-            self.assertEquals(1, len(zombies))
+            self.assertEqual(1, len(zombies))
             self.assertIsInstance(zombies[0], SimpleTaskInstance)
-            self.assertEquals(ti.dag_id, zombies[0].dag_id)
-            self.assertEquals(ti.task_id, zombies[0].task_id)
-            self.assertEquals(ti.execution_date, zombies[0].execution_date)
+            self.assertEqual(ti.dag_id, zombies[0].dag_id)
+            self.assertEqual(ti.task_id, zombies[0].task_id)
+            self.assertEqual(ti.execution_date, zombies[0].execution_date)
 
             session.query(TI).delete()
             session.query(LJ).delete()

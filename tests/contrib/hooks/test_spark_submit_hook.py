@@ -163,7 +163,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             '--with-spaces', 'args should keep embdedded spaces',
             'baz'
         ]
-        self.assertEquals(expected_build_cmd, cmd)
+        self.assertEqual(expected_build_cmd, cmd)
 
     @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
     def test_spark_process_runcmd(self, mock_popen):

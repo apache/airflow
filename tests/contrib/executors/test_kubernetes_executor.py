@@ -84,7 +84,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         new_datetime_obj = AirflowKubernetesScheduler._label_safe_datestring_to_datetime(
             serialized_datetime)
 
-        self.assertEquals(datetime_obj, new_datetime_obj)
+        self.assertEqual(datetime_obj, new_datetime_obj)
 
 
 class TestKubernetesWorkerConfiguration(unittest.TestCase):

@@ -131,11 +131,11 @@ class PythonOperatorTest(unittest.TestCase):
         )
         new_task = copy.deepcopy(original_task)
         # shallow copy op_kwargs
-        self.assertEquals(id(original_task.op_kwargs['certain_attrs']),
-                          id(new_task.op_kwargs['certain_attrs']))
+        self.assertEqual(id(original_task.op_kwargs['certain_attrs']),
+                         id(new_task.op_kwargs['certain_attrs']))
         # shallow copy python_callable
-        self.assertEquals(id(original_task.python_callable),
-                          id(new_task.python_callable))
+        self.assertEqual(id(original_task.python_callable),
+                         id(new_task.python_callable))
 
     def _env_var_check_callback(self):
         self.assertEqual('test_dag', os.environ['AIRFLOW_CTX_DAG_ID'])
@@ -218,12 +218,12 @@ class BranchOperatorTest(unittest.TestCase):
 
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'branch_1':
                 # should exist with state None
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEqual(ti.state, State.NONE)
             elif ti.task_id == 'branch_2':
-                self.assertEquals(ti.state, State.SKIPPED)
+                self.assertEqual(ti.state, State.SKIPPED)
             else:
                 raise Exception
 
@@ -256,7 +256,7 @@ class BranchOperatorTest(unittest.TestCase):
 
         for ti in tis:
             if ti.task_id in expected:
-                self.assertEquals(ti.state, expected[ti.task_id])
+                self.assertEqual(ti.state, expected[ti.task_id])
             else:
                 raise Exception
 
@@ -281,11 +281,11 @@ class BranchOperatorTest(unittest.TestCase):
         tis = dr.get_task_instances()
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'branch_1':
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEqual(ti.state, State.NONE)
             elif ti.task_id == 'branch_2':
-                self.assertEquals(ti.state, State.SKIPPED)
+                self.assertEqual(ti.state, State.SKIPPED)
             else:
                 raise Exception
 
@@ -342,12 +342,12 @@ class ShortCircuitOperatorTest(unittest.TestCase):
 
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
                 # should not exist
                 raise Exception
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                self.assertEquals(ti.state, State.SKIPPED)
+                self.assertEqual(ti.state, State.SKIPPED)
             else:
                 raise Exception
 
@@ -357,12 +357,12 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
                 # should not exist
                 raise Exception
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEqual(ti.state, State.NONE)
             else:
                 raise Exception
 
@@ -402,11 +402,11 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         self.assertEqual(len(tis), 4)
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                self.assertEquals(ti.state, State.SKIPPED)
+                self.assertEqual(ti.state, State.SKIPPED)
             else:
                 raise Exception
 
@@ -420,10 +420,10 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         self.assertEqual(len(tis), 4)
         for ti in tis:
             if ti.task_id == 'make_choice':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
-                self.assertEquals(ti.state, State.SUCCESS)
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                self.assertEquals(ti.state, State.NONE)
+                self.assertEqual(ti.state, State.NONE)
             else:
                 raise Exception

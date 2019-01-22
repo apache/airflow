@@ -715,7 +715,7 @@ class TestBigQueryHookLocation(unittest.TestCase):
             self.assertIsNone(bq_cursor.location)
             bq_cursor.run_query(sql='select 1', location='US')
             run_with_config.assert_called_once()
-            self.assertEquals(bq_cursor.location, 'US')
+            self.assertEqual(bq_cursor.location, 'US')
 
 
 if __name__ == '__main__':

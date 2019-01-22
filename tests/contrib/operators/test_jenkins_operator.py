@@ -70,7 +70,7 @@ class JenkinsOperatorTestCase(unittest.TestCase):
 
             operator.execute(None)
 
-            self.assertEquals(jenkins_mock.get_build_info.call_count, 1)
+            self.assertEqual(jenkins_mock.get_build_info.call_count, 1)
             jenkins_mock.get_build_info.assert_called_with(name='a_job_on_jenkins',
                                                            number='1')
 
@@ -107,7 +107,7 @@ class JenkinsOperatorTestCase(unittest.TestCase):
                 sleep_time=1)
 
             operator.execute(None)
-            self.assertEquals(jenkins_mock.get_build_info.call_count, 2)
+            self.assertEqual(jenkins_mock.get_build_info.call_count, 2)
 
     @unittest.skipIf(mock is None, 'mock package not present')
     def test_execute_job_failure(self):

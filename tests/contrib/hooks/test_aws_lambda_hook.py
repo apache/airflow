@@ -78,7 +78,7 @@ def lambda_handler(event, context):
         input = {'hello': 'airflow'}
         response = hook.invoke_lambda(payload=json.dumps(input))
 
-        self.assertEquals(response["StatusCode"], 202)
+        self.assertEqual(response["StatusCode"], 202)
 
 
 if __name__ == '__main__':

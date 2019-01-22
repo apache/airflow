@@ -656,26 +656,26 @@ class CoreTest(unittest.TestCase):
         context = ti.get_template_context()
 
         # DEFAULT DATE is 2015-01-01
-        self.assertEquals(context['ds'], '2015-01-01')
-        self.assertEquals(context['ds_nodash'], '20150101')
+        self.assertEqual(context['ds'], '2015-01-01')
+        self.assertEqual(context['ds_nodash'], '20150101')
 
         # next_ds is 2015-01-02 as the dag interval is daily
-        self.assertEquals(context['next_ds'], '2015-01-02')
-        self.assertEquals(context['next_ds_nodash'], '20150102')
+        self.assertEqual(context['next_ds'], '2015-01-02')
+        self.assertEqual(context['next_ds_nodash'], '20150102')
 
         # prev_ds is 2014-12-31 as the dag interval is daily
-        self.assertEquals(context['prev_ds'], '2014-12-31')
-        self.assertEquals(context['prev_ds_nodash'], '20141231')
+        self.assertEqual(context['prev_ds'], '2014-12-31')
+        self.assertEqual(context['prev_ds_nodash'], '20141231')
 
-        self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
-        self.assertEquals(context['ts_nodash'], '20150101T000000')
-        self.assertEquals(context['ts_nodash_with_tz'], '20150101T000000+0000')
+        self.assertEqual(context['ts'], '2015-01-01T00:00:00+00:00')
+        self.assertEqual(context['ts_nodash'], '20150101T000000')
+        self.assertEqual(context['ts_nodash_with_tz'], '20150101T000000+0000')
 
-        self.assertEquals(context['yesterday_ds'], '2014-12-31')
-        self.assertEquals(context['yesterday_ds_nodash'], '20141231')
+        self.assertEqual(context['yesterday_ds'], '2014-12-31')
+        self.assertEqual(context['yesterday_ds_nodash'], '20141231')
 
-        self.assertEquals(context['tomorrow_ds'], '2015-01-02')
-        self.assertEquals(context['tomorrow_ds_nodash'], '20150102')
+        self.assertEqual(context['tomorrow_ds'], '2015-01-02')
+        self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
 
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
@@ -986,9 +986,9 @@ class CoreTest(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         dag_runs = models.DagRun.find(dag_id='example_bash_operator',
                                       run_id=run_id)
-        self.assertEquals(len(dag_runs), 1)
+        self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
-        self.assertEquals(dag_run.execution_date, utc_now)
+        self.assertEqual(dag_run.execution_date, utc_now)
 
     def test_trigger_dagrun_with_str_execution_date(self):
         utc_now_str = timezone.utcnow().isoformat()
@@ -1008,9 +1008,9 @@ class CoreTest(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         dag_runs = models.DagRun.find(dag_id='example_bash_operator',
                                       run_id=run_id)
-        self.assertEquals(len(dag_runs), 1)
+        self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
-        self.assertEquals(dag_run.execution_date.isoformat(), utc_now_str)
+        self.assertEqual(dag_run.execution_date.isoformat(), utc_now_str)
 
     def test_trigger_dagrun_with_templated_execution_date(self):
         task = TriggerDagRunOperator(
@@ -1052,11 +1052,11 @@ class CoreTest(unittest.TestCase):
         context = ti.get_template_context()
 
         # next_ds/prev_ds should be the execution date for manually triggered runs
-        self.assertEquals(context['next_ds'], EXECUTION_DS)
-        self.assertEquals(context['next_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['next_ds'], EXECUTION_DS)
+        self.assertEqual(context['next_ds_nodash'], EXECUTION_DS_NODASH)
 
-        self.assertEquals(context['prev_ds'], EXECUTION_DS)
-        self.assertEquals(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['prev_ds'], EXECUTION_DS)
+        self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
 
 
 class CliTests(unittest.TestCase):

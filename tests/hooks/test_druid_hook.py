@@ -132,7 +132,7 @@ class TestDruidHook(unittest.TestCase):
         get_conn_value.extra_dejson = {'endpoint': 'ingest'}
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
-        self.assertEquals(hook.get_conn_url(), 'https://test_host:1/ingest')
+        self.assertEqual(hook.get_conn_url(), 'https://test_host:1/ingest')
 
 
 class TestDruidDbApiHook(unittest.TestCase):
@@ -158,7 +158,7 @@ class TestDruidDbApiHook(unittest.TestCase):
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        self.assertEquals('druid://host:1000/druid/v2/sql', db_hook.get_uri())
+        self.assertEqual('druid://host:1000/druid/v2/sql', db_hook.get_uri())
 
     def test_get_first_record(self):
         statement = 'SQL'
