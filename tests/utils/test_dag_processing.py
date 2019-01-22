@@ -351,3 +351,12 @@ class TestParseDagFile(unittest.TestCase):
         self.assertEqual(len(dags), 1)
         names = set([dag.dag_id for dag in dags])
         self.assertEqual(names, {"test_zip_dag"})
+
+    def test_parse_file_no_dags(self):
+        dags = process_dag_file(os.path.join(TEST_DAG_FOLDER, "no_dags.py"))
+        self.assertEqual(len(dags), 0)
+
+    def test_file_not_exists(self):
+        file = tempfile.mkstemp()[1]
+        os.remove(file)
+        self.assertRaises(FileNotFoundError, process_dag_file, file)
