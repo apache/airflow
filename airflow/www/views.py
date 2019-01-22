@@ -600,10 +600,12 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
 
+        task_log_reader = conf.get('core', 'task_log_reader')
         metadata = {}
         tail_lines_list = conf.get('webserver', 'tail_lines_list')
         tail_lines_list = [int(line) for line in tail_lines_list.split(',') if line.isdigit()]
-        tailing_logs_enabled = conf.getboolean('webserver', 'enable_tailing_logs')
+        tailing_logs_enabled = conf.getboolean('webserver', 'enable_tailing_logs') \
+            if task_log_reader == "task" else False
         if tailing_logs_enabled and conf.has_option('webserver', 'default_lines_to_tail'):
             # Default number of lines to tail when page loads
             default_lines_to_tail = conf.getint('webserver', 'default_lines_to_tail')
