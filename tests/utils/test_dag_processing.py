@@ -25,7 +25,7 @@ from datetime import timedelta
 
 from mock import MagicMock
 
-from airflow import configuration as conf
+from airflow import configuration as conf, AirflowException
 from airflow.configuration import mkdir_p
 from airflow.jobs import DagFileProcessor
 from airflow.jobs import LocalTaskJob as LJ
@@ -351,6 +351,14 @@ class TestParseDagFile(unittest.TestCase):
         self.assertEqual(len(dags), 1)
         names = set([dag.dag_id for dag in dags])
         self.assertEqual(names, {"test_zip_dag"})
+
+    def test_parse_currupt_file(self):
+        file = os.path.join(TEST_DAG_FOLDER, "corrupt_dag.py")
+        self.assertRaises(AirflowException, process_dag_file, file)
+
+    def test_parse_currupt_zip(self):
+        file = os.path.join(TEST_DAG_FOLDER, "corrupt.zip")
+        self.assertRaises(AirflowException, process_dag_file, file)
 
     def test_parse_file_no_dags(self):
         dags = process_dag_file(os.path.join(TEST_DAG_FOLDER, "no_dags.py"))

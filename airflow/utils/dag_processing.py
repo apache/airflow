@@ -320,7 +320,7 @@ def process_dag_file(filepath, safe_mode=True):
                 mods.append(m)
             except Exception as e:
                 log.exception("Failed to import: %s", filepath)
-                raise e
+                raise AirflowException(e)
 
     else:
         zip_file = zipfile.ZipFile(filepath)
@@ -348,7 +348,7 @@ def process_dag_file(filepath, safe_mode=True):
                     mods.append(m)
                 except Exception as e:
                     log.exception("Failed to import: %s", filepath)
-                    raise e
+                    raise AirflowException(e)
 
     for m in mods:
         for dag in list(m.__dict__.values()):
