@@ -1339,7 +1339,7 @@ def users(args):
 
         return
 
-    if args.create:
+    elif args.create:
         fields = {
             'role': args.role,
             'username': args.username,
@@ -1377,7 +1377,7 @@ def users(args):
         else:
             raise SystemExit('Failed to create user.')
 
-    if args.delete:
+    elif args.delete:
         if not args.username:
             raise SystemExit('Required arguments are missing: username')
 
@@ -1393,6 +1393,54 @@ def users(args):
             print('User {} deleted.'.format(args.username))
         else:
             raise SystemExit('Failed to delete user.')
+
+    elif args.add_role or args.remove_role:
+        if args.add_role and args.remove_role:
+            raise SystemExit('Conflicting args: --add-role and --remove-role'
+                             ' are mutually exclusive')
+
+        if not args.username and not args.email:
+            raise SystemExit('Missing args: must supply one of --username or --email')
+
+        if args.username and args.email:
+            raise SystemExit('Conflicting args: must supply either --username'
+                             ' or --email, but not both')
+        if not args.role:
+            raise SystemExit('Required args are missing: role')
+
+        appbuilder = cached_appbuilder()
+        user = (appbuilder.sm.find_user(username=args.username) or
+                appbuilder.sm.find_user(email=args.email))
+        if not user:
+            raise SystemExit('User "{}" does not exist'.format(
+                args.username or args.email))
+
+        role = appbuilder.sm.find_role(args.role)
+        if not role:
+            raise SystemExit('"{}" is not a valid role.'.format(args.role))
+
+        if args.remove_role:
+            if role in user.roles:
+                user.roles = [r for r in user.roles if r != role]
+                appbuilder.sm.update_user(user)
+                print('User "{}" removed from role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                raise SystemExit('User "{}" is not a member of role "{}".'.format(
+                    user,
+                    args.role))
+        elif args.add_role:
+            if role in user.roles:
+                raise SystemExit('User "{}" is already a member of role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                user.roles.append(role)
+                appbuilder.sm.update_user(user)
+                print('User "{}" added to role "{}".'.format(
+                    user,
+                    args.role))
 
 
 @cli_utils.action_logging
@@ -1903,6 +1951,14 @@ class CLIFactory(object):
             ('-d', '--delete'),
             help='Delete a user',
             action='store_true'),
+        'add_role': Arg(
+            ('--add-role',),
+            help='Add user to a role',
+            action='store_true'),
+        'remove_role': Arg(
+            ('--remove-role',),
+            help='Remove user from a role',
+            action='store_true'),
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
@@ -2065,8 +2121,9 @@ class CLIFactory(object):
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': users,
-            'help': "List/Create/Delete users",
+            'help': "List/Create/Delete/Update users",
             'args': ('list_users', 'create_user', 'delete_user',
+                     'add_role', 'remove_role',
                      'username', 'email', 'firstname', 'lastname', 'role',
                      'password', 'use_random_password'),
         },

@@ -1061,6 +1061,8 @@ class CoreTest(unittest.TestCase):
 
 class CliTests(unittest.TestCase):
 
+    TEST_USER_EMAIL = 'test-user@example.com'
+
     @classmethod
     def setUpClass(cls):
         super(CliTests, cls).setUpClass()
@@ -1080,6 +1082,9 @@ class CliTests(unittest.TestCase):
 
     def tearDown(self):
         self._cleanup(session=self.session)
+        test_user = self.appbuilder.sm.find_user(email=CliTests.TEST_USER_EMAIL)
+        if test_user:
+            self.appbuilder.sm.del_register_user(test_user)
         super(CliTests, self).tearDown()
 
     @staticmethod
@@ -1147,6 +1152,64 @@ class CliTests(unittest.TestCase):
             stdout = mock_stdout.getvalue()
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
+
+    def _does_user_belong_to_role(self, email, rolename):
+        user = self.appbuilder.sm.find_user(email=email)
+        role = self.appbuilder.sm.find_role(rolename)
+        if user and role:
+            return role in user.roles
+
+        return False
+
+    def test_cli_add_user_role(self):
+        args = self.parser.parse_args([
+            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', self.TEST_USER_EMAIL, '--role', 'Viewer', '--use_random_password'
+        ])
+        cli.users(args)
+
+        self.assertFalse(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Op'),
+            "User should not yet be a member of role 'Op'"
+        )
+
+        args = self.parser.parse_args([
+            'users', '--add-role', '--username', 'test4', '--role', 'Op'
+        ])
+        cli.users(args)
+
+        self.assertTrue(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Op'),
+            "User should have been added to role 'Op'"
+        )
+
+    def test_cli_remove_user_role(self):
+        args = self.parser.parse_args([
+            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', self.TEST_USER_EMAIL, '--role', 'Viewer', '--use_random_password'
+        ])
+        cli.users(args)
+
+        self.assertTrue(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Viewer'),
+            "User should have been created with role 'Viewer'"
+        )
+
+        args = self.parser.parse_args([
+            'users', '--remove-role', '--username', 'test4', '--role', 'Viewer'
+        ])
+        cli.users(args)
+
+        self.assertFalse(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Viewer'),
+            "User should have been removed from role 'Viewer'"
+        )
 
     def test_cli_sync_perm(self):
         # test whether sync_perm cli will throw exceptions or not

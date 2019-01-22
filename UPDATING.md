@@ -153,6 +153,16 @@ To delete a user:
 airflow users --delete --username jondoe
 ```
 
+To add a user to a role:
+```bash
+airflow users --add-role --username jondoe --role Public
+```
+
+To remove a user from a role:
+```bash
+airflow users --remove-role --username jondoe --role Public
+```
+
 ### User model changes
 This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
 
