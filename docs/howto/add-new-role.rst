@@ -30,4 +30,4 @@ and click ``List Roles`` in the new UI.
 
 
 The image shows a role which could only write to example_python_operator is created.
-And we could assign the given role to a new user using ``airflow users --role`` cli command.
+And we could assign the given role to a new user using ``airflow users --add-role`` cli command.
