@@ -1997,6 +1997,130 @@ def delete_user(args):
         raise SystemExit('Failed to delete user.')
 
 
+# TODO: cleanup some of the below code,
+# which is replicated by functions defined in 1.10.15.
+# This code comes from cherry-picking this commit:
+# 43127ca5690975d017e798e6276271340a002c3e
+@cli_utils.action_logging
+def users(args):
+    if args.list:
+
+        appbuilder = cached_appbuilder()
+        users = appbuilder.sm.get_all_users()
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+        users = [[user.__getattribute__(field) for field in fields] for user in users]
+        msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
+
+        return
+
+    elif args.create:
+        fields = {
+            'role': args.role,
+            'username': args.username,
+            'email': args.email,
+            'firstname': args.firstname,
+            'lastname': args.lastname,
+        }
+        empty_fields = [k for k, v in fields.items() if not v]
+        if empty_fields:
+            raise SystemExit('Required arguments are missing: {}.'.format(
+                ', '.join(empty_fields)))
+
+        appbuilder = cached_appbuilder()
+        role = appbuilder.sm.find_role(args.role)
+        if not role:
+            raise SystemExit('{} is not a valid role.'.format(args.role))
+
+        if args.use_random_password:
+            password = ''.join(random.choice(string.printable) for _ in range(16))
+        elif args.password:
+            password = args.password
+        else:
+            password = getpass.getpass('Password:')
+            password_confirmation = getpass.getpass('Repeat for confirmation:')
+            if password != password_confirmation:
+                raise SystemExit('Passwords did not match!')
+
+        if appbuilder.sm.find_user(args.username):
+            print('{} already exist in the db'.format(args.username))
+            return
+        user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
+                                      args.email, role, password)
+        if user:
+            print('{} user {} created.'.format(args.role, args.username))
+        else:
+            raise SystemExit('Failed to create user.')
+
+    elif args.delete:
+        if not args.username:
+            raise SystemExit('Required arguments are missing: username')
+
+        appbuilder = cached_appbuilder()
+
+        try:
+            u = next(u for u in appbuilder.sm.get_all_users()
+                     if u.username == args.username)
+        except StopIteration:
+            raise SystemExit('{} is not a valid user.'.format(args.username))
+
+        if appbuilder.sm.del_register_user(u):
+            print('User {} deleted.'.format(args.username))
+        else:
+            raise SystemExit('Failed to delete user.')
+
+    elif args.add_role or args.remove_role:
+        if args.add_role and args.remove_role:
+            raise SystemExit('Conflicting args: --add-role and --remove-role'
+                             ' are mutually exclusive')
+
+        if not args.username and not args.email:
+            raise SystemExit('Missing args: must supply one of --username or --email')
+
+        if args.username and args.email:
+            raise SystemExit('Conflicting args: must supply either --username'
+                             ' or --email, but not both')
+        if not args.role:
+            raise SystemExit('Required args are missing: role')
+
+        appbuilder = cached_appbuilder()
+        user = (appbuilder.sm.find_user(username=args.username) or
+                appbuilder.sm.find_user(email=args.email))
+        if not user:
+            raise SystemExit('User "{}" does not exist'.format(
+                args.username or args.email))
+
+        role = appbuilder.sm.find_role(args.role)
+        if not role:
+            raise SystemExit('"{}" is not a valid role.'.format(args.role))
+
+        if args.remove_role:
+            if role in user.roles:
+                user.roles = [r for r in user.roles if r != role]
+                appbuilder.sm.update_user(user)
+                print('User "{}" removed from role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                raise SystemExit('User "{}" is not a member of role "{}".'.format(
+                    user,
+                    args.role))
+        elif args.add_role:
+            if role in user.roles:
+                raise SystemExit('User "{}" is already a member of role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                user.roles.append(role)
+                appbuilder.sm.update_user(user)
+                print('User "{}" added to role "{}".'.format(
+                    user,
+                    args.role))
+
+
 @cli_utils.deprecated_action(new_name='users list')
 @cli_utils.action_logging
 def list_users(args):
@@ -3947,7 +4071,30 @@ class CLIFactory(object):
                 'Send output to file.io service and returns link.'
             ),
             action='store_true'
-        )
+        ),
+        'list_users': Arg(
+            ('-l', '--list'),
+            help='List all users',
+            action='store_true'),
+        'create_user': Arg(
+            ('-c', '--create'),
+            help='Create a user',
+            action='store_true'),
+        'delete_user': Arg(
+            ('-d', '--delete'),
+            help='Delete a user',
+            action='store_true'),
+        'add_role': Arg(
+            ('--add-role',),
+            help='Add user to a role',
+            action='store_true'),
+        'remove_role': Arg(
+            ('--remove-role',),
+            help='Remove user from a role',
+            action='store_true'),
+        'autoscale': Arg(
+            ('-a', '--autoscale'),
+            help="Minimum and Maximum number of worker to autoscale"),
     }
     subparsers = (
         {
@@ -4134,6 +4281,13 @@ class CLIFactory(object):
             'help': "List/Add/Delete connections",
             'args': ('list_connections', 'add_connection', 'delete_connection',
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+        }, {
+            'func': users,
+            'help': "List/Create/Delete/Update users",
+            'args': ('list_users', 'create_user', 'delete_user',
+                     'add_role', 'remove_role',
+                     'username', 'email', 'firstname', 'lastname', 'role',
+                     'password', 'use_random_password'),
         }, {
             'func': create_user,
             'help': "Create an account for the Web UI (FAB-based)",
