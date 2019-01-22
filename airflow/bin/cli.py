@@ -64,6 +64,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
 from airflow.www.app import cached_app, create_app, cached_appbuilder
+from airflow.utils.helpers import tail_file
 
 from sqlalchemy.orm import exc
 
@@ -987,18 +988,25 @@ def scheduler(args):
 @cli_utils.action_logging
 def serve_logs(args):
     print("Starting flask")
-    import flask
-    flask_app = flask.Flask(__name__)
+    from flask import Flask, request, Response, stream_with_context, send_from_directory
+    flask_app = Flask(__name__)
 
     @flask_app.route('/log/<path:filename>')
-    def serve_logs(filename):
-        log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
-        return flask.send_from_directory(
-            log,
-            filename,
-            mimetype="application/json",
-            as_attachment=False)
-
+    def serve_logs(filename):  # noqa
+        num_lines = request.args.get("num_lines")
+        try:
+            num_lines = int(num_lines)
+        except ValueError or TypeError:
+            num_lines = None
+        logPath = "{log}/{filename}".format(log=log, filename=filename)
+        if num_lines:
+            return Response(stream_with_context(tail_file(logPath, num_lines)))
+        else:
+            return send_from_directory(
+                log,
+                filename,
+                mimetype="application/json",
+                as_attachment=False)
     WORKER_LOG_SERVER_PORT = \
         int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
     flask_app.run(

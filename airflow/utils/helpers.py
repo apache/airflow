@@ -317,3 +317,45 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def tail_file(filepath, lines):
+    """
+    Tail last n lines from give file.
+    :param filepath: Path to the file we have to tail
+    :param lines: Number of lines to tail
+    :return last n lines in the file
+    """
+    def get_byte_range_file(fl, num_bytes):
+        # Get current position of file pointer
+        current_position = fl.tell()
+        if current_position < num_bytes:
+            num_bytes = current_position
+        if current_position == 0:
+            return None
+        fl.seek(-num_bytes, 1)
+        data = fl.read(num_bytes)
+        fl.seek(-num_bytes, 1)
+        return data
+
+    LINE_SIZE = 200  # Assuming each line will have 200 bytes
+    lines_to_fetch = lines
+    data = ""
+
+    with open(filepath) as fl:
+        fl.seek(0, 2)
+        while True:
+            num_bytes = lines_to_fetch * LINE_SIZE  # Calculate number of bytes to fetch based on lines
+            tail_chunk = get_byte_range_file(fl, num_bytes)
+            if tail_chunk is not None:
+                data = tail_chunk + data
+            else:
+                print('Reached starting of the file.Exiting')
+                break
+            if data.count('\n') > lines:
+                data = data.split('\n')
+                data = '\n'.join(line for line in data[-lines - 1:])
+                break
+            else:
+                lines_to_fetch = lines - data.count('\n') + 1
+    return data[:-1]  # remove extra new line at the end of output

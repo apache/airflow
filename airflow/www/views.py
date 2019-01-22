@@ -526,13 +526,16 @@ class Airflow(AirflowBaseView):
             try_number = int(request.args.get('try_number'))
         else:
             try_number = None
-        metadata = request.args.get('metadata')
-        metadata = json.loads(metadata)
         response_format = request.args.get('format', 'json')
-
-        # metadata may be null
-        if not metadata:
-            metadata = {}
+        metadata = request.args.get('metadata', '{}')
+        try:
+            metadata = json.loads(metadata)
+        except json.decoder.JSONDecodeError:
+            metadata = None
+        finally:
+            # If metadata is sent as null, After parsing it becomes None
+            if metadata is None:
+                metadata = {}
 
         # Convert string datetime into actual datetime
         try:
@@ -597,6 +600,19 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
 
+        metadata = {}
+        tail_lines_list = conf.get('webserver', 'tail_lines_list')
+        tail_lines_list = [int(line) for line in tail_lines_list.split(',') if line.isdigit()]
+        tailing_logs_enabled = conf.getboolean('webserver', 'enable_tailing_logs')
+        if tailing_logs_enabled and conf.has_option('webserver', 'default_lines_to_tail'):
+            # Default number of lines to tail when page loads
+            default_lines_to_tail = conf.getint('webserver', 'default_lines_to_tail')
+            metadata["num_lines"] = default_lines_to_tail
+            # Delete default number of line from list if it already exists in list
+            if default_lines_to_tail in tail_lines_list:
+                tail_lines_list.remove(default_lines_to_tail)
+            tail_lines_list.sort()
+
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,
@@ -614,8 +630,9 @@ class Airflow(AirflowBaseView):
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts",
             dag_id=dag.dag_id, task_id=task_id,
-            execution_date=execution_date, form=form,
-            root=root)
+            execution_date=execution_date, form=form, root=root,
+            metadata=json.dumps(metadata), full_log_title="Full Log",
+            tail_lines_list=tail_lines_list, tailing_logs_enabled=tailing_logs_enabled)
 
     @expose('/task')
     @has_dag_access(can_dag_read=True)

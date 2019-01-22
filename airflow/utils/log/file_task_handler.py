@@ -24,7 +24,7 @@ import requests
 from airflow import configuration as conf
 from airflow.configuration import AirflowConfigException
 from airflow.utils.file import mkdirs
-from airflow.utils.helpers import parse_template_string
+from airflow.utils.helpers import parse_template_string, tail_file
 
 
 class FileTaskHandler(logging.Handler):
@@ -96,15 +96,26 @@ class FileTaskHandler(logging.Handler):
         location = os.path.join(self.local_base, log_relative_path)
 
         log = ""
-
+        tail_logs = False
+        num_lines = None
+        if metadata:
+            tail_logs = metadata.get('tail_logs', False)
+            num_lines = metadata.get('num_lines', 500)
         if os.path.exists(location):
-            try:
-                with open(location) as f:
-                    log += "*** Reading local file: {}\n".format(location)
-                    log += "".join(f.readlines())
-            except Exception as e:
-                log = "*** Failed to load local log file: {}\n".format(location)
-                log += "*** {}\n".format(str(e))
+            if tail_logs:
+                try:
+                    log = tail_file(location, num_lines)
+                except Exception as e:
+                    log = "*** Failed to load local log file: {}\n".format(location)
+                    log += "*** {}\n".format(str(e))
+            else:
+                try:
+                    with open(location) as f:
+                        log += "*** Reading local file: {}\n".format(location)
+                        log += "".join(f.readlines())
+                except Exception as e:
+                    log = "*** Failed to load local log file: {}\n".format(location)
+                    log += "*** {}\n".format(str(e))
         else:
             url = os.path.join(
                 "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
@@ -114,6 +125,10 @@ class FileTaskHandler(logging.Handler):
             )
             log += "*** Log file does not exist: {}\n".format(location)
             log += "*** Fetching from: {}\n".format(url)
+            if tail_logs:
+                url = "{url}?num_lines={num_lines}".format(url=url, num_lines=num_lines)
+                log += "***** Showing only last {num_lines} lines from {url} *****" \
+                       "\n\n\n".format(num_lines=num_lines, url=url)
             try:
                 timeout = None  # No timeout
                 try:
