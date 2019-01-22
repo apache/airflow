@@ -103,10 +103,12 @@ class FileTaskHandler(logging.Handler):
             num_lines = metadata.get('num_lines', 500)
         if os.path.exists(location):
             if tail_logs:
+                log = "*** Tailing last {n} lines from {location}\n\n".format(n=num_lines, location=location)
                 try:
-                    log = tail_file(location, num_lines)
+                    log += tail_file(location, num_lines)
+                    print('@!#@!#LOGGGGGGG    ', log)
                 except Exception as e:
-                    log = "*** Failed to load local log file: {}\n".format(location)
+                    log += "*** Failed to load local log file: {}\n".format(location)
                     log += "*** {}\n".format(str(e))
             else:
                 try:

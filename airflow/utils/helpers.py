@@ -334,7 +334,7 @@ def tail_file(filepath, lines):
         if current_position == 0:
             return None
         fl.seek(-num_bytes, 1)
-        data = fl.read(num_bytes)
+        data = str(fl.read(num_bytes), 'utf-8', 'ignore')
         fl.seek(-num_bytes, 1)
         return data
 
@@ -342,7 +342,7 @@ def tail_file(filepath, lines):
     lines_to_fetch = lines
     data = ""
 
-    with open(filepath) as fl:
+    with open(filepath, 'rb') as fl:  # Seek to a position from cur pointer is not supported in read text mode
         fl.seek(0, 2)
         while True:
             num_bytes = lines_to_fetch * LINE_SIZE  # Calculate number of bytes to fetch based on lines

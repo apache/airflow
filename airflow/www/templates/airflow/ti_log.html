@@ -131,7 +131,11 @@ limitations under the License.
               var should_scroll = true
             }
             // The message may contain HTML, so either have to escape it or write it as text.
-            document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
+            if(append_log){
+              document.getElementById(`try-${try_number}`).textContent += res.message + "\n";
+            }else{
+              document.getElementById(`try-${try_number}`).textContent = res.message + "\n";
+            }
             // Auto scroll window to the end if current window location is near the end.
             if(should_scroll) {
               $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
@@ -159,7 +163,7 @@ limitations under the License.
         // Only auto_tailing the page when streaming the latest attempt.
         autoTailingLog(i, metadata, auto_tailing=(i == TOTAL_ATTEMPTS));
       }
-      {% if tailing_required %}
+      {% if tailing_logs_enabled %}
         var num_lines = parseInt(metadata.num_lines);
         if(!isNaN(num_lines)){
           $("span#selected").text(num_lines);
@@ -174,7 +178,7 @@ limitations under the License.
       {% endif %}
     });
 
-    {% if tailing_required %}
+    {% if tailing_logs_enabled %}
       function select_tail_lines(obj){
         $('span#selected').text(obj.innerText);
         if(!isNaN(parseInt(obj.innerText))){
@@ -190,21 +194,27 @@ limitations under the License.
         }
       }
       $("#refresh-btn").click(() => {
-        var active_tab = parseInt($("li.active[role=presentation]").children()[0].innerText);
-        var text = $("span#selected").text();
-        var tail_lines = parseInt(text);
-        if(isNaN(tail_lines) && text != FULL_LOG_TITLE){
-          alert(`${text} is not a valid integer`);
-          return;
-        }else if(isNaN(active_tab)){
-          alert(`Invalid integer for active tab`);
-          return;
+        var active_tab = $("li.active[role=presentation]").children()[0];
+        if(active_tab){
+          var active_tab_value = parseInt(active_tab.innerText);
+          var text = $("span#selected").text();
+          var tail_lines = parseInt(text);
+          if(isNaN(tail_lines) && text != FULL_LOG_TITLE){
+            alert(`${text} is not a valid integer`);
+            return;
+          }else if(isNaN(active_tab_value)){
+            alert(`Invalid integer for active tab`);
+            return;
+          }
+          var metadata = {{ metadata|safe }};
+          metadata['num_lines'] = tail_lines;
+          if(text === FULL_LOG_TITLE){
+            metadata['tail_logs']=false;
+          }
+          autoTailingLog(active_tab_value, metadata, true, false);
+        }else{
+          alert(`Not Active Tabs found.`);
         }
-        var metadata = {num_lines: tail_lines};
-        if(text === FULL_LOG_TITLE){
-          metadata = {};
-        }
-        autoTailingLog(active_tab, metadata, true, false);
       });
     {% endif %}
 

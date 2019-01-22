@@ -610,6 +610,7 @@ class Airflow(AirflowBaseView):
             # Default number of lines to tail when page loads
             default_lines_to_tail = conf.getint('webserver', 'default_lines_to_tail')
             metadata["num_lines"] = default_lines_to_tail
+            metadata['tail_logs'] = True
             # Delete default number of line from list if it already exists in list
             if default_lines_to_tail in tail_lines_list:
                 tail_lines_list.remove(default_lines_to_tail)
