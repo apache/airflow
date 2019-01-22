@@ -843,8 +843,6 @@ class DagFileProcessorManager(LoggingMixin):
         self.dag_dir_list_interval = conf.getint('scheduler',
                                                  'dag_dir_list_interval')
 
-        self.log = logging.getLogger('airflow.processor_manager')
-
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
 
