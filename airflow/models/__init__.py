@@ -41,9 +41,6 @@ from datetime import timedelta
 import dill
 import functools
 import getpass
-import imp
-import importlib
-import zipfile
 import jinja2
 import json
 import logging
@@ -374,8 +371,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                 if isinstance(dag._schedule_interval, six.string_types):
                     croniter(dag._schedule_interval)
             except (CroniterBadCronError,
-                        CroniterBadDateError,
-                        CroniterNotAlphaError) as cron_e:
+                    CroniterBadDateError,
+                    CroniterNotAlphaError) as cron_e:
                 found_dags.remove(dag)
                 self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                 self.import_errors[dag.full_filepath] = \
