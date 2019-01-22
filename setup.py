@@ -243,7 +243,6 @@ devel = [
     'nose-timer',
     'parameterized',
     'paramiko',
-    'pyhamcrest',
     'pysftp',
     'pywinrm',
     'qds-sdk>=1.9.6',

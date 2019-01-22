@@ -36,9 +36,6 @@ from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
-from hamcrest import contains, instance_of
-from hamcrest.core import assert_that
-from hamcrest.core.core import is_
 from mock import ANY, Mock, mock_open, patch
 from parameterized import parameterized
 from freezegun import freeze_time
@@ -422,8 +419,7 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         result = task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], dict(foo='bar'))
-        assert_that(result, is_(instance_of(list)))
-        assert_that(result, contains('bar_1', 'bar_2'))
+        self.assertListEqual(result, ['bar_1', 'bar_2'])
 
     def test_render_template_tuple_field(self):
         """Tests if render_template from a tuple field works"""
@@ -436,8 +432,7 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), dict(foo='bar'))
         # tuple is replaced by a list
-        assert_that(result, is_(instance_of(list)))
-        assert_that(result, contains('bar_1', 'bar_2'))
+        self.assertListEqual(result, ['bar_1', 'bar_2'])
 
     def test_render_template_dict_field(self):
         """Tests if render_template from a dict field works"""
@@ -449,7 +444,7 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         result = task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, dict(foo='bar'))
-        assert_that(result, is_({'key1': 'bar_1', 'key2': 'bar_2'}))
+        self.assertDictEqual(result, {'key1': 'bar_1', 'key2': 'bar_2'})
 
     def test_render_template_dict_field_with_templated_keys(self):
         """Tests if render_template from a dict field works as expected:
@@ -462,7 +457,7 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         result = task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, dict(foo='bar'))
-        assert_that(result, is_({'key_{{ foo }}_1': 1, 'key_2': 'bar_2'}))
+        self.assertDictEqual(result, {'key_{{ foo }}_1': 1, 'key_2': 'bar_2'})
 
     def test_render_template_date_field(self):
         """Tests if render_template from a date field works"""
@@ -473,9 +468,10 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        assert_that(
+        self.assertEqual(
             task.render_template('', datetime.date(2018, 12, 6), dict(foo='bar')),
-            is_(datetime.date(2018, 12, 6)))
+            datetime.date(2018, 12, 6)
+        )
 
     def test_render_template_datetime_field(self):
         """Tests if render_template from a datetime field works"""
@@ -486,9 +482,10 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        assert_that(
+        self.assertEqual(
             task.render_template('', datetime.datetime(2018, 12, 6, 10, 55), dict(foo='bar')),
-            is_(datetime.datetime(2018, 12, 6, 10, 55)))
+            datetime.datetime(2018, 12, 6, 10, 55)
+        )
 
     def test_render_template_UUID_field(self):
         """Tests if render_template from a UUID field works"""
@@ -500,7 +497,10 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         random_uuid = uuid.uuid4()
-        assert_that(task.render_template('', random_uuid, dict(foo='bar')), is_(random_uuid))
+        self.assertIs(
+            task.render_template('', random_uuid, dict(foo='bar')),
+            random_uuid
+        )
 
     def test_render_template_object_field(self):
         """Tests if render_template from an object field works"""
@@ -512,7 +512,10 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         test_object = object()
-        assert_that(task.render_template('', test_object, dict(foo='bar')), is_(test_object))
+        self.assertIs(
+            task.render_template('', test_object, dict(foo='bar')),
+            test_object
+        )
 
     def test_render_template_field_macro(self):
         """ Tests if render_template from a field works,
