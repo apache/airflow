@@ -418,8 +418,10 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], {'foo': 'bar'})
-        self.assertListEqual(result, ['bar_1', 'bar_2'])
+        self.assertListEqual(
+            task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], {'foo': 'bar'}),
+            ['bar_1', 'bar_2']
+        )
 
     def test_render_template_tuple_field(self):
         """Tests if render_template from a tuple field works"""
@@ -430,9 +432,11 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'})
         # tuple is replaced by a list
-        self.assertListEqual(result, ['bar_1', 'bar_2'])
+        self.assertListEqual(
+            task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'}),
+            ['bar_1', 'bar_2']
+        )
 
     def test_render_template_dict_field(self):
         """Tests if render_template from a dict field works"""
@@ -443,8 +447,10 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, {'foo': 'bar'})
-        self.assertDictEqual(result, {'key1': 'bar_1', 'key2': 'bar_2'})
+        self.assertDictEqual(
+            task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, {'foo': 'bar'}),
+            {'key1': 'bar_1', 'key2': 'bar_2'}
+        )
 
     def test_render_template_dict_field_with_templated_keys(self):
         """Tests if render_template from a dict field works as expected:
@@ -456,8 +462,10 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, {'foo': 'bar'})
-        self.assertDictEqual(result, {'key_{{ foo }}_1': 1, 'key_2': 'bar_2'})
+        self.assertDictEqual(
+            task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, {'foo': 'bar'}),
+            {'key_{{ foo }}_1': 1, 'key_2': 'bar_2'}
+        )
 
     def test_render_template_date_field(self):
         """Tests if render_template from a date field works"""
