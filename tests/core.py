@@ -1063,7 +1063,6 @@ class CliTests(unittest.TestCase):
 
     TEST_USER_EMAIL = 'test-user@example.com'
 
-
     @classmethod
     def setUpClass(cls):
         super(CliTests, cls).setUpClass()
@@ -1177,7 +1176,7 @@ class CliTests(unittest.TestCase):
         )
 
         args = self.parser.parse_args([
-            'users', '--add-role', '--username', 'test4','--role', 'Op'
+            'users', '--add-role', '--username', 'test4', '--role', 'Op'
         ])
         cli.users(args)
 
@@ -1202,7 +1201,7 @@ class CliTests(unittest.TestCase):
         )
 
         args = self.parser.parse_args([
-            'users', '--remove-role', '--username', 'test4','--role', 'Viewer'
+            'users', '--remove-role', '--username', 'test4', '--role', 'Viewer'
         ])
         cli.users(args)
 
