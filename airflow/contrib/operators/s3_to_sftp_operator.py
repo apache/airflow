@@ -34,7 +34,7 @@ class S3ToSFTPOperator(BaseOperator):
     :param sftp_path:       The sftp remote path. This is the specified
                             file path for uploading file to the SFTP server.
     :type sftp_path:        string
-    :param s3_conn_id:      The s3 connnection id. The name or identifier for establishing
+    :param s3_conn_id:      The s3 connection id. The name or identifier for establishing
                             a connection to S3
     :type s3_conn_id:       string
     :param s3_bucket:       The targeted s3 bucket. This is the S3 bucket

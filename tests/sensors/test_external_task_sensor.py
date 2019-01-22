@@ -21,7 +21,7 @@ from datetime import timedelta, time
 
 from airflow import DAG, configuration, settings
 from airflow import exceptions
-from airflow.exceptions import AirflowSensorTimeout
+from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import TaskInstance, DagBag
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -269,4 +269,55 @@ exit 0
                 execution_date_fn=lambda dt: dt,
                 allowed_states=['success'],
                 dag=self.dag
+            )
+
+    def test_catch_invalid_allowed_states(self):
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=TEST_TASK_ID,
+                allowed_states=['invalid_state'],
+                dag=self.dag
+            )
+
+        with self.assertRaises(ValueError):
+            ExternalTaskSensor(
+                task_id='test_external_task_sensor_check',
+                external_dag_id=TEST_DAG_ID,
+                external_task_id=None,
+                allowed_states=['invalid_state'],
+                dag=self.dag
+            )
+
+    def test_external_task_sensor_waits_for_task_check_existence(self):
+        t = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id="example_bash_operator",
+            external_task_id="non-existing-task",
+            check_existence=True,
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True
+            )
+
+    def test_external_task_sensor_waits_for_dag_check_existence(self):
+        t = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id="non-existing-dag",
+            external_task_id=None,
+            check_existence=True,
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True
             )

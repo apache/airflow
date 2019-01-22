@@ -39,7 +39,7 @@ class WeekDay(enum.IntEnum):
 
         :param week_day_str: Full Name of the Week Day. Example: "Sunday"
         :type week_day_str: str
-        :return: ISO Week Day Number corresponding to the provided Weedkay
+        :return: ISO Week Day Number corresponding to the provided Weekday
         """
         sanitized_week_day_str = week_day_str.upper()
 
