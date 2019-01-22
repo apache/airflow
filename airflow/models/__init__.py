@@ -2635,7 +2635,7 @@ class BaseOperator(LoggingMixin):
         Renders a template from a field. If the field is a string, it will
         simply render the string and return the result. If it is a collection or
         nested set of collections, it will traverse the structure and render
-        all strings in it.
+        all elements in it. If the field has another type, it will return it as it is.
         """
         rt = self.render_template
         if isinstance(content, six.string_types):
