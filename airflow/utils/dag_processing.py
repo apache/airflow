@@ -57,7 +57,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
-_log = logging.root.getChild(__package__)
+log = LoggingMixin().log
 
 class SimpleDag(BaseDag):
     """
@@ -299,12 +299,12 @@ def process_dag_file(filepath, safe_mode=True):
                 content = f.read()
                 if not all([s in content for s in (b'DAG', b'airflow')]):
                     # Don't want to spam user with skip messages
-                    _log.debug(
+                    log.debug(
                         "File %s assumed to contain no DAGs. Skipping.",
                         filepath)
                     return found_dags
 
-        _log.debug("Importing %s", filepath)
+        log.debug("Importing %s", filepath)
         org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
         mod_name = ('unusual_prefix_' +
                     hashlib.sha1(filepath.encode('utf-8')).hexdigest() +
@@ -318,7 +318,7 @@ def process_dag_file(filepath, safe_mode=True):
                 m = imp.load_source(mod_name, filepath)
                 mods.append(m)
             except Exception as e:
-                _log.exception("Failed to import: %s", filepath)
+                log.exception("Failed to import: %s", filepath)
                 raise e
 
     else:
@@ -328,13 +328,13 @@ def process_dag_file(filepath, safe_mode=True):
             mod_name, ext = os.path.splitext(mod.filename)
             if not head and (ext == '.py' or ext == '.pyc'):
                 if mod_name == '__init__':
-                    _log.warning("Found __init__.%s at root of %s", ext, filepath)
+                    log.warning("Found __init__.%s at root of %s", ext, filepath)
                 if safe_mode:
                     with zip_file.open(mod.filename) as zf:
-                        _log.debug("Reading %s from %s", mod.filename, filepath)
+                        log.debug("Reading %s from %s", mod.filename, filepath)
                         content = zf.read()
                         if not all([s in content for s in (b'DAG', b'airflow')]):
-                            _log.debug(
+                            log.debug(
                                 "File %s assumed to contain no DAGs. Skipping.",
                                 filepath)
 
@@ -346,7 +346,7 @@ def process_dag_file(filepath, safe_mode=True):
                     m = importlib.import_module(mod_name)
                     mods.append(m)
                 except Exception as e:
-                    _log.exception("Failed to import: %s", filepath)
+                    log.exception("Failed to import: %s", filepath)
                     raise e
 
     for m in mods:
@@ -842,7 +842,7 @@ class DagFileProcessorManager(LoggingMixin):
         self.dag_dir_list_interval = conf.getint('scheduler',
                                                  'dag_dir_list_interval')
 
-        self._log = logging.getLogger('airflow.processor_manager')
+        self.log = logging.getLogger('airflow.processor_manager')
 
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
@@ -1002,7 +1002,7 @@ class DagFileProcessorManager(LoggingMixin):
         if ((timezone.utcnow() - self.last_stat_print_time).total_seconds() >
                 self.print_stats_interval):
             if len(self._file_paths) > 0:
-                self._log_file_processing_stats(self._file_paths)
+                self.log_file_processing_stats(self._file_paths)
             self.last_stat_print_time = timezone.utcnow()
 
     @provide_session
@@ -1020,7 +1020,7 @@ class DagFileProcessorManager(LoggingMixin):
         query.delete(synchronize_session='fetch')
         session.commit()
 
-    def _log_file_processing_stats(self, known_file_paths):
+    def log_file_processing_stats(self, known_file_paths):
         """
         Print out stats about how files are getting processed.
         :param known_file_paths: a list of file paths that may contain Airflow
