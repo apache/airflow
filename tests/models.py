@@ -418,7 +418,7 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], dict(foo='bar'))
+        result = task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], {'foo': 'bar'})
         self.assertListEqual(result, ['bar_1', 'bar_2'])
 
     def test_render_template_tuple_field(self):
@@ -430,7 +430,7 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), dict(foo='bar'))
+        result = task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'})
         # tuple is replaced by a list
         self.assertListEqual(result, ['bar_1', 'bar_2'])
 
@@ -443,7 +443,7 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, dict(foo='bar'))
+        result = task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, {'foo': 'bar'})
         self.assertDictEqual(result, {'key1': 'bar_1', 'key2': 'bar_2'})
 
     def test_render_template_dict_field_with_templated_keys(self):
@@ -456,7 +456,7 @@ class DagTest(unittest.TestCase):
         with dag:
             task = DummyOperator(task_id='op1')
 
-        result = task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, dict(foo='bar'))
+        result = task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, {'foo': 'bar'})
         self.assertDictEqual(result, {'key_{{ foo }}_1': 1, 'key_2': 'bar_2'})
 
     def test_render_template_date_field(self):
@@ -469,7 +469,7 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         self.assertEqual(
-            task.render_template('', datetime.date(2018, 12, 6), dict(foo='bar')),
+            task.render_template('', datetime.date(2018, 12, 6), {'foo': 'bar'}),
             datetime.date(2018, 12, 6)
         )
 
@@ -483,7 +483,7 @@ class DagTest(unittest.TestCase):
             task = DummyOperator(task_id='op1')
 
         self.assertEqual(
-            task.render_template('', datetime.datetime(2018, 12, 6, 10, 55), dict(foo='bar')),
+            task.render_template('', datetime.datetime(2018, 12, 6, 10, 55), {'foo': 'bar'}),
             datetime.datetime(2018, 12, 6, 10, 55)
         )
 
@@ -498,7 +498,7 @@ class DagTest(unittest.TestCase):
 
         random_uuid = uuid.uuid4()
         self.assertIs(
-            task.render_template('', random_uuid, dict(foo='bar')),
+            task.render_template('', random_uuid, {'foo': 'bar'}),
             random_uuid
         )
 
@@ -513,7 +513,7 @@ class DagTest(unittest.TestCase):
 
         test_object = object()
         self.assertIs(
-            task.render_template('', test_object, dict(foo='bar')),
+            task.render_template('', test_object, {'foo': 'bar'}),
             test_object
         )
 
