@@ -145,6 +145,9 @@ class KubeConfig:
         # this will set to True if so
         self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
 
+        # NOTE: We use dag configmaps mounted to containers to make deploys simple
+        self.dags_configmap = conf.get(self.kubernetes_section, 'dags_configmap')
+
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')
@@ -242,12 +245,14 @@ class KubeConfig:
         if not self.dags_volume_claim \
            and not self.dags_volume_host \
            and not self.dags_in_image \
+           and not self.dags_configmap \
            and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
                 'config section: `dags_volume_claim` '
                 'or `dags_volume_host` '
                 'or `dags_in_image` '
+                'or `dags_configmap` '
                 'or `git_repo and git_branch and git_dags_folder_mount_point`')
 
 
