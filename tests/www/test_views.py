@@ -519,16 +519,16 @@ class TestVarImportView(unittest.TestCase):
         self.assertIn('int_key', db_dict)
         self.assertIn('list_key', db_dict)
         self.assertIn('dict_key', db_dict)
-        self.assertEquals('str_value', db_dict['str_key'])
-        self.assertEquals('60', db_dict['int_key'])
-        self.assertEquals('[1, 2]', db_dict['list_key'])
+        self.assertEqual('str_value', db_dict['str_key'])
+        self.assertEqual('60', db_dict['int_key'])
+        self.assertEqual('[1, 2]', db_dict['list_key'])
 
         case_a_dict = '{"k_a": 2, "k_b": 3}'
         case_b_dict = '{"k_b": 3, "k_a": 2}'
         try:
-            self.assertEquals(case_a_dict, db_dict['dict_key'])
+            self.assertEqual(case_a_dict, db_dict['dict_key'])
         except AssertionError:
-            self.assertEquals(case_b_dict, db_dict['dict_key'])
+            self.assertEqual(case_b_dict, db_dict['dict_key'])
 
 
 class TestMountPoint(unittest.TestCase):
