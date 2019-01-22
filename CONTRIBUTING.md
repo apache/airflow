@@ -104,7 +104,7 @@ extras to build the full API reference.
 
 There are three ways to setup an Apache Airflow development environment.
 
-1. Using tools and libraries installed directly on your system.
+1. Using tools and libraries installed directly on your system
 
   Install Python (2.7.x or 3.5.x), MySQL, and libxml by using system-level package
   managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/airflow-ci/blob/master/Dockerfile) for
@@ -151,9 +151,9 @@ There are three ways to setup an Apache Airflow development environment.
     OK
   ```
 
-  The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test is in the container.
+  The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test it in the container.
 
-3. Using [Docker Compose](https://docs.docker.com/compose/) and Airflow's CI scripts.
+3. Using [Docker Compose](https://docs.docker.com/compose/) and Airflow's CI scripts
 
   Start a docker container through Compose for development to avoid installing the packages directly on your system. The following will give you a shell inside a container, run all required service containers (MySQL, PostgresSQL, krb5 and so on) and install all the dependencies:
 
@@ -199,13 +199,13 @@ To run the whole test suite with Docker Compose, do:
 docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
 ```
 
-Alternatively can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
+Alternatively, you can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
 It is free for open source projects.
 
 Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be triggered and if this pipeline fails (returns an exit code other than `0`) the commit does not come through.
 This "in theory" has the advantage that you can not commit any code that fails that again reduces the errors in the Travis CI Pipelines.
 
-Since there are a lot of tests the script would last very long so you propably only should test your new feature locally.
+Since there are a lot of tests the script would last very long so you probably only should test your new feature locally.
 
 The following example of a `pre-commit` file allows you..
 - to lint your code via flake8
