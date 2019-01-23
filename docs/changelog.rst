@@ -15,19 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+Changelog
+=========
 
-Add a new role in RBAC UI
-=========================
-
-There are five roles created for Airflow by default: Admin, User, Op, Viewer, and Public.
-The master branch adds beta support for DAG level access for RBAC UI. Each DAG comes with two permissions: read and write.
-
-The Admin could create a specific role which is only allowed to read / write certain DAGs. To configure a new role, go to ``Security`` tab
-and click ``List Roles`` in the new UI.
-
-.. image:: ../img/add-role.png
-.. image:: ../img/new-role.png
-
-
-The image shows a role which could only write to example_python_operator is created.
-And we could assign the given role to a new user using ``airflow users --add-role`` cli command.
+.. include:: ../CHANGELOG.txt

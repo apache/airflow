@@ -89,6 +89,8 @@ Content
     api
     integration
     metrics
+    kubernetes
     lineage
+    changelog
     faq
     code

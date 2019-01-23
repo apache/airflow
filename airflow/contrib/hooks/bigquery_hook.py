@@ -108,13 +108,16 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
         """
+        private_key = self._get_field('key_path', None) or self._get_field('keyfile_dict', None)
+
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
         return read_gbq(sql,
                         project_id=self._get_field('project'),
                         dialect=dialect,
-                        verbose=False)
+                        verbose=False,
+                        private_key=private_key)
 
     def table_exists(self, project_id, dataset_id, table_id):
         """
