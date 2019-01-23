@@ -64,7 +64,7 @@ install:
   - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
-  - pip install --upgrade pip
+  - pip install --upgrade
 script:
   - if [ -z "$KUBERNETES_VERSION" ]; then docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh; fi
   - if [ ! -z "$KUBERNETES_VERSION" ]; then
