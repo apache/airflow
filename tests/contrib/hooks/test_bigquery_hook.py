@@ -36,6 +36,35 @@ except GoogleAuthError:
     bq_available = False
 
 
+class TestPandasGbqPrivateKey(unittest.TestCase):
+    def setUp(self):
+        self.instance = hook.BigQueryHook()
+        if not bq_available:
+            self.instance.extras['extra__google_cloud_platform__project'] = 'mock_project'
+
+    def test_key_path_provided(self):
+        private_key_path = '/Fake/Path'
+        self.instance.extras['extra__google_cloud_platform__key_path'] = private_key_path
+
+        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq',
+                        new=lambda *args, **kwargs: kwargs['private_key']):
+
+            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_path)
+
+    def test_key_json_provided(self):
+        private_key_json = 'Fake Private Key'
+        self.instance.extras['extra__google_cloud_platform__keyfile_dict'] = private_key_json
+
+        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
+                        **kwargs: kwargs['private_key']):
+            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_json)
+
+    def test_no_key_provided(self):
+        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
+                        **kwargs: kwargs['private_key']):
+            self.assertEqual(self.instance.get_pandas_df('select 1'), None)
+
+
 class TestBigQueryDataframeResults(unittest.TestCase):
     def setUp(self):
         self.instance = hook.BigQueryHook()
