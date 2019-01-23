@@ -70,4 +70,4 @@ class TestWorkerPrecheck(unittest.TestCase):
         """
         mock_getboolean.return_value = True
         mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
-        self.assertEquals(airflow.settings.validate_session(), False)
+        self.assertEqual(airflow.settings.validate_session(), False)

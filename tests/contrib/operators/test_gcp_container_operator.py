@@ -256,7 +256,7 @@ class GKEPodOperatorTest(unittest.TestCase):
         }
 
         self.gke_op._set_env_from_extras(extras)
-        self.assertEquals(os.environ[GAC_ENV_VAR], FILE_NAME)
+        self.assertEqual(os.environ[GAC_ENV_VAR], FILE_NAME)
 
         file_mock.return_value.write.assert_called_once_with(KEYFILE_DICT_STR)
 
@@ -269,7 +269,7 @@ class GKEPodOperatorTest(unittest.TestCase):
         }
 
         self.gke_op._set_env_from_extras(extras)
-        self.assertEquals(os.environ[GAC_ENV_VAR], TEST_PATH)
+        self.assertEqual(os.environ[GAC_ENV_VAR], TEST_PATH)
 
     def test_get_field(self):
         FIELD_NAME = 'test_field'
