@@ -4225,7 +4225,8 @@ class DAG(BaseDag, LoggingMixin):
                       execution_date,
                       start_date=None,
                       external_trigger=False,
-                      conf=None):
+                      conf=None,
+                      session=None):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
@@ -4253,20 +4254,18 @@ class DAG(BaseDag, LoggingMixin):
 
         (tis, edges) = self.create_tis_and_edges(execution_date)
 
-        with create_session() as session:
+        session.add(run)
 
-            session.add(run)
+        for ti in tis:
+            session.merge(ti)
+        for edge in edges:
+            session.merge(edge)
 
-            for ti in tis:
-                session.merge(ti)
-            for edge in edges:
-                session.merge(edge)
+        session.commit()
 
-            session.commit()
+        run.dag = self
 
-            run.dag = self
-
-            run.refresh_from_db(session)
+        run.refresh_from_db(session)
 
         return run
 
