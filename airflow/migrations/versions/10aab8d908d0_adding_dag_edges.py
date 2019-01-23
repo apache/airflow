@@ -50,7 +50,9 @@ def upgrade():
         sa.PrimaryKeyConstraint("dag_id", "execution_date", "from_task", "to_task"),
     )
 
-    op.create_index('idx_dag_edge', 'dag_edge', ['dag_id', 'execution_date', 'from_task', 'to_task'], unique=True)
+    op.create_index('idx_dag_edge', 'dag_edge',
+                    ['dag_id', 'execution_date', 'from_task', 'to_task'],
+                    unique=True)
 
     op.add_column("task_instance", sa.Column("ui_color", sa.String(10), nullable=True))
     op.add_column(
