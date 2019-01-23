@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
+import time
 from builtins import str
 
 from pyhive import presto
@@ -117,11 +119,44 @@ class PrestoHook(DbApiHook):
             df = pandas.DataFrame()
         return df
 
-    def run(self, hql, parameters=None):
+    def run(self, sql, parameters=None, poll_interval=None):
         """
-        Execute the statement against Presto. Can be used to create views.
+        Execute statement(s) against Presto. By default, statements are
+        executed asynchronously. To execute each synchronously, pass a non-None
+        poll_interval.
+
+        :param sql: the statement(s) to be executed
+        :type sql: str or iterable
+        :param parameters: the parameters to render the statement(s) with
+        :type parameters: mapping or iterable
+        :param poll_interval: how often, in seconds, to check the execution
+            status of each statement; set to None
+        :type poll_interval: int or float
         """
-        return super(PrestoHook, self).run(self._strip_sql(hql), parameters)
+        if isinstance(sql, str):
+            sql = [sql]
+
+        cursor = self.get_conn().cursor()
+
+        for stmt in sql:
+            stmt = self._strip_sql(stmt)
+            self.log.info("{} with parameters {}".format(stmt, parameters))
+            cursor.execute(stmt, parameters)
+
+            if poll_interval is not None:
+                while not self.execution_finished(cursor):
+                    time.sleep(poll_interval)
+
+    @classmethod
+    def execution_finished(cls, cursor):
+        """
+        Return a bool indicating whether the latest statement executed by
+        cursor has finished executing.
+
+        :param cursor: a cursor
+        :type cursor: presto.Cursor
+        """
+        return cursor.poll() is None
 
     # TODO Enable commit_every once PyHive supports transaction.
     # Unfortunately, PyHive 0.5.1 doesn't support transaction for now,
