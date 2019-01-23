@@ -28,7 +28,7 @@ will author will reference the 'conn_id' of the Connection objects.
 Connections can be created and managed using either the UI or environment
 variables.
 
-See the :ref:`Connenctions Concepts <concepts-connections>` documentation for
+See the :ref:`Connections Concepts <concepts-connections>` documentation for
 more information.
 
 Creating a Connection with the UI
@@ -157,6 +157,53 @@ Scopes (comma separated)
         Scopes are ignored when using application default credentials. See
         issue `AIRFLOW-2522
         <https://issues.apache.org/jira/browse/AIRFLOW-2522>`_.
+
+Amazon Web Services
+~~~~~~~~~~~~~~~~~~~
+
+The Amazon Web Services connection type enables the :ref:`AWS Integrations
+<AWS>`.
+
+Authenticating to AWS
+'''''''''''''''''''''
+
+Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
+
+To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified).
+
+Default Connection IDs
+''''''''''''''''''''''
+
+The default connection ID is ``aws_default``.
+
+Configuring the Connection
+''''''''''''''''''''''''''
+
+Login (optional)
+    Specify the AWS access key ID.
+
+Password (optional)
+    Specify the AWS secret access key.
+
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in AWS
+    connection. The following parameters are supported:
+
+    * **aws_account_id**: AWS account ID for the connection
+    * **aws_iam_role**: AWS IAM role for the connection
+    * **external_id**: AWS external ID for the connection
+    * **host**: Endpoint URL for the connection
+    * **region_name**: AWS region for the connection
+    * **role_arn**: AWS role ARN for the connection
+
+    Example "extras" field:
+
+    .. code-block:: json
+
+       {
+          "aws_iam_role": "aws_iam_role_name",
+          "region_name": "ap-southeast-2"
+       }
 
 MySQL
 ~~~~~

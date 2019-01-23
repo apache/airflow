@@ -48,3 +48,18 @@ variable over the value in ``airflow.cfg``:
 
 4. Restart Airflow webserver.
 5. For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it.
+
+Rotating encryption keys
+========================
+
+Once connection credentials and variables have been encrypted using a fernet
+key, changing the key will cause decryption of existing credentials to fail. To
+rotate the fernet key without invalidating existing encrypted values, prepend
+the new key to the ``fernet_key`` setting, run
+``airflow rotate_fernet_key``, and then drop the original key from
+``fernet_keys``:
+
+1. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``.
+2. Run ``airflow rotate_fernet_key`` to reencrypt existing credentials
+with the new fernet key.
+3. Set ``fernet_key`` to ``new_fernet_key``.

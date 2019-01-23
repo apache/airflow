@@ -119,7 +119,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
             jobs=['8ba9d676-4108-4474-9dca-8bbac1da9b19']
         )
-        self.assertEquals(sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
+        self.assertEqual(sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
 
     def test_check_success_tasks_raises(self):
         client_mock = mock.Mock()
