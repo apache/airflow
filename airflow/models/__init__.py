@@ -663,12 +663,12 @@ class TaskInstance(Base, LoggingMixin):
         :param activate_dag_runs: flag to check for active dag run
         :param dag: DAG object
         """
-        job_ids = []
+        job_ids = set()
         for ti in tis:
             if ti.state == State.RUNNING:
                 if ti.job_id:
                     ti.state = State.SHUTDOWN
-                    job_ids.append(ti.job_id)
+                    job_ids.add(ti.job_id)
             else:
                 task_id = ti.task_id
                 if dag and dag.has_task(task_id):
