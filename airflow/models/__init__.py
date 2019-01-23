@@ -95,7 +95,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
 from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import (
@@ -4225,8 +4225,7 @@ class DAG(BaseDag, LoggingMixin):
                       execution_date,
                       start_date=None,
                       external_trigger=False,
-                      conf=None,
-                      session=None):
+                      conf=None):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
         Returns the dag run.
@@ -4241,8 +4240,6 @@ class DAG(BaseDag, LoggingMixin):
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
-        :param session: database session
-        :type session: Session
         """
         run = DagRun(
             dag_id=self.dag_id,
@@ -4253,19 +4250,23 @@ class DAG(BaseDag, LoggingMixin):
             conf=conf,
             state=state
         )
+
         (tis, edges) = self.create_tis_and_edges(execution_date)
-        session.add(run)
 
-        for ti in tis:
-            session.merge(ti)
-        for edge in edges:
-            session.merge(edge)
+        with create_session() as session:
 
-        session.commit()
+            session.add(run)
 
-        run.dag = self
+            for ti in tis:
+                session.merge(ti)
+            for edge in edges:
+                session.merge(edge)
 
-        run.refresh_from_db(session)
+            session.commit()
+
+            run.dag = self
+
+            run.refresh_from_db(session)
 
         return run
 
