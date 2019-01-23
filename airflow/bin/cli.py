@@ -1004,10 +1004,12 @@ def serve_logs(args):
 
     @flask_app.route('/log/<path:filename>')
     def serve_logs(filename):  # noqa
+        log = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
         num_lines = request.args.get("num_lines")
+        tail_logs = request.args.get('tail_logs', False)
         num_lines = int(num_lines) if num_lines and num_lines.isdigit() else None
         log_path = "{log}/{filename}".format(log=log, filename=filename)
-        if num_lines:
+        if tail_logs and num_lines:
             return Response(stream_with_context(tail_file(log_path, num_lines)))
         else:
             return send_from_directory(

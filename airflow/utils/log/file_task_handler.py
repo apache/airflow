@@ -100,13 +100,12 @@ class FileTaskHandler(logging.Handler):
         num_lines = None
         if metadata:
             tail_logs = metadata.get('tail_logs', False)
-            num_lines = metadata.get('num_lines', 500)
+            num_lines = metadata.get('num_lines', None)
         if os.path.exists(location):
-            if tail_logs:
+            if tail_logs and num_lines:
                 log = "*** Tailing last {n} lines from {location}\n\n".format(n=num_lines, location=location)
                 try:
                     log += tail_file(location, num_lines)
-                    print('@!#@!#LOGGGGGGG    ', log)
                 except Exception as e:
                     log += "*** Failed to load local log file: {}\n".format(location)
                     log += "*** {}\n".format(str(e))
@@ -127,8 +126,9 @@ class FileTaskHandler(logging.Handler):
             )
             log += "*** Log file does not exist: {}\n".format(location)
             log += "*** Fetching from: {}\n".format(url)
-            if tail_logs:
-                url = "{url}?num_lines={num_lines}".format(url=url, num_lines=num_lines)
+            if tail_logs and num_lines:
+                url = "{url}?num_lines={num_lines}&tail_logs={tail_logs}".format(url=url, num_lines=num_lines,
+                                                                                 tail_logs=tail_logs)
                 log += "***** Showing only last {num_lines} lines from {url} *****" \
                        "\n\n\n".format(num_lines=num_lines, url=url)
             try:
