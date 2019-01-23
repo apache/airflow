@@ -49,6 +49,9 @@ def upgrade():
         sa.Column("to_task", sa.String(length=250), nullable=False),
         sa.PrimaryKeyConstraint("dag_id", "execution_date", "from_task", "to_task"),
     )
+
+    op.create_index('idx_dag_edge', 'dag_edge', ['dag_id', 'execution_date', 'from_task', 'to_task'], unique=True)
+
     op.add_column("task_instance", sa.Column("ui_color", sa.String(10), nullable=True))
     op.add_column(
         "task_instance", sa.Column("ui_fgcolor", sa.String(10), nullable=True)
@@ -57,6 +60,7 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_index('idx_dag_edge', table_name='dag_edge')
     op.drop_table("dag_edge")
     op.drop_column("task_instance", "ui_color")
     op.drop_column("task_instance", "ui_fgcolor")
