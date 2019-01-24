@@ -1234,6 +1234,7 @@ class CliTests(unittest.TestCase):
     def test_cli_list_jobs_with_args(self):
         args = self.parser.parse_args(['list_jobs', '--dag_id',
                                        'example_bash_operator',
+                                       '--state', 'success',
                                        '--limit', '100'])
         cli.list_jobs(args)
 
