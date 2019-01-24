@@ -334,7 +334,7 @@ def tail_file(filepath, lines):
         if current_position == 0:
             return None
         fl.seek(-num_bytes, os.SEEK_CUR)
-        data = str(fl.read(num_bytes), 'utf-8', 'ignore')
+        data = fl.read(num_bytes).decode('utf-8')
         fl.seek(-num_bytes, os.SEEK_CUR)
         return data
 
