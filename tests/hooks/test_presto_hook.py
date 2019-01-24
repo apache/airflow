@@ -55,20 +55,21 @@ class TestPrestoHook(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("pyhive.presto.Cursor", autospec=True)
-    def test_run_does_not_sleep_by_default(self, mock_cursor, mock_sleep):
+    def test_run_does_not_block_by_default(self, mock_cursor, mock_sleep):
         hook = PrestoHook()
         hook.run(sql="")
         mock_sleep.assert_not_called()
 
     @patch("time.sleep")
     @patch("pyhive.presto.Cursor", autospec=True)
-    def test_run_optionally_sleeps_while_statement_executes(self, mock_cursor, mock_sleep):
+    def test_run_optionally_blocks_while_statement_executes(self, mock_cursor, mock_sleep):
         POLL_INTERVAL = 0.01
-        ERROR_MSG = "would have blocked"
-        mock_sleep.side_effect = RuntimeError(ERROR_MSG)
+        SLEEP_ERROR_MSG = "would have blocked"
+        mock_cursor.poll.return_value = "execution unfinished"
+        mock_sleep.side_effect = RuntimeError(SLEEP_ERROR_MSG)
         hook = PrestoHook()
 
-        with self.assertRaises(RuntimeError, msg=ERROR_MSG):
+        with self.assertRaises(RuntimeError, msg=SLEEP_ERROR_MSG):
             hook.run(sql="", poll_interval=POLL_INTERVAL)
             mock_sleep.assert_called_once_with(POLL_INTERVAL)
 
@@ -77,8 +78,8 @@ class TestPrestoHook(unittest.TestCase):
     def test_run_continues_polling_if_execution_status_unknown(self, mock_cursor, mock_sleep):
         POLL_INTERVAL = 0.01
         SLEEP_ERROR_MSG = "would have blocked"
-        mock_sleep.side_effect = RuntimeError(SLEEP_ERROR_MSG)
         mock_cursor.poll.side_effect = RuntimeError("network partition")
+        mock_sleep.side_effect = RuntimeError(SLEEP_ERROR_MSG)
         hook = PrestoHook()
 
         with self.assertRaises(RuntimeError, msg=SLEEP_ERROR_MSG):
