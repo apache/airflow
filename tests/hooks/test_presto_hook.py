@@ -20,8 +20,11 @@
 
 import mock
 import unittest
+import time
 
 from mock import patch
+
+import pyhive.presto
 
 from airflow.hooks.presto_hook import PrestoHook
 
@@ -52,3 +55,23 @@ class TestPrestoHook(unittest.TestCase):
         target_fields = None
         self.db_hook.insert_rows(table, rows, target_fields)
         mock_insert_rows.assert_called_once_with(table, rows, None, 0)
+
+    @patch("time.sleep")
+    @patch("pyhive.presto.Cursor", autospec=True)
+    def test_run_does_not_sleep_by_default(self, mock_cursor, mock_sleep):
+        hook = PrestoHook()
+        hook.run(sql="")
+        mock_sleep.assert_not_called()
+
+    @patch("time.sleep")
+    @patch("pyhive.presto.Cursor", autospec=True)
+    def test_run_optionally_sleeps_while_statement_executes(self, mock_cursor, mock_sleep):
+        POLL_INTERVAL = 0.01
+        ERROR_MSG = "would have blocked"
+        mock_sleep.side_effect = RuntimeError(ERROR_MSG)
+        hook = PrestoHook()
+
+        with self.assertRaises(RuntimeError, msg=ERROR_MSG):
+            hook.run(sql="", poll_interval=POLL_INTERVAL)
+            mock_sleep.assert_called_once_with(POLL_INTERVAL)
+
