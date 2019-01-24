@@ -659,14 +659,14 @@ def list_jobs(args, dag=None):
                     .order_by(jobs.BaseJob.start_date.desc())
                     .limit(args.limit)
                     .all())
-    fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
-    all_jobs = [[j.__getattribute__(field) for field in fields] for j in all_jobs]
-    msg = tabulate(all_jobs,
-                   [field.capitalize().replace('_', ' ') for field in fields],
-                   tablefmt="fancy_grid")
-    if sys.version_info[0] < 3:
-        msg = msg.encode('utf-8')
-    print(msg)
+        fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
+        all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
+        msg = tabulate(all_jobs,
+                       [field.capitalize().replace('_', ' ') for field in fields],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
 
 
 @cli_utils.action_logging
