@@ -94,6 +94,7 @@ attack. Creating a new user has to be done via a Python REPL on the same machine
     >>> user.username = 'new_user_name'
     >>> user.email = 'new_user_email@example.com'
     >>> user.password = 'set_the_password'
+    >>> user.superuser = False #set to true if user should be superuser
     >>> session = settings.Session()
     >>> session.add(user)
     >>> session.commit()
