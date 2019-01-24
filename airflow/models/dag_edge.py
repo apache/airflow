@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, String, UniqueConstraint, Index
+from sqlalchemy import Column, String, Index
 
 from airflow.utils.db import provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -45,10 +45,7 @@ class DagEdge(Base):
     from_task = Column(String(250), primary_key=True)
     to_task = Column(String(250), primary_key=True)
 
-
-    __table_args__ = (
-        Index('idx_dag_edge', dag_id, execution_date, from_task, to_task, unique=True)
-    ,)
+    __table_args__ = (Index('idx_dag_edge', dag_id, execution_date, from_task, to_task, unique=True),)
 
     def __init__(self, dag_id, execution_date, from_task, to_task):
         self.dag_id = dag_id
