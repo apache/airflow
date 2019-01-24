@@ -333,24 +333,24 @@ def tail_file(filepath, lines):
             num_bytes = current_position
         if current_position == 0:
             return None
-        fl.seek(-num_bytes, 1)
+        fl.seek(-num_bytes, os.SEEK_CUR)
         data = str(fl.read(num_bytes), 'utf-8', 'ignore')
-        fl.seek(-num_bytes, 1)
+        fl.seek(-num_bytes, os.SEEK_CUR)
         return data
 
     LINE_SIZE = 200  # Assuming each line will have 200 bytes
     lines_to_fetch = lines
     data = ""
-
+    if not os.path.exists(filepath):  # If file does not exists in file system, return default message
+        return "FileNotFound: No such file or directory: {}".format(filepath)
     with open(filepath, 'rb') as fl:  # Seek to a position from cur pointer is not supported in read text mode
-        fl.seek(0, 2)
+        fl.seek(0, os.SEEK_END)
         while True:
             num_bytes = lines_to_fetch * LINE_SIZE  # Calculate number of bytes to fetch based on lines
             tail_chunk = get_byte_range_file(fl, num_bytes)
             if tail_chunk is not None:
                 data = tail_chunk + data
             else:
-                print('Reached starting of the file.Exiting')
                 break
             if data.count('\n') > lines:
                 data = data.split('\n')
@@ -358,4 +358,4 @@ def tail_file(filepath, lines):
                 break
             else:
                 lines_to_fetch = lines - data.count('\n') + 1
-    return data[:-1]  # remove extra new line at the end of output
+    return data

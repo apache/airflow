@@ -24,6 +24,7 @@ import signal
 import time
 import unittest
 from datetime import datetime
+from tempfile import NamedTemporaryFile
 
 import psutil
 import six
@@ -180,6 +181,44 @@ class TestHelpers(unittest.TestCase):
             helpers.as_tuple(["a", "list", "is", "a", "container"]),
             ("a", "list", "is", "a", "container")
         )
+
+    def _generate_temp_file(self, file_data=None, lines=100, delete=False):
+        if file_data is None:
+            file_data = "\n".join("line {}".format(i + 1) for i in range(lines))
+        temp_file = NamedTemporaryFile(delete=delete)
+        temp_file.write(str.encode(file_data))
+        temp_file.close()
+        return temp_file.name
+
+    def test_tail_less_lines_than_actual(self):
+        lines_to_tail = 20
+        lines_in_file = 100
+        temp_file = self._generate_temp_file(lines=lines_in_file, delete=False)
+        data = helpers.tail_file(temp_file, lines_to_tail)
+        os.remove(temp_file)
+        self.assertEqual(data.count('\n'), lines_to_tail)
+
+    def test_tail_more_lines_than_actual(self):
+        lines_to_tail = 200
+        lines_in_file = 100
+        temp_file = self._generate_temp_file(lines=lines_in_file, delete=False)
+        data = helpers.tail_file(temp_file, lines_to_tail)
+        os.remove(temp_file)
+        self.assertEqual(data.count('\n'), lines_in_file - 1)  # As last char in file is not \n
+
+    def test_tail_empty_file(self):
+        lines_to_tail = 200
+        lines_in_file = 0
+        temp_file = self._generate_temp_file(lines=lines_in_file, delete=False)
+        data = helpers.tail_file(temp_file, lines_to_tail)
+        os.remove(temp_file)
+        self.assertEqual(data.count('\n'), lines_in_file)
+
+    def test_tail_non_existent_file(self):
+        lines_to_tail = 200
+        filepath = "non_existent_file"
+        data = helpers.tail_file(filepath, lines_to_tail)
+        self.assertEqual(data, "FileNotFound: No such file or directory: {}".format(filepath))
 
 
 class HelpersTest(unittest.TestCase):
