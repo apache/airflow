@@ -143,7 +143,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._is_kubernetes = 'k8s' in self._connection['master']
         if self._is_kubernetes and kube_client is None:
             raise RuntimeError(
-                "{master} specified by kubernetes dependencies are not installed!".format(
+                "{} specified by kubernetes dependencies are not installed!".format(
                     self._connection['master']))
 
         self._should_track_driver_status = self._resolve_should_track_driver_status()
