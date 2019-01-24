@@ -33,7 +33,7 @@ class DepContext(object):
     """
     A base class for contexts that specifies which dependencies should be evaluated in
     the context for a task instance to satisfy the requirements of the context. Also
-    stores state related to the context that can be used by dependendency classes.
+    stores state related to the context that can be used by dependency classes.
 
     For example there could be a SomeRunContext that subclasses this class which has
     dependencies for:

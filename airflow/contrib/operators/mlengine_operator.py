@@ -148,7 +148,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must
-        have doamin-wide delegation enabled.
+        have domain-wide delegation enabled.
     :type delegate_to: str
 
     Raises:

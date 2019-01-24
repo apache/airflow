@@ -24,10 +24,51 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+## Changes in Google Cloud Platform related operators
+
+Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
+the project id configured in
+[GCP Connection](https://airflow.apache.org/howto/manage-connections.html#connection-type-gcp) is used.
+There will be an `AirflowException` thrown in case `PROJECT_ID` parameter is not specified and the
+connection used has no project id defined. This change should be  backwards compatible as earlier version
+of the operators had `PROJECT_ID` mandatory.
+
+Operators involved:
+
+  * GCP Compute Operators
+    * GceInstanceStartOperator
+    * GceInstanceStopOperator
+    * GceSetMachineTypeOperator
+  * GCP Function Operators
+    * GcfFunctionDeployOperator
+  * GCP Cloud SQL Operators
+    * CloudSqlInstanceCreateOperator
+    * CloudSqlInstancePatchOperator
+    * CloudSqlInstanceDeleteOperator
+    * CloudSqlInstanceDatabaseCreateOperator
+    * CloudSqlInstanceDatabasePatchOperator
+    * CloudSqlInstanceDatabaseDeleteOperator
+
+Other GCP operators are unaffected.
+
+## Changes in Google Cloud Platform related hooks
+
+The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
+than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
+in case they are called using positional parameters.
+
+Hooks involved:
+
+  * GceHook
+  * GcfHook
+  * CloudSqlHook
+
+Other GCP hooks are unaffected.
+
 ### Deprecate legacy UI in favor of FAB RBAC UI
 Previously we were using two versions of UI, which were hard to maintain as we need to implement/update the same feature
-in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the 
-RBAC UI explicitly in the configuration now as this is the only default UI.  
+in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
+RBAC UI explicitly in the configuration now as this is the only default UI.
 Please note that that custom auth backends will need re-writing to target new FAB based UI.
 
 
@@ -49,13 +90,6 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
 
-### Modification to `ts_nodash` macro
-`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
-
-Examples:
-  * `ts_nodash`: `20150101T000000`
-  * `ts_nodash_with_tz`: `20150101T000000+0000`
-
 ### New `dag_processor_manager_log_location` config option
 
 The DAG parsing manager log now by default will be log into a file, where its location is
@@ -65,10 +99,6 @@ controlled by the new `dag_processor_manager_log_location` config option in core
 
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
-
-### Semantics of next_ds/prev_ds changed for manually triggered runs
-
-next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
 
 ### Rename of BashTaskRunner to StandardTaskRunner
 
@@ -112,6 +142,29 @@ To delete a user:
 airflow users --delete --username jondoe
 ```
 
+To add a user to a role:
+```bash
+airflow users --add-role --username jondoe --role Public
+```
+
+To remove a user from a role:
+```bash
+airflow users --remove-role --username jondoe --role Public
+```
+
+## Airflow 1.10.2
+
+### Modification to `ts_nodash` macro
+`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes. 
+
+Examples:
+  * `ts_nodash`: `20150101T000000`
+  * `ts_nodash_with_tz`: `20150101T000000+0000`
+
+### Semantics of next_ds/prev_ds changed for manually triggered runs
+
+next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
+
 ### User model changes
 This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
 
@@ -130,12 +183,6 @@ session.add(admin)
 session.commit()
 ```
 
-## Airflow 1.10.1
-
-### StatsD Metrics
-
-The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). The scheduler's activity status can be determined by graphing and alerting using a rate of change of the counter. If the scheduler goes down, the rate will drop to 0.
-
 ### Custom auth backends interface change
 
 We have updated the version of flask-login we depend upon, and as a result any
@@ -151,6 +198,12 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
+
+## Airflow 1.10.1
+
+### StatsD Metrics
+
+The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). The scheduler's activity status can be determined by graphing and alerting using a rate of change of the counter. If the scheduler goes down, the rate will drop to 0.
 
 ### EMRHook now passes all of connection's extra to CreateJobFlow API
 

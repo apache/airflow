@@ -16,29 +16,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import sys
 
-import unittest
-from airflow.utils.email import get_email_address_list
+import mock
 
-EMAILS = ['test1@example.com', 'test2@example.com']
+GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
 
 
-class EmailTest(unittest.TestCase):
+def mock_base_gcp_hook_default_project_id(self, gcp_conn_id, delegate_to=None):
+    self.extras = {
+        'extra__google_cloud_platform__project': GCP_PROJECT_ID_HOOK_UNIT_TEST
+    }
+    self._conn = gcp_conn_id
+    self.delegate_to = delegate_to
 
-    def test_get_email_address_comma_sep_string(self):
-        emails_string = 'test1@example.com, test2@example.com'
 
-        self.assertEqual(
-            get_email_address_list(emails_string), EMAILS)
+def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None):
+    self.extras = {
+    }
+    self._conn = gcp_conn_id
+    self.delegate_to = delegate_to
 
-    def test_get_email_address_colon_sep_string(self):
-        emails_string = 'test1@example.com; test2@example.com'
 
-        self.assertEqual(
-            get_email_address_list(emails_string), EMAILS)
-
-    def test_get_email_address_list(self):
-        emails_list = ['test1@example.com', 'test2@example.com']
-
-        self.assertEqual(
-            get_email_address_list(emails_list), EMAILS)
+def get_open_mock():
+    m = mock.mock_open()
+    if sys.version_info[0] == 2:
+        open_module = '__builtin__'
+    else:
+        open_module = 'builtins'
+    return m, open_module

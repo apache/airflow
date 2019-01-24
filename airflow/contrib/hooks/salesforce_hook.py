@@ -53,7 +53,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
 
         :param conn_id:     the name of the connection that has the parameters
                             we need to connect to Salesforce.
-                            The connection shoud be type `http` and include a
+                            The connection should be type `http` and include a
                             user's security token in the `Extras` field.
         .. note::
             For the HTTP connection type, you can include a

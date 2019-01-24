@@ -82,7 +82,7 @@ class TestHttpHook(unittest.TestCase):
         ):
 
             resp = self.get_hook.run('v1/test')
-            self.assertEquals(resp.text, '{"status":{"status": 200}}')
+            self.assertEqual(resp.text, '{"status":{"status": 200}}')
 
     @requests_mock.mock()
     @mock.patch('requests.Request')
@@ -125,7 +125,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             resp = self.get_hook.run('v1/test', extra_options={'check_response': False})
-            self.assertEquals(resp.text, '{"status":{"status": 404}}')
+            self.assertEqual(resp.text, '{"status":{"status": 404}}')
 
     @requests_mock.mock()
     def test_hook_contains_header_from_extra_field(self, m):
@@ -136,12 +136,12 @@ class TestHttpHook(unittest.TestCase):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
             self.assertDictContainsSubset(json.loads(expected_conn.extra), conn.headers)
-            self.assertEquals(conn.headers.get('bareer'), 'test')
+            self.assertEqual(conn.headers.get('bareer'), 'test')
 
     @requests_mock.mock()
     def test_hook_uses_provided_header(self, m):
             conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-            self.assertEquals(conn.headers.get('bareer'), "newT0k3n")
+            self.assertEqual(conn.headers.get('bareer'), "newT0k3n")
 
     @requests_mock.mock()
     def test_hook_has_no_header_from_extra(self, m):
@@ -155,7 +155,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-            self.assertEquals(conn.headers.get('bareer'), 'newT0k3n')
+            self.assertEqual(conn.headers.get('bareer'), 'newT0k3n')
 
     @requests_mock.mock()
     def test_post_request(self, m):
@@ -172,7 +172,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             resp = self.post_hook.run('v1/test')
-            self.assertEquals(resp.status_code, 200)
+            self.assertEqual(resp.status_code, 200)
 
     @requests_mock.mock()
     def test_post_request_with_error_code(self, m):
@@ -206,7 +206,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             resp = self.post_hook.run('v1/test', extra_options={'check_response': False})
-            self.assertEquals(resp.status_code, 418)
+            self.assertEqual(resp.status_code, 418)
 
     @mock.patch('airflow.hooks.http_hook.requests.Session')
     def test_retry_on_conn_error(self, mocked_session):
@@ -227,7 +227,7 @@ class TestHttpHook(unittest.TestCase):
                 endpoint='v1/test',
                 _retry_args=retry_args
             )
-        self.assertEquals(
+        self.assertEqual(
             self.get_hook._retry_obj.stop.max_attempt_number + 1,
             mocked_session.call_count
         )
@@ -248,8 +248,8 @@ class TestHttpHook(unittest.TestCase):
             ):
                 pr = self.get_hook.run('v1/test', headers={'some_other_header': 'test'})
                 actual = dict(pr.headers)
-                self.assertEquals(actual.get('bareer'), 'test')
-                self.assertEquals(actual.get('some_other_header'), 'test')
+                self.assertEqual(actual.get('bareer'), 'test')
+                self.assertEqual(actual.get('some_other_header'), 'test')
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_http_connection(self, mock_get_connection):
