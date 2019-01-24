@@ -71,3 +71,16 @@ class TestPrestoHook(unittest.TestCase):
         with self.assertRaises(RuntimeError, msg=ERROR_MSG):
             hook.run(sql="", poll_interval=POLL_INTERVAL)
             mock_sleep.assert_called_once_with(POLL_INTERVAL)
+
+    @patch("time.sleep")
+    @patch("pyhive.presto.Cursor", autospec=True)
+    def test_run_continues_polling_if_execution_status_unknown(self, mock_cursor, mock_sleep):
+        POLL_INTERVAL = 0.01
+        SLEEP_ERROR_MSG = "would have blocked"
+        mock_sleep.side_effect = RuntimeError(SLEEP_ERROR_MSG)
+        mock_cursor.poll.side_effect = RuntimeError("network partition")
+        hook = PrestoHook()
+
+        with self.assertRaises(RuntimeError, msg=SLEEP_ERROR_MSG):
+            hook.run(sql="", poll_interval=POLL_INTERVAL)
+            mock_sleep.assert_called_once_with(POLL_INTERVAL)

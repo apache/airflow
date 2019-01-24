@@ -146,16 +146,21 @@ class PrestoHook(DbApiHook):
                 while not self.execution_finished(cursor):
                     time.sleep(poll_interval)
 
-    @classmethod
-    def execution_finished(cls, cursor):
+    def execution_finished(self, cursor):
         """
         Return a bool indicating whether the latest statement executed by
-        cursor has finished executing.
+        cursor has finished executing. If the execution status can't be
+        determined, e.g. because of a network problem, returns None.
 
         :param cursor: a cursor
         :type cursor: presto.Cursor
         """
-        return cursor.poll() is None
+        try:
+            return cursor.poll() is None
+        except Exception as ex:
+            msg = "Couldn't determine statement execution status: ".format(ex)
+            self.log.error(msg)
+            return None
 
     # TODO Enable commit_every once PyHive supports transaction.
     # Unfortunately, PyHive 0.5.1 doesn't support transaction for now,
