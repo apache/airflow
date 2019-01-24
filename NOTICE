@@ -1,5 +1,5 @@
 Apache Airflow
-Copyright 2016-2018 The Apache Software Foundation
+Copyright 2016-2019 The Apache Software Foundation
 
 This product includes software developed at The Apache Software
 Foundation (http://www.apache.org/).
@@ -12,6 +12,11 @@ is subject to the terms and conditions of their respective licenses.
 
 See the LICENSE file for a list of subcomponents and dependencies and
 their respective licenses.
+
+airflow.contrib.auth.backends.github_enterprise_auth:
+-----------------------------------------------------
+
+* Copyright 2015 Matthew Pelland (matt@pelland.io)
 
 hue:
 -----

@@ -41,7 +41,6 @@ def create_session():
     session = settings.Session()
     try:
         yield session
-        session.expunge_all()
         session.commit()
     except Exception:
         session.rollback()
@@ -94,13 +93,8 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='airflow_db', conn_type='mysql',
-            host='localhost', login='root', password='',
+            host='mysql', login='root', password='',
             schema='airflow'))
-    merge_conn(
-        models.Connection(
-            conn_id='airflow_ci', conn_type='mysql',
-            host='localhost', login='root', extra="{\"local_infile\": true}",
-            schema='airflow_ci'))
     merge_conn(
         models.Connection(
             conn_id='beeline_default', conn_type='beeline', port="10000",
@@ -141,18 +135,20 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='mongo_default', conn_type='mongo',
-            host='localhost', port=27017))
+            host='mongo', port=27017))
     merge_conn(
         models.Connection(
             conn_id='mysql_default', conn_type='mysql',
             login='root',
-            host='localhost'))
+            schema='airflow',
+            host='mysql'))
     merge_conn(
         models.Connection(
             conn_id='postgres_default', conn_type='postgres',
             login='postgres',
+            password='airflow',
             schema='airflow',
-            host='localhost'))
+            host='postgres'))
     merge_conn(
         models.Connection(
             conn_id='sqlite_default', conn_type='sqlite',
@@ -184,7 +180,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='sftp_default', conn_type='sftp',
-            host='localhost', port=22, login='travis',
+            host='localhost', port=22, login='airflow',
             extra='''
                 {"key_file": "~/.ssh/id_rsa", "no_host_key_check": true}
             '''))
@@ -271,7 +267,7 @@ def initdb(rbac=False):
     merge_conn(
         models.Connection(
             conn_id='qubole_default', conn_type='qubole',
-            host= 'localhost'))
+            host='localhost'))
     merge_conn(
         models.Connection(
             conn_id='segment_default', conn_type='segment',
@@ -282,8 +278,12 @@ def initdb(rbac=False):
             extra='{"tenant": "<TENANT>", "account_name": "<ACCOUNTNAME>" }'))
     merge_conn(
         models.Connection(
+            conn_id='azure_cosmos_default', conn_type='azure_cosmos',
+            extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }'))
+    merge_conn(
+        models.Connection(
             conn_id='cassandra_default', conn_type='cassandra',
-            host='localhost', port=9042))
+            host='cassandra', port=9042))
 
     # Known event types
     KET = models.KnownEventType

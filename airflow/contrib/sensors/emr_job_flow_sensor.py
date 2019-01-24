@@ -50,5 +50,6 @@ class EmrJobFlowSensor(EmrBaseSensor):
         self.log.info('Poking cluster %s', self.job_flow_id)
         return emr.describe_cluster(ClusterId=self.job_flow_id)
 
-    def state_from_response(self, response):
+    @staticmethod
+    def state_from_response(response):
         return response['Cluster']['Status']['State']

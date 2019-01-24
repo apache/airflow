@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -28,7 +28,6 @@ DEFAULT_DATE = datetime.datetime(2017, 1, 1)
 
 
 class TestSparkSqlOperator(unittest.TestCase):
-
     _config = {
         'sql': 'SELECT 22',
         'conn_id': 'spark_special_conn_id',
@@ -73,6 +72,7 @@ class TestSparkSqlOperator(unittest.TestCase):
         self.assertEqual(self._config['name'], operator._name)
         self.assertEqual(self._config['num_executors'], operator._num_executors)
         self.assertEqual(self._config['yarn_queue'], operator._yarn_queue)
+
 
 if __name__ == '__main__':
     unittest.main()

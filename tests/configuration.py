@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -165,7 +165,7 @@ key1 = hello
 key1 = awesome
 key2 = airflow
 
-[another]
+[testsection]
 key3 = value3
 '''
         test_conf = AirflowConfigParser(
@@ -177,18 +177,18 @@ key3 = value3
             test_conf.getsection('test')
         )
         self.assertEqual(
-            OrderedDict([('key3', 'value3')]),
-            test_conf.getsection('another')
+            OrderedDict([
+                ('key3', 'value3'),
+                ('testkey', 'testvalue'),
+                ('testpercent', 'with%percent')]),
+            test_conf.getsection('testsection')
         )
 
     def test_broker_transport_options(self):
         section_dict = conf.getsection("celery_broker_transport_options")
         self.assertTrue(isinstance(section_dict['visibility_timeout'], int))
-
         self.assertTrue(isinstance(section_dict['_test_only_bool'], bool))
-
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
-
         self.assertTrue(isinstance(section_dict['_test_only_string'], six.string_types))
 
     def test_deprecated_options(self):
@@ -221,4 +221,9 @@ key3 = value3
         conf.set('celery', 'celery_result_backend_cmd', '/bin/echo 99')
 
         with self.assertWarns(DeprecationWarning):
+            tmp = None
+            if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
+                tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
             self.assertEquals(conf.getint('celery', 'result_backend'), 99)
+            if tmp:
+                os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp

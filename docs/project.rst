@@ -37,9 +37,7 @@ Committers
 - @bolkedebruin (Bolke de Bruin)
 - @artwr (Arthur Wiedmer)
 - @jlowin (Jeremiah Lowin)
-- @patrickleotardif (Patrick Leo Tardif)
 - @aoen (Dan Davydov)
-- @syvineckruyk (Steven Yvinec-Kruyk)
 - @msumit (Sumit Maheshwari)
 - @alexvanboxel (Alex Van Boxel)
 - @saguziel (Alex Guziel)
@@ -47,10 +45,13 @@ Committers
 - @fokko (Fokko Driesprong)
 - @ash (Ash Berlin-Taylor)
 - @kaxilnaik (Kaxil Naik)
+- @feng-tao (Tao Feng)
+- @hiteshs (Hitesh Shah)
+- @jghoman (Jakob Homan)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
-<https://github.com/apache/incubator-airflow/graphs/contributors>`_
+<https://github.com/apache/airflow/graphs/contributors>`_
 
 
 Resources & links
@@ -58,8 +59,8 @@ Resources & links
 
 * `Airflow's official documentation <http://airflow.apache.org/>`_
 * Mailing list (send emails to
-  ``dev-subscribe@airflow.incubator.apache.org`` and/or
-  ``commits-subscribe@airflow.incubator.apache.org``
+  ``dev-subscribe@airflow.apache.org`` and/or
+  ``commits-subscribe@airflow.apache.org``
   to subscribe to each)
 * `Issues on Apache's Jira <https://issues.apache.org/jira/browse/AIRFLOW>`_
 * `Gitter (chat) Channel <https://gitter.im/airbnb/airflow>`_

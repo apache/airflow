@@ -21,8 +21,9 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='tree.css') }}">
-<link href="{{ url_for('static', filename='appbuilder/daterangepicker/bootstrap-datepicker.css') }}" rel="stylesheet">
+      href="{{ url_for('static', filename='css/tree.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 {% endblock %}
 
 {% block content %}
@@ -47,6 +48,8 @@
     <div class="square" style="background: grey;"></div>
     <div class="legend_item" style="border: none;">retry</div>
     <div class="square" style="background: gold;"></div>
+    <div class="legend_item" style="border: none;">rescheduled</div>
+    <div class="square" style="background: turquoise;"></div>
     <div class="legend_item" style="border: none;">skipped</div>
     <div class="square" style="background: pink;"></div>
     <div class="legend_item" style="border: none;">failed</div>
@@ -76,7 +79,7 @@
 
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script>
 $('span.status_square').tooltip({html: true});
 

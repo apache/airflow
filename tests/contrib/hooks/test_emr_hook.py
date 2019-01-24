@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,7 +23,6 @@ import boto3
 
 from airflow import configuration
 from airflow.contrib.hooks.emr_hook import EmrHook
-
 
 try:
     from moto import mock_emr
@@ -39,7 +38,7 @@ class TestEmrHook(unittest.TestCase):
 
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = EmrHook(aws_conn_id='aws_default')
+        hook = EmrHook(aws_conn_id='aws_default', region_name='ap-southeast-2')
         self.assertIsNotNone(hook.get_conn().list_clusters())
 
     @mock_emr
@@ -74,6 +73,7 @@ class TestEmrHook(unittest.TestCase):
 
         # The AmiVersion comes back as {Requested,Running}AmiVersion fields.
         self.assertEqual(cluster['RequestedAmiVersion'], '3.2')
+
 
 if __name__ == '__main__':
     unittest.main()

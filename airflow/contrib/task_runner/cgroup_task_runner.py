@@ -193,7 +193,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         if self._created_cpu_cgroup:
             self._delete_cgroup(self.cpu_cgroup_name)
 
-    def _get_cgroup_names(self):
+    @staticmethod
+    def _get_cgroup_names():
         """
         :return: a mapping between the subsystem name to the cgroup name
         :rtype: dict[str, str]

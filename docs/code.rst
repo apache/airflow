@@ -129,7 +129,11 @@ Operators
 ^^^^^^^^^
 .. Alphabetize this list
 
+.. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
+.. autoclass:: airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
+.. autoclass:: airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator
@@ -137,6 +141,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
 .. autoclass:: airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
@@ -170,11 +175,13 @@ Operators
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEPodOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
 .. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_s3.GoogleCloudStorageToS3Operator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
@@ -188,6 +195,8 @@ Operators
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator
 .. autoclass:: airflow.contrib.operators.mongo_to_s3.MongoToS3Operator
 .. autoclass:: airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.oracle_to_azure_data_lake_transfer.OracleToAzureDataLakeTransfer
+.. autoclass:: airflow.contrib.operators.oracle_to_oracle_transfer.OracleToOracleTransfer
 .. autoclass:: airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator
@@ -199,6 +208,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.s3_to_gcs_transfer_operator.S3ToGoogleCloudStorageTransferOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_base_operator.SageMakerBaseOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
@@ -223,10 +233,14 @@ Operators
 Sensors
 ^^^^^^^
 
+.. autoclass:: airflow.contrib.sensors.aws_athena_sensor.AthenaSensor
+.. autoclass:: airflow.contrib.sensors.aws_glue_catalog_partition_sensor.AwsGlueCatalogPartitionSensor
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
+.. autoclass:: airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
-.. autoclass:: airflow.contrib.sensors.cassandra_sensor.CassandraRecordSensor
+.. autoclass:: airflow.contrib.sensors.cassandra_record_sensor.CassandraRecordSensor
+.. autoclass:: airflow.contrib.sensors.cassandra_table_sensor.CassandraTableSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
 .. autoclass:: airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor
 .. autoclass:: airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor
@@ -241,6 +255,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex
 .. autoclass:: airflow.contrib.sensors.jira_sensor.JiraSensor
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
+.. autoclass:: airflow.contrib.sensors.python_sensor.PythonSensor
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_base_sensor.SageMakerBaseSensor
@@ -250,11 +265,12 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor
 .. autoclass:: airflow.contrib.sensors.sftp_sensor.SFTPSensor
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
+.. autoclass:: airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor
 
 .. _macros:
 
 Macros
----------
+------
 Here's a list of variables and macros that can be used in templates
 
 
@@ -268,18 +284,21 @@ Variable                            Description
 =================================   ====================================
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
-``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``.
-                                    if ``{{ ds }}`` is ``2016-01-08`` and ``schedule_interval`` is ``@weekly``,
-                                    ``{{ prev_ds }}`` will be ``2016-01-01``.
-``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``.
-                                    if ``{{ ds }}`` is ``2016-01-01`` and ``schedule_interval`` is ``@weekly``,
-                                    ``{{ prev_ds }}`` will be ``2016-01-08``.
-``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
-``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
-``{{ tomorrow_ds }}``               tomorrow's date as ``YYYY-MM-DD``
-``{{ tomorrow_ds_nodash }}``        tomorrow's date as ``YYYYMMDD``
-``{{ ts }}``                        same as ``execution_date.isoformat()``
-``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
+``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``
+                                    if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
+                                    ``{{ prev_ds }}`` will be ``2016-01-01``
+``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None`
+``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``
+                                    if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
+                                    ``{{ next_ds }}`` will be ``2018-01-08``
+``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
+``{{ yesterday_ds }}``              the day before the execution date as ``YYYY-MM-DD``
+``{{ yesterday_ds_nodash }}``       the day before the execution date as ``YYYYMMDD``
+``{{ tomorrow_ds }}``               the day after the execution date as ``YYYY-MM-DD``
+``{{ tomorrow_ds_nodash }}``        the day after the execution date as ``YYYYMMDD``
+``{{ ts }}``                        same as ``execution_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
+``{{ ts_nodash }}``                 same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
+``{{ ts_nodash_with_tz }}``         same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
 ``{{ prev_execution_date }}``       the previous execution date (if available) (datetime.datetime)
 ``{{ next_execution_date }}``       the next execution date (datetime.datetime)
@@ -396,11 +415,14 @@ interface when possible and acting as building blocks for operators.
 Community contributed hooks
 '''''''''''''''''''''''''''
 .. Alphabetize this list
+.. autoclass:: airflow.contrib.hooks.aws_athena_hook.AWSAthenaHook
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook
+.. autoclass:: airflow.contrib.hooks.aws_glue_catalog_hook.AwsGlueCatalogHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
 .. autoclass:: airflow.contrib.hooks.aws_sns_hook.AwsSnsHook
+.. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 .. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
@@ -421,10 +443,12 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
 .. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+.. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
 .. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
 .. autoclass:: airflow.contrib.hooks.mongo_hook.MongoHook
+.. autoclass:: airflow.contrib.hooks.openfaas_hook.OpenFaasHook
 .. autoclass:: airflow.contrib.hooks.pinot_hook.PinotDbApiHook
 .. autoclass:: airflow.contrib.hooks.qubole_hook.QuboleHook
 .. autoclass:: airflow.contrib.hooks.redis_hook.RedisHook
@@ -456,3 +480,4 @@ Community-contributed executors
 '''''''''''''''''''''''''''''''
 
 .. autoclass:: airflow.contrib.executors.mesos_executor.MesosExecutor
+.. autoclass:: airflow.contrib.executors.kubernetes_executor.KubernetesExecutor

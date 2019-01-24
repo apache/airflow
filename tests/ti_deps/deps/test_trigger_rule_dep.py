@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -158,6 +158,44 @@ class TriggerRuleDepTest(unittest.TestCase):
             failed=1,
             upstream_failed=0,
             done=2,
+            flag_upstream_failed=False,
+            session="Fake Session"))
+        self.assertEqual(len(dep_statuses), 1)
+        self.assertFalse(dep_statuses[0].passed)
+
+    def test_none_failed_tr_success(self):
+        """
+        All success including skip trigger rule success
+        """
+        ti = self._get_task_instance(TriggerRule.NONE_FAILED,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID"])
+        dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=1,
+            skipped=1,
+            failed=0,
+            upstream_failed=0,
+            done=2,
+            flag_upstream_failed=False,
+            session="Fake Session"))
+        self.assertEqual(len(dep_statuses), 0)
+
+    def test_none_failed_tr_failure(self):
+        """
+        All success including skip trigger rule failure
+        """
+        ti = self._get_task_instance(TriggerRule.NONE_FAILED,
+                                     upstream_task_ids=["FakeTaskID",
+                                                        "OtherFakeTaskID",
+                                                        "FailedFakeTaskID"])
+        dep_statuses = tuple(TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=1,
+            skipped=1,
+            failed=1,
+            upstream_failed=0,
+            done=3,
             flag_upstream_failed=False,
             session="Fake Session"))
         self.assertEqual(len(dep_statuses), 1)

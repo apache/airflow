@@ -19,7 +19,6 @@
 #
 
 import unittest
-from mock import call
 from mock import MagicMock
 
 from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\
@@ -150,7 +149,6 @@ class DataFlowHookTest(unittest.TestCase):
                         '--jobName={}-{}'.format(TASK_ID, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
-
 
     @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
     @mock.patch('subprocess.Popen')

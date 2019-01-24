@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,11 +24,16 @@ from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.celery_executor import app
 from airflow.utils.state import State
 
+from airflow import configuration
+configuration.load_test_config()
+
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
 
 
 class CeleryExecutorTest(unittest.TestCase):
+    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
+                     "sqlite is configured with SequentialExecutor")
     def test_celery_integration(self):
         executor = CeleryExecutor()
         executor.start()
@@ -41,7 +46,7 @@ class CeleryExecutorTest(unittest.TestCase):
             # errors are propagated for some reason
             try:
                 executor.execute_async(key='fail', command=fail_command)
-            except:
+            except Exception:
                 pass
             executor.running['success'] = True
             executor.running['fail'] = True

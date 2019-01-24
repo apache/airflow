@@ -20,8 +20,9 @@ Scheduling & Triggers
 
 The Airflow scheduler monitors all tasks and all DAGs, and triggers the
 task instances whose dependencies have been met. Behind the scenes,
-it monitors and stays in sync with a folder for all DAG objects it may contain,
-and periodically (every minute or so) inspects active tasks to see whether
+it spins up a subprocess, which monitors and stays in sync with a folder
+for all DAG objects it may contain, and periodically (every minute or so)
+collects DAG parsing results and inspects active tasks to see whether
 they can be triggered.
 
 The Airflow scheduler is designed to run as a persistent service in an
@@ -113,7 +114,7 @@ interval series.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -177,6 +178,7 @@ Here are some of the ways you can **unblock tasks**:
   states (``failed``, or ``success``)
 * Clearing a task instance will no longer delete the task instance record. Instead it updates
   max_tries and set the current task instance state to be None.
+* Marking task instances as failed can be done through the UI. This can be used to stop running task instances.
 * Marking task instances as successful can be done through the UI. This is mostly to fix false negatives,
   or for instance when the fix has been applied outside of Airflow.
 * The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting

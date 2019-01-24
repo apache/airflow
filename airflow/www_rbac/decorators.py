@@ -21,8 +21,9 @@ import gzip
 import functools
 import pendulum
 from io import BytesIO as IO
-from flask import after_this_request, request, g
-from airflow import models, settings
+from flask import after_this_request, redirect, request, url_for, g
+from airflow import models
+from airflow.utils.db import create_session
 
 
 def action_logging(f):
@@ -31,26 +32,26 @@ def action_logging(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        session = settings.Session()
-        if g.user.is_anonymous:
-            user = 'anonymous'
-        else:
-            user = g.user.username
 
-        log = models.Log(
-            event=f.__name__,
-            task_instance=None,
-            owner=user,
-            extra=str(list(request.args.items())),
-            task_id=request.args.get('task_id'),
-            dag_id=request.args.get('dag_id'))
+        with create_session() as session:
+            if g.user.is_anonymous:
+                user = 'anonymous'
+            else:
+                user = g.user.username
 
-        if 'execution_date' in request.args:
-            log.execution_date = pendulum.parse(
-                request.args.get('execution_date'))
+            log = models.Log(
+                event=f.__name__,
+                task_instance=None,
+                owner=user,
+                extra=str(list(request.args.items())),
+                task_id=request.args.get('task_id'),
+                dag_id=request.args.get('dag_id'))
 
-        session.add(log)
-        session.commit()
+            if 'execution_date' in request.args:
+                log.execution_date = pendulum.parse(
+                    request.args.get('execution_date'))
+
+            session.add(log)
 
         return f(*args, **kwargs)
 
@@ -91,3 +92,35 @@ def gzipped(f):
         return f(*args, **kwargs)
 
     return view_func
+
+
+def has_dag_access(**dag_kwargs):
+    """
+    Decorator to check whether the user has read / write permission on the dag.
+    """
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(self, *args, **kwargs):
+            has_access = self.appbuilder.sm.has_access
+            dag_id = request.args.get('dag_id')
+            # if it is false, we need to check whether user has write access on the dag
+            can_dag_edit = dag_kwargs.get('can_dag_edit', False)
+
+            # 1. check whether the user has can_dag_edit permissions on all_dags
+            # 2. if 1 false, check whether the user
+            #    has can_dag_edit permissions on the dag
+            # 3. if 2 false, check whether it is can_dag_read view,
+            #    and whether user has the permissions
+            if (
+                has_access('can_dag_edit', 'all_dags') or
+                has_access('can_dag_edit', dag_id) or (not can_dag_edit and
+                                                       (has_access('can_dag_read',
+                                                                   'all_dags') or
+                                                        has_access('can_dag_read',
+                                                                   dag_id)))):
+                return f(self, *args, **kwargs)
+            else:
+                return redirect(url_for(self.appbuilder.sm.auth_view.
+                                        __class__.__name__ + ".login"))
+        return wrapper
+    return decorator

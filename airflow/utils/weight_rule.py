@@ -28,6 +28,7 @@ class WeightRule(object):
     ABSOLUTE = 'absolute'
 
     _ALL_WEIGHT_RULES = {}
+
     @classmethod
     def is_valid(cls, weight_rule):
         return weight_rule in cls.all_weight_rules()

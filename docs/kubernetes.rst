@@ -15,6 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
+Kubernetes
+----------
+
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
@@ -56,11 +59,11 @@ Kubernetes Operator
             {
               "weight": 1,
               "preference": {
-                "matchExpressions": [
+                "matchExpressions": {
                   "key": "disktype",
                   "operator": "In",
                   "values": ["ssd"]
-                ]
+                }
               }
             }
           ]

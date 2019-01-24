@@ -31,7 +31,7 @@ import json
 from urllib.parse import quote_plus
 from werkzeug.test import Client
 
-from airflow import models, configuration, settings
+from airflow import models, configuration
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
@@ -67,7 +67,7 @@ class TestChartModelView(unittest.TestCase):
         self.chart = {
             'label': 'chart',
             'owner': 'airflow',
-            'conn_id': 'airflow_ci',
+            'conn_id': 'airflow_db',
         }
 
     def tearDown(self):
@@ -156,8 +156,6 @@ class TestVariableView(unittest.TestCase):
         response = self.app.get('/admin/variable', follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.session.query(models.Variable).count(), 1)
-        self.assertIn('<span class="label label-danger">Invalid</span>',
-                      response.data.decode('utf-8'))
 
     def test_xss_prevention(self):
         xss = "/admin/airflow/variables/asdf<img%20src=''%20onerror='alert(1);'>"
@@ -788,6 +786,39 @@ class TestTaskInstanceView(unittest.TestCase):
         # in to flask-admin) but simply that our UTC conversion was run - i.e. it
         # doesn't blow up!
         self.assertEqual(resp.status_code, 200)
+
+
+class TestDeleteDag(unittest.TestCase):
+
+    def setUp(self):
+        conf.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+
+    def test_delete_dag_button_normal(self):
+        resp = self.app.get('/', follow_redirects=True)
+        self.assertIn('/delete?dag_id=example_bash_operator', resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+
+    def test_delete_dag_button_for_dag_on_scheduler_only(self):
+        # Test for JIRA AIRFLOW-3233 (PR 4069):
+        # The delete-dag URL should be generated correctly for DAGs
+        # that exist on the scheduler (DB) but not the webserver DagBag
+
+        test_dag_id = "non_existent_dag"
+
+        session = Session()
+        DM = models.DagModel
+        session.query(DM).filter(DM.dag_id == 'example_bash_operator').update({'dag_id': test_dag_id})
+        session.commit()
+
+        resp = self.app.get('/', follow_redirects=True)
+        self.assertIn('/delete?dag_id={}'.format(test_dag_id), resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag('{}')".format(test_dag_id), resp.data.decode('utf-8'))
+
+        session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
+        session.commit()
 
 
 if __name__ == '__main__':

@@ -15,7 +15,7 @@
 # limitations under the License.
 import re
 
-from apiclient import errors
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_mlengine_hook import MLEngineHook
 from airflow.exceptions import AirflowException
@@ -264,7 +264,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
         try:
             finished_prediction_job = hook.create_job(
                 self._project_id, prediction_request, check_existing_job)
-        except errors.HttpError:
+        except HttpError:
             raise
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
@@ -282,7 +282,6 @@ class MLEngineModelOperator(BaseOperator):
     :param project_id: The Google Cloud project name to which MLEngine
         model belongs. (templated)
     :type project_id: string
-
     :param model: A dictionary containing the information about the model.
         If the `operation` is `create`, then the `model` parameter should
         contain all the information about this model such as `name`.
@@ -290,15 +289,13 @@ class MLEngineModelOperator(BaseOperator):
         If the `operation` is `get`, the `model` parameter
         should contain the `name` of the model.
     :type model: dict
-
     :param operation: The operation to perform. Available operations are:
 
         * ``create``: Creates a new model as provided by the `model` parameter.
         * ``get``: Gets a particular model where the name is specified in `model`.
-
+    :type operation: string
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: string
-
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -604,7 +601,7 @@ class MLEngineTrainingOperator(BaseOperator):
         try:
             finished_training_job = hook.create_job(
                 self._project_id, training_request, check_existing_job)
-        except errors.HttpError:
+        except HttpError:
             raise
 
         if finished_training_job['state'] != 'SUCCEEDED':

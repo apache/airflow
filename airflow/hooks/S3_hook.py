@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -42,7 +43,7 @@ class S3Hook(AwsHook):
         else:
             bucket_name = parsed_url.netloc
             key = parsed_url.path.strip('/')
-            return (bucket_name, key)
+            return bucket_name, key
 
     def check_for_bucket(self, bucket_name):
         """
@@ -54,7 +55,8 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_bucket(self, bucket_name):
@@ -90,6 +92,13 @@ class S3Hook(AwsHook):
     def check_for_prefix(self, bucket_name, prefix, delimiter):
         """
         Checks that a prefix exists in a bucket
+
+        :param bucket_name: the name of the bucket
+        :type bucket_name: str
+        :param prefix: a key prefix
+        :type prefix: str
+        :param delimiter: the delimiter marks key hierarchy.
+        :type delimiter: str
         """
         prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
         prefix_split = re.split(r'(\w+[{d}])$'.format(d=delimiter), prefix, 1)
@@ -188,7 +197,8 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_key(self, key, bucket_name=None):
@@ -223,8 +233,8 @@ class S3Hook(AwsHook):
     def select_key(self, key, bucket_name=None,
                    expression='SELECT * FROM S3Object',
                    expression_type='SQL',
-                   input_serialization={'CSV': {}},
-                   output_serialization={'CSV': {}}):
+                   input_serialization=None,
+                   output_serialization=None):
         """
         Reads a key with S3 Select.
 
@@ -247,6 +257,10 @@ class S3Hook(AwsHook):
             For more details about S3 Select parameters:
             http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
         """
+        if input_serialization is None:
+            input_serialization = {'CSV': {}}
+        if output_serialization is None:
+            output_serialization = {'CSV': {}}
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
 
@@ -266,6 +280,13 @@ class S3Hook(AwsHook):
                                wildcard_key, bucket_name=None, delimiter=''):
         """
         Checks that a key matching a wildcard expression exists in a bucket
+
+        :param wildcard_key: the path to the key
+        :type wildcard_key: str
+        :param bucket_name: the name of the bucket
+        :type bucket_name: str
+        :param delimiter: the delimiter marks key hierarchy
+        :type delimiter: str
         """
         return self.get_wildcard_key(wildcard_key=wildcard_key,
                                      bucket_name=bucket_name,
@@ -279,6 +300,8 @@ class S3Hook(AwsHook):
         :type wildcard_key: str
         :param bucket_name: the name of the bucket
         :type bucket_name: str
+        :param delimiter: the delimiter marks key hierarchy
+        :type delimiter: str
         """
         if not bucket_name:
             (bucket_name, wildcard_key) = self.parse_s3_url(wildcard_key)

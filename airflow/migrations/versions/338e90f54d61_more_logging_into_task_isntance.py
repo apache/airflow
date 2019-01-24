@@ -17,22 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""More logging into task_isntance
+"""More logging into task_instance
 
 Revision ID: 338e90f54d61
 Revises: 13eb55f81627
 Create Date: 2015-08-25 06:09:20.460147
 
 """
+# flake8: noqa: E266
+
+from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '338e90f54d61'
 down_revision = '13eb55f81627'
 branch_labels = None
 depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():

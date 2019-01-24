@@ -40,9 +40,14 @@ Web Authentication
 Password
 ''''''''
 
+.. note::
+
+   This is for flask-admin based web UI only. If you are using FAB-based web UI with RBAC feature,
+   please use command line interface ``create_user`` to create accounts, or do that in the FAB-based UI itself.
+
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
 Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
-uses bcrypt before storing passwords.
+uses ``bcrypt`` before storing passwords.
 
 .. code-block:: bash
 
@@ -249,6 +254,12 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
+To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+
+.. code-block:: base
+
+   pip install airflow[kerberos]
+
 OAuth Authentication
 --------------------
 
@@ -275,6 +286,12 @@ to only members of those teams.
 
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
+
+To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+
+.. code-block:: base
+
+   pip install airflow[github_enterprise]
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -317,6 +334,12 @@ login, separated with a comma, to only members of those domains.
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
     domain = "example1.com,example2.com"
+
+To use Google authentication, you must install Airflow with the `google_auth` extras group:
+
+.. code-block:: base
+
+   pip install airflow[google_auth]
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -395,3 +418,22 @@ not set.
 
     [core]
     default_impersonation = airflow
+
+
+Flower Authentication
+---------------------
+
+Basic authentication for Celery Flower is supported.
+
+You can specify the details either as an optional argument in the Flower process launching
+command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
+`user:password` pairs separated by a comma.
+
+.. code-block:: bash
+
+    airflow flower --basic_auth=user1:password1,user2:password2
+
+.. code-block:: bash
+
+    [celery]
+    flower_basic_auth = user1:password1,user2:password2

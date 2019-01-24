@@ -41,9 +41,9 @@ class VerticaHook(DbApiHook):
             "user": conn.login,
             "password": conn.password or '',
             "database": conn.schema,
+            "host": conn.host or 'localhost'
         }
 
-        conn_config["host"] = conn.host or 'localhost'
         if not conn.port:
             conn_config["port"] = 5433
         else:

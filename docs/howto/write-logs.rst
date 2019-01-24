@@ -28,7 +28,7 @@ directory.
 In addition, users can supply a remote location for storing logs and log
 backups in cloud storage.
 
-In the Airflow Web UI, local logs take precedance over remote logs. If local logs
+In the Airflow Web UI, local logs take precedence over remote logs. If local logs
 can not be found or accessed, the remote logs will be displayed. Note that logs
 are only sent to remote storage once a task completes (including failure). In other
 words, remote logs for running tasks are unavailable. Logs are stored in the log
@@ -57,6 +57,7 @@ example:
     # Airflow can store logs remotely in AWS S3. Users must supply a remote
     # location URL (starting with either 's3://...') and an Airflow connection
     # id that provides access to the storage location.
+    remote_logging = True
     remote_base_log_folder = s3://my-bucket/path/to/logs
     remote_log_conn_id = MyS3Conn
     # Use server-side encryption for logs stored in S3

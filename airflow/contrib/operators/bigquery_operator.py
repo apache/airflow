@@ -75,6 +75,13 @@ class BigQueryOperator(BaseOperator):
         (without incurring a charge). If unspecified, this will be
         set to your project default.
     :type maximum_bytes_billed: float
+    :param api_resource_configs: a dictionary that contain params
+        'configuration' applied for Google BigQuery Jobs API:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
+        for example, {'query': {'useQueryCache': False}}. You could use it
+        if you need to provide some params that are not supported by BigQueryOperator
+        like args.
+    :type api_resource_configs: dict
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :type schema_update_options: tuple
@@ -91,6 +98,14 @@ class BigQueryOperator(BaseOperator):
     :param time_partitioning: configure optional time partitioning fields i.e.
         partition by field, type and expiration as per API specifications.
     :type time_partitioning: dict
+    :param cluster_fields: Request that the result of this query be stored sorted
+        by one or more columns. This is only available in conjunction with
+        time_partitioning. The order of columns given determines the sort order.
+    :type cluster_fields: list of str
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
@@ -101,13 +116,13 @@ class BigQueryOperator(BaseOperator):
     def __init__(self,
                  bql=None,
                  sql=None,
-                 destination_dataset_table=False,
+                 destination_dataset_table=None,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 udf_config=False,
+                 udf_config=None,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
                  maximum_bytes_billed=None,
@@ -116,7 +131,10 @@ class BigQueryOperator(BaseOperator):
                  query_params=None,
                  labels=None,
                  priority='INTERACTIVE',
-                 time_partitioning={},
+                 time_partitioning=None,
+                 api_resource_configs=None,
+                 cluster_fields=None,
+                 location=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -139,6 +157,9 @@ class BigQueryOperator(BaseOperator):
         self.bq_cursor = None
         self.priority = priority
         self.time_partitioning = time_partitioning
+        self.api_resource_configs = api_resource_configs
+        self.cluster_fields = cluster_fields
+        self.location = location
 
         # TODO remove `bql` in Airflow 2.0
         if self.bql:
@@ -160,11 +181,13 @@ class BigQueryOperator(BaseOperator):
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
-                delegate_to=self.delegate_to)
+                delegate_to=self.delegate_to,
+                location=self.location,
+            )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.sql,
+            sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,
@@ -177,13 +200,15 @@ class BigQueryOperator(BaseOperator):
             labels=self.labels,
             schema_update_options=self.schema_update_options,
             priority=self.priority,
-            time_partitioning=self.time_partitioning
+            time_partitioning=self.time_partitioning,
+            api_resource_configs=self.api_resource_configs,
+            cluster_fields=self.cluster_fields,
         )
 
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
         if self.bq_cursor is not None:
-            self.log.info('Canceling running query due to execution timeout')
+            self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
 
 
@@ -287,7 +312,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  project_id=None,
                  schema_fields=None,
                  gcs_schema_object=None,
-                 time_partitioning={},
+                 time_partitioning=None,
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
@@ -304,7 +329,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
-        self.time_partitioning = time_partitioning
+        self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
 
     def execute(self, context):
@@ -352,7 +377,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :param source_objects: List of Google cloud storage URIs to point
         table to. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :type object: list
+    :type source_objects: list
     :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
         BigQuery table to load data into (templated). If <project> is not included,
         project will be the project defined in the connection json.
@@ -369,7 +394,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
-    :param schema_object: string
+    :type schema_object: string
     :param source_format: File format of the data.
     :type source_format: string
     :param compression: [Optional] The compression type of the data source.
@@ -509,12 +534,11 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
 
     **Example**: ::
 
-        delete_temp_data = BigQueryDeleteDatasetOperator(
-                                        dataset_id = 'temp-dataset',
-                                        project_id = 'temp-project',
-                                        bigquery_conn_id='_my_gcp_conn_',
-                                        task_id='Deletetemp',
-                                        dag=dag)
+        delete_temp_data = BigQueryDeleteDatasetOperator(dataset_id = 'temp-dataset',
+                                                         project_id = 'temp-project',
+                                                         bigquery_conn_id='_my_gcp_conn_',
+                                                         task_id='Deletetemp',
+                                                         dag=dag)
     """
 
     template_fields = ('dataset_id', 'project_id')
@@ -548,3 +572,66 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
             project_id=self.project_id,
             dataset_id=self.dataset_id
         )
+
+
+class BigQueryCreateEmptyDatasetOperator(BaseOperator):
+    """"
+    This operator is used to create new dataset for your Project in Big query.
+    https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+
+    :param project_id: The name of the project where we want to create the dataset.
+        Don't need to provide, if projectId in dataset_reference.
+    :type project_id: str
+    :param dataset_id: The id of dataset. Don't need to provide,
+        if datasetId in dataset_reference.
+    :type dataset_id: str
+    :param dataset_reference: Dataset reference that could be provided with request body.
+        More info:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+    :type dataset_reference: dict
+
+        **Example**: ::
+
+            create_new_dataset = BigQueryCreateEmptyDatasetOperator(
+                                    dataset_id = 'new-dataset',
+                                    project_id = 'my-project',
+                                    dataset_reference = {"friendlyName": "New Dataset"}
+                                    bigquery_conn_id='_my_gcp_conn_',
+                                    task_id='newDatasetCreator',
+                                    dag=dag)
+
+    """
+
+    template_fields = ('dataset_id', 'project_id')
+    ui_color = '#f0eee4'
+
+    @apply_defaults
+    def __init__(self,
+                 dataset_id,
+                 project_id=None,
+                 dataset_reference=None,
+                 bigquery_conn_id='bigquery_default',
+                 delegate_to=None,
+                 *args, **kwargs):
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.bigquery_conn_id = bigquery_conn_id
+        self.dataset_reference = dataset_reference if dataset_reference else {}
+        self.delegate_to = delegate_to
+
+        self.log.info('Dataset id: %s', self.dataset_id)
+        self.log.info('Project id: %s', self.project_id)
+
+        super(BigQueryCreateEmptyDatasetOperator, self).__init__(*args, **kwargs)
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+                               delegate_to=self.delegate_to)
+
+        conn = bq_hook.get_conn()
+        cursor = conn.cursor()
+
+        cursor.create_empty_dataset(
+            project_id=self.project_id,
+            dataset_id=self.dataset_id,
+            dataset_reference=self.dataset_reference)

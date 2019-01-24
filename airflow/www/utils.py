@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+# flake8: noqa: E402
+import inspect
 from future import standard_library
 standard_library.install_aliases()  # noqa: E402
 from builtins import str, object
@@ -30,14 +32,14 @@ import json
 import os
 import re
 import time
+import wtforms
+from wtforms.compat import text_type
 import zipfile
 
 from flask import after_this_request, request, Response
 from flask_admin.model import filters
 import flask_admin.contrib.sqla.filters as sqlafilters
 from flask_login import current_user
-import wtforms
-from wtforms.compat import text_type
 
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
@@ -397,6 +399,33 @@ def make_cache_key(*args, **kwargs):
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')
+
+
+def get_python_source(x):
+    """
+    Helper function to get Python source (or not), preventing exceptions
+    """
+    source_code = None
+
+    if isinstance(x, functools.partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except (TypeError, AttributeError):
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+
+    return source_code
 
 
 class AceEditorWidget(wtforms.widgets.TextArea):

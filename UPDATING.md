@@ -22,11 +22,36 @@ under the License.
 This file documents any backwards-incompatible changes in Airflow and
 assists users migrating to a new version.
 
-## Airflow 1.10.1
+## Airflow 1.10.2
 
-### StatsD Metrics
+### Modification to `ts_nodash` macro
+`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes. 
 
-The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). Scheduler upness can be determined by graphing and alerting using a rate. If the scheduler goes down, the rate will drop to 0.
+Examples:
+  * `ts_nodash`: `20150101T000000`
+  * `ts_nodash_with_tz`: `20150101T000000+0000`
+
+### Semantics of next_ds/prev_ds changed for manually triggered runs
+
+next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
+
+### User model changes
+This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
+
+For example, open a Python shell and
+```python
+from airflow import models, settings
+
+session = settings.Session()
+users = session.query(models.User).all()  # [admin, regular_user]
+
+users[1].superuser  # False
+
+admin = users[0]
+admin.superuser = True
+session.add(admin)
+session.commit()
+```
 
 ### Custom auth backends interface change
 
@@ -43,6 +68,22 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
+
+## Airflow 1.10.1
+
+### New `dag_processor_manager_log_location` config option
+
+The DAG parsing manager log now by default will be log into a file, where its location is
+controlled by the new `dag_processor_manager_log_location` config option in core section.
+
+### new `sync_parallelism` config option in celery section
+
+The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
+fetch celery task state in parallel. Default value is max(1, number of cores - 1)
+
+### StatsD Metrics
+
+The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). Scheduler upness can be determined by graphing and alerting using a rate. If the scheduler goes down, the rate will drop to 0.
 
 ### EMRHook now passes all of connection's extra to CreateJobFlow API
 
@@ -63,7 +104,23 @@ config file.
 
 If you want to use LDAP auth backend without TLS then you will habe to create a
 custom-auth backend based on
-https://github.com/apache/incubator-airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
+https://github.com/apache/airflow/blob/1.10.0/airflow/contrib/auth/backends/ldap_auth.py
+
+### Custom auth backends interface change
+
+We have updated the version of flask-login we depend upon, and as a result any
+custom auth backends might need a small change: `is_active`,
+`is_authenticated`, and `is_anonymous` should now be properties. What this means is if
+previously you had this in your user class
+
+    def is_active(self):
+      return self.active
+
+then you need to change it like this
+
+    @property
+    def is_active(self):
+      return self.active
 
 ## Airflow 1.10
 
@@ -74,6 +131,14 @@ dependency (python-nvd3 -> python-slugify -> unidecode).
 ### Replace DataProcHook.await calls to DataProcHook.wait
 
 The method name was changed to be compatible with the Python 3.7 async/await keywords
+
+### DAG level Access Control for new RBAC UI
+
+Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
+The admin will create new role, associate the dag permission with the target dag and assign that role to users. That user can only access / view the certain dags on the UI
+that he has permissions on. If a new role wants to access all the dags, the admin could associate dag permissions on an artificial view(``all_dags``) with that role.
+
+We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
 ### Setting UTF-8 as default mime_charset in email utils
 
@@ -243,17 +308,22 @@ The config can be taken from `airflow/config_templates/airflow_local_settings.py
 ```
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import os
 
@@ -378,11 +448,11 @@ The `file_task_handler` logger has been made more flexible. The default format c
 
 #### I'm using S3Log or GCSLogs, what do I do!?
 
-If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.incubator.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
+If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
 
 If you are using S3, the instructions should be largely the same as the Google cloud platform instructions above. You will need a custom logging config. The `REMOTE_BASE_LOG_FOLDER` configuration key in your airflow config has been removed, therefore you will need to take the following steps:
 
-- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/incubator-airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
+- Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
 - Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
 - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
 - Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your pythonpath, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
@@ -536,7 +606,7 @@ supported and will be removed entirely in Airflow 2.0
 - Operators no longer accept arbitrary arguments
 
   Previously, `Operator.__init__()` accepted any arguments (either positional `*args` or keyword `**kwargs`) without
-  complaint. Now, invalid arguments will be rejected. (https://github.com/apache/incubator-airflow/pull/1285)
+  complaint. Now, invalid arguments will be rejected. (https://github.com/apache/airflow/pull/1285)
 
 - The config value secure_mode will default to True which will disable some insecure endpoints/features
 

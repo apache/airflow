@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,5 +29,6 @@ class TestTriggerRule(unittest.TestCase):
         self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_DONE))
         self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_SUCCESS))
         self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_FAILED))
+        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_FAILED))
         self.assertTrue(TriggerRule.is_valid(TriggerRule.DUMMY))
-        self.assertEqual(len(TriggerRule.all_triggers()), 6)
+        self.assertEqual(len(TriggerRule.all_triggers()), 7)

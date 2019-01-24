@@ -17,10 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 import unittest
-
-from datetime import datetime
 
 from backports.configparser import DuplicateSectionError
 

@@ -80,6 +80,7 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                           shm_size=1000,
                                                           cpu_shares=1024,
                                                           mem_limit=None,
+                                                          auto_remove=False,
                                                           dns=None,
                                                           dns_search=None)
         client_mock.images.assert_called_with(name='ubuntu:latest')
@@ -153,7 +154,8 @@ class DockerOperatorTestCase(unittest.TestCase):
         with self.assertRaises(AirflowException):
             operator.execute(None)
 
-    def test_on_kill(self):
+    @staticmethod
+    def test_on_kill():
         client_mock = mock.Mock(spec=APIClient)
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')

@@ -23,7 +23,10 @@ implementation for BigQuery.
 """
 
 import time
+import six
 from builtins import range
+from copy import deepcopy
+from six import iteritems
 
 from past.builtins import basestring
 
@@ -31,8 +34,8 @@ from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from apiclient.discovery import HttpError, build
-from googleapiclient import errors
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from pandas_gbq.gbq import \
     _check_google_client_version as gbq_check_google_client_version
 from pandas_gbq import read_gbq
@@ -51,10 +54,12 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
     def __init__(self,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 use_legacy_sql=True):
+                 use_legacy_sql=True,
+                 location=None):
         super(BigQueryHook, self).__init__(
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
+        self.location = location
 
     def get_conn(self):
         """
@@ -65,7 +70,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         return BigQueryConnection(
             service=service,
             project_id=project,
-            use_legacy_sql=self.use_legacy_sql)
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location,
+        )
 
     def get_service(self):
         """
@@ -129,7 +136,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
                 projectId=project_id, datasetId=dataset_id,
                 tableId=table_id).execute()
             return True
-        except errors.HttpError as e:
+        except HttpError as e:
             if e.resp['status'] == '404':
                 return False
             raise
@@ -195,22 +202,34 @@ class BigQueryBaseCursor(LoggingMixin):
     PEP 249 cursor isn't needed.
     """
 
-    def __init__(self, service, project_id, use_legacy_sql=True):
+    def __init__(self,
+                 service,
+                 project_id,
+                 use_legacy_sql=True,
+                 api_resource_configs=None,
+                 location=None):
+
         self.service = service
         self.project_id = project_id
         self.use_legacy_sql = use_legacy_sql
+        if api_resource_configs:
+            _validate_value("api_resource_configs", api_resource_configs, dict)
+        self.api_resource_configs = api_resource_configs \
+            if api_resource_configs else {}
         self.running_job_id = None
+        self.location = location
 
     def create_empty_table(self,
                            project_id,
                            dataset_id,
                            table_id,
                            schema_fields=None,
-                           time_partitioning={},
-                           labels=None
-                           ):
+                           time_partitioning=None,
+                           labels=None,
+                           view=None):
         """
         Creates a new, empty table in the dataset.
+        To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
 
         :param project_id: The project to create the table into.
         :type project_id: str
@@ -219,7 +238,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :param table_id: The Name of the table to be created.
         :type table_id: str
         :param schema_fields: If set, the schema field list as defined here:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+        :type schema_fields: list
         :param labels: a dictionary containing labels for the table, passed to BigQuery
         :type labels: dict
 
@@ -228,16 +248,27 @@ class BigQueryBaseCursor(LoggingMixin):
             schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
 
-        :type schema_fields: list
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
 
             .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
+        :param view: [Optional] A dictionary containing definition for the view.
+            If set, it will create a view instead of a table:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+        :type view: dict
+
+        **Example**: ::
+
+            view = {
+                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 1000",
+                "useLegacySql": False
+            }
 
         :return:
         """
+
         project_id = project_id if project_id is not None else self.project_id
 
         table_resource = {
@@ -254,6 +285,9 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if labels:
             table_resource['labels'] = labels
+
+        if view:
+            table_resource['view'] = view
 
         self.log.info('Creating Table %s:%s.%s',
                       project_id, dataset_id, table_id)
@@ -286,7 +320,7 @@ class BigQueryBaseCursor(LoggingMixin):
                               quote_character=None,
                               allow_quoted_newlines=False,
                               allow_jagged_rows=False,
-                              src_fmt_configs={},
+                              src_fmt_configs=None,
                               labels=None
                               ):
         """
@@ -352,6 +386,8 @@ class BigQueryBaseCursor(LoggingMixin):
         :type labels: dict
         """
 
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
         project_id, dataset_id, external_table_id = \
             _split_tablename(table_input=external_project_dataset_table,
                              default_project_id=self.project_id,
@@ -469,11 +505,11 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_query(self,
                   bql=None,
                   sql=None,
-                  destination_dataset_table=False,
+                  destination_dataset_table=None,
                   write_disposition='WRITE_EMPTY',
                   allow_large_results=False,
                   flatten_results=None,
-                  udf_config=False,
+                  udf_config=None,
                   use_legacy_sql=None,
                   maximum_billing_tier=None,
                   maximum_bytes_billed=None,
@@ -482,7 +518,10 @@ class BigQueryBaseCursor(LoggingMixin):
                   labels=None,
                   schema_update_options=(),
                   priority='INTERACTIVE',
-                  time_partitioning={}):
+                  time_partitioning=None,
+                  api_resource_configs=None,
+                  cluster_fields=None,
+                  location=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -511,10 +550,17 @@ class BigQueryBaseCursor(LoggingMixin):
         :type flatten_results: boolean
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
+        :type udf_config: list
         :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
             If `None`, defaults to `self.use_legacy_sql`.
         :type use_legacy_sql: boolean
-        :type udf_config: list
+        :param api_resource_configs: a dictionary that contain params
+            'configuration' applied for Google BigQuery Jobs API:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
+            for example, {'query': {'useQueryCache': False}}. You could use it
+            if you need to provide some params that are not supported by the
+            BigQueryHook like args.
+        :type api_resource_configs: dict
         :param maximum_billing_tier: Positive integer that serves as a
             multiplier of the basic price.
         :type maximum_billing_tier: integer
@@ -532,7 +578,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param labels a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
-        :param schema_update_options: Allows the schema of the desitination
+        :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the query job.
         :type schema_update_options: tuple
         :param priority: Specifies a priority for the query.
@@ -542,12 +588,38 @@ class BigQueryBaseCursor(LoggingMixin):
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
         :type time_partitioning: dict
-
+        :param cluster_fields: Request that the result of this query be stored sorted
+            by one or more columns. This is only available in combination with
+            time_partitioning. The order of columns given determines the sort order.
+        :type cluster_fields: list of str
+        :param location: The geographic location of the job. Required except for
+            US and EU. See details at
+            https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+        :type location: str
         """
 
-        # TODO remove `bql` in Airflow 2.0 - Jira: [AIRFLOW-2513]
+        if time_partitioning is None:
+            time_partitioning = {}
+
+        if location:
+            self.location = location
+
+        if not api_resource_configs:
+            api_resource_configs = self.api_resource_configs
+        else:
+            _validate_value('api_resource_configs',
+                            api_resource_configs, dict)
+        configuration = deepcopy(api_resource_configs)
+        if 'query' not in configuration:
+            configuration['query'] = {}
+
+        else:
+            _validate_value("api_resource_configs['query']",
+                            configuration['query'], dict)
+
         sql = bql if sql is None else sql
 
+        # TODO remove `bql` in Airflow 2.0 - Jira: [AIRFLOW-2513]
         if bql:
             import warnings
             warnings.warn('Deprecated parameter `bql` used in '
@@ -558,95 +630,113 @@ class BigQueryBaseCursor(LoggingMixin):
                           'Airflow.',
                           category=DeprecationWarning)
 
-        if sql is None:
-            raise TypeError('`BigQueryBaseCursor.run_query` missing 1 required '
-                            'positional argument: `sql`')
+        if sql is None and not configuration['query'].get('query', None):
+            raise TypeError('`BigQueryBaseCursor.run_query` '
+                            'missing 1 required positional argument: `sql`')
 
         # BigQuery also allows you to define how you want a table's schema to change
         # as a side effect of a query job
         # for more details:
         #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions
+
         allowed_schema_update_options = [
             'ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"
         ]
-        if not set(allowed_schema_update_options).issuperset(
-                set(schema_update_options)):
-            raise ValueError(
-                "{0} contains invalid schema update options. "
-                "Please only use one or more of the following options: {1}"
-                .format(schema_update_options, allowed_schema_update_options))
 
-        if use_legacy_sql is None:
-            use_legacy_sql = self.use_legacy_sql
-
-        configuration = {
-            'query': {
-                'query': sql,
-                'useLegacySql': use_legacy_sql,
-                'maximumBillingTier': maximum_billing_tier,
-                'maximumBytesBilled': maximum_bytes_billed,
-                'priority': priority
-            }
-        }
-
-        if destination_dataset_table:
-            if '.' not in destination_dataset_table:
-                raise ValueError(
-                    'Expected destination_dataset_table name in the format of '
-                    '<dataset>.<table>. Got: {}'.format(
-                        destination_dataset_table))
-            destination_project, destination_dataset, destination_table = \
-                _split_tablename(table_input=destination_dataset_table,
-                                 default_project_id=self.project_id)
-            configuration['query'].update({
-                'allowLargeResults': allow_large_results,
-                'flattenResults': flatten_results,
-                'writeDisposition': write_disposition,
-                'createDisposition': create_disposition,
-                'destinationTable': {
-                    'projectId': destination_project,
-                    'datasetId': destination_dataset,
-                    'tableId': destination_table,
-                }
-            })
-        if udf_config:
-            if not isinstance(udf_config, list):
-                raise TypeError("udf_config argument must have a type 'list'"
-                                " not {}".format(type(udf_config)))
-            configuration['query'].update({
-                'userDefinedFunctionResources': udf_config
-            })
-
-        if query_params:
-            if self.use_legacy_sql:
-                raise ValueError("Query paramaters are not allowed when using "
-                                 "legacy SQL")
-            else:
-                configuration['query']['queryParameters'] = query_params
-
-        if labels:
-            configuration['labels'] = labels
-
-        time_partitioning = _cleanse_time_partitioning(
-            destination_dataset_table,
-            time_partitioning
-        )
-        if time_partitioning:
-            configuration['query'].update({
-                'timePartitioning': time_partitioning
-            })
+        if not set(allowed_schema_update_options
+                   ).issuperset(set(schema_update_options)):
+            raise ValueError("{0} contains invalid schema update options. "
+                             "Please only use one or more of the following "
+                             "options: {1}"
+                             .format(schema_update_options,
+                                     allowed_schema_update_options))
 
         if schema_update_options:
             if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
                 raise ValueError("schema_update_options is only "
                                  "allowed if write_disposition is "
                                  "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
-            else:
-                self.log.info(
-                    "Adding experimental "
-                    "'schemaUpdateOptions': {0}".format(schema_update_options))
-                configuration['query'][
-                    'schemaUpdateOptions'] = schema_update_options
+
+        if destination_dataset_table:
+            destination_project, destination_dataset, destination_table = \
+                _split_tablename(table_input=destination_dataset_table,
+                                 default_project_id=self.project_id)
+
+            destination_dataset_table = {
+                'projectId': destination_project,
+                'datasetId': destination_dataset,
+                'tableId': destination_table,
+            }
+
+        if cluster_fields:
+            cluster_fields = {'fields': cluster_fields}
+
+        query_param_list = [
+            (sql, 'query', None, six.string_types),
+            (priority, 'priority', 'INTERACTIVE', six.string_types),
+            (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
+            (query_params, 'queryParameters', None, dict),
+            (udf_config, 'userDefinedFunctionResources', None, list),
+            (maximum_billing_tier, 'maximumBillingTier', None, int),
+            (maximum_bytes_billed, 'maximumBytesBilled', None, float),
+            (time_partitioning, 'timePartitioning', {}, dict),
+            (schema_update_options, 'schemaUpdateOptions', None, tuple),
+            (destination_dataset_table, 'destinationTable', None, dict),
+            (cluster_fields, 'clustering', None, dict),
+        ]
+
+        for param_tuple in query_param_list:
+
+            param, param_name, param_default, param_type = param_tuple
+
+            if param_name not in configuration['query'] and param in [None, {}, ()]:
+                if param_name == 'timePartitioning':
+                    param_default = _cleanse_time_partitioning(
+                        destination_dataset_table, time_partitioning)
+                param = param_default
+
+            if param not in [None, {}, ()]:
+                _api_resource_configs_duplication_check(
+                    param_name, param, configuration['query'])
+
+                configuration['query'][param_name] = param
+
+                # check valid type of provided param,
+                # it last step because we can get param from 2 sources,
+                # and first of all need to find it
+
+                _validate_value(param_name, configuration['query'][param_name],
+                                param_type)
+
+                if param_name == 'schemaUpdateOptions' and param:
+                    self.log.info("Adding experimental 'schemaUpdateOptions': "
+                                  "{0}".format(schema_update_options))
+
+                if param_name == 'destinationTable':
+                    for key in ['projectId', 'datasetId', 'tableId']:
+                        if key not in configuration['query']['destinationTable']:
+                            raise ValueError(
+                                "Not correct 'destinationTable' in "
+                                "api_resource_configs. 'destinationTable' "
+                                "must be a dict with {'projectId':'', "
+                                "'datasetId':'', 'tableId':''}")
+
+                    configuration['query'].update({
+                        'allowLargeResults': allow_large_results,
+                        'flattenResults': flatten_results,
+                        'writeDisposition': write_disposition,
+                        'createDisposition': create_disposition,
+                    })
+
+        if 'useLegacySql' in configuration['query'] and \
+                'queryParameters' in configuration['query']:
+            raise ValueError("Query parameters are not allowed "
+                             "when using legacy SQL")
+
+        if labels:
+            _api_resource_configs_duplication_check(
+                'labels', labels, configuration)
+            configuration['labels'] = labels
 
         return self.run_with_configuration(configuration)
 
@@ -793,8 +883,8 @@ class BigQueryBaseCursor(LoggingMixin):
 
     def run_load(self,
                  destination_project_dataset_table,
-                 schema_fields,
                  source_uris,
+                 schema_fields=None,
                  source_format='CSV',
                  create_disposition='CREATE_IF_NEEDED',
                  skip_leading_rows=0,
@@ -806,8 +896,10 @@ class BigQueryBaseCursor(LoggingMixin):
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  schema_update_options=(),
-                 src_fmt_configs={},
-                 time_partitioning={}):
+                 src_fmt_configs=None,
+                 time_partitioning=None,
+                 cluster_fields=None,
+                 autodetect=False):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -825,7 +917,11 @@ class BigQueryBaseCursor(LoggingMixin):
         :type destination_project_dataset_table: string
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
+            Required if autodetect=False; optional if autodetect=True.
         :type schema_fields: list
+        :param autodetect: Attempt to autodetect the schema for CSV and JSON
+            source files.
+        :type autodetect: bool
         :param source_uris: The source Google Cloud
             Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
             per-object name can be used.
@@ -869,6 +965,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and  expiration as per API specifications.
         :type time_partitioning: dict
+        :param cluster_fields: Request that the result of this load be stored sorted
+            by one or more columns. This is only available in combination with
+            time_partitioning. The order of columns given determines the sort order.
+        :type cluster_fields: list of str
         """
 
         # bigquery only allows certain source formats
@@ -876,6 +976,14 @@ class BigQueryBaseCursor(LoggingMixin):
         # if it's not, we raise a ValueError
         # Refer to this link for more details:
         #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat
+
+        if schema_fields is None and not autodetect:
+            raise ValueError(
+                'You must either pass a schema or autodetect=True.')
+
+        if src_fmt_configs is None:
+            src_fmt_configs = {}
+
         source_format = source_format.upper()
         allowed_formats = [
             "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
@@ -896,7 +1004,7 @@ class BigQueryBaseCursor(LoggingMixin):
         if not set(allowed_schema_update_options).issuperset(
                 set(schema_update_options)):
             raise ValueError(
-                "{0} contains invalid schema update options. "
+                "{0} contains invalid schema update options."
                 "Please only use one or more of the following options: {1}"
                 .format(schema_update_options, allowed_schema_update_options))
 
@@ -907,6 +1015,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         configuration = {
             'load': {
+                'autodetect': autodetect,
                 'createDisposition': create_disposition,
                 'destinationTable': {
                     'projectId': destination_project,
@@ -928,6 +1037,9 @@ class BigQueryBaseCursor(LoggingMixin):
             configuration['load'].update({
                 'timePartitioning': time_partitioning
             })
+
+        if cluster_fields:
+            configuration['load'].update({'clustering': {'fields': cluster_fields}})
 
         if schema_fields:
             configuration['load']['schema'] = {'fields': schema_fields}
@@ -1007,12 +1119,18 @@ class BigQueryBaseCursor(LoggingMixin):
 
         # Wait for query to finish.
         keep_polling_job = True
-        while (keep_polling_job):
+        while keep_polling_job:
             try:
-                job = jobs.get(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id).execute()
-                if (job['status']['state'] == 'DONE'):
+                if self.location:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id,
+                        location=self.location).execute()
+                else:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id).execute()
+                if job['status']['state'] == 'DONE':
                     keep_polling_job = False
                     # Check if job had errors.
                     if 'errorResult' in job['status']:
@@ -1040,8 +1158,14 @@ class BigQueryBaseCursor(LoggingMixin):
     def poll_job_complete(self, job_id):
         jobs = self.service.jobs()
         try:
-            job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
-            if (job['status']['state'] == 'DONE'):
+            if self.location:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id,
+                               location=self.location).execute()
+            else:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id).execute()
+            if job['status']['state'] == 'DONE':
                 return True
         except HttpError as err:
             if err.resp.status in [500, 503]:
@@ -1063,9 +1187,15 @@ class BigQueryBaseCursor(LoggingMixin):
                 not self.poll_job_complete(self.running_job_id)):
             self.log.info('Attempting to cancel job : %s, %s', self.project_id,
                           self.running_job_id)
-            jobs.cancel(
-                projectId=self.project_id,
-                jobId=self.running_job_id).execute()
+            if self.location:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id,
+                    location=self.location).execute()
+            else:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id).execute()
         else:
             self.log.info('No running BigQuery jobs to cancel.')
             return
@@ -1075,13 +1205,13 @@ class BigQueryBaseCursor(LoggingMixin):
         polling_attempts = 0
 
         job_complete = False
-        while (polling_attempts < max_polling_attempts and not job_complete):
+        while polling_attempts < max_polling_attempts and not job_complete:
             polling_attempts = polling_attempts + 1
             job_complete = self.poll_job_complete(self.running_job_id)
-            if (job_complete):
+            if job_complete:
                 self.log.info('Job successfully canceled: %s, %s',
                               self.project_id, self.running_job_id)
-            elif (polling_attempts == max_polling_attempts):
+            elif polling_attempts == max_polling_attempts:
                 self.log.info(
                     "Stopping polling due to timeout. Job with id %s "
                     "has not completed cancel and may or may not finish.",
@@ -1153,10 +1283,6 @@ class BigQueryBaseCursor(LoggingMixin):
         :type ignore_if_missing: boolean
         :return:
         """
-        if '.' not in deletion_dataset_table:
-            raise ValueError(
-                'Expected deletion_dataset_table name in the format of '
-                '<dataset>.<table>. Got: {}'.format(deletion_dataset_table))
         deletion_project, deletion_dataset, deletion_table = \
             _split_tablename(table_input=deletion_dataset_table,
                              default_project_id=self.project_id)
@@ -1287,6 +1413,72 @@ class BigQueryBaseCursor(LoggingMixin):
                 view_project, view_dataset, view_table, source_project, source_dataset)
             return source_dataset_resource
 
+    def create_empty_dataset(self, dataset_id="", project_id="",
+                             dataset_reference=None):
+        """
+        Create a new empty dataset:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
+
+        :param project_id: The name of the project where we want to create
+            an empty a dataset. Don't need to provide, if projectId in dataset_reference.
+        :type project_id: str
+        :param dataset_id: The id of dataset. Don't need to provide,
+            if datasetId in dataset_reference.
+        :type dataset_id: str
+        :param dataset_reference: Dataset reference that could be provided
+            with request body. More info:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        :type dataset_reference: dict
+        """
+
+        if dataset_reference:
+            _validate_value('dataset_reference', dataset_reference, dict)
+        else:
+            dataset_reference = {}
+
+        if "datasetReference" not in dataset_reference:
+            dataset_reference["datasetReference"] = {}
+
+        if not dataset_reference["datasetReference"].get("datasetId") and not dataset_id:
+            raise ValueError(
+                "{} not provided datasetId. Impossible to create dataset")
+
+        dataset_required_params = [(dataset_id, "datasetId", ""),
+                                   (project_id, "projectId", self.project_id)]
+        for param_tuple in dataset_required_params:
+            param, param_name, param_default = param_tuple
+            if param_name not in dataset_reference['datasetReference']:
+                if param_default and not param:
+                    self.log.info("{} was not specified. Will be used default "
+                                  "value {}.".format(param_name,
+                                                     param_default))
+                    param = param_default
+                dataset_reference['datasetReference'].update(
+                    {param_name: param})
+            elif param:
+                _api_resource_configs_duplication_check(
+                    param_name, param,
+                    dataset_reference['datasetReference'], 'dataset_reference')
+
+        dataset_id = dataset_reference.get("datasetReference").get("datasetId")
+        dataset_project_id = dataset_reference.get("datasetReference").get(
+            "projectId")
+
+        self.log.info('Creating Dataset: %s in project: %s ', dataset_id,
+                      dataset_project_id)
+
+        try:
+            self.service.datasets().insert(
+                projectId=dataset_project_id,
+                body=dataset_reference).execute()
+            self.log.info('Dataset created successfully: In project %s '
+                          'Dataset %s', dataset_project_id, dataset_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
     def delete_dataset(self, project_id, dataset_id):
         """
         Delete a dataset of Big query in your project.
@@ -1312,6 +1504,159 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
+    def get_dataset(self, dataset_id, project_id=None):
+        """
+        Method returns dataset_resource if dataset exist
+        and raised 404 error if dataset does not exist
+
+        :param dataset_id: The BigQuery Dataset ID
+        :type dataset_id: str
+        :param project_id: The GCP Project ID
+        :type project_id: str
+        :return: dataset_resource
+
+            .. seealso::
+                For more information, see Dataset Resource content:
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
+        """
+
+        if not dataset_id or not isinstance(dataset_id, str):
+            raise ValueError("dataset_id argument must be provided and has "
+                             "a type 'str'. You provided: {}".format(dataset_id))
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            dataset_resource = self.service.datasets().get(
+                datasetId=dataset_id, projectId=dataset_project_id).execute()
+            self.log.info("Dataset Resource: {}".format(dataset_resource))
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content))
+
+        return dataset_resource
+
+    def get_datasets_list(self, project_id=None):
+        """
+        Method returns full list of BigQuery datasets in the current project
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
+
+        :param project_id: Google Cloud Project for which you
+            try to get all datasets
+        :type project_id: str
+        :return: datasets_list
+
+            Example of returned datasets_list: ::
+
+                   {
+                      "kind":"bigquery#dataset",
+                      "location":"US",
+                      "id":"your-project:dataset_2_test",
+                      "datasetReference":{
+                         "projectId":"your-project",
+                         "datasetId":"dataset_2_test"
+                      }
+                   },
+                   {
+                      "kind":"bigquery#dataset",
+                      "location":"US",
+                      "id":"your-project:dataset_1_test",
+                      "datasetReference":{
+                         "projectId":"your-project",
+                         "datasetId":"dataset_1_test"
+                      }
+                   }
+                ]
+        """
+        dataset_project_id = project_id if project_id else self.project_id
+
+        try:
+            datasets_list = self.service.datasets().list(
+                projectId=dataset_project_id).execute()['datasets']
+            self.log.info("Datasets List: {}".format(datasets_list))
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content))
+
+        return datasets_list
+
+    def insert_all(self, project_id, dataset_id, table_id,
+                   rows, ignore_unknown_values=False,
+                   skip_invalid_rows=False, fail_on_error=False):
+        """
+        Method to stream data into BigQuery one record at a time without needing
+        to run a load job
+
+        .. seealso::
+            For more information, see:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/insertAll
+
+        :param project_id: The name of the project where we have the table
+        :type project_id: str
+        :param dataset_id: The name of the dataset where we have the table
+        :type dataset_id: str
+        :param table_id: The name of the table
+        :type table_id: str
+        :param rows: the rows to insert
+        :type rows: list
+
+        **Example or rows**:
+            rows=[{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
+
+        :param ignore_unknown_values: [Optional] Accept rows that contain values
+            that do not match the schema. The unknown values are ignored.
+            The default value  is false, which treats unknown values as errors.
+        :type ignore_unknown_values: bool
+        :param skip_invalid_rows: [Optional] Insert all valid rows of a request,
+            even if invalid rows exist. The default value is false, which causes
+            the entire request to fail if any invalid rows exist.
+        :type skip_invalid_rows: bool
+        :param fail_on_error: [Optional] Force the task to fail if any errors occur.
+            The default value is false, which indicates the task should not fail
+            even if any insertion errors occur.
+        :type fail_on_error: bool
+        """
+
+        dataset_project_id = project_id if project_id else self.project_id
+
+        body = {
+            "rows": rows,
+            "ignoreUnknownValues": ignore_unknown_values,
+            "kind": "bigquery#tableDataInsertAllRequest",
+            "skipInvalidRows": skip_invalid_rows,
+        }
+
+        try:
+            self.log.info('Inserting {} row(s) into Table {}:{}.{}'.format(
+                len(rows), dataset_project_id,
+                dataset_id, table_id))
+
+            resp = self.service.tabledata().insertAll(
+                projectId=dataset_project_id, datasetId=dataset_id,
+                tableId=table_id, body=body
+            ).execute()
+
+            if 'insertErrors' not in resp:
+                self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
+                    dataset_project_id, dataset_id, table_id))
+            else:
+                error_msg = '{} insert error(s) occured: {}:{}.{}. Details: {}'.format(
+                    len(resp['insertErrors']),
+                    dataset_project_id, dataset_id, table_id, resp['insertErrors'])
+                if fail_on_error:
+                    raise AirflowException(
+                        'BigQuery job failed. Error was: {}'.format(error_msg)
+                    )
+                self.log.info(error_msg)
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
@@ -1322,11 +1667,13 @@ class BigQueryCursor(BigQueryBaseCursor):
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py
     """
 
-    def __init__(self, service, project_id, use_legacy_sql=True):
+    def __init__(self, service, project_id, use_legacy_sql=True, location=None):
         super(BigQueryCursor, self).__init__(
             service=service,
             project_id=project_id,
-            use_legacy_sql=use_legacy_sql)
+            use_legacy_sql=use_legacy_sql,
+            location=location,
+        )
         self.buffersize = None
         self.page_token = None
         self.job_id = None
@@ -1480,7 +1827,7 @@ def _bind_parameters(operation, parameters):
     """ Helper method that binds parameters to a SQL query. """
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}
-    for (name, value) in parameters.iteritems():
+    for (name, value) in iteritems(parameters):
         if value is None:
             string_parameters[name] = 'NULL'
         elif isinstance(value, basestring):
@@ -1522,6 +1869,12 @@ def _bq_cast(string_field, bq_type):
 
 
 def _split_tablename(table_input, default_project_id, var_name=None):
+
+    if '.' not in table_input:
+        raise ValueError(
+            'Expected target table name in the format of '
+            '<dataset>.<table>. Got: {}'.format(table_input))
+
     if not default_project_id:
         raise ValueError("INTERNAL: No default project is specified")
 
@@ -1583,8 +1936,30 @@ def _split_tablename(table_input, default_project_id, var_name=None):
 
 def _cleanse_time_partitioning(destination_dataset_table, time_partitioning_in):
     # if it is a partitioned table ($ is in the table name) add partition load option
+
+    if time_partitioning_in is None:
+        time_partitioning_in = {}
+
     time_partitioning_out = {}
     if destination_dataset_table and '$' in destination_dataset_table:
         time_partitioning_out['type'] = 'DAY'
     time_partitioning_out.update(time_partitioning_in)
     return time_partitioning_out
+
+
+def _validate_value(key, value, expected_type):
+    """ function to check expected type and raise
+    error if type is not correct """
+    if not isinstance(value, expected_type):
+        raise TypeError("{} argument must have a type {} not {}".format(
+            key, expected_type, type(value)))
+
+
+def _api_resource_configs_duplication_check(key, value, config_dict,
+                                            config_dict_name='api_resource_configs'):
+    if key in config_dict and value != config_dict[key]:
+        raise ValueError("Values of {param_name} param are duplicated. "
+                         "{dict_name} contained {param_name} param "
+                         "in `query` config and {param_name} was also provided "
+                         "with arg to run_query() method. Please remove duplicates."
+                         .format(param_name=key, dict_name=config_dict_name))

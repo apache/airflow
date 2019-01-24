@@ -31,8 +31,8 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
     :param source_project_dataset_table: The dotted
-        (<project>.|<project>:)<dataset>.<table> BigQuery table to use as the source
-        data. If <project> is not included, project will be the project
+        ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to use as the
+        source data. If <project> is not included, project will be the project
         defined in the connection json. (templated)
     :type source_project_dataset_table: string
     :param destination_cloud_storage_uris: The destination Google Cloud
@@ -43,7 +43,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     :param compression: Type of compression to use.
     :type compression: string
     :param export_format: File format to export.
-    :type field_delimiter: string
+    :type export_format: string
     :param field_delimiter: The delimiter to use when extracting to a CSV.
     :type field_delimiter: string
     :param print_header: Whether to print a header for a CSV file extract.

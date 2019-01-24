@@ -1,4 +1,4 @@
-# INSTALL / BUILD instructions for Apache Airflow (incubating)
+# INSTALL / BUILD instructions for Apache Airflow
 
 # [required] fetch the tarball and untar the source
 # change into the directory that was untarred.

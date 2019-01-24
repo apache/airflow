@@ -54,6 +54,7 @@ NEW_CLUSTER = {
 }
 CLUSTER_ID = 'cluster_id'
 RUN_ID = 1
+JOB_ID = 42
 HOST = 'xx.cloud.databricks.com'
 HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
@@ -70,7 +71,19 @@ GET_RUN_RESPONSE = {
         'state_message': STATE_MESSAGE
     }
 }
+NOTEBOOK_PARAMS = {
+    "dry-run": "true",
+    "oldest-time-to-consider": "1457570074236"
+}
+JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = None
+
+
+def run_now_endpoint(host):
+    """
+    Utility function to generate the run now endpoint given the host.
+    """
+    return 'https://{}/api/2.0/jobs/run-now'.format(host)
 
 
 def submit_run_endpoint(host):
@@ -131,13 +144,11 @@ def create_post_side_effect(exception, status_code=500):
         return response
 
 
-def setup_mock_requests(
-        mock_requests,
-        exception,
-        status_code=500,
-        error_count=None,
-        response_content=None):
-
+def setup_mock_requests(mock_requests,
+                        exception,
+                        status_code=500,
+                        error_count=None,
+                        response_content=None):
     side_effect = create_post_side_effect(exception, status_code)
 
     if error_count is None:
@@ -153,6 +164,7 @@ class DatabricksHookTest(unittest.TestCase):
     """
     Tests for DatabricksHook.
     """
+
     @db.provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
@@ -161,6 +173,7 @@ class DatabricksHookTest(unittest.TestCase):
         conn.host = HOST
         conn.login = LOGIN
         conn.password = PASSWORD
+        conn.extra = None
         session.commit()
 
         self.hook = DatabricksHook(retry_delay=0)
@@ -178,21 +191,19 @@ class DatabricksHookTest(unittest.TestCase):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
-        for exception in [
-                requests_exceptions.ConnectionError,
-                requests_exceptions.SSLError,
-                requests_exceptions.Timeout,
-                requests_exceptions.ConnectTimeout,
-                requests_exceptions.HTTPError]:
-            with mock.patch(
-                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
-                    mock.patch.object(self.hook.log, 'error') as mock_errors:
-                setup_mock_requests(mock_requests, exception)
+        for exception in [requests_exceptions.ConnectionError,
+                          requests_exceptions.SSLError,
+                          requests_exceptions.Timeout,
+                          requests_exceptions.ConnectTimeout,
+                          requests_exceptions.HTTPError]:
+            with mock.patch('airflow.contrib.hooks.databricks_hook.requests') as mock_requests:
+                with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                    setup_mock_requests(mock_requests, exception)
 
-                with self.assertRaises(AirflowException):
-                    self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                    with self.assertRaises(AirflowException):
+                        self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                self.assertEquals(mock_errors.call_count, self.hook.retry_limit)
+                    self.assertEquals(mock_errors.call_count, self.hook.retry_limit)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_does_not_retry_with_non_retryable_error(self, mock_requests):
@@ -207,56 +218,52 @@ class DatabricksHookTest(unittest.TestCase):
             mock_errors.assert_not_called()
 
     def test_do_api_call_succeeds_after_retrying(self):
-        for exception in [
-                requests_exceptions.ConnectionError,
-                requests_exceptions.SSLError,
-                requests_exceptions.Timeout,
-                requests_exceptions.ConnectTimeout,
-                requests_exceptions.HTTPError]:
-            with mock.patch(
-                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
-                    mock.patch.object(self.hook.log, 'error') as mock_errors:
-                setup_mock_requests(
-                    mock_requests,
-                    exception,
-                    error_count=2,
-                    response_content={'run_id': '1'}
-                )
+        for exception in [requests_exceptions.ConnectionError,
+                          requests_exceptions.SSLError,
+                          requests_exceptions.Timeout,
+                          requests_exceptions.ConnectTimeout,
+                          requests_exceptions.HTTPError]:
+            with mock.patch('airflow.contrib.hooks.databricks_hook.requests') as mock_requests:
+                with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                    setup_mock_requests(
+                        mock_requests,
+                        exception,
+                        error_count=2,
+                        response_content={'run_id': '1'}
+                    )
 
-                response = self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                    response = self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                self.assertEquals(mock_errors.call_count, 2)
-                self.assertEquals(response, {'run_id': '1'})
+                    self.assertEquals(mock_errors.call_count, 2)
+                    self.assertEquals(response, {'run_id': '1'})
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.sleep')
     def test_do_api_call_waits_between_retries(self, mock_sleep):
         retry_delay = 5
         self.hook = DatabricksHook(retry_delay=retry_delay)
 
-        for exception in [
-                requests_exceptions.ConnectionError,
-                requests_exceptions.SSLError,
-                requests_exceptions.Timeout,
-                requests_exceptions.ConnectTimeout,
-                requests_exceptions.HTTPError]:
-            with mock.patch(
-                'airflow.contrib.hooks.databricks_hook.requests') as mock_requests, \
-                    mock.patch.object(self.hook.log, 'error'):
-                mock_sleep.reset_mock()
-                setup_mock_requests(mock_requests, exception)
+        for exception in [requests_exceptions.ConnectionError,
+                          requests_exceptions.SSLError,
+                          requests_exceptions.Timeout,
+                          requests_exceptions.ConnectTimeout,
+                          requests_exceptions.HTTPError]:
+            with mock.patch('airflow.contrib.hooks.databricks_hook.requests') as mock_requests:
+                with mock.patch.object(self.hook.log, 'error'):
+                    mock_sleep.reset_mock()
+                    setup_mock_requests(mock_requests, exception)
 
-                with self.assertRaises(AirflowException):
-                    self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                    with self.assertRaises(AirflowException):
+                        self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-                self.assertEquals(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
-                mock_sleep.assert_called_with(retry_delay)
+                    self.assertEquals(len(mock_sleep.mock_calls), self.hook.retry_limit - 1)
+                    mock_sleep.assert_called_with(retry_delay)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_submit_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         json = {
-          'notebook_task': NOTEBOOK_TASK,
-          'new_cluster': NEW_CLUSTER
+            'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER
         }
         run_id = self.hook.submit_run(json)
 
@@ -266,6 +273,32 @@ class DatabricksHookTest(unittest.TestCase):
             json={
                 'notebook_task': NOTEBOOK_TASK,
                 'new_cluster': NEW_CLUSTER,
+            },
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_run_now(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {
+            'notebook_params': NOTEBOOK_PARAMS,
+            'jar_params': JAR_PARAMS,
+            'job_id': JOB_ID
+        }
+        run_id = self.hook.run_now(json)
+
+        self.assertEquals(run_id, '1')
+
+        mock_requests.post.assert_called_once_with(
+            run_now_endpoint(HOST),
+            json={
+                'notebook_params': NOTEBOOK_PARAMS,
+                'jar_params': JAR_PARAMS,
+                'job_id': JOB_ID
             },
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
@@ -368,6 +401,7 @@ class DatabricksHookTokenTest(unittest.TestCase):
     """
     Tests for DatabricksHook when auth is done with token.
     """
+
     @db.provide_session
     def setUp(self, session=None):
         conn = session.query(Connection) \
@@ -385,8 +419,8 @@ class DatabricksHookTokenTest(unittest.TestCase):
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
         json = {
-          'notebook_task': NOTEBOOK_TASK,
-          'new_cluster': NEW_CLUSTER
+            'notebook_task': NOTEBOOK_TASK,
+            'new_cluster': NEW_CLUSTER
         }
         run_id = self.hook.submit_run(json)
 

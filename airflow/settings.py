@@ -170,8 +170,8 @@ def configure_orm(disable_connection_pool=False):
         except conf.AirflowConfigException:
             pool_recycle = 1800
 
-        log.info("setting.configure_orm(): Using pool settings. pool_size={}, "
-                 "pool_recycle={}".format(pool_size, pool_recycle))
+        log.info("settings.configure_orm(): Using pool settings. pool_size={}, "
+                 "pool_recycle={}, pid={}".format(pool_size, pool_recycle, os.getpid()))
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
 
@@ -190,7 +190,10 @@ def configure_orm(disable_connection_pool=False):
     setup_event_handlers(engine, reconnect_timeout)
 
     Session = scoped_session(
-        sessionmaker(autocommit=False, autoflush=False, bind=engine))
+        sessionmaker(autocommit=False,
+                     autoflush=False,
+                     bind=engine,
+                     expire_on_commit=False))
 
 
 def dispose_orm():
@@ -256,7 +259,7 @@ try:
 except Exception:
     pass
 
-configure_logging()
+logging_class_path = configure_logging()
 configure_vars()
 configure_adapters()
 # The webservers import this file from models.py with the default settings.

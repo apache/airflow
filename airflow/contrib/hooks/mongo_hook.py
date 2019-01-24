@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from ssl import CERT_NONE
 
 from airflow.hooks.base_hook import BaseHook
@@ -27,7 +32,7 @@ class MongoHook(BaseHook):
     ex.
         {replicaSet: test, ssl: True, connectTimeoutMS: 30000}
     """
-    conn_type = 'MongoDb'
+    conn_type = 'mongo'
 
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
         super(MongoHook, self).__init__(source='mongo')
@@ -36,6 +41,13 @@ class MongoHook(BaseHook):
         self.connection = self.get_connection(conn_id)
         self.extras = self.connection.extra_dejson
         self.client = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.client is not None:
+            self.close_conn()
 
     def get_conn(self):
         """
@@ -66,6 +78,12 @@ class MongoHook(BaseHook):
         self.client = MongoClient(uri, **options)
 
         return self.client
+
+    def close_conn(self):
+        client = self.client
+        if client is not None:
+            client.close()
+            self.client = None
 
     def get_collection(self, mongo_collection, mongo_db=None):
         """

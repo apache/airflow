@@ -22,16 +22,30 @@ TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../../../.."
 
-ENVCONFIG=$(minikube docker-env)
-if [ $? -eq 0 ]; then
-  eval $ENVCONFIG
+set -e
+
+if [ "${VM_DRIVER:-none}" != "none" ]; then
+    ENVCONFIG=$(minikube docker-env)
+    if [ $? -eq 0 ]; then
+      eval $ENVCONFIG
+    fi
 fi
 
 echo "Airflow directory $AIRFLOW_ROOT"
 echo "Airflow Docker directory $DIRNAME"
 
+if [[ ${PYTHON_VERSION} == '3' ]]; then
+  PYTHON_DOCKER_IMAGE=python:3.6-slim
+else
+  PYTHON_DOCKER_IMAGE=python:2.7-slim
+fi
+
 cd $AIRFLOW_ROOT
-python setup.py sdist -q
+docker run -ti --rm -e SLUGIFY_USES_TEXT_UNIDECODE -v ${AIRFLOW_ROOT}:/airflow \
+    -w /airflow ${PYTHON_DOCKER_IMAGE} ./scripts/ci/kubernetes/docker/compile.sh \
+
+sudo rm -rf ${AIRFLOW_ROOT}/airflow/www_rbac/node_modules
+
 echo "Copy distro $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
 cp $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz
 cd $DIRNAME && docker build --pull $DIRNAME --tag=${IMAGE}:${TAG}
