@@ -29,7 +29,7 @@ RUN set -x \
     && apt update \
     && if [ -n "${APT_DEPS}" ]; then apt install -y $APT_DEPS; fi \
     && if [ -n "${PYTHON_DEPS}" ]; then pip install --no-cache-dir ${PYTHON_DEPS}; fi \
-    && pip install --no-cache-dir -e .[$AIRFLOW_DEPS] \
+    && pip install --no-cache-dir --no-use-pep517 -e .[$AIRFLOW_DEPS] \
     && apt purge --auto-remove -yqq $buildDeps \
     && apt autoremove -yqq --purge \
     && apt clean
