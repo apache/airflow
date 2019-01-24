@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import time
 from builtins import str
 

@@ -20,11 +20,8 @@
 
 import mock
 import unittest
-import time
 
 from mock import patch
-
-import pyhive.presto
 
 from airflow.hooks.presto_hook import PrestoHook
 
@@ -74,4 +71,3 @@ class TestPrestoHook(unittest.TestCase):
         with self.assertRaises(RuntimeError, msg=ERROR_MSG):
             hook.run(sql="", poll_interval=POLL_INTERVAL)
             mock_sleep.assert_called_once_with(POLL_INTERVAL)
-
