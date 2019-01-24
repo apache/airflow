@@ -652,14 +652,12 @@ def list_jobs(args, dag=None):
     if args.state:
         queries.append(jobs.BaseJob.state == args.state)
 
-    limit = args.limit if args.limit else -1
-
     with db.create_session() as session:
         all_jobs = (session
                     .query(jobs.BaseJob)
                     .filter(*queries)
                     .order_by(jobs.BaseJob.start_date.desc())
-                    .limit(limit)
+                    .limit(args.limit)
                     .all())
     fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
     all_jobs = [[j.__getattribute__(field) for field in fields] for j in all_jobs]
