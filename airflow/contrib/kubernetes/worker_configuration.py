@@ -187,8 +187,8 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.dags_configmap:
             dags_volume_name = self.dags_volume_name
             dag_path = self.generate_dag_volume_mount_path(),
-            volumes[dag_volume_name] = {
-                'name': dag_volume_name,
+            volumes[dags_volume_name] = {
+                'name': dags_volume_name,
                 'configMap': {
                     'name': self.kube_config.dags_configmap
                 }
