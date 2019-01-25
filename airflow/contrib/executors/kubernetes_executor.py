@@ -135,6 +135,7 @@ class KubeConfig:
             self.kubernetes_section, "worker_container_image_pull_policy"
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
+        self.kube_annotations = configuration_dict.get('kubernetes_annotations', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
         self.worker_pods_creation_batch_size = conf.getint(
