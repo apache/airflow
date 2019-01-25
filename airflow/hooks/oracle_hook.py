@@ -46,6 +46,7 @@ class OracleHook(DbApiHook):
         :param dsn: the host address for the Oracle server
         :param service_name: the db_unique_name of the database
               that you are connecting to (CONNECT_DATA part of TNS)
+
         You can set these parameters in the extra fields of your connection
         as in ``{ "dsn":"some.host.address" , "service_name":"some.service.name" }``
         """
@@ -74,9 +75,10 @@ class OracleHook(DbApiHook):
         A generic way to insert a set of tuples into a table,
         the whole set of inserts is treated as one transaction
         Changes from standard DbApiHook implementation:
-        - Oracle SQL queries in cx_Oracle can not be terminated with a semicolon (';')
-        - Replace NaN values with NULL using numpy.nan_to_num (not using is_nan()
-          because of input types error for strings)
+
+        - Oracle SQL queries in cx_Oracle can not be terminated with a semicolon (`;`)
+        - Replace NaN values with NULL using `numpy.nan_to_num` (not using
+          `is_nan()` because of input types error for strings)
         - Coerce datetime cells to Oracle DATETIME format during insert
         """
         if target_fields:

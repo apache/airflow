@@ -38,19 +38,20 @@ import mock
 import airflow
 
 MOCK_MODULES = [
+    'google.auth.default',
+    'google.oauth2.service_account',
+    'google_auth_httplib2',
     'googleapiclient',
-    'googleapiclient.errors',
     'googleapiclient.discovery',
+    'googleapiclient.errors',
     'googleapiclient.http',
     'mesos',
     'mesos.interface',
     'mesos.native',
-    'google.auth.default',
-    'google_auth_httplib2',
-    'google.oauth2.service_account',
     'pandas.io.gbq',
+    'pymssql',
+    'simple_salesforce',
     'vertica_python',
-    'pymssql'
 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()

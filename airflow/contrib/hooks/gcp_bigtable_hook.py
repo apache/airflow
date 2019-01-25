@@ -174,7 +174,7 @@ class BigtableHook(GoogleCloudBaseHook):
                      column_families=None):
         """
         Creates the specified Cloud Bigtable table.
-        Raises google.api_core.exceptions.AlreadyExists if the table exists.
+        Raises ``google.api_core.exceptions.AlreadyExists`` if the table exists.
 
         :type instance: Instance
         :param instance: The Cloud Bigtable instance that owns the table.
@@ -185,8 +185,7 @@ class BigtableHook(GoogleCloudBaseHook):
             initially split the table.
         :type column_families: dict
         :param column_families: (Optional) A map of columns to create. The key is the
-            column_id str, and the
-        value is a GarbageCollectionRule.
+            column_id str, and the value is a ``GarbageCollectionRule``.
         """
         if column_families is None:
             column_families = {}

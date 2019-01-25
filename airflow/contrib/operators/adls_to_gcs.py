@@ -52,6 +52,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
         The following Operator would copy a single file named
         ``hello/world.avro`` from ADLS to the GCS bucket ``mybucket``. Its full
         resulting gcs path will be ``gs://mybucket/hello/world.avro`` ::
+
             copy_single_file = AdlsToGoogleCloudStorageOperator(
                 task_id='copy_single_file',
                 src_adls='hello/world.avro',
@@ -63,6 +64,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
 
         The following Operator would copy all parquet files from ADLS
         to the GCS bucket ``mybucket``. ::
+
             copy_all_files = AdlsToGoogleCloudStorageOperator(
                 task_id='copy_all_files',
                 src_adls='*.parquet',
@@ -74,6 +76,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
 
          The following Operator would copy all parquet files from ADLS
          path ``/hello/world``to the GCS bucket ``mybucket``. ::
+
             copy_world_files = AdlsToGoogleCloudStorageOperator(
                 task_id='copy_world_files',
                 src_adls='hello/world/*.parquet',

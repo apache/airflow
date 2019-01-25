@@ -173,7 +173,8 @@ class FTPHook(BaseHook, LoggingMixin):
             [default: output_handle.write()]
         :type callback: callable
 
-        Example::
+        :Example::
+
             hook = FTPHook(ftp_conn_id='my_conn')
 
             remote_path = '/path/to/remote/file'

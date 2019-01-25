@@ -66,43 +66,48 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         If tzinfo has not been set, UTC will be assumed.
     :type last_modified_time: datetime
 
-    **Examples**:
-        The following Operator would copy a single file named
-        ``sales/sales-2017/january.avro`` in the ``data`` bucket to the file named
-        ``copied_sales/2017/january-backup.avro`` in the ``data_backup`` bucket ::
-            copy_single_file = GoogleCloudStorageToGoogleCloudStorageOperator(
-                task_id='copy_single_file',
-                source_bucket='data',
-                source_object='sales/sales-2017/january.avro',
-                destination_bucket='data_backup',
-                destination_object='copied_sales/2017/january-backup.avro',
-                google_cloud_storage_conn_id=google_cloud_conn_id
-            )
+    :Example:
 
-        The following Operator would copy all the Avro files from ``sales/sales-2017``
-        folder (i.e. with names starting with that prefix) in ``data`` bucket to the
-        ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
-            copy_files = GoogleCloudStorageToGoogleCloudStorageOperator(
-                task_id='copy_files',
-                source_bucket='data',
-                source_object='sales/sales-2017/*.avro',
-                destination_bucket='data_backup',
-                destination_object='copied_sales/2017/',
-                google_cloud_storage_conn_id=google_cloud_conn_id
-            )
+    The following Operator would copy a single file named
+    ``sales/sales-2017/january.avro`` in the ``data`` bucket to the file named
+    ``copied_sales/2017/january-backup.avro`` in the ``data_backup`` bucket ::
 
-        The following Operator would move all the Avro files from ``sales/sales-2017``
-        folder (i.e. with names starting with that prefix) in ``data`` bucket to the
-        same folder in the ``data_backup`` bucket, deleting the original files in the
-        process. ::
-            move_files = GoogleCloudStorageToGoogleCloudStorageOperator(
-                task_id='move_files',
-                source_bucket='data',
-                source_object='sales/sales-2017/*.avro',
-                destination_bucket='data_backup',
-                move_object=True,
-                google_cloud_storage_conn_id=google_cloud_conn_id
-            )
+        copy_single_file = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id='copy_single_file',
+            source_bucket='data',
+            source_object='sales/sales-2017/january.avro',
+            destination_bucket='data_backup',
+            destination_object='copied_sales/2017/january-backup.avro',
+            google_cloud_storage_conn_id=google_cloud_conn_id
+        )
+
+    The following Operator would copy all the Avro files from ``sales/sales-2017``
+    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
+
+        copy_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id='copy_files',
+            source_bucket='data',
+            source_object='sales/sales-2017/*.avro',
+            destination_bucket='data_backup',
+            destination_object='copied_sales/2017/',
+            google_cloud_storage_conn_id=google_cloud_conn_id
+        )
+
+    The following Operator would move all the Avro files from ``sales/sales-2017``
+    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    same folder in the ``data_backup`` bucket, deleting the original files in the
+    process. ::
+
+        move_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id='move_files',
+            source_bucket='data',
+            source_object='sales/sales-2017/*.avro',
+            destination_bucket='data_backup',
+            move_object=True,
+            google_cloud_storage_conn_id=google_cloud_conn_id
+        )
+
     """
     template_fields = ('source_bucket', 'source_object', 'destination_bucket',
                        'destination_object',)

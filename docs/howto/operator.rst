@@ -1363,8 +1363,6 @@ as shown in the example:
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
     :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
 
-.. _CloudSqlInstanceCreateOperator:
-
 CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1419,8 +1417,6 @@ More information
 
 See `Google Cloud SQL API documentation for insert
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
-
-.. _CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

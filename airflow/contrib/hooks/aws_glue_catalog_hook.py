@@ -70,7 +70,7 @@ class AwsGlueCatalogHook(AwsHook):
         :type max_items: int
         :return: set of partition values where each value is a tuple since
             a partition may be composed of multiple columns. For example:
-        {('2018-01-01','1'), ('2018-01-01','2')}
+            ``{('2018-01-01','1'), ('2018-01-01','2')}``
         """
         config = {
             'PageSize': page_size,

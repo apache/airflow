@@ -31,13 +31,13 @@ class BigQueryToBigQueryOperator(BaseOperator):
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
 
     :param source_project_dataset_tables: One or more
-        dotted (project:|project.)<dataset>.<table> BigQuery tables to use as the
-        source data. If <project> is not included, project will be the
+        dotted ``(project:|project.)<dataset>.<table>`` BigQuery tables to use as the
+        source data. If ``<project>`` is not included, project will be the
         project defined in the connection json. Use a list if there are multiple
         source tables. (templated)
     :type source_project_dataset_tables: list|string
     :param destination_project_dataset_table: The destination BigQuery
-        table. Format is: (project:|project.)<dataset>.<table> (templated)
+        table. Format is: ``(project:|project.)<dataset>.<table>`` (templated)
     :type destination_project_dataset_table: str
     :param write_disposition: The write disposition if the table already exists.
     :type write_disposition: str

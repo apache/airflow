@@ -101,7 +101,7 @@ class AzureContainerInstanceHook(BaseHook):
         :param name: the name of the container group
         :type name: str
         :return: A tuple with the state, exitcode, and details.
-        If the exitcode is unknown 0 is returned.
+            If the exitcode is unknown 0 is returned.
         :rtype: tuple(state,exitcode,details)
         """
         current_state = self._get_instance_view(resource_group, name).current_state

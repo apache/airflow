@@ -58,6 +58,7 @@ class S3FileTransformOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
              You can specify this argument if you want to use a different
              CA cert bundle than the one used by botocore.
+
         This is also applicable to ``dest_verify``.
     :type source_verify: bool or str
     :param dest_s3_key: The key to be written from S3. (templated)

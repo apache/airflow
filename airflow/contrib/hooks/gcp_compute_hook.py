@@ -271,7 +271,7 @@ class GceHook(GoogleCloudBaseHook):
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the GCP connection is used.
         :type project_id: str
-        :return None
+        :return: None
         """
         response = self.get_conn().instanceGroupManagers().patch(
             project=project_id,

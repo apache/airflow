@@ -42,6 +42,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             - ``STANDARD``
             - ``NEARLINE``
             - ``COLDLINE``.
+
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
     :type storage_class: str
@@ -49,8 +50,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         Object data for objects in the bucket resides in physical storage
         within this region. Defaults to US.
 
-        .. seealso::
-            https://developers.google.com/storage/docs/bucket-locations
+        .. seealso:: https://developers.google.com/storage/docs/bucket-locations
 
     :type location: str
     :param project_id: The ID of the GCP Project. (templated)
@@ -65,18 +65,18 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         have domain-wide delegation enabled.
     :type delegate_to: str
 
-    **Example**:
-        The following Operator would create a new bucket ``test-bucket``
-        with ``MULTI_REGIONAL`` storage class in ``EU`` region ::
+    :Example::
+    The following Operator would create a new bucket ``test-bucket``
+    with ``MULTI_REGIONAL`` storage class in ``EU`` region ::
 
-            CreateBucket = GoogleCloudStorageCreateBucketOperator(
-                task_id='CreateNewBucket',
-                bucket_name='test-bucket',
-                storage_class='MULTI_REGIONAL',
-                location='EU',
-                labels={'env': 'dev', 'team': 'airflow'},
-                google_cloud_storage_conn_id='airflow-service-account'
-            )
+        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+            task_id='CreateNewBucket',
+            bucket_name='test-bucket',
+            storage_class='MULTI_REGIONAL',
+            location='EU',
+            labels={'env': 'dev', 'team': 'airflow'},
+            google_cloud_storage_conn_id='airflow-service-account'
+        )
     """
 
     template_fields = ('bucket_name', 'storage_class',

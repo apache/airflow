@@ -62,8 +62,8 @@ class AzureContainerInstancesOperator(BaseOperator):
     :type image: str
     :param region: the region wherein this container instance should be started
     :type region: str
-    :param: environment_variables: key,value pairs containing environment variables
-        which will be passed to the running container
+    :param: environment_variables: key,value pairs containing environment
+        variables which will be passed to the running container
     :type: environment_variables: dict
     :param: volumes: list of volumes to be mounted to the container.
         Currently only Azure Fileshares are supported.
