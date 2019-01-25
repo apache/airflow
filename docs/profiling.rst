@@ -21,6 +21,7 @@ Data Profiling
 ==============
 
 .. note::
+
    ``Adhoc Queries`` and ``Charts`` are no longer supported in the new FAB-based webserver
    and UI, due to security concerns.
 
