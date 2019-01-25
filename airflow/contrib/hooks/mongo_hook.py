@@ -29,8 +29,7 @@ class MongoHook(BaseHook):
     https://docs.mongodb.com/manual/reference/connection-string/index.html
     You can specify connection string options in extra field of your connection
     https://docs.mongodb.com/manual/reference/connection-string/index.html#connection-string-options
-    ex.
-        {replicaSet: test, ssl: True, connectTimeoutMS: 30000}
+    ex. ``{replicaSet: test, ssl: True, connectTimeoutMS: 30000}``
     """
     conn_type = 'mongo'
 

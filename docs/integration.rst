@@ -121,6 +121,15 @@ WasbBlobSensor
 """"""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
+    :noindex:
+
+.. _WasbDeleteBlobOperator:
+
+WasbDeleteBlobOperator
+""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator
+    :noindex:
 
 .. _WasbPrefixSensor:
 
@@ -128,6 +137,7 @@ WasbPrefixSensor
 """"""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor
+    :noindex:
 
 .. _FileToWasbOperator:
 
@@ -135,6 +145,7 @@ FileToWasbOperator
 """"""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
+    :noindex:
 
 .. _WasbHook:
 
@@ -142,6 +153,7 @@ WasbHook
 """"""""
 
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
+    :noindex:
 
 Azure File Share
 ''''''''''''''''
@@ -155,6 +167,7 @@ AzureFileShareHook
 """"""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
+    :noindex:
 
 Logging
 '''''''
@@ -178,18 +191,21 @@ default database and collection to use (see connection `azure_cosmos_default` fo
 
 AzureCosmosDBHook 
 """""""""""""""""
- 
-.. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook 
- 
-AzureCosmosInsertDocumentOperator 
+
+.. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook
+    :noindex:
+
+AzureCosmosInsertDocumentOperator
 """""""""""""""""""""""""""""""""
  
 .. autoclass:: airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator
- 
-AzureCosmosDocumentSensor 
+    :noindex:
+
+AzureCosmosDocumentSensor
 """""""""""""""""""""""""
- 
-.. autoclass:: airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor 
+
+.. autoclass:: airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor
+    :noindex:
 
 Azure Data Lake
 '''''''''''''''
@@ -197,7 +213,7 @@ Azure Data Lake
 AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
 Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
 login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
- (see connection `azure_data_lake_default` for an example).
+(see connection `azure_data_lake_default` for an example).
 
 - :ref:`AzureDataLakeHook`: Interface with Azure Data Lake.
 - :ref:`AzureDataLakeStorageListOperator`: Lists the files located in a specified Azure Data Lake path.
@@ -209,6 +225,7 @@ AzureDataLakeHook
 """""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
+    :noindex:
 
 .. _AzureDataLakeStorageListOperator:
 
@@ -216,6 +233,7 @@ AzureDataLakeStorageListOperator
 """"""""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
+    :noindex:
 
 .. _AdlsToGoogleCloudStorageOperator:
 
@@ -223,6 +241,7 @@ AdlsToGoogleCloudStorageOperator
 """"""""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+    :noindex:
 
 .. _AWS:
 
@@ -246,6 +265,7 @@ EmrAddStepsOperator
 """""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator
+    :noindex:
 
 .. _EmrCreateJobFlowOperator:
 
@@ -253,6 +273,7 @@ EmrCreateJobFlowOperator
 """"""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator
+    :noindex:
 
 .. _EmrTerminateJobFlowOperator:
 
@@ -260,6 +281,7 @@ EmrTerminateJobFlowOperator
 """""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator
+    :noindex:
 
 .. _EmrHook:
 
@@ -267,6 +289,7 @@ EmrHook
 """""""
 
 .. autoclass:: airflow.contrib.hooks.emr_hook.EmrHook
+    :noindex:
 
 
 AWS S3
@@ -285,6 +308,7 @@ S3Hook
 """"""
 
 .. autoclass:: airflow.hooks.S3_hook.S3Hook
+    :noindex:
 
 .. _S3FileTransformOperator:
 
@@ -292,6 +316,7 @@ S3FileTransformOperator
 """""""""""""""""""""""
 
 .. autoclass:: airflow.operators.s3_file_transform_operator.S3FileTransformOperator
+    :noindex:
 
 .. _S3ListOperator:
 
@@ -299,6 +324,7 @@ S3ListOperator
 """"""""""""""
 
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
+    :noindex:
 
 .. _S3ToGoogleCloudStorageOperator:
 
@@ -306,13 +332,15 @@ S3ToGoogleCloudStorageOperator
 """"""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
+    :noindex:
 
 .. _S3ToGoogleCloudStorageTransferOperator:
 
 S3ToGoogleCloudStorageTransferOperator
 """"""""""""""""""""""""""""""""""""""
 
-.. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageTransferOperator
+.. autoclass:: airflow.contrib.operators.s3_to_gcs_transfer_operator.S3ToGoogleCloudStorageTransferOperator
+    :noindex:
 
 .. _S3ToHiveTransfer:
 
@@ -320,6 +348,7 @@ S3ToHiveTransfer
 """"""""""""""""
 
 .. autoclass:: airflow.operators.s3_to_hive_operator.S3ToHiveTransfer
+    :noindex:
 
 
 AWS EC2 Container Service
@@ -333,6 +362,7 @@ ECSOperator
 """""""""""
 
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
+    :noindex:
 
 
 AWS Batch Service
@@ -346,6 +376,7 @@ AWSBatchOperator
 """"""""""""""""
 
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
+    :noindex:
 
 
 AWS RedShift
@@ -362,6 +393,7 @@ AwsRedshiftClusterSensor
 """"""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
+    :noindex:
 
 .. _RedshiftHook:
 
@@ -369,6 +401,7 @@ RedshiftHook
 """"""""""""
 
 .. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook
+    :noindex:
 
 .. _RedshiftToS3Transfer:
 
@@ -376,6 +409,7 @@ RedshiftToS3Transfer
 """"""""""""""""""""
 
 .. autoclass:: airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer
+    :noindex:
 
 .. _S3ToRedshiftTransfer:
 
@@ -383,12 +417,11 @@ S3ToRedshiftTransfer
 """"""""""""""""""""
 
 .. autoclass:: airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer
+    :noindex:
 
 
 Amazon SageMaker
 ''''''''''''''''
-
-For more instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
 
 .. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
 
@@ -406,6 +439,7 @@ SageMakerHook
 """""""""""""
 
 .. autoclass:: airflow.contrib.hooks.sagemaker_hook.SageMakerHook
+    :noindex:
 
 .. _SageMakerTrainingOperator:
 
@@ -413,6 +447,7 @@ SageMakerTrainingOperator
 """""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator
+    :noindex:
 
 .. _SageMakerTuningOperator:
 
@@ -420,6 +455,7 @@ SageMakerTuningOperator
 """""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator
+    :noindex:
 
 .. _SageMakerModelOperator:
 
@@ -427,6 +463,7 @@ SageMakerModelOperator
 """"""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator
+    :noindex:
 
 .. _SageMakerTransformOperator:
 
@@ -434,6 +471,7 @@ SageMakerTransformOperator
 """"""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator
+    :noindex:
 
 .. _SageMakerEndpointConfigOperator:
 
@@ -441,6 +479,7 @@ SageMakerEndpointConfigOperator
 """""""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
+    :noindex:
 
 .. _SageMakerEndpointOperator:
 
@@ -448,70 +487,7 @@ SageMakerEndpointOperator
 """""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
-
-Amazon SageMaker
-''''''''''''''''
-
-For more instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
-
-.. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
-
-- :ref:`SageMakerHook` : Interact with Amazon SageMaker.
-- :ref:`SageMakerTrainingOperator` : Create a SageMaker training job.
-- :ref:`SageMakerTuningOperator` : Create a SageMaker tuning job.
-- :ref:`SageMakerModelOperator` : Create a SageMaker model.
-- :ref:`SageMakerTransformOperator` : Create a SageMaker transform job.
-- :ref:`SageMakerEndpointConfigOperator` : Create a SageMaker endpoint config.
-- :ref:`SageMakerEndpointOperator` : Create a SageMaker endpoint.
-
-.. _SageMakerHook:
-
-SageMakerHook
-"""""""""""""
-
-.. autoclass:: airflow.contrib.hooks.sagemaker_hook.SageMakerHook
-
-.. _SageMakerTrainingOperator:
-
-SageMakerTrainingOperator
-"""""""""""""""""""""""""
-
-.. autoclass:: airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator
-
-.. _SageMakerTuningOperator:
-
-SageMakerTuningOperator
-"""""""""""""""""""""""
-
-.. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator
-
-.. _SageMakerModelOperator:
-
-SageMakerModelOperator
-""""""""""""""""""""""
-
-.. autoclass:: airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator
-
-.. _SageMakerTransformOperator:
-
-SageMakerTransformOperator
-""""""""""""""""""""""""""
-
-.. autoclass:: airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator
-
-.. _SageMakerEndpointConfigOperator:
-
-SageMakerEndpointConfigOperator
-"""""""""""""""""""""""""""""""
-
-.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
-
-.. _SageMakerEndpointOperator:
-
-SageMakerEndpointOperator
-"""""""""""""""""""""""""
-
-.. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
+    :noindex:
 
 .. _Databricks:
 
@@ -526,7 +502,7 @@ DatabricksSubmitRunOperator
 '''''''''''''''''''''''''''
 
 .. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
-
+    :noindex:
 
 
 .. _GCP:
@@ -551,6 +527,7 @@ GoogleCloudBaseHook
 '''''''''''''''''''
 
 .. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
+    :noindex:
 
 .. _GoogleCloudBaseHook:
 
@@ -580,6 +557,7 @@ BigQueryCheckOperator
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
+    :noindex:
 
 .. _BigQueryValueCheckOperator:
 
@@ -587,6 +565,7 @@ BigQueryValueCheckOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
+    :noindex:
 
 .. _BigQueryIntervalCheckOperator:
 
@@ -594,6 +573,7 @@ BigQueryIntervalCheckOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator
+    :noindex:
 
 .. _BigQueryGetDataOperator:
 
@@ -601,6 +581,7 @@ BigQueryGetDataOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator
+    :noindex:
 
 .. _BigQueryCreateEmptyTableOperator:
 
@@ -608,6 +589,7 @@ BigQueryCreateEmptyTableOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator
+    :noindex:
 
 .. _BigQueryCreateExternalTableOperator:
 
@@ -615,6 +597,7 @@ BigQueryCreateExternalTableOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator
+    :noindex:
 
 .. _BigQueryCreateEmptyDatasetOperator:
 
@@ -622,6 +605,7 @@ BigQueryCreateEmptyDatasetOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator
+    :noindex:
 
 .. _BigQueryDeleteDatasetOperator:
 
@@ -629,6 +613,7 @@ BigQueryDeleteDatasetOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
+    :noindex:
 
 .. _BigQueryTableDeleteOperator:
 
@@ -636,6 +621,7 @@ BigQueryTableDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator
+    :noindex:
 
 .. _BigQueryOperator:
 
@@ -643,6 +629,7 @@ BigQueryOperator
 ^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
+    :noindex:
 
 .. _BigQueryToBigQueryOperator:
 
@@ -650,6 +637,7 @@ BigQueryToBigQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
+    :noindex:
 
 .. _BigQueryToCloudStorageOperator:
 
@@ -657,6 +645,7 @@ BigQueryToCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
+    :noindex:
 
 
 BigQueryHook
@@ -664,6 +653,7 @@ BigQueryHook
 
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
     :members:
+    :noindex:
 
 Cloud Spanner
 '''''''''''''
@@ -689,6 +679,7 @@ CloudSpannerInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator
+    :noindex:
 
 .. _CloudSpannerInstanceDatabaseDeployOperator:
 
@@ -696,6 +687,7 @@ CloudSpannerInstanceDatabaseDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator
+    :noindex:
 
 .. _CloudSpannerInstanceDatabaseUpdateOperator:
 
@@ -703,6 +695,7 @@ CloudSpannerInstanceDatabaseUpdateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator
+    :noindex:
 
 .. _CloudSpannerInstanceDatabaseQueryOperator:
 
@@ -710,6 +703,7 @@ CloudSpannerInstanceDatabaseQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator
+    :noindex:
 
 .. _CloudSpannerInstanceDeployOperator:
 
@@ -717,6 +711,7 @@ CloudSpannerInstanceDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator
+    :noindex:
 
 .. _CloudSpannerInstanceDeleteOperator:
 
@@ -724,6 +719,7 @@ CloudSpannerInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator
+    :noindex:
 
 
 CloudSpannerHook
@@ -731,6 +727,7 @@ CloudSpannerHook
 
 .. autoclass:: airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook
     :members:
+    :noindex:
 
 
 Cloud SQL
@@ -758,6 +755,7 @@ CloudSqlInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
+    :noindex:
 
 .. _CloudSqlInstanceDatabaseCreateOperator:
 
@@ -765,6 +763,7 @@ CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
+    :noindex:
 
 .. _CloudSqlInstanceDatabasePatchOperator:
 
@@ -772,6 +771,7 @@ CloudSqlInstanceDatabasePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
+    :noindex:
 
 .. _CloudSqlInstanceDeleteOperator:
 
@@ -779,6 +779,7 @@ CloudSqlInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
+    :noindex:
 
 .. _CloudSqlInstanceExportOperator:
 
@@ -786,6 +787,7 @@ CloudSqlInstanceExportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator
+    :noindex:
 
 .. _CloudSqlInstanceImportOperator:
 
@@ -793,6 +795,7 @@ CloudSqlInstanceImportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator
+    :noindex:
 
 .. _CloudSqlInstanceCreateOperator:
 
@@ -800,6 +803,7 @@ CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
+    :noindex:
 
 .. _CloudSqlInstancePatchOperator:
 
@@ -807,12 +811,15 @@ CloudSqlInstancePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
+    :noindex:
 
 .. _CloudSqlQueryOperator:
 
 CloudSqlQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^
+
 .. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator
+    :noindex:
 
 Cloud SQL Hooks
 """""""""""""""
@@ -821,16 +828,19 @@ Cloud SQL Hooks
 
 .. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
     :members:
+    :noindex:
 
 .. _CloudSqlDatabaseHook:
 
 .. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook
     :members:
+    :noindex:
 
 .. _CloudSqlProxyRunner:
 
 .. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner
     :members:
+    :noindex:
 
 
 Cloud Bigtable
@@ -849,9 +859,10 @@ Cloud Bigtable Operators
 .. _BigtableInstanceCreateOperator:
 
 BigtableInstanceCreateOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
 
 .. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator
+    :noindex:
 
 .. _BigtableInstanceDeleteOperator:
 
@@ -859,6 +870,7 @@ BigtableInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator
+    :noindex:
 
 .. _BigtableClusterUpdateOperator:
 
@@ -866,6 +878,7 @@ BigtableClusterUpdateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator
+    :noindex:
 
 .. _BigtableTableCreateOperator:
 
@@ -873,6 +886,7 @@ BigtableTableCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator
+    :noindex:
 
 .. _BigtableTableDeleteOperator:
 
@@ -880,6 +894,7 @@ BigtableTableDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator
+    :noindex:
 
 .. _BigtableTableWaitForReplicationSensor:
 
@@ -887,6 +902,7 @@ BigtableTableWaitForReplicationSensor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor
+    :noindex:
 
 .. _BigtableHook:
 
@@ -913,6 +929,7 @@ Compute Engine Operators
 The operators have the common base operator:
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceBaseOperator
+    :noindex:
 
 They also use :ref:`GceHook` to communicate with Google Cloud Platform.
 
@@ -922,6 +939,7 @@ GceInstanceStartOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator
+    :noindex:
 
 .. _GceInstanceStopOperator:
 
@@ -929,6 +947,7 @@ GceInstanceStopOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator
+    :noindex:
 
 .. _GceSetMachineTypeOperator:
 
@@ -936,6 +955,7 @@ GceSetMachineTypeOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
+    :noindex:
 
 .. _GceInstanceTemplateCopyOperator:
 
@@ -943,6 +963,7 @@ GceInstanceTemplateCopyOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator
+    :noindex:
 
 .. _GceInstanceGroupManagerUpdateTemplateOperator:
 
@@ -950,6 +971,7 @@ GceInstanceGroupManagerUpdateTemplateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator
+    :noindex:
 
 .. _GceHook:
 
@@ -957,7 +979,8 @@ Compute Engine Hook
 """""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.gcp_compute_hook.GceHook
-:members:
+    :members:
+    :noindex:
 
 
 Cloud Functions
@@ -969,8 +992,6 @@ Cloud Functions Operators
 - :ref:`GcfFunctionDeployOperator` : deploy Google Cloud Function to Google Cloud Platform
 - :ref:`GcfFunctionDeleteOperator` : delete Google Cloud Function in Google Cloud Platform
 
-.. autoclass:: airflow.contrib.operators.gcp_operator.GCP
-
 They also use :ref:`GcfHook` to communicate with Google Cloud Platform.
 
 .. _GcfFunctionDeployOperator:
@@ -979,7 +1000,7 @@ GcfFunctionDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator
-
+    :noindex:
 
 .. _GcfFunctionDeleteOperator:
 
@@ -987,6 +1008,7 @@ GcfFunctionDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
+    :noindex:
 
 .. _GcfHook:
 
@@ -995,6 +1017,7 @@ Cloud Functions Hook
 
 .. autoclass:: airflow.contrib.hooks.gcp_function_hook.GcfHook
     :members:
+    :noindex:
 
 
 Cloud DataFlow
@@ -1013,6 +1036,7 @@ DataFlowJavaOperator
 ^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator
+    :noindex:
 
 .. code:: python
 
@@ -1054,6 +1078,7 @@ DataflowTemplateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator
+    :noindex:
 
 .. _DataFlowPythonOperator:
 
@@ -1061,6 +1086,7 @@ DataFlowPythonOperator
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator
+    :noindex:
 
 
 DataFlowHook
@@ -1068,6 +1094,7 @@ DataFlowHook
 
 .. autoclass:: airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook
     :members:
+    :noindex:
 
 
 
@@ -1095,6 +1122,7 @@ DataprocClusterCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
+    :noindex:
 
 .. _DataprocClusterScaleOperator:
 
@@ -1102,6 +1130,7 @@ DataprocClusterScaleOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
+    :noindex:
 
 .. _DataprocClusterDeleteOperator:
 
@@ -1109,6 +1138,7 @@ DataprocClusterDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator
+    :noindex:
 
 .. _DataProcPigOperator:
 
@@ -1116,6 +1146,7 @@ DataProcPigOperator
 ^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPigOperator
+    :noindex:
 
 .. _DataProcHiveOperator:
 
@@ -1123,6 +1154,7 @@ DataProcHiveOperator
 ^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHiveOperator
+    :noindex:
 
 .. _DataProcSparkSqlOperator:
 
@@ -1130,6 +1162,7 @@ DataProcSparkSqlOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator
+    :noindex:
 
 .. _DataProcSparkOperator:
 
@@ -1137,6 +1170,7 @@ DataProcSparkOperator
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcSparkOperator
+    :noindex:
 
 .. _DataProcHadoopOperator:
 
@@ -1144,6 +1178,7 @@ DataProcHadoopOperator
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator
+    :noindex:
 
 .. _DataProcPySparkOperator:
 
@@ -1151,6 +1186,7 @@ DataProcPySparkOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator
+    :noindex:
 
 .. _DataprocWorkflowTemplateInstantiateOperator:
 
@@ -1158,6 +1194,7 @@ DataprocWorkflowTemplateInstantiateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator
+    :noindex:
 
 .. _DataprocWorkflowTemplateInstantiateInlineOperator:
 
@@ -1165,6 +1202,7 @@ DataprocWorkflowTemplateInstantiateInlineOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator
+    :noindex:
 
 Cloud Datastore
 '''''''''''''''
@@ -1181,6 +1219,7 @@ DatastoreExportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator
+    :noindex:
 
 .. _DatastoreImportOperator:
 
@@ -1188,12 +1227,14 @@ DatastoreImportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator
+    :noindex:
 
 DatastoreHook
 """""""""""""
 
 .. autoclass:: airflow.contrib.hooks.datastore_hook.DatastoreHook
     :members:
+    :noindex:
 
 
 Cloud ML Engine
@@ -1214,6 +1255,7 @@ MLEngineBatchPredictionOperator
 
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator
     :members:
+    :noindex:
 
 .. _MLEngineModelOperator:
 
@@ -1222,6 +1264,7 @@ MLEngineModelOperator
 
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineModelOperator
     :members:
+    :noindex:
 
 .. _MLEngineTrainingOperator:
 
@@ -1230,6 +1273,7 @@ MLEngineTrainingOperator
 
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator
     :members:
+    :noindex:
 
 .. _MLEngineVersionOperator:
 
@@ -1238,6 +1282,7 @@ MLEngineVersionOperator
 
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator
     :members:
+    :noindex:
 
 Cloud ML Engine Hook
 """"""""""""""""""""
@@ -1249,6 +1294,7 @@ MLEngineHook
 
 .. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
     :members:
+    :noindex:
 
 
 Cloud Storage
@@ -1274,6 +1320,7 @@ FileToGoogleCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
+    :noindex:
 
 .. _GoogleCloudStorageCreateBucketOperator:
 
@@ -1281,6 +1328,7 @@ GoogleCloudStorageBucketCreateAclEntryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator
+    :noindex:
 
 .. _GoogleCloudStorageBucketCreateAclEntryOperator:
 
@@ -1288,6 +1336,7 @@ GoogleCloudStorageCreateBucketOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
+    :noindex:
 
 .. _GoogleCloudStorageDownloadOperator:
 
@@ -1295,6 +1344,7 @@ GoogleCloudStorageDownloadOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
+    :noindex:
 
 .. _GoogleCloudStorageListOperator:
 
@@ -1302,6 +1352,7 @@ GoogleCloudStorageListOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
+    :noindex:
 
 .. _GoogleCloudStorageToBigQueryOperator:
 
@@ -1309,6 +1360,7 @@ GoogleCloudStorageObjectCreateAclEntryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator
+    :noindex:
 
 .. _GoogleCloudStorageObjectCreateAclEntryOperator:
 
@@ -1316,6 +1368,7 @@ GoogleCloudStorageToBigQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator
+    :noindex:
 
 .. _GoogleCloudStorageToGoogleCloudStorageOperator:
 
@@ -1323,6 +1376,7 @@ GoogleCloudStorageToGoogleCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+    :noindex:
 
 .. _GoogleCloudStorageToGoogleCloudStorageTransferOperator:
 
@@ -1330,6 +1384,7 @@ GoogleCloudStorageToGoogleCloudStorageTransferOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator
+    :noindex:
 
 .. _MySqlToGoogleCloudStorageOperator:
 
@@ -1337,18 +1392,21 @@ MySqlToGoogleCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator
+    :noindex:
 
 GoogleCloudStorageHook
 """"""""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
     :members:
+    :noindex:
 
 GCPTransferServiceHook
 """"""""""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
     :members:
+    :noindex:
 
 Google Kubernetes Engine
 ''''''''''''''''''''''''
@@ -1363,18 +1421,24 @@ GKEClusterCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
+    :noindex:
+
 .. _GKEClusterCreateOperator:
 
 GKEClusterDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
+    :noindex:
+
 .. _GKEClusterDeleteOperator:
 
 GKEPodOperator
 ^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEPodOperator
+    :noindex:
+
 .. _GKEPodOperator:
 
 Google Kubernetes Engine Hook
@@ -1382,7 +1446,7 @@ Google Kubernetes Engine Hook
 
 .. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
     :members:
-
+    :noindex:
 
 .. _Qubole:
 
@@ -1396,24 +1460,28 @@ QuboleOperator
 ''''''''''''''
 
 .. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
+    :noindex:
 
 QubolePartitionSensor
 '''''''''''''''''''''
 
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor
-
+    :noindex:
 
 QuboleFileSensor
 ''''''''''''''''
 
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleFileSensor
+    :noindex:
 
 QuboleCheckOperator
 '''''''''''''''''''
 
 .. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator
+    :noindex:
 
 QuboleValueCheckOperator
 ''''''''''''''''''''''''
 
 .. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator
+    :noindex:

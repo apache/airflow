@@ -104,6 +104,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     to call the ``api/2.0/jobs/runs/submit`` endpoint and pass it directly
     to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
     For example ::
+
         json = {
           'new_cluster': {
             'spark_version': '2.1.0-db3-scala2.11',
@@ -119,6 +120,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
     one named parameter for each top level parameter in the ``runs/submit``
     endpoint. In this method, your code would look like this: ::
+
         new_cluster = {
           'spark_version': '2.1.0-db3-scala2.11',
           'num_workers': 2

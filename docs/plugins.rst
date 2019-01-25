@@ -246,7 +246,6 @@ component with the pattern `airflow.{component}.{name}.{component_class_name}`.
         }
     )
 
-::
 
 This will create a hook, and an operator accessible at:
  - `airflow.hooks.my_namespace.MyHook`

@@ -500,6 +500,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             - ``STANDARD``
             - ``NEARLINE``
             - ``COLDLINE``.
+
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
         :type storage_class: string

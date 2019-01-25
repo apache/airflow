@@ -145,7 +145,7 @@ class BaseTaskRunner(LoggingMixin):
         """
         :return: The return code associated with running the task instance or
         None if the task is not yet done.
-        :rtype int:
+        :rtype: int
         """
         raise NotImplementedError()
 
