@@ -374,11 +374,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             if pv.permission and pv.view_menu:
                 all_pvs.add((pv.permission.name, pv.view_menu.name))
 
-        # create perm for global logical dag
-        for dag in DAG_VMS:
-            for perm in DAG_PERMS:
-                merge_pv(perm, dag)
-
         # Get all the active / paused dags and insert them into a set
         all_dags_models = session.query(models.DagModel)\
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\

@@ -1255,6 +1255,17 @@ class TestDagACLView(TestBase):
                 role=role_user,
                 password='test_user')
 
+        role_viewer = self.appbuilder.sm.find_role('User')
+        test_viewer = self.appbuilder.sm.find_user(username='test_viewer')
+        if not test_viewer:
+            self.appbuilder.sm.add_user(
+                username='test_viewer',
+                first_name='test_viewer',
+                last_name='test_viewer',
+                email='test_viewer@fab.org',
+                role=role_viewer,
+                password='test_viewer')
+
         dag_acl_role = self.appbuilder.sm.add_role('dag_acl_tester')
         dag_tester = self.appbuilder.sm.find_user(username='dag_tester')
         if not dag_tester:
@@ -1783,6 +1794,14 @@ class TestDagACLView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('"message":', resp)
         self.check_content_in_response('"metadata":', resp)
+
+    def test_tree_view_for_viewer(self):
+        self.logout()
+        self.login(username='test_viewer',
+                   password='test_viewer')
+        url = 'tree?dag_id=example_bash_operator'
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('runme_1', resp)
 
 
 class TestTaskInstanceView(TestBase):
