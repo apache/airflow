@@ -409,6 +409,82 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_patch_table(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+
+        description_patched = 'Test description.'
+        expiration_time_patched = 2524608000000
+        friendly_name_patched = 'Test friendly name.'
+        labels_patched = {'label1': 'test1', 'label2': 'test2'}
+        schema_patched = [
+            {'name': 'id', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'balance', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'new_field', 'type': 'STRING', 'mode': 'NULLABLE'}
+        ]
+        time_partitioning_patched = {
+            'expirationMs': 10000000
+        }
+        require_partition_filter_patched = True
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_table(
+            dataset_id, table_id, project_id,
+            description=description_patched,
+            expiration_time=expiration_time_patched,
+            friendly_name=friendly_name_patched,
+            labels=labels_patched, schema=schema_patched,
+            time_partitioning=time_partitioning_patched,
+            require_partition_filter=require_partition_filter_patched
+        )
+
+        body = {
+            "description": description_patched,
+            "expirationTime": expiration_time_patched,
+            "friendlyName": friendly_name_patched,
+            "labels": labels_patched,
+            "schema": {
+                "fields": schema_patched
+            },
+            "timePartitioning": time_partitioning_patched,
+            "requirePartitionFilter": require_partition_filter_patched
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=body
+        )
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_patch_view(self, run_with_config):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        view_id = 'bq_view'
+        view_patched = {
+            'query': "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+            'useLegacySql': False
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_table(dataset_id, view_id, project_id, view=view_patched)
+        body = {
+            'view': view_patched
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=view_id,
+            body=body
+        )
+
 
 class TestBigQueryCursor(unittest.TestCase):
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
