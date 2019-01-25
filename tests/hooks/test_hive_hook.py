@@ -403,6 +403,27 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = HiveServer2Hook()
         hook.get_conn()
 
+    @mock.patch('pyhive.hive.connect')
+    def test_get_conn_with_password(self, mock_connect):
+        from airflow.hooks.base_hook import CONN_ENV_PREFIX
+        conn_id = "conn_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+        conn_value = os.environ.get(conn_env)
+        os.environ[conn_env] = "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"
+
+        HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+        mock_connect.assert_called_with(
+            host='localhost',
+            port=10000,
+            auth='LDAP',
+            kerberos_service_name=None,
+            username='conn_id',
+            password='conn_pass',
+            database='default')
+
+        if conn_value:
+            os.environ[conn_env] = conn_value
+
     def test_get_records(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
