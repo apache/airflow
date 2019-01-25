@@ -251,6 +251,17 @@
         }
     });
 
+    // Rounding the tooltip times down to something manageable 
+     function round(number, precision) {
+        var shift = function (number, precision, reverseShift) {
+            if (reverseShift) {
+                precision = -precision;
+            }
+            var numArray = ("" + number).split("e");
+            return +(numArray[0] + "e" + (numArray[1] ? (+numArray[1] + precision) : precision));
+        };
+        return shift(Math.round(shift(number, precision, false)), precision, true);
+    }
 
     // Injecting ids to be used for parent/child highlighting
     // Separated from update_node_states since it must work even
@@ -282,7 +293,7 @@
               tt += "Operator: " + task.task_type + "<br>";
               tt += "Started: " + ti.start_date + "<br>";
               tt += "Ended: " + ti.end_date + "<br>";
-              tt += "Duration: " + ti.duration + "<br>";
+              tt += "Duration: " + round((ti.duration/60),3)+ " min(s)" + "<br>";
               tt += "State: " + ti.state + "<br>";
               return tt;
             });
