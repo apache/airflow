@@ -228,7 +228,7 @@ the fields appbuilder_views and appbuilder_menu_items were added to the AirflowT
 Plugins as Python packages
 --------------------------
 
-It is possible to load plugins via `setuptools' entrypoint<https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_ mechanism. To do this link
+It is possible to load plugins via `setuptools entrypoint <https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_ mechanism. To do this link
 your plugin using an entrypoint in your package. If the package is installed, airflow
 will automatically load the registered plugins from the entrypoint list.
 
