@@ -748,7 +748,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
         """
         t = time.time()
         while not fn():
-            if 0 < timeout and timeout <= time.time() - t:
+            if 0 < timeout <= time.time() - t:
                 raise AirflowWebServerTimeout(
                     "No response from gunicorn master within {0} seconds"
                     .format(timeout))

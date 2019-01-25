@@ -112,7 +112,7 @@ def _post_sendgrid_mail(mail_data):
     sg = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
     response = sg.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
-    if response.status_code >= 200 and response.status_code < 300:
+    if 200 <= response.status_code < 300:
         log.info('Email with subject %s is successfully sent to recipients: %s',
                  mail_data['subject'], mail_data['personalizations'])
     else:
