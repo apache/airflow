@@ -74,7 +74,7 @@ def set_state(task, execution_date, upstream=False, downstream=False,
     :param session: database session
     :return: list of tasks that have been created and updated
     """
-    assert timezone.is_localized(execution_date)
+    assert timezone.is_aware(execution_date)
 
     assert task.dag is not None
     dag = task.dag

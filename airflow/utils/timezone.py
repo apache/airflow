@@ -27,7 +27,7 @@ from airflow.settings import TIMEZONE
 utc = pendulum.timezone('UTC')
 
 
-def is_localized(value):
+def is_aware(value):
     """
     Determine if a given datetime.datetime is aware.
     The concept is defined in Python's docs:
@@ -89,7 +89,7 @@ def convert_to_utc(value):
     if not value:
         return value
 
-    if not is_localized(value):
+    if not is_aware(value):
         value = pendulum.instance(value, TIMEZONE)
 
     return value.astimezone(utc)
@@ -108,7 +108,7 @@ def make_aware(value, timezone=None):
         timezone = TIMEZONE
 
     # Check that we won't overwrite the timezone of an aware datetime.
-    if is_localized(value):
+    if is_aware(value):
         raise ValueError(
             "make_aware expects a naive datetime, got %s" % value)
 

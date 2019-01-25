@@ -676,7 +676,7 @@ class TaskInstance(Base, LoggingMixin):
         self._log = logging.getLogger("airflow.task")
 
         # make sure we have a localized execution_date stored in UTC
-        if execution_date and not timezone.is_localized(execution_date):
+        if execution_date and not timezone.is_aware(execution_date):
             self.log.warning("execution date %s has no timezone information. Using "
                              "default from dag or system", execution_date)
             if self.task.has_dag():
