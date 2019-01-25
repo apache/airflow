@@ -1488,7 +1488,7 @@ class Airflow(BaseView):
         def set_duration(tid):
                 if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
                             tid["start_date"] is not None):
-                    d = timezone.utcnow() - dateutil.parser.parse(tid["start_date"])
+                    d = timezone.utcnow() - pendulum.parse(tid["start_date"])
                     tid["duration"] = d.total_seconds()
                 return tid
 
@@ -1901,7 +1901,7 @@ class Airflow(BaseView):
         def set_duration(tid):
             if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
                         tid["start_date"] is not None):
-                d = timezone.utcnow() - dateutil.parser.parse(tid["start_date"])
+                d = timezone.utcnow() - pendulum.parse(tid["start_date"])
                 tid["duration"] = d.total_seconds()
             return tid
 
