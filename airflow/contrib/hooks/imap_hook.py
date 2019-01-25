@@ -19,10 +19,10 @@
 
 import email
 import imaplib
-import os
+import os.path
 import re
 
-from airflow import LoggingMixin
+from airflow import LoggingMixin, AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -30,9 +30,7 @@ class ImapHook(BaseHook):
     """
     This hook connects to a mail server by using the imap protocol.
 
-    :param imap_conn_id: The connection id that contains the information
-                         used to authenticate the client.
-                         The default value is 'imap_default'.
+    :param imap_conn_id: The connection id that contains the information used to authenticate the client.
     :type imap_conn_id: str
     """
 
@@ -55,49 +53,63 @@ class ImapHook(BaseHook):
         :param name: The name of the attachment that will be searched for.
         :type name: str
         :param mail_folder: The mail folder where to look at.
-                            The default value is 'INBOX'.
         :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
-                            The default value is False.
         :type check_regex: bool
         :returns: True if there is an attachment with the given name and False if not.
         :rtype: bool
         """
-        mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder,
+        mail_attachments = self._retrieve_mails_attachments_by_name(name,
+                                                                    mail_folder,
                                                                     check_regex,
                                                                     latest_only=True)
         return len(mail_attachments) > 0
 
-    def retrieve_mail_attachments(self, name, mail_folder='INBOX', check_regex=False,
-                                  latest_only=False):
+    def retrieve_mail_attachments(self,
+                                  name,
+                                  mail_folder='INBOX',
+                                  check_regex=False,
+                                  latest_only=False,
+                                  not_found_mode='raise'):
         """
         Retrieves mail's attachments in the mail folder by its name.
 
         :param name: The name of the attachment that will be downloaded.
         :type name: str
         :param mail_folder: The mail folder where to look at.
-                            The default value is 'INBOX'.
         :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
-                            The default value is False.
         :type check_regex: bool
         :param latest_only: If set to True it will only retrieve
                             the first matched attachment.
-                            The default value is False.
         :type latest_only: bool
+        :param not_found_mode: Specify what should happen if no attachment has been found.
+                               Supported values are 'raise', 'warn' and 'ignore'.
+                               If it is set to 'raise' it will raise an exception,
+                               if set to 'warn' it will only print a warning and
+                               if set to 'ignore' it won't notify you at all.
+        :type not_found_mode: str
         :returns: a list of tuple each containing the attachment filename and its payload.
         :rtype: a list of tuple
         """
-        mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder,
+        mail_attachments = self._retrieve_mails_attachments_by_name(name,
+                                                                    mail_folder,
                                                                     check_regex,
                                                                     latest_only)
+        if not mail_attachments:
+            self._handle_not_found_mode(not_found_mode)
+
         return mail_attachments
 
-    def download_mail_attachments(self, name, local_output_directory, mail_folder='INBOX',
-                                  check_regex=False, latest_only=False):
+    def download_mail_attachments(self,
+                                  name,
+                                  local_output_directory,
+                                  mail_folder='INBOX',
+                                  check_regex=False,
+                                  latest_only=False,
+                                  not_found_mode='raise'):
         """
-        Downloads mail's attachments in the mail folder by its name
-        to the local directory.
+        Downloads mail's attachments in the mail folder by its name to the local directory.
 
         :param name: The name of the attachment that will be downloaded.
         :type name: str
@@ -105,22 +117,40 @@ class ImapHook(BaseHook):
                                        where the files will be downloaded to.
         :type local_output_directory: str
         :param mail_folder: The mail folder where to look at.
-                            The default value is 'INBOX'.
         :type mail_folder: str
         :param check_regex: Checks the name for a regular expression.
-                            The default value is False.
         :type check_regex: bool
         :param latest_only: If set to True it will only download
                             the first matched attachment.
-                            The default value is False.
         :type latest_only: bool
+        :param not_found_mode: Specify what should happen if no attachment has been found.
+                               Supported values are 'raise', 'warn' and 'ignore'.
+                               If it is set to 'raise' it will raise an exception,
+                               if set to 'warn' it will only print a warning and
+                               if set to 'ignore' it won't notify you at all.
+        :type not_found_mode: str
         """
-        mail_attachments = self._retrieve_mails_attachments_by_name(name, mail_folder,
-                                                                    check_regex, latest_only)
+        mail_attachments = self._retrieve_mails_attachments_by_name(name,
+                                                                    mail_folder,
+                                                                    check_regex,
+                                                                    latest_only)
+
+        if not mail_attachments:
+            self._handle_not_found_mode(not_found_mode)
+
         self._create_files(mail_attachments, local_output_directory)
 
-    def _retrieve_mails_attachments_by_name(self, name, mail_folder, check_regex,
-                                            latest_only):
+    def _handle_not_found_mode(self, not_found_mode):
+        if not_found_mode is 'raise':
+            raise AirflowException('No mail attachments found!')
+        elif not_found_mode is 'warn':
+            self.log.warning('No mail attachments found!')
+        elif not_found_mode is 'ignore':
+            pass  # Do not notify if the attachment has not been found.
+        else:
+            self.log.error('Invalid "not_found_mode" %s', not_found_mode)
+
+    def _retrieve_mails_attachments_by_name(self, name, mail_folder, check_regex, latest_only):
         all_matching_attachments = []
 
         self.mail_client.select(mail_folder)
@@ -164,6 +194,8 @@ class ImapHook(BaseHook):
                 self._create_file(name, payload, local_output_directory)
 
     def _is_symlink(self, name):
+        # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
+        # See: https://stackoverflow.com/a/11068434
         return os.path.islink(name)
 
     def _is_escaping_current_directory(self, name):
@@ -210,7 +242,6 @@ class Mail(LoggingMixin):
         :param check_regex: Checks the name for a regular expression.
         :type check_regex: bool
         :param find_first: If set to True it will only find the first match and then quit.
-                           The default value is False.
         :type find_first: bool
         :returns: a list of tuples each containing name and payload
                   where the attachments name matches the given name.
