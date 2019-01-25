@@ -140,7 +140,7 @@ dag_perms = {
 ROLE_CONFIGS = [
     {
         'role': 'Viewer',
-        'perms': viewer_perms,
+        'perms': viewer_perms | dag_perms,
         'vms': viewer_vms | dag_vms
     },
     {
@@ -355,11 +355,6 @@ class AirflowSecurityManager(SecurityManager):
             if pv.permission and pv.view_menu:
                 all_pvs.add((pv.permission.name, pv.view_menu.name))
 
-        # create perm for global logical dag
-        for dag in dag_vms:
-            for perm in dag_perms:
-                merge_pv(perm, dag)
-
         # Get all the active / paused dags and insert them into a set
         all_dags_models = session.query(models.DagModel)\
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
@@ -424,6 +419,7 @@ class AirflowSecurityManager(SecurityManager):
             if p not in existing_perms_vms:
                 existing_perms_vms.add(p)
         admin.permissions = list(existing_perms_vms)
+
         self.get_session.commit()
 
     def sync_roles(self):
@@ -435,6 +431,8 @@ class AirflowSecurityManager(SecurityManager):
         :return: None.
         """
         logging.info('Start syncing user roles.')
+        # Create global all-dag VM
+        self.create_perm_vm_for_all_dag()
 
         # Create default user role.
         for config in ROLE_CONFIGS:
@@ -460,3 +458,13 @@ class AirflowSecurityManager(SecurityManager):
             perm_on_dag = self.find_permission_view_menu(dag_perm, dag_id)
             if perm_on_dag is None:
                 self.add_permission_view_menu(dag_perm, dag_id)
+
+    def create_perm_vm_for_all_dag(self):
+        """
+        Create perm-vm if not exist and insert into FAB security model for all-dags.
+        """
+        # create perm for global logical dag
+        for dag_vm in dag_vms:
+            for perm in dag_perms:
+                self._merge_perm(permission_name=perm,
+                                 view_menu_name=dag_vm)
