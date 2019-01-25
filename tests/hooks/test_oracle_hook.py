@@ -240,3 +240,14 @@ class TestOracleHook(unittest.TestCase):
         self.cur.prepare.assert_called_with(
             "insert into table (col1, col2, col3) values (:1, :2, :3)")
         self.cur.executemany.assert_called_with(None, rows[2:])
+
+    def test_bulk_insert_rows_without_fields(self):
+        rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+        self.db_hook.bulk_insert_rows('table', rows)
+        self.cur.prepare.assert_called_once_with(
+            "insert into table  values (:1, :2, :3)")
+        self.cur.executemany.assert_called_once_with(None, rows)
+
+    def test_bulk_insert_rows_no_rows(self):
+        rows = []
+        self.assertRaises(ValueError, self.db_hook.bulk_insert_rows, 'table', rows)
