@@ -166,13 +166,14 @@ class CloudSpannerHook(GoogleCloudBaseHook):
         """
         Deletes an existing Cloud Spanner instance.
 
-        :param instance_id:  The ID of the Cloud Spanner instance.
+        :param instance_id: The ID of the Cloud Spanner instance.
         :type instance_id: str
-        :param project_id: Optional, the ID of the  GCP project that owns the Cloud Spanner
+        :param project_id: Optional, the ID of the GCP project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the GCP connection is used.
         :type project_id: str
-        :return None
+        :return: None
         """
+
         instance = self._get_client(project_id=project_id).instance(instance_id)
         try:
             instance.delete()

@@ -37,14 +37,14 @@ You can still enable encryption for passwords within connections by following be
     print(fernet_key.decode()) # your fernet_key, keep it in secured place!
 
 3. Replace ``airflow.cfg`` fernet_key value with the one from step 2.
-Alternatively, you can store your fernet_key in OS environment variable. You
-do not need to change ``airflow.cfg`` in this case as Airflow will use environment
-variable over the value in ``airflow.cfg``:
+   Alternatively, you can store your fernet_key in OS environment variable. You
+   do not need to change ``airflow.cfg`` in this case as Airflow will use environment
+   variable over the value in ``airflow.cfg``:
 
-.. code-block:: bash
+   .. code-block:: bash
 
-  # Note the double underscores
-  export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
+     # Note the double underscores
+     export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
 
 4. Restart Airflow webserver.
 5. For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it.
@@ -61,5 +61,5 @@ the new key to the ``fernet_key`` setting, run
 
 1. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``.
 2. Run ``airflow rotate_fernet_key`` to reencrypt existing credentials
-with the new fernet key.
+   with the new fernet key.
 3. Set ``fernet_key`` to ``new_fernet_key``.

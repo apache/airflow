@@ -112,10 +112,11 @@ class GKEClusterHook(GoogleCloudBaseHook):
         """
         Append labels to provided Cluster Protobuf
 
-        Labels must fit the regex [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version
-        string follows semantic versioning spec: x.y.z).
+        Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
+         airflow version string follows semantic versioning spec: x.y.z).
 
-        :param cluster_proto: The proto to append resource_label airflow version to
+        :param cluster_proto: The proto to append resource_label airflow
+            version to
         :type cluster_proto: google.cloud.container_v1.types.Cluster
         :param key: The key label
         :type key: str
@@ -170,12 +171,14 @@ class GKEClusterHook(GoogleCloudBaseHook):
         Creates a cluster, consisting of the specified number and type of Google Compute
         Engine instances.
 
-        :param cluster: A Cluster protobuf or dict. If dict is provided, it must be of
-            the same form as the protobuf message google.cloud.container_v1.types.Cluster
+        :param cluster: A Cluster protobuf or dict. If dict is provided, it must
+            be of the same form as the protobuf message
+            ``google.cloud.container_v1.types.Cluster``
         :type cluster: dict or google.cloud.container_v1.types.Cluster
         :param project_id: Google Cloud Platform project ID
         :type project_id: str
-        :param retry: A retry object (google.api_core.retry.Retry) used to retry requests.
+        :param retry: A retry object (``google.api_core.retry.Retry``) used to
+            retry requests.
             If None is specified, requests will not be retried.
         :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to
@@ -183,7 +186,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             individual attempt.
         :type timeout: float
         :return: The full url to the new, or existing, cluster
-        :raises
+        :raises:
             ParseError: On JSON parsing problems when trying to convert dict
             AirflowException: cluster is not dict type nor Cluster proto type
         """

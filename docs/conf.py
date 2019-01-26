@@ -33,27 +33,60 @@
 # serve to show the default.
 import os
 import sys
-import mock
 
 import airflow
 
-MOCK_MODULES = [
-    'googleapiclient',
-    'googleapiclient.errors',
-    'googleapiclient.discovery',
-    'googleapiclient.http',
-    'mesos',
-    'mesos.interface',
-    'mesos.native',
-    'google.auth.default',
+autodoc_mock_imports = [
+    'MySQLdb',
+    'adal',
+    'analytics',
+    'azure',
+    'azure.cosmos',
+    'azure.datalake',
+    'azure.mgmt',
+    'boto3',
+    'botocore',
+    'bson',
+    'cassandra',
+    'celery',
+    'cloudant',
+    'cx_Oracle',
+    'datadog',
+    'docker',
+    'google',
     'google_auth_httplib2',
-    'google.oauth2.service_account',
-    'pandas.io.gbq',
+    'googleapiclient',
+    'hdfs',
+    'httplib2',
+    'jaydebeapi',
+    'jenkins',
+    'jira',
+    'kubernetes',
+    'mesos',
+    'msrestazure',
+    'pandas',
+    'pandas_gbq',
+    'paramiko',
+    'pinotdb',
+    'psycopg2',
+    'pydruid',
+    'pyhive',
+    'pyhive',
+    'pymongo',
+    'pymssql',
+    'pysftp',
+    'qds_sdk',
+    'redis',
+    'simple_salesforce',
+    'slackclient',
+    'smbclient',
+    'snowflake',
+    'sshtunnel',
+    'tenacity',
     'vertica_python',
-    'pymssql'
+    'winrm',
+    'zdesk',
 ]
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
