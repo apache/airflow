@@ -146,6 +146,7 @@ class CoreTest(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
+        dag.sync_to_db()
 
         dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
         self.assertIsNotNone(dag_run)
@@ -173,6 +174,7 @@ class CoreTest(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
+        dag.sync_to_db()
 
         dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
         self.assertIsNotNone(dag_run)
@@ -216,6 +218,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=DEFAULT_DATE))
 
+        dag.sync_to_db()
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         dag.create_dagrun(run_id=models.DagRun.id_for_date(DEFAULT_DATE),
                           execution_date=DEFAULT_DATE,
@@ -246,6 +249,7 @@ class CoreTest(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
+        dag.sync_to_db()
         dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
         dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
 
@@ -266,6 +270,7 @@ class CoreTest(unittest.TestCase):
 
         start_date = timezone.utcnow()
 
+        dag.sync_to_db()
         run = dag.create_dagrun(
             run_id='test_' + start_date.isoformat(),
             execution_date=start_date,
@@ -296,6 +301,7 @@ class CoreTest(unittest.TestCase):
                   schedule_interval=delta)
         dag.add_task(models.BaseOperator(task_id='faketastic',
                                          owner='Also fake'))
+        dag.sync_to_db()
 
         # Create and schedule the dag runs
         dag_runs = []
@@ -331,6 +337,7 @@ class CoreTest(unittest.TestCase):
                   schedule_interval=delta)
         dag.add_task(models.BaseOperator(task_id='faketastic',
                                          owner='Also fake'))
+        dag.sync_to_db()
 
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
@@ -1050,6 +1057,7 @@ class CoreTest(unittest.TestCase):
             default_args=self.args,
             schedule_interval=timedelta(weeks=1),
             start_date=DEFAULT_DATE)
+        dag.sync_to_db()
         task = DummyOperator(task_id='test_externally_triggered_dag_context',
                              dag=dag)
         dag.create_dagrun(run_id=models.DagRun.id_for_date(EXECUTION_DATE),

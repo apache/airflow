@@ -3361,8 +3361,6 @@ class DAG(BaseDag, LoggingMixin):
                 tasks.append(task)
             elif task.start_date <= execution_date:
                 tasks.append(task)
-            # FIXME: Needed to use merge instead of add or bulk add.
-            #        This means this method is executed multiple times for 1 single execution date
         for task in tasks:
             tis.append(TaskInstance(task=task, execution_date=execution_date))
         return tis
