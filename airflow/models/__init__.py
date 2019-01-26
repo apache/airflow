@@ -3367,7 +3367,6 @@ class DAG(BaseDag, LoggingMixin):
             tis.append(TaskInstance(task=task, execution_date=execution_date))
         return tis
 
-
     def get_db_tis_and_edges(self, execution_date):
         with create_session() as session:
             dag_run = session.query(DagRun)\
