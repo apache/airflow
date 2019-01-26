@@ -94,7 +94,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
 from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import (
@@ -3334,7 +3334,20 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
-    def create_tis_and_edges(self, execution_date):
+    def create_edges(self, graph_id):
+        """
+        This will create all tasks and edges for a single execution date.
+        This will not push to the database.
+        :param execution_date: Execution date of tasks
+        :return:
+        """
+        edges = []
+        for task in self.task_dict.values():
+            for down in task.downstream_task_ids:
+                edges.append(DagEdge(self.dag_id, graph_id, down, task.task_id))
+        return edges
+
+    def create_tis(self, execution_date):
         """
         This will create all tasks and edges for a single execution date.
         This will not push to the database.
@@ -3343,7 +3356,6 @@ class DAG(BaseDag, LoggingMixin):
         """
         tasks = []
         tis = []
-        edges = []
         for task in self.task_dict.values():
             if task.start_date is None:
                 tasks.append(task)
@@ -3353,16 +3365,21 @@ class DAG(BaseDag, LoggingMixin):
             #        This means this method is executed multiple times for 1 single execution date
         for task in tasks:
             tis.append(TaskInstance(task=task, execution_date=execution_date))
-            for down in task.downstream_task_ids:
-                edges.append(DagEdge(self.dag_id, execution_date, down, task.task_id))
-        return tis, edges
+        return tis
 
-    @provide_session
-    def get_db_tis_and_edges(self, execution_date, session=None):
-        tis = session.query(TaskInstance).filter(TaskInstance.execution_date == execution_date)
-        edges = session.query(DagEdge).filter(DagEdge.execution_date == execution_date)
 
-        return tis, edges
+    def get_db_tis_and_edges(self, execution_date):
+        with create_session() as session:
+            dag_run = session.query(DagRun)\
+                .filter(DagRun.execution_date == execution_date)\
+                .filter(DagRun.dag_id == self.dag_id).one()
+            tis = session.query(TaskInstance)\
+                .filter(TaskInstance.execution_date == execution_date)\
+                .filter(TaskInstance.dag_id == self.dag_id).all()
+            edges = session.query(DagEdge)\
+                .filter(DagEdge.graph_id == dag_run.graph_id)\
+                .filter(DagEdge.dag_id == self.dag_id).all()
+            return tis, edges
 
     def is_fixed_time_schedule(self):
         """
@@ -4247,14 +4264,48 @@ class DAG(BaseDag, LoggingMixin):
             state=state
         )
 
-        (tis, edges) = self.create_tis_and_edges(execution_date)
+        dag_model = DagModel.get_dagmodel(self.dag_id)
 
+        tis = self.create_tis(execution_date)
+        edges = self.create_edges(-1)
+
+        last_run = dag_model.get_last_dagrun(include_externally_triggered=True)
+        if last_run is None:
+            same = False
+        else:
+            last_edges = DagEdge.fetch_edges_db(self.dag_id, last_run.graph_id)
+
+            # Compare edges from last run
+            same = True
+            if len(last_edges) != len(edges):
+                same = False
+            else:
+                e1 = set([(edge.from_task, edge.to_task) for edge in last_edges])
+                e2 = set([(edge.from_task, edge.to_task) for edge in edges])
+                if e1 != e2:
+                    same = False
+
+        if same:
+            # graph is not changed, keep last graph_id
+            graph_id = last_run.graph_id
+        elif last_run is None or last_run.graph_id is None:
+            # no graph known yet, beginning at 1
+            graph_id = 1
+        else:
+            # graph is changed
+            graph_id = last_run.graph_id + 1
+
+        for edge in edges:
+            edge.graph_id = graph_id
+
+        run.graph_id = graph_id
         session.add(run)
 
         for ti in tis:
             session.merge(ti)
-        for edge in edges:
-            session.merge(edge)
+        if not same:
+            for edge in edges:
+                session.merge(edge)
 
         session.commit()
 
@@ -4752,6 +4803,7 @@ class DagRun(Base, LoggingMixin):
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=True)
     conf = Column(PickleType)
+    graph_id = Column(Integer, default=0)
 
     dag = None
 

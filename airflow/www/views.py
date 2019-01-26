@@ -1314,6 +1314,10 @@ class Airflow(AirflowBaseView):
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
 
+        dag_run = session.query(models.DagRun) \
+            .filter(models.DagRun.dag_id == show_dag_id) \
+            .filter(models.DagRun.execution_date == dttm).one()
+
         task_instances = session.query(models.TaskInstance)\
             .filter(models.TaskInstance.dag_id == show_dag_id)\
             .filter(models.TaskInstance.execution_date == dttm).all()
@@ -1333,7 +1337,7 @@ class Airflow(AirflowBaseView):
 
         edge_query = session.query(models.DagEdge) \
             .filter(models.DagEdge.dag_id == show_dag_id) \
-            .filter(models.DagEdge.execution_date == dttm)
+            .filter(models.DagEdge.graph_id == dag_run.graph_id)
         edges = [
             {
                 'u': edge.to_task,
