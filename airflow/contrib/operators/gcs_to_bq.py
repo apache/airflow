@@ -148,7 +148,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  schema_update_options=(),
-                 src_fmt_configs=None,
+                 external_config_options=None,
                  external_table=False,
                  time_partitioning=None,
                  cluster_fields=None,
@@ -158,10 +158,6 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
 
         # GCS config
-        if src_fmt_configs is None:
-            src_fmt_configs = {}
-        if time_partitioning is None:
-            time_partitioning = {}
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
@@ -188,7 +184,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
-        self.src_fmt_configs = src_fmt_configs
+        self.external_config_options, = external_config_options,
         self.time_partitioning = time_partitioning
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
@@ -220,7 +216,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         cursor = conn.cursor()
 
         if self.external_table:
-            cursor.create_external_table(
+            bq_hook.create_external_table(
                 external_project_dataset_table=self.destination_project_dataset_table,
                 schema_fields=schema_fields,
                 source_uris=source_uris,
@@ -233,10 +229,10 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
-                src_fmt_configs=self.src_fmt_configs
+                external_config_options=self.external_config_options,
             )
         else:
-            cursor.run_load(
+            bq_hook.run_load(
                 destination_project_dataset_table=self.destination_project_dataset_table,
                 schema_fields=schema_fields,
                 source_uris=source_uris,

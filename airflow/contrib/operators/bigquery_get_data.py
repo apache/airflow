@@ -96,21 +96,10 @@ class BigQueryGetDataOperator(BaseOperator):
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)
 
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        response = cursor.get_tabledata(dataset_id=self.dataset_id,
-                                        table_id=self.table_id,
-                                        max_results=self.max_results,
-                                        selected_fields=self.selected_fields)
-
-        self.log.info('Total Extracted rows: %s', response['totalRows'])
-        rows = response['rows']
-
-        table_data = []
-        for dict_row in rows:
-            single_row = []
-            for fields in dict_row['f']:
-                single_row.append(fields['v'])
-            table_data.append(single_row)
-
-        return table_data
+        rows = hook.get_tabledata(dataset_id=self.dataset_id,
+                                  table_id=self.table_id,
+                                  max_results=self.max_results,
+                                  selected_fields=self.selected_fields)
+        rows = list(rows)
+        self.log.info('Total Extracted rows: %s', len(rows))
+        return rows

@@ -61,8 +61,6 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -91,8 +89,6 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
             .create_external_table \
             .assert_called_once_with(
                 external_project_dataset_table='{}.{}'.format(
@@ -109,7 +105,7 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
                 quote_character=None,
                 allow_quoted_newlines=False,
                 allow_jagged_rows=False,
-                src_fmt_configs={},
+                external_config_options=None,
                 labels=None
             )
 
@@ -125,8 +121,6 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
             .delete_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -145,8 +139,6 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
             .create_empty_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -183,7 +175,7 @@ class BigQueryOperatorTest(unittest.TestCase):
             flatten_results=None,
             bigquery_conn_id='bigquery_default',
             udf_config=None,
-            use_legacy_sql=True,
+            use_legacy_sql=False,
             maximum_billing_tier=None,
             maximum_bytes_billed=None,
             create_disposition='CREATE_IF_NEEDED',
@@ -198,8 +190,6 @@ class BigQueryOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -231,8 +221,6 @@ class BigQueryOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',

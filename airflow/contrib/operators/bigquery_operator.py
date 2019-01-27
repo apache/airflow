@@ -117,7 +117,7 @@ class BigQueryOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  udf_config=None,
-                 use_legacy_sql=True,
+                 use_legacy_sql=False,
                  maximum_billing_tier=None,
                  maximum_bytes_billed=None,
                  create_disposition='CREATE_IF_NEEDED',
@@ -147,7 +147,6 @@ class BigQueryOperator(BaseOperator):
         self.schema_update_options = schema_update_options
         self.query_params = query_params
         self.labels = labels
-        self.bq_cursor = None
         self.priority = priority
         self.time_partitioning = time_partitioning
         self.api_resource_configs = api_resource_configs
@@ -155,17 +154,14 @@ class BigQueryOperator(BaseOperator):
         self.location = location
 
     def execute(self, context):
-        if self.bq_cursor is None:
-            self.log.info('Executing: %s', self.sql)
-            hook = BigQueryHook(
-                bigquery_conn_id=self.bigquery_conn_id,
-                use_legacy_sql=self.use_legacy_sql,
-                delegate_to=self.delegate_to,
-                location=self.location,
-            )
-            conn = hook.get_conn()
-            self.bq_cursor = conn.cursor()
-        self.bq_cursor.run_query(
+        self.log.info('Executing: %s', self.sql)
+        hook = BigQueryHook(
+            bigquery_conn_id=self.bigquery_conn_id,
+            use_legacy_sql=self.use_legacy_sql,
+            delegate_to=self.delegate_to,
+            location=self.location,
+        )
+        hook.run_query(
             sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
@@ -183,12 +179,6 @@ class BigQueryOperator(BaseOperator):
             api_resource_configs=self.api_resource_configs,
             cluster_fields=self.cluster_fields,
         )
-
-    def on_kill(self):
-        super(BigQueryOperator, self).on_kill()
-        if self.bq_cursor is not None:
-            self.log.info('Cancelling running query')
-            self.bq_cursor.cancel_query()
 
 
 class BigQueryCreateEmptyTableOperator(BaseOperator):
@@ -328,10 +318,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
-
-        cursor.create_empty_table(
+        bq_hook.create_empty_table(
             project_id=self.project_id,
             dataset_id=self.dataset_id,
             table_id=self.table_id,
@@ -408,8 +395,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
-    :param src_fmt_configs: configure optional fields specific to the source format
-    :type src_fmt_configs: dict
+    :param external_config_options: configure optional fields specific to the source format
+    :type external_config_options: dict
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :type labels: dict
     """
@@ -435,7 +422,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
-                 src_fmt_configs={},
+                 external_config_options=None,
                  labels=None,
                  *args, **kwargs):
 
@@ -462,7 +449,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
-        self.src_fmt_configs = src_fmt_configs
+        self.external_config_options = external_config_options
         self.labels = labels
 
     def execute(self, context):
@@ -482,10 +469,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
                        for source_object in self.source_objects]
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
 
-        cursor.create_external_table(
+        bq_hook.create_external_table(
             external_project_dataset_table=self.destination_project_dataset_table,
             schema_fields=schema_fields,
             source_uris=source_uris,
@@ -497,8 +482,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
             quote_character=self.quote_character,
             allow_quoted_newlines=self.allow_quoted_newlines,
             allow_jagged_rows=self.allow_jagged_rows,
-            src_fmt_configs=self.src_fmt_configs,
-            labels=self.labels
+            external_config_options=self.external_config_options,
+            labels=self.labels,
         )
 
 
@@ -545,10 +530,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
-
-        cursor.delete_dataset(
+        bq_hook.delete_dataset(
             project_id=self.project_id,
             dataset_id=self.dataset_id
         )
@@ -608,10 +590,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        conn = bq_hook.get_conn()
-        cursor = conn.cursor()
-
-        cursor.create_empty_dataset(
+        bq_hook.create_empty_dataset(
             project_id=self.project_id,
             dataset_id=self.dataset_id,
             dataset_reference=self.dataset_reference)

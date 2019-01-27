@@ -85,9 +85,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         )
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        cursor.run_copy(
+        hook.run_copy(
             self.source_project_dataset_tables,
             self.destination_project_dataset_table,
             self.write_disposition,
