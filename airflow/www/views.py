@@ -1687,8 +1687,9 @@ class Airflow(AirflowBaseView):
     @action_logging
     def refresh_all(self):
         dagbag.collect_dags(only_if_updated=False)
-        # sync permissions for all dags
-        appbuilder.sm.sync_perm_for_dag()
+        for dag_id in dagbag.dags:
+            # sync permissions for all dags
+            appbuilder.sm.sync_perm_for_dag(dag_id)
         flash("All DAGs are now up to date")
         return redirect('/')
 

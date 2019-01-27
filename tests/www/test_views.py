@@ -518,6 +518,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
 
+    def test_refresh_all(self):
+        resp = self.client.get("/refresh_all",
+                               follow_redirects=True)
+        self.check_content_in_response('', resp, resp_code=200)
+
     def test_delete_dag_button_normal(self):
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('/delete?dag_id=example_bash_operator', resp)
