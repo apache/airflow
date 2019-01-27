@@ -243,7 +243,7 @@ class BackfillJobTest(unittest.TestCase):
             DummyOperator(
                 task_id='op',
                 dag=dag)
-
+        dag.sync_to_db()
         dag.clear()
 
         executor = TestExecutor(do_update=True)
@@ -271,7 +271,7 @@ class BackfillJobTest(unittest.TestCase):
                 task_id='test_backfill_run_rescheduled_task-1',
                 dag=dag,
             )
-
+        dag.sync_to_db()
         dag.clear()
 
         executor = TestExecutor(do_update=True)
@@ -310,7 +310,7 @@ class BackfillJobTest(unittest.TestCase):
             DummyOperator(
                 task_id='test_backfill_rerun_failed_task-1',
                 dag=dag)
-
+        dag.sync_to_db()
         dag.clear()
 
         executor = TestExecutor(do_update=True)
@@ -351,7 +351,7 @@ class BackfillJobTest(unittest.TestCase):
                 t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
                                    dag=dag)
                 t1.set_upstream(t2)
-
+            dag.sync_to_db()
             dag.clear()
             executor = TestExecutor(do_update=True)
 
@@ -389,7 +389,7 @@ class BackfillJobTest(unittest.TestCase):
             DummyOperator(
                 task_id='test_backfill_rerun_failed_task-1',
                 dag=dag)
-
+        dag.sync_to_db()
         dag.clear()
 
         executor = TestExecutor(do_update=True)
@@ -433,7 +433,7 @@ class BackfillJobTest(unittest.TestCase):
             op1.set_downstream(op3)
             op4.set_downstream(op5)
             op3.set_downstream(op4)
-
+        dag.sync_to_db()
         dag.clear()
 
         executor = TestExecutor(do_update=True)
@@ -655,7 +655,7 @@ class BackfillJobTest(unittest.TestCase):
 
             op1 >> op2 >> op3
             op4 >> op3
-
+        dag.sync_to_db()
         dag.clear()
         return dag
 
@@ -663,7 +663,7 @@ class BackfillJobTest(unittest.TestCase):
         dag = self._get_dag_test_max_active_limits(
             'test_backfill_max_limit_check_within_limit',
             max_active_runs=16)
-
+        dag.sync_to_db()
         start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
         end_date = DEFAULT_DATE
 
@@ -754,7 +754,7 @@ class BackfillJobTest(unittest.TestCase):
             'test_backfill_max_limit_check_no_count_existing')
         start_date = DEFAULT_DATE
         end_date = DEFAULT_DATE
-
+        dag.sync_to_db()
         # Existing dagrun that is within the backfill range
         dag.create_dagrun(run_id="test_existing_backfill",
                           state=State.RUNNING,
@@ -782,6 +782,7 @@ class BackfillJobTest(unittest.TestCase):
             'test_backfill_max_limit_check_complete_loop')
         start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
         end_date = DEFAULT_DATE
+        dag.sync_to_db()
 
         # Given the max limit to be 1 in active dag runs, we need to run the
         # backfill job 3 times
@@ -816,7 +817,7 @@ class BackfillJobTest(unittest.TestCase):
             op1.set_downstream(op3)
             op4.set_downstream(op5)
             op3.set_downstream(op4)
-
+        dag.sync_to_db()
         dag.clear()
         dr = dag.create_dagrun(run_id="test",
                                state=State.RUNNING,
@@ -860,7 +861,7 @@ class BackfillJobTest(unittest.TestCase):
             op4 = DummyOperator(task_id='op4')
             op5 = DummyOperator(task_id='op5')
             op6 = DummyOperator(task_id='op6')
-
+        dag.sync_to_db()
         dag.clear()
         dr = dag.create_dagrun(run_id='test',
                                state=State.RUNNING,
@@ -1048,6 +1049,7 @@ class BackfillJobTest(unittest.TestCase):
             task_id='dummy',
             dag=dag,
             owner='airflow')
+        dag.sync_to_db()
 
         job = BackfillJob(dag=dag)
 
@@ -1181,7 +1183,7 @@ class LocalTaskJobTest(unittest.TestCase):
 
         with dag:
             op1 = DummyOperator(task_id='op1')
-
+        dag.sync_to_db()
         dag.clear()
         dr = dag.create_dagrun(run_id="test",
                                state=State.SUCCESS,
@@ -1211,7 +1213,7 @@ class LocalTaskJobTest(unittest.TestCase):
 
         with dag:
             op1 = DummyOperator(task_id='op1')
-
+        dag.sync_to_db()
         dag.clear()
         dr = dag.create_dagrun(run_id="test",
                                state=State.SUCCESS,
@@ -1420,6 +1422,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1450,6 +1453,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1475,6 +1479,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1500,6 +1505,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1540,6 +1546,7 @@ class SchedulerJobTest(unittest.TestCase):
         task1 = DummyOperator(dag=dag, task_id=task_id_1, pool='a')
         task2 = DummyOperator(dag=dag, task_id=task_id_2, pool='b')
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1581,6 +1588,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         task = DummyOperator(dag=dag, task_id=task_id, pool="this_pool_doesnt_exist")
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1605,6 +1613,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
         DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1623,6 +1632,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1670,6 +1680,7 @@ class SchedulerJobTest(unittest.TestCase):
         task2 = DummyOperator(dag=dag, task_id='dummy2')
         task3 = DummyOperator(dag=dag, task_id='dummy3')
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1704,6 +1715,7 @@ class SchedulerJobTest(unittest.TestCase):
         task1 = DummyOperator(dag=dag, task_id=task_id_1, task_concurrency=2)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1801,6 +1813,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1833,6 +1846,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1869,6 +1883,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1890,6 +1905,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         dagbag = SimpleDagBag([])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1914,6 +1930,7 @@ class SchedulerJobTest(unittest.TestCase):
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -1983,6 +2000,7 @@ class SchedulerJobTest(unittest.TestCase):
         task1 = DummyOperator(dag=dag, task_id=task_id_1)
         task2 = DummyOperator(dag=dag, task_id=task_id_2)
         dagbag = self._make_simple_dag_bag([dag])
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         scheduler.max_tis_per_query = 3
@@ -2157,7 +2175,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         with dag:
             op1 = DummyOperator(task_id='op1')
-
+        dag.sync_to_db()
         dag.clear()
         dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
                                state=State.RUNNING,
@@ -2207,6 +2225,7 @@ class SchedulerJobTest(unittest.TestCase):
         with dag:
             op1 = DummyOperator(task_id='op1')
 
+        dag.sync_to_db()
         # Create DAG run with FAILED state
         dag.clear()
         dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
@@ -2470,6 +2489,7 @@ class SchedulerJobTest(unittest.TestCase):
             'test_scheduler_dagrun_once',
             start_date=timezone.datetime(2015, 1, 1),
             schedule_interval="@once")
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         dag.clear()
@@ -3521,6 +3541,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
         DummyOperator(task_id=task_id, dag=dag)
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -3542,6 +3563,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
         DummyOperator(task_id=task_id, dag=dag)
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -3564,6 +3586,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
         DummyOperator(task_id=task_id, dag=dag)
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -3616,6 +3639,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
         DummyOperator(task_id=task_id, dag=dag)
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -3638,6 +3662,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule_interval='@daily')
         task_id = dag_id + '_task'
         DummyOperator(task_id=task_id, dag=dag)
+        dag.sync_to_db()
 
         scheduler = SchedulerJob()
         session = settings.Session()
@@ -3662,6 +3687,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = DAG(dag_id=prefix,
                   start_date=DEFAULT_DATE,
                   schedule_interval="@daily")
+        dag.sync_to_db()
         tasks = []
         for i in range(len(states)):
             task_id = "{}_task_{}".format(prefix, i)

@@ -59,12 +59,12 @@ class BaseSensorTest(unittest.TestCase):
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag.sync_to_db()
 
-        session = settings.Session()
-        session.query(TaskReschedule).delete()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        session.commit()
+        with settings.Session() as session:
+            session.query(TaskReschedule).delete()
+            session.query(DagRun).delete()
+            session.query(TaskInstance).delete()
 
     def _make_dag_run(self):
         return self.dag.create_dagrun(
