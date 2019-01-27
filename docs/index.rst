@@ -80,7 +80,6 @@ Content
     howto/index
     ui
     concepts
-    profiling
     cli
     scheduler
     plugins
