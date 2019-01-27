@@ -63,12 +63,12 @@ from datetime import datetime
 from urllib.parse import quote
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
+    Boolean, Column, DateTime, Float, ForeignKeyConstraint, Index,
     Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_, asc,
     func, or_, true as sqltrue
 )
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import reconstructor, relationship, synonym
+from sqlalchemy.orm import reconstructor, synonym
 
 from croniter import (
     croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
@@ -604,24 +604,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
         )
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True)
-    username = Column(String(ID_LEN), unique=True)
-    email = Column(String(500))
-    superuser = Column(Boolean(), default=False)
-
-    def __repr__(self):
-        return self.username
-
-    def get_id(self):
-        return str(self.id)
-
-    def is_superuser(self):
-        return self.superuser
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -4353,31 +4335,6 @@ class DAG(BaseDag, LoggingMixin):
                 self._test_cycle_helper(visit_map, descendant_id)
 
         visit_map[task_id] = DagBag.CYCLE_DONE
-
-
-class Chart(Base):
-    __tablename__ = "chart"
-
-    id = Column(Integer, primary_key=True)
-    label = Column(String(200))
-    conn_id = Column(String(ID_LEN), nullable=False)
-    user_id = Column(Integer(), ForeignKey('users.id'), nullable=True)
-    chart_type = Column(String(100), default="line")
-    sql_layout = Column(String(50), default="series")
-    sql = Column(Text, default="SELECT series, x, y FROM table")
-    y_log_scale = Column(Boolean)
-    show_datatable = Column(Boolean)
-    show_sql = Column(Boolean, default=True)
-    height = Column(Integer, default=600)
-    default_params = Column(String(5000), default="{}")
-    owner = relationship(
-        "User", cascade=False, cascade_backrefs=False, backref='charts')
-    x_is_date = Column(Boolean, default=True)
-    iteration_no = Column(Integer, default=0)
-    last_modified = Column(UtcDateTime, default=timezone.utcnow)
-
-    def __repr__(self):
-        return self.label
 
 
 class Variable(Base, LoggingMixin):
