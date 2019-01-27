@@ -50,6 +50,7 @@ class BashOperatorTest(unittest.TestCase):
             },
             schedule_interval='@daily',
             dagrun_timeout=timedelta(minutes=60))
+        self.dag.sync_to_db()
 
         self.dag.create_dagrun(
             run_id='manual__' + DEFAULT_DATE.isoformat(),

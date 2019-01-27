@@ -56,6 +56,7 @@ class LatestOnlyOperatorTest(unittest.TestCase):
                 'owner': 'airflow',
                 'start_date': DEFAULT_DATE},
             schedule_interval=INTERVAL)
+        self.dag.sync_to_db()
         self.addCleanup(self.dag.clear)
         freezer = freeze_time(FROZEN_NOW)
         freezer.start()
