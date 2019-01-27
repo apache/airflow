@@ -63,9 +63,9 @@ from datetime import datetime
 from urllib.parse import quote
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
-    Integer, PickleType, String, Text, UniqueConstraint, and_, asc,
-    func, or_, true as sqltrue, types
+    Boolean, Column, DateTime, Float, ForeignKeyConstraint, Index,
+    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_, asc,
+    func, or_, true as sqltrue
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
