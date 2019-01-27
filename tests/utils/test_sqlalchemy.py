@@ -85,6 +85,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         # naive
         start_date = datetime.datetime.now()
         dag = DAG(dag_id=dag_id, start_date=start_date)
+        dag.sync_to_db()
         dag.clear()
 
         with self.assertRaises((ValueError, StatementError)):

@@ -28,6 +28,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from datetime import timedelta
@@ -61,7 +62,7 @@ class BaseSensorTest(unittest.TestCase):
         self.dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag.sync_to_db()
 
-        with settings.Session() as session:
+        with create_session() as session:
             session.query(TaskReschedule).delete()
             session.query(DagRun).delete()
             session.query(TaskInstance).delete()
