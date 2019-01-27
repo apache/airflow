@@ -1867,41 +1867,6 @@ class SecurityTests(unittest.TestCase):
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
 
 
-class FabTests(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-        from airflow.www import app as application
-        self.app, self.appbuilder = application.create_app(session=Session, testing=True)
-        self.app.config['TESTING'] = True
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.client = self.app.test_client()
-        role_admin = self.appbuilder.sm.find_role('Admin')
-        self.admin_user = self.appbuilder.sm.add_user(username='test_admin',
-                                                      first_name='admin',
-                                                      last_name='user',
-                                                      email='admin@airflow.org',
-                                                      password='password',
-                                                      role=role_admin)
-
-    def tearDown(self):
-        admin_user = self.appbuilder.sm.find_user(username='test_admin')
-        self.appbuilder.sm.del_register_user(admin_user)
-        super(FabTests, self).tearDown()
-
-    def _login(self):
-        response = self.client.post('/login/',
-                                    data={'username': 'test_admin',
-                                          'password': 'password'},
-                                    follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-
-    def test_refresh_all(self):
-        self._login()
-        response = self.client.get("/refresh_all",
-                                   follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-
-
 @unittest.skip(reason="Skipping because now we are using FAB")
 class WebUiTests(unittest.TestCase):
     def setUp(self):
