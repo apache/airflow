@@ -193,7 +193,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
 
 def root_app(env, resp):
-    resp(b'404 Not Found', [(b'Content-Type', b'text/plain')])
+    resp(b'404 Not Found', [('Content-Type', 'text/plain')])
     return [b'Apache Airflow is not at this location']
 
 
