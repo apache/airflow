@@ -20,7 +20,7 @@
 import unittest
 from mock import Mock
 
-from airflow import DAG, configuration, settings
+from airflow import DAG, configuration
 from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
                                 AirflowRescheduleException)
 from airflow.models import DagRun, TaskInstance, TaskReschedule
