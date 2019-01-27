@@ -252,7 +252,7 @@ is equivalent to:
 
     op1 >> op2
     op1 >> op3
-    
+
 and equivalent to:
 
 .. code:: python
@@ -759,25 +759,22 @@ For example, consider the following dag:
   from airflow.utils.trigger_rule import TriggerRule
 
 
-  dag = DAG(
-      dag_id='latest_only_with_trigger',
-      schedule_interval=dt.timedelta(hours=4),
-      start_date=dt.datetime(2016, 9, 20),
-  )
+  with DAG(dag_id='latest_only_with_trigger',
+           schedule_interval=dt.timedelta(hours=4),
+           start_date=dt.datetime(2016, 9, 20)) as dag:
 
-  latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
+      latest_only = LatestOnlyOperator(task_id='latest_only')
 
-  task1 = DummyOperator(task_id='task1', dag=dag)
-  task1.set_upstream(latest_only)
+      task1 = DummyOperator(task_id='task1')
+      task1.set_upstream(latest_only)
 
-  task2 = DummyOperator(task_id='task2', dag=dag)
+      task2 = DummyOperator(task_id='task2')
 
-  task3 = DummyOperator(task_id='task3', dag=dag)
-  task3.set_upstream([task1, task2])
+      task3 = DummyOperator(task_id='task3')
+      task3.set_upstream([task1, task2])
 
-  task4 = DummyOperator(task_id='task4', dag=dag,
-                        trigger_rule=TriggerRule.ALL_DONE)
-  task4.set_upstream([task1, task2])
+      task4 = DummyOperator(task_id='task4', trigger_rule=TriggerRule.ALL_DONE)
+      task4.set_upstream([task1, task2])
 
 In the case of this dag, the ``latest_only`` task will show up as skipped
 for all runs except the latest run. ``task1`` is directly downstream of
@@ -868,14 +865,14 @@ to the related tasks in Airflow.
     ### My great DAG
     """
 
-    dag = DAG('my_dag', default_args=default_args)
-    dag.doc_md = __doc__
+    with DAG('my_dag', default_args=default_args) as dag:
+        dag.doc_md = __doc__
 
-    t = BashOperator("foo", dag=dag)
-    t.doc_md = """\
-    #Title"
-    Here's a [url](www.airbnb.com)
-    """
+        t = BashOperator("foo")
+        t.doc_md = """\
+        #Title"
+        Here's a [url](www.airbnb.com)
+        """
 
 This content will get rendered as markdown respectively in the "Graph View" and
 "Task Details" pages.

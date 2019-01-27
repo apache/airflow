@@ -1155,20 +1155,19 @@ DataFlowJavaOperator
         }
     }
 
-    dag = DAG('test-dag', default_args=default_args)
+    with DAG('test-dag', default_args=default_args) as dag:
 
-    task = DataFlowJavaOperator(
-        gcp_conn_id='gcp_default',
-        task_id='normalize-cal',
-        jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
-        options={
-            'autoscalingAlgorithm': 'BASIC',
-            'maxNumWorkers': '50',
-            'start': '{{ds}}',
-            'partitionType': 'DAY'
-
-        },
-        dag=dag)
+        task = DataFlowJavaOperator(
+            gcp_conn_id='gcp_default',
+            task_id='normalize-cal',
+            jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
+            options={
+                'autoscalingAlgorithm': 'BASIC',
+                'maxNumWorkers': '50',
+                'start': '{{ds}}',
+                'partitionType': 'DAY'
+            }
+        )
 
 .. _DataflowTemplateOperator:
 

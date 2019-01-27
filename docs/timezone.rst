@@ -78,9 +78,9 @@ words if you have a default time zone setting of `Europe/Amsterdam` and create a
         owner='Airflow'
     )
 
-    dag = DAG('my_dag', default_args=default_args)
-    op = DummyOperator(task_id='dummy', dag=dag)
-    print(op.owner) # Airflow
+    with DAG('my_dag', default_args=default_args) as dag:
+        op = DummyOperator(task_id='dummy')
+        print(op.owner) # Airflow
 
 Unfortunately, during DST transitions, some datetimes don’t exist or are ambiguous.
 In such situations, pendulum raises an exception. That’s why you should always create aware
@@ -123,9 +123,9 @@ recommended to use `pendulum` for this, but `pytz` (to be installed manually) ca
         owner='Airflow'
     )
 
-    dag = DAG('my_tz_dag', default_args=default_args)
-    op = DummyOperator(task_id='dummy', dag=dag)
-    print(dag.timezone) # <Timezone [Europe/Amsterdam]>
+    with DAG('my_tz_dag', default_args=default_args) as dag:
+        op = DummyOperator(task_id='dummy')
+        print(dag.timezone) # <Timezone [Europe/Amsterdam]>
 
 Please note that while it is possible to set a `start_date` and `end_date` for Tasks always the DAG timezone
 or global timezone (in that order) will be used to calculate the next execution date. Upon first encounter
