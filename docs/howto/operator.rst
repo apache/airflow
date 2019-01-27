@@ -174,7 +174,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for start
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_.
 
 
@@ -228,7 +228,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for stop
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_.
 
 
@@ -288,7 +288,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for setMachineType
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_.
 
 
@@ -348,7 +348,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for instanceTemplates
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_.
 
 GceInstanceGroupManagerUpdateTemplateOperator
@@ -415,14 +415,14 @@ the permissions that theService Account User role provides
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for instanceGroupManagers
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.
 
 Google Cloud Bigtable Operators
 -------------------------------
 
 Arguments
-"""""""""
+^^^^^^^^^
 
 All examples below rely on the following variables, which can be passed via environment variables.
 
@@ -604,7 +604,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation
+See `Google Cloud Functions API documentation for delete
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
 
 GcfFunctionDeployOperator
@@ -736,7 +736,7 @@ can be downloaded if necessary.
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation
+See `Google Cloud Functions API documentation for create
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
 Google Cloud Spanner Operators
@@ -1193,8 +1193,9 @@ CloudSqlInstanceExportOperator
 Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
 or CSV file.
 
-Note: This operator is idempotent. If executed multiple times with the same
-export file URI, the export file in GCS will simply be overridden.
+.. note::
+    This operator is idempotent. If executed multiple times with the same
+    export file URI, the export file in GCS will simply be overridden.
 
 For parameter definition take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator`.

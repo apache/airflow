@@ -117,15 +117,19 @@ class QuboleOperator(BaseOperator):
             :additional_options: Additional Sqoop options which are needed enclose options in
                 double or single quotes
 
-    .. note:: Following fields are template-supported : ``query``, ``script_location``,
+    .. note:
+
+        Following fields are template-supported : ``query``, ``script_location``,
         ``sub_command``, ``script``, ``files``, ``archives``, ``program``, ``cmdline``,
         ``sql``, ``where_clause``, ``extract_query``, ``boundary_query``, ``macros``,
         ``tags``, ``name``, ``parameters``, ``dbtap_id``, ``hive_table``, ``db_table``,
         ``split_column``, ``note_id``, ``db_update_keys``, ``export_dir``,
         ``partition_spec``, ``qubole_conn_id``, ``arguments``, ``user_program_arguments``.
-         You can also use ``.txt`` files for template driven use cases.
+        You can also use ``.txt`` files for template driven use cases.
 
-    .. note:: In QuboleOperator there is a default handler for task failures and retries,
+    .. note:
+
+        In QuboleOperator there is a default handler for task failures and retries,
         which generally kills the command running at QDS for the corresponding task
         instance. You can override this behavior by providing your own failure and retry
         handler in task definition.

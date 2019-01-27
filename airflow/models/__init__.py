@@ -4496,7 +4496,7 @@ class XCom(Base, LoggingMixin):
         """
         Store an XCom value.
         TODO: "pickling" has been deprecated and JSON is preferred.
-              "pickling" will be removed in Airflow 2.0.
+        "pickling" will be removed in Airflow 2.0.
 
         :return: None
         """

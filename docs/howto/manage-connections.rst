@@ -115,16 +115,17 @@ The following connection IDs are used by default.
 
 ``google_cloud_default``
     Used by those hooks:
-* :class:`~airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`
-* :class:`~airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook`
-* :class:`~airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook`
-* :class:`~airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook`
-* :class:`~airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook`
-* :class:`~airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook`
-* :class:`~airflow.contrib.hooks.gcp_compute_hook.GceHook`
-* :class:`~airflow.contrib.hooks.gcp_function_hook.GcfHook`
-* :class:`~airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook`
-* :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook`
+
+    * :class:`~airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`
+    * :class:`~airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook`
+    * :class:`~airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook`
+    * :class:`~airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook`
+    * :class:`~airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook`
+    * :class:`~airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook`
+    * :class:`~airflow.contrib.hooks.gcp_compute_hook.GceHook`
+    * :class:`~airflow.contrib.hooks.gcp_function_hook.GcfHook`
+    * :class:`~airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook`
+    * :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook`
 
 
 Configuring the Connection

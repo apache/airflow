@@ -90,8 +90,9 @@ middleware in your `airflow.cfg`::
 
     enable_proxy_fix = True
 
-Note: you should only enable the `ProxyFix` middleware when running
-Airflow behind a trusted proxy (AWS ELB, nginx, etc.).
+.. note:: 
+    You should only enable the `ProxyFix` middleware when running
+    Airflow behind a trusted proxy (AWS ELB, nginx, etc.).
 
 .. _Azure:
 
@@ -195,11 +196,15 @@ AzureCosmosDBHook
 .. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook
     :noindex:
 
+.. _AzureCosmosInsertDocumentOperator:
+
 AzureCosmosInsertDocumentOperator
 """""""""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator
     :noindex:
+
+.. _AzureCosmosDocumentSensor:
 
 AzureCosmosDocumentSensor
 """""""""""""""""""""""""
@@ -957,7 +962,7 @@ Cloud Bigtable Operators
 .. _BigtableInstanceCreateOperator:
 
 BigtableInstanceCreateOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator
     :noindex:

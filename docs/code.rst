@@ -322,11 +322,11 @@ Variable                            Description
 ``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``
                                     if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
                                     ``{{ prev_ds }}`` will be ``2016-01-01``
-``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None`
+``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None``
 ``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``
                                     if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
                                     ``{{ next_ds }}`` will be ``2018-01-08``
-``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
+``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None``
 ``{{ yesterday_ds }}``              the day before the execution date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``       the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``               the day after the execution date as ``YYYY-MM-DD``
