@@ -95,6 +95,55 @@ LOGGING_CONFIG = {
 }
 """
 
+SETTINGS_FILE_WASB_HANDLER = """
+REMOTE_BASE_LOG_FOLDER = 'wasb'
+LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'airflow': {
+            'format': '[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s'
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
+            'formatter': 'airflow',
+            'stream': 'sys.stdout'
+        },
+        'processor': {
+            'base_log_folder': '$AIRFLOW_HOME/logs/scheduler',
+            'class': 'airflow.utils.log.file_processor_handler.FileProcessorHandler',
+            'filename_template': '{{ filename }}.log',
+            'formatter': 'airflow'
+        },
+        'task': {
+            'base_log_folder': '$AIRFLOW_HOME/logs',
+            'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',
+            'filename_template': '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log',
+            'formatter': 'airflow'
+        }
+    },
+    'loggers': {
+        'airflow.processor': {
+            'handlers': ['processor'],
+            'level': 'INFO',
+            'propagate': False
+        },
+        'airflow.task': {
+            'handlers': ['task'],
+            'level': 'INFO',
+            'propagate': False
+        },
+        'flask_appbuilder': {
+            'handler': ['console'],
+            'level': 'WARN',
+            'propagate': True
+        }
+    },
+}
+"""
+
 SETTINGS_FILE_EMPTY = """
 # Other settings here
 """
@@ -250,6 +299,19 @@ class TestLoggingSettings(unittest.TestCase):
                 self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
         finally:
             conf.remove_option('core', 'task_log_reader', remove_default=False)
+
+    def test_loading_remote_logging_with_wasb_handler(self):
+        """Test if logging can be configured successfully for Azure Blob Storage"""
+        with settings_context(SETTINGS_FILE_WASB_HANDLER):
+            from airflow.logging_config import configure_logging, log
+            with patch.object(log, 'info') as mock_info:
+                configure_logging()
+                mock_info.assert_called_with(
+                    'Successfully imported user-defined logging config from %s',
+                    '{}.LOGGING_CONFIG'.format(
+                        SETTINGS_DEFAULT_NAME
+                    )
+                )
 
 
 if __name__ == '__main__':
