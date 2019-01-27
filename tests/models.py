@@ -943,6 +943,7 @@ class DagRunTest(unittest.TestCase):
         session = settings.Session()
         dag_id = 'test_clear_task_instances_for_backfill_dagrun'
         dag = DAG(dag_id=dag_id, start_date=now)
+        dag.sync_to_db()
         self.create_dag_run(dag, execution_date=now, is_backfill=True)
 
         task0 = DummyOperator(task_id='backfill_task_0', owner='test', dag=dag)
@@ -1030,6 +1031,7 @@ class DagRunTest(unittest.TestCase):
             'test_state_skipped1': State.SKIPPED,
             'test_state_skipped2': State.SKIPPED,
         }
+        dag.sync_to_db()
 
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
@@ -1060,7 +1062,7 @@ class DagRunTest(unittest.TestCase):
             op4 = DummyOperator(task_id='D')
             op1.set_upstream([op2, op3])
             op3.set_upstream(op4)
-
+        dag.sync_to_db()
         dag.clear()
 
         now = timezone.utcnow()
@@ -1108,6 +1110,7 @@ class DagRunTest(unittest.TestCase):
             op2 = DummyOperator(task_id='B')
             op2.trigger_rule = TriggerRule.ONE_FAILED
             op2.set_upstream(op1)
+        dag.sync_to_db()
 
         dag.clear()
         now = timezone.utcnow()
@@ -1137,6 +1140,7 @@ class DagRunTest(unittest.TestCase):
             op1 = DummyOperator(task_id='upstream_task')
             op2 = DummyOperator(task_id='downstream_task')
             op2.set_upstream(op1)
+        dag.sync_to_db()
 
         dr = dag.create_dagrun(run_id='test_dagrun_no_deadlock_with_shutdown',
                                state=State.RUNNING,
@@ -1155,7 +1159,7 @@ class DagRunTest(unittest.TestCase):
         with dag:
             DummyOperator(task_id='dop', depends_on_past=True)
             DummyOperator(task_id='tc', task_concurrency=1)
-
+        dag.sync_to_db()
         dag.clear()
         dr = dag.create_dagrun(run_id='test_dagrun_no_deadlock_1',
                                state=State.RUNNING,
@@ -1205,6 +1209,7 @@ class DagRunTest(unittest.TestCase):
             'test_state_succeeded1': State.SUCCESS,
             'test_state_succeeded2': State.SUCCESS,
         }
+        dag.sync_to_db()
 
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
@@ -1237,6 +1242,8 @@ class DagRunTest(unittest.TestCase):
         }
         dag_task1.set_downstream(dag_task2)
 
+        dag.sync_to_db()
+
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
@@ -1250,7 +1257,7 @@ class DagRunTest(unittest.TestCase):
             'test_dagrun_set_state_end_date',
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
-
+        dag.sync_to_db()
         dag.clear()
 
         now = timezone.utcnow()
@@ -1309,7 +1316,7 @@ class DagRunTest(unittest.TestCase):
             op1 = DummyOperator(task_id='A')
             op2 = DummyOperator(task_id='B')
             op1.set_upstream(op2)
-
+        dag.sync_to_db()
         dag.clear()
 
         now = timezone.utcnow()
@@ -1409,6 +1416,7 @@ class DagRunTest(unittest.TestCase):
 
     def test_is_backfill(self):
         dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
+        dag.sync_to_db()
 
         dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
         dagrun.run_id = BackfillJob.ID_PREFIX + '_sfddsffds'
@@ -1430,6 +1438,7 @@ class DagRunTest(unittest.TestCase):
 
         dag = DAG('test_task_restoration', start_date=DEFAULT_DATE)
         dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+        dag.sync_to_db()
 
         dagrun = self.create_dag_run(dag)
         flaky_ti = dagrun.get_task_instances()[0]
