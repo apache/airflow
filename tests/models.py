@@ -36,6 +36,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
+import sqlalchemy.exc as sqla_exc
 from mock import ANY, Mock, mock_open, patch
 from parameterized import parameterized
 from freezegun import freeze_time
@@ -3165,7 +3166,7 @@ class ClearTasksTest(unittest.TestCase):
 
         configuration.set("core", "xcom_enable_pickling", "False")
 
-        self.assertRaises(TypeError, XCom.set,
+        self.assertRaises(sqla_exc.StatementError, XCom.set,
                           key="xcom_test3",
                           value=PickleRce(),
                           dag_id="test_dag3",
