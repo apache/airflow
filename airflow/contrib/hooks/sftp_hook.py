@@ -31,13 +31,15 @@ class SFTPHook(SSHHook):
 
     Interact with SFTP. Aims to be interchangeable with FTPHook.
 
-    Pitfalls: - In contrast with FTPHook describe_directory only returns size, type and
-                modify. It doesn't return unix.owner, unix.mode, perm, unix.group and
-                unique.
-              - retrieve_file and store_file only take a local full path and not a
-                buffer.
-              - If no mode is passed to create_directory it will be created with 777
-                permissions.
+    :Pitfalls::
+
+        - In contrast with FTPHook describe_directory only returns size, type and
+          modify. It doesn't return unix.owner, unix.mode, perm, unix.group and
+          unique.
+        - retrieve_file and store_file only take a local full path and not a
+           buffer.
+        - If no mode is passed to create_directory it will be created with 777
+          permissions.
 
     Errors that may occur throughout but should be handled downstream.
     """

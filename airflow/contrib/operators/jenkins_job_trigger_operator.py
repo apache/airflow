@@ -43,6 +43,7 @@ def jenkins_request_with_headers(jenkins_server, req, add_crumb=True):
     to get the location from them
     This function is just a copy of the one present in python-jenkins library
     with just the return call changed
+
     :param jenkins_server: The server to query
     :param req: The request to execute
     :param add_crumb: Boolean to indicate if it should add crumb to the request
@@ -94,6 +95,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     This operator depend on python-jenkins library,
     version >= 0.4.15 to communicate with jenkins server.
     You'll also need to configure a Jenkins connection in the connections screen.
+
     :param jenkins_connection_id: The jenkins connection to use for this job
     :type jenkins_connection_id: str
     :param job_name: The name of the job to trigger
@@ -101,7 +103,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param parameters: The parameters block to provide to jenkins. (templated)
     :type parameters: str
     :param sleep_time: How long will the operator sleep between each status
-    request for the job (min 1, default 10)
+        request for the job (min 1, default 10)
     :type sleep_time: int
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
@@ -135,9 +137,10 @@ class JenkinsJobTriggerOperator(BaseOperator):
         It returned a dict with 2 keys : body and headers.
         headers contains also a dict-like object which can be queried to get
         the location to poll in the queue.
+
         :param jenkins_server: The jenkins server where the job should be triggered
         :return: Dict containing the response body (key body)
-        and the headers coming along (headers)
+            and the headers coming along (headers)
         """
         # Warning if the parameter is too long, the URL can be longer than
         # the maximum allowed size
@@ -163,6 +166,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         returned by the build_job call and poll this file.
         When a 'executable' block appears in the json, it means the job execution started
         and the field 'number' then contains the build number.
+
         :param location: Location to poll, returned in the header of the build_job call
         :param jenkins_server: The jenkins server to poll
         :return: The build_number corresponding to the triggered job

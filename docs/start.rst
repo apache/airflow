@@ -56,7 +56,7 @@ you to get up and running quickly and take a tour of the UI and the
 command line utilities.
 
 Here are a few commands that will trigger a few task instances. You should
-be able to see the status of the jobs change in the ``example1`` DAG as you
+be able to see the status of the jobs change in the ``example_bash_operator`` DAG as you
 run the commands below.
 
 .. code-block:: bash

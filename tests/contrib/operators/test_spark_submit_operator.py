@@ -28,6 +28,7 @@ from airflow.utils import timezone
 
 from datetime import timedelta
 
+
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
@@ -73,15 +74,17 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.dag = DAG('test_dag_id', default_args=args)
 
     def test_execute(self):
+
         # Given / When
         conn_id = 'spark_default'
         operator = SparkSubmitOperator(
             task_id='spark_submit_job',
+            spark_binary="sparky",
             dag=self.dag,
             **self._config
         )
 
-        # Then
+        # Then expected results
         expected_dict = {
             'conf': {
                 'parquet.compression': 'SNAPPY'
@@ -110,7 +113,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
                 '--start', '{{ macros.ds_add(ds, -1)}}',
                 '--end', '{{ ds }}',
                 '--with-spaces', 'args should keep embdedded spaces',
-            ]
+            ],
+            "spark_binary": "sparky"
         }
 
         self.assertEqual(conn_id, operator._conn_id)
@@ -135,6 +139,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['java_class'], operator._java_class)
         self.assertEqual(expected_dict['driver_memory'], operator._driver_memory)
         self.assertEqual(expected_dict['application_args'], operator._application_args)
+        self.assertEqual(expected_dict['spark_binary'], operator._spark_binary)
 
     def test_render_template(self):
         # Given

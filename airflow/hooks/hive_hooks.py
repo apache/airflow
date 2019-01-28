@@ -787,6 +787,7 @@ class HiveServer2Hook(BaseHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
+            password=db.password,
             database=schema or db.schema or 'default')
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
@@ -864,7 +865,7 @@ class HiveServer2Hook(BaseHook):
         Execute hql in target schema and write results to a csv file.
         :param hql: hql to be executed.
         :param csv_filepath: filepath of csv to write results into.
-        :param schema: target schema, , default to 'default'.
+        :param schema: target schema, default to 'default'.
         :param delimiter: delimiter of the csv file.
         :param lineterminator: lineterminator of the csv file.
         :param output_header: header of the csv file.

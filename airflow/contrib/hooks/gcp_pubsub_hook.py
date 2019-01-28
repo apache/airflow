@@ -239,11 +239,10 @@ class PubSubHook(GoogleCloudBaseHook):
             return if no messages are available. Otherwise, the request will
             block for an undisclosed, but bounded period of time
         :type return_immediately: bool
-        :return A list of Pub/Sub ReceivedMessage objects each containing
+        :return: A list of Pub/Sub ReceivedMessage objects each containing
             an ``ackId`` property and a ``message`` property, which includes
             the base64-encoded message content. See
-            https://cloud.google.com/pubsub/docs/reference/rest/v1/\
-                projects.subscriptions/pull#ReceivedMessage
+            https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/pull#ReceivedMessage
         """
         service = self.get_conn()
         full_subscription = _format_subscription(project, subscription)

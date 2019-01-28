@@ -27,7 +27,7 @@ class AzureContainerVolumeHook(BaseHook):
     A hook which wraps an Azure Volume.
 
     :param wasb_conn_id: connection id of a Azure storage account of
-    which file shares should be mounted
+        which file shares should be mounted
     :type wasb_conn_id: str
     """
 
