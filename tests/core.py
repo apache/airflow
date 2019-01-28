@@ -1227,6 +1227,17 @@ class CliTests(unittest.TestCase):
             'list_tasks', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
+    def test_cli_list_jobs(self):
+        args = self.parser.parse_args(['list_jobs'])
+        cli.list_jobs(args)
+
+    def test_cli_list_jobs_with_args(self):
+        args = self.parser.parse_args(['list_jobs', '--dag_id',
+                                       'example_bash_operator',
+                                       '--state', 'success',
+                                       '--limit', '100'])
+        cli.list_jobs(args)
+
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
