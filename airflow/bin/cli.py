@@ -637,6 +637,39 @@ def list_tasks(args, dag=None):
 
 
 @cli_utils.action_logging
+def list_jobs(args, dag=None):
+    queries = []
+    if dag:
+        args.dag_id = dag.dag_id
+    if args.dag_id:
+        dagbag = DagBag()
+
+        if args.dag_id not in dagbag.dags:
+            error_message = "Dag id {} not found".format(args.dag_id)
+            raise AirflowException(error_message)
+        queries.append(jobs.BaseJob.dag_id == args.dag_id)
+
+    if args.state:
+        queries.append(jobs.BaseJob.state == args.state)
+
+    with db.create_session() as session:
+        all_jobs = (session
+                    .query(jobs.BaseJob)
+                    .filter(*queries)
+                    .order_by(jobs.BaseJob.start_date.desc())
+                    .limit(args.limit)
+                    .all())
+        fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
+        all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
+        msg = tabulate(all_jobs,
+                       [field.capitalize().replace('_', ' ') for field in fields],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
+
+
+@cli_utils.action_logging
 def test(args, dag=None):
     # We want log outout from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
@@ -1560,6 +1593,12 @@ class CLIFactory(object):
             "Only list the dag runs corresponding to the state"
         ),
 
+        # list_jobs
+        'limit': Arg(
+            ("--limit",),
+            "Return a limited number of records"
+        ),
+
         # backfill
         'mark_success': Arg(
             ("-m", "--mark_success"),
@@ -1995,6 +2034,10 @@ class CLIFactory(object):
             'func': list_tasks,
             'help': "List the tasks within a DAG",
             'args': ('dag_id', 'tree', 'subdir'),
+        }, {
+            'func': list_jobs,
+            'help': "List the jobs",
+            'args': ('dag_id_opt', 'state', 'limit'),
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",
