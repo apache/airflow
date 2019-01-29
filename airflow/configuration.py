@@ -35,7 +35,7 @@ import subprocess
 import sys
 import warnings
 
-from backports.configparser import ConfigParser
+from backports.configparser import ConfigParser, _UNSET, NoOptionError
 from zope.deprecation import deprecated as _deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -246,7 +246,7 @@ class AirflowConfigParser(ConfigParser):
                 return option
 
         # ...then the default config
-        if self.airflow_defaults.has_option(section, key):
+        if self.airflow_defaults.has_option(section, key) or 'fallback' in kwargs:
             return expand_env_var(
                 self.airflow_defaults.get(section, key, **kwargs))
 
@@ -290,9 +290,10 @@ class AirflowConfigParser(ConfigParser):
         try:
             # Using self.get() to avoid reimplementing the priority order
             # of config variables (env, config, cmd, defaults)
-            self.get(section, option)
+            # UNSET to avoid logging a warning about missing values
+            self.get(section, option, fallback=_UNSET)
             return True
-        except AirflowConfigException:
+        except NoOptionError:
             return False
 
     def remove_option(self, section, option, remove_default=True):
