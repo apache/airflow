@@ -217,6 +217,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
 .. autoclass:: airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator
+.. autoclass:: airflow.contrib.operators.imap_attachment_to_s3_operator.ImapAttachmentToS3Operator
 .. autoclass:: airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator
 .. autoclass:: airflow.contrib.operators.jira_operator.JiraOperator
 .. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
