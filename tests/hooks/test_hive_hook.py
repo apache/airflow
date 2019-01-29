@@ -138,7 +138,7 @@ class TestHiveCliHook(unittest.TestCase):
 
         query = (
             "LOAD DATA LOCAL INPATH '{filepath}' "
-            "OVERWRITE INTO TABLE {table} \n"
+            "OVERWRITE INTO TABLE {table} ;\n"
             .format(filepath=filepath, table=table)
         )
         mock_run_cli.assert_called_with(query)
