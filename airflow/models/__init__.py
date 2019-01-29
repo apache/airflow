@@ -28,7 +28,7 @@ from collections import defaultdict, namedtuple, OrderedDict
 from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
-from airflow.models.base import Base
+from airflow.models.base import Base, ID_LEN
 
 try:
     # Fix Python > 3.7 deprecation
@@ -63,9 +63,8 @@ from datetime import datetime
 from urllib.parse import quote
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, ForeignKeyConstraint, Index,
-    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_, asc,
-    func, or_, true as sqltrue
+    Boolean, Column, DateTime, Float, Index, Integer, LargeBinary, PickleType, String,
+    Text, UniqueConstraint, and_, func, or_, true as sqltrue
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
@@ -85,6 +84,7 @@ from airflow.exceptions import (
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -109,7 +109,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 
-ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
 
 Stats = settings.Stats
@@ -1886,66 +1885,6 @@ class TaskFail(Base):
             self.duration = (self.end_date - self.start_date).total_seconds()
         else:
             self.duration = None
-
-
-class TaskReschedule(Base):
-    """
-    TaskReschedule tracks rescheduled task instances.
-    """
-
-    __tablename__ = "task_reschedule"
-
-    id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
-    try_number = Column(Integer, nullable=False)
-    start_date = Column(UtcDateTime, nullable=False)
-    end_date = Column(UtcDateTime, nullable=False)
-    duration = Column(Integer, nullable=False)
-    reschedule_date = Column(UtcDateTime, nullable=False)
-
-    __table_args__ = (
-        Index('idx_task_reschedule_dag_task_date', dag_id, task_id, execution_date,
-              unique=False),
-        ForeignKeyConstraint([task_id, dag_id, execution_date],
-                             [TaskInstance.task_id, TaskInstance.dag_id,
-                              TaskInstance.execution_date],
-                             name='task_reschedule_dag_task_date_fkey')
-    )
-
-    def __init__(self, task, execution_date, try_number, start_date, end_date,
-                 reschedule_date):
-        self.dag_id = task.dag_id
-        self.task_id = task.task_id
-        self.execution_date = execution_date
-        self.try_number = try_number
-        self.start_date = start_date
-        self.end_date = end_date
-        self.reschedule_date = reschedule_date
-        self.duration = (self.end_date - self.start_date).total_seconds()
-
-    @staticmethod
-    @provide_session
-    def find_for_task_instance(task_instance, session):
-        """
-        Returns all task reschedules for the task instance and try number,
-        in ascending order.
-
-        :param task_instance: the task instance to find task reschedules for
-        :type task_instance: TaskInstance
-        """
-        TR = TaskReschedule
-        return (
-            session
-            .query(TR)
-            .filter(TR.dag_id == task_instance.dag_id,
-                    TR.task_id == task_instance.task_id,
-                    TR.execution_date == task_instance.execution_date,
-                    TR.try_number == task_instance.try_number)
-            .order_by(asc(TR.id))
-            .all()
-        )
 
 
 class Log(Base):

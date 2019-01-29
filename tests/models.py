@@ -50,11 +50,11 @@ from airflow.models import DagModel, DagRun
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
 from airflow.models import State as ST
-from airflow.models import TaskReschedule as TR
 from airflow.models import XCom
 from airflow.models import Variable
 from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
@@ -1946,7 +1946,7 @@ class TaskInstanceTest(unittest.TestCase):
     def tearDown(self):
         with create_session() as session:
             session.query(models.TaskFail).delete()
-            session.query(models.TaskReschedule).delete()
+            session.query(TaskReschedule).delete()
             session.query(models.TaskInstance).delete()
 
     def test_set_task_dates(self):
@@ -2367,7 +2367,7 @@ class TaskInstanceTest(unittest.TestCase):
             self.assertEqual(ti.start_date, expected_start_date)
             self.assertEqual(ti.end_date, expected_end_date)
             self.assertEqual(ti.duration, expected_duration)
-            trs = TR.find_for_task_instance(ti)
+            trs = TaskReschedule.find_for_task_instance(ti)
             self.assertEqual(len(trs), expected_task_reschedule_count)
 
         date1 = timezone.utcnow()
