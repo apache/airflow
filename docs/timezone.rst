@@ -49,7 +49,7 @@ Python’s datetime.datetime objects have a tzinfo attribute that can be used to
 represented as an instance of a subclass of datetime.tzinfo. When this attribute is set and describes an offset,
 a datetime object is aware. Otherwise, it’s naive.
 
-You can use timezone.is_aware() and timezone.is_naive() to determine whether datetimes are aware or naive.
+You can use timezone.is_localized() and timezone.is_naive() to determine whether datetimes are aware or naive.
 
 Because Airflow uses time-zone-aware datetime objects. If your code creates datetime objects they need to be aware too.
 
