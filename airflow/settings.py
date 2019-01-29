@@ -176,13 +176,10 @@ def configure_orm(disable_connection_pool=False):
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
 
-    try:
-        # Allow the user to specify an encoding for their DB otherwise default
-        # to utf-8 so jobs & users with non-latin1 characters can still use
-        # us.
-        engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING')
-    except conf.AirflowConfigException:
-        engine_args['encoding'] = 'utf-8'
+    # Allow the user to specify an encoding for their DB otherwise default
+    # to utf-8 so jobs & users with non-latin1 characters can still use
+    # us.
+    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
     # For Python2 we get back a newstr and need a str
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
@@ -226,10 +223,7 @@ def configure_adapters():
 
 
 def validate_session():
-    try:
-        worker_precheck = conf.getboolean('core', 'worker_precheck')
-    except conf.AirflowConfigException:
-        worker_precheck = False
+    worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
     else:
