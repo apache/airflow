@@ -74,7 +74,6 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and \
                 source_object == destination_object:
-
             raise ValueError(
                 'Either source/destination bucket or source/destination object '
                 'must be different, not both the same: bucket=%s, object=%s' %
@@ -338,7 +337,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 return False
             raise
 
-    def list(self, bucket, versions=None, maxResults=None, prefix=None, delimiter=None):
+    def list(self, bucket, versions=None, maxResults=None, prefix=None, delimiter=None,
+             enforce_delimiter=False):
         """
         List all objects from the bucket with the give string prefix in name
 
@@ -354,11 +354,28 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         :type delimiter: str
         :return: a stream of object names matching the filtering criteria
+        :param enforce_delimiter: Only select files ending with matching value after the last wildcard '*'
+        :type enforce_delimiter: bool
         """
         service = self.get_conn()
 
         ids = list()
         pageToken = None
+
+        def enforcing_delimiter():
+            if item and 'name' in item:
+                if item['name'].endswith(delimiter):
+                    ids.append(item['name'])
+
+        def not_enforcing_delimiter():
+            if item and 'name' in item:
+                ids.append(item['name'])
+
+        if enforce_delimiter:
+            should_enforce = enforcing_delimiter
+        else:
+            should_enforce = not_enforcing_delimiter
+
         while True:
             response = service.objects().list(
                 bucket=bucket,
@@ -375,8 +392,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     break
 
                 for item in response['items']:
-                    if item and 'name' in item:
-                        ids.append(item['name'])
+                    should_enforce()
             else:
                 for item in response['prefixes']:
                     ids.append(item)

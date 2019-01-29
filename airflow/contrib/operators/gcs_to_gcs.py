@@ -50,6 +50,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         the destination_object as e.g. ``blah/foo``, in which case the copied file
         will be named ``blah/foo/baz``.
     :type destination_object: str
+    :param enforce_delimiter: Only select files ending with matching value after the last wildcard '*'
+    :type enforce_delimiter: bool
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -119,6 +121,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  source_object,
                  destination_bucket=None,
                  destination_object=None,
+                 enforce_delimiter=False,
                  move_object=False,
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
@@ -131,6 +134,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.source_object = source_object
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
+        self.enforce_delimiter = enforce_delimiter
         self.move_object = move_object
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
@@ -146,8 +150,12 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         log_message = 'Executing copy of gs://{0}/{1} to gs://{2}/{3}'
 
         if self.wildcard in self.source_object:
-            prefix, delimiter = self.source_object.split(self.wildcard, 1)
-            objects = hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            wildcard_position = self.source_object.index('*')
+            wildcard_last_position = self.source_object.rindex('*')
+            prefix = self.source_object[:wildcard_position]
+            delimiter = self.source_object[wildcard_last_position + 1:]
+            objects = hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter,
+                                enforce_delimiter=self.enforce_delimiter)
 
             for source_object in objects:
                 if self.last_modified_time is not None:
