@@ -5078,31 +5078,6 @@ class Pool(Base):
         return self.slots - used_slots - queued_slots
 
 
-class SlaMiss(Base):
-    """
-    Model that stores a history of the SLA that have been missed.
-    It is used to keep track of SLA failures over time and to avoid double
-    triggering alert emails.
-    """
-    __tablename__ = "sla_miss"
-
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
-    email_sent = Column(Boolean, default=False)
-    timestamp = Column(UtcDateTime)
-    description = Column(Text)
-    notification_sent = Column(Boolean, default=False)
-
-    __table_args__ = (
-        Index('sm_dag', dag_id, unique=False),
-    )
-
-    def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
-
-
 class KubeResourceVersion(Base):
     __tablename__ = "kube_resource_version"
     one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
