@@ -452,9 +452,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
-        :type zombies: SimpleTaskInstance
+        :type zombies: ``SimpleTaskInstance``
         :param session: DB session.
-        :type Session.
+        :type session: Session
         """
         for zombie in zombies:
             if zombie.dag_id in self.dags:
@@ -3722,8 +3722,10 @@ class DAG(BaseDag, LoggingMixin):
         on_failure_callback or on_success_callback. This method gets the context of a
         single TaskInstance part of this DagRun and passes that to the callable along
         with a 'reason', primarily to differentiate DagRun failures.
-        .. note::
-            The logs end up in $AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log
+
+        .. note: The logs end up in
+            ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
+
         :param dagrun: DagRun object
         :param success: Flag to specify if failure or success callback should be called
         :param reason: Completion reason
@@ -4633,10 +4635,10 @@ class Variable(Base, LoggingMixin):
         :param key: Dict key for this Variable
         :type key: String
         :param default: Default value to set and return if the variable
-        isn't already in the DB
+            isn't already in the DB
         :type default: Mixed
         :param deserialize_json: Store this as a JSON encoded value in the DB
-         and un-encode it when retrieving a value
+            and un-encode it when retrieving a value
         :return: Mixed
         """
         default_sentinel = object()
@@ -5076,7 +5078,7 @@ class DagRun(Base, LoggingMixin):
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param no_backfills: return no backfills (True), return all (False).
-        Defaults to False
+            Defaults to False
         :type no_backfills: bool
         :param session: database session
         :type session: Session
@@ -5333,7 +5335,7 @@ class DagRun(Base, LoggingMixin):
         :param execution_date: execution date
         :type execution_date: datetime
         :return: DagRun corresponding to the given dag_id and execution date
-        if one exists. None otherwise.
+            if one exists. None otherwise.
         :rtype: DagRun
         """
         qry = session.query(DagRun).filter(

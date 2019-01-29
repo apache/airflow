@@ -26,8 +26,8 @@ class PythonSensor(BaseSensorOperator):
     Waits for a Python callable to return True.
 
     User could put input argument in templates_dict
-        e.g templates_dict = {'start_ds': 1970}
-    and access the argument by calling `kwargs['templates_dict']['start_ds']`
+    e.g ``templates_dict = {'start_ds': 1970}``
+    and access the argument by calling ``kwargs['templates_dict']['start_ds']``
     in the the callable
 
     :param python_callable: A reference to an object that is callable

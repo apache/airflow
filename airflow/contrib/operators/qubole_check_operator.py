@@ -69,7 +69,8 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
             which the checks have to be performed.
 
     .. note:: All fields in common with template fields of
-            QuboleOperator and CheckOperator are template-supported.
+        QuboleOperator and CheckOperator are template-supported.
+
     """
 
     template_fields = QuboleOperator.template_fields + CheckOperator.template_fields
