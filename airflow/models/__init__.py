@@ -64,7 +64,7 @@ from urllib.parse import quote
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKeyConstraint, Index,
-    Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_, asc,
+    Integer, PickleType, String, Text, UniqueConstraint, and_, asc,
     func, or_, true as sqltrue
 )
 from sqlalchemy.ext.declarative import declared_attr
@@ -82,6 +82,7 @@ from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout,
     AirflowRescheduleException
 )
+from airflow.custom_types import XComSerializer
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
@@ -186,55 +187,6 @@ def get_fernet():
         raise AirflowException("Could not create Fernet object: {}".format(ve))
 
     return _fernet
-
-
-class XComSerializer(types.TypeDecorator):
-    """
-    A custom SQLAlchemy "types.TypeDecorator" class that handles XCom
-    serialization and deserialization when inserting/updating and reading the
-    "values" column from the xcom table.
-    """
-    impl = types.LargeBinary
-
-    def process_bind_param(self, value, dialect):
-        """
-        Serialize value before passing it to the database
-        """
-        enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
-        if enable_pickling:
-            value = pickle.dumps(value)
-        else:
-            try:
-                value = json.dumps(value).encode('UTF-8')
-            except ValueError:
-                log = LoggingMixin().log
-                log.error("Could not serialize the XCOM value into JSON. "
-                          "If you are using pickles instead of JSON "
-                          "for XCOM, then you need to enable pickle "
-                          "support for XCOM in your airflow config.")
-                raise
-        return value
-
-    """
-    TODO: "pickling" has been deprecated and JSON is preferred.
-          "pickling" will be removed in Airflow 2.0.
-    """
-    def process_result_value(self, value, dialect):
-        """
-        Deserialize result value from database
-        """
-        enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
-        if enable_pickling:
-            value = pickle.loads(value)
-        else:
-            try:
-                value = json.loads(value.decode('UTF-8'))
-            except (UnicodeEncodeError, ValueError):
-                # For backward-compatibility.
-                # Preventing errors in webserver
-                # due to XComs mixed with pickled and unpickled.
-                value = pickle.loads(value)
-        return value
 
 
 # Used by DAG context_managers
