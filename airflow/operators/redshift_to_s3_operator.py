@@ -85,8 +85,8 @@ class RedshiftToS3Transfer(BaseOperator):
         self.include_header = include_header
 
         if self.include_header and \
-           'PARALLEL OFF' not in [uo.upper().strip() for uo in unload_options]:
-            self.unload_options = list(unload_options) + ['PARALLEL OFF', ]
+           'HEADER' not in [uo.upper().strip() for uo in unload_options]:
+            self.unload_options = list(unload_options) + ['HEADER', ]
 
     def execute(self, context):
         self.hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
@@ -94,42 +94,9 @@ class RedshiftToS3Transfer(BaseOperator):
         credentials = self.s3.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
 
-        if self.include_header:
-            self.log.info("Retrieving headers from %s.%s...",
-                          self.schema, self.table)
-
-            columns_query = """SELECT column_name
-                                        FROM information_schema.columns
-                                        WHERE table_schema = '{schema}'
-                                        AND   table_name = '{table}'
-                                        ORDER BY ordinal_position
-                            """.format(schema=self.schema,
-                                       table=self.table)
-
-            cursor = self.hook.get_conn().cursor()
-            cursor.execute(columns_query)
-            rows = cursor.fetchall()
-            columns = [row[0] for row in rows]
-            column_names = ', '.join("{0}".format(c) for c in columns)
-            column_headers = ', '.join("\\'{0}\\'".format(c) for c in columns)
-            column_castings = ', '.join("CAST({0} AS text) AS {0}".format(c)
-                                        for c in columns)
-
-            select_query = """SELECT {column_names} FROM
-                                    (SELECT 2 sort_order, {column_castings}
-                                     FROM {schema}.{table}
-                                    UNION ALL
-                                    SELECT 1 sort_order, {column_headers})
-                                 ORDER BY sort_order"""\
-                            .format(column_names=column_names,
-                                    column_castings=column_castings,
-                                    column_headers=column_headers,
-                                    schema=self.schema,
-                                    table=self.table)
-        else:
-            select_query = "SELECT * FROM {schema}.{table}"\
-                .format(schema=self.schema,
-                        table=self.table)
+        select_query = "SELECT * FROM {schema}.{table}"\
+            .format(schema=self.schema,
+                    table=self.table)
 
         unload_query = """
                     UNLOAD ('{select_query}')

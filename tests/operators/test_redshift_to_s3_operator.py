@@ -45,7 +45,16 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         table = "table"
         s3_bucket = "bucket"
         s3_key = "key"
-        unload_options = ('PARALLEL OFF',)
+        unload_options = ('HEADER',)
+
+	columns_query = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = '{schema}'
+            AND   table_name = '{table}'
+            ORDER BY ordinal_position
+            """.format(schema=schema,
+                       table=table)
 
         t = RedshiftToS3Transfer(
             schema=schema,
@@ -62,23 +71,8 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
 
         unload_options = '\n\t\t\t'.join(unload_options)
 
-        columns_query = """
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_schema = '{schema}'
-            AND   table_name = '{table}'
-            ORDER BY ordinal_position
-            """.format(schema=schema,
-                       table=table)
-
         unload_query = """
-                UNLOAD ('SELECT {column_name} FROM
-                            (SELECT 2 sort_order,
-                             CAST({column_name} AS text) AS {column_name}
-                            FROM {schema}.{table}
-                            UNION ALL
-                            SELECT 1 sort_order, \\'{column_name}\\')
-                         ORDER BY sort_order')
+                UNLOAD ('SELECT * FROM {schema}.{table}')
                 TO 's3://{s3_bucket}/{s3_key}/{table}_'
                 with credentials
                 'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
