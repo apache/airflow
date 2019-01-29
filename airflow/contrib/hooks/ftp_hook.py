@@ -64,8 +64,9 @@ class FTPHook(BaseHook, LoggingMixin):
     """
     Interact with FTP.
 
-    Errors that may occur throughout but should be handled
-    downstream.
+    Errors that may occur throughout but should be handled downstream.
+    You can specify mode for data transfers in the extra field of your
+    connection as ``{"passive": "true"}``.
     """
 
     def __init__(self, ftp_conn_id='ftp_default'):
@@ -85,7 +86,9 @@ class FTPHook(BaseHook, LoggingMixin):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
             self.conn = ftplib.FTP(params.host, params.login, params.password)
+            self.conn.set_pasv(pasv)
 
         return self.conn
 
@@ -305,6 +308,7 @@ class FTPSHook(FTPHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+            pasv = params.extra_dejson.get("passive", True)
 
             if params.port:
                 ftplib.FTP_TLS.port = params.port
@@ -312,5 +316,6 @@ class FTPSHook(FTPHook):
             self.conn = ftplib.FTP_TLS(
                 params.host, params.login, params.password
             )
+            self.conn.set_pasv(pasv)
 
         return self.conn
