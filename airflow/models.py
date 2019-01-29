@@ -62,7 +62,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
-import sqlalchemy.types as types
+from sqlalchemy import types
 
 from croniter import (
     croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
@@ -4709,15 +4709,15 @@ class SerializingLargeBinary(types.TypeDecorator):
     def process_result_value(self, value, dialect):
         enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
         if enable_pickling:
-            return pickle.loads(self.value)
+            return pickle.loads(value)
         else:
             try:
-                return json.loads(self.value.decode('UTF-8'))
+                return json.loads(value.decode('UTF-8'))
             except (UnicodeEncodeError, ValueError):
                 # For backward-compatibility.
                 # Preventing errors in webserver
                 # due to XComs mixed with pickled and unpickled.
-                return pickle.loads(self.value)
+                return pickle.loads(value)
 
 
 class XCom(Base, LoggingMixin):
