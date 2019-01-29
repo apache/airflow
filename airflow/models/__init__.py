@@ -28,7 +28,7 @@ from collections import namedtuple, defaultdict, OrderedDict
 from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
-from airflow.models.base import Base
+from airflow.models.base import Base, ID_LEN
 
 try:
     # Fix Python > 3.7 deprecation
@@ -88,6 +88,7 @@ from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
 from airflow.models.errors import ImportError  # noqa: F401
+from airflow.models.slamiss import SlaMiss  # noqa: F401
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -113,7 +114,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 
-ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
 
 Stats = settings.Stats
@@ -5297,31 +5297,6 @@ class Pool(Base):
         used_slots = self.used_slots(session=session)
         queued_slots = self.queued_slots(session=session)
         return self.slots - used_slots - queued_slots
-
-
-class SlaMiss(Base):
-    """
-    Model that stores a history of the SLA that have been missed.
-    It is used to keep track of SLA failures over time and to avoid double
-    triggering alert emails.
-    """
-    __tablename__ = "sla_miss"
-
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
-    email_sent = Column(Boolean, default=False)
-    timestamp = Column(UtcDateTime)
-    description = Column(Text)
-    notification_sent = Column(Boolean, default=False)
-
-    __table_args__ = (
-        Index('sm_dag', dag_id, unique=False),
-    )
-
-    def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
 
 
 class KubeResourceVersion(Base):

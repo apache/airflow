@@ -48,6 +48,7 @@ from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
     errors
+from airflow.models.slamiss import SlaMiss
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -3098,11 +3099,11 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date,
-                                     email_sent=False,
-                                     notification_sent=True))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date,
+                              email_sent=False,
+                              notification_sent=True))
 
         # Now call manage_slas and see if the sla_miss callback gets called
         scheduler = SchedulerJob(dag_id='test_sla_miss',
@@ -3135,9 +3136,9 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='Success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
 
         # Now call manage_slas and see if the sla_miss callback gets called
         scheduler = SchedulerJob(dag_id='test_sla_miss')
@@ -3177,9 +3178,9 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='Success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
 
         scheduler = SchedulerJob(dag_id='test_sla_miss',
                                  num_runs=1)
