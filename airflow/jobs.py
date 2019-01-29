@@ -1451,7 +1451,8 @@ class SchedulerJob(BaseJob):
                                    .items()):
             dag_id, task_id, execution_date, try_number = key
             self.log.info(
-                "Executor reports %s.%s execution_date=%s as %s for try_number %s",
+                "Executor reports execution of %s.%s execution_date=%s "
+                "exited with status %s for try_number %s",
                 dag_id, task_id, execution_date, state, try_number
             )
             if state == State.FAILED or state == State.SUCCESS:
