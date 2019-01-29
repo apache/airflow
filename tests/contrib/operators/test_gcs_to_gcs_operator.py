@@ -69,7 +69,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
-            TEST_BUCKET, prefix="", delimiter="test_object"
+            TEST_BUCKET, prefix="", delimiter="test_object", enforce_delimiter=False
         )
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
@@ -81,7 +81,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
-            TEST_BUCKET, prefix="test_object", delimiter=""
+            TEST_BUCKET, prefix="test_object", delimiter="", enforce_delimiter=False
         )
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
@@ -93,7 +93,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
-            TEST_BUCKET, prefix="test", delimiter="object"
+            TEST_BUCKET, prefix="test", delimiter="object", enforce_delimiter=False
         )
 
     # copy with wildcard
