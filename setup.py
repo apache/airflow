@@ -248,6 +248,7 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
+    'typing',
 ]
 
 if not PY3:

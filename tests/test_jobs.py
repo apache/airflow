@@ -341,44 +341,44 @@ class BackfillJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_upstream_failed_tasks(self):
-            dag = DAG(
-                dag_id='test_backfill_rerun_upstream_failed',
-                start_date=DEFAULT_DATE,
-                schedule_interval='@daily')
+        dag = DAG(
+            dag_id='test_backfill_rerun_upstream_failed',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
 
-            with dag:
-                t1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
-                                   dag=dag)
-                t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
-                                   dag=dag)
-                t1.set_upstream(t2)
+        with dag:
+            t1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
+                               dag=dag)
+            t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
+                               dag=dag)
+            t1.set_upstream(t2)
 
-            dag.clear()
-            executor = TestExecutor(do_update=True)
+        dag.clear()
+        executor = TestExecutor(do_update=True)
 
-            job = BackfillJob(dag=dag,
-                              executor=executor,
-                              start_date=DEFAULT_DATE,
-                              end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                              )
-            job.run()
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          )
+        job.run()
 
-            ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
-                    execution_date=DEFAULT_DATE)
-            ti.refresh_from_db()
-            ti.set_state(State.UPSTREAM_FAILED)
+        ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.set_state(State.UPSTREAM_FAILED)
 
-            job = BackfillJob(dag=dag,
-                              executor=executor,
-                              start_date=DEFAULT_DATE,
-                              end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                              rerun_failed_tasks=True
-                              )
-            job.run()
-            ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
-                    execution_date=DEFAULT_DATE)
-            ti.refresh_from_db()
-            self.assertEqual(ti.state, State.SUCCESS)
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          rerun_failed_tasks=True
+                          )
+        job.run()
+        ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_failed_tasks_without_flag(self):
         dag = DAG(
