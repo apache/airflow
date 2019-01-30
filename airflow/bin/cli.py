@@ -31,6 +31,7 @@ from importlib import import_module
 import getpass
 import reprlib
 import argparse
+from argparse import RawTextHelpFormatter
 from builtins import input
 from collections import namedtuple
 
@@ -2102,7 +2103,18 @@ class CLIFactory(object):
         'user_import': Arg(
             ("-i", "--import"),
             metavar="FILEPATH",
-            help="Import users from JSON file"),
+            help="Import users from JSON file. Example format:" +
+                    textwrap.dedent('''
+                    [
+                        {
+                            "email": "foo@bar.org",
+                            "firstname": "Jon",
+                            "lastname": "Doe",
+                            "roles": ["Public"],
+                            "username": "jondoe"
+                        }
+                    ]'''),
+        ),
         'user_export': Arg(
             ("-e", "--export"),
             metavar="FILEPATH",
@@ -2312,6 +2324,7 @@ class CLIFactory(object):
         for sub in subparser_list:
             sub = cls.subparsers_dict[sub]
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
+            sp.formatter_class = RawTextHelpFormatter
             for arg in sub['args']:
                 if 'dag_id' in arg and dag_parser:
                     continue
