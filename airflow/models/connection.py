@@ -27,7 +27,8 @@ from sqlalchemy.orm import synonym
 
 from airflow.exceptions import AirflowException
 from airflow import LoggingMixin
-from airflow.models import Base, ID_LEN, get_fernet
+from airflow.models import get_fernet
+from airflow.models.base import Base, ID_LEN
 
 
 class Connection(Base, LoggingMixin):
