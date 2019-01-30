@@ -20,13 +20,11 @@
 
 import unittest
 import uuid
-
+import os
 import mock
 import re
-import os
 import string
 import random
-import six
 from urllib3 import HTTPResponse
 from datetime import datetime
 
@@ -147,6 +145,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.airflow_dags = 'logs'
         self.kube_config.dags_volume_subpath = None
         self.kube_config.logs_volume_subpath = None
+        self.kube_config.mount_current_environment = False
         self.kube_config.dags_in_image = False
         self.kube_config.dags_folder = None
         self.kube_config.git_dags_folder_mount_point = None
@@ -358,10 +357,11 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         # Tests that the current environment gets inserted into the pod
         self.kube_config.mount_current_environment = True
         worker_config = WorkerConfiguration(self.kube_config)
-        test_val = {'TEST_K8S_MOUNT_ENV': 'any_string'}
-        os.environ.update(test_val)
-        env = worker_config._get_environment()
-        self.assertTrue({test_val}.issubset(six.iteritems(env)))
+        key = 'TEST_K8S_MOUNT_ENV'
+        test_val = {key: 'any_string'}
+        with mock.patch.dict(os.environ, test_val):
+            env = worker_config._get_environment()
+            self.assertIn(key, set(env))
 
 
 class TestKubernetesExecutor(unittest.TestCase):
