@@ -31,14 +31,18 @@ import textwrap
 import time
 import unittest
 import urllib
+import uuid
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
 from mock import ANY, Mock, mock_open, patch
 from parameterized import parameterized
+from freezegun import freeze_time
+from cryptography.fernet import Fernet
 
 from airflow import AirflowException, configuration, models, settings
+from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
@@ -46,7 +50,9 @@ from airflow.models import DagModel, DagRun
 from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
 from airflow.models import State as ST
+from airflow.models import TaskReschedule as TR
 from airflow.models import XCom
+from airflow.models import Variable
 from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
 from airflow.operators.bash_operator import BashOperator
@@ -227,7 +233,7 @@ class DagTest(unittest.TestCase):
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
 
-        self.assertEquals(tuple(), dag.topological_sort())
+        self.assertEqual(tuple(), dag.topological_sort())
 
     def test_dag_naive_default_args_start_date(self):
         dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
@@ -272,7 +278,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = ((depth - (task_depth + 1)) * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Same test as above except use 'upstream' for weight calculation
         weight = 3
@@ -298,7 +304,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = (task_depth * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Same test as above except use 'absolute' for weight calculation
         weight = 10
@@ -324,7 +330,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Test if we enter an invalid weight rule
         with DAG('dag', start_date=DEFAULT_DATE,
@@ -402,6 +408,122 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', '{{ foo }}', dict(foo='bar'))
         self.assertEqual(result, 'bar')
+
+    def test_render_template_list_field(self):
+        """Tests if render_template from a list field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertListEqual(
+            task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], {'foo': 'bar'}),
+            ['bar_1', 'bar_2']
+        )
+
+    def test_render_template_tuple_field(self):
+        """Tests if render_template from a tuple field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        # tuple is replaced by a list
+        self.assertListEqual(
+            task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'}),
+            ['bar_1', 'bar_2']
+        )
+
+    def test_render_template_dict_field(self):
+        """Tests if render_template from a dict field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertDictEqual(
+            task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, {'foo': 'bar'}),
+            {'key1': 'bar_1', 'key2': 'bar_2'}
+        )
+
+    def test_render_template_dict_field_with_templated_keys(self):
+        """Tests if render_template from a dict field works as expected:
+        dictionary keys are not templated"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertDictEqual(
+            task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, {'foo': 'bar'}),
+            {'key_{{ foo }}_1': 1, 'key_2': 'bar_2'}
+        )
+
+    def test_render_template_date_field(self):
+        """Tests if render_template from a date field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertEqual(
+            task.render_template('', datetime.date(2018, 12, 6), {'foo': 'bar'}),
+            datetime.date(2018, 12, 6)
+        )
+
+    def test_render_template_datetime_field(self):
+        """Tests if render_template from a datetime field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertEqual(
+            task.render_template('', datetime.datetime(2018, 12, 6, 10, 55), {'foo': 'bar'}),
+            datetime.datetime(2018, 12, 6, 10, 55)
+        )
+
+    def test_render_template_UUID_field(self):
+        """Tests if render_template from a UUID field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        random_uuid = uuid.uuid4()
+        self.assertIs(
+            task.render_template('', random_uuid, {'foo': 'bar'}),
+            random_uuid
+        )
+
+    def test_render_template_object_field(self):
+        """Tests if render_template from an object field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        test_object = object()
+        self.assertIs(
+            task.render_template('', test_object, {'foo': 'bar'}),
+            test_object
+        )
 
     def test_render_template_field_macro(self):
         """ Tests if render_template from a field works,
@@ -837,7 +959,7 @@ class DagRunTest(unittest.TestCase):
             DagRun.dag_id == dag_id,
             DagRun.execution_date == now
         ).first()
-        self.assertEquals(dr0.state, State.RUNNING)
+        self.assertEqual(dr0.state, State.RUNNING)
 
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
@@ -1299,20 +1421,20 @@ class DagRunTest(unittest.TestCase):
 
         dagrun = self.create_dag_run(dag)
         flaky_ti = dagrun.get_task_instances()[0]
-        self.assertEquals('flaky_task', flaky_ti.task_id)
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual('flaky_task', flaky_ti.task_id)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
         dagrun.dag = with_all_tasks_removed(dag)
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
         dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
 
 class DagBagTest(unittest.TestCase):
@@ -1467,12 +1589,12 @@ class DagBagTest(unittest.TestCase):
 
         for dag_id in expected_dag_ids:
             actual_dagbag.log.info('validating %s' % dag_id)
-            self.assertEquals(
+            self.assertEqual(
                 dag_id in actual_found_dag_ids, should_be_found,
                 'dag "%s" should %shave been found after processing dag "%s"' %
                 (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
             )
-            self.assertEquals(
+            self.assertEqual(
                 dag_id in actual_dagbag.dags, should_be_found,
                 'dag "%s" should %sbe in dagbag.dags after processing dag "%s"' %
                 (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
@@ -1811,7 +1933,7 @@ class DagBagTest(unittest.TestCase):
             if dag.dag_id in expected_active_dags:
                 self.assertTrue(dag.is_active)
             else:
-                self.assertEquals(dag.dag_id, 'test_deactivate_unknown_dags')
+                self.assertEqual(dag.dag_id, 'test_deactivate_unknown_dags')
                 self.assertFalse(dag.is_active)
 
         # clean up
@@ -1820,6 +1942,12 @@ class DagBagTest(unittest.TestCase):
 
 
 class TaskInstanceTest(unittest.TestCase):
+
+    def tearDown(self):
+        with create_session() as session:
+            session.query(models.TaskFail).delete()
+            session.query(models.TaskReschedule).delete()
+            session.query(models.TaskInstance).delete()
 
     def test_set_task_dates(self):
         """
@@ -1867,7 +1995,7 @@ class TaskInstanceTest(unittest.TestCase):
         op_no_dag = DummyOperator(task_id='op_no_dag')
         ti = TI(task=op_no_dag, execution_date=NAIVE_DATETIME)
 
-        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+        self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
         # check with dag without localized execution_date
         dag = DAG('dag', start_date=DEFAULT_DATE)
@@ -1875,14 +2003,14 @@ class TaskInstanceTest(unittest.TestCase):
         dag.add_task(op1)
         ti = TI(task=op1, execution_date=NAIVE_DATETIME)
 
-        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+        self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
         # with dag and localized execution_date
         tz = pendulum.timezone("Europe/Amsterdam")
         execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tz)
         utc_date = timezone.convert_to_utc(execution_date)
         ti = TI(task=op1, execution_date=execution_date)
-        self.assertEquals(ti.execution_date, utc_date)
+        self.assertEqual(ti.execution_date, utc_date)
 
     def test_task_naive_datetime(self):
         NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
@@ -2191,6 +2319,102 @@ class TaskInstanceTest(unittest.TestCase):
         dt = ti.next_retry_datetime()
         self.assertEqual(dt, ti.end_date + max_delay)
 
+    @patch.object(TI, 'pool_full')
+    def test_reschedule_handling(self, mock_pool_full):
+        """
+        Test that task reschedules are handled properly
+        """
+        # Mock the pool with a pool with slots open since the pool doesn't actually exist
+        mock_pool_full.return_value = False
+
+        # Return values of the python sensor callable, modified during tests
+        done = False
+        fail = False
+
+        def callable():
+            if fail:
+                raise AirflowException()
+            return done
+
+        dag = models.DAG(dag_id='test_reschedule_handling')
+        task = PythonSensor(
+            task_id='test_reschedule_handling_sensor',
+            poke_interval=0,
+            mode='reschedule',
+            python_callable=callable,
+            retries=1,
+            retry_delay=datetime.timedelta(seconds=0),
+            dag=dag,
+            owner='airflow',
+            start_date=timezone.datetime(2016, 2, 1, 0, 0, 0))
+
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        self.assertEqual(ti._try_number, 0)
+        self.assertEqual(ti.try_number, 1)
+
+        def run_ti_and_assert(run_date, expected_start_date, expected_end_date, expected_duration,
+                              expected_state, expected_try_number, expected_task_reschedule_count):
+            with freeze_time(run_date):
+                try:
+                    ti.run()
+                except AirflowException:
+                    if not fail:
+                        raise
+            ti.refresh_from_db()
+            self.assertEqual(ti.state, expected_state)
+            self.assertEqual(ti._try_number, expected_try_number)
+            self.assertEqual(ti.try_number, expected_try_number + 1)
+            self.assertEqual(ti.start_date, expected_start_date)
+            self.assertEqual(ti.end_date, expected_end_date)
+            self.assertEqual(ti.duration, expected_duration)
+            trs = TR.find_for_task_instance(ti)
+            self.assertEqual(len(trs), expected_task_reschedule_count)
+
+        date1 = timezone.utcnow()
+        date2 = date1 + datetime.timedelta(minutes=1)
+        date3 = date2 + datetime.timedelta(minutes=1)
+        date4 = date3 + datetime.timedelta(minutes=1)
+
+        # Run with multiple reschedules.
+        # During reschedule the try number remains the same, but each reschedule is recorded.
+        # The start date is expected to remain the inital date, hence the duration increases.
+        # When finished the try number is incremented and there is no reschedule expected
+        # for this try.
+
+        done, fail = False, False
+        run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 0, 1)
+
+        done, fail = False, False
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RESCHEDULE, 0, 2)
+
+        done, fail = False, False
+        run_ti_and_assert(date3, date1, date3, 120, State.UP_FOR_RESCHEDULE, 0, 3)
+
+        done, fail = True, False
+        run_ti_and_assert(date4, date1, date4, 180, State.SUCCESS, 1, 0)
+
+        # Clear the task instance.
+        dag.clear()
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.NONE)
+        self.assertEqual(ti._try_number, 1)
+
+        # Run again after clearing with reschedules and a retry.
+        # The retry increments the try number, and for that try no reschedule is expected.
+        # After the retry the start date is reset, hence the duration is also reset.
+
+        done, fail = False, False
+        run_ti_and_assert(date1, date1, date1, 0, State.UP_FOR_RESCHEDULE, 1, 1)
+
+        done, fail = False, True
+        run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 2, 0)
+
+        done, fail = False, False
+        run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
+
+        done, fail = True, False
+        run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
+
     def test_depends_on_past(self):
         dagbag = models.DagBag()
         dag = dagbag.get_dag('test_depends_on_past')
@@ -2496,24 +2720,23 @@ class TaskInstanceTest(unittest.TestCase):
         session.add(ti3)
         session.commit()
 
-        self.assertEquals(1, ti1.get_num_running_task_instances(session=session))
-        self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
-        self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti1.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti2.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti3.get_num_running_task_instances(session=session))
+
+    # def test_log_url(self):
+    #     now = pendulum.now('Europe/Brussels')
+    #     dag = DAG('dag', start_date=DEFAULT_DATE)
+    #     task = DummyOperator(task_id='op', dag=dag)
+    #     ti = TI(task=task, execution_date=now)
+    #     d = urllib.parse.parse_qs(
+    #         urllib.parse.urlparse(ti.log_url).query,
+    #         keep_blank_values=True, strict_parsing=True)
+    #     self.assertEqual(d['dag_id'][0], 'dag')
+    #     self.assertEqual(d['task_id'][0], 'op')
+    #     self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
 
     def test_log_url(self):
-        now = pendulum.now('Europe/Brussels')
-        dag = DAG('dag', start_date=DEFAULT_DATE)
-        task = DummyOperator(task_id='op', dag=dag)
-        ti = TI(task=task, execution_date=now)
-        d = urllib.parse.parse_qs(
-            urllib.parse.urlparse(ti.log_url).query,
-            keep_blank_values=True, strict_parsing=True)
-        self.assertEqual(d['dag_id'][0], 'dag')
-        self.assertEqual(d['task_id'][0], 'op')
-        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
-
-    @patch('airflow.settings.RBAC', True)
-    def test_log_url_rbac(self):
         dag = DAG('dag', start_date=DEFAULT_DATE)
         task = DummyOperator(task_id='op', dag=dag)
         ti = TI(task=task, execution_date=datetime.datetime(2018, 1, 1))
@@ -2979,27 +3202,118 @@ class ClearTasksTest(unittest.TestCase):
             self.assertEqual(result.value, json_obj)
 
 
+class VariableTest(unittest.TestCase):
+    def setUp(self):
+        models._fernet = None
+
+    def tearDown(self):
+        models._fernet = None
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_variable_no_encryption(self, mock_get):
+        """
+        Test variables without encryption
+        """
+        mock_get.return_value = ''
+        Variable.set('key', 'value')
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        self.assertFalse(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_variable_with_encryption(self, mock_get):
+        """
+        Test variables with encryption
+        """
+        mock_get.return_value = Fernet.generate_key().decode()
+        Variable.set('key', 'value')
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        self.assertTrue(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_var_with_encryption_rotate_fernet_key(self, mock_get):
+        """
+        Tests rotating encrypted variables.
+        """
+        key1 = Fernet.generate_key()
+        key2 = Fernet.generate_key()
+
+        mock_get.return_value = key1.decode()
+        Variable.set('key', 'value')
+        session = settings.Session()
+        test_var = session.query(Variable).filter(Variable.key == 'key').one()
+        self.assertTrue(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+        self.assertEqual(Fernet(key1).decrypt(test_var._val.encode()), b'value')
+
+        # Test decrypt of old value with new key
+        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
+        models._fernet = None
+        self.assertEqual(test_var.val, 'value')
+
+        # Test decrypt of new value with new key
+        test_var.rotate_fernet_key()
+        self.assertTrue(test_var.is_encrypted)
+        self.assertEqual(test_var.val, 'value')
+        self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
+
+
 class ConnectionTest(unittest.TestCase):
-    @patch.object(configuration, 'get')
+    def setUp(self):
+        models._fernet = None
+
+    def tearDown(self):
+        models._fernet = None
+
+    @patch('airflow.models.configuration.conf.get')
     def test_connection_extra_no_encryption(self, mock_get):
         """
         Tests extras on a new connection without encryption. The fernet key
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
+        mock_get.return_value = ''
         test_connection = Connection(extra='testextra')
+        self.assertFalse(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
 
-    @patch.object(configuration, 'get')
+    @patch('airflow.models.configuration.conf.get')
     def test_connection_extra_with_encryption(self, mock_get):
         """
-        Tests extras on a new connection with encryption. The fernet key
-        is set to a base64 encoded string and the extra is encrypted.
+        Tests extras on a new connection with encryption.
         """
-        # 'dGVzdA==' is base64 encoded 'test'
-        mock_get.return_value = 'dGVzdA=='
+        mock_get.return_value = Fernet.generate_key().decode()
         test_connection = Connection(extra='testextra')
+        self.assertTrue(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
+
+    @patch('airflow.models.configuration.conf.get')
+    def test_connection_extra_with_encryption_rotate_fernet_key(self, mock_get):
+        """
+        Tests rotating encrypted extras.
+        """
+        key1 = Fernet.generate_key()
+        key2 = Fernet.generate_key()
+
+        mock_get.return_value = key1.decode()
+        test_connection = Connection(extra='testextra')
+        self.assertTrue(test_connection.is_extra_encrypted)
+        self.assertEqual(test_connection.extra, 'testextra')
+        self.assertEqual(Fernet(key1).decrypt(test_connection._extra.encode()), b'testextra')
+
+        # Test decrypt of old value with new key
+        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
+        models._fernet = None
+        self.assertEqual(test_connection.extra, 'testextra')
+
+        # Test decrypt of new value with new key
+        test_connection.rotate_fernet_key()
+        self.assertTrue(test_connection.is_extra_encrypted)
+        self.assertEqual(test_connection.extra, 'testextra')
+        self.assertEqual(Fernet(key2).decrypt(test_connection._extra.encode()), b'testextra')
 
     def test_connection_from_uri_without_extras(self):
         uri = 'scheme://user:password@host%2flocation:1234/schema'

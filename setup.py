@@ -86,7 +86,7 @@ class CompileAssets(Command):
         pass
 
     def run(self):
-        subprocess.call('./airflow/www_rbac/compile_assets.sh')
+        subprocess.call('./airflow/www/compile_assets.sh')
 
 
 def git_version(version):
@@ -156,7 +156,6 @@ dask = [
 databricks = ['requests>=2.20.0, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
-    'mock',
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
     'sphinx-rtd-theme>=0.1.6',
@@ -200,7 +199,7 @@ kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
-mysql = ['mysqlclient>=1.3.6']
+mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
 password = [
     'bcrypt>=2.0.0',

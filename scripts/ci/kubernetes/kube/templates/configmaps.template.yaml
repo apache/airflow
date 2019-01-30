@@ -154,9 +154,6 @@ data:
     # Consistent page size across all listing views in the UI
     page_size = 100
 
-    # Use FAB-based webserver with RBAC feature
-    rbac = True
-
     [smtp]
     # If you want airflow to send emails on retries, failure, and you want to use
     # the airflow.utils.email.send_email_smtp function, you have to configure an

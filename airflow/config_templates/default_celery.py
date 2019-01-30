@@ -60,10 +60,20 @@ except AirflowConfigException:
 
 try:
     if celery_ssl_active:
-        broker_use_ssl = {'keyfile': configuration.conf.get('celery', 'SSL_KEY'),
-                          'certfile': configuration.conf.get('celery', 'SSL_CERT'),
-                          'ca_certs': configuration.conf.get('celery', 'SSL_CACERT'),
-                          'cert_reqs': ssl.CERT_REQUIRED}
+        if 'amqp://' in broker_url:
+            broker_use_ssl = {'keyfile': configuration.conf.get('celery', 'SSL_KEY'),
+                              'certfile': configuration.conf.get('celery', 'SSL_CERT'),
+                              'ca_certs': configuration.conf.get('celery', 'SSL_CACERT'),
+                              'cert_reqs': ssl.CERT_REQUIRED}
+        elif 'redis://' in broker_url:
+            broker_use_ssl = {'ssl_keyfile': configuration.conf.get('celery', 'SSL_KEY'),
+                              'ssl_certfile': configuration.conf.get('celery', 'SSL_CERT'),
+                              'ssl_ca_certs': configuration.conf.get('celery', 'SSL_CACERT'),
+                              'ssl_cert_reqs': ssl.CERT_REQUIRED}
+        else:
+            raise AirflowException('The broker you configured does not support SSL_ACTIVE to be True. '
+                                   'Please use RabbitMQ or Redis if you would like to use SSL for broker.')
+
         DEFAULT_CELERY_CONFIG['broker_use_ssl'] = broker_use_ssl
 except AirflowConfigException:
     raise AirflowException('AirflowConfigException: SSL_ACTIVE is True, '
@@ -75,6 +85,6 @@ except Exception as e:
                            'SSL and/or have all necessary certs and key ({}).'.format(e))
 
 result_backend = DEFAULT_CELERY_CONFIG['result_backend']
-if 'amqp' in result_backend or 'redis' in result_backend or 'rpc' in result_backend:
+if 'amqp://' in result_backend or 'redis://' in result_backend or 'rpc://' in result_backend:
     log.warning("You have configured a result_backend of %s, it is highly recommended "
                 "to use an alternative result_backend (i.e. a database).", result_backend)

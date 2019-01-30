@@ -47,7 +47,6 @@ import zipfile
 import jinja2
 import json
 import logging
-import numbers
 import os
 import pendulum
 import pickle
@@ -64,12 +63,12 @@ from datetime import datetime
 from urllib.parse import quote
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index,
+    Boolean, Column, DateTime, Float, ForeignKeyConstraint, Index,
     Integer, LargeBinary, PickleType, String, Text, UniqueConstraint, and_, asc,
     func, or_, true as sqltrue
 )
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import reconstructor, relationship, synonym
+from sqlalchemy.orm import reconstructor, synonym
 
 from croniter import (
     croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
@@ -159,7 +158,7 @@ def get_fernet():
     if _fernet:
         return _fernet
     try:
-        from cryptography.fernet import Fernet, InvalidToken
+        from cryptography.fernet import Fernet, MultiFernet, InvalidToken
         global InvalidFernetToken
         InvalidFernetToken = InvalidToken
 
@@ -178,7 +177,10 @@ def get_fernet():
             )
             _fernet = NullFernet()
         else:
-            _fernet = Fernet(fernet_key.encode('utf-8'))
+            _fernet = MultiFernet([
+                Fernet(fernet_part.encode('utf-8'))
+                for fernet_part in fernet_key.split(',')
+            ])
             _fernet.is_encrypted = True
     except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
@@ -473,9 +475,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
-        :type zombies: SimpleTaskInstance
+        :type zombies: ``SimpleTaskInstance``
         :param session: DB session.
-        :type Session.
+        :type session: Session
         """
         for zombie in zombies:
             if zombie.dag_id in self.dags:
@@ -602,24 +604,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
         )
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True)
-    username = Column(String(ID_LEN), unique=True)
-    email = Column(String(500))
-    superuser = Column(Boolean(), default=False)
-
-    def __repr__(self):
-        return self.username
-
-    def get_id(self):
-        return str(self.id)
-
-    def is_superuser(self):
-        return self.superuser
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -885,44 +869,26 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
-        if settings.RBAC:
-            return BASE_URL + (
-                "/log?"
-                "execution_date={iso}"
-                "&task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-            ).format(**locals())
-        else:
-            return BASE_URL + (
-                "/admin/airflow/log"
-                "?dag_id={self.dag_id}"
-                "&task_id={self.task_id}"
-                "&execution_date={iso}"
-            ).format(**locals())
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/log?"
+            "execution_date={iso}"
+            "&task_id={self.task_id}"
+            "&dag_id={self.dag_id}"
+        ).format(**locals())
 
     @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
-        if settings.RBAC:
-            return BASE_URL + (
-                "/success"
-                "?task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-                "&execution_date={iso}"
-                "&upstream=false"
-                "&downstream=false"
-            ).format(**locals())
-        else:
-            return BASE_URL + (
-                "/admin/airflow/success"
-                "?task_id={self.task_id}"
-                "&dag_id={self.dag_id}"
-                "&execution_date={iso}"
-                "&upstream=false"
-                "&downstream=false"
-            ).format(**locals())
+        base_url = configuration.conf.get('webserver', 'BASE_URL')
+        return base_url + (
+            "/success"
+            "?task_id={self.task_id}"
+            "&dag_id={self.dag_id}"
+            "&execution_date={iso}"
+            "&upstream=false"
+            "&downstream=false"
+        ).format(**locals())
 
     @provide_session
     def current_state(self, session=None):
@@ -1286,7 +1252,13 @@ class TaskInstance(Base, LoggingMixin):
         msg = "Starting attempt {attempt} of {total}".format(
             attempt=self.try_number,
             total=self.max_tries + 1)
+
+        # Set the task start date. In case it was re-scheduled use the initial
+        # start date that is recorded in task_reschedule table
         self.start_date = timezone.utcnow()
+        task_reschedules = TaskReschedule.find_for_task_instance(self, session)
+        if task_reschedules:
+            self.start_date = task_reschedules[0].start_date
 
         dep_context = DepContext(
             deps=RUN_DEPS - QUEUE_DEPS,
@@ -1380,6 +1352,7 @@ class TaskInstance(Base, LoggingMixin):
         self.operator = task.__class__.__name__
 
         context = {}
+        actual_start_date = timezone.utcnow()
         try:
             if not mark_success:
                 context = self.get_template_context()
@@ -1429,7 +1402,7 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
             self.refresh_from_db()
-            self._handle_reschedule(reschedule_exception, test_mode, context)
+            self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, context)
             return
         except AirflowException as e:
             self.refresh_from_db()
@@ -1501,7 +1474,7 @@ class TaskInstance(Base, LoggingMixin):
         task_copy.dry_run()
 
     @provide_session
-    def _handle_reschedule(self, reschedule_exception, test_mode=False, context=None,
+    def _handle_reschedule(self, actual_start_date, reschedule_exception, test_mode=False, context=None,
                            session=None):
         # Don't record reschedule request in test mode
         if test_mode:
@@ -1512,7 +1485,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Log reschedule request
         session.add(TaskReschedule(self.task, self.execution_date, self._try_number,
-                    self.start_date, self.end_date,
+                    actual_start_date, self.end_date,
                     reschedule_exception.reschedule_date))
 
         # set state
@@ -2644,25 +2617,19 @@ class BaseOperator(LoggingMixin):
         Renders a template from a field. If the field is a string, it will
         simply render the string and return the result. If it is a collection or
         nested set of collections, it will traverse the structure and render
-        all strings in it.
+        all elements in it. If the field has another type, it will return it as it is.
         """
         rt = self.render_template
         if isinstance(content, six.string_types):
             result = jinja_env.from_string(content).render(**context)
         elif isinstance(content, (list, tuple)):
             result = [rt(attr, e, context) for e in content]
-        elif isinstance(content, numbers.Number):
-            result = content
         elif isinstance(content, dict):
             result = {
                 k: rt("{}[{}]".format(attr, k), v, context)
                 for k, v in list(content.items())}
         else:
-            param_type = type(content)
-            msg = (
-                "Type '{param_type}' used for parameter '{attr}' is "
-                "not supported for templating").format(**locals())
-            raise AirflowException(msg)
+            result = content
         return result
 
     def render_template(self, attr, content, context):
@@ -3555,8 +3522,10 @@ class DAG(BaseDag, LoggingMixin):
         on_failure_callback or on_success_callback. This method gets the context of a
         single TaskInstance part of this DagRun and passes that to the callable along
         with a 'reason', primarily to differentiate DagRun failures.
-        .. note::
-            The logs end up in $AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log
+
+        .. note: The logs end up in
+            ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
+
         :param dagrun: DagRun object
         :param success: Flag to specify if failure or success callback should be called
         :param reason: Completion reason
@@ -4368,31 +4337,6 @@ class DAG(BaseDag, LoggingMixin):
         visit_map[task_id] = DagBag.CYCLE_DONE
 
 
-class Chart(Base):
-    __tablename__ = "chart"
-
-    id = Column(Integer, primary_key=True)
-    label = Column(String(200))
-    conn_id = Column(String(ID_LEN), nullable=False)
-    user_id = Column(Integer(), ForeignKey('users.id'), nullable=True)
-    chart_type = Column(String(100), default="line")
-    sql_layout = Column(String(50), default="series")
-    sql = Column(Text, default="SELECT series, x, y FROM table")
-    y_log_scale = Column(Boolean)
-    show_datatable = Column(Boolean)
-    show_sql = Column(Boolean, default=True)
-    height = Column(Integer, default=600)
-    default_params = Column(String(5000), default="{}")
-    owner = relationship(
-        "User", cascade=False, cascade_backrefs=False, backref='charts')
-    x_is_date = Column(Boolean, default=True)
-    iteration_no = Column(Integer, default=0)
-    last_modified = Column(UtcDateTime, default=timezone.utcnow)
-
-    def __repr__(self):
-        return self.label
-
-
 class Variable(Base, LoggingMixin):
     __tablename__ = "variable"
 
@@ -4442,10 +4386,10 @@ class Variable(Base, LoggingMixin):
         :param key: Dict key for this Variable
         :type key: String
         :param default: Default value to set and return if the variable
-        isn't already in the DB
+            isn't already in the DB
         :type default: Mixed
         :param deserialize_json: Store this as a JSON encoded value in the DB
-         and un-encode it when retrieving a value
+            and un-encode it when retrieving a value
         :return: Mixed
         """
         default_sentinel = object()
@@ -4487,6 +4431,11 @@ class Variable(Base, LoggingMixin):
         session.query(cls).filter(cls.key == key).delete()
         session.add(Variable(key=key, val=stored_value))
         session.flush()
+
+    def rotate_fernet_key(self):
+        fernet = get_fernet()
+        if self._val and self.is_encrypted:
+            self._val = fernet.rotate(self._val.encode('utf-8')).decode()
 
 
 class XCom(Base, LoggingMixin):
@@ -4547,7 +4496,8 @@ class XCom(Base, LoggingMixin):
         """
         Store an XCom value.
         TODO: "pickling" has been deprecated and JSON is preferred.
-              "pickling" will be removed in Airflow 2.0.
+        "pickling" will be removed in Airflow 2.0.
+
         :return: None
         """
         session.expunge_all()
@@ -4597,7 +4547,8 @@ class XCom(Base, LoggingMixin):
         """
         Retrieve an XCom value, optionally meeting certain criteria.
         TODO: "pickling" has been deprecated and JSON is preferred.
-              "pickling" will be removed in Airflow 2.0.
+        "pickling" will be removed in Airflow 2.0.
+
         :return: XCom value
         """
         filters = []
@@ -4645,7 +4596,7 @@ class XCom(Base, LoggingMixin):
         """
         Retrieve an XCom value, optionally meeting certain criteria
         TODO: "pickling" has been deprecated and JSON is preferred.
-              "pickling" will be removed in Airflow 2.0.
+        "pickling" will be removed in Airflow 2.0.
         """
         filters = []
         if key:
@@ -4773,7 +4724,7 @@ class DagRun(Base, LoggingMixin):
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param no_backfills: return no backfills (True), return all (False).
-        Defaults to False
+            Defaults to False
         :type no_backfills: bool
         :param session: database session
         :type session: Session
@@ -5030,7 +4981,7 @@ class DagRun(Base, LoggingMixin):
         :param execution_date: execution date
         :type execution_date: datetime
         :return: DagRun corresponding to the given dag_id and execution date
-        if one exists. None otherwise.
+            if one exists. None otherwise.
         :rtype: DagRun
         """
         qry = session.query(DagRun).filter(
@@ -5125,31 +5076,6 @@ class Pool(Base):
         used_slots = self.used_slots(session=session)
         queued_slots = self.queued_slots(session=session)
         return self.slots - used_slots - queued_slots
-
-
-class SlaMiss(Base):
-    """
-    Model that stores a history of the SLA that have been missed.
-    It is used to keep track of SLA failures over time and to avoid double
-    triggering alert emails.
-    """
-    __tablename__ = "sla_miss"
-
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
-    email_sent = Column(Boolean, default=False)
-    timestamp = Column(UtcDateTime)
-    description = Column(Text)
-    notification_sent = Column(Boolean, default=False)
-
-    __table_args__ = (
-        Index('sm_dag', dag_id, unique=False),
-    )
-
-    def __repr__(self):
-        return str((
-            self.dag_id, self.task_id, self.execution_date.isoformat()))
 
 
 class KubeResourceVersion(Base):

@@ -304,7 +304,15 @@ class SageMakerHook(AwsHook):
         positions = positions or {s: Position(timestamp=0, skip=0) for s in streams}
         event_iters = [self.log_stream(log_group, s, positions[s].timestamp, positions[s].skip)
                        for s in streams]
-        events = [next(s) if s else None for s in event_iters]
+        events = []
+        for s in event_iters:
+            if not s:
+                events.append(None)
+                continue
+            try:
+                events.append(next(s))
+            except StopIteration:
+                events.append(None)
 
         while any(events):
             i = argmin(events, lambda x: x['timestamp'] if x else 9999999999)

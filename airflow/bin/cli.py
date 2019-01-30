@@ -63,10 +63,7 @@ from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
-from airflow.www.app import (cached_app, create_app)
-from airflow.www_rbac.app import cached_app as cached_app_rbac
-from airflow.www_rbac.app import create_app as create_app_rbac
-from airflow.www_rbac.app import cached_appbuilder
+from airflow.www.app import cached_app, create_app, cached_appbuilder
 
 from sqlalchemy.orm import exc
 
@@ -604,6 +601,17 @@ def next_execution(args):
 
 
 @cli_utils.action_logging
+def rotate_fernet_key(args):
+    session = settings.Session()
+    for conn in session.query(Connection).filter(
+            Connection.is_encrypted | Connection.is_extra_encrypted):
+        conn.rotate_fernet_key()
+    for var in session.query(Variable).filter(Variable.is_encrypted):
+        var.rotate_fernet_key()
+    session.commit()
+
+
+@cli_utils.action_logging
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     s = textwrap.dedent("""\n
@@ -626,6 +634,39 @@ def list_tasks(args, dag=None):
     else:
         tasks = sorted([t.task_id for t in dag.tasks])
         print("\n".join(sorted(tasks)))
+
+
+@cli_utils.action_logging
+def list_jobs(args, dag=None):
+    queries = []
+    if dag:
+        args.dag_id = dag.dag_id
+    if args.dag_id:
+        dagbag = DagBag()
+
+        if args.dag_id not in dagbag.dags:
+            error_message = "Dag id {} not found".format(args.dag_id)
+            raise AirflowException(error_message)
+        queries.append(jobs.BaseJob.dag_id == args.dag_id)
+
+    if args.state:
+        queries.append(jobs.BaseJob.state == args.state)
+
+    with db.create_session() as session:
+        all_jobs = (session
+                    .query(jobs.BaseJob)
+                    .filter(*queries)
+                    .order_by(jobs.BaseJob.start_date.desc())
+                    .limit(args.limit)
+                    .all())
+        fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
+        all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
+        msg = tabulate(all_jobs,
+                       [field.capitalize().replace('_', ' ') for field in fields],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
 
 
 @cli_utils.action_logging
@@ -740,7 +781,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
         """
         t = time.time()
         while not fn():
-            if 0 < timeout and timeout <= time.time() - t:
+            if 0 < timeout <= time.time() - t:
                 raise AirflowWebServerTimeout(
                     "No response from gunicorn master within {0} seconds"
                     .format(timeout))
@@ -842,16 +883,13 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        if settings.RBAC:
-            app, _ = create_app_rbac(conf, testing=conf.get('core', 'unit_test_mode'))
-        else:
-            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app, _ = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
+        app = cached_app(conf)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         os.environ.pop('SKIP_DAGS_PARSING')
@@ -878,7 +916,6 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
-            '-c', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -893,7 +930,7 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        webserver_module = 'www_rbac' if settings.RBAC else 'www'
+        webserver_module = 'www'
         run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
         gunicorn_master_proc = None
@@ -1078,7 +1115,7 @@ def worker(args):
 
 def initdb(args):
     print("DB: " + repr(settings.engine.url))
-    db.initdb(settings.RBAC)
+    db.initdb()
     print("Done.")
 
 
@@ -1087,7 +1124,7 @@ def resetdb(args):
     if args.yes or input("This will drop existing tables "
                          "if they exist. Proceed? "
                          "(y/n)").upper() == "Y":
-        db.resetdb(settings.RBAC)
+        db.resetdb()
     else:
         print("Bail.")
 
@@ -1335,7 +1372,7 @@ def users(args):
 
         return
 
-    if args.create:
+    elif args.create:
         fields = {
             'role': args.role,
             'username': args.username,
@@ -1373,7 +1410,7 @@ def users(args):
         else:
             raise SystemExit('Failed to create user.')
 
-    if args.delete:
+    elif args.delete:
         if not args.username:
             raise SystemExit('Required arguments are missing: username')
 
@@ -1389,6 +1426,54 @@ def users(args):
             print('User {} deleted.'.format(args.username))
         else:
             raise SystemExit('Failed to delete user.')
+
+    elif args.add_role or args.remove_role:
+        if args.add_role and args.remove_role:
+            raise SystemExit('Conflicting args: --add-role and --remove-role'
+                             ' are mutually exclusive')
+
+        if not args.username and not args.email:
+            raise SystemExit('Missing args: must supply one of --username or --email')
+
+        if args.username and args.email:
+            raise SystemExit('Conflicting args: must supply either --username'
+                             ' or --email, but not both')
+        if not args.role:
+            raise SystemExit('Required args are missing: role')
+
+        appbuilder = cached_appbuilder()
+        user = (appbuilder.sm.find_user(username=args.username) or
+                appbuilder.sm.find_user(email=args.email))
+        if not user:
+            raise SystemExit('User "{}" does not exist'.format(
+                args.username or args.email))
+
+        role = appbuilder.sm.find_role(args.role)
+        if not role:
+            raise SystemExit('"{}" is not a valid role.'.format(args.role))
+
+        if args.remove_role:
+            if role in user.roles:
+                user.roles = [r for r in user.roles if r != role]
+                appbuilder.sm.update_user(user)
+                print('User "{}" removed from role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                raise SystemExit('User "{}" is not a member of role "{}".'.format(
+                    user,
+                    args.role))
+        elif args.add_role:
+            if role in user.roles:
+                raise SystemExit('User "{}" is already a member of role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                user.roles.append(role)
+                appbuilder.sm.update_user(user)
+                print('User "{}" added to role "{}".'.format(
+                    user,
+                    args.role))
 
 
 @cli_utils.action_logging
@@ -1445,12 +1530,9 @@ def list_dag_runs(args, dag=None):
 
 @cli_utils.action_logging
 def sync_perm(args):
-    if settings.RBAC:
-        appbuilder = cached_appbuilder()
-        print('Update permission, view-menu for all existing roles')
-        appbuilder.sm.sync_roles()
-    else:
-        print('The sync_perm command only works for rbac UI.')
+    appbuilder = cached_appbuilder()
+    print('Update permission, view-menu for all existing roles')
+    appbuilder.sm.sync_roles()
 
 
 Arg = namedtuple(
@@ -1509,6 +1591,12 @@ class CLIFactory(object):
         'state': Arg(
             ("--state",),
             "Only list the dag runs corresponding to the state"
+        ),
+
+        # list_jobs
+        'limit': Arg(
+            ("--limit",),
+            "Return a limited number of records"
         ),
 
         # backfill
@@ -1902,6 +1990,14 @@ class CLIFactory(object):
             ('-d', '--delete'),
             help='Delete a user',
             action='store_true'),
+        'add_role': Arg(
+            ('--add-role',),
+            help='Add user to a role',
+            action='store_true'),
+        'remove_role': Arg(
+            ('--remove-role',),
+            help='Remove user from a role',
+            action='store_true'),
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
@@ -1938,6 +2034,10 @@ class CLIFactory(object):
             'func': list_tasks,
             'help': "List the tasks within a DAG",
             'args': ('dag_id', 'tree', 'subdir'),
+        }, {
+            'func': list_jobs,
+            'help': "List the jobs",
+            'args': ('dag_id_opt', 'state', 'limit'),
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",
@@ -2064,8 +2164,9 @@ class CLIFactory(object):
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': users,
-            'help': "List/Create/Delete users",
+            'help': "List/Create/Delete/Update users",
             'args': ('list_users', 'create_user', 'delete_user',
+                     'add_role', 'remove_role',
                      'username', 'email', 'firstname', 'lastname', 'role',
                      'password', 'use_random_password'),
         },
@@ -2078,7 +2179,14 @@ class CLIFactory(object):
             'func': next_execution,
             'help': "Get the next execution datetime of a DAG.",
             'args': ('dag_id', 'subdir')
-        }
+        },
+        {
+            'func': rotate_fernet_key,
+            'help': 'Rotate all encrypted connection credentials and variables; see '
+                    'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
+                    '#rotating-encryption-keys.',
+            'args': (),
+        },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (

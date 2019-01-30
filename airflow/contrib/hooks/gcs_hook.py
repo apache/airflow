@@ -501,6 +501,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             - ``STANDARD``
             - ``NEARLINE``
             - ``COLDLINE``.
+
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
         :type storage_class: str
@@ -569,7 +570,6 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             )
 
     def insert_bucket_acl(self, bucket, entity, role, user_project):
-        # type: (str, str, str, str) -> None
         """
         Creates a new ACL entry on the specified bucket.
         See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
@@ -608,7 +608,6 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     def insert_object_acl(self, bucket, object_name, entity, role, generation,
                           user_project):
-        # type: (str, str, str, str, str, str) -> None
         """
         Creates a new ACL entry on the specified object.
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert

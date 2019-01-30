@@ -58,7 +58,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
-from airflow.www import app as application
+from airflow.www.app import create_app
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
@@ -656,26 +656,26 @@ class CoreTest(unittest.TestCase):
         context = ti.get_template_context()
 
         # DEFAULT DATE is 2015-01-01
-        self.assertEquals(context['ds'], '2015-01-01')
-        self.assertEquals(context['ds_nodash'], '20150101')
+        self.assertEqual(context['ds'], '2015-01-01')
+        self.assertEqual(context['ds_nodash'], '20150101')
 
         # next_ds is 2015-01-02 as the dag interval is daily
-        self.assertEquals(context['next_ds'], '2015-01-02')
-        self.assertEquals(context['next_ds_nodash'], '20150102')
+        self.assertEqual(context['next_ds'], '2015-01-02')
+        self.assertEqual(context['next_ds_nodash'], '20150102')
 
         # prev_ds is 2014-12-31 as the dag interval is daily
-        self.assertEquals(context['prev_ds'], '2014-12-31')
-        self.assertEquals(context['prev_ds_nodash'], '20141231')
+        self.assertEqual(context['prev_ds'], '2014-12-31')
+        self.assertEqual(context['prev_ds_nodash'], '20141231')
 
-        self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
-        self.assertEquals(context['ts_nodash'], '20150101T000000')
-        self.assertEquals(context['ts_nodash_with_tz'], '20150101T000000+0000')
+        self.assertEqual(context['ts'], '2015-01-01T00:00:00+00:00')
+        self.assertEqual(context['ts_nodash'], '20150101T000000')
+        self.assertEqual(context['ts_nodash_with_tz'], '20150101T000000+0000')
 
-        self.assertEquals(context['yesterday_ds'], '2014-12-31')
-        self.assertEquals(context['yesterday_ds_nodash'], '20141231')
+        self.assertEqual(context['yesterday_ds'], '2014-12-31')
+        self.assertEqual(context['yesterday_ds_nodash'], '20141231')
 
-        self.assertEquals(context['tomorrow_ds'], '2015-01-02')
-        self.assertEquals(context['tomorrow_ds_nodash'], '20150102')
+        self.assertEqual(context['tomorrow_ds'], '2015-01-02')
+        self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
 
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
@@ -986,9 +986,9 @@ class CoreTest(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         dag_runs = models.DagRun.find(dag_id='example_bash_operator',
                                       run_id=run_id)
-        self.assertEquals(len(dag_runs), 1)
+        self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
-        self.assertEquals(dag_run.execution_date, utc_now)
+        self.assertEqual(dag_run.execution_date, utc_now)
 
     def test_trigger_dagrun_with_str_execution_date(self):
         utc_now_str = timezone.utcnow().isoformat()
@@ -1008,9 +1008,9 @@ class CoreTest(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         dag_runs = models.DagRun.find(dag_id='example_bash_operator',
                                       run_id=run_id)
-        self.assertEquals(len(dag_runs), 1)
+        self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
-        self.assertEquals(dag_run.execution_date.isoformat(), utc_now_str)
+        self.assertEqual(dag_run.execution_date.isoformat(), utc_now_str)
 
     def test_trigger_dagrun_with_templated_execution_date(self):
         task = TriggerDagRunOperator(
@@ -1052,14 +1052,16 @@ class CoreTest(unittest.TestCase):
         context = ti.get_template_context()
 
         # next_ds/prev_ds should be the execution date for manually triggered runs
-        self.assertEquals(context['next_ds'], EXECUTION_DS)
-        self.assertEquals(context['next_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['next_ds'], EXECUTION_DS)
+        self.assertEqual(context['next_ds_nodash'], EXECUTION_DS_NODASH)
 
-        self.assertEquals(context['prev_ds'], EXECUTION_DS)
-        self.assertEquals(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['prev_ds'], EXECUTION_DS)
+        self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
 
 
 class CliTests(unittest.TestCase):
+
+    TEST_USER_EMAIL = 'test-user@example.com'
 
     @classmethod
     def setUpClass(cls):
@@ -1068,8 +1070,8 @@ class CliTests(unittest.TestCase):
 
     def setUp(self):
         super(CliTests, self).setUp()
-        from airflow.www_rbac import app as application
         configuration.load_test_config()
+        from airflow.www import app as application
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['TESTING'] = True
 
@@ -1080,6 +1082,9 @@ class CliTests(unittest.TestCase):
 
     def tearDown(self):
         self._cleanup(session=self.session)
+        test_user = self.appbuilder.sm.find_user(email=CliTests.TEST_USER_EMAIL)
+        if test_user:
+            self.appbuilder.sm.del_register_user(test_user)
         super(CliTests, self).tearDown()
 
     @staticmethod
@@ -1148,6 +1153,64 @@ class CliTests(unittest.TestCase):
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
 
+    def _does_user_belong_to_role(self, email, rolename):
+        user = self.appbuilder.sm.find_user(email=email)
+        role = self.appbuilder.sm.find_role(rolename)
+        if user and role:
+            return role in user.roles
+
+        return False
+
+    def test_cli_add_user_role(self):
+        args = self.parser.parse_args([
+            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', self.TEST_USER_EMAIL, '--role', 'Viewer', '--use_random_password'
+        ])
+        cli.users(args)
+
+        self.assertFalse(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Op'),
+            "User should not yet be a member of role 'Op'"
+        )
+
+        args = self.parser.parse_args([
+            'users', '--add-role', '--username', 'test4', '--role', 'Op'
+        ])
+        cli.users(args)
+
+        self.assertTrue(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Op'),
+            "User should have been added to role 'Op'"
+        )
+
+    def test_cli_remove_user_role(self):
+        args = self.parser.parse_args([
+            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', self.TEST_USER_EMAIL, '--role', 'Viewer', '--use_random_password'
+        ])
+        cli.users(args)
+
+        self.assertTrue(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Viewer'),
+            "User should have been created with role 'Viewer'"
+        )
+
+        args = self.parser.parse_args([
+            'users', '--remove-role', '--username', 'test4', '--role', 'Viewer'
+        ])
+        cli.users(args)
+
+        self.assertFalse(
+            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+                                           rolename='Viewer'),
+            "User should have been removed from role 'Viewer'"
+        )
+
     def test_cli_sync_perm(self):
         # test whether sync_perm cli will throw exceptions or not
         args = self.parser.parse_args([
@@ -1164,17 +1227,28 @@ class CliTests(unittest.TestCase):
             'list_tasks', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
+    def test_cli_list_jobs(self):
+        args = self.parser.parse_args(['list_jobs'])
+        cli.list_jobs(args)
+
+    def test_cli_list_jobs_with_args(self):
+        args = self.parser.parse_args(['list_jobs', '--dag_id',
+                                       'example_bash_operator',
+                                       '--state', 'success',
+                                       '--limit', '100'])
+        cli.list_jobs(args)
+
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
-        initdb_mock.assert_called_once_with(False)
+        initdb_mock.assert_called_once_with()
 
     @mock.patch("airflow.bin.cli.db.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
 
-        resetdb_mock.assert_called_once_with(False)
+        resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
@@ -1712,12 +1786,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class SecurityTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -1803,12 +1878,13 @@ class SecurityTests(unittest.TestCase):
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
@@ -2134,12 +2210,13 @@ class WebUiTests(unittest.TestCase):
         session.close()
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class SecureModeWebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("core", "secure_mode", "True")
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -2155,6 +2232,7 @@ class SecureModeWebUiTests(unittest.TestCase):
         configuration.conf.remove_option("core", "SECURE_MODE")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class PasswordUserTest(unittest.TestCase):
     def setUp(self):
         user = models.User()
@@ -2198,12 +2276,13 @@ class PasswordUserTest(unittest.TestCase):
         session.close()
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebPasswordAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
         configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.password_auth")
 
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
         from airflow.contrib.auth.backends.password_auth import PasswordUser
@@ -2265,6 +2344,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class WebLdapAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
@@ -2281,7 +2361,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
         configuration.conf.set("ldap", "cacert", "")
 
-        app = application.create_app()
+        app, _ = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
 
@@ -2352,6 +2432,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
+@unittest.skip(reason="Skipping because now we are using FAB")
 class LdapGroupTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
