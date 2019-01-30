@@ -137,6 +137,7 @@ class ValueCheckOperator(BaseOperator):
     def execute(self, context=None):
         logging.info('Executing SQL check: ' + self.sql)
         records = self.get_db_hook().get_first(self.sql)
+        logging.info("Record: " + str(records))
         if not records:
             raise AirflowException("The query returned None")
         test_results = []
@@ -158,6 +159,7 @@ class ValueCheckOperator(BaseOperator):
                 tests = [r == self.pass_value for r in num_rec]
         if not all(tests):
             raise AirflowException(except_temp.format(**locals()))
+        logging.info("Success.")
 
     def get_db_hook(self):
         return BaseHook.get_hook(conn_id=self.conn_id)
