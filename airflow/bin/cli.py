@@ -31,6 +31,7 @@ from importlib import import_module
 import getpass
 import reprlib
 import argparse
+from argparse import RawTextHelpFormatter
 from builtins import input
 from collections import namedtuple
 
@@ -1474,6 +1475,107 @@ def users(args):
                 print('User "{}" added to role "{}".'.format(
                     user,
                     args.role))
+    elif args.export:
+        appbuilder = cached_appbuilder()
+        users = appbuilder.sm.get_all_users()
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+
+        # In the User model the first and last name fields have underscores,
+        # but the corresponding parameters in the CLI don't
+        def remove_underscores(s):
+            return re.sub("_", "", s)
+
+        users = [
+            {remove_underscores(field): user.__getattribute__(field)
+             if field != 'roles' else [r.name for r in user.roles]
+             for field in fields}
+            for user in users
+        ]
+
+        with open(args.export, 'w') as f:
+            f.write(json.dumps(users, sort_keys=True, indent=4))
+            print("{} users successfully exported to {}".format(len(users), f.name))
+
+    elif getattr(args, 'import'):  # "import" is a reserved word
+        json_file = getattr(args, 'import')
+        if not os.path.exists(json_file):
+            print("File '{}' does not exist")
+            exit(1)
+
+        users_list = None
+        try:
+            with open(json_file, 'r') as f:
+                users_list = json.loads(f.read())
+        except ValueError as e:
+            print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
+            exit(1)
+
+        users_created, users_updated = _import_users(users_list)
+        if users_created:
+            print("Created the following users:\n\t{}".format(
+                "\n\t".join(users_created)))
+
+        if users_updated:
+            print("Updated the following users:\n\t{}".format(
+                "\n\t".join(users_updated)))
+
+
+def _import_users(users_list):
+    appbuilder = cached_appbuilder()
+    users_created = []
+    users_updated = []
+
+    for user in users_list:
+        roles = []
+        for rolename in user['roles']:
+            role = appbuilder.sm.find_role(rolename)
+            if not role:
+                print("Error: '{}' is not a valid role".format(rolename))
+                exit(1)
+            else:
+                roles.append(role)
+
+        required_fields = ['username', 'firstname', 'lastname',
+                           'email', 'roles']
+        for field in required_fields:
+            if not user.get(field):
+                print("Error: '{}' is a required field, but was not "
+                      "specified".format(field))
+                exit(1)
+
+        existing_user = appbuilder.sm.find_user(email=user['email'])
+        if existing_user:
+            print("Found existing user with email '{}'".format(user['email']))
+            existing_user.roles = roles
+            existing_user.first_name = user['firstname']
+            existing_user.last_name = user['lastname']
+
+            if existing_user.username != user['username']:
+                print("Error: Changing ther username is not allowed - "
+                      "please delete and recreate the user with "
+                      "email '{}'".format(user['email']))
+                exit(1)
+
+            appbuilder.sm.update_user(existing_user)
+            users_updated.append(user['email'])
+        else:
+            print("Creating new user with email '{}'".format(user['email']))
+            appbuilder.sm.add_user(
+                username=user['username'],
+                first_name=user['firstname'],
+                last_name=user['lastname'],
+                email=user['email'],
+                role=roles[0],  # add_user() requires exactly 1 role
+            )
+
+            if len(roles) > 1:
+                new_user = appbuilder.sm.find_user(email=user['email'])
+                new_user.roles = roles
+                appbuilder.sm.update_user(new_user)
+
+            users_created.append(user['email'])
+
+    return users_created, users_updated
 
 
 @cli_utils.action_logging
@@ -1998,6 +2100,25 @@ class CLIFactory(object):
             ('--remove-role',),
             help='Remove user from a role',
             action='store_true'),
+        'user_import': Arg(
+            ("-i", "--import"),
+            metavar="FILEPATH",
+            help="Import users from JSON file. Example format:" +
+                    textwrap.dedent('''
+                    [
+                        {
+                            "email": "foo@bar.org",
+                            "firstname": "Jon",
+                            "lastname": "Doe",
+                            "roles": ["Public"],
+                            "username": "jondoe"
+                        }
+                    ]'''),
+        ),
+        'user_export': Arg(
+            ("-e", "--export"),
+            metavar="FILEPATH",
+            help="Export users to JSON file"),
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
@@ -2166,7 +2287,7 @@ class CLIFactory(object):
             'func': users,
             'help': "List/Create/Delete/Update users",
             'args': ('list_users', 'create_user', 'delete_user',
-                     'add_role', 'remove_role',
+                     'add_role', 'remove_role', 'user_import', 'user_export',
                      'username', 'email', 'firstname', 'lastname', 'role',
                      'password', 'use_random_password'),
         },
@@ -2203,6 +2324,7 @@ class CLIFactory(object):
         for sub in subparser_list:
             sub = cls.subparsers_dict[sub]
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
+            sp.formatter_class = RawTextHelpFormatter
             for arg in sub['args']:
                 if 'dag_id' in arg and dag_parser:
                     continue
