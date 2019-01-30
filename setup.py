@@ -291,7 +291,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'enum34~=1.1.6',
+            'enum34~=1.1.6;python_version<"3.4"',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
             'flask-admin==1.5.2',
