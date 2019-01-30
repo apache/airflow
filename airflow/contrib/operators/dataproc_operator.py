@@ -595,7 +595,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
     Delete a cluster on Google Cloud Dataproc. The operator will wait until the
     cluster is destroyed.
 
-    :param cluster_name: The name of the cluster to create. (templated)
+    :param cluster_name: The name of the cluster to delete. (templated)
     :type cluster_name: str
     :param project_id: The ID of the google cloud project in which
         the cluster runs. (templated)

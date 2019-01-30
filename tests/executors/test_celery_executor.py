@@ -137,8 +137,8 @@ class CeleryExecutorTest(unittest.TestCase):
             value_tuple = 'command', '_', 'queue', 'should_be_a_simple_ti'
             executor.queued_tasks['key'] = value_tuple
             executor.heartbeat()
-        self.assertEquals(1, len(executor.queued_tasks))
-        self.assertEquals(executor.queued_tasks['key'], value_tuple)
+        self.assertEqual(1, len(executor.queued_tasks))
+        self.assertEqual(executor.queued_tasks['key'], value_tuple)
 
     def test_exception_propagation(self):
         with self._prepare_app() as app:

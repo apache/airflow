@@ -90,13 +90,6 @@ If the `AIRFLOW_CONFIG` environment variable was not set and the
 will discover its config file using the `$AIRFLOW_CONFIG` and `$AIRFLOW_HOME`
 environment variables rather than checking for the presence of a file.
 
-### Modification to `ts_nodash` macro
-`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
-
-Examples:
-  * `ts_nodash`: `20150101T000000`
-  * `ts_nodash_with_tz`: `20150101T000000+0000`
-
 ### New `dag_processor_manager_log_location` config option
 
 The DAG parsing manager log now by default will be log into a file, where its location is
@@ -107,24 +100,12 @@ controlled by the new `dag_processor_manager_log_location` config option in core
 The new `sync_parallelism` config option will control how many processes CeleryExecutor will use to
 fetch celery task state in parallel. Default value is max(1, number of cores - 1)
 
-### Semantics of next_ds/prev_ds changed for manually triggered runs
-
-next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
-
 ### Rename of BashTaskRunner to StandardTaskRunner
 
 BashTaskRunner has been renamed to StandardTaskRunner. It is the default task runner
 so you might need to update your config.
 
 `task_runner = StandardTaskRunner`
-
-### DAG level Access Control for new RBAC UI
-
-Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
-The admin will create new role, associate the dag permission with the target dag and assign that role to users. That user can only access / view the certain dags on the UI
-that he has permissions on. If a new role wants to access all the dags, the admin could associate dag permissions on an artificial view(``all_dags``) with that role.
-
-We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
 
 ### min_file_parsing_loop_time config option temporarily disabled
@@ -153,6 +134,37 @@ To delete a user:
 airflow users --delete --username jondoe
 ```
 
+To add a user to a role:
+```bash
+airflow users --add-role --username jondoe --role Public
+```
+
+To remove a user from a role:
+```bash
+airflow users --remove-role --username jondoe --role Public
+```
+
+## Airflow 1.10.2
+
+### DAG level Access Control for new RBAC UI
+
+Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
+The admin will create new role, associate the dag permission with the target dag and assign that role to users. That user can only access / view the certain dags on the UI
+that he has permissions on. If a new role wants to access all the dags, the admin could associate dag permissions on an artificial view(``all_dags``) with that role.
+
+We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
+
+### Modification to `ts_nodash` macro
+`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
+
+Examples:
+  * `ts_nodash`: `20150101T000000`
+  * `ts_nodash_with_tz`: `20150101T000000+0000`
+
+### Semantics of next_ds/prev_ds changed for manually triggered runs
+
+next_ds/prev_ds now map to execution_date instead of the next/previous schedule-aligned execution date for DAGs triggered in the UI.
+
 ### User model changes
 This patch changes the `User.superuser` field from a hardcoded boolean to a `Boolean()` database column. `User.superuser` will default to `False`, which means that this privilege will have to be granted manually to any users that may require it.
 
@@ -171,12 +183,6 @@ session.add(admin)
 session.commit()
 ```
 
-## Airflow 1.10.1
-
-### StatsD Metrics
-
-The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). The scheduler's activity status can be determined by graphing and alerting using a rate of change of the counter. If the scheduler goes down, the rate will drop to 0.
-
 ### Custom auth backends interface change
 
 We have updated the version of flask-login we depend upon, and as a result any
@@ -192,6 +198,12 @@ then you need to change it like this
     @property
     def is_active(self):
       return self.active
+
+## Airflow 1.10.1
+
+### StatsD Metrics
+
+The `scheduler_heartbeat` metric has been changed from a gauge to a counter. Each loop of the scheduler will increment the counter by 1. This provides a higher degree of visibility and allows for better integration with Prometheus using the [StatsD Exporter](https://github.com/prometheus/statsd_exporter). The scheduler's activity status can be determined by graphing and alerting using a rate of change of the counter. If the scheduler goes down, the rate will drop to 0.
 
 ### EMRHook now passes all of connection's extra to CreateJobFlow API
 

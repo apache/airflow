@@ -30,7 +30,7 @@ from flask_appbuilder.views import ModelView, BaseView
 
 from sqlalchemy import Column, Integer, String, Date, Float
 
-from airflow.www.security import AirflowSecurityManager, dag_perms
+from airflow.www.security import AirflowSecurityManager, DAG_PERMS
 
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
@@ -143,8 +143,8 @@ class TestSecurity(unittest.TestCase):
                          {('can_some_action', 'SomeBaseView')})
 
         mock_get_user_roles.return_value = []
-        self.assertEquals(len(self.security_manager
-                              .get_all_permissions_views()), 0)
+        self.assertEqual(len(self.security_manager
+                             .get_all_permissions_views()), 0)
 
     @mock.patch('airflow.www.security.AirflowSecurityManager'
                 '.get_all_permissions_views')
@@ -163,8 +163,8 @@ class TestSecurity(unittest.TestCase):
         mock_get_all_permissions_views.return_value = {('can_dag_read', 'dag_id')}
 
         mock_get_user_roles.return_value = [role]
-        self.assertEquals(self.security_manager
-                          .get_accessible_dag_ids(user), set(['dag_id']))
+        self.assertEqual(self.security_manager
+                         .get_accessible_dag_ids(user), set(['dag_id']))
 
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):
@@ -176,7 +176,7 @@ class TestSecurity(unittest.TestCase):
     def test_sync_perm_for_dag(self):
         test_dag_id = 'TEST_DAG'
         self.security_manager.sync_perm_for_dag(test_dag_id)
-        for dag_perm in dag_perms:
+        for dag_perm in DAG_PERMS:
             self.assertIsNotNone(self.security_manager.
                                  find_permission_view_menu(dag_perm, test_dag_id))
 

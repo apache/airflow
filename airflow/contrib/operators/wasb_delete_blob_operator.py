@@ -37,7 +37,7 @@ class WasbDeleteBlobOperator(BaseOperator):
     :param is_prefix: If blob_name is a prefix, delete all files matching prefix.
     :type is_prefix: bool
     :param ignore_if_missing: if True, then return success even if the
-    blob does not exist.
+        blob does not exist.
     :type ignore_if_missing: bool
     """
 

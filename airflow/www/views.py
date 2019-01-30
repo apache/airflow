@@ -56,6 +56,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_suc
                                                         set_dag_run_state_to_failed)
 from airflow.models import XCom, DagRun, errors
 from airflow.models.connection import Connection
+from airflow.models.slamiss import SlaMiss
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -1687,8 +1688,9 @@ class Airflow(AirflowBaseView):
     @action_logging
     def refresh_all(self):
         dagbag.collect_dags(only_if_updated=False)
-        # sync permissions for all dags
-        appbuilder.sm.sync_perm_for_dag()
+        for dag_id in dagbag.dags:
+            # sync permissions for all dags
+            appbuilder.sm.sync_perm_for_dag(dag_id)
         flash("All DAGs are now up to date")
         return redirect('/')
 
@@ -1728,33 +1730,15 @@ class Airflow(AirflowBaseView):
                     TF.execution_date == ti.execution_date)
             .all()
         ) for ti in tis]))
-        TR = models.TaskReschedule
-        ti_reschedules = list(itertools.chain(*[(
-            session
-            .query(TR)
-            .filter(TR.dag_id == ti.dag_id,
-                    TR.task_id == ti.task_id,
-                    TR.execution_date == ti.execution_date)
-            .all()
-        ) for ti in tis]))
 
         # determine bars to show in the gantt chart
-        # all reschedules of one attempt are combinded into one bar
         gantt_bar_items = []
-        for task_id, items in itertools.groupby(
-                sorted(tis + ti_fails + ti_reschedules, key=lambda ti: ti.task_id),
-                key=lambda ti: ti.task_id):
-            start_date = None
-            for i in sorted(items, key=lambda ti: ti.start_date):
-                start_date = start_date or i.start_date
-                end_date = i.end_date or timezone.utcnow()
-                if type(i) == models.TaskInstance:
-                    gantt_bar_items.append((task_id, start_date, end_date, i.state))
-                    start_date = None
-                elif type(i) == TF and (len(gantt_bar_items) == 0 or
-                                        end_date != gantt_bar_items[-1][2]):
-                    gantt_bar_items.append((task_id, start_date, end_date, State.FAILED))
-                    start_date = None
+        for ti in tis:
+            end_date = ti.end_date or timezone.utcnow()
+            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state))
+        for tf in ti_fails:
+            end_date = tf.end_date or timezone.utcnow()
+            gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED))
 
         tasks = []
         for gantt_bar_item in gantt_bar_items:
@@ -1902,7 +1886,7 @@ class AirflowModelView(ModelView):
 class SlaMissModelView(AirflowModelView):
     route_base = '/slamiss'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.SlaMiss)
+    datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)
 
     base_permissions = ['can_list']
 
