@@ -266,6 +266,7 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
+    'typing',
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
