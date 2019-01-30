@@ -16,16 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import os
 import re
 import uuid
-import copy
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook
+from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
-from airflow.version import version
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 
 
 class DataFlowJavaOperator(BaseOperator):
@@ -109,19 +109,19 @@ class DataFlowJavaOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            jar,
-            job_name='{{task.task_id}}',
-            dataflow_default_options=None,
-            options=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
-            job_class=None,
-            check_if_running=None,
-            multiple_jobs=None,
-            *args,
-            **kwargs):
+        self,
+        jar,
+        job_name='{{task.task_id}}',
+        dataflow_default_options=None,
+        options=None,
+        gcp_conn_id='google_cloud_default',
+        delegate_to=None,
+        poll_sleep=10,
+        job_class=None,
+        check_if_running=None,
+        multiple_jobs=None,
+        *args,
+        **kwargs):
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -235,16 +235,16 @@ class DataflowTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            template,
-            job_name='{{task.task_id}}',
-            dataflow_default_options=None,
-            parameters=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
-            *args,
-            **kwargs):
+        self,
+        template,
+        job_name='{{task.task_id}}',
+        dataflow_default_options=None,
+        parameters=None,
+        gcp_conn_id='google_cloud_default',
+        delegate_to=None,
+        poll_sleep=10,
+        *args,
+        **kwargs):
         super(DataflowTemplateOperator, self).__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -308,17 +308,17 @@ class DataFlowPythonOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            py_file,
-            job_name='{{task.task_id}}',
-            py_options=None,
-            dataflow_default_options=None,
-            options=None,
-            gcp_conn_id='google_cloud_default',
-            delegate_to=None,
-            poll_sleep=10,
-            *args,
-            **kwargs):
+        self,
+        py_file,
+        job_name='{{task.task_id}}',
+        py_options=None,
+        dataflow_default_options=None,
+        options=None,
+        gcp_conn_id='google_cloud_default',
+        delegate_to=None,
+        poll_sleep=10,
+        *args,
+        **kwargs):
         super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
 
         self.py_file = py_file
@@ -381,8 +381,7 @@ class GoogleCloudBucketHelper(object):
         path_components = file_name[self.GCS_PREFIX_LENGTH:].split('/')
         if len(path_components) < 2:
             raise Exception(
-                'Invalid Google Cloud Storage (GCS) object path: {}'
-                    .format(file_name))
+                'Invalid Google Cloud Storage (GCS) object path: {}'.format(file_name))
 
         bucket_id = path_components[0]
         object_id = '/'.join(path_components[1:])
@@ -393,5 +392,4 @@ class GoogleCloudBucketHelper(object):
         if os.stat(local_file).st_size > 0:
             return local_file
         raise Exception(
-            'Failed to download Google Cloud Storage (GCS) object: {}'
-                .format(file_name))
+            'Failed to download Google Cloud Storage (GCS) object: {}'.format(file_name))
