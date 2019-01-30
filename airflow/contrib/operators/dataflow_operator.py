@@ -118,6 +118,8 @@ class DataFlowJavaOperator(BaseOperator):
             delegate_to=None,
             poll_sleep=10,
             job_class=None,
+            check_if_running=None,
+            multiple_jobs=None,
             *args,
             **kwargs):
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
@@ -129,25 +131,30 @@ class DataFlowJavaOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.jar = jar
+        self.multiple_jobs = multiple_jobs
         self.job_name = job_name
         self.dataflow_default_options = dataflow_default_options
         self.options = options
         self.poll_sleep = poll_sleep
         self.job_class = job_class
+        self.check_if_running = check_if_running
 
     def execute(self, context):
         bucket_helper = GoogleCloudBucketHelper(
             self.gcp_conn_id, self.delegate_to)
-        self.jar = bucket_helper.google_cloud_to_local(self.jar)
         hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to,
                             poll_sleep=self.poll_sleep)
-
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
+        is_running = False
+        if self.check_if_running:
+            is_running = hook.is_job_dataflow_running(self.job_name, dataflow_options)
 
-        hook.start_java_dataflow(self.job_name, dataflow_options,
-                                 self.jar, self.job_class)
+        if not is_running:
+            self.jar = bucket_helper.google_cloud_to_local(self.jar)
+            hook.start_java_dataflow(self.job_name, dataflow_options,
+                                     self.jar, self.job_class, self.multiple_jobs)
 
 
 class DataflowTemplateOperator(BaseOperator):
@@ -312,7 +319,6 @@ class DataFlowPythonOperator(BaseOperator):
             poll_sleep=10,
             *args,
             **kwargs):
-
         super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
 
         self.py_file = py_file
@@ -376,7 +382,7 @@ class GoogleCloudBucketHelper(object):
         if len(path_components) < 2:
             raise Exception(
                 'Invalid Google Cloud Storage (GCS) object path: {}'
-                .format(file_name))
+                    .format(file_name))
 
         bucket_id = path_components[0]
         object_id = '/'.join(path_components[1:])
@@ -388,4 +394,4 @@ class GoogleCloudBucketHelper(object):
             return local_file
         raise Exception(
             'Failed to download Google Cloud Storage (GCS) object: {}'
-            .format(file_name))
+                .format(file_name))
