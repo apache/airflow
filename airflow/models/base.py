@@ -28,3 +28,5 @@ if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
     Base = declarative_base()
 else:
     Base = declarative_base(metadata=MetaData(schema=SQL_ALCHEMY_SCHEMA))
+
+ID_LEN = 250

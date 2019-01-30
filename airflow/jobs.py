@@ -64,7 +64,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
 Base = models.base.Base
-ID_LEN = models.ID_LEN
+ID_LEN = models.base.ID_LEN
 
 
 class BaseJob(Base, LoggingMixin):
