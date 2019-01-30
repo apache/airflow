@@ -23,8 +23,10 @@ import uuid
 
 import mock
 import re
+import os
 import string
 import random
+import six
 from urllib3 import HTTPResponse
 from datetime import datetime
 
@@ -351,6 +353,15 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(0, len(dag_volume))
         self.assertEqual(0, len(dag_volume_mount))
         self.assertEqual(0, len(init_containers))
+
+    def test_mount_current_environment(self):
+        # Tests that the current environment gets inserted into the pod
+        self.kube_config.mount_current_environment = True
+        worker_config = WorkerConfiguration(self.kube_config)
+        test_val = {'TEST_K8S_MOUNT_ENV': 'any_string'}
+        os.environ.update(test_val)
+        env = worker_config._get_environment()
+        self.assertTrue({test_val}.issubset(six.iteritems(env)))
 
 
 class TestKubernetesExecutor(unittest.TestCase):
