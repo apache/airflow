@@ -16,6 +16,7 @@
 # under the License.
 
 import yaml
+from airflow.contrib.kubernetes.pod import Pod
 from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory \
     import KubernetesRequestFactory
 

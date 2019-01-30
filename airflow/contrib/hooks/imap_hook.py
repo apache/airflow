@@ -141,11 +141,11 @@ class ImapHook(BaseHook):
         self._create_files(mail_attachments, local_output_directory)
 
     def _handle_not_found_mode(self, not_found_mode):
-        if not_found_mode is 'raise':
+        if not_found_mode == 'raise':
             raise AirflowException('No mail attachments found!')
-        elif not_found_mode is 'warn':
+        elif not_found_mode == 'warn':
             self.log.warning('No mail attachments found!')
-        elif not_found_mode is 'ignore':
+        elif not_found_mode == 'ignore':
             pass  # Do not notify if the attachment has not been found.
         else:
             self.log.error('Invalid "not_found_mode" %s', not_found_mode)

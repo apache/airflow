@@ -42,7 +42,7 @@ def _normalize_mlengine_job_id(job_id):
 
     # Add a prefix when a job_id starts with a digit or a template
     match = re.search(r'\d|\{{2}', job_id)
-    if match and match.start() is 0:
+    if match and match.start() == 0:
         job = 'z_{}'.format(job_id)
     else:
         job = job_id
