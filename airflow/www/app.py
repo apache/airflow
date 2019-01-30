@@ -141,7 +141,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             def integrate_plugins():
                 """Integrate plugins to the context"""
                 from airflow.plugins_manager import (
-                    flask_appbuilder_views, flask_appbuilder_menu_links)
+                    flask_appbuilder_views, flask_appbuilder_menu_links
+                )
 
                 for v in flask_appbuilder_views:
                     log.debug("Adding view %s", v["name"])
@@ -161,7 +162,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             # will add the new Views and Menus names to the backend, but will not
             # delete the old ones.
 
+        def init_plugin_blueprints(app):
+            from airflow.plugins_manager import flask_blueprints
+
+            for bp in flask_blueprints:
+                log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
+                app.register_blueprint(bp["blueprint"])
+
         init_views(appbuilder)
+        init_plugin_blueprints(app)
 
         security_manager = appbuilder.sm
         security_manager.sync_roles()
