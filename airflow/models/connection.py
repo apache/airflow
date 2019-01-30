@@ -26,7 +26,8 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
 from airflow import LoggingMixin, AirflowException
-from airflow.models import Base, ID_LEN, get_fernet
+from airflow.models import get_fernet
+from airflow.models.base import Base, ID_LEN
 
 
 class Connection(Base, LoggingMixin):
@@ -172,6 +173,13 @@ class Connection(Base, LoggingMixin):
     def extra(cls):
         return synonym('_extra',
                        descriptor=property(cls.get_extra, cls.set_extra))
+
+    def rotate_fernet_key(self):
+        fernet = get_fernet()
+        if self._password and self.is_encrypted:
+            self._password = fernet.rotate(self._password.encode('utf-8')).decode()
+        if self._extra and self.is_extra_encrypted:
+            self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
     def get_hook(self):
         try:

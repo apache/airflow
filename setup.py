@@ -156,7 +156,6 @@ dask = [
 databricks = ['requests>=2.20.0, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
-    'mock',
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
     'sphinx-rtd-theme>=0.1.6',
@@ -200,7 +199,7 @@ kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=2.5.1']
 mssql = ['pymssql>=2.1.1']
-mysql = ['mysqlclient>=1.3.6']
+mysql = ['mysqlclient>=1.3.6,<1.4']
 oracle = ['cx_Oracle>=5.1.2']
 password = [
     'bcrypt>=2.0.0',
@@ -249,6 +248,7 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
+    'typing',
 ]
 
 if not PY3:
@@ -291,7 +291,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'enum34~=1.1.6',
+            'enum34~=1.1.6;python_version<"3.4"',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
             'flask-admin==1.5.2',

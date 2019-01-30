@@ -23,7 +23,8 @@ from datetime import timedelta
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
     AirflowSkipException, AirflowRescheduleException
-from airflow.models import BaseOperator, SkipMixin, TaskReschedule
+from airflow.models import BaseOperator, SkipMixin
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -52,7 +53,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         When set to ``reschedule`` the sensor task frees the worker slot when
         the criteria is not yet met and it's rescheduled at a later time. Use
         this mode if the expected time until the criteria is met is. The poke
-        inteval should be more than one minute to prevent too much load on
+        interval should be more than one minute to prevent too much load on
         the scheduler.
     :type mode: str
     """

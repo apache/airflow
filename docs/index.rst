@@ -80,7 +80,6 @@ Content
     howto/index
     ui
     concepts
-    profiling
     cli
     scheduler
     plugins
@@ -89,6 +88,8 @@ Content
     api
     integration
     metrics
+    kubernetes
     lineage
+    changelog
     faq
     code
