@@ -84,6 +84,7 @@ from airflow.exceptions import (
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
+from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -1853,38 +1854,6 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.raw = raw
         self._set_context(self)
-
-
-class TaskFail(Base):
-    """
-    TaskFail tracks the failed run durations of each task instance.
-    """
-
-    __tablename__ = "task_fail"
-
-    id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    duration = Column(Integer)
-
-    __table_args__ = (
-        Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date,
-              unique=False),
-    )
-
-    def __init__(self, task, execution_date, start_date, end_date):
-        self.dag_id = task.dag_id
-        self.task_id = task.task_id
-        self.execution_date = execution_date
-        self.start_date = start_date
-        self.end_date = end_date
-        if self.end_date and self.start_date:
-            self.duration = (self.end_date - self.start_date).total_seconds()
-        else:
-            self.duration = None
 
 
 class Log(Base):
