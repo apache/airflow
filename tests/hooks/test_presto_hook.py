@@ -30,15 +30,13 @@ class TestPrestoHook(unittest.TestCase):
 
     def setUp(self):
         cursor_patch = mock.patch("pyhive.presto.Cursor", autospec=True)
-        sleep_patch = mock.patch("time.sleep")
 
         self.hook = PrestoHook()
         self.execute_args = ["SELECT * FROM users", None]
         self.mock_cursor = cursor_patch.start().return_value
-        self.mock_sleep = sleep_patch.start()
+        self.hook.wait = mock.MagicMock(spec=PrestoHook.wait)
 
         self.addCleanup(cursor_patch.stop)
-        self.addCleanup(sleep_patch.stop)
 
     @mock.patch("airflow.hooks.dbapi_hook.DbApiHook.insert_rows")
     def test_insert_rows(self, mock_insert_rows):
@@ -53,14 +51,14 @@ class TestPrestoHook(unittest.TestCase):
         self.hook.run(*self.execute_args)
 
         self.mock_cursor.execute.assert_called_once_with(*self.execute_args)
-        self.mock_sleep.assert_not_called()
+        self.hook.wait.assert_not_called()
 
     def test_run_optionally_blocks_while_statement_executes(self):
         poll_interval = 1
         error_message = "would have slept"
 
         self.mock_cursor.poll.return_value = "execution unfinished"
-        self.mock_sleep.side_effect = RuntimeError(error_message)
+        self.hook.wait.side_effect = RuntimeError(error_message)
 
         with self.assertRaises(RuntimeError, msg=error_message):
             run_args = self.execute_args + [poll_interval]
@@ -68,14 +66,14 @@ class TestPrestoHook(unittest.TestCase):
 
         self.mock_cursor.execute.assert_called_once_with(*self.execute_args)
         self.mock_cursor.poll.assert_called_once()
-        self.mock_sleep.assert_called_once_with(poll_interval)
+        self.hook.wait.assert_called_once_with(poll_interval)
 
     def test_run_continues_polling_if_presto_unreachable(self):
         poll_interval = 1
         error_message = "would have slept"
 
         self.mock_cursor.poll.side_effect = RequestException("network partition")
-        self.mock_sleep.side_effect = RuntimeError(error_message)
+        self.hook.wait.side_effect = RuntimeError(error_message)
 
         with self.assertRaises(RuntimeError, msg=error_message):
             run_args = self.execute_args + [poll_interval]
@@ -83,4 +81,4 @@ class TestPrestoHook(unittest.TestCase):
 
         self.mock_cursor.execute.assert_called_once_with(*self.execute_args)
         self.mock_cursor.poll.assert_called_once()
-        self.mock_sleep.assert_called_once_with(poll_interval)
+        self.hook.wait.assert_called_once_with(poll_interval)

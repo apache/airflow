@@ -146,7 +146,7 @@ class PrestoHook(DbApiHook):
 
             if poll_interval is not None:
                 while not self.execution_finished(cursor):
-                    time.sleep(poll_interval)
+                    self.wait(poll_interval)
 
     def execution_finished(self, cursor):
         """
@@ -163,6 +163,20 @@ class PrestoHook(DbApiHook):
             msg = "Couldn't determine statement execution status: ".format(ex)
             self.log.error(msg)
             return None
+
+    @staticmethod
+    def wait(interval):
+        """
+        Wait for the specified interval. Wraps time.sleep.
+
+        Exists to be mocked in testing. Mocking time.sleep directly can be
+        problematic when other packages, e.g. pymongo, also call it during
+        test execution.
+
+        :param interval: how often, in seconds, to wait
+        :type interval: int or float
+        """
+        time.sleep(interval)
 
     # TODO Enable commit_every once PyHive supports transaction.
     # Unfortunately, PyHive 0.5.1 doesn't support transaction for now,
