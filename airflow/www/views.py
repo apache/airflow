@@ -54,9 +54,10 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import XCom, DagRun, errors
+from airflow.models import DagRun, errors
 from airflow.models.connection import Connection
 from airflow.models.slamiss import SlaMiss
+from airflow.models.xcom import XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -1908,7 +1909,7 @@ class SlaMissModelView(AirflowModelView):
 class XComModelView(AirflowModelView):
     route_base = '/xcom'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.XCom)
+    datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
