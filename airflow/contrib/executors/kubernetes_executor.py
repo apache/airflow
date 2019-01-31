@@ -16,6 +16,7 @@
 # under the License.
 
 import base64
+import hashlib
 import json
 import multiprocessing
 from queue import Queue
@@ -311,7 +312,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
                 return self.process_error(event)
             self.process_status(
                 task.metadata.name, task.status.phase, task.metadata.labels,
-                task.metadata.resource_version
+                task.metadata.annotations, task.metadata.resource_version
             )
             last_resource_version = task.metadata.resource_version
 
@@ -335,21 +336,21 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
             raw_object['reason'], raw_object['code'], raw_object['message']
         )
 
-    def process_status(self, pod_id, status, labels, resource_version):
+    def process_status(self, pod_id, status, labels, annotations, resource_version):
         if status == 'Pending':
             self.log.info('Event: %s Pending', pod_id)
         elif status == 'Failed':
             self.log.info('Event: %s Failed', pod_id)
-            self.watcher_queue.put((pod_id, State.FAILED, labels, resource_version))
+            self.watcher_queue.put((pod_id, State.FAILED, labels, annotations, resource_version))
         elif status == 'Succeeded':
             self.log.info('Event: %s Succeeded', pod_id)
-            self.watcher_queue.put((pod_id, None, labels, resource_version))
+            self.watcher_queue.put((pod_id, None, labels, annotations, resource_version))
         elif status == 'Running':
             self.log.info('Event: %s is Running', pod_id)
         else:
             self.log.warn(
-                'Event: Invalid state: %s on pod: %s with labels: %s with '
-                'resource_version: %s', status, pod_id, labels, resource_version
+                'Event: Invalid state: %s on pod: %s with labels: %s with annotations: %s with '
+                'resource_version: %s', status, pod_id, labels, annotations, resource_version
             )
 
 
@@ -432,12 +433,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.process_watcher_task()
 
     def process_watcher_task(self):
-        pod_id, state, labels, resource_version = self.watcher_queue.get()
+        pod_id, state, labels, annotations, resource_version = self.watcher_queue.get()
         self.log.info(
-            'Attempting to finish pod; pod_id: %s; state: %s; labels: %s',
-            pod_id, state, labels
+            'Attempting to finish pod; pod_id: %s; state: %s; labels: %s; annotations: %s',
+            pod_id, state, labels, annotations
         )
-        key = self._labels_to_key(labels=labels)
+        key = self._labels_to_key(labels=labels, annotations=annotations)
         if key:
             self.log.debug('finishing job %s - %s (%s)', key, state, pod_id)
             self.result_queue.put((key, state, pod_id, resource_version))
@@ -511,7 +512,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
 
-    def _labels_to_key(self, labels):
+    def _labels_to_key(self, labels, annotations):
         try_num = 1
         try:
             try_num = int(labels.get('try_number', '1'))
@@ -520,14 +521,14 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         try:
             return (
-                labels['dag_id'], labels['task_id'],
+                annotations['dag_id'], annotations['task_id'],
                 self._label_safe_datestring_to_datetime(labels['execution_date']),
                 try_num,
             )
         except Exception as e:
             self.log.warn(
-                'Error while converting labels to key; labels: %s; exception: %s',
-                labels, e
+                'Error while converting labels to key; labels: %s; annotations: %s; exception: %s',
+                labels, annotations, e
             )
             return None
 
@@ -568,8 +569,9 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         )
 
         for task in queued_tasks:
-            dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
-                .format(task.dag_id, task.task_id,
+            dict_string = "dag_hash={},task_hash={},execution_date={},airflow-worker={}" \
+                .format(hashlib.md5(task.dag_id.encode()).hexdigest(),
+                        hashlib.md5(task.task_id.encode()).hexdigest(),
                         AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
                             task.execution_date), self.worker_uuid)
             kwargs = dict(label_selector=dict_string)

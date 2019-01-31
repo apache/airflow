@@ -17,6 +17,7 @@
 
 import os
 import six
+import hashlib
 
 from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod import Pod, Resources
@@ -297,6 +298,9 @@ class WorkerConfiguration(LoggingMixin):
         if gcp_sa_key:
             annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
 
+        annotations['dag_id'] = dag_id
+        annotations['task_id'] = task_id
+
         volumes = [value for value in volumes_dict.values()] + kube_executor_config.volumes
         volume_mounts = [value for value in volume_mounts_dict.values()] + kube_executor_config.volume_mounts
 
@@ -312,8 +316,8 @@ class WorkerConfiguration(LoggingMixin):
             cmds=airflow_command,
             labels={
                 'airflow-worker': worker_uuid,
-                'dag_id': dag_id,
-                'task_id': task_id,
+                'dag_hash': hashlib.md5(dag_id.encode()).hexdigest(),
+                'task_hash': hashlib.md5(task_id.encode()).hexdigest(),
                 'execution_date': execution_date,
                 'try_number': str(try_number),
             },
