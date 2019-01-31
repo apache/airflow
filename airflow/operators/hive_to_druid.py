@@ -78,7 +78,7 @@ class HiveToDruidTransfer(BaseOperator):
             target_partition_size=-1,
             query_granularity="NONE",
             segment_granularity="DAY",
-            hive_tblproperties=None,
+            hive_tblproperties=dict(),
             job_properties=None,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
