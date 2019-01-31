@@ -495,7 +495,7 @@ class Airflow(BaseView):
                 else:
                     # User provides columns (x, y, metric1, metric2, ...)
                     df.index = df[df.columns[0]]
-                    df = df.sort(df.columns[0])
+                    df = df.sort_values(by=df.columns[0])
                     del df[df.columns[0]]
                     for col in df.columns:
                         df[col] = df[col].astype(np.float)
@@ -1489,7 +1489,8 @@ class Airflow(BaseView):
             'instances': [dag_runs.get(d) or {'execution_date': d.isoformat()} for d in dates],
         }
 
-        data = json.dumps(data, indent=4, default=json_ser)
+        # minimize whitespace as this can be huge for bigger dags
+        data = json.dumps(data, default=json_ser, separators=(',', ':'))
         session.commit()
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
@@ -1612,6 +1613,10 @@ class Airflow(BaseView):
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
+
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/admin/')
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1884,6 +1889,8 @@ class Airflow(BaseView):
             orm_dag.last_expired = timezone.utcnow()
             session.merge(orm_dag)
         session.commit()
+
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
 
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))

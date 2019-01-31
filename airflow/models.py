@@ -2431,7 +2431,7 @@ class BaseOperator(LoggingMixin):
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
-        one_failed | dummy}``
+        one_failed | none_failed | dummy}``
         default is ``all_success``. Options can be set as string or
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
@@ -2921,14 +2921,24 @@ class BaseOperator(LoggingMixin):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if content is not None and \
-                    isinstance(content, six.string_types) and \
+            if content is None:
+                continue
+            elif isinstance(content, six.string_types) and \
                     any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.dag.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
                 except Exception as e:
                     self.log.exception(e)
+            elif isinstance(content, list):
+                env = self.dag.get_template_env()
+                for i in range(len(content)):
+                    if isinstance(content[i], six.string_types) and \
+                            any([content[i].endswith(ext) for ext in self.template_ext]):
+                        try:
+                            content[i] = env.loader.get_source(env, content[i])[0]
+                        except Exception as e:
+                            self.log.exception(e)
         self.prepare_template()
 
     @property
@@ -3993,7 +4003,9 @@ class DAG(BaseDag, LoggingMixin):
         if end_date:
             tis = tis.filter(TI.execution_date <= end_date)
         if only_failed:
-            tis = tis.filter(TI.state == State.FAILED)
+            tis = tis.filter(or_(
+                TI.state == State.FAILED,
+                TI.state == State.UPSTREAM_FAILED))
         if only_running:
             tis = tis.filter(TI.state == State.RUNNING)
 
@@ -5315,6 +5327,9 @@ class DagRun(Base, LoggingMixin):
                 continue
 
             if task.task_id not in task_ids:
+                Stats.incr(
+                    "task_instance_created-{}".format(task.__class__.__name__),
+                    1, 1)
                 ti = TaskInstance(task, self.execution_date)
                 session.add(ti)
 

@@ -49,7 +49,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
-    :param schema_object: string
+    :type schema_object: string
     :param source_format: File format to export.
     :type source_format: string
     :param compression: [Optional] The compression type of the data source.
@@ -78,7 +78,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         invalid error is returned in the job result.
     :type ignore_unknown_values: bool
     :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
-    :type allow_quoted_newlines: boolean
+    :type allow_quoted_newlines: bool
     :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
         The missing values are treated as nulls. If false, records with missing trailing
         columns are treated as bad records, and if there are too many bad records, an

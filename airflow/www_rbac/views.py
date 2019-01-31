@@ -336,17 +336,13 @@ class Airflow(AirflowBaseView):
                 if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                     payload[dag.safe_dag_id] = []
                     for state in State.dag_states:
-                        try:
-                            count = data[dag.dag_id][state]
-                        except Exception:
-                            count = 0
-                        d = {
+                        count = data.get(dag.dag_id, {}).get(state, 0)
+                        payload[dag.safe_dag_id].append({
                             'state': state,
                             'count': count,
                             'dag_id': dag.dag_id,
                             'color': State.color(state)
-                        }
-                        payload[dag.safe_dag_id].append(d)
+                        })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -414,17 +410,13 @@ class Airflow(AirflowBaseView):
             if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                 payload[dag.safe_dag_id] = []
                 for state in State.task_states:
-                    try:
-                        count = data[dag.dag_id][state]
-                    except Exception:
-                        count = 0
-                    d = {
+                    count = data.get(dag.dag_id, {}).get(state, 0)
+                    payload[dag.safe_dag_id].append({
                         'state': state,
                         'count': count,
                         'dag_id': dag.dag_id,
                         'color': State.color(state)
-                    }
-                    payload[dag.safe_dag_id].append(d)
+                    })
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -1263,7 +1255,8 @@ class Airflow(AirflowBaseView):
                 for d in dates],
         }
 
-        data = json.dumps(data, indent=4, default=json_ser)
+        # minimize whitespace as this can be huge for bigger dags
+        data = json.dumps(data, default=json_ser, separators=(',', ':'))
         session.commit()
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
@@ -1391,6 +1384,10 @@ class Airflow(AirflowBaseView):
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
+
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/')
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1671,6 +1668,8 @@ class Airflow(AirflowBaseView):
 
         # sync dag permission
         appbuilder.sm.sync_perm_for_dag(dag_id)
+
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
 
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
@@ -2227,10 +2226,9 @@ class DagRunModelView(AirflowModelView):
                 dr.state = State.RUNNING
             models.DagStat.update(dirty_ids, session=session)
             session.commit()
-            flash(
-                "{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(**locals()))
         except Exception as ex:
-            flash(str(ex))
+            flash(str(ex), 'error')
             flash('Failed to set state', 'error')
         return redirect(self.route_base + '/list')
 

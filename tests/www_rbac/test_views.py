@@ -454,6 +454,11 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('example_bash_operator', resp)
 
+    def test_duration_missing(self):
+        url = 'duration?days=30&dag_id=missing_dag'
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('seems to be missing', resp)
+
     def test_tries(self):
         url = 'tries?days=30&dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
@@ -998,6 +1003,17 @@ class TestDagACLView(TestBase):
                 role=role_admin,
                 password='test')
 
+        role_user = self.appbuilder.sm.find_role('User')
+        test_user = self.appbuilder.sm.find_user(username='test_user')
+        if not test_user:
+            self.appbuilder.sm.add_user(
+                username='test_user',
+                first_name='test_user',
+                last_name='test_user',
+                email='test_user@fab.org',
+                role=role_user,
+                password='test_user')
+
         dag_acl_role = self.appbuilder.sm.add_role('dag_acl_tester')
         dag_tester = self.appbuilder.sm.find_user(username='dag_tester')
         if not dag_tester:
@@ -1069,6 +1085,9 @@ class TestDagACLView(TestBase):
             find_permission_view_menu('can_dag_edit', 'all_dags')
         all_dag_role = self.appbuilder.sm.find_role('all_dag_role')
         self.appbuilder.sm.add_permission_role(all_dag_role, perm_on_all_dag)
+
+        role_user = self.appbuilder.sm.find_role('User')
+        self.appbuilder.sm.add_permission_role(role_user, perm_on_all_dag)
 
         read_only_perm_on_dag = self.appbuilder.sm.\
             find_permission_view_menu('can_dag_read', 'example_bash_operator')
@@ -1437,6 +1456,50 @@ class TestDagACLView(TestBase):
         url = 'tree?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('runme_1', resp)
+
+    def test_log_success(self):
+        self.logout()
+        self.login()
+        url = ('log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('Log by attempts', resp)
+        url = ('get_logs_with_metadata?task_id=runme_0&dag_id=example_bash_operator&'
+               'execution_date={}&try_number=1&metadata=null'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('"message":', resp)
+        self.check_content_in_response('"metadata":', resp)
+
+    def test_log_failure(self):
+        self.logout()
+        self.login(username='dag_faker',
+                   password='dag_faker')
+        url = ('log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_not_in_response('Log by attempts', resp)
+        url = ('get_logs_with_metadata?task_id=runme_0&dag_id=example_bash_operator&'
+               'execution_date={}&try_number=1&metadata=null'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_not_in_response('"message":', resp)
+        self.check_content_not_in_response('"metadata":', resp)
+
+    def test_log_success_for_user(self):
+        self.logout()
+        self.login(username='test_user',
+                   password='test_user')
+        url = ('log?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('Log by attempts', resp)
+        url = ('get_logs_with_metadata?task_id=runme_0&dag_id=example_bash_operator&'
+               'execution_date={}&try_number=1&metadata=null'
+               .format(self.percent_encode(self.default_date)))
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('"message":', resp)
+        self.check_content_in_response('"metadata":', resp)
 
 
 if __name__ == '__main__':

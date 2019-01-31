@@ -20,8 +20,14 @@
 
 {% block head_css %}
   {{ super() }}
-  {# styleBundle.css file contains the styles from main.css and bootstrap-theme.css #}
-  <link href="{{ url_for_asset('styleBundle.css') }}" rel="stylesheet">
+
+  <link href="{{ url_for_asset('main.css') }}" rel="stylesheet">
+
+  {% if not appbuilder.app_theme %}
+    {# airflowDefaultTheme.css file contains the styles from local bootstrap-theme.css #}
+    <link href="{{ url_for_asset('airflowDefaultTheme.css') }}" rel="stylesheet">
+  {% endif %}
+
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_30.png') }}">
 {% endblock %}
 
@@ -61,9 +67,9 @@
 {% block tail_js %}
 {{ super() }}
 <script type="text/javascript">
-  // below variables are used in clock.js
+  // below variables are used in base.js
   var hostName = '{{ hostname }}';
   var csrfToken = '{{ csrf_token() }}';
 </script>
-<script src="{{ url_for_asset('clock.js') }}" type="text/javascript"></script>
+<script src="{{ url_for_asset('base.js') }}" type="text/javascript"></script>
 {% endblock %}

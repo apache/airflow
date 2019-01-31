@@ -45,6 +45,8 @@
   </div>
   <div class="clearfix"></div>
   <div>
+    {% set base_date_arg = request.args.get('base_date') %}
+    {% set num_runs_arg = request.args.get('num_runs') %}
     <ul class="nav nav-pills">
       {% if dag.parent_dag %}
           <li class="never_active"><a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id) }}">
@@ -52,29 +54,29 @@
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
       {% endif %}
-      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
+      <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
-      <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs, root=root) }}">
+      <li><a href="{{ url_for('Airflow.tree', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
         Tree View
       </a></li>
-      <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root) }}">
+      <li><a href="{{ url_for('Airflow.duration', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
           Task Duration
       </a></li>
-      <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root) }}">
+      <li><a href="{{ url_for('Airflow.tries', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
           Task Tries
       </a></li>
       <li>
-        <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root) }}">
+        <a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
           Landing Times
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root) }}">
+        <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
           <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
           <i class="icon-align-left"></i>
           Gantt
