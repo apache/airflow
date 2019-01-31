@@ -19,10 +19,12 @@
 
 import time
 from builtins import str
+import past.builtins
 
 from pyhive import presto
 from pyhive.exc import DatabaseError
 from requests.auth import HTTPBasicAuth
+from requests.exceptions import RequestException
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -132,7 +134,7 @@ class PrestoHook(DbApiHook):
             status of each statement; set to None
         :type poll_interval: int or float
         """
-        if isinstance(sql, str):
+        if isinstance(sql, past.builtins.basestring):
             sql = [sql]
 
         cursor = self.get_conn().cursor()
@@ -157,7 +159,7 @@ class PrestoHook(DbApiHook):
         """
         try:
             return cursor.poll() is None
-        except Exception as ex:
+        except RequestException as ex:
             msg = "Couldn't determine statement execution status: ".format(ex)
             self.log.error(msg)
             return None
