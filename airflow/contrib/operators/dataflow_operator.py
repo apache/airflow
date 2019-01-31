@@ -109,19 +109,19 @@ class DataFlowJavaOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        jar,
-        job_name='{{task.task_id}}',
-        dataflow_default_options=None,
-        options=None,
-        gcp_conn_id='google_cloud_default',
-        delegate_to=None,
-        poll_sleep=10,
-        job_class=None,
-        check_if_running=None,
-        multiple_jobs=None,
-        *args,
-        **kwargs):
+            self,
+            jar,
+            job_name='{{task.task_id}}',
+            dataflow_default_options=None,
+            options=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            poll_sleep=10,
+            job_class=None,
+            check_if_running=None,
+            multiple_jobs=None,
+            *args,
+            **kwargs):
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -235,16 +235,16 @@ class DataflowTemplateOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        template,
-        job_name='{{task.task_id}}',
-        dataflow_default_options=None,
-        parameters=None,
-        gcp_conn_id='google_cloud_default',
-        delegate_to=None,
-        poll_sleep=10,
-        *args,
-        **kwargs):
+            self,
+            template,
+            job_name='{{task.task_id}}',
+            dataflow_default_options=None,
+            parameters=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            poll_sleep=10,
+            *args,
+            **kwargs):
         super(DataflowTemplateOperator, self).__init__(*args, **kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -308,17 +308,17 @@ class DataFlowPythonOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self,
-        py_file,
-        job_name='{{task.task_id}}',
-        py_options=None,
-        dataflow_default_options=None,
-        options=None,
-        gcp_conn_id='google_cloud_default',
-        delegate_to=None,
-        poll_sleep=10,
-        *args,
-        **kwargs):
+            self,
+            py_file,
+            job_name='{{task.task_id}}',
+            py_options=None,
+            dataflow_default_options=None,
+            options=None,
+            gcp_conn_id='google_cloud_default',
+            delegate_to=None,
+            poll_sleep=10,
+            *args,
+            **kwargs):
         super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
 
         self.py_file = py_file
