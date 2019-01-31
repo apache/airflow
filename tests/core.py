@@ -50,6 +50,7 @@ from airflow.models import Variable, TaskInstance
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.models.connection import Connection
+from airflow.models.taskfail import TaskFail
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -124,7 +125,7 @@ class CoreTest(unittest.TestCase):
             session = Session()
             session.query(models.TaskInstance).filter_by(
                 dag_id=TEST_DAG_ID).delete()
-            session.query(models.TaskFail).filter_by(
+            session.query(TaskFail).filter_by(
                 dag_id=TEST_DAG_ID).delete()
             session.commit()
             session.close()
@@ -944,11 +945,11 @@ class CoreTest(unittest.TestCase):
             f.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         except Exception:
             pass
-        p_fails = session.query(models.TaskFail).filter_by(
+        p_fails = session.query(TaskFail).filter_by(
             task_id='pass_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
-        f_fails = session.query(models.TaskFail).filter_by(
+        f_fails = session.query(TaskFail).filter_by(
             task_id='fail_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
