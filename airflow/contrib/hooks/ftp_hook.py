@@ -24,8 +24,6 @@ import os.path
 from airflow.hooks.base_hook import BaseHook
 from past.builtins import basestring
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
 
 def mlsd(conn, path="", facts=None):
     """
@@ -60,7 +58,7 @@ def mlsd(conn, path="", facts=None):
         yield (name, entry)
 
 
-class FTPHook(BaseHook, LoggingMixin):
+class FTPHook(BaseHook):
     """
     Interact with FTP.
 

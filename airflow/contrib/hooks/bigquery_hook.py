@@ -44,7 +44,7 @@ from pandas_gbq.gbq import \
 from pandas_gbq.gbq import GbqConnector
 
 
-class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
+class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
