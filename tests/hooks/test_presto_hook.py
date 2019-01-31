@@ -21,7 +21,7 @@
 import mock
 import unittest
 
-from mock import patch
+from requests.exceptions import RequestException
 
 from airflow.hooks.presto_hook import PrestoHook
 
@@ -29,59 +29,58 @@ from airflow.hooks.presto_hook import PrestoHook
 class TestPrestoHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestPrestoHook, self).setUp()
+        cursor_patch = mock.patch("pyhive.presto.Cursor", autospec=True)
+        sleep_patch = mock.patch("time.sleep")
 
-        self.cur = mock.MagicMock()
-        self.conn = mock.MagicMock()
-        self.conn.cursor.return_value = self.cur
-        conn = self.conn
+        self.hook = PrestoHook()
+        self.execute_args = ["SELECT * FROM users", None]
+        self.mock_cursor = cursor_patch.start().return_value
+        self.mock_sleep = sleep_patch.start()
 
-        class UnitTestPrestoHook(PrestoHook):
-            conn_name_attr = 'test_conn_id'
+        self.addCleanup(cursor_patch.stop)
+        self.addCleanup(sleep_patch.stop)
 
-            def get_conn(self):
-                return conn
-
-        self.db_hook = UnitTestPrestoHook()
-
-    @patch('airflow.hooks.dbapi_hook.DbApiHook.insert_rows')
+    @mock.patch("airflow.hooks.dbapi_hook.DbApiHook.insert_rows")
     def test_insert_rows(self, mock_insert_rows):
         table = "table"
         rows = [("hello",),
                 ("world",)]
         target_fields = None
-        self.db_hook.insert_rows(table, rows, target_fields)
+        self.hook.insert_rows(table, rows, target_fields)
         mock_insert_rows.assert_called_once_with(table, rows, None, 0)
 
-    @patch("time.sleep")
-    @patch("pyhive.presto.Cursor", autospec=True)
-    def test_run_does_not_block_by_default(self, mock_cursor, mock_sleep):
-        hook = PrestoHook()
-        hook.run(sql="")
-        mock_sleep.assert_not_called()
+    def test_run_does_not_block_by_default(self):
+        self.hook.run(*self.execute_args)
 
-    @patch("time.sleep")
-    @patch("pyhive.presto.Cursor", autospec=True)
-    def test_run_optionally_blocks_while_statement_executes(self, mock_cursor, mock_sleep):
-        POLL_INTERVAL = 0.01
-        SLEEP_ERROR_MSG = "would have blocked"
-        mock_cursor.poll.return_value = "execution unfinished"
-        mock_sleep.side_effect = RuntimeError(SLEEP_ERROR_MSG)
-        hook = PrestoHook()
+        self.mock_cursor.execute.assert_called_once_with(*self.execute_args)
+        self.mock_sleep.assert_not_called()
 
-        with self.assertRaises(RuntimeError, msg=SLEEP_ERROR_MSG):
-            hook.run(sql="", poll_interval=POLL_INTERVAL)
-            mock_sleep.assert_called_once_with(POLL_INTERVAL)
+    def test_run_optionally_blocks_while_statement_executes(self):
+        poll_interval = 1
+        error_message = "would have slept"
 
-    @patch("time.sleep")
-    @patch("pyhive.presto.Cursor", autospec=True)
-    def test_run_continues_polling_if_execution_status_unknown(self, mock_cursor, mock_sleep):
-        POLL_INTERVAL = 0.01
-        SLEEP_ERROR_MSG = "would have blocked"
-        mock_cursor.poll.side_effect = RuntimeError("network partition")
-        mock_sleep.side_effect = RuntimeError(SLEEP_ERROR_MSG)
-        hook = PrestoHook()
+        self.mock_cursor.poll.return_value = "execution unfinished"
+        self.mock_sleep.side_effect = RuntimeError(error_message)
 
-        with self.assertRaises(RuntimeError, msg=SLEEP_ERROR_MSG):
-            hook.run(sql="", poll_interval=POLL_INTERVAL)
-            mock_sleep.assert_called_once_with(POLL_INTERVAL)
+        with self.assertRaises(RuntimeError, msg=error_message):
+            run_args = self.execute_args + [poll_interval]
+            self.hook.run(*run_args)
+
+        self.mock_cursor.execute.assert_called_once_with(*self.execute_args)
+        self.mock_cursor.poll.assert_called_once()
+        self.mock_sleep.assert_called_once_with(poll_interval)
+
+    def test_run_continues_polling_if_presto_unreachable(self):
+        poll_interval = 1
+        error_message = "would have slept"
+
+        self.mock_cursor.poll.side_effect = RequestException("network partition")
+        self.mock_sleep.side_effect = RuntimeError(error_message)
+
+        with self.assertRaises(RuntimeError, msg=error_message):
+            run_args = self.execute_args + [poll_interval]
+            self.hook.run(*run_args)
+
+        self.mock_cursor.execute.assert_called_once_with(*self.execute_args)
+        self.mock_cursor.poll.assert_called_once()
+        self.mock_sleep.assert_called_once_with(poll_interval)
