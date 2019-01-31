@@ -22,6 +22,8 @@ import time
 from googleapiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
+NUM_RETRIES = 5
+
 
 class DatastoreHook(GoogleCloudBaseHook):
     """
@@ -57,7 +59,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         resp = self.connection.projects().allocateIds(
             projectId=self.project_id, body={'keys': partialKeys}
-        ).execute()
+        ).execute(num_retries=NUM_RETRIES)
         return resp['keys']
 
     def begin_transaction(self):
@@ -70,7 +72,9 @@ class DatastoreHook(GoogleCloudBaseHook):
         :return: a transaction handle
         """
         resp = self.connection.projects().beginTransaction(
-            projectId=self.project_id, body={}).execute()
+            projectId=self.project_id, body={})\
+            .execute(num_retries=NUM_RETRIES)
+
         return resp['transaction']
 
     def commit(self, body):
@@ -84,7 +88,9 @@ class DatastoreHook(GoogleCloudBaseHook):
         :return: the response body of the commit request
         """
         resp = self.connection.projects().commit(
-            projectId=self.project_id, body=body).execute()
+            projectId=self.project_id, body=body)\
+            .execute(num_retries=NUM_RETRIES)
+
         return resp
 
     def lookup(self, keys, read_consistency=None, transaction=None):
@@ -106,7 +112,9 @@ class DatastoreHook(GoogleCloudBaseHook):
         if transaction:
             body['transaction'] = transaction
         return self.connection.projects().lookup(
-            projectId=self.project_id, body=body).execute()
+            projectId=self.project_id, body=body)\
+            .execute(num_retries=NUM_RETRIES)
+
 
     def rollback(self, transaction):
         """
@@ -118,8 +126,9 @@ class DatastoreHook(GoogleCloudBaseHook):
         :param transaction: the transaction to roll back
         """
         self.connection.projects().rollback(
-            projectId=self.project_id, body={'transaction': transaction})\
-            .execute()
+            projectId=self.project_id, body={'transaction': transaction}) \
+            .execute(num_retries=NUM_RETRIES)
+
 
     def run_query(self, body):
         """
@@ -132,7 +141,9 @@ class DatastoreHook(GoogleCloudBaseHook):
         :return: the batch of query results.
         """
         resp = self.connection.projects().runQuery(
-            projectId=self.project_id, body=body).execute()
+            projectId=self.project_id, body=body)\
+            .execute(num_retries=NUM_RETRIES)
+
         return resp['batch']
 
     def get_operation(self, name):
@@ -141,7 +152,9 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         :param name: the name of the operation resource
         """
-        resp = self.connection.projects().operations().get(name=name).execute()
+        resp = self.connection.projects().operations().get(name=name)\
+            .execute(num_retries=NUM_RETRIES)
+
         return resp
 
     def delete_operation(self, name):
@@ -150,7 +163,9 @@ class DatastoreHook(GoogleCloudBaseHook):
 
         :param name: the name of the operation resource
         """
-        resp = self.connection.projects().operations().delete(name=name).execute()
+        resp = self.connection.projects().operations().delete(name=name)\
+            .execute(num_retries=NUM_RETRIES)
+
         return resp
 
     def poll_operation_until_done(self, name, polling_interval_in_seconds):
@@ -183,7 +198,9 @@ class DatastoreHook(GoogleCloudBaseHook):
             'labels': labels,
         }
         resp = self.admin_connection.projects().export(
-            projectId=self.project_id, body=body).execute()
+            projectId=self.project_id, body=body)\
+            .execute(num_retries=NUM_RETRIES)
+
         return resp
 
     def import_from_storage_bucket(self, bucket, file,
@@ -202,5 +219,7 @@ class DatastoreHook(GoogleCloudBaseHook):
             'labels': labels,
         }
         resp = self.admin_connection.projects().import_(
-            projectId=self.project_id, body=body).execute()
+            projectId=self.project_id, body=body)\
+            .execute(num_retries=NUM_RETRIES)
+
         return resp

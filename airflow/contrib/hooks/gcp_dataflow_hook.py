@@ -32,6 +32,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
+NUM_RETRIES = 5
+
 
 class _DataflowJob(LoggingMixin):
     def __init__(self, dataflow, project_number, name, location, poll_sleep=10,
@@ -286,7 +288,7 @@ class DataFlowHook(GoogleCloudBaseHook):
             gcsPath=dataflow_template,
             body=body
         )
-        response = request.execute()
+        response = request.execute(num_retries=NUM_RETRIES)
         variables = self._set_variables(variables)
         _DataflowJob(self.get_conn(), variables['project'], name, variables['region'],
                      self.poll_sleep).wait_for_done()

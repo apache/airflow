@@ -35,6 +35,9 @@ def _b64decode(s):
     return base64.b64decode(s.encode('utf-8'))
 
 
+NUM_RETRIES = 5
+
+
 class GoogleCloudKMSHook(GoogleCloudBaseHook):
     """
     Interact with Google Cloud KMS. This hook uses the Google Cloud Platform
@@ -76,7 +79,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
             body['additionalAuthenticatedData'] = _b64encode(authenticated_data)
 
         request = keys.encrypt(name=key_name, body=body)
-        response = request.execute()
+        response = request.execute(num_retries=NUM_RETRIES)
 
         ciphertext = response['ciphertext']
         return ciphertext
@@ -102,7 +105,7 @@ class GoogleCloudKMSHook(GoogleCloudBaseHook):
             body['additionalAuthenticatedData'] = _b64encode(authenticated_data)
 
         request = keys.decrypt(name=key_name, body=body)
-        response = request.execute()
+        response = request.execute(num_retries=NUM_RETRIES)
 
         plaintext = _b64decode(response['plaintext'])
         return plaintext

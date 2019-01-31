@@ -34,6 +34,8 @@ from airflow.version import version
 from googleapiclient.errors import HttpError
 from airflow.utils import timezone
 
+NUM_RETRIES = 5
+
 
 class DataprocClusterCreateOperator(BaseOperator):
     """
@@ -226,7 +228,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         result = service.projects().regions().clusters().list(
             projectId=self.project_id,
             region=self.region
-        ).execute()
+        ).execute(num_retries=NUM_RETRIES)
         return result.get('clusters', [])
 
     def _get_cluster(self, service):
@@ -424,7 +426,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                 projectId=self.project_id,
                 region=self.region,
                 body=cluster_data
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
         except HttpError as e:
             # probably two cluster start commands at the same time
             time.sleep(10)
@@ -519,7 +521,7 @@ class DataprocClusterScaleOperator(BaseOperator):
             try:
                 response = service.projects().regions().operations().get(
                     name=operation_name
-                ).execute()
+                ).execute(num_retries=NUM_RETRIES)
 
                 if 'done' in response and response['done']:
                     if 'error' in response:
@@ -584,7 +586,7 @@ class DataprocClusterScaleOperator(BaseOperator):
             updateMask=update_mask,
             body=scaling_cluster_data,
             **self.optional_arguments
-        ).execute()
+        ).execute(num_retries=NUM_RETRIES)
         operation_name = response['name']
         self.log.info("Cluster scale operation name: %s", operation_name)
         self._wait_for_done(service, operation_name)
@@ -635,7 +637,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
         while True:
             response = service.projects().regions().operations().get(
                 name=operation_name
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES))
 
             if 'done' in response and response['done']:
                 if 'error' in response:
@@ -656,7 +658,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
             projectId=self.project_id,
             region=self.region,
             clusterName=self.cluster_name
-        ).execute()
+        ).execute(num_retries=NUM_RETRIES)
         operation_name = response['name']
         self.log.info("Cluster delete operation name: %s", operation_name)
         self._wait_for_done(service, operation_name)
@@ -1419,7 +1421,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
                 name=('projects/%s/regions/%s/workflowTemplates/%s' %
                       (self.project_id, self.region, self.template_id)),
                 body={'instanceId': str(uuid.uuid4())})
-            .execute())
+            .execute(num_retries=NUM_RETRIES)
 
 
 class DataprocWorkflowTemplateInstantiateInlineOperator(
@@ -1463,4 +1465,4 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
                 parent='projects/%s/regions/%s' % (self.project_id, self.region),
                 instanceId=str(uuid.uuid4()),
                 body=self.template)
-            .execute())
+            .execute(num_retries=NUM_RETRIES))

@@ -26,6 +26,8 @@ from zope.deprecation import deprecation
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+NUM_RETRIES = 5
+
 
 class _DataProcJob(LoggingMixin):
     def __init__(self, dataproc_api, project_id, job, region='global',
@@ -36,7 +38,7 @@ class _DataProcJob(LoggingMixin):
         self.job = dataproc_api.projects().regions().jobs().submit(
             projectId=self.project_id,
             region=self.region,
-            body=job).execute()
+            body=job).execute(num_retries=NUM_RETRIES)
         self.job_id = self.job['reference']['jobId']
         self.job_error_states = job_error_states
         self.log.info(

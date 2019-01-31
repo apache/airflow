@@ -29,6 +29,8 @@ import shutil
 import re
 import os
 
+NUM_RETRIES = 5
+
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
     """
@@ -89,7 +91,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 .copy(sourceBucket=source_bucket, sourceObject=source_object,
                       destinationBucket=destination_bucket,
                       destinationObject=destination_object, body='') \
-                .execute()
+                .execute(num_retries=NUM_RETRIES)
+
             return True
         except HttpError as ex:
             if ex.resp['status'] == '404':
@@ -132,7 +135,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 .rewrite(sourceBucket=source_bucket, sourceObject=source_object,
                          destinationBucket=destination_bucket,
                          destinationObject=destination_object, body='') \
-                .execute()
+                .execute(num_retries=NUM_RETRIES)
             self.log.info('Rewrite request #%s: %s', request_count, result)
             while not result['done']:
                 request_count += 1
@@ -141,7 +144,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                              destinationBucket=destination_bucket,
                              destinationObject=destination_object,
                              rewriteToken=result['rewriteToken'], body='') \
-                    .execute()
+                    .execute(num_retries=NUM_RETRIES)
                 self.log.info('Rewrite request #%s: %s', request_count, result)
             return True
         except HttpError as ex:
@@ -165,7 +168,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         downloaded_file_bytes = service \
             .objects() \
             .get_media(bucket=bucket, object=object) \
-            .execute()
+            .execute(num_retries=NUM_RETRIES)
 
         # Write the file to local file path, if requested.
         if filename:
@@ -266,7 +269,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             service \
                 .objects() \
                 .get(bucket=bucket, object=object) \
-                .execute()
+                .execute(num_retries=NUM_RETRIES)
             return True
         except HttpError as ex:
             if ex.resp['status'] == '404':
@@ -291,7 +294,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             response = (service
                         .objects()
                         .get(bucket=bucket, object=object)
-                        .execute())
+                        .execute(num_retries=NUM_RETRIES))
 
             if 'updated' in response:
                 import dateutil.parser
@@ -331,7 +334,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             service \
                 .objects() \
                 .delete(bucket=bucket, object=object, generation=generation) \
-                .execute()
+                .execute(num_retries=NUM_RETRIES)
             return True
         except HttpError as ex:
             if ex.resp['status'] == '404':
@@ -367,7 +370,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 pageToken=pageToken,
                 prefix=prefix,
                 delimiter=delimiter
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
 
             if 'prefixes' not in response:
                 if 'items' not in response:
@@ -409,7 +412,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             response = service.objects().get(
                 bucket=bucket,
                 object=object
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
 
             if 'name' in response and response['name'][-1] != '/':
                 # Remove Directories & Just check size of files
@@ -439,7 +442,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             response = service.objects().get(
                 bucket=bucket,
                 object=object
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
 
             crc32c = response['crc32c']
             self.log.info('The crc32c checksum of %s is %s', object, crc32c)
@@ -466,7 +469,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             response = service.objects().get(
                 bucket=bucket,
                 object=object
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
 
             md5hash = response['md5Hash']
             self.log.info('The md5Hash of %s is %s', object, md5hash)
@@ -558,7 +561,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             response = service.buckets().insert(
                 project=project_id,
                 body=bucket_resource
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
 
             self.log.info('Bucket: %s created successfully.', bucket_name)
 
@@ -598,7 +601,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     "role": role
                 },
                 userProject=user_project
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
             if response:
                 self.log.info('A new ACL entry created in bucket: %s', bucket)
         except HttpError as ex:
@@ -646,7 +649,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 },
                 generation=generation,
                 userProject=user_project
-            ).execute()
+            ).execute(num_retries=NUM_RETRIES)
+
             if response:
                 self.log.info('A new ACL entry created for object: %s in bucket: %s',
                               object_name, bucket)

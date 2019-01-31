@@ -21,6 +21,8 @@ from googleapiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+NUM_RETRIES = 5
+
 
 def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
     log = LoggingMixin().log
@@ -97,7 +99,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         job_id = job['jobId']
 
         try:
-            request.execute()
+            request.execute(num_retries=NUM_RETRIES)
         except HttpError as e:
             # 409 means there is an existing job with the same job ID.
             if e.resp.status == 409:
@@ -134,7 +136,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         request = self._mlengine.projects().jobs().get(name=job_name)
         while True:
             try:
-                return request.execute()
+                return request.execute(num_retries=NUM_RETRIES)
             except HttpError as e:
                 if e.resp.status == 429:
                     # polling after 30 seconds when quota failure occurs
@@ -172,7 +174,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         parent_name = 'projects/{}/models/{}'.format(project_id, model_name)
         create_request = self._mlengine.projects().models().versions().create(
             parent=parent_name, body=version_spec)
-        response = create_request.execute()
+        response = create_request.execute(num_retries=NUM_RETRIES)
         get_request = self._mlengine.projects().operations().get(
             name=response['name'])
 
@@ -192,7 +194,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             name=full_version_name, body={})
 
         try:
-            response = request.execute()
+            response = request.execute(num_retries=NUM_RETRIES)
             self.log.info('Successfully set version: %s to default', response)
             return response
         except HttpError as e:
@@ -209,7 +211,7 @@ class MLEngineHook(GoogleCloudBaseHook):
         request = self._mlengine.projects().models().versions().list(
             parent=full_parent_name, pageSize=100)
 
-        response = request.execute()
+        response = request.execute(num_retries=NUM_RETRIES)
         next_page_token = response.get('nextPageToken', None)
         result.extend(response.get('versions', []))
         while next_page_token is not None:
@@ -217,7 +219,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                 parent=full_parent_name,
                 pageToken=next_page_token,
                 pageSize=100)
-            response = next_request.execute()
+            response = next_request.execute(num_retries=NUM_RETRIES)
             next_page_token = response.get('nextPageToken', None)
             result.extend(response.get('versions', []))
             time.sleep(5)
@@ -231,7 +233,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             project_id, model_name, version_name)
         delete_request = self._mlengine.projects().models().versions().delete(
             name=full_name)
-        response = delete_request.execute()
+        response = delete_request.execute(num_retries=NUM_RETRIES)
         get_request = self._mlengine.projects().operations().get(
             name=response['name'])
 
@@ -252,7 +254,8 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         request = self._mlengine.projects().models().create(
             parent=project, body=model)
-        return request.execute()
+        return request.execute(num_retries=NUM_RETRIES)
+
 
     def get_model(self, project_id, model_name):
         """
@@ -265,7 +268,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             project_id, model_name)
         request = self._mlengine.projects().models().get(name=full_model_name)
         try:
-            return request.execute()
+            return request.execute(num_retries=NUM_RETRIES)
         except HttpError as e:
             if e.resp.status == 404:
                 self.log.error('Model was not found: %s', e)
