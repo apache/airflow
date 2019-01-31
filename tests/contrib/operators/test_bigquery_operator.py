@@ -25,6 +25,7 @@ import six
 
 from airflow import configuration, models
 from airflow.models import TaskInstance, DAG
+from airflow.models.taskfail import TaskFail
 
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
@@ -178,7 +179,7 @@ class BigQueryOperatorTest(unittest.TestCase):
         session = Session()
         session.query(models.TaskInstance).filter_by(
             dag_id=TEST_DAG_ID).delete()
-        session.query(models.TaskFail).filter_by(
+        session.query(TaskFail).filter_by(
             dag_id=TEST_DAG_ID).delete()
         session.commit()
         session.close()

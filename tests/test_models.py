@@ -56,6 +56,7 @@ from airflow.models import XCom
 from airflow.models import Variable
 from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
+from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -1988,7 +1989,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     def tearDown(self):
         with create_session() as session:
-            session.query(models.TaskFail).delete()
+            session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
             session.query(models.TaskInstance).delete()
 
