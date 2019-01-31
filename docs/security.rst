@@ -424,3 +424,152 @@ command, or as a configuration item in your ``airflow.cfg``. For both cases, ple
 
     [celery]
     flower_basic_auth = user1:password1,user2:password2
+
+
+RBAC UI Security
+----------------
+
+Security of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
+Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+regarding its security model.
+
+Default Roles
+'''''''''''''
+Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
+Only ``Admin`` users could configure/alter the permissions for other roles. But it is not recommended
+that ``Admin`` users alter these default roles in any way by removing
+or adding permissions to these roles.
+
+Admin
+^^^^^
+``Admin`` users have all possible permissions, including granting or revoking permissions from
+other users.
+
+Public
+^^^^^^
+``Public`` users (anonymous) don't have any permissions.
+
+Viewer
+^^^^^^
+``Viewer`` users have limited viewer permissions
+
+.. code:: python
+
+    VIEWER_PERMS = {
+        'menu_access',
+        'can_index',
+        'can_list',
+        'can_show',
+        'can_chart',
+        'can_dag_stats',
+        'can_dag_details',
+        'can_task_stats',
+        'can_code',
+        'can_log',
+        'can_get_logs_with_metadata',
+        'can_tries',
+        'can_graph',
+        'can_tree',
+        'can_task',
+        'can_task_instances',
+        'can_xcom',
+        'can_gantt',
+        'can_landing_times',
+        'can_duration',
+        'can_blocked',
+        'can_rendered',
+        'can_pickle_info',
+        'can_version',
+    }
+
+on limited web views
+
+.. code:: python
+
+    VIEWER_VMS = {
+        'Airflow',
+        'DagModelView',
+        'Browse',
+        'DAG Runs',
+        'DagRunModelView',
+        'Task Instances',
+        'TaskInstanceModelView',
+        'SLA Misses',
+        'SlaMissModelView',
+        'Jobs',
+        'JobModelView',
+        'Logs',
+        'LogModelView',
+        'Docs',
+        'Documentation',
+        'Github',
+        'About',
+        'Version',
+        'VersionView',
+    }
+
+User
+^^^^
+``User`` users have ``Viewer`` permissions plus additional user permissions
+
+.. code:: python
+
+    USER_PERMS = {
+        'can_dagrun_clear',
+        'can_run',
+        'can_trigger',
+        'can_add',
+        'can_edit',
+        'can_delete',
+        'can_paused',
+        'can_refresh',
+        'can_success',
+        'muldelete',
+        'set_failed',
+        'set_running',
+        'set_success',
+        'clear',
+        'can_clear',
+    }
+
+
+on User web views which is the same as Viewer web views.
+
+Op
+^^
+``Op`` users have ``User`` permissions plus additional op permissions
+
+.. code:: python
+
+    OP_PERMS = {
+        'can_conf',
+        'can_varimport',
+    }
+
+on ``User`` web views plus these additional op web views
+
+.. code:: python
+
+    OP_VMS = {
+        'Admin',
+        'Configurations',
+        'ConfigurationView',
+        'Connections',
+        'ConnectionModelView',
+        'Pools',
+        'PoolModelView',
+        'Variables',
+        'VariableModelView',
+        'XComs',
+        'XComModelView',
+    }
+
+Custom Roles
+'''''''''''''
+
+DAG Level Role
+^^^^^^^^^^^^^^
+``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
+is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
+allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+
