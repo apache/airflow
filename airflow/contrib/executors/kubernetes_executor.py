@@ -521,7 +521,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         try:
             return (
-                annotations['dag_id'], annotations['task_id'],
+                annotations['org.apache.airflow/dag_id'], annotations['org.apache.airflow/task_id'],
                 self._label_safe_datestring_to_datetime(labels['execution_date']),
                 try_num,
             )

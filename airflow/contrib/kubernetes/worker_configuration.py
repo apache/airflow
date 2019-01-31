@@ -298,8 +298,8 @@ class WorkerConfiguration(LoggingMixin):
         if gcp_sa_key:
             annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
 
-        annotations['dag_id'] = dag_id
-        annotations['task_id'] = task_id
+        annotations['org.apache.airflow/dag_id'] = dag_id
+        annotations['org.apache.airflow/task_id'] = task_id
 
         volumes = [value for value in volumes_dict.values()] + kube_executor_config.volumes
         volume_mounts = [value for value in volume_mounts_dict.values()] + kube_executor_config.volume_mounts
