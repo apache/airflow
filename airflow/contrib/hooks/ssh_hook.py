@@ -27,10 +27,9 @@ from sshtunnel import SSHTunnelForwarder
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SSHHook(BaseHook, LoggingMixin):
+class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko

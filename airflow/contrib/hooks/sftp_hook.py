@@ -19,7 +19,6 @@
 
 import stat
 import pysftp
-import logging
 import datetime
 from airflow.contrib.hooks.ssh_hook import SSHHook
 
@@ -183,10 +182,9 @@ class SFTPHook(SSHHook):
         :type local_full_path: str
         """
         conn = self.get_conn()
-        logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
+        self.log.info('Retrieving file from FTP: %s', remote_full_path)
         conn.get(remote_full_path, local_full_path)
-        logging.info('Finished retrieving file from FTP: {}'.format(
-            remote_full_path))
+        self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
 
     def store_file(self, remote_full_path, local_full_path):
         """

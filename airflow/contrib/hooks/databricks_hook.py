@@ -26,8 +26,6 @@ from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 from time import sleep
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
 try:
     from urllib import parse as urlparse
 except ImportError:
@@ -44,7 +42,7 @@ CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 
 
-class DatabricksHook(BaseHook, LoggingMixin):
+class DatabricksHook(BaseHook):
     """
     Interact with Databricks.
     """

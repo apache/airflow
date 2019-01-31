@@ -29,7 +29,6 @@ import tempfile
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
@@ -39,7 +38,7 @@ _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 _G_APP_CRED_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
-class GoogleCloudBaseHook(BaseHook, LoggingMixin):
+class GoogleCloudBaseHook(BaseHook):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.

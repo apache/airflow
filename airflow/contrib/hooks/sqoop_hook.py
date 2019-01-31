@@ -25,11 +25,10 @@ import subprocess
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from copy import deepcopy
 
 
-class SqoopHook(BaseHook, LoggingMixin):
+class SqoopHook(BaseHook):
     """
     This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
     it is required that "sqoop" is in the PATH.
