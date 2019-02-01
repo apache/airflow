@@ -282,7 +282,7 @@ def initdb(rbac=False):
             extra='{"database_name": "<DATABASE_NAME>", "collection_name": "<COLLECTION_NAME>" }'))
     merge_conn(
         models.Connection(
-            conn_id='azure_batchai_default', conn_type='azure_batch_ai',
+            conn_id='azure_default', conn_type='azure',
             extra='{"key_path": "<AZURE_AUTH_LOCATION>" }'))
     merge_conn(
         models.Connection(

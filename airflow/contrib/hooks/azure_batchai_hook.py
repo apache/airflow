@@ -33,9 +33,10 @@ class AzureBatchAIHook(BaseHook):
     :type config_data: str
     """
 
-    def __init__(self, azure_batchai_conn_id='azure_batchai_default', config_data=None):
+    @apply_defaults
+    def __init__(self, azure_batchai_conn_id='azure_default', config_data=None):
         self.conn_id = azure_batchai_conn_id
-        self.connection = self.get_conn()
+        self.connection = None
         self.configData = config_data
         self.credentials = None
         self.subscription_id = None
@@ -45,15 +46,6 @@ class AzureBatchAIHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             key_path = conn.extra_dejson.get('key_path', False)
             if key_path:
-                if key_path.endswith('.json'):
-                    self.log.info('Getting connection using a JSON key file.')
-                    return get_client_from_auth_file(BatchAIManagementClient,
-                                                     key_path)
-                else:
-                    raise AirflowException('Unrecognised extension for key file.')
-
-            elif os.environ.get('AZURE_AUTH_LOCATION'):
-                key_path = os.environ.get('AZURE_AUTH_LOCATION')
                 if key_path.endswith('.json'):
                     self.log.info('Getting connection using a JSON key file.')
                     return get_client_from_auth_file(BatchAIManagementClient,

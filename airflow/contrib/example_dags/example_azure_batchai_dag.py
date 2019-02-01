@@ -39,7 +39,7 @@ dag = DAG(
     schedule_interval="@daily")
 
 batch_ai_node = AzureBatchAIOperator(
-    bai_conn_id='azure_batchai_default',
+    bai_conn_id='azure_default',
     resource_group='batch-ai-test-rg',
     workspace_name='batch-ai-workspace-name',
     cluster_name='batch-ai-cluster-name',

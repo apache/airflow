@@ -148,8 +148,8 @@ class AzureBatchAIOperator(BaseOperator):
         last_state = None
         last_message_logged = None
         last_line_logged = None
-        for _ in range(43200):
-            # roughly 12 hours
+        for _ in range(1800):
+            # roughly 30 minutes
             try:
                 state, exit_code = batch_ai_hook.get_state_exitcode(self.resource_group,
                                                                     self.workspace_name,

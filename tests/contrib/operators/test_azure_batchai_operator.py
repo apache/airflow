@@ -47,7 +47,7 @@ class TestAzureBatchAIOperator(unittest.TestCase):
         configuration.load_test_config()
 
         self.azure_batchai_hook_mock = azure_batchai_hook_mock(CONFIG_DATA)
-        self.batch = AzureBatchAIOperator('azure_batchai_default',
+        self.batch = AzureBatchAIOperator('azure_default',
                                           'batch-ai-test-rg',
                                           'batch-ai-workspace',
                                           'batch-ai-cluster',
@@ -60,7 +60,7 @@ class TestAzureBatchAIOperator(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.azure_batchai_operator.AzureBatchAIHook')
     def test_execute(self, abai_mock):
         abai_mock.return_value.get_state_exitcode.return_value = 'Terminated', 0
-        self.batch = AzureBatchAIOperator('azure_batchai_default',
+        self.batch = AzureBatchAIOperator('azure_default',
                                           'batch-ai-test-rg',
                                           'batch-ai-workspace',
                                           'batch-ai-cluster',
