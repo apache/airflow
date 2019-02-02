@@ -76,37 +76,40 @@ TEST_DAGS_FOLDER = os.path.join(
 
 class DagTest(unittest.TestCase):
 
-    def setUp(self):
-        self.appbuilder = self._init_appbuilder()
-        self.sm = self.appbuilder.sm
-        role_public = self.sm.find_role('Public')
-        self.test_user = self.sm.find_user(username='test-user')
-        if not self.test_user:
-            self.test_user = self.sm.add_user(
+    @classmethod
+    def setUpClass(cls):
+        cls.appbuilder = cls._init_appbuilder()
+        cls.sm = cls.appbuilder.sm
+        role_public = cls.sm.find_role('Public')
+        cls.test_user = cls.sm.find_user(username='test-user')
+        if not cls.test_user:
+            cls.test_user = cls.sm.add_user(
                 'test-user', 'test', 'user', 'test@fab.org', role_public)
 
-    def _init_appbuilder(self):
+    @classmethod
+    def _init_appbuilder(cls):
         from flask import Flask
         from flask_appbuilder import AppBuilder, SQLA
         from airflow.www.security import AirflowSecurityManager
-        self.app = Flask(__name__)
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
-        self.app.config['SECRET_KEY'] = 'secret_key'
-        self.app.config['CSRF_ENABLED'] = False
-        self.app.config['WTF_CSRF_ENABLED'] = False
-        self.db = SQLA(self.app)
-        appbuilder = AppBuilder(self.app,
-                                self.db.session,
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
+        app.config['SECRET_KEY'] = 'secret_key'
+        app.config['CSRF_ENABLED'] = False
+        app.config['WTF_CSRF_ENABLED'] = False
+        db = SQLA(app)
+        appbuilder = AppBuilder(app,
+                                db.session,
                                 security_manager_class=AirflowSecurityManager)
 
-        self.sm_patcher = patch('airflow.models.cached_appbuilder')
-        cached_appbuilder = self.sm_patcher.start()
+        cls.sm_patcher = patch('airflow.models.cached_appbuilder')
+        cached_appbuilder = cls.sm_patcher.start()
         cached_appbuilder.return_value = appbuilder
         return appbuilder
 
-    def tearDown(self):
-        self.sm_patcher.stop()
-        self.sm.del_register_user(self.test_user)
+    @classmethod
+    def tearDownClass(cls):
+        cls.sm_patcher.stop()
+        cls.sm.del_register_user(cls.test_user)
 
     def test_params_not_passed_is_empty_dict(self):
         """

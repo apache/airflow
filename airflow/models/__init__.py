@@ -108,7 +108,7 @@ from airflow.utils.weight_rule import WeightRule
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import cached_appbuilder
-from airflow.www.security import DAG_PERMS
+from airflow.security.rbac import DAG_PERMS
 
 install_aliases()
 
