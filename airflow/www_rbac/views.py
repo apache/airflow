@@ -55,6 +55,7 @@ from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_suc
                                                         set_dag_run_state_to_failed)
 from airflow.models import XCom, DagRun, errors, DagModel
 from airflow.models.connection import Connection
+from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
@@ -2277,7 +2278,7 @@ class DagRunModelView(AirflowModelView):
 class LogModelView(AirflowModelView):
     route_base = '/log'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.Log)
+    datamodel = AirflowModelView.CustomSQLAInterface(Log)
 
     base_permissions = ['can_list']
 
