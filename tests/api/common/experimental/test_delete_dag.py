@@ -30,7 +30,7 @@ from airflow.utils.state import State
 DM = models.DagModel
 DR = models.DagRun
 TI = models.TaskInstance
-LOG = models.Log
+LOG = models.log.Log
 
 
 class TestDeleteDAGCatchError(unittest.TestCase):

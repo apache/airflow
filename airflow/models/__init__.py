@@ -84,6 +84,7 @@ from airflow.exceptions import (
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
+from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -1854,50 +1855,6 @@ class TaskInstance(Base, LoggingMixin):
         """
         self.raw = raw
         self._set_context(self)
-
-
-class Log(Base):
-    """
-    Used to actively log events to the database
-    """
-
-    __tablename__ = "log"
-
-    id = Column(Integer, primary_key=True)
-    dttm = Column(UtcDateTime)
-    dag_id = Column(String(ID_LEN))
-    task_id = Column(String(ID_LEN))
-    event = Column(String(30))
-    execution_date = Column(UtcDateTime)
-    owner = Column(String(500))
-    extra = Column(Text)
-
-    __table_args__ = (
-        Index('idx_log_dag', dag_id),
-    )
-
-    def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
-        self.dttm = timezone.utcnow()
-        self.event = event
-        self.extra = extra
-
-        task_owner = None
-
-        if task_instance:
-            self.dag_id = task_instance.dag_id
-            self.task_id = task_instance.task_id
-            self.execution_date = task_instance.execution_date
-            task_owner = task_instance.task.owner
-
-        if 'task_id' in kwargs:
-            self.task_id = kwargs['task_id']
-        if 'dag_id' in kwargs:
-            self.dag_id = kwargs['dag_id']
-        if 'execution_date' in kwargs:
-            if kwargs['execution_date']:
-                self.execution_date = kwargs['execution_date']
-
-        self.owner = owner or task_owner
 
 
 class SkipMixin(LoggingMixin):
