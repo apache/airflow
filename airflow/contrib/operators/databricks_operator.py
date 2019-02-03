@@ -37,7 +37,7 @@ def _deep_string_coerce(content, json_path='json'):
     function will throw if content contains non-string or non-numeric types.
 
     The reason why we have this function is because the ``self.json`` field must be a
-     dict with only string values. This is because ``render_template`` will fail
+    dict with only string values. This is because ``render_template`` will fail
     for numerical values.
     """
     c = _deep_string_coerce
@@ -302,6 +302,7 @@ class DatabricksRunNowOperator(BaseOperator):
     to call the ``api/2.0/jobs/run-now`` endpoint and pass it directly
     to our ``DatabricksRunNowOperator`` through the ``json`` parameter.
     For example ::
+
         json = {
           "job_id": 42,
           "notebook_params": {
@@ -349,6 +350,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     :param job_id: the job_id of the existing Databricks job.
         This field will be templated.
+
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type job_id: str
@@ -396,6 +398,7 @@ class DatabricksRunNowOperator(BaseOperator):
         in job setting.
         The json representation of this field cannot exceed 10,000 bytes.
         This field will be templated.
+
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
     :type spark_submit_params: array of strings
