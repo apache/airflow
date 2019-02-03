@@ -761,6 +761,9 @@ class HiveServer2Hook(BaseHook):
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
     def get_conn(self, schema=None):
+        """
+        Returns a Hive connection object.
+        """
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
         if auth_mechanism == 'NONE' and db.login is None:
@@ -836,11 +839,17 @@ class HiveServer2Hook(BaseHook):
     def get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
         """
         Get results of the provided hql in target schema.
+
         :param hql: hql to be executed.
+        :type hql: str or list
         :param schema: target schema, default to 'default'.
-        :param fetch_size max size of result to fetch.
+        :type schema: str
+        :param fetch_size max: size of result to fetch.
+        :type fetch_size_max: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :return: results of hql execution.
+        :type hive_conf: dict
+        :return: results of hql execution, dict with data (list of results) and header
+        :rtype: dict
         """
         results_iter = self._get_results(hql, schema,
                                          fetch_size=fetch_size, hive_conf=hive_conf)
@@ -863,15 +872,24 @@ class HiveServer2Hook(BaseHook):
             hive_conf=None):
         """
         Execute hql in target schema and write results to a csv file.
+
         :param hql: hql to be executed.
+        :type hql: str or list
         :param csv_filepath: filepath of csv to write results into.
+        :type csv_filepath: str
         :param schema: target schema, default to 'default'.
-        :param delimiter: delimiter of the csv file.
+        :type schema: str
+        :param delimiter: delimiter of the csv file, default to ','.
+        :type delimiter: str
         :param lineterminator: lineterminator of the csv file.
-        :param output_header: header of the csv file.
-        :param fetch_size: number of result rows to write into the csv file.
+        :type lineterminator: str
+        :param output_header: header of the csv file, default to True.
+        :type output_header: bool
+        :param fetch_size: number of result rows to write into the csv file, default to 1000.
+        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :return:
+        :type hive_conf: dict
+
         """
 
         results_iter = self._get_results(hql, schema,
@@ -907,6 +925,15 @@ class HiveServer2Hook(BaseHook):
         """
         Get a set of records from a Hive query.
 
+        :param hql: hql to be executed.
+        :type hql: str or list
+        :param schema: target schema, default to 'default'.
+        :type schema: str
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :type hive_conf: dict
+        :return: result of hive execution
+        :rtype: list
+
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
         >>> len(hh.get_records(sql))
@@ -917,6 +944,13 @@ class HiveServer2Hook(BaseHook):
     def get_pandas_df(self, hql, schema='default'):
         """
         Get a pandas dataframe from a Hive query
+
+        :param hql: hql to be executed.
+        :type hql: str or list
+        :param schema: target schema, default to 'default'.
+        :type schema: str
+        :return: result of hql execution
+        :rtype: DataFrame
 
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
