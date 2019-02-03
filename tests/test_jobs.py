@@ -138,11 +138,17 @@ class BackfillJobTest(unittest.TestCase):
             session.query(models.TaskInstance).delete()
             session.query(models.DagEdge).delete()
             session.query(models.Pool).delete()
+            session.query(models.DagPickle).delete()
 
     def setUp(self):
+        configuration.conf.set("core", "donot_pickle", "True")
         self.clear_runs()
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
+
+    def tearDown(self):
+        d = configuration.conf.airflow_defaults.get("core", "donot_pickle")
+        configuration.conf.set("core", "donot_pickle", d)
 
     @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
@@ -243,6 +249,7 @@ class BackfillJobTest(unittest.TestCase):
             job.run()
 
     def test_backfill_conf(self):
+        self.clear_runs()
         dag = DAG(
             dag_id='test_backfill_conf',
             start_date=DEFAULT_DATE,
