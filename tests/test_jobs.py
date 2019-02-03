@@ -131,7 +131,15 @@ class BaseJobTest(unittest.TestCase):
 
 class BackfillJobTest(unittest.TestCase):
 
+    def clear_runs(self):
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.TaskInstance).delete()
+            session.query(models.DagEdge).delete()
+            session.query(models.Pool).delete()
+
     def setUp(self):
+        self.clear_runs()
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
 
@@ -237,8 +245,11 @@ class BackfillJobTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_backfill_conf',
             start_date=DEFAULT_DATE,
-            schedule_interval='@daily')
+            schedule_interval='@daily',
+            default_args={'owner': 'owner1'}
+        )
 
+        configuration
         with dag:
             DummyOperator(
                 task_id='op',
@@ -468,10 +479,10 @@ class BackfillJobTest(unittest.TestCase):
         """
         Test that queued tasks are executed by BackfillJob
         """
-        session = settings.Session()
+        self.clear_runs()
         pool = Pool(pool='test_backfill_pooled_task_pool', slots=1)
-        session.add(pool)
-        session.commit()
+        with create_session() as session:
+            session.add(pool)
 
         dag = self.dagbag.get_dag('test_backfill_pooled_task_dag')
         dag.clear()
@@ -496,7 +507,9 @@ class BackfillJobTest(unittest.TestCase):
         """
         Test that backfill respects ignore_depends_on_past
         """
+        self.clear_runs()
         dag = self.dagbag.get_dag('test_depends_on_past')
+        dag.sync_to_db()
         dag.clear()
         run_date = DEFAULT_DATE + datetime.timedelta(days=5)
 
@@ -597,6 +610,7 @@ class BackfillJobTest(unittest.TestCase):
         """
         Test that CLI respects -I argument
         """
+        self.clear_runs()
         dag_id = 'test_dagrun_states_deadlock'
         run_date = DEFAULT_DATE + datetime.timedelta(days=1)
         args = [
@@ -607,6 +621,7 @@ class BackfillJobTest(unittest.TestCase):
             run_date.isoformat(),
         ]
         dag = self.dagbag.get_dag(dag_id)
+        dag.sync_to_db()
         dag.clear()
 
         self.assertRaisesRegexp(
@@ -680,6 +695,7 @@ class BackfillJobTest(unittest.TestCase):
         self.assertTrue(all([run.state == State.SUCCESS for run in dagruns]))
 
     def test_backfill_max_limit_check(self):
+        self.clear_runs()
         dag_id = 'test_backfill_max_limit_check'
         run_id = 'test_dagrun'
         start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
@@ -750,6 +766,7 @@ class BackfillJobTest(unittest.TestCase):
             dag_run_created_cond.release()
 
     def test_backfill_max_limit_check_no_count_existing(self):
+        self.clear_runs()
         dag = self._get_dag_test_max_active_limits(
             'test_backfill_max_limit_check_no_count_existing')
         start_date = DEFAULT_DATE
@@ -848,6 +865,7 @@ class BackfillJobTest(unittest.TestCase):
                 self.assertEqual(State.NONE, ti.state)
 
     def test_backfill_fill_blanks(self):
+        self.clear_runs()
         dag = DAG(
             'test_backfill_fill_blanks',
             start_date=DEFAULT_DATE,
