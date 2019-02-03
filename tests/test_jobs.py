@@ -250,7 +250,6 @@ class BackfillJobTest(unittest.TestCase):
             default_args={'owner': 'owner1'}
         )
 
-        configuration
         with dag:
             DummyOperator(
                 task_id='op',
