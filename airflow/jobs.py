@@ -44,6 +44,7 @@ from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, errors
 from airflow.models.dagpickle import DagPickle
+from airflow.models.slamiss import SlaMiss
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -63,7 +64,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
 Base = models.base.Base
-ID_LEN = models.ID_LEN
+ID_LEN = models.base.ID_LEN
 
 
 class BaseJob(Base, LoggingMixin):
@@ -644,7 +645,6 @@ class SchedulerJob(BaseJob):
         ).all()
 
         ts = timezone.utcnow()
-        SlaMiss = models.SlaMiss
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
@@ -653,7 +653,7 @@ class SchedulerJob(BaseJob):
                 while dttm < timezone.utcnow():
                     following_schedule = dag.following_schedule(dttm)
                     if following_schedule + task.sla < timezone.utcnow():
-                        session.merge(models.SlaMiss(
+                        session.merge(SlaMiss(
                             task_id=ti.task_id,
                             dag_id=ti.dag_id,
                             execution_date=dttm,
@@ -1451,7 +1451,8 @@ class SchedulerJob(BaseJob):
                                    .items()):
             dag_id, task_id, execution_date, try_number = key
             self.log.info(
-                "Executor reports %s.%s execution_date=%s as %s for try_number %s",
+                "Executor reports execution of %s.%s execution_date=%s "
+                "exited with status %s for try_number %s",
                 dag_id, task_id, execution_date, state, try_number
             )
             if state == State.FAILED or state == State.SUCCESS:

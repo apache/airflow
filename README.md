@@ -146,6 +146,7 @@ Currently **officially** using Airflow:
 1. [BounceX](http://www.bouncex.com) [[@JoshFerge](https://github.com/JoshFerge), [@hudsonrio](https://github.com/hudsonrio), [@ronniekritou](https://github.com/ronniekritou)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
 1. [California Data Collaborative](https://github.com/California-Data-Collaborative) powered by [ARGO Labs](http://www.argolabs.org)
+1. [Capital One](https://www.capitalone.com) [[@anoopengineer](https://github.com/anoopengineer)]
 1. [Carbonite](https://www.carbonite.com) [[@ajbosco](https://github.com/ajbosco)]
 1. [CarLabs](https://www.carlabs.ai/) [[@sganz](https://github.com/sganz) & [@odannyc](https://github.com/odannyc)]
 1. [CAVA](https://www.cava.com) [[@minh5](http://github.com/minh5) & [@patchus](http://github.com/patchus)]
@@ -320,6 +321,7 @@ Currently **officially** using Airflow:
 1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
 1. [Tictail](https://tictail.com/)
 1. [Tile](https://tile.com/) [[@ranjanmanish](https://github.com/ranjanmanish)]
+1. [Tinder](https://tinder.com/) [[@kbendick](https://github.com/kbendick)]
 1. [Tokopedia](https://www.tokopedia.com/) [@topedmaria](https://github.com/topedmaria)
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]

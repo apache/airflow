@@ -24,10 +24,9 @@ from winrm.protocol import Protocol
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class WinRMHook(BaseHook, LoggingMixin):
+class WinRMHook(BaseHook):
     """
     Hook for winrm remote execution using pywinrm.
 
