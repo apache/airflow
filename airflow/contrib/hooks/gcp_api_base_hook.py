@@ -159,6 +159,7 @@ class GoogleCloudBaseHook(BaseHook):
     def project_id(self):
         return self._get_field('project')
 
+    @staticmethod
     def fallback_to_default_project_id(func):
         """
         Decorator that provides fallback for Google Cloud Platform project id. If
@@ -175,10 +176,9 @@ class GoogleCloudBaseHook(BaseHook):
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than"
                     " positional")
-            if 'project_id' in kwargs:
-                kwargs['project_id'] = self._get_project_id(kwargs['project_id'])
-            else:
-                kwargs['project_id'] = self._get_project_id(None)
+
+            kwargs['project_id'] = kwargs.get('project_id', self.project_id)
+
             if not kwargs['project_id']:
                 raise AirflowException("The project id must be passed either as "
                                        "keyword project_id parameter or as project_id extra "
@@ -186,43 +186,27 @@ class GoogleCloudBaseHook(BaseHook):
             return func(self, *args, **kwargs)
         return inner_wrapper
 
-    fallback_to_default_project_id = staticmethod(fallback_to_default_project_id)
-
-    def _get_project_id(self, project_id):
+    @staticmethod
+    def provide_gcp_credential_file(func):
         """
-        In case project_id is None, overrides it with default project_id from
-        the service account that is authorized.
-
-        :param project_id: project id to
-        :type project_id: str
-        :return: the project_id specified or default project id if project_id is None
+        Function decorator that provides a GOOGLE_APPLICATION_CREDENTIALS
+        environment variable, pointing to file path of a JSON file of service
+        account key.
         """
-        return project_id if project_id else self.project_id
-
-    class _Decorators(object):
-        """A private inner class for keeping all decorator methods."""
-
-        @staticmethod
-        def provide_gcp_credential_file(func):
-            """
-            Function decorator that provides a GOOGLE_APPLICATION_CREDENTIALS
-            environment variable, pointing to file path of a JSON file of service
-            account key.
-            """
-            @functools.wraps(func)
-            def wrapper(self, *args, **kwargs):
-                with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
-                    key_path = self._get_field('key_path', False)
-                    keyfile_dict = self._get_field('keyfile_dict', False)
-                    if key_path:
-                        if key_path.endswith('.p12'):
-                            raise AirflowException(
-                                'Legacy P12 key file are not supported, '
-                                'use a JSON key file.')
-                        os.environ[_G_APP_CRED_ENV_VAR] = key_path
-                    elif keyfile_dict:
-                        conf_file.write(keyfile_dict)
-                        conf_file.flush()
-                        os.environ[_G_APP_CRED_ENV_VAR] = conf_file.name
-                    return func(self, *args, **kwargs)
-            return wrapper
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            with tempfile.NamedTemporaryFile(mode='w+t') as conf_file:
+                key_path = self._get_field('key_path', False)
+                keyfile_dict = self._get_field('keyfile_dict', False)
+                if key_path:
+                    if key_path.endswith('.p12'):
+                        raise AirflowException(
+                            'Legacy P12 key file are not supported, '
+                            'use a JSON key file.')
+                    os.environ[_G_APP_CRED_ENV_VAR] = key_path
+                elif keyfile_dict:
+                    conf_file.write(keyfile_dict)
+                    conf_file.flush()
+                    os.environ[_G_APP_CRED_ENV_VAR] = conf_file.name
+                return func(self, *args, **kwargs)
+        return wrapper
