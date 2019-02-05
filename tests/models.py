@@ -76,41 +76,6 @@ TEST_DAGS_FOLDER = os.path.join(
 
 class DagTest(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.appbuilder = cls._init_appbuilder()
-        cls.sm = cls.appbuilder.sm
-        role_public = cls.sm.find_role('Public')
-        cls.test_user = cls.sm.find_user(username='test-user')
-        if not cls.test_user:
-            cls.test_user = cls.sm.add_user(
-                'test-user', 'test', 'user', 'test@fab.org', role_public)
-
-    @classmethod
-    def _init_appbuilder(cls):
-        from flask import Flask
-        from flask_appbuilder import AppBuilder, SQLA
-        from airflow.www.security import AirflowSecurityManager
-        app = Flask(__name__)
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://'
-        app.config['SECRET_KEY'] = 'secret_key'
-        app.config['CSRF_ENABLED'] = False
-        app.config['WTF_CSRF_ENABLED'] = False
-        db = SQLA(app)
-        appbuilder = AppBuilder(app,
-                                db.session,
-                                security_manager_class=AirflowSecurityManager)
-
-        cls.sm_patcher = patch('airflow.models.cached_appbuilder')
-        cached_appbuilder = cls.sm_patcher.start()
-        cached_appbuilder.return_value = appbuilder
-        return appbuilder
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.sm_patcher.stop()
-        cls.sm.del_register_user(cls.test_user)
-
     def test_params_not_passed_is_empty_dict(self):
         """
         Test that when 'params' is _not_ passed to a new Dag, that the params
@@ -941,92 +906,6 @@ class DagTest(unittest.TestCase):
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == 'dag').one()
         self.assertIsNotNone(orm_dag.default_view)
         self.assertEqual(orm_dag.get_default_view(), "graph")
-
-    def test_access_control_with_non_existent_role(self):
-        with self.assertRaises(AirflowException) as context:
-            DAG('access_control_test', access_control={
-                'this-role-does-not-exist': ['can_dag_edit', 'can_dag_read']
-            })
-        self.assertIn("role does not exist", str(context.exception))
-
-    def test_access_control_with_invalid_permission(self):
-        invalid_permissions = [
-            'can_varimport',  # a real permission, but not a member of DAG_PERMS
-            'can_eat_pudding',  # clearly not a real permission
-        ]
-        for permission in invalid_permissions:
-            self.expect_user_is_in_role(self.test_user, rolename='team-a')
-            with self.assertRaises(AirflowException) as context:
-                DAG('access_control_test', access_control={
-                    'team-a': {permission}
-                })
-            self.assertIn("invalid permissions", str(context.exception))
-
-    def test_access_control_is_set_on_init(self):
-        self.expect_user_is_in_role(self.test_user, rolename='team-a')
-        dag = DAG('access_control_test', access_control={
-            'team-a': ['can_dag_edit', 'can_dag_read']
-        })
-        self.assert_user_has_dag_perms(
-            perms=['can_dag_edit', 'can_dag_read'],
-            dag_id=dag.dag_id,
-        )
-
-        self.expect_user_is_in_role(self.test_user, rolename='NOT-team-a')
-        self.assert_user_does_not_have_dag_perms(
-            perms=['can_dag_edit', 'can_dag_read'],
-            dag_id=dag.dag_id,
-        )
-
-    def test_access_control_stale_perms_are_revoked(self):
-        READ_WRITE = {'can_dag_read', 'can_dag_edit'}
-        READ_ONLY = {'can_dag_read'}
-
-        self.expect_user_is_in_role(self.test_user, rolename='team-a')
-        dag = DAG('access_control_test', access_control={
-            'team-a': READ_WRITE
-        })
-        self.assert_user_has_dag_perms(
-            perms=READ_WRITE,
-            dag_id=dag.dag_id,
-        )
-
-        # Note that can_dag_edit has been removed
-        dag = DAG('access_control_test', access_control={
-            'team-a': READ_ONLY
-        })
-        self.assert_user_has_dag_perms(
-            perms=['can_dag_read'],
-            dag_id=dag.dag_id,
-        )
-        self.assert_user_does_not_have_dag_perms(
-            perms=['can_dag_edit'],
-            dag_id=dag.dag_id,
-        )
-
-    def expect_user_is_in_role(self, user, rolename):
-        self.sm.init_role(rolename, [], [])
-        role = self.sm.find_role(rolename)
-        if not role:
-            self.sm.add_role(rolename)
-            role = self.sm.find_role(rolename)
-        user.roles = [role]
-        self.sm.update_user(user)
-
-    def assert_user_has_dag_perms(self, perms, dag_id):
-        for perm in perms:
-            self.assertTrue(
-                self._has_dag_perm(perm, dag_id),
-                "User should have '{}' on DAG '{}'".format(perm, dag_id))
-
-    def assert_user_does_not_have_dag_perms(self, dag_id, perms):
-        for perm in perms:
-            self.assertFalse(
-                self._has_dag_perm(perm, dag_id),
-                "User should not have '{}' on DAG '{}'".format(perm, dag_id))
-
-    def _has_dag_perm(self, perm, dag_id):
-        return self.sm.has_access(perm, dag_id, self.test_user)
 
 
 class DagRunTest(unittest.TestCase):

@@ -107,8 +107,6 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.app import cached_appbuilder
-from airflow.security.rbac import DAG_PERMS
 
 install_aliases()
 
@@ -3132,6 +3130,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
 
         self._old_context_manager_dags = []
+        self._access_control = access_control
 
         self._comps = {
             'dag_id',
@@ -3143,9 +3142,6 @@ class DAG(BaseDag, LoggingMixin):
             'template_searchpath',
             'last_loaded',
         }
-
-        if access_control:
-            self._set_dag_permissions(access_control)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -3355,6 +3351,14 @@ class DAG(BaseDag, LoggingMixin):
     @concurrency.setter
     def concurrency(self, value):
         self._concurrency = value
+
+    @property
+    def access_control(self):
+        return self._access_control
+
+    @access_control.setter
+    def access_control(self, value):
+        self._access_control = value
 
     @property
     def description(self):
@@ -4253,63 +4257,6 @@ class DAG(BaseDag, LoggingMixin):
                 self._test_cycle_helper(visit_map, descendant_id)
 
         visit_map[task_id] = DagBag.CYCLE_DONE
-
-    def _set_dag_permissions(self, access_control):
-        """Grant permissions on this DAG's ViewModel to the given role(s).
-
-        :param access_control: a dict where each key is a rolename and
-            each value is a set() of permission names (e.g.,
-            {'can_dag_read'}
-        :type access_control: dict
-
-        """
-        sm = cached_appbuilder().sm
-
-        def _get_or_create_dag_permission(perm_name):
-            dag_perm = sm.find_permission_view_menu(perm_name, self.dag_id)
-            if not dag_perm:
-                dag_perm = sm.add_permission_view_menu(perm_name, self.dag_id)
-            return dag_perm
-
-        def _revoke_stale_permissions(dag_view):
-            existing_dag_perms = sm.find_permissions_view_menu(dag_view)
-            for perm in existing_dag_perms:
-                for role in perm.role:
-                    target_perms_for_role = access_control.get(role.name, {})
-                    if perm.permission.name not in target_perms_for_role:
-                        logging.info("Revoking '{}' on DAG '{}' for role '{}'".format(
-                            perm.permission,
-                            self.dag_id,
-                            role.name
-                        ))
-                        sm.del_permission_role(role, perm)
-
-        dag_view = sm.find_view_menu(self.dag_id)
-        if dag_view:
-            _revoke_stale_permissions(dag_view)
-
-        for rolename, perms in access_control.items():
-            role = sm.find_role(rolename)
-            if not role:
-                raise AirflowException(
-                    "The access_control mapping for DAG '{}' includes a role "
-                    "named '{}', but that role does not exist".format(
-                        self.dag_id,
-                        rolename))
-
-            perms = set(perms)
-            invalid_perms = perms - DAG_PERMS
-            if invalid_perms:
-                raise AirflowException(
-                    "The access_control map for DAG '{}' includes the following "
-                    "invalid permissions: {}; The set of valid permissions "
-                    "is: {}".format(self.dag_id,
-                                    (perms - DAG_PERMS),
-                                    DAG_PERMS))
-
-            for perm_name in perms:
-                dag_perm = _get_or_create_dag_permission(perm_name)
-                sm.add_permission_role(role, dag_perm)
 
 
 class Variable(Base, LoggingMixin):
