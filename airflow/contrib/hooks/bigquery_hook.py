@@ -258,7 +258,7 @@ class BigQueryBaseCursor(LoggingMixin):
             .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
-        :param cluster_fields: The fields used for clustering.
+        :param cluster_fields: [Optional] The fields used for clustering.
             Must be specified with time_partitioning, data in the table will be first
             partitioned and subsequently clustered.
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
