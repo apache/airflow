@@ -27,22 +27,24 @@ from airflow.utils.decorators import apply_defaults
 
 class SFTPToS3Operator(BaseOperator):
     """
-    This operator enables the transferring of files from a SFTP server to Amazon S3
-    :param sftp_conn_id:    The sftp connection id. The name or identifier for
-                            establishing a connection to the SFTP server.
-    :type sftp_conn_id:     string
-    :param sftp_path:       The sftp remote path. This is the specified file
-                            path for downloading the file from the SFTP server.
-    :type sftp_path:        string
-    :param s3_conn_id:      The s3 connection id. The name or identifier for
-                            establishing a connection to S3
-    :type s3_conn_id:       string
-    :param s3_bucket:       The targeted s3 bucket. This is the S3 bucket
-                            to where the file is uploaded.
-    :type s3_bucket:        string
-    :param s3_key:          The targeted s3 key. This is the specified path
-                            for uploading the file to S3.
-    :type s3_key:           string
+    This operator enables the transferring of files from a SFTP server to
+    Amazon S3.
+
+    :param sftp_conn_id: The sftp connection id. The name or identifier for
+        establishing a connection to the SFTP server.
+    :type sftp_conn_id: string
+    :param sftp_path: The sftp remote path. This is the specified file path
+        for downloading the file from the SFTP server.
+    :type sftp_path: string
+    :param s3_conn_id: The s3 connection id. The name or identifier for
+        establishing a connection to S3
+    :type s3_conn_id: string
+    :param s3_bucket: The targeted s3 bucket. This is the S3 bucket to where
+        the file is uploaded.
+    :type s3_bucket: string
+    :param s3_key: The targeted s3 key. This is the specified path for
+        uploading the file to S3.
+    :type s3_key: string
     """
 
     template_fields = ('s3_key', 'sftp_path')

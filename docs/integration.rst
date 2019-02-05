@@ -911,6 +911,7 @@ Cloud Bigtable Hook
 
 .. autoclass:: airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook
     :members:
+    :noindex:
 
 Compute Engine
 ''''''''''''''
