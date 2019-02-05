@@ -36,6 +36,7 @@ class WorkerConfiguration(LoggingMixin):
         self.worker_airflow_logs = self.kube_config.base_log_folder
 
         self.dags_volume_name = 'airflow-dags'
+        self.dags_configmap_name = 'dags-configmap'
         self.logs_volume_name = 'airflow-logs'
 
         super(WorkerConfiguration, self).__init__()
@@ -185,16 +186,16 @@ class WorkerConfiguration(LoggingMixin):
             del volume_mounts[self.dags_volume_name]
 
         if self.kube_config.dags_configmap:
-            dags_volume_name = self.dags_volume_name
+            dags_configmap_name = self.dags_configmap_name
             dag_path = self.generate_dag_volume_mount_path(),
-            volumes[dags_volume_name] = {
-                'name': dags_volume_name,
+            volumes[dags_configmap_name] = {
+                'name': dags_configmap_name,
                 'configMap': {
                     'name': self.kube_config.dags_configmap
                 }
             }
-            volume_mounts[dags_volume_name] = {
-                'name': dags_volume_name,
+            volume_mounts[dags_configmap_name] = {
+                'name': dags_configmap_name,
                 'mountPath': dag_path,
                 'readOnly': True
             }

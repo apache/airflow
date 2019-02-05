@@ -146,10 +146,7 @@ class KubeConfig:
         self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
 
         # NOTE: We use dag configmaps mounted to containers to make deploys simple
-        try:
-            self.dags_configmap = conf.get(self.kubernetes_section, 'dags_configmap')
-        except AirflowConfigException:
-            self.dags_configmap = None
+        self.dags_configmap = conf.get(self.kubernetes_section, 'dags_configmap')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
