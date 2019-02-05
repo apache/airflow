@@ -452,7 +452,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         self.update_admin_perm_view()
         self.clean_perms()
 
-    def sync_perm_for_dag(self, dag_id, access_control):
+    def sync_perm_for_dag(self, dag_id, access_control=None):
         """
         Sync permissions for given dag id. The dag id surely exists in our dag bag
         as only / refresh button or cli.sync_perm will call this function
