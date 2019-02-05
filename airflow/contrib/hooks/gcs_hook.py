@@ -655,7 +655,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 'Object ACL entry creation failed. Error was: {}'.format(ex.content)
             )
 
-    def compose(self, bucket, source_objects, destination_object):
+    def compose(self, bucket, source_objects, destination_object, num_retries=5):
         """
         Composes a list of existing object into a new object in the same storage bucket
 
@@ -696,7 +696,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 .compose(destinationBucket=bucket,
                          destinationObject=destination_object,
                          body=body) \
-                .execute()
+                .execute(num_retries=num_retries)
             return True
         except HttpError as ex:
             if ex.resp['status'] == '404':
