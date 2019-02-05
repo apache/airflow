@@ -228,6 +228,7 @@ class BigQueryBaseCursor(LoggingMixin):
                            table_id,
                            schema_fields=None,
                            time_partitioning=None,
+                           cluster_fields=None,
                            labels=None,
                            view=None):
         """
@@ -257,6 +258,11 @@ class BigQueryBaseCursor(LoggingMixin):
             .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
+        :param cluster_fields: The fields used for clustering.
+            Must be specified with time_partitioning, data in the table will be first
+            partitioned and subsequently clustered.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
+        :type cluster_fields: list
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will create a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
@@ -285,6 +291,11 @@ class BigQueryBaseCursor(LoggingMixin):
 
         if time_partitioning:
             table_resource['timePartitioning'] = time_partitioning
+
+        if cluster_fields:
+            table_resource['clustering'] = {
+                'fields': cluster_fields
+            }
 
         if labels:
             table_resource['labels'] = labels
