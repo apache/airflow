@@ -230,7 +230,8 @@ class BigQueryBaseCursor(LoggingMixin):
                            time_partitioning=None,
                            cluster_fields=None,
                            labels=None,
-                           view=None):
+                           view=None,
+                           num_retries=5):
         """
         Creates a new, empty table in the dataset.
         To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
@@ -310,7 +311,7 @@ class BigQueryBaseCursor(LoggingMixin):
             self.service.tables().insert(
                 projectId=project_id,
                 datasetId=dataset_id,
-                body=table_resource).execute()
+                body=table_resource).execute(num_retries=num_retries)
 
             self.log.info('Table created successfully: %s:%s.%s',
                           project_id, dataset_id, table_id)
