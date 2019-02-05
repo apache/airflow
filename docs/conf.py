@@ -33,28 +33,60 @@
 # serve to show the default.
 import os
 import sys
-import mock
 
 import airflow
 
-MOCK_MODULES = [
-    'google.auth.default',
-    'google.oauth2.service_account',
+autodoc_mock_imports = [
+    'MySQLdb',
+    'adal',
+    'analytics',
+    'azure',
+    'azure.cosmos',
+    'azure.datalake',
+    'azure.mgmt',
+    'boto3',
+    'botocore',
+    'bson',
+    'cassandra',
+    'celery',
+    'cloudant',
+    'cx_Oracle',
+    'datadog',
+    'docker',
+    'google',
     'google_auth_httplib2',
     'googleapiclient',
-    'googleapiclient.discovery',
-    'googleapiclient.errors',
-    'googleapiclient.http',
+    'hdfs',
+    'httplib2',
+    'jaydebeapi',
+    'jenkins',
+    'jira',
+    'kubernetes',
     'mesos',
-    'mesos.interface',
-    'mesos.native',
-    'pandas.io.gbq',
+    'msrestazure',
+    'pandas',
+    'pandas_gbq',
+    'paramiko',
+    'pinotdb',
+    'psycopg2',
+    'pydruid',
+    'pyhive',
+    'pyhive',
+    'pymongo',
     'pymssql',
+    'pysftp',
+    'qds_sdk',
+    'redis',
     'simple_salesforce',
+    'slackclient',
+    'smbclient',
+    'snowflake',
+    'sshtunnel',
+    'tenacity',
     'vertica_python',
+    'winrm',
+    'zdesk',
 ]
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
@@ -192,7 +224,7 @@ html_short_title = ""
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

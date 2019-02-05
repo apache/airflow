@@ -217,6 +217,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
 .. autoclass:: airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator
+.. autoclass:: airflow.contrib.operators.imap_attachment_to_s3_operator.ImapAttachmentToS3Operator
 .. autoclass:: airflow.contrib.operators.jenkins_job_trigger_operator.JenkinsJobTriggerOperator
 .. autoclass:: airflow.contrib.operators.jira_operator.JiraOperator
 .. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
@@ -322,11 +323,11 @@ Variable                            Description
 ``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``
                                     if ``{{ ds }}`` is ``2018-01-08`` and ``schedule_interval`` is ``@weekly``,
                                     ``{{ prev_ds }}`` will be ``2016-01-01``
-``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None`
+``{{ prev_ds_nodash }}``            the previous execution date as ``YYYYMMDD`` if exists, else ``None``
 ``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``
                                     if ``{{ ds }}`` is ``2018-01-01`` and ``schedule_interval`` is ``@weekly``,
                                     ``{{ next_ds }}`` will be ``2018-01-08``
-``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None`
+``{{ next_ds_nodash }}``            the next execution date as ``YYYYMMDD`` if exists, else ``None``
 ``{{ yesterday_ds }}``              the day before the execution date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``       the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``               the day after the execution date as ``YYYY-MM-DD``
@@ -334,9 +335,9 @@ Variable                            Description
 ``{{ ts }}``                        same as ``execution_date.isoformat()``. Example: ``2018-01-01T00:00:00+00:00``
 ``{{ ts_nodash }}``                 same as ``ts`` without ``-``, ``:`` and TimeZone info. Example: ``20180101T000000``
 ``{{ ts_nodash_with_tz }}``         same as ``ts`` without ``-`` and ``:``. Example: ``20180101T000000+0000``
-``{{ execution_date }}``            the execution_date, (datetime.datetime)
-``{{ prev_execution_date }}``       the previous execution date (if available) (datetime.datetime)
-``{{ next_execution_date }}``       the next execution date (datetime.datetime)
+``{{ execution_date }}``            the execution_date (pendulum.Pendulum)
+``{{ prev_execution_date }}``       the previous execution date (if available) (pendulum.Pendulum)
+``{{ next_execution_date }}``       the next execution date (pendulum.Pendulum)
 ``{{ dag }}``                       the DAG object
 ``{{ task }}``                      the Task object
 ``{{ macros }}``                    a reference to the macros package, described below

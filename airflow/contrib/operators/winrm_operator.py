@@ -122,7 +122,7 @@ class WinRMOperator(BaseOperator):
         except Exception as e:
             raise AirflowException("WinRM operator error: {0}".format(str(e)))
 
-        if return_code is 0:
+        if return_code == 0:
             # returning output if do_xcom_push is set
             enable_pickling = configuration.conf.getboolean(
                 'core', 'enable_xcom_pickling'

@@ -194,7 +194,10 @@ for p in plugins:
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
 
     admin_views.extend(p.admin_views)
-    flask_blueprints.extend(p.flask_blueprints)
     menu_links.extend(p.menu_links)
     flask_appbuilder_views.extend(p.appbuilder_views)
     flask_appbuilder_menu_links.extend(p.appbuilder_menu_items)
+    flask_blueprints.extend([{
+        'name': p.name,
+        'blueprint': bp
+    } for bp in p.flask_blueprints])

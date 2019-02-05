@@ -40,6 +40,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
+from tempfile import NamedTemporaryFile
 from time import sleep
 
 from airflow import configuration
@@ -49,6 +50,7 @@ from airflow.models import Variable, TaskInstance
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.models.connection import Connection
+from airflow.models.taskfail import TaskFail
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -123,7 +125,7 @@ class CoreTest(unittest.TestCase):
             session = Session()
             session.query(models.TaskInstance).filter_by(
                 dag_id=TEST_DAG_ID).delete()
-            session.query(models.TaskFail).filter_by(
+            session.query(TaskFail).filter_by(
                 dag_id=TEST_DAG_ID).delete()
             session.commit()
             session.close()
@@ -943,11 +945,11 @@ class CoreTest(unittest.TestCase):
             f.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         except Exception:
             pass
-        p_fails = session.query(models.TaskFail).filter_by(
+        p_fails = session.query(TaskFail).filter_by(
             task_id='pass_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
-        f_fails = session.query(models.TaskFail).filter_by(
+        f_fails = session.query(TaskFail).filter_by(
             task_id='fail_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
@@ -1061,7 +1063,8 @@ class CoreTest(unittest.TestCase):
 
 class CliTests(unittest.TestCase):
 
-    TEST_USER_EMAIL = 'test-user@example.com'
+    TEST_USER1_EMAIL = 'test-user1@example.com'
+    TEST_USER2_EMAIL = 'test-user2@example.com'
 
     @classmethod
     def setUpClass(cls):
@@ -1082,9 +1085,10 @@ class CliTests(unittest.TestCase):
 
     def tearDown(self):
         self._cleanup(session=self.session)
-        test_user = self.appbuilder.sm.find_user(email=CliTests.TEST_USER_EMAIL)
-        if test_user:
-            self.appbuilder.sm.del_register_user(test_user)
+        for email in [self.TEST_USER1_EMAIL, self.TEST_USER2_EMAIL]:
+            test_user = self.appbuilder.sm.find_user(email=email)
+            if test_user:
+                self.appbuilder.sm.del_register_user(test_user)
         super(CliTests, self).tearDown()
 
     @staticmethod
@@ -1153,6 +1157,104 @@ class CliTests(unittest.TestCase):
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
 
+    def test_cli_import_users(self):
+        def assertUserInRoles(email, roles):
+            for role in roles:
+                self.assertTrue(self._does_user_belong_to_role(email, role))
+
+        def assertUserNotInRoles(email, roles):
+            for role in roles:
+                self.assertFalse(self._does_user_belong_to_role(email, role))
+
+        assertUserNotInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
+        assertUserNotInRoles(self.TEST_USER2_EMAIL, ['Public'])
+        users = [
+            {
+                "username": "imported_user1", "lastname": "doe1",
+                "firstname": "jon", "email": self.TEST_USER1_EMAIL,
+                "roles": ["Admin", "Op"]
+            },
+            {
+                "username": "imported_user2", "lastname": "doe2",
+                "firstname": "jon", "email": self.TEST_USER2_EMAIL,
+                "roles": ["Public"]
+            }
+        ]
+        self._import_users_from_file(users)
+
+        assertUserInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
+        assertUserInRoles(self.TEST_USER2_EMAIL, ['Public'])
+
+        users = [
+            {
+                "username": "imported_user1", "lastname": "doe1",
+                "firstname": "jon", "email": self.TEST_USER1_EMAIL,
+                "roles": ["Public"]
+            },
+            {
+                "username": "imported_user2", "lastname": "doe2",
+                "firstname": "jon", "email": self.TEST_USER2_EMAIL,
+                "roles": ["Admin"]
+            }
+        ]
+        self._import_users_from_file(users)
+
+        assertUserNotInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
+        assertUserInRoles(self.TEST_USER1_EMAIL, ['Public'])
+        assertUserNotInRoles(self.TEST_USER2_EMAIL, ['Public'])
+        assertUserInRoles(self.TEST_USER2_EMAIL, ['Admin'])
+
+    def test_cli_export_users(self):
+        user1 = {"username": "imported_user1", "lastname": "doe1",
+                 "firstname": "jon", "email": self.TEST_USER1_EMAIL,
+                 "roles": ["Public"]}
+        user2 = {"username": "imported_user2", "lastname": "doe2",
+                 "firstname": "jon", "email": self.TEST_USER2_EMAIL,
+                 "roles": ["Admin"]}
+        self._import_users_from_file([user1, user2])
+
+        users_filename = self._export_users_to_file()
+        with open(users_filename, mode='r') as f:
+            retrieved_users = json.loads(f.read())
+        os.remove(users_filename)
+
+        # ensure that an export can be imported
+        self._import_users_from_file(retrieved_users)
+
+        def find_by_username(username):
+            matches = [u for u in retrieved_users
+                       if u['username'] == username]
+            if not matches:
+                self.fail("Couldn't find user with username {}".format(username))
+            else:
+                matches[0].pop('id')  # this key not required for import
+                return matches[0]
+
+        self.assertEqual(find_by_username('imported_user1'), user1)
+        self.assertEqual(find_by_username('imported_user2'), user2)
+
+    def _import_users_from_file(self, user_list):
+        json_file_content = json.dumps(user_list)
+        f = NamedTemporaryFile(delete=False)
+        try:
+            f.write(json_file_content.encode())
+            f.flush()
+
+            args = self.parser.parse_args([
+                'users', '-i', f.name
+            ])
+            cli.users(args)
+        finally:
+            os.remove(f.name)
+
+    def _export_users_to_file(self):
+        f = NamedTemporaryFile(delete=False)
+        args = self.parser.parse_args([
+            'users', '-e', f.name
+        ])
+        cli.users(args)
+        return f.name
+
     def _does_user_belong_to_role(self, email, rolename):
         user = self.appbuilder.sm.find_user(email=email)
         role = self.appbuilder.sm.find_role(rolename)
@@ -1165,12 +1267,12 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args([
             'users', '-c', '--username', 'test4', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', self.TEST_USER_EMAIL, '--role', 'Viewer', '--use_random_password'
+            '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
         ])
         cli.users(args)
 
         self.assertFalse(
-            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
                                            rolename='Op'),
             "User should not yet be a member of role 'Op'"
         )
@@ -1181,7 +1283,7 @@ class CliTests(unittest.TestCase):
         cli.users(args)
 
         self.assertTrue(
-            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
                                            rolename='Op'),
             "User should have been added to role 'Op'"
         )
@@ -1190,12 +1292,12 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args([
             'users', '-c', '--username', 'test4', '--lastname', 'doe',
             '--firstname', 'jon',
-            '--email', self.TEST_USER_EMAIL, '--role', 'Viewer', '--use_random_password'
+            '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
         ])
         cli.users(args)
 
         self.assertTrue(
-            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
                                            rolename='Viewer'),
             "User should have been created with role 'Viewer'"
         )
@@ -1206,7 +1308,7 @@ class CliTests(unittest.TestCase):
         cli.users(args)
 
         self.assertFalse(
-            self._does_user_belong_to_role(email=self.TEST_USER_EMAIL,
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
                                            rolename='Viewer'),
             "User should have been removed from role 'Viewer'"
         )
@@ -1226,6 +1328,17 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args([
             'list_tasks', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
+
+    def test_cli_list_jobs(self):
+        args = self.parser.parse_args(['list_jobs'])
+        cli.list_jobs(args)
+
+    def test_cli_list_jobs_with_args(self):
+        args = self.parser.parse_args(['list_jobs', '--dag_id',
+                                       'example_bash_operator',
+                                       '--state', 'success',
+                                       '--limit', '100'])
+        cli.list_jobs(args)
 
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):

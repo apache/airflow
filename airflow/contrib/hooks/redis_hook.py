@@ -22,10 +22,9 @@ RedisHook module
 """
 from redis import StrictRedis
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class RedisHook(BaseHook, LoggingMixin):
+class RedisHook(BaseHook):
     """
     Wrapper for connection to interact with Redis in-memory data structure store
     """

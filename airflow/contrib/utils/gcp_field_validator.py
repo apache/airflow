@@ -134,6 +134,7 @@ Here are the guidelines that you should follow to make validation forward-compat
 
 import re
 
+from typing import Callable
 from airflow import LoggingMixin, AirflowException
 
 COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
@@ -209,7 +210,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     @staticmethod
     def _sanity_checks(children_validation_specs, field_type, full_field_path,
                        regexp, allow_empty, custom_validation, value):
-        # type: (dict, str, str, str, function, object) -> None
+        # type: (dict, str, str, str, Callable, object) -> None
         if value is None and field_type != 'union':
             raise GcpFieldValidationException(
                 "The required body field '{}' is missing. Please add it.".

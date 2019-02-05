@@ -143,7 +143,7 @@ class SSHOperator(BaseOperator):
                 stderr.close()
 
                 exit_status = stdout.channel.recv_exit_status()
-                if exit_status is 0:
+                if exit_status == 0:
                     enable_pickling = configuration.conf.getboolean(
                         'core', 'enable_xcom_pickling'
                     )
