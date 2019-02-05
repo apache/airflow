@@ -69,15 +69,15 @@ Operators
 .. autoclass:: airflow.operators.python_operator.BranchPythonOperator
 .. autoclass:: airflow.operators.check_operator.CheckOperator
 .. autoclass:: airflow.operators.docker_operator.DockerOperator
-.. autoclass:: airflow.operators.dummy_operator.DummyOperator
 .. autoclass:: airflow.operators.druid_check_operator.DruidCheckOperator
+.. autoclass:: airflow.operators.dummy_operator.DummyOperator
 .. autoclass:: airflow.operators.email_operator.EmailOperator
 .. autoclass:: airflow.operators.generic_transfer.GenericTransfer
-.. autoclass:: airflow.operators.hive_to_druid.HiveToDruidTransfer
-.. autoclass:: airflow.operators.hive_to_mysql.HiveToMySqlTransfer
 .. autoclass:: airflow.operators.hive_to_samba_operator.Hive2SambaOperator
 .. autoclass:: airflow.operators.hive_operator.HiveOperator
 .. autoclass:: airflow.operators.hive_stats_operator.HiveStatsCollectionOperator
+.. autoclass:: airflow.operators.hive_to_druid.HiveToDruidTransfer
+.. autoclass:: airflow.operators.hive_to_mysql.HiveToMySqlTransfer
 .. autoclass:: airflow.operators.check_operator.IntervalCheckOperator
 .. autoclass:: airflow.operators.jdbc_operator.JdbcOperator
 .. autoclass:: airflow.operators.latest_only_operator.LatestOnlyOperator
@@ -94,6 +94,7 @@ Operators
 .. autoclass:: airflow.operators.presto_check_operator.PrestoValueCheckOperator
 .. autoclass:: airflow.operators.python_operator.PythonOperator
 .. autoclass:: airflow.operators.python_operator.PythonVirtualenvOperator
+.. autoclass:: airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer
 .. autoclass:: airflow.operators.s3_file_transform_operator.S3FileTransformOperator
 .. autoclass:: airflow.operators.s3_to_hive_operator.S3ToHiveTransfer
 .. autoclass:: airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer
@@ -105,7 +106,6 @@ Operators
 .. autoclass:: airflow.operators.subdag_operator.SubDagOperator
 .. autoclass:: airflow.operators.dagrun_operator.TriggerDagRunOperator
 .. autoclass:: airflow.operators.check_operator.ValueCheckOperator
-.. autoclass:: airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer
 
 Sensors
 ^^^^^^^
@@ -118,8 +118,8 @@ Sensors
 .. autoclass:: airflow.sensors.s3_key_sensor.S3KeySensor
 .. autoclass:: airflow.sensors.s3_prefix_sensor.S3PrefixSensor
 .. autoclass:: airflow.sensors.sql_sensor.SqlSensor
-.. autoclass:: airflow.sensors.time_sensor.TimeSensor
 .. autoclass:: airflow.sensors.time_delta_sensor.TimeDeltaSensor
+.. autoclass:: airflow.sensors.time_sensor.TimeSensor
 .. autoclass:: airflow.sensors.web_hdfs_sensor.WebHdfsSensor
 
 Community-contributed Operators
@@ -129,37 +129,61 @@ Operators
 ^^^^^^^^^
 .. Alphabetize this list
 
-.. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
-.. autoclass:: airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.aws_athena_operator.AWSAthenaOperator
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
+.. autoclass:: airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.azure_container_instances_operator.AzureContainerInstancesOperator
 .. autoclass:: airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator
+.. autoclass:: airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
-.. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator
-.. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
-.. autoclass:: airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator
+.. autoclass:: airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator
+.. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
 .. autoclass:: airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor
 .. autoclass:: airflow.contrib.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator
-.. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlBaseOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
+.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator
-.. autoclass:: airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator
-.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
-.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator
-.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHiveOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPigOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcSparkOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator
+.. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksRunNowOperator
+.. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
+.. autoclass:: airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateBaseOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator
@@ -173,43 +197,22 @@ Operators
 .. autoclass:: airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
-.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator
-.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator
-.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator
-.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator
-.. autoclass:: airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEPodOperator
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceBaseOperator
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
-.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
-.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
-.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEPodOperator
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator
-.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator
-.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator
-.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator
-.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator
-.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator
-.. autoclass:: airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlBaseOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator
-.. autoclass:: airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator
 .. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator
-.. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
 .. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
-.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
+.. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator
@@ -236,13 +239,17 @@ Operators
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator
 .. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator
-.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator
 .. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
+.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator
 .. autoclass:: airflow.contrib.operators.s3_copy_object_operator.S3CopyObjectOperator
 .. autoclass:: airflow.contrib.operators.s3_delete_objects_operator.S3DeleteObjectsOperator
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_transfer_operator.S3ToGoogleCloudStorageTransferOperator
+.. autoclass:: airflow.contrib.operators.s3_to_sftp_operator.S3ToSFTPOperator
+.. autoclass:: airflow.contrib.operators.sftp_operator.SFTPOperator
+.. autoclass:: airflow.contrib.operators.sftp_to_s3_operator.SFTPToS3Operator
+.. autoclass:: airflow.contrib.operators.ssh_operator.SSHOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_base_operator.SageMakerBaseOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator
@@ -251,7 +258,6 @@ Operators
 .. autoclass:: airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator
 .. autoclass:: airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator
 .. autoclass:: airflow.contrib.operators.segment_track_event_operator.SegmentTrackEventOperator
-.. autoclass:: airflow.contrib.operators.sftp_operator.SFTPOperator
 .. autoclass:: airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator
 .. autoclass:: airflow.contrib.operators.snowflake_operator.SnowflakeOperator
 .. autoclass:: airflow.contrib.operators.sns_publish_operator.SnsPublishOperator
@@ -259,9 +265,10 @@ Operators
 .. autoclass:: airflow.contrib.operators.spark_sql_operator.SparkSqlOperator
 .. autoclass:: airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator
 .. autoclass:: airflow.contrib.operators.sqoop_operator.SqoopOperator
-.. autoclass:: airflow.contrib.operators.ssh_operator.SSHOperator
 .. autoclass:: airflow.contrib.operators.vertica_operator.VerticaOperator
 .. autoclass:: airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer
+.. autoclass:: airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer
+.. autoclass:: airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator
 .. autoclass:: airflow.contrib.operators.winrm_operator.WinRMOperator
 
 Sensors
@@ -277,12 +284,13 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.cassandra_table_sensor.CassandraTableSensor
 .. autoclass:: airflow.contrib.sensors.celery_queue_sensor.CeleryQueueSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
+.. autoclass:: airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor
 .. autoclass:: airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor
 .. autoclass:: airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor
 .. autoclass:: airflow.contrib.sensors.emr_step_sensor.EmrStepSensor
-.. autoclass:: airflow.contrib.sensors.file_sensor.FileSensor
-.. autoclass:: airflow.contrib.sensors.ftp_sensor.FTPSensor
 .. autoclass:: airflow.contrib.sensors.ftp_sensor.FTPSSensor
+.. autoclass:: airflow.contrib.sensors.ftp_sensor.FTPSensor
+.. autoclass:: airflow.contrib.sensors.file_sensor.FileSensor
 .. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor
 .. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor
 .. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor
@@ -290,18 +298,22 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex
 .. autoclass:: airflow.contrib.sensors.imap_attachment_sensor.ImapAttachmentSensor
 .. autoclass:: airflow.contrib.sensors.jira_sensor.JiraSensor
+.. autoclass:: airflow.contrib.sensors.jira_sensor.JiraTicketSensor
+.. autoclass:: airflow.contrib.sensors.mongo_sensor.MongoSensor
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
 .. autoclass:: airflow.contrib.sensors.python_sensor.PythonSensor
+.. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleFileSensor
+.. autoclass:: airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
+.. autoclass:: airflow.contrib.sensors.sftp_sensor.SFTPSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_base_sensor.SageMakerBaseSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_endpoint_sensor.SageMakerEndpointSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_training_sensor.SageMakerTrainingSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_transform_sensor.SageMakerTransformSensor
 .. autoclass:: airflow.contrib.sensors.sagemaker_tuning_sensor.SageMakerTuningSensor
-.. autoclass:: airflow.contrib.sensors.sftp_sensor.SFTPSensor
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
-.. autoclass:: airflow.contrib.sensors.weekday_sensor.DayOfWeekSensor
+.. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor
 
 .. _macros:
 
@@ -415,7 +427,7 @@ persisted in the database.
 
 .. automodule:: airflow.models
     :show-inheritance:
-    :members: DAG, BaseOperator, TaskInstance, DagBag, Connection
+    :members: DAG, TaskInstance, DagBag, Connection, Variable, Pool, KubeResourceVersion, KubeWorkerIdentifier
 
 Hooks
 -----
@@ -423,17 +435,16 @@ Hooks
 Hooks are interfaces to external platforms and databases, implementing a common
 interface when possible and acting as building blocks for operators.
 
+.. autoclass:: airflow.hooks.base_hook.BaseHook
 .. autoclass:: airflow.hooks.dbapi_hook.DbApiHook
 .. autoclass:: airflow.hooks.docker_hook.DockerHook
-.. automodule:: airflow.hooks.hive_hooks
-    :members:
-      HiveCliHook,
-      HiveMetastoreHook,
-      HiveServer2Hook
-.. autoclass:: airflow.hooks.http_hook.HttpHook
 .. autoclass:: airflow.hooks.druid_hook.DruidDbApiHook
 .. autoclass:: airflow.hooks.druid_hook.DruidHook
 .. autoclass:: airflow.hooks.hdfs_hook.HDFSHook
+.. autoclass:: airflow.hooks.hive_hooks.HiveCliHook
+.. autoclass:: airflow.hooks.hive_hooks.HiveMetastoreHook
+.. autoclass:: airflow.hooks.hive_hooks.HiveServer2Hook
+.. autoclass:: airflow.hooks.http_hook.HttpHook
 .. autoclass:: airflow.hooks.jdbc_hook.JdbcHook
 .. autoclass:: airflow.hooks.mssql_hook.MsSqlHook
 .. autoclass:: airflow.hooks.mysql_hook.MySqlHook
@@ -458,12 +469,21 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
 .. autoclass:: airflow.contrib.hooks.aws_sns_hook.AwsSnsHook
+.. autoclass:: airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook
+.. autoclass:: airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook
+.. autoclass:: airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook
 .. autoclass:: airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 .. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
+.. autoclass:: airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook
 .. autoclass:: airflow.contrib.hooks.cassandra_hook.CassandraHook
+.. autoclass:: airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
 .. autoclass:: airflow.contrib.hooks.cloudant_hook.CloudantHook
+.. autoclass:: airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook
+.. autoclass:: airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook
 .. autoclass:: airflow.contrib.hooks.databricks_hook.DatabricksHook
 .. autoclass:: airflow.contrib.hooks.datadog_hook.DatadogHook
 .. autoclass:: airflow.contrib.hooks.datastore_hook.DatastoreHook
@@ -472,34 +492,36 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.fs_hook.FSHook
 .. autoclass:: airflow.contrib.hooks.ftp_hook.FTPHook
 .. autoclass:: airflow.contrib.hooks.ftp_hook.FTPSHook
-.. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
-.. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
-.. autoclass:: airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook
-.. autoclass:: airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook
-.. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
-.. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
-.. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
+.. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
+.. autoclass:: airflow.contrib.hooks.gcp_compute_hook.GceHook
+.. autoclass:: airflow.contrib.hooks.gcp_function_hook.GcfHook
+.. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
+.. autoclass:: airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook
+.. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
+.. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
 .. autoclass:: airflow.contrib.hooks.mongo_hook.MongoHook
 .. autoclass:: airflow.contrib.hooks.openfaas_hook.OpenFaasHook
 .. autoclass:: airflow.contrib.hooks.pinot_hook.PinotDbApiHook
+.. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
+.. autoclass:: airflow.contrib.hooks.qubole_check_hook.QuboleCheckHook
 .. autoclass:: airflow.contrib.hooks.qubole_hook.QuboleHook
 .. autoclass:: airflow.contrib.hooks.redis_hook.RedisHook
 .. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook
+.. autoclass:: airflow.contrib.hooks.sftp_hook.SFTPHook
+.. autoclass:: airflow.contrib.hooks.ssh_hook.SSHHook
 .. autoclass:: airflow.contrib.hooks.sagemaker_hook.SageMakerHook
 .. autoclass:: airflow.contrib.hooks.salesforce_hook.SalesforceHook
 .. autoclass:: airflow.contrib.hooks.segment_hook.SegmentHook
-.. autoclass:: airflow.contrib.hooks.sftp_hook.SFTPHook
 .. autoclass:: airflow.contrib.hooks.slack_webhook_hook.SlackWebhookHook
 .. autoclass:: airflow.contrib.hooks.snowflake_hook.SnowflakeHook
 .. autoclass:: airflow.contrib.hooks.spark_jdbc_hook.SparkJDBCHook
 .. autoclass:: airflow.contrib.hooks.spark_sql_hook.SparkSqlHook
 .. autoclass:: airflow.contrib.hooks.spark_submit_hook.SparkSubmitHook
 .. autoclass:: airflow.contrib.hooks.sqoop_hook.SqoopHook
-.. autoclass:: airflow.contrib.hooks.ssh_hook.SSHHook
 .. autoclass:: airflow.contrib.hooks.vertica_hook.VerticaHook
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 .. autoclass:: airflow.contrib.hooks.winrm_hook.WinRMHook
@@ -508,8 +530,8 @@ Executors
 ---------
 Executors are the mechanism by which task instances get run.
 
-.. autoclass:: airflow.executors.local_executor.LocalExecutor
 .. autoclass:: airflow.executors.celery_executor.CeleryExecutor
+.. autoclass:: airflow.executors.local_executor.LocalExecutor
 .. autoclass:: airflow.executors.sequential_executor.SequentialExecutor
 
 Community-contributed executors
