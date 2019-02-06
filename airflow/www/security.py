@@ -24,6 +24,7 @@ from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import or_
 
 from airflow import models
+from airflow.exceptions import AirflowException
 from airflow.www.app import appbuilder
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -451,18 +452,89 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         self.update_admin_perm_view()
         self.clean_perms()
 
-    def sync_perm_for_dag(self, dag_id):
+    def sync_perm_for_dag(self, dag_id, access_control=None):
         """
         Sync permissions for given dag id. The dag id surely exists in our dag bag
-        as only / refresh button will call this function
+        as only / refresh button or cli.sync_perm will call this function
 
-        :param dag_id:
+        :param dag_id: the ID of the DAG whose permissions should be updated
+        :type dag_id: string
+        :param access_control: a dict where each key is a rolename and
+            each value is a set() of permission names (e.g.,
+            {'can_dag_read'}
+        :type access_control: dict
         :return:
         """
         for dag_perm in DAG_PERMS:
             perm_on_dag = self.find_permission_view_menu(dag_perm, dag_id)
             if perm_on_dag is None:
                 self.add_permission_view_menu(dag_perm, dag_id)
+
+        if access_control:
+            self._sync_dag_view_permissions(dag_id, access_control)
+
+    def _sync_dag_view_permissions(self, dag_id, access_control):
+        """Set the access policy on the given DAG's ViewModel.
+
+        :param dag_id: the ID of the DAG whose permissions should be updated
+        :type dag_id: string
+        :param access_control: a dict where each key is a rolename and
+            each value is a set() of permission names (e.g.,
+            {'can_dag_read'}
+        :type access_control: dict
+        """
+        def _get_or_create_dag_permission(perm_name):
+            dag_perm = self.find_permission_view_menu(perm_name, dag_id)
+            if not dag_perm:
+                self.log.info("Creating new permission '{}' on view '{}'".format(
+                    perm_name,
+                    dag_id
+                ))
+                dag_perm = self.add_permission_view_menu(perm_name, dag_id)
+
+            return dag_perm
+
+        def _revoke_stale_permissions(dag_view):
+            existing_dag_perms = self.find_permissions_view_menu(dag_view)
+            for perm in existing_dag_perms:
+                non_admin_roles = [role for role in perm.role
+                                   if role.name != 'Admin']
+                for role in non_admin_roles:
+                    target_perms_for_role = access_control.get(role.name, {})
+                    if perm.permission.name not in target_perms_for_role:
+                        self.log.info("Revoking '{}' on DAG '{}' for role '{}'".format(
+                            perm.permission,
+                            dag_id,
+                            role.name
+                        ))
+                        self.del_permission_role(role, perm)
+
+        dag_view = self.find_view_menu(dag_id)
+        if dag_view:
+            _revoke_stale_permissions(dag_view)
+
+        for rolename, perms in access_control.items():
+            role = self.find_role(rolename)
+            if not role:
+                raise AirflowException(
+                    "The access_control mapping for DAG '{}' includes a role "
+                    "named '{}', but that role does not exist".format(
+                        dag_id,
+                        rolename))
+
+            perms = set(perms)
+            invalid_perms = perms - DAG_PERMS
+            if invalid_perms:
+                raise AirflowException(
+                    "The access_control map for DAG '{}' includes the following "
+                    "invalid permissions: {}; The set of valid permissions "
+                    "is: {}".format(dag_id,
+                                    (perms - DAG_PERMS),
+                                    DAG_PERMS))
+
+            for perm_name in perms:
+                dag_perm = _get_or_create_dag_permission(perm_name)
+                self.add_permission_role(role, dag_perm)
 
     def create_perm_vm_for_all_dag(self):
         """

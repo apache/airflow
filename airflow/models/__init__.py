@@ -2984,6 +2984,10 @@ class DAG(BaseDag, LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
+    :param access_control: Specify optional DAG-level permissions, e.g.,
+        {'role1': {'can_dag_read'},
+         'role2': {'can_dag_read', 'can_dag_edit'}}
+    :type access_control: dict
     """
 
     def __init__(
@@ -3005,7 +3009,8 @@ class DAG(BaseDag, LoggingMixin):
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
             on_success_callback=None, on_failure_callback=None,
-            params=None):
+            params=None,
+            access_control=None):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -3082,6 +3087,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
 
         self._old_context_manager_dags = []
+        self._access_control = access_control
 
         self._comps = {
             'dag_id',
@@ -3302,6 +3308,14 @@ class DAG(BaseDag, LoggingMixin):
     @concurrency.setter
     def concurrency(self, value):
         self._concurrency = value
+
+    @property
+    def access_control(self):
+        return self._access_control
+
+    @access_control.setter
+    def access_control(self, value):
+        self._access_control = value
 
     @property
     def description(self):
