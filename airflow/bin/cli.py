@@ -1526,8 +1526,14 @@ def list_dag_runs(args, dag=None):
 def sync_perm(args): # noqa
     if settings.RBAC:
         appbuilder = cached_appbuilder()
-        print('Update permission, view-menu for all existing roles')
+        print('Updating permission, view-menu for all existing roles')
         appbuilder.sm.sync_roles()
+        print('Updating permission on all DAG views')
+        dags = DagBag().dags.values()
+        for dag in dags:
+            appbuilder.sm.sync_perm_for_dag(
+                dag.dag_id,
+                dag.access_control)
     else:
         print('The sync_perm command only works for rbac UI.')
 
@@ -2194,7 +2200,7 @@ class CLIFactory(object):
         },
         {
             'func': sync_perm,
-            'help': "Update existing role's permissions.",
+            'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
         },
         {
