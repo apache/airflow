@@ -390,7 +390,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type python_params: array of strings
+    :type python_params: list[str]
     :param spark_submit_params: A list of parameters for jobs with spark submit task,
         e.g. "spark_submit_params": ["--class", "org.apache.spark.examples.SparkPi"].
         The parameters will be passed to spark-submit script as command line parameters.
@@ -401,7 +401,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type spark_submit_params: array of strings
+    :type spark_submit_params: list[str]
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
         This field will be templated.

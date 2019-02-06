@@ -190,7 +190,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     for some examples and explanations of how to create specification.
 
     :param validation_specs: dictionary describing validation specification
-    :type validation_specs: [dict]
+    :type validation_specs: list[dict]
     :param api_version: Version of the api used (for example v1)
     :type api_version: str
 

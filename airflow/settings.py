@@ -243,7 +243,7 @@ def configure_action_logging():
     """
     Any additional configuration (register callback) for airflow.utils.action_loggers
     module
-    :return: None
+    :rtype: None
     """
     pass
 
