@@ -195,6 +195,23 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         else:
             self.log.info('Existing permissions for the role:%s within the database will persist.', role_name)
 
+    def delete_role(self, role_name):
+        """Delete the given Role
+
+        :param role_name: the name of a role in the ab_role table
+        """
+        session = self.get_session
+        role = session.query(sqla_models.Role)\
+                      .filter(sqla_models.Role.name == role_name)\
+                      .first()
+        if role:
+            self.log.info("Deleting role '{}'".format(role_name))
+            session.delete(role)
+            session.commit()
+        else:
+            raise AirflowException("Role named '{}' does not exist".format(
+                role_name))
+
     def get_user_roles(self, user=None):
         """
         Get all the roles associated with the user.
