@@ -289,6 +289,64 @@ class BranchOperatorTest(unittest.TestCase):
             else:
                 raise Exception
 
+    def test_with_skip_in_branch_downstream_dependencies(self):
+        self.branch_op = BranchPythonOperator(task_id='make_choice',
+                                              dag=self.dag,
+                                              python_callable=lambda: 'branch_1')
+
+        self.branch_op >> self.branch_1 >> self.branch_2
+        self.branch_op >> self.branch_2
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.NONE)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.NONE)
+            else:
+                raise Exception
+
+    def test_with_skip_in_branch_downstream_dependencies2(self):
+        self.branch_op = BranchPythonOperator(task_id='make_choice',
+                                              dag=self.dag,
+                                              python_callable=lambda: 'branch_2')
+
+        self.branch_op >> self.branch_1 >> self.branch_2
+        self.branch_op >> self.branch_2
+        self.dag.clear()
+
+        dr = self.dag.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == 'make_choice':
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == 'branch_1':
+                self.assertEqual(ti.state, State.SKIPPED)
+            elif ti.task_id == 'branch_2':
+                self.assertEqual(ti.state, State.NONE)
+            else:
+                raise Exception
+
 
 class ShortCircuitOperatorTest(unittest.TestCase):
     @classmethod
