@@ -69,7 +69,7 @@ class TaskReschedule(Base):
         in ascending order.
 
         :param task_instance: the task instance to find task reschedules for
-        :type task_instance: TaskInstance
+        :type task_instance: airflow.models.TaskInstance
         """
         TR = TaskReschedule
         return (

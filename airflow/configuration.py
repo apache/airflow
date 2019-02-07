@@ -313,8 +313,9 @@ class AirflowConfigParser(ConfigParser):
         """
         Returns the section as a dict. Values are converted to int, float, bool
         as required.
+
         :param section: section from the config
-        :return: dict
+        :rtype: dict
         """
         if (section not in self._sections and
                 section not in self.airflow_defaults._sections):

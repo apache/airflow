@@ -41,7 +41,7 @@ def context_to_airflow_vars(context, in_env_var_format=False):
     :type context: dict
     :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
     :type in_env_var_format: bool
-    :return task_instance context as dict.
+    :return: task_instance context as dict.
     """
     params = dict()
     if in_env_var_format:

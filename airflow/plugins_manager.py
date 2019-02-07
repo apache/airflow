@@ -81,8 +81,8 @@ def load_entrypoint_plugins(entry_points, airflow_plugins):
     :type entry_points: Generator[setuptools.EntryPoint, None, None]
     :param airflow_plugins: A collection of existing airflow plugins to
         ensure we don't load duplicates
-    :type airflow_plugins: List[AirflowPlugin]
-    :return: List[Type[AirflowPlugin]]
+    :type airflow_plugins: list[type[airflow.plugins_manager.AirflowPlugin]]
+    :rtype: list[airflow.plugins_manager.AirflowPlugin]
     """
     for entry_point in entry_points:
         log.debug('Importing entry_point plugin %s', entry_point.name)

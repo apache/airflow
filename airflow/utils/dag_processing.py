@@ -63,7 +63,7 @@ class SimpleDag(BaseDag):
     def __init__(self, dag, pickle_id=None):
         """
         :param dag: the DAG
-        :type dag: DAG
+        :type dag: airflow.models.DAG
         :param pickle_id: ID associated with the pickled version of this DAG.
         :type pickle_id: unicode
         """
@@ -247,7 +247,7 @@ class SimpleDagBag(BaseDagBag):
         Constructor.
 
         :param simple_dags: SimpleDag objects that should be in this
-        :type: list(SimpleDag)
+        :type list(airflow.utils.dag_processing.SimpleDagBag)
         """
         self.simple_dags = simple_dags
         self.dag_id_to_simple_dag = {}
@@ -269,7 +269,7 @@ class SimpleDagBag(BaseDagBag):
         :type dag_id: unicode
         :return: if the given DAG ID exists in the bag, return the BaseDag
         corresponding to that ID. Otherwise, throw an Exception
-        :rtype: SimpleDag
+        :rtype: airflow.utils.dag_processing.SimpleDag
         """
         if dag_id not in self.dag_id_to_simple_dag:
             raise AirflowException("Unknown DAG ID {}".format(dag_id))
@@ -406,7 +406,7 @@ class AbstractDagFileProcessor(object):
     def result(self):
         """
         :return: result of running SchedulerJob.process_file()
-        :rtype: list[SimpleDag]
+        :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
         raise NotImplementedError()
 
@@ -456,15 +456,15 @@ class DagFileProcessorAgent(LoggingMixin):
                  async_mode):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
-        files in file_paths should be under this directory
+            files in file_paths should be under this directory
         :type dag_directory: unicode
         :param file_paths: list of file paths that contain DAG definitions
         :type file_paths: list[unicode]
         :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
+            for unlimited.
         :type max_runs: int
         :param processor_factory: function that creates processors for DAG
-        definition files. Arguments are (dag_definition_path, log_file_path)
+            definition files. Arguments are (dag_definition_path, log_file_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
         :param async_mode: Whether to start agent in async mode
         :type async_mode: bool
@@ -679,7 +679,7 @@ class DagFileProcessorManager(LoggingMixin):
     :type _file_path_queue: list[unicode]
     :type _processors: dict[unicode, AbstractDagFileProcessor]
     :type _last_runtime: dict[unicode, float]
-    :type _last_finish_time: dict[unicode, datetime]
+    :type _last_finish_time: dict[unicode, datetime.datetime]
     """
 
     def __init__(self,
@@ -693,18 +693,18 @@ class DagFileProcessorManager(LoggingMixin):
                  async_mode=True):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
-        files in file_paths should be under this directory
+            files in file_paths should be under this directory
         :type dag_directory: unicode
         :param file_paths: list of file paths that contain DAG definitions
         :type file_paths: list[unicode]
         :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
+            for unlimited.
         :type max_runs: int
         :param processor_factory: function that creates processors for DAG
-        definition files. Arguments are (dag_definition_path)
+            definition files. Arguments are (dag_definition_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
         :param signal_conn: connection to communicate signal with processor agent.
-        :type signal_conn: Connection
+        :type signal_conn: airflow.models.connection.Connection
         :param stat_queue: the queue to use for passing back parsing stat to agent.
         :type stat_queue: multiprocessing.Queue
         :param result_queue: the queue to use for passing back the result to agent.
@@ -781,7 +781,6 @@ class DagFileProcessorManager(LoggingMixin):
         DAGs in parallel. By processing them in separate processes,
         we can get parallelism and isolation from potentially harmful
         user code.
-        :return:
         """
 
         self.log.info("Processing files using up to {} processes at a time "
@@ -915,7 +914,6 @@ class DagFileProcessorManager(LoggingMixin):
     def _print_stat(self):
         """
         Occasionally print out stats about how fast the files are getting processed
-        :return:
         """
         if ((timezone.utcnow() - self.last_stat_print_time).total_seconds() >
                 self.print_stats_interval):
@@ -927,6 +925,7 @@ class DagFileProcessorManager(LoggingMixin):
     def clear_nonexistent_import_errors(self, session):
         """
         Clears import errors for files that no longer exist.
+
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         """
@@ -941,6 +940,7 @@ class DagFileProcessorManager(LoggingMixin):
     def _log_file_processing_stats(self, known_file_paths):
         """
         Print out stats about how files are getting processed.
+
         :param known_file_paths: a list of file paths that may contain Airflow
             DAG definitions
         :type known_file_paths: list[unicode]
@@ -1008,7 +1008,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that's being processed
         :type file_path: unicode
         :return: the PID of the process processing the given file or None if
-        the specified file is not being processed
+            the specified file is not being processed
         :rtype: int
         """
         if file_path in self._processors:
@@ -1027,8 +1027,8 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that's being processed
         :type file_path: unicode
         :return: the current runtime (in seconds) of the process that's
-        processing the specified file or None if the file is not currently
-        being processed
+            processing the specified file or None if the file is not currently
+            being processed
         """
         if file_path in self._processors:
             return (timezone.utcnow() - self._processors[file_path].start_time)\
@@ -1040,7 +1040,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that was processed
         :type file_path: unicode
         :return: the runtime (in seconds) of the process of the last run, or
-        None if the file was never processed.
+            None if the file was never processed.
         :rtype: float
         """
         return self._last_runtime.get(file_path)
@@ -1050,7 +1050,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that was processed
         :type file_path: unicode
         :return: the finish time of the process of the last run, or None if the
-        file was never processed.
+            file was never processed.
         :rtype: datetime
         """
         return self._last_finish_time.get(file_path)
@@ -1060,7 +1060,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that's being processed
         :type file_path: unicode
         :return: the start time of the process that's processing the
-        specified file or None if the file is not currently being processed
+            specified file or None if the file is not currently being processed
         :rtype: datetime
         """
         if file_path in self._processors:
@@ -1110,8 +1110,8 @@ class DagFileProcessorManager(LoggingMixin):
         results from the finished processors.
 
         :return: a list of SimpleDags that were produced by processors that
-        have finished since the last time this was called
-        :rtype: list[SimpleDag]
+            have finished since the last time this was called
+        :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
         finished_processors = {}
         """:type : dict[unicode, AbstractDagFileProcessor]"""

@@ -106,7 +106,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param input_paths: A list of GCS paths of input data for batch
         prediction. Accepting wildcard operator ``*``, but only at the end. (templated)
-    :type input_paths: list of string
+    :type input_paths: list[str]
 
     :param output_path: The GCS path where the prediction results are
         written to. (templated)

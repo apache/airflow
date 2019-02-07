@@ -60,7 +60,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type storage_bucket: str
     :param init_actions_uris: List of GCS uri's containing
         dataproc initialization scripts
-    :type init_actions_uris: list[string]
+    :type init_actions_uris: list[str]
     :param init_action_timeout: Amount of time executable scripts in
         init_actions_uris has to complete
     :type init_action_timeout: str
@@ -111,7 +111,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         enabled networks
     :type internal_ip_only: bool
     :param tags: The GCE tags to add to all instances
-    :type tags: list[string]
+    :type tags: list[str]
     :param region: leave as 'global', might become relevant in the future. (templated)
     :type region: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
@@ -123,7 +123,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :param service_account: The service account of the dataproc instances.
     :type service_account: str
     :param service_account_scopes: The URIs of service account scopes to be included.
-    :type service_account_scopes: list[string]
+    :type service_account_scopes: list[str]
     :param idle_delete_ttl: The longest duration that cluster would keep alive while
         staying idle. Passing this threshold will cause cluster to be auto-deleted.
         A duration in seconds.
