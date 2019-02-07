@@ -119,7 +119,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
         Not applicable for external tables.
-    :type cluster_fields: list of str
+    :type cluster_fields: list[str]
     :param autodetect: [Optional] Indicates if we should automatically infer the
         options and schema for CSV and JSON sources. (Default: ``False``)
     :type autodetect: bool

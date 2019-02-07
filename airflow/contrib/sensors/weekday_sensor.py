@@ -66,7 +66,7 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-    :type week_day: set or str or WeekDay
+    :type week_day: set or str or airflow.contrib.utils.weekday.WeekDay
     :param use_task_execution_day: If ``True``, uses task's execution day to compare
         with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you

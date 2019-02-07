@@ -591,7 +591,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param cluster_fields: Request that the result of this query be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list of str
+        :type cluster_fields: list[str]
         :param location: The geographic location of the job. Required except for
             US and EU. See details at
             https://cloud.google.com/bigquery/docs/locations#specifying_your_location
@@ -836,7 +836,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type write_disposition: str
         :param create_disposition: The create disposition if the table doesn't exist.
         :type create_disposition: str
-        :param labels a dictionary containing labels for the job/query,
+        :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
         """
@@ -968,7 +968,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param cluster_fields: Request that the result of this load be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list of str
+        :type cluster_fields: list[str]
         """
 
         # bigquery only allows certain source formats

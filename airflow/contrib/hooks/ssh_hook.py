@@ -146,7 +146,7 @@ class SSHHook(BaseHook, LoggingMixin):
         """
         Opens a ssh connection to the remote host.
 
-        :return paramiko.SSHClient object
+        :rtype: paramiko.client.SSHClient
         """
 
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)

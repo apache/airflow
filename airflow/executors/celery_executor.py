@@ -92,9 +92,9 @@ def fetch_celery_task_state(celery_task):
     global so that it can be called by subprocesses in the pool.
     :param celery_task: a tuple of the Celery task key and the async Celery object used
                         to fetch the task's state
-    :type celery_task: (str, celery.result.AsyncResult)
+    :type celery_task: tuple(str, celery.result.AsyncResult)
     :return: a tuple of the Celery task key and the Celery state of the task
-    :rtype: (str, str)
+    :rtype: luple[str, str]
     """
 
     try:

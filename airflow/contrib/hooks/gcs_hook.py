@@ -284,7 +284,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             storage bucket.
         :type object: str
         :param ts: The timestamp to check against.
-        :type ts: datetime
+        :type ts: datetime.datetime
         """
         service = self.get_conn()
         try:

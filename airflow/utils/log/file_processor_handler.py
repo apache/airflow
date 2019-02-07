@@ -131,7 +131,7 @@ class FileProcessorHandler(logging.Handler):
         """
         Create log file and directory if required.
         :param filename: task instance object
-        :return relative log path of the given task instance
+        :return: relative log path of the given task instance
         """
         relative_path = self._render_filename(filename)
         full_path = os.path.join(self._get_log_directory(), relative_path)

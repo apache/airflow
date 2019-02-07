@@ -48,7 +48,7 @@ class HiveToDruidTransfer(BaseOperator):
     :type metastore_conn_id: str
     :param hadoop_dependency_coordinates: list of coordinates to squeeze
         int the ingest json
-    :type hadoop_dependency_coordinates: list of str
+    :type hadoop_dependency_coordinates: list[str]
     :param intervals: list of time intervals that defines segments,
         this is passed as is to the json object. (templated)
     :type intervals: list
