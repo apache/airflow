@@ -172,6 +172,10 @@ data:
     worker_container_repository = airflow
     worker_container_tag = latest
     worker_container_image_pull_policy = IfNotPresent
+    worker_request_memory =
+    worker_limit_memory =
+    worker_request_cpu =
+    worker_limit_cpu =
     delete_worker_pods = True
     dags_in_image = False
     git_repo = https://github.com/{{CONFIGMAP_GIT_REPO}}.git

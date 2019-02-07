@@ -143,6 +143,21 @@ class KubeConfig:
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
 
+        # NOTE: user may want to specify global defaults on kubernetes worker resource
+        # limits
+        # The requested memory for worker pods
+        self.kube_request_memory = conf.get(
+            self.kubernetes_section, 'worker_request_memory')
+        # The limit on memory for worker pods
+        self.kube_limit_memory = conf.get(
+            self.kubernetes_section, 'worker_limit_memory')
+        # The requested cpu resource for worker pods
+        self.kube_request_cpu = conf.get(
+            self.kubernetes_section, 'worker_request_cpu')
+        # The limit on cpu resource for worker pods
+        self.kube_limit_cpu = conf.get(
+            self.kubernetes_section, 'worker_limit_cpu')
+
         # NOTE: user can build the dags into the docker image directly,
         # this will set to True if so
         self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
@@ -244,13 +259,17 @@ class KubeConfig:
         if not self.dags_volume_claim \
            and not self.dags_volume_host \
            and not self.dags_in_image \
-           and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point):
+           and (not self.git_repo or not self.git_branch or not self.git_dags_folder_mount_point) \
+           and (not self.kube_request_memory or not self.kube_limit_memory) \
+           and (not self.kube_request_cpu or not self.kube_limit_cpu):
             raise AirflowConfigException(
                 'In kubernetes mode the following must be set in the `kubernetes` '
                 'config section: `dags_volume_claim` '
                 'or `dags_volume_host` '
                 'or `dags_in_image` '
-                'or `git_repo and git_branch and git_dags_folder_mount_point`')
+                'or `git_repo and git_branch and git_dags_folder_mount_point`'
+                'or `kube_request_memory` and `kube_limit_memory`'
+                'or `kube_request_cpu` and `kube_limit_cpu`')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):

@@ -216,10 +216,10 @@ class WorkerConfiguration(LoggingMixin):
         worker_init_container_spec = self._get_init_containers(
             copy.deepcopy(volume_mounts_dict))
         resources = Resources(
-            request_memory=kube_executor_config.request_memory,
-            request_cpu=kube_executor_config.request_cpu,
-            limit_memory=kube_executor_config.limit_memory,
-            limit_cpu=kube_executor_config.limit_cpu
+            request_memory=kube_executor_config.request_memory or self.kube_config.kube_request_memory,
+            request_cpu=kube_executor_config.request_cpu or self.kube_config.kube_request_cpu,
+            limit_memory=kube_executor_config.limit_memory or self.kube_config.kube_limit_memory,
+            limit_cpu=kube_executor_config.limit_cpu or self.kube_config.kube_limit_cpu
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
         annotations = dict(kube_executor_config.annotations)
