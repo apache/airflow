@@ -239,22 +239,22 @@ For more instructions on using Amazon SageMaker in Airflow, please see `the Sage
 :class:`airflow.contrib.hooks.sagemaker_hook.SageMakerHook`
     Interface with Amazon SageMaker.
 
-:class:`airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator`
+:class:`airflow.contrib.operators.sagemaker_operator.SageMakerTrainingOperator`
     Create a SageMaker training job.
 
-:class:`airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator`
+:class:`airflow.contrib.operators.sagemaker_operator.SageMakerTuningOperator`
     Create a SageMaker tuning job.
 
-:class:`airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator`
+:class:`airflow.contrib.operators.sagemaker_operator.SageMakerModelOperator`
     Create a SageMaker model.
 
-:class:`airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator`
+:class:`airflow.contrib.operators.sagemaker_operator.SageMakerTransformOperator`
     Create a SageMaker transform job.
 
-:class:`airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator`
+:class:`airflow.contrib.operators.sagemaker_operator.SageMakerEndpointConfigOperator`
     Create a SageMaker endpoint config.
 
-:class:`airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator`
+:class:`airflow.contrib.operators.sagemaker_operator.SageMakerEndpointOperator`
     Create a SageMaker endpoint.
 
 
