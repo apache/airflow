@@ -1679,10 +1679,10 @@ class Airflow(AirflowBaseView):
             session.merge(orm_dag)
         session.commit()
 
+        dag = dagbag.get_dag(dag_id)
         # sync dag permission
-        appbuilder.sm.sync_perm_for_dag(dag_id)
+        appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
 
-        dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
@@ -1691,9 +1691,9 @@ class Airflow(AirflowBaseView):
     @action_logging
     def refresh_all(self):
         dagbag.collect_dags(only_if_updated=False)
-        for dag_id in dagbag.dags:
-            # sync permissions for all dags
-            appbuilder.sm.sync_perm_for_dag(dag_id)
+        # sync permissions for all dags
+        for dag_id, dag in dagbag.dags.items():
+            appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
         flash("All DAGs are now up to date")
         return redirect('/')
 

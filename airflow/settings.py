@@ -80,8 +80,8 @@ try:
             port=conf.getint('scheduler', 'statsd_port'),
             prefix=conf.get('scheduler', 'statsd_prefix'))
         Stats = statsd
-except (socket.gaierror, ImportError):
-    log.warning("Could not configure StatsClient, using DummyStatsLogger instead.")
+except (socket.gaierror, ImportError) as e:
+    log.warning("Could not configure StatsClient: %s, using DummyStatsLogger instead.", e)
 
 HEADER = '\n'.join([
     r'  ____________       _____________',

@@ -58,13 +58,12 @@ import traceback
 import warnings
 import hashlib
 
-import uuid
 from datetime import datetime
 from urllib.parse import quote
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, Index, Integer, PickleType, String,
-    Text, UniqueConstraint, and_, func, or_, true as sqltrue
+    Text, UniqueConstraint, and_, func, or_
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
@@ -84,6 +83,7 @@ from airflow.exceptions import (
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
+from airflow.models.kubernetes import KubeWorkerIdentifier, KubeResourceVersion  # noqa: F401
 from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
@@ -2984,6 +2984,10 @@ class DAG(BaseDag, LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
+    :param access_control: Specify optional DAG-level permissions, e.g.,
+        {'role1': {'can_dag_read'},
+         'role2': {'can_dag_read', 'can_dag_edit'}}
+    :type access_control: dict
     """
 
     def __init__(
@@ -3005,7 +3009,8 @@ class DAG(BaseDag, LoggingMixin):
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
             on_success_callback=None, on_failure_callback=None,
-            params=None):
+            params=None,
+            access_control=None):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -3082,6 +3087,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
 
         self._old_context_manager_dags = []
+        self._access_control = access_control
 
         self._comps = {
             'dag_id',
@@ -3302,6 +3308,14 @@ class DAG(BaseDag, LoggingMixin):
     @concurrency.setter
     def concurrency(self, value):
         self._concurrency = value
+
+    @property
+    def access_control(self):
+        return self._access_control
+
+    @access_control.setter
+    def access_control(self, value):
+        self._access_control = value
 
     @property
     def description(self):
@@ -4748,57 +4762,3 @@ class Pool(Base):
         used_slots = self.used_slots(session=session)
         queued_slots = self.queued_slots(session=session)
         return self.slots - used_slots - queued_slots
-
-
-class KubeResourceVersion(Base):
-    __tablename__ = "kube_resource_version"
-    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
-    resource_version = Column(String(255))
-
-    @staticmethod
-    @provide_session
-    def get_current_resource_version(session=None):
-        (resource_version,) = session.query(KubeResourceVersion.resource_version).one()
-        return resource_version
-
-    @staticmethod
-    @provide_session
-    def checkpoint_resource_version(resource_version, session=None):
-        if resource_version:
-            session.query(KubeResourceVersion).update({
-                KubeResourceVersion.resource_version: resource_version
-            })
-            session.commit()
-
-    @staticmethod
-    @provide_session
-    def reset_resource_version(session=None):
-        session.query(KubeResourceVersion).update({
-            KubeResourceVersion.resource_version: '0'
-        })
-        session.commit()
-        return '0'
-
-
-class KubeWorkerIdentifier(Base):
-    __tablename__ = "kube_worker_uuid"
-    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
-    worker_uuid = Column(String(255))
-
-    @staticmethod
-    @provide_session
-    def get_or_create_current_kube_worker_uuid(session=None):
-        (worker_uuid,) = session.query(KubeWorkerIdentifier.worker_uuid).one()
-        if worker_uuid == '':
-            worker_uuid = str(uuid.uuid4())
-            KubeWorkerIdentifier.checkpoint_kube_worker_uuid(worker_uuid, session)
-        return worker_uuid
-
-    @staticmethod
-    @provide_session
-    def checkpoint_kube_worker_uuid(worker_uuid, session=None):
-        if worker_uuid:
-            session.query(KubeWorkerIdentifier).update({
-                KubeWorkerIdentifier.worker_uuid: worker_uuid
-            })
-            session.commit()
