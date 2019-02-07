@@ -45,6 +45,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
     :type py_files: str
+    :param: archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
+        the application working directory.
     :param driver_classpath: Additional, driver-specific, classpath settings.
     :type driver_classpath: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
@@ -94,6 +96,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
+                 archives=None,
                  driver_classpath=None,
                  jars=None,
                  java_class=None,
@@ -116,6 +119,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
+        self._archives = archives
         self._driver_classpath = driver_classpath
         self._jars = jars
         self._java_class = java_class
@@ -244,6 +248,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--files", self._files]
         if self._py_files:
             connection_cmd += ["--py-files", self._py_files]
+        if self._archives:
+            connection_cmd += ["--archives", self._archives]
         if self._driver_classpath:
             connection_cmd += ["--driver-classpath", self._driver_classpath]
         if self._jars:
