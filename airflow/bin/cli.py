@@ -1579,6 +1579,28 @@ def _import_users(users_list):
 
 
 @cli_utils.action_logging
+def roles(args):
+    if args.create and args.list:
+        raise AirflowException("Please specify either --create or --list, "
+                               "but not both")
+
+    appbuilder = cached_appbuilder()
+    if args.create:
+        for role_name in args.role:
+            appbuilder.sm.add_role(role_name)
+    elif args.list:
+        roles = appbuilder.sm.get_all_roles()
+        print("Existing roles:\n")
+        role_names = sorted([[r.name] for r in roles])
+        msg = tabulate(role_names,
+                       headers=['Role'],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
+
+
+@cli_utils.action_logging
 def list_dag_runs(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
@@ -2125,6 +2147,19 @@ class CLIFactory(object):
             ("-e", "--export"),
             metavar="FILEPATH",
             help="Export users to JSON file"),
+        # roles
+        'create_role': Arg(
+            ('-c', '--create'),
+            help='Create a new role',
+            action='store_true'),
+        'list_roles': Arg(
+            ('-l', '--list'),
+            help='List roles',
+            action='store_true'),
+        'roles': Arg(
+            ('role',),
+            help='The name of a role',
+            nargs='*'),
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
@@ -2296,8 +2331,11 @@ class CLIFactory(object):
                      'add_role', 'remove_role', 'user_import', 'user_export',
                      'username', 'email', 'firstname', 'lastname', 'role',
                      'password', 'use_random_password'),
-        },
-        {
+        }, {
+            'func': roles,
+            'help': 'Create/List roles',
+            'args': ('create_role', 'list_roles', 'roles'),
+        }, {
             'func': sync_perm,
             'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
