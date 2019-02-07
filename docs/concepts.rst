@@ -129,16 +129,23 @@ described elsewhere in this document.
 
 Airflow provides operators for many common tasks, including:
 
-- ``BashOperator`` - executes a bash command
-- ``PythonOperator`` - calls an arbitrary Python function
-- ``EmailOperator`` - sends an email
-- ``SimpleHttpOperator`` - sends an HTTP request
-- ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
+- :class:`airflow.operators.bash_operator.BashOperator` - executes a bash command
+- :class:`airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
+- :class:`airflow.operators.email_operator.EmailOperator` - sends an email
+- :class:`airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
+- :class:`airflow.operators.mysql_operator.MySqlOperator`,
+  :class:`airflow.operators.sqlite_operator.SqliteOperator`,
+  :class:`airflow.operators.postgres_operator.PostgresOperator`,
+  :class:`airflow.operators.mssql_operator.MsSqlOperator`,
+  :class:`airflow.operators.oracle_operator.OracleOperator`,
+  :class:`airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransformOperator``,
-``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
+operators: :class:`airflow.operators.docker_operator.DockerOperator`,
+:class:`airflow.operators.hive_operator.HiveOperator`, :class:`airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
+:class:`airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
 community. These operators aren't always as complete or well-tested as those in

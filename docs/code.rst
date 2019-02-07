@@ -533,6 +533,8 @@ Executors are the mechanism by which task instances get run.
 .. autoclass:: airflow.executors.celery_executor.CeleryExecutor
 .. autoclass:: airflow.executors.local_executor.LocalExecutor
 .. autoclass:: airflow.executors.sequential_executor.SequentialExecutor
+.. autoclass:: airflow.executors.dask_executor.DaskExecutor
+
 
 Community-contributed executors
 '''''''''''''''''''''''''''''''

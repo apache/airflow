@@ -124,7 +124,7 @@ class AzureContainerInstanceHook(BaseHook):
         :param name: the name of the container group
         :type name: str
         :return: A list of the event messages
-        :rtype: list<str>
+        :rtype: list[str]
         """
         instance_view = self._get_instance_view(resource_group, name)
 
@@ -141,7 +141,7 @@ class AzureContainerInstanceHook(BaseHook):
         :param tail: the size of the tail
         :type tail: int
         :return: A list of log messages
-        :rtype: list<str>
+        :rtype: list[str]
         """
         logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)

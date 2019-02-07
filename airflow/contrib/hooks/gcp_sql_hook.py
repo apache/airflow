@@ -413,7 +413,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         :type instance_specification: str
         :param gcp_conn_id: Id of Google Cloud Platform connection to use for
             authentication
-        :type: str
+        :type gcp_conn_id: str
         :param project_id: Optional id of the GCP project to connect to - it overwrites
             default project id taken from the GCP connection.
         :type project_id: str

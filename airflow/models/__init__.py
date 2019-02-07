@@ -151,7 +151,7 @@ def get_fernet():
     or because the Fernet key is invalid.
 
     :return: Fernet object
-    :raises: AirflowException if there's a problem trying to load Fernet
+    :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
     """
     global _fernet
     log = LoggingMixin().log
@@ -476,9 +476,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
-        :type zombies: ``SimpleTaskInstance``
+        :type zombies: airflow.utils.dag_processing.SimpleTaskInstance
         :param session: DB session.
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         for zombie in zombies:
             if zombie.dag_id in self.dags:
@@ -1059,7 +1059,7 @@ class TaskInstance(Base, LoggingMixin):
             should be evaluated.
         :type dep_context: DepContext
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :param verbose: whether log details on failed dependencies on
             info or debug log level
         :type verbose: bool
@@ -1928,13 +1928,13 @@ class BaseOperator(LoggingMixin):
         failing the task
     :type retries: int
     :param retry_delay: delay between retries
-    :type retry_delay: timedelta
+    :type retry_delay: datetime.timedelta
     :param retry_exponential_backoff: allow progressive longer waits between
         retries by using exponential backoff algorithm on retry delay (delay
         will be converted into seconds)
     :type retry_exponential_backoff: bool
     :param max_retry_delay: maximum delay interval between retries
-    :type max_retry_delay: timedelta
+    :type max_retry_delay: datetime.timedelta
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
@@ -1951,9 +1951,9 @@ class BaseOperator(LoggingMixin):
         ``TimeSensor`` and ``TimeDeltaSensor``. We advise against using
         dynamic ``start_date`` and recommend using fixed ones. Read the
         FAQ entry about start_date for more information.
-    :type start_date: datetime
+    :type start_date: datetime.datetime
     :param end_date: if specified, the scheduler won't go beyond this date
-    :type end_date: datetime
+    :type end_date: datetime.datetime
     :param depends_on_past: when set to true, task instances will run
         sequentially while relying on the previous task's schedule to
         succeed. The task instance for the start_date is allowed to run.
@@ -1970,7 +1970,7 @@ class BaseOperator(LoggingMixin):
         does support targeting specific queues.
     :type queue: str
     :param dag: a reference to the dag the task is attached to (if any)
-    :type dag: DAG
+    :type dag: airflow.models.DAG
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
@@ -2881,15 +2881,15 @@ class DagModel(Base):
         :param run_id: defines the the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: State
+        :type state: airflow.utils.state.State
         :param start_date: the date this dag run should be evaluated
-        :type start_date: datetime
+        :type start_date: datetime.datetime
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
 
         return self.get_dag().create_dagrun(run_id=run_id,
@@ -2934,7 +2934,7 @@ class DAG(BaseDag, LoggingMixin):
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
         default
-    :type template_searchpath: str or list of stings
+    :type template_searchpath: str or list[str]
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
@@ -3963,9 +3963,9 @@ class DAG(BaseDag, LoggingMixin):
         Runs the DAG.
 
         :param start_date: the start date of the range to run
-        :type start_date: datetime
+        :type start_date: datetime.datetime
         :param end_date: the end date of the range to run
-        :type end_date: datetime
+        :type end_date: datetime.datetime
         :param mark_success: True to mark jobs as succeeded without running them
         :type mark_success: bool
         :param local: True to run the tasks using the LocalExecutor
@@ -4036,15 +4036,15 @@ class DAG(BaseDag, LoggingMixin):
         :param run_id: defines the the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: State
+        :type state: airflow.utils.state.State
         :param start_date: the date this dag run should be evaluated
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         run = DagRun(
             dag_id=self.dag_id,
@@ -4077,7 +4077,7 @@ class DAG(BaseDag, LoggingMixin):
         SubDagOperator.
 
         :param dag: the DAG object to save to the DB
-        :type dag: DAG
+        :type dag: airflow.models.DAG
         :param sync_time: The time that the DAG should be marked as sync'ed
         :type sync_time: datetime
         :return: None
@@ -4263,7 +4263,7 @@ class Variable(Base, LoggingMixin):
         for a key, and if it isn't there, stores the default value and returns it.
 
         :param key: Dict key for this Variable
-        :type key: String
+        :type key: str
         :param default: Default value to set and return if the variable
             isn't already in the DB
         :type default: Mixed
@@ -4404,16 +4404,16 @@ class DagRun(Base, LoggingMixin):
         :param run_id: defines the the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: State
+        :type state: airflow.utils.state.State
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param no_backfills: return no backfills (True), return all (False).
             Defaults to False
         :type no_backfills: bool
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         DR = DagRun
 

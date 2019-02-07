@@ -314,13 +314,13 @@ class HiveCliHook(BaseHook):
         not be sanitized.
 
         :param df: DataFrame to load into a Hive table
-        :type df: DataFrame
+        :type df: pandas.DataFrame
         :param table: target Hive table, use dot notation to target a
             specific database
         :type table: str
         :param field_dict: mapping from column name to hive data type.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: OrderedDict
+        :type field_dict: collections.OrderedDict
         :param delimiter: field delimiter in the file
         :type delimiter: str
         :param encoding: str encoding to use when writing DataFrame to file
@@ -406,7 +406,7 @@ class HiveCliHook(BaseHook):
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: OrderedDict
+        :type field_dict: collections.OrderedDict
         :param create: whether to create the table if it doesn't exist
         :type create: bool
         :param overwrite: whether to overwrite the data in table or partition
@@ -844,8 +844,8 @@ class HiveServer2Hook(BaseHook):
         :type hql: str or list
         :param schema: target schema, default to 'default'.
         :type schema: str
-        :param fetch_size max: size of result to fetch.
-        :type fetch_size_max: int
+        :param fetch_size: max size of result to fetch.
+        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
         :type hive_conf: dict
         :return: results of hql execution, dict with data (list of results) and header
@@ -957,6 +957,8 @@ class HiveServer2Hook(BaseHook):
         >>> df = hh.get_pandas_df(sql)
         >>> len(df.index)
         100
+
+        :return: pandas.DateFrame
         """
         import pandas as pd
         res = self.get_results(hql, schema=schema)

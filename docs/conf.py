@@ -52,6 +52,7 @@ autodoc_mock_imports = [
     'cloudant',
     'cx_Oracle',
     'datadog',
+    'distributed',
     'docker',
     'google',
     'google_auth_httplib2',
@@ -185,7 +186,14 @@ pygments_style = 'sphinx'
 
 
 intersphinx_mapping = {
-    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest', None),
+    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
+    'google-cloud-python': (
+        'https://googleapis.github.io/google-cloud-python/latest/', None),
+    'mongodb': ('https://api.mongodb.com/python/current/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'python': ('https://docs.python.org/3/', None),
+    'requests': ('http://docs.python-requests.org/en/master/', None),
+    'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
 }
 
 # -- Options for HTML output ----------------------------------------------

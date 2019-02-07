@@ -89,7 +89,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type verbose: bool
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit.
-    :type spark_binary: string
+    :type spark_binary: str
     """
     def __init__(self,
                  conf=None,

@@ -23,11 +23,11 @@ class Volume:
         """ Adds Kubernetes Volume to pod. allows pod to access features like ConfigMaps
         and Persistent Volumes
         :param name: the name of the volume mount
-        :type: name: str
+        :type name: str
         :param configs: dictionary of any features needed for volume.
         We purposely keep this vague since there are multiple volume types with changing
         configs.
-        :type: configs: dict
+        :type configs: dict
         """
         self.name = name
         self.configs = configs

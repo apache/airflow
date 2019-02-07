@@ -75,7 +75,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
         completion or an error occurring
 
         :param operation: The Operation to wait for
-        :type operation: A google.cloud.container_V1.gapic.enums.Operator
+        :type operation: google.cloud.container_V1.gapic.enums.Operation
         :param project_id: Google Cloud Platform project ID
         :type project_id: str
         :return: A new, updated operation fetched from Google Cloud
@@ -173,7 +173,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
         :param cluster: A Cluster protobuf or dict. If dict is provided, it must
             be of the same form as the protobuf message
-            ``google.cloud.container_v1.types.Cluster``
+            :class:`google.cloud.container_v1.types.Cluster`
         :type cluster: dict or google.cloud.container_v1.types.Cluster
         :param project_id: Google Cloud Platform project ID
         :type project_id: str
@@ -232,7 +232,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             complete. Note that if retry is specified, the timeout applies to each
             individual attempt.
         :type timeout: float
-        :return: A google.cloud.container_v1.types.Cluster instance
+        :return: google.cloud.container_v1.types.Cluster
         """
         self.log.info("Fetching cluster (project_id={}, zone={}, cluster_name={})".format(
             project_id or self.project_id,

@@ -57,10 +57,10 @@ class PythonOperator(BaseOperator):
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied. (templated)
-    :type templates_dict: dict of str
+    :type templates_dict: dict[str]
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
-    :type templates_exts: list(str)
+    :type templates_exts: list[str]
     """
     template_fields = ('templates_dict',)
     template_ext = tuple()
@@ -197,7 +197,7 @@ class PythonVirtualenvOperator(PythonOperator):
         defined with def, which will be run in a virtualenv
     :type python_callable: function
     :param requirements: A list of requirements as specified in a pip install command
-    :type requirements: list(str)
+    :type requirements: list[str]
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
     :type python_version: str
@@ -214,9 +214,9 @@ class PythonVirtualenvOperator(PythonOperator):
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :type op_kwargs: dict
     :param string_args: Strings that are present in the global var virtualenv_string_args,
-        available to python_callable at runtime as a list(str). Note that args are split
+        available to python_callable at runtime as a list[str]. Note that args are split
         by newline.
-    :type string_args: list(str)
+    :type string_args: list[str]
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
@@ -224,7 +224,7 @@ class PythonVirtualenvOperator(PythonOperator):
     :type templates_dict: dict of str
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
-    :type templates_exts: list(str)
+    :type templates_exts: list[str]
     """
     @apply_defaults
     def __init__(self, python_callable,

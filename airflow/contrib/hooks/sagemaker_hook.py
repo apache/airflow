@@ -234,7 +234,7 @@ class SageMakerHook(AwsHook):
         """
         Establish an AWS connection for retrieving logs during training
 
-        :rtype: :py:class:`CloudWatchLog.Client`
+        :rtype: CloudWatchLogs.Client
         """
         config = botocore.config.Config(retries={'max_attempts': 15})
         return self.get_client_type('logs', config=config)
@@ -373,7 +373,7 @@ class SageMakerHook(AwsHook):
         :param config: the config for tuning
         :type config: dict
         :param wait_for_completion: if the program should keep running until job finishes
-        :param wait_for_completion: bool
+        :type wait_for_completion: bool
         :param check_interval: the time interval in seconds which the operator
             will check the status of any SageMaker job
         :type check_interval: int

@@ -222,10 +222,10 @@ class MongoHook(BaseHook):
         :param mongo_collection: The name of the collection to update.
         :type mongo_collection: str
         :param docs: The new documents.
-        :type docs: list(dict)
+        :type docs: list[dict]
         :param filter_docs: A list of queries that match the documents to replace.
             Can be omitted; then the _id fields from docs will be used.
-        :type filter_docs: list(dict)
+        :type filter_docs: list[dict]
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
         :type mongo_db: str
@@ -235,7 +235,7 @@ class MongoHook(BaseHook):
         :param collation: An instance of
             :class:`~pymongo.collation.Collation`. This option is only
             supported on MongoDB 3.4 and above.
-        :type collation: :class:`~pymongo.collation.Collation`
+        :type collation: pymongo.collation.Collation
 
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)

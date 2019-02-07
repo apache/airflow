@@ -87,7 +87,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param try_number: try_number of the task instance
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
-        :return a list of log documents and metadata.
+        :return: a list of log documents and metadata.
         """
         if not metadata:
             metadata = {'offset': 0}

@@ -264,10 +264,14 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         Verify whether a given user could perform certain permission
         (e.g can_read, can_write) on the given dag_id.
 
-        :param str permission: permission on dag_id(e.g can_read, can_edit).
-        :param str view_name: name of view-menu(e.g dag id is a view-menu as well).
-        :param str user: user name
+        :param permission: permission on dag_id(e.g can_read, can_edit).
+        :type permission: str
+        :param view_name: name of view-menu(e.g dag id is a view-menu as well).
+        :type permission: str
+        :param user: user name
+        :type permission: str
         :return: a bool whether user could perform certain permission on the dag_id.
+        :rtype bool
         """
         if not user:
             user = g.user
@@ -337,9 +341,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         It will add the related entry to ab_permission
         and ab_view_menu two meta tables as well.
 
-        :param str permission_name: Name of the permission.
-        :param str view_menu_name: Name of the view-menu
-
+        :param permission_name: Name of the permission.
+        :type permission_name: str
+        :param view_menu_name: Name of the view-menu
+        :type view_menu_name: str
         :return:
         """
         permission = self.find_permission(permission_name)
