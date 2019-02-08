@@ -68,6 +68,11 @@ class RestApiPlugin(AirflowPlugin):
 
 
 class AirflowRestyResolver(Resolver):
+    """
+    A class to allow mapping between the API Path/Method operations
+    and python modules in the airflow package.
+    """
+
     handler_mapping = {
         'dags.delete': 'airflow.api.common.experimental.delete_dag.delete_dag',
         'dags.dag_runs.list': 'airflow.api.common.experimental.get_dag_runs.get_dag_runs',
@@ -89,6 +94,10 @@ class AirflowRestyResolver(Resolver):
         self.version = version
 
     def resolve_function_from_operation_id(self, operation_id):
+        """
+        Make sure any method used as an endpoint will return an object
+        which can be returned in an HTTP json response
+        """
         method = super(AirflowRestyResolver, self).resolve_function_from_operation_id(operation_id)
 
         def ensure_serialisable(func):
@@ -111,6 +120,9 @@ class AirflowRestyResolver(Resolver):
         return ensure_serialisable(method)
 
     def resolve_operation_id(self, operation):
+        """
+        Given an operation, create a module path to a string.
+        """
         literals = []
         is_collection_endpoint = False
         for literal, var_text, _, _ in string.Formatter().parse(operation.path):
@@ -128,6 +140,8 @@ class AirflowRestyResolver(Resolver):
         handler = '{}.{}'.format(controller, get_function_name())
         if (self.version == 'experimental') \
            and (handler in self.handler_mapping):
+            # If we're using the experimental API, use the explicit mapping
+            # from `self.handler_mapping`.
             return self.handler_mapping[handler]
 
         return '.'.join(['airflow.plugin.rest_api', self.version, handler])
