@@ -1444,19 +1444,17 @@ class SchedulerJobTest(unittest.TestCase):
         dag.sync_to_db()
 
         scheduler = SchedulerJob()
-        session = settings.Session()
 
         dr1 = scheduler.create_dag_run(dag)
         ti1 = TI(task1, DEFAULT_DATE)
         ti1.state = State.SCHEDULED
         dr1.state = State.RUNNING
-        dagmodel = models.DagModel()
-        dagmodel.dag_id = dag_id
-        dagmodel.is_paused = True
-        session.merge(ti1)
-        session.merge(dr1)
-        session.add(dagmodel)
-        session.commit()
+        with create_session() as session:
+            dag_model = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+            dag_model.is_paused = True
+            session.merge(dag_model)
+            session.merge(ti1)
+            session.merge(dr1)
 
         scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
         ti1.refresh_from_db()
