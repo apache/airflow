@@ -219,7 +219,9 @@ class TestMarkDAGRun(unittest.TestCase):
     def setUp(self):
         self.dagbag = models.DagBag(include_examples=True)
         self.dag1 = self.dagbag.dags['example_bash_operator']
+        self.dag1.sync_to_db()
         self.dag2 = self.dagbag.dags['example_subdag_operator']
+        self.dag2.sync_to_db()
         self.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
 
     def _set_default_task_instance_states(self, dr):

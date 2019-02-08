@@ -136,7 +136,7 @@ class BackfillJobTest(unittest.TestCase):
         configuration.conf.set("core", "donot_pickle", "True")
         clear_runs()
         self.parser = cli.CLIFactory.get_parser()
-        self.dagbag = DagBag(include_examples=True)
+        self.dagbag = DagBag(TEST_DAGS_FOLDER, include_examples=True)
 
     def tearDown(self):
         d = configuration.conf.airflow_defaults.get("core", "donot_pickle")
@@ -484,6 +484,7 @@ class BackfillJobTest(unittest.TestCase):
             session.add(pool)
 
         dag = self.dagbag.get_dag('test_backfill_pooled_task_dag')
+        dag.sync_to_db()
         dag.clear()
 
         job = BackfillJob(
@@ -936,6 +937,7 @@ class BackfillJobTest(unittest.TestCase):
 
     def test_backfill_execute_subdag(self):
         dag = self.dagbag.get_dag('example_subdag_operator')
+        dag.sync_to_db()
         subdag_op_task = dag.get_task('section-1')
 
         subdag = subdag_op_task.subdag
@@ -964,6 +966,7 @@ class BackfillJobTest(unittest.TestCase):
 
     def test_subdag_clear_parentdag_downstream_clear(self):
         dag = self.dagbag.get_dag('example_subdag_operator')
+        dag.sync_to_db()
         subdag_op_task = dag.get_task('section-1')
 
         subdag = subdag_op_task.subdag
@@ -1023,6 +1026,7 @@ class BackfillJobTest(unittest.TestCase):
         """
         dag = self.dagbag.get_dag('example_subdag_operator')
         subdag = dag.get_task('section-1').subdag
+        dag.sync_to_db()
 
         executor = TestExecutor(do_update=True)
         job = BackfillJob(dag=subdag,
@@ -1054,9 +1058,6 @@ class BackfillJobTest(unittest.TestCase):
 
         removed_task_ti.refresh_from_db()
         self.assertEqual(removed_task_ti.state, State.REMOVED)
-
-        subdag.clear()
-        dag.clear()
 
     def test_update_counters(self):
         dag = DAG(
