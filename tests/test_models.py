@@ -47,13 +47,13 @@ from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun, DagEdge
-from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
 from airflow.models import State as ST
-from airflow.models import TaskReschedule as TR
-from airflow.models import XCom
 from airflow.models import Variable
 from airflow.models.connection import Connection
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.xcom import XCom
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
@@ -943,6 +943,7 @@ class DagRunTest(unittest.TestCase):
         session = settings.Session()
         dag_id = 'test_clear_task_instances_for_backfill_dagrun'
         dag = DAG(dag_id=dag_id, start_date=now)
+        dag.sync_to_db()
         self.create_dag_run(dag, execution_date=now, is_backfill=True)
 
         task0 = DummyOperator(task_id='backfill_task_0', owner='test', dag=dag)
@@ -1030,6 +1031,7 @@ class DagRunTest(unittest.TestCase):
             'test_state_skipped1': State.SKIPPED,
             'test_state_skipped2': State.SKIPPED,
         }
+        dag.sync_to_db()
 
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
@@ -1060,7 +1062,7 @@ class DagRunTest(unittest.TestCase):
             op4 = DummyOperator(task_id='D')
             op1.set_upstream([op2, op3])
             op3.set_upstream(op4)
-
+        dag.sync_to_db()
         dag.clear()
 
         now = timezone.utcnow()
@@ -1079,7 +1081,7 @@ class DagRunTest(unittest.TestCase):
 
         # Testing Edges in the database
         edges = session.query(DagEdge)\
-            .filter(DagEdge.dag_id == dag.dag_id and DagEdge.execution_date == now).all()
+            .filter(DagEdge.dag_id == dag.dag_id and DagEdge.graph_id == dr.graph_id).all()
         self.assertEqual(len(edges), 3)
         self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'B' for edge in edges))
         self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'C' for edge in edges))
@@ -1108,6 +1110,7 @@ class DagRunTest(unittest.TestCase):
             op2 = DummyOperator(task_id='B')
             op2.trigger_rule = TriggerRule.ONE_FAILED
             op2.set_upstream(op1)
+        dag.sync_to_db()
 
         dag.clear()
         now = timezone.utcnow()
@@ -1137,6 +1140,7 @@ class DagRunTest(unittest.TestCase):
             op1 = DummyOperator(task_id='upstream_task')
             op2 = DummyOperator(task_id='downstream_task')
             op2.set_upstream(op1)
+        dag.sync_to_db()
 
         dr = dag.create_dagrun(run_id='test_dagrun_no_deadlock_with_shutdown',
                                state=State.RUNNING,
@@ -1155,7 +1159,7 @@ class DagRunTest(unittest.TestCase):
         with dag:
             DummyOperator(task_id='dop', depends_on_past=True)
             DummyOperator(task_id='tc', task_concurrency=1)
-
+        dag.sync_to_db()
         dag.clear()
         dr = dag.create_dagrun(run_id='test_dagrun_no_deadlock_1',
                                state=State.RUNNING,
@@ -1205,6 +1209,7 @@ class DagRunTest(unittest.TestCase):
             'test_state_succeeded1': State.SUCCESS,
             'test_state_succeeded2': State.SUCCESS,
         }
+        dag.sync_to_db()
 
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
@@ -1237,6 +1242,8 @@ class DagRunTest(unittest.TestCase):
         }
         dag_task1.set_downstream(dag_task2)
 
+        dag.sync_to_db()
+
         dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
@@ -1250,7 +1257,7 @@ class DagRunTest(unittest.TestCase):
             'test_dagrun_set_state_end_date',
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
-
+        dag.sync_to_db()
         dag.clear()
 
         now = timezone.utcnow()
@@ -1309,7 +1316,7 @@ class DagRunTest(unittest.TestCase):
             op1 = DummyOperator(task_id='A')
             op2 = DummyOperator(task_id='B')
             op1.set_upstream(op2)
-
+        dag.sync_to_db()
         dag.clear()
 
         now = timezone.utcnow()
@@ -1409,6 +1416,7 @@ class DagRunTest(unittest.TestCase):
 
     def test_is_backfill(self):
         dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
+        dag.sync_to_db()
 
         dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
         dagrun.run_id = BackfillJob.ID_PREFIX + '_sfddsffds'
@@ -1430,6 +1438,7 @@ class DagRunTest(unittest.TestCase):
 
         dag = DAG('test_task_restoration', start_date=DEFAULT_DATE)
         dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+        dag.sync_to_db()
 
         dagrun = self.create_dag_run(dag)
         flaky_ti = dagrun.get_task_instances()[0]
@@ -1982,16 +1991,17 @@ class DagBagTest(unittest.TestCase):
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
         """
+        with create_session() as session:
+            session.query(DagModel).delete()
+            session.merge(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
+
         dagbag = models.DagBag(include_examples=True)
         expected_active_dags = dagbag.dags.keys()
 
-        session = settings.Session
-        session.add(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
-        session.commit()
-
         models.DAG.deactivate_unknown_dags(expected_active_dags)
-
-        for dag in session.query(DagModel).all():
+        with create_session() as session:
+            dags = session.query(DagModel).all()
+        for dag in dags:
             if dag.dag_id in expected_active_dags:
                 self.assertTrue(dag.is_active)
             else:
@@ -1999,16 +2009,16 @@ class DagBagTest(unittest.TestCase):
                 self.assertFalse(dag.is_active)
 
         # clean up
-        session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
-        session.commit()
+        with create_session() as session:
+            session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
 
 class TaskInstanceTest(unittest.TestCase):
 
     def tearDown(self):
         with create_session() as session:
-            session.query(models.TaskFail).delete()
-            session.query(models.TaskReschedule).delete()
+            session.query(TaskFail).delete()
+            session.query(TaskReschedule).delete()
             session.query(models.TaskInstance).delete()
 
     def test_set_task_dates(self):
@@ -2429,7 +2439,7 @@ class TaskInstanceTest(unittest.TestCase):
             self.assertEqual(ti.start_date, expected_start_date)
             self.assertEqual(ti.end_date, expected_end_date)
             self.assertEqual(ti.duration, expected_duration)
-            trs = TR.find_for_task_instance(ti)
+            trs = TaskReschedule.find_for_task_instance(ti)
             self.assertEqual(len(trs), expected_task_reschedule_count)
 
         date1 = timezone.utcnow()
@@ -3517,36 +3527,3 @@ class TestSkipMixin(unittest.TestCase):
         SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
         self.assertFalse(session.query.called)
         self.assertFalse(session.commit.called)
-
-
-class TestKubeResourceVersion(unittest.TestCase):
-
-    def test_checkpoint_resource_version(self):
-        session = settings.Session()
-        KubeResourceVersion.checkpoint_resource_version('7', session)
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '7')
-
-    def test_reset_resource_version(self):
-        session = settings.Session()
-        version = KubeResourceVersion.reset_resource_version(session)
-        self.assertEqual(version, '0')
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '0')
-
-
-class TestKubeWorkerIdentifier(unittest.TestCase):
-
-    @patch('airflow.models.uuid.uuid4')
-    def test_get_or_create_not_exist(self, mock_uuid):
-        session = settings.Session()
-        session.query(KubeWorkerIdentifier).update({
-            KubeWorkerIdentifier.worker_uuid: ''
-        })
-        mock_uuid.return_value = 'abcde'
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'abcde')
-
-    def test_get_or_create_exist(self):
-        session = settings.Session()
-        KubeWorkerIdentifier.checkpoint_kube_worker_uuid('fghij', session)
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'fghij')

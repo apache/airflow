@@ -37,7 +37,7 @@ import time
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SalesforceHook(BaseHook, LoggingMixin):
+class SalesforceHook(BaseHook):
     def __init__(
             self,
             conn_id,

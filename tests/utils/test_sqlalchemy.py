@@ -54,6 +54,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
             dag_id=dag_id,
             start_date=start_date,
         )
+        dag.sync_to_db()
         dag.clear()
 
         run = dag.create_dagrun(
@@ -84,6 +85,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
         # naive
         start_date = datetime.datetime.now()
         dag = DAG(dag_id=dag_id, start_date=start_date)
+        dag.sync_to_db()
         dag.clear()
 
         with self.assertRaises((ValueError, StatementError)):
@@ -94,6 +96,7 @@ class TestSqlAlchemyUtils(unittest.TestCase):
                 start_date=start_date,
                 session=self.session
             )
+        dag.sync_to_db()
         dag.clear()
 
     def tearDown(self):

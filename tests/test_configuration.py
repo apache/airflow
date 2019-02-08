@@ -98,6 +98,8 @@ class ConfTest(unittest.TestCase):
         opt = conf.get('testsection', 'testpercent')
         self.assertEqual(opt, 'with%percent')
 
+        self.assertTrue(conf.has_option('testsection', 'testkey'))
+
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
@@ -164,6 +166,10 @@ key6 = value6
         self.assertEqual('airflow', test_conf.get('test', 'key3'))
         self.assertEqual('key4_result', test_conf.get('test', 'key4'))
         self.assertEqual('value6', test_conf.get('another', 'key6'))
+
+        self.assertEqual('hello', test_conf.get('test', 'key1', fallback='fb'))
+        self.assertEqual('value6', test_conf.get('another', 'key6', fallback='fb'))
+        self.assertEqual('fb', test_conf.get('another', 'key7', fallback='fb'))
 
         self.assertTrue(test_conf.has_option('test', 'key1'))
         self.assertTrue(test_conf.has_option('test', 'key2'))

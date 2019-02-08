@@ -17,11 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, String, Index
+from sqlalchemy import Column, String, Index, Integer
 
-from airflow.utils.db import provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils import timezone
+from airflow.utils.db import create_session
 
 from airflow.models.base import Base
 
@@ -41,11 +39,11 @@ class DagEdge(Base):
     __tablename__ = "dag_edge"
 
     dag_id = Column(String(250), primary_key=True)
-    execution_date = Column(UtcDateTime, default=timezone.utcnow, primary_key=True)
+    graph_id = Column(Integer, primary_key=True)
     from_task = Column(String(250), primary_key=True)
     to_task = Column(String(250), primary_key=True)
 
-    __table_args__ = (Index('idx_dag_edge', dag_id, execution_date, from_task, to_task, unique=True),)
+    __table_args__ = (Index('idx_dag_edge', dag_id, graph_id, from_task, to_task, unique=True),)
 
     def __init__(self, dag_id, execution_date, from_task, to_task):
         self.dag_id = dag_id
@@ -54,8 +52,9 @@ class DagEdge(Base):
         self.to_task = to_task
 
     @staticmethod
-    @provide_session
-    def fetch_edges_db(dag_id, execution_date, session=None):
-        return session.query(DagEdge) \
-            .filter(DagEdge.dag_id == dag_id) \
-            .filter(DagEdge.execution_date == execution_date)
+    def fetch_edges_db(dag_id, graph_id):
+        with create_session() as session:
+            return session.query(DagEdge) \
+                .filter(DagEdge.dag_id == dag_id) \
+                .filter(DagEdge.graph_id == graph_id) \
+                .all()

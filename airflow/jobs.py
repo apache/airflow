@@ -39,11 +39,12 @@ from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import configuration as conf
+from airflow import configuration as conf, configuration
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, errors
 from airflow.models.dagpickle import DagPickle
+from airflow.models.slamiss import SlaMiss
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -63,7 +64,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
 Base = models.base.Base
-ID_LEN = models.ID_LEN
+ID_LEN = models.base.ID_LEN
 
 
 class BaseJob(Base, LoggingMixin):
@@ -231,9 +232,9 @@ class BaseJob(Base, LoggingMixin):
         sequence.
 
         :param filter_by_dag_run: the dag_run we want to process, None if all
-        :type filter_by_dag_run: models.DagRun
+        :type filter_by_dag_run: airflow.models.DagRun
         :return: the TIs reset (in expired SQLAlchemy state)
-        :rtype: List(TaskInstance)
+        :rtype: list[airflow.models.TaskInstance]
         """
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet
@@ -314,7 +315,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :param dag_id_whitelist: If specified, only look at these DAG ID's
         :type dag_id_whitelist: list[unicode]
         :param zombies: zombie task instances to kill
-        :type zombies: list[SimpleTaskInstance]
+        :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
         """
         self._file_path = file_path
         # Queue that's used to pass results from the child process.
@@ -364,7 +365,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :return: the process that was launched
         :rtype: multiprocessing.Process
         :param zombies: zombie task instances to kill
-        :type zombies: list[SimpleTaskInstance]
+        :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
         """
         def helper():
             # This helper runs in the newly created process
@@ -508,7 +509,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def result(self):
         """
         :return: result of running SchedulerJob.process_file()
-        :rtype: SimpleDag
+        :rtype: airflow.utils.dag_processing.SimpleDag
         """
         if not self.done:
             raise AirflowException("Tried to get the result before it's done!")
@@ -644,7 +645,6 @@ class SchedulerJob(BaseJob):
         ).all()
 
         ts = timezone.utcnow()
-        SlaMiss = models.SlaMiss
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
@@ -653,7 +653,7 @@ class SchedulerJob(BaseJob):
                 while dttm < timezone.utcnow():
                     following_schedule = dag.following_schedule(dttm)
                     if following_schedule + task.sla < timezone.utcnow():
-                        session.merge(models.SlaMiss(
+                        session.merge(SlaMiss(
                             task_id=ti.task_id,
                             dag_id=ti.dag_id,
                             execution_date=dttm,
@@ -751,7 +751,7 @@ class SchedulerJob(BaseJob):
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         :param dagbag: DagBag containing DAGs with import errors
-        :type dagbag: models.Dagbag
+        :type dagbag: airflow.models.DagBag
         """
         # Clear the errors of the processed files
         for dagbag_file in dagbag.file_last_changed:
@@ -975,12 +975,12 @@ class SchedulerJob(BaseJob):
         changed manually.
 
         :param old_states: examine TaskInstances in this state
-        :type old_state: list[State]
+        :type old_state: list[airflow.utils.state.State]
         :param new_state: set TaskInstances to this state
-        :type new_state: State
+        :type new_state: airflow.utils.state.State
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag and with states in the old_state will be examined
-        :type simple_dag_bag: SimpleDagBag
+        :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
         tis_changed = 0
         query = session \
@@ -1025,9 +1025,9 @@ class SchedulerJob(BaseJob):
         Returns a map from tasks to number in the states list given.
 
         :param states: List of states to query for
-        :type states: List[State]
+        :type states: list[airflow.utils.state.State]
         :return: A map from (dag_id, task_id) to count of tasks in states
-        :rtype: Dict[[String, String], Int]
+        :rtype: dict[tuple[str, str], int]
 
         """
         TI = models.TaskInstance
@@ -1051,12 +1051,12 @@ class SchedulerJob(BaseJob):
 
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
-        :type simple_dag_bag: SimpleDagBag
+        :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         :param executor: the executor that runs task instances
         :type executor: BaseExecutor
         :param states: Execute TaskInstances in these states
-        :type states: Tuple[State]
-        :return: List[TaskInstance]
+        :type states: tuple[airflow.utils.state.State]
+        :return: list[airflow.models.TaskInstance]
         """
         executable_tis = []
 
@@ -1227,10 +1227,10 @@ class SchedulerJob(BaseJob):
         to QUEUED atomically, and returns the TIs changed in SimpleTaskInstance format.
 
         :param task_instances: TaskInstances to change the state of
-        :type task_instances: List[TaskInstance]
+        :type task_instances: list[airflow.models.TaskInstance]
         :param acceptable_states: Filters the TaskInstances updated to be in these states
         :type acceptable_states: Iterable[State]
-        :return: List[SimpleTaskInstance]
+        :rtype: list[airflow.utils.dag_processing.SimpleTaskInstance]
         """
         if len(task_instances) == 0:
             session.commit()
@@ -1292,9 +1292,9 @@ class SchedulerJob(BaseJob):
         with the executor.
 
         :param simple_task_instances: TaskInstances to enqueue
-        :type simple_task_instances: List[SimpleTaskInstance]
+        :type simple_task_instances: list[SimpleTaskInstance]
         :param simple_dag_bag: Should contains all of the task_instances' dags
-        :type simple_dag_bag: SimpleDagBag
+        :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         """
         TI = models.TaskInstance
         # actually enqueue them
@@ -1343,9 +1343,9 @@ class SchedulerJob(BaseJob):
 
         :param simple_dag_bag: TaskInstances associated with DAGs in the
             simple_dag_bag will be fetched from the DB and executed
-        :type simple_dag_bag: SimpleDagBag
+        :type simple_dag_bag: airflow.utils.dag_processing.SimpleDagBag
         :param states: Execute TaskInstances in these states
-        :type states: Tuple[State]
+        :type states: tuple[airflow.utils.state.State]
         :return: Number of task instance with state changed.
         """
         executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
@@ -1414,12 +1414,12 @@ class SchedulerJob(BaseJob):
         3. Send emails for tasks that have missed SLAs.
 
         :param dagbag: a collection of DAGs to process
-        :type dagbag: models.DagBag
+        :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
-        :type dags: DAG
+        :type dags: airflow.models.DAG
         :param tis_out: A queue to add generated TaskInstance objects
         :type tis_out: multiprocessing.Queue[TaskInstance]
-        :return: None
+        :rtype: None
         """
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
@@ -1451,7 +1451,8 @@ class SchedulerJob(BaseJob):
                                    .items()):
             dag_id, task_id, execution_date, try_number = key
             self.log.info(
-                "Executor reports %s.%s execution_date=%s as %s for try_number %s",
+                "Executor reports execution of %s.%s execution_date=%s "
+                "exited with status %s for try_number %s",
                 dag_id, task_id, execution_date, state, try_number
             )
             if state == State.FAILED or state == State.SUCCESS:
@@ -1538,7 +1539,7 @@ class SchedulerJob(BaseJob):
 
         .. image:: ../docs/img/scheduler_loop.jpg
 
-        :return: None
+        :rtype: None
         """
         self.executor.start()
 
@@ -1683,12 +1684,12 @@ class SchedulerJob(BaseJob):
         :param file_path: the path to the Python file that should be executed
         :type file_path: unicode
         :param zombies: zombie task instances to kill.
-        :type zombies: list[SimpleTaskInstance]
+        :type zombies: list[airflow.utils.dag_processing.SimpleTaskInstance]
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
         :type pickle_dags: bool
         :return: a list of SimpleDags made from the Dags found in the file
-        :rtype: list[SimpleDag]
+        :rtype: list[airflow.utils.dag_processing.SimpleDagBag]
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
         # As DAGs are parsed from this file, they will be converted into SimpleDags
@@ -1828,23 +1829,23 @@ class BackfillJob(BaseJob):
                      ):
             """
             :param to_run: Tasks to run in the backfill
-            :type to_run: dict[Tuple[String, String, DateTime], TaskInstance]
+            :type to_run: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
             :param running: Maps running task instance key to task instance object
-            :type running: dict[Tuple[String, String, DateTime], TaskInstance]
+            :type running: dict[tuple[string, string, datetime.datetime], airflow.models.TaskInstance]
             :param skipped: Tasks that have been skipped
-            :type skipped: set[Tuple[String, String, DateTime]]
+            :type skipped: set[tuple[string, string, datetime.datetime]]
             :param succeeded: Tasks that have succeeded so far
-            :type succeeded: set[Tuple[String, String, DateTime]]
+            :type succeeded: set[tuple[string, string, datetime.datetime]]
             :param failed: Tasks that have failed
-            :type failed: set[Tuple[String, String, DateTime]]
+            :type failed: set[tuple[string, string, datetime.datetime]]
             :param not_ready: Tasks not ready for execution
-            :type not_ready: set[Tuple[String, String, DateTime]]
+            :type not_ready: set[tuple[string, string, datetime.datetime]]
             :param deadlocked: Deadlocked tasks
-            :type deadlocked: set[Tuple[String, String, DateTime]]
+            :type deadlocked: set[tuple[string, string, datetime.datetime]]
             :param active_runs: Active dag runs at a certain point in time
             :type active_runs: list[DagRun]
             :param executed_dag_run_dates: Datetime objects for the executed dag runs
-            :type executed_dag_run_dates: set[Datetime]
+            :type executed_dag_run_dates: set[datetime.datetime]
             :param finished_runs: Number of finished runs so far
             :type finished_runs: int
             :param total_runs: Number of total dag runs able to run
@@ -1868,7 +1869,7 @@ class BackfillJob(BaseJob):
             start_date=None,
             end_date=None,
             mark_success=False,
-            donot_pickle=False,
+            donot_pickle=None,
             ignore_first_depends_on_past=False,
             ignore_task_deps=False,
             pool=None,
@@ -1879,11 +1880,11 @@ class BackfillJob(BaseJob):
             *args, **kwargs):
         """
         :param dag: DAG object.
-        :type dag: `class DAG`.
+        :type dag: airflow.models.DAG
         :param start_date: start date for the backfill date range.
-        :type start_date: datetime.
+        :type start_date: datetime.datetime
         :param end_date: end date for the backfill date range.
-        :type end_date: datetime
+        :type end_date: datetime.datetime
         :param mark_success: flag whether to mark the task auto success.
         :type mark_success: bool
         :param donot_pickle: whether pickle
@@ -1905,12 +1906,15 @@ class BackfillJob(BaseJob):
         :param args:
         :param kwargs:
         """
+        if donot_pickle is None:
+            self.donot_pickle = configuration.getboolean("core", "donot_pickle")
+        else:
+            self.donot_pickle = donot_pickle
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
         self.bf_end_date = end_date
         self.mark_success = mark_success
-        self.donot_pickle = donot_pickle
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.ignore_task_deps = ignore_task_deps
         self.pool = pool
@@ -2008,9 +2012,9 @@ class BackfillJob(BaseJob):
         limit is reached, this function will return None.
 
         :param run_date: the execution date for the dag run
-        :type run_date: datetime
+        :type run_date: datetime.datetime
         :param session: the database session object
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :return: a DagRun in state RUNNING or None
         """
         run_id = BackfillJob.ID_FORMAT_PREFIX.format(run_date.isoformat())
@@ -2068,9 +2072,9 @@ class BackfillJob(BaseJob):
         run in the given dag run.
 
         :param dag_run: the dag run to get the tasks from
-        :type dag_run: models.DagRun
+        :type dag_run: airflow.models.DagRun
         :param session: the database session object
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         tasks_to_run = {}
 
@@ -2140,9 +2144,9 @@ class BackfillJob(BaseJob):
         :param pickle_id: the pickle_id if dag is pickled, None otherwise
         :type pickle_id: int
         :param start_date: the start date of the backfill job
-        :type start_date: datetime
+        :type start_date: datetime.datetime
         :param session: the current session object
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :return: the list of execution_dates for the finished dag runs
         :rtype: list
         """
@@ -2387,9 +2391,9 @@ class BackfillJob(BaseJob):
         :param pickle_id: numeric id of the pickled dag, None if not pickled
         :type pickle_id: int
         :param start_date: backfill start date
-        :type start_date: datetime
+        :type start_date: datetime.datetime
         :param session: the current session object
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         for next_run_date in run_dates:
             dag_run = self._get_dag_run(next_run_date, session=session)

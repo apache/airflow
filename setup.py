@@ -248,6 +248,7 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
+    'typing',
 ]
 
 if not PY3:
@@ -290,7 +291,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'enum34~=1.1.6',
+            'enum34~=1.1.6;python_version<"3.4"',
             'flask>=0.12.4, <0.13',
             'flask-appbuilder==1.12.1',
             'flask-admin==1.5.2',
@@ -317,7 +318,7 @@ def do_setup():
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
-            'tenacity==4.8.0',
+            'tenacity==4.12.0',
             'text-unidecode==1.2',  # Avoid GPL dependency, pip uses reverse order(!)
             'thrift>=0.9.2',
             'tzlocal>=1.4',

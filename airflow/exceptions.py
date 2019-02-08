@@ -52,7 +52,7 @@ class AirflowRescheduleException(AirflowException):
     Raise when the task should be re-scheduled at a later time.
 
     :param reschedule_date: The date when the task should be rescheduled
-    :type reschedule: datetime
+    :type reschedule: datetime.datetime
     """
     def __init__(self, reschedule_date):
         self.reschedule_date = reschedule_date

@@ -24,7 +24,6 @@ Create Date: 2018-12-28 09:11:56.730564
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision = "10aab8d908d0"
@@ -34,24 +33,17 @@ depends_on = None
 
 
 def upgrade():
-    conn = op.get_bind()
     op.create_table(
         "dag_edge",
         sa.Column("dag_id", sa.String(length=250), nullable=False),
-        sa.Column(
-            "execution_date",
-            mysql.TIMESTAMP(timezone=True)
-            if conn.dialect.name == "mysql"
-            else sa.TIMESTAMP(timezone=True),
-            nullable=False,
-        ),
+        sa.Column("graph_id", sa.Integer, nullable=False),
         sa.Column("from_task", sa.String(length=250), nullable=False),
         sa.Column("to_task", sa.String(length=250), nullable=False),
-        sa.PrimaryKeyConstraint("dag_id", "execution_date", "from_task", "to_task"),
+        sa.PrimaryKeyConstraint("dag_id", "graph_id", "from_task", "to_task"),
     )
 
     op.create_index('idx_dag_edge', 'dag_edge',
-                    ['dag_id', 'execution_date', 'from_task', 'to_task'],
+                    ['dag_id', 'graph_id', 'from_task', 'to_task'],
                     unique=True)
 
     op.add_column("task_instance", sa.Column("ui_color", sa.String(10), nullable=True))
@@ -59,11 +51,13 @@ def upgrade():
         "task_instance", sa.Column("ui_fgcolor", sa.String(10), nullable=True)
     )
     op.add_column("dag", sa.Column("parent_dag", sa.String(250), nullable=True))
+    op.add_column("dag_run", sa.Column("graph_id", sa.Integer, nullable=True, default=0))
 
 
 def downgrade():
     op.drop_index('idx_dag_edge', table_name='dag_edge')
     op.drop_table("dag_edge")
+    op.drop_column("dag_run", "graph_id")
     op.drop_column("task_instance", "ui_color")
     op.drop_column("task_instance", "ui_fgcolor")
     op.drop_column("dag", "parent_dag")

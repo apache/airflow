@@ -67,6 +67,7 @@ class PythonOperatorTest(unittest.TestCase):
                 'owner': 'airflow',
                 'start_date': DEFAULT_DATE},
             schedule_interval=INTERVAL)
+        self.dag.sync_to_db()
         self.addCleanup(self.dag.clear)
         self.clear_run()
         self.addCleanup(self.clear_run)
@@ -183,6 +184,7 @@ class BranchOperatorTest(unittest.TestCase):
                            'owner': 'airflow',
                            'start_date': DEFAULT_DATE},
                        schedule_interval=INTERVAL)
+        self.dag.sync_to_db()
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
@@ -385,6 +387,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         branch_2.set_upstream(branch_1)
         upstream = DummyOperator(task_id='upstream', dag=dag)
         upstream.set_downstream(short_op)
+        dag.sync_to_db()
         dag.clear()
 
         logging.error("Tasks {}".format(dag.tasks))
