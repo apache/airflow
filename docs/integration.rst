@@ -272,8 +272,8 @@ Azure Batch AI
 ''''''''''''''
  Azure Batch AI provides a method to run a docker container without having to worry
 about managing infrastructure. The AzureBatchAIHook requires a service principal. The
-credentials for this principal can either be defined in the extra field `key_path`, as an 
-environment variable named `AZURE_AUTH_LOCATION`, or by providing a login/password and tenantId in extras.
+credentials for this principal can either be defined in a JSON key file `key_path` or
+by providing a login/password and tenantId in extras.
 
  The AzureBatchAIHook requires a host/login/password to be defined in the connection.
 - :ref:`AzureBatchAIOperator` : Start/Monitor a new Azure Batch Workspace and Cluster.
