@@ -50,7 +50,6 @@ class JsonFormatter(logging.Formatter):
     """
     Custom formatter to allow for fields to be captured in JSON format.
     Fields are added via the RECORD_LABELS list.
-    TODO: Move RECORD_LABELS into configs/log_config.py
     """
     def __init__(self, record_labels, processedTask=None):
         super(JsonFormatter, self).__init__()
@@ -165,8 +164,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             """
             Read logs of a given task instance from elasticsearch.
             :param task_instance: task instance object
+            :type task_instance: TaskInstance
             :param try_number: task instance try_number to read logs from.
+            :type try_number: int
             If None,it will start at 1.
+            :param metadata: log metadata for use in read/render/tailing
+            :type :metadata: dict
             """
             if self.write_stdout:
                 if try_number is None:
@@ -217,6 +220,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             return self.log_id_jinja_template.render(**jinja_context)
 
         # Make log_id ES Query friendly if using standard out option
+        # Replace reserved characters with an underscore
         if self.write_stdout:
             return self.log_id_template.format(dag_id=ti.dag_id,
                                                task_id=ti.task_id,
