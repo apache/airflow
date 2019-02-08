@@ -39,7 +39,7 @@ from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import configuration as conf
+from airflow import configuration as conf, configuration
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, errors
@@ -1869,7 +1869,7 @@ class BackfillJob(BaseJob):
             start_date=None,
             end_date=None,
             mark_success=False,
-            donot_pickle=False,
+            donot_pickle=None,
             ignore_first_depends_on_past=False,
             ignore_task_deps=False,
             pool=None,
@@ -1906,12 +1906,15 @@ class BackfillJob(BaseJob):
         :param args:
         :param kwargs:
         """
+        if donot_pickle is None:
+            self.donot_pickle = configuration.getboolean("core", "donot_pickle")
+        else:
+            self.donot_pickle = donot_pickle
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
         self.bf_end_date = end_date
         self.mark_success = mark_success
-        self.donot_pickle = donot_pickle
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.ignore_task_deps = ignore_task_deps
         self.pool = pool
