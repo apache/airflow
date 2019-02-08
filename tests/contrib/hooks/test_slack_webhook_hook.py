@@ -33,18 +33,21 @@ class TestSlackWebhookHook(unittest.TestCase):
         'http_conn_id': 'slack-webhook-default',
         'webhook_token': 'manual_token',
         'message': 'Awesome message to put on Slack',
+        'attachments': [{'fallback': 'Required plain-text summary'}],
         'channel': '#general',
         'username': 'SlackMcSlackFace',
         'icon_emoji': ':hankey:',
         'link_names': True,
         'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
     }
-    expected_message_dict = {'channel': _config['channel'],
-                             'username': _config['username'],
-                             'icon_emoji': _config['icon_emoji'],
-                             'link_names': 1,
-                             'text': _config['message']
-                             }
+    expected_message_dict = {
+        'channel': _config['channel'],
+        'username': _config['username'],
+        'icon_emoji': _config['icon_emoji'],
+        'link_names': 1,
+        'attachments': _config['attachments'],
+        'text': _config['message']
+    }
     expected_message = json.dumps(expected_message_dict)
 
     def setUp(self):

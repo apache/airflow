@@ -114,7 +114,7 @@ def create_evaluate_ops(task_prefix,
     :type data_format: str
 
     :param input_paths: a list of input paths to be sent to BatchPrediction.
-    :type input_paths: list of strings
+    :type input_paths: list[str]
 
     :param prediction_path: GCS path to put the prediction results in.
     :type prediction_path: str
@@ -123,7 +123,7 @@ def create_evaluate_ops(task_prefix,
         - metric_fn is a function that accepts a dictionary (for an instance),
           and returns a tuple of metric(s) that it calculates.
         - metric_keys is a list of strings to denote the key of each metric.
-    :type metric_fn_and_keys: tuple of a function and a list of strings
+    :type metric_fn_and_keys: tuple of a function and a list[str]
 
     :param validate_fn: a function to validate whether the averaged metric(s) is
         good enough to push the model.
@@ -167,7 +167,7 @@ def create_evaluate_ops(task_prefix,
     :type version_name: str
 
     :param dag: The `DAG` to use for all Operators.
-    :type dag: airflow.DAG
+    :type dag: airflow.models.DAG
 
     :returns: a tuple of three operators, (prediction, summary, validation)
     :rtype: tuple(DataFlowPythonOperator, DataFlowPythonOperator,

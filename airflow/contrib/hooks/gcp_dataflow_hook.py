@@ -23,7 +23,7 @@ import subprocess
 import time
 import uuid
 
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -167,7 +167,7 @@ class _Dataflow(LoggingMixin):
             if self._proc.poll() is not None:
                 # Mark process completion but allows its outputs to be consumed.
                 process_ends = True
-        if self._proc.returncode is not 0:
+        if self._proc.returncode != 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
         return job_id
@@ -190,6 +190,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
+    @GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
     def _start_dataflow(self, variables, name, command_prefix, label_formatter):
         variables = self._set_variables(variables)
         cmd = command_prefix + self._build_cmd(variables, label_formatter)

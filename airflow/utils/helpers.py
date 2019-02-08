@@ -301,11 +301,13 @@ def parse_template_string(template_string):
 
 def render_log_filename(ti, try_number, filename_template):
     """
-    Given task instance, try_number, filename_template, return the rendered log filename
+    Given task instance, try_number, filename_template, return the rendered log
+    filename
 
     :param ti: task instance
     :param try_number: try_number of the task
-    :param filename_template: filename template, which can be jinja template or python string template
+    :param filename_template: filename template, which can be jinja template or
+        python string template
     """
     filename_template, filename_jinja_template = parse_template_string(filename_template)
     if filename_jinja_template:

@@ -83,9 +83,7 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb(rbac=False):
-    session = settings.Session()
-
+def initdb():
     from airflow import models
     from airflow.models.connection import Connection
     upgradedb()
@@ -304,28 +302,8 @@ def initdb(rbac=False):
     # Deactivate the unknown ones
     models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
-    Chart = models.Chart
-    chart_label = "Airflow task instance by type"
-    chart = session.query(Chart).filter(Chart.label == chart_label).first()
-    if not chart:
-        chart = Chart(
-            label=chart_label,
-            conn_id='airflow_db',
-            chart_type='bar',
-            x_is_date=False,
-            sql=(
-                "SELECT state, COUNT(1) as number "
-                "FROM task_instance "
-                "WHERE dag_id LIKE 'example%' "
-                "GROUP BY state"),
-        )
-        session.add(chart)
-        session.commit()
-
-    if rbac:
-        from flask_appbuilder.security.sqla import models
-        from flask_appbuilder.models.sqla import Base
-        Base.metadata.create_all(settings.engine)
+    from flask_appbuilder.models.sqla import Base
+    Base.metadata.create_all(settings.engine)
 
 
 def upgradedb():
@@ -344,7 +322,7 @@ def upgradedb():
     command.upgrade(config, 'heads')
 
 
-def resetdb(rbac):
+def resetdb():
     """
     Clear out the database
     """
@@ -360,10 +338,7 @@ def resetdb(rbac):
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
 
-    if rbac:
-        # drop rbac security tables
-        from flask_appbuilder.security.sqla import models
-        from flask_appbuilder.models.sqla import Base
-        Base.metadata.drop_all(settings.engine)
+    from flask_appbuilder.models.sqla import Base
+    Base.metadata.drop_all(settings.engine)
 
-    initdb(rbac)
+    initdb()
