@@ -146,7 +146,9 @@ class BackfillJobTest(unittest.TestCase):
                      "concurrent access not supported in sqlite")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag('example_trigger_controller_dag')
+        dag.sync_to_db()
         target_dag = self.dagbag.get_dag('example_trigger_target_dag')
+        target_dag.sync_to_db()
         dag.clear()
         target_dag.clear()
 
@@ -175,6 +177,7 @@ class BackfillJobTest(unittest.TestCase):
                      "concurrent access not supported in sqlite")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag('example_bash_operator')
+        dag.sync_to_db()
         dag.clear()
 
         job = BackfillJob(
@@ -222,6 +225,7 @@ class BackfillJobTest(unittest.TestCase):
         ]
 
         for dag in dags:
+            dag.sync_to_db()
             dag.clear(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
@@ -1313,6 +1317,7 @@ class LocalTaskJobTest(unittest.TestCase):
             include_examples=False,
         )
         dag = dagbag.dags.get('test_localtaskjob_double_trigger')
+        dag.sync_to_db()
         task = dag.get_task('test_localtaskjob_double_trigger_task')
 
         session = settings.Session()
@@ -2322,6 +2327,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         DagRuns with one failed and one incomplete root task -> FAILED
         """
+        DagBag().get("test_dagrun_states_fail").sync_to_db()
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_fail',
             expected_task_states={
@@ -2334,6 +2340,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         DagRuns with one failed and one successful root task -> SUCCESS
         """
+        DagBag().get_dag().sync_to_db()
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_success',
             expected_task_states={
@@ -2346,6 +2353,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         DagRuns with one successful and one failed root task -> FAILED
         """
+        DagBag().get_dag("test_dagrun_states_root_fail").sync_to_db()
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_root_fail',
             expected_task_states={
@@ -2362,6 +2370,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler = SchedulerJob()
         dag_id = 'test_dagrun_states_root_fail_unfinished'
         dag = self.dagbag.get_dag(dag_id)
+        dag.sync_to_db()
         dag.clear()
         dr = scheduler.create_dag_run(dag)
         try:
@@ -2386,6 +2395,7 @@ class SchedulerJobTest(unittest.TestCase):
         if ignore_first_depends_on_past=True and the dagrun execution_date
         is after the start_date.
         """
+        DagBag().get_dag("test_dagrun_states_deadlock").sync_to_db()
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_deadlock',
             expected_task_states={
@@ -2403,6 +2413,7 @@ class SchedulerJobTest(unittest.TestCase):
         test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date except
         that start_date == execution_date so depends_on_past is irrelevant).
         """
+        DagBag().get_dag("test_dagrun_states_deadlock").sync_to_db()
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_deadlock',
             expected_task_states={

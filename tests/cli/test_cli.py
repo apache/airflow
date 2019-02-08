@@ -237,6 +237,7 @@ class TestCLI(unittest.TestCase):
 
         for i in range(len(dag_ids)):
             dag_id = dag_ids[i]
+            dagbag.get_dag(dag_id).sync_to_db()
 
             # Clear dag run so no execution history fo each DAG
             reset_dr_db(dag_id)
