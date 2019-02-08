@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from apiclient.discovery import build
-from apiclient.http import MediaFileUpload
-from googleapiclient import errors
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
@@ -91,7 +91,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                       destinationObject=destination_object, body='') \
                 .execute()
             return True
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 return False
             raise
@@ -144,7 +144,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     .execute()
                 self.log.info('Rewrite request #%s: %s', request_count, result)
             return True
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 return False
             raise
@@ -239,7 +239,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     .insert(bucket=bucket, name=object, media_body=media) \
                     .execute(num_retries=num_retries)
 
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 return False
             raise
@@ -268,7 +268,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 .get(bucket=bucket, object=object) \
                 .execute()
             return True
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 return False
             raise
@@ -284,7 +284,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             storage bucket.
         :type object: str
         :param ts: The timestamp to check against.
-        :type ts: datetime
+        :type ts: datetime.datetime
         """
         service = self.get_conn()
         try:
@@ -306,7 +306,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 if updated > ts:
                     return True
 
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] != '404':
                 raise
 
@@ -333,7 +333,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 .delete(bucket=bucket, object=object, generation=generation) \
                 .execute()
             return True
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 return False
             raise
@@ -418,7 +418,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 return size
             else:
                 raise ValueError('Object is not a file')
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 raise ValueError('Object Not Found')
 
@@ -445,7 +445,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             self.log.info('The crc32c checksum of %s is %s', object, crc32c)
             return crc32c
 
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 raise ValueError('Object Not Found')
 
@@ -472,7 +472,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             self.log.info('The md5Hash of %s is %s', object, md5hash)
             return md5hash
 
-        except errors.HttpError as ex:
+        except HttpError as ex:
             if ex.resp['status'] == '404':
                 raise ValueError('Object Not Found')
 
@@ -501,6 +501,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             - ``STANDARD``
             - ``NEARLINE``
             - ``COLDLINE``.
+
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
         :type storage_class: str
@@ -563,13 +564,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
             return response['id']
 
-        except errors.HttpError as ex:
+        except HttpError as ex:
             raise AirflowException(
                 'Bucket creation failed. Error was: {}'.format(ex.content)
             )
 
     def insert_bucket_acl(self, bucket, entity, role, user_project):
-        # type: (str, str, str, str) -> None
         """
         Creates a new ACL entry on the specified bucket.
         See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
@@ -601,14 +601,13 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             ).execute()
             if response:
                 self.log.info('A new ACL entry created in bucket: %s', bucket)
-        except errors.HttpError as ex:
+        except HttpError as ex:
             raise AirflowException(
                 'Bucket ACL entry creation failed. Error was: {}'.format(ex.content)
             )
 
     def insert_object_acl(self, bucket, object_name, entity, role, generation,
                           user_project):
-        # type: (str, str, str, str, str, str) -> None
         """
         Creates a new ACL entry on the specified object.
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
@@ -651,7 +650,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             if response:
                 self.log.info('A new ACL entry created for object: %s in bucket: %s',
                               object_name, bucket)
-        except errors.HttpError as ex:
+        except HttpError as ex:
             raise AirflowException(
                 'Object ACL entry creation failed. Error was: {}'.format(ex.content)
             )

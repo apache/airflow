@@ -21,6 +21,7 @@ import json
 from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 from bson import json_util
 
 
@@ -39,6 +40,7 @@ class MongoToS3Operator(BaseOperator):
     template_fields = ['s3_key', 'mongo_query']
     # pylint: disable=too-many-instance-attributes
 
+    @apply_defaults
     def __init__(self,
                  mongo_conn_id,
                  s3_conn_id,

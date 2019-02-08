@@ -36,7 +36,7 @@ import subprocess
 import sys
 import warnings
 
-from backports.configparser import ConfigParser
+from backports.configparser import ConfigParser, _UNSET, NoOptionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -247,7 +247,7 @@ class AirflowConfigParser(ConfigParser):
                 return option
 
         # ...then the default config
-        if self.airflow_defaults.has_option(section, key):
+        if self.airflow_defaults.has_option(section, key) or 'fallback' in kwargs:
             return expand_env_var(
                 self.airflow_defaults.get(section, key, **kwargs))
 
@@ -291,9 +291,10 @@ class AirflowConfigParser(ConfigParser):
         try:
             # Using self.get() to avoid reimplementing the priority order
             # of config variables (env, config, cmd, defaults)
-            self.get(section, option)
+            # UNSET to avoid logging a warning about missing values
+            self.get(section, option, fallback=_UNSET)
             return True
-        except AirflowConfigException:
+        except NoOptionError:
             return False
 
     def remove_option(self, section, option, remove_default=True):
@@ -312,8 +313,9 @@ class AirflowConfigParser(ConfigParser):
         """
         Returns the section as a dict. Values are converted to int, float, bool
         as required.
+
         :param section: section from the config
-        :return: dict
+        :rtype: dict
         """
         if (section not in self._sections and
                 section not in self.airflow_defaults._sections):
@@ -528,16 +530,14 @@ conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
 
 conf.read(AIRFLOW_CONFIG)
 
+DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
 
-if conf.getboolean('webserver', 'rbac'):
-    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
+WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
-    WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
-
-    if not os.path.isfile(WEBSERVER_CONFIG):
-        log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
-        with open(WEBSERVER_CONFIG, 'w') as f:
-            f.write(DEFAULT_WEBSERVER_CONFIG)
+if not os.path.isfile(WEBSERVER_CONFIG):
+    log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
+    with open(WEBSERVER_CONFIG, 'w') as f:
+        f.write(DEFAULT_WEBSERVER_CONFIG)
 
 if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()

@@ -174,7 +174,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.get_waiter.assert_called_once_with('tasks_stopped')
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
             cluster='c', tasks=['arn'])
-        self.assertEquals(
+        self.assertEqual(
             sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
 
     def test_check_success_tasks_raises(self):

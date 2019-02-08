@@ -55,7 +55,7 @@ class MySqlHook(DbApiHook):
         :param conn: connection to get autocommit setting from.
         :type conn: connection object.
         :return: connection autocommit setting
-        :rtype bool
+        :rtype: bool
         """
         return conn.get_autocommit()
 

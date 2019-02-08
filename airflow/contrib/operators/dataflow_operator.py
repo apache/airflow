@@ -272,15 +272,15 @@ class DataFlowPythonOperator(BaseOperator):
         For more detail on job submission have a look at the reference:
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
-    :param py_file: Reference to the python dataflow pipleline file.py, e.g.,
+    :param py_file: Reference to the python dataflow pipeline file.py, e.g.,
         /some/local/file/path/to/your/python/pipeline/file.
     :type py_file: str
     :param job_name: The 'job_name' to use when executing the DataFlow job
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
-    :param py_options: Additional python options.
-    :type pyt_options: list of strings, e.g., ["-m", "-v"].
+    :param py_options: Additional python options, e.g., ["-m", "-v"].
+    :type pyt_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
     :param options: Map of job specific options.
@@ -365,7 +365,7 @@ class GoogleCloudBucketHelper(object):
         :param file_name: The full path of input file.
         :type file_name: str
         :return: The full path of local file.
-        :type: str
+        :type str
         """
         if not file_name.startswith('gs://'):
             return file_name

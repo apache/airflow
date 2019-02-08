@@ -38,6 +38,9 @@ class SlackWebhookHook(HttpHook):
     :type webhook_token: str
     :param message: The message you want to send on Slack
     :type message: str
+    :param attachments: The attachments to send on Slack. Should be a list of
+                        dictionaries representing Slack attachments.
+    :type attachments: list
     :param channel: The channel the message should be posted to
     :type channel: str
     :param username: The username to post to slack with
@@ -54,6 +57,7 @@ class SlackWebhookHook(HttpHook):
                  http_conn_id=None,
                  webhook_token=None,
                  message="",
+                 attachments=None,
                  channel=None,
                  username=None,
                  icon_emoji=None,
@@ -66,6 +70,7 @@ class SlackWebhookHook(HttpHook):
         self.http_conn_id = http_conn_id
         self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
+        self.attachments = attachments
         self.channel = channel
         self.username = username
         self.icon_emoji = icon_emoji
@@ -105,8 +110,9 @@ class SlackWebhookHook(HttpHook):
             cmd['icon_emoji'] = self.icon_emoji
         if self.link_names:
             cmd['link_names'] = 1
+        if self.attachments:
+            cmd['attachments'] = self.attachments
 
-        # there should always be a message to post ;-)
         cmd['text'] = self.message
         return json.dumps(cmd)
 

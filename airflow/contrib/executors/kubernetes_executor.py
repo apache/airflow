@@ -30,7 +30,8 @@ from airflow.contrib.kubernetes.kube_client import get_kube_client
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors import Executors
-from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
+from airflow.models import TaskInstance
+from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
 from airflow import configuration
@@ -136,7 +137,8 @@ class KubeConfig:
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
-
+        self.worker_pods_creation_batch_size = conf.getint(
+            self.kubernetes_section, 'worker_pods_creation_batch_size')
         self.worker_service_account_name = conf.get(
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
@@ -384,7 +386,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         pod = self.worker_configuration.make_pod(
             namespace=self.namespace, worker_uuid=self.worker_uuid,
             pod_id=self._create_pod_id(dag_id, task_id),
-            dag_id=dag_id, task_id=task_id,
+            dag_id=dag_id, task_id=task_id, try_number=try_number,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
         )
@@ -496,11 +498,18 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return datetime_obj.isoformat().replace(":", "_").replace('+', '_plus_')
 
     def _labels_to_key(self, labels):
+        try_num = 1
+        try:
+            try_num = int(labels.get('try_number', '1'))
+        except ValueError:
+            self.log.warn("could not get try_number as an int: %s", labels.get('try_number', '1'))
+
         try:
             return (
                 labels['dag_id'], labels['task_id'],
                 self._label_safe_datestring_to_datetime(labels['execution_date']),
-                labels['try_number'])
+                try_num,
+            )
         except Exception as e:
             self.log.warn(
                 'Error while converting labels to key; labels: %s; exception: %s',
@@ -641,7 +650,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
         KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 
-        if not self.task_queue.empty():
+        for i in range(min((self.kube_config.worker_pods_creation_batch_size, self.task_queue.qsize()))):
             task = self.task_queue.get()
 
             try:
