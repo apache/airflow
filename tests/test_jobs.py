@@ -22,7 +22,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import copy
 import datetime
 import json
 import logging

@@ -1991,16 +1991,17 @@ class DagBagTest(unittest.TestCase):
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
         """
+        with create_session() as session:
+            session.query(DagModel).delete()
+            session.merge(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
+
         dagbag = models.DagBag(include_examples=True)
         expected_active_dags = dagbag.dags.keys()
 
-        session = settings.Session
-        session.add(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
-        session.commit()
-
         models.DAG.deactivate_unknown_dags(expected_active_dags)
-
-        for dag in session.query(DagModel).all():
+        with create_session() as session:
+            dags = session.query(DagModel).all()
+        for dag in dags:
             if dag.dag_id in expected_active_dags:
                 self.assertTrue(dag.is_active)
             else:
@@ -2008,8 +2009,8 @@ class DagBagTest(unittest.TestCase):
                 self.assertFalse(dag.is_active)
 
         # clean up
-        session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
-        session.commit()
+        with create_session() as session:
+            session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
 
 class TaskInstanceTest(unittest.TestCase):
