@@ -906,6 +906,11 @@ class DagTest(unittest.TestCase):
         self.assertEqual(orm_dag.get_default_view(), "graph")
 
 
+def clear_runs():
+    with create_session() as session:
+        session.query(DagRun).delete()
+
+
 class DagRunTest(unittest.TestCase):
 
     def create_dag_run(self, dag,
@@ -921,6 +926,7 @@ class DagRunTest(unittest.TestCase):
             run_id = BackfillJob.ID_PREFIX + now.isoformat()
         else:
             run_id = 'manual__' + now.isoformat()
+            dag.sync_to_db()
         dag_run = dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
@@ -969,6 +975,7 @@ class DagRunTest(unittest.TestCase):
             'Generated run_id did not match expectations: {0}'.format(run_id))
 
     def test_dagrun_find(self):
+        clear_runs()
         session = settings.Session()
         now = timezone.utcnow()
 
@@ -1099,6 +1106,7 @@ class DagRunTest(unittest.TestCase):
         self.assertEqual(State.SUCCESS, state)
 
     def test_dagrun_deadlock(self):
+        clear_runs()
         session = settings.Session()
         dag = DAG(
             'text_dagrun_deadlock',
@@ -1402,14 +1410,12 @@ class DagRunTest(unittest.TestCase):
         self.assertEqual(None, ti)
 
     def test_get_latest_runs(self):
-        session = settings.Session()
         dag = DAG(
             dag_id='test_latest_runs_1',
             start_date=DEFAULT_DATE)
         self.create_dag_run(dag, execution_date=timezone.datetime(2015, 1, 1))
         self.create_dag_run(dag, execution_date=timezone.datetime(2015, 1, 2))
-        dagruns = models.DagRun.get_latest_runs(session)
-        session.close()
+        dagruns = models.DagRun.get_latest_runs()
         for dagrun in dagruns:
             if dagrun.dag_id == 'test_latest_runs_1':
                 self.assertEqual(dagrun.execution_date, timezone.datetime(2015, 1, 2))
