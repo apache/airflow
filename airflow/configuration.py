@@ -260,27 +260,27 @@ class AirflowConfigParser(ConfigParser):
                 "section/key [{section}/{key}] not found "
                 "in config".format(**locals()))
 
-    def getboolean(self, section, key):
-        val = str(self.get(section, key)).lower().strip()
+    def getboolean(self, section, key, **kwargs):
+        val = str(self.get(section, key, **kwargs)).lower().strip()
         if '#' in val:
             val = val.split('#')[0].strip()
-        if val.lower() in ('t', 'true', '1'):
+        if val in ('t', 'true', '1'):
             return True
-        elif val.lower() in ('f', 'false', '0'):
+        elif val in ('f', 'false', '0'):
             return False
         else:
             raise AirflowConfigException(
                 'The value for configuration option "{}:{}" is not a '
                 'boolean (received "{}").'.format(section, key, val))
 
-    def getint(self, section, key):
-        return int(self.get(section, key))
+    def getint(self, section, key, **kwargs):
+        return int(self.get(section, key, **kwargs))
 
-    def getfloat(self, section, key):
-        return float(self.get(section, key))
+    def getfloat(self, section, key, **kwargs):
+        return float(self.get(section, key, **kwargs))
 
-    def read(self, filenames):
-        super(AirflowConfigParser, self).read(filenames)
+    def read(self, filenames, **kwargs):
+        super(AirflowConfigParser, self).read(filenames, **kwargs)
         self._validate()
 
     def read_dict(self, *args, **kwargs):
