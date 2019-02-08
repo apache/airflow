@@ -113,7 +113,7 @@ class HiveOperator(BaseOperator):
     def prepare_template(self):
         if self.hiveconf_jinja_translate:
             self.hql = re.sub(
-                "(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", "{{ \g<3> }}", self.hql)
+                r"(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", r"{{ \g<3> }}", self.hql)
         if self.script_begin_tag and self.script_begin_tag in self.hql:
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 

@@ -21,6 +21,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
+import contextlib
 from collections import OrderedDict
 
 import six
@@ -33,6 +34,23 @@ if six.PY2:
     import unittest2 as unittest
 else:
     import unittest
+
+
+@contextlib.contextmanager
+def env_vars(**vars):
+    original = {}
+    for key, value in vars.items():
+        original[key] = os.environ.get(key)
+        if value is not None:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
+    yield
+    for key, value in original.items():
+        if value is not None:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
 
 
 class ConfTest(unittest.TestCase):
@@ -49,12 +67,38 @@ class ConfTest(unittest.TestCase):
         del os.environ['AIRFLOW__TESTSECTION__TESTKEY']
         del os.environ['AIRFLOW__TESTSECTION__TESTPERCENT']
 
+    def test_airflow_home_default(self):
+        with env_vars(AIRFLOW_HOME=None):
+            self.assertEqual(
+                configuration.get_airflow_home(),
+                configuration.expand_env_var('~/airflow'))
+
+    def test_airflow_home_override(self):
+        with env_vars(AIRFLOW_HOME='/path/to/airflow'):
+            self.assertEqual(
+                configuration.get_airflow_home(),
+                '/path/to/airflow')
+
+    def test_airflow_config_default(self):
+        with env_vars(AIRFLOW_CONFIG=None):
+            self.assertEqual(
+                configuration.get_airflow_config('/home/airflow'),
+                configuration.expand_env_var('/home/airflow/airflow.cfg'))
+
+    def test_airflow_config_override(self):
+        with env_vars(AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
+            self.assertEqual(
+                configuration.get_airflow_config('/home//airflow'),
+                '/path/to/airflow/airflow.cfg')
+
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
         self.assertEqual(opt, 'testvalue')
 
         opt = conf.get('testsection', 'testpercent')
         self.assertEqual(opt, 'with%percent')
+
+        self.assertTrue(conf.has_option('testsection', 'testkey'))
 
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
@@ -122,6 +166,10 @@ key6 = value6
         self.assertEqual('airflow', test_conf.get('test', 'key3'))
         self.assertEqual('key4_result', test_conf.get('test', 'key4'))
         self.assertEqual('value6', test_conf.get('another', 'key6'))
+
+        self.assertEqual('hello', test_conf.get('test', 'key1', fallback='fb'))
+        self.assertEqual('value6', test_conf.get('another', 'key6', fallback='fb'))
+        self.assertEqual('fb', test_conf.get('another', 'key7', fallback='fb'))
 
         self.assertTrue(test_conf.has_option('test', 'key1'))
         self.assertTrue(test_conf.has_option('test', 'key2'))
@@ -203,12 +251,12 @@ key3 = value3
 
         with self.assertWarns(DeprecationWarning):
             os.environ['AIRFLOW__CELERY__CELERYD_CONCURRENCY'] = '99'
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             os.environ.pop('AIRFLOW__CELERY__CELERYD_CONCURRENCY')
 
         with self.assertWarns(DeprecationWarning):
             conf.set('celery', 'celeryd_concurrency', '99')
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             conf.remove_option('celery', 'celeryd_concurrency')
 
     def test_deprecated_options_cmd(self):
@@ -224,6 +272,6 @@ key3 = value3
             tmp = None
             if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
                 tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-            self.assertEquals(conf.getint('celery', 'result_backend'), 99)
+            self.assertEqual(conf.getint('celery', 'result_backend'), 99)
             if tmp:
                 os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp

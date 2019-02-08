@@ -96,7 +96,11 @@ class BigQueryOperator(BaseOperator):
     :param cluster_fields: Request that the result of this query be stored sorted
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
-    :type cluster_fields: list of str
+    :type cluster_fields: list[str]
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('sql', 'destination_dataset_table', 'labels')
@@ -105,14 +109,14 @@ class BigQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql=None,
-                 destination_dataset_table=False,
+                 sql,
+                 destination_dataset_table=None,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 udf_config=False,
+                 udf_config=None,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
                  maximum_bytes_billed=None,
@@ -124,6 +128,7 @@ class BigQueryOperator(BaseOperator):
                  time_partitioning=None,
                  api_resource_configs=None,
                  cluster_fields=None,
+                 location=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -144,15 +149,10 @@ class BigQueryOperator(BaseOperator):
         self.labels = labels
         self.bq_cursor = None
         self.priority = priority
-        if time_partitioning is None:
-            self.time_partitioning = {}
-        if api_resource_configs is None:
-            self.api_resource_configs = {}
+        self.time_partitioning = time_partitioning
+        self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
-
-        if self.sql is None:
-            raise TypeError('{} missing 1 required positional '
-                            'argument: `sql`'.format(self.task_id))
+        self.location = location
 
     def execute(self, context):
         if self.bq_cursor is None:
@@ -160,11 +160,13 @@ class BigQueryOperator(BaseOperator):
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
-                delegate_to=self.delegate_to)
+                delegate_to=self.delegate_to,
+                location=self.location,
+            )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.sql,
+            sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,

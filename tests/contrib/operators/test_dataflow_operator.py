@@ -213,7 +213,7 @@ class GoogleCloudBucketHelperTest(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             gcs_bucket_helper.google_cloud_to_local(file_name)
 
-        self.assertEquals(
+        self.assertEqual(
             'Invalid Google Cloud Storage (GCS) object path: {}'.format(file_name),
             str(context.exception))
 
@@ -261,6 +261,6 @@ class GoogleCloudBucketHelperTest(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             gcs_bucket_helper.google_cloud_to_local(file_name)
 
-        self.assertEquals(
+        self.assertEqual(
             'Failed to download Google Cloud Storage (GCS) object: {}'.format(file_name),
             str(context.exception))

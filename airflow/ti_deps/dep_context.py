@@ -33,7 +33,7 @@ class DepContext(object):
     """
     A base class for contexts that specifies which dependencies should be evaluated in
     the context for a task instance to satisfy the requirements of the context. Also
-    stores state related to the context that can be used by dependendency classes.
+    stores state related to the context that can be used by dependency classes.
 
     For example there could be a SomeRunContext that subclasses this class which has
     dependencies for:
@@ -44,7 +44,7 @@ class DepContext(object):
 
     :param deps: The context-specific dependencies that need to be evaluated for a
         task instance to run in this execution context.
-    :type deps: set(BaseTIDep)
+    :type deps: set(airflow.ti_deps.deps.base_ti_dep.BaseTIDep)
     :param flag_upstream_failed: This is a hack to generate the upstream_failed state
         creation while checking to see whether the task instance is runnable. It was the
         shortest path to add the feature. This is bad since this class should be pure (no
@@ -95,6 +95,7 @@ QUEUEABLE_STATES = {
     State.SKIPPED,
     State.UPSTREAM_FAILED,
     State.UP_FOR_RETRY,
+    State.UP_FOR_RESCHEDULE,
 }
 
 # Context to get the dependencies that need to be met in order for a task instance to

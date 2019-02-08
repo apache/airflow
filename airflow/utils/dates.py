@@ -24,7 +24,7 @@ from __future__ import unicode_literals
 
 from airflow.utils import timezone
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta  # flake8: noqa: F401 for doctest
+from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 import six
 
 from croniter import croniter
@@ -175,9 +175,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
         if start_date + (lower + 1) * delta >= dt:
             # Check if start_date + (lower + 1)*delta or
             # start_date + lower*delta is closer to dt and return the solution
-            if (
-                (start_date + (lower + 1) * delta) - dt <=
-                dt - (start_date + lower * delta)):
+            if (start_date + (lower + 1) * delta) - dt <= dt - (start_date + lower * delta):
                 return start_date + (lower + 1) * delta
             else:
                 return start_date + lower * delta

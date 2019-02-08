@@ -57,22 +57,21 @@ class HiveToMySqlTransfer(BaseOperator):
     :type bulk_load: bool
     """
 
-    template_fields = ('sql', 'mysql_table', 'mysql_preoperator',
-                       'mysql_postoperator')
+    template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(
-            self,
-            sql,
-            mysql_table,
-            hiveserver2_conn_id='hiveserver2_default',
-            mysql_conn_id='mysql_default',
-            mysql_preoperator=None,
-            mysql_postoperator=None,
-            bulk_load=False,
-            *args, **kwargs):
+    def __init__(self,
+                 sql,
+                 mysql_table,
+                 hiveserver2_conn_id='hiveserver2_default',
+                 mysql_conn_id='mysql_default',
+                 mysql_preoperator=None,
+                 mysql_postoperator=None,
+                 bulk_load=False,
+                 hive_conf=None,
+                 *args, **kwargs):
         super(HiveToMySqlTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
         self.mysql_table = mysql_table
@@ -81,31 +80,38 @@ class HiveToMySqlTransfer(BaseOperator):
         self.mysql_postoperator = mysql_postoperator
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.bulk_load = bulk_load
+        self.hive_conf = hive_conf
 
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
-        self.log.info("Extracting data from Hive: %s", self.sql)
 
+        self.log.info("Extracting data from Hive: %s", self.sql)
+        hive_conf = context_to_airflow_vars(context)
+        if self.hive_conf:
+            hive_conf.update(self.hive_conf)
         if self.bulk_load:
-            tmpfile = NamedTemporaryFile()
-            hive.to_csv(self.sql, tmpfile.name, delimiter='\t',
-                        lineterminator='\n', output_header=False,
-                        hive_conf=context_to_airflow_vars(context))
+            tmp_file = NamedTemporaryFile()
+            hive.to_csv(self.sql,
+                        tmp_file.name,
+                        delimiter='\t',
+                        lineterminator='\n',
+                        output_header=False,
+                        hive_conf=hive_conf)
         else:
-            results = hive.get_records(self.sql)
+            hive_results = hive.get_records(self.sql, hive_conf=hive_conf)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
+
         if self.mysql_preoperator:
             self.log.info("Running MySQL preoperator")
             mysql.run(self.mysql_preoperator)
 
         self.log.info("Inserting rows into MySQL")
-
         if self.bulk_load:
-            mysql.bulk_load(table=self.mysql_table, tmp_file=tmpfile.name)
-            tmpfile.close()
+            mysql.bulk_load(table=self.mysql_table, tmp_file=tmp_file.name)
+            tmp_file.close()
         else:
-            mysql.insert_rows(table=self.mysql_table, rows=results)
+            mysql.insert_rows(table=self.mysql_table, rows=hive_results)
 
         if self.mysql_postoperator:
             self.log.info("Running MySQL postoperator")

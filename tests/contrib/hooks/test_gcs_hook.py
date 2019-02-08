@@ -23,7 +23,7 @@ import os
 
 from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
-from apiclient.errors import HttpError
+from googleapiclient.errors import HttpError
 
 try:
     from unittest import mock
@@ -207,7 +207,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'Either source/destination bucket or source/destination object '
             'must be different, not both the same: bucket=%s, object=%s' %
@@ -227,7 +227,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'source_bucket and source_object cannot be empty.'
         )
@@ -245,7 +245,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'source_bucket and source_object cannot be empty.'
         )

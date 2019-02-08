@@ -23,6 +23,7 @@ implementation for BigQuery.
 """
 
 import time
+import six
 from builtins import range
 from copy import deepcopy
 from six import iteritems
@@ -33,8 +34,8 @@ from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from apiclient.discovery import HttpError, build
-from googleapiclient import errors
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from pandas_gbq.gbq import \
     _check_google_client_version as gbq_check_google_client_version
 from pandas_gbq import read_gbq
@@ -43,7 +44,7 @@ from pandas_gbq.gbq import \
 from pandas_gbq.gbq import GbqConnector
 
 
-class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
+class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
@@ -53,10 +54,12 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
     def __init__(self,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 use_legacy_sql=True):
+                 use_legacy_sql=True,
+                 location=None):
         super(BigQueryHook, self).__init__(
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
+        self.location = location
 
     def get_conn(self):
         """
@@ -67,7 +70,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
         return BigQueryConnection(
             service=service,
             project_id=project,
-            use_legacy_sql=self.use_legacy_sql)
+            use_legacy_sql=self.use_legacy_sql,
+            location=self.location,
+        )
 
     def get_service(self):
         """
@@ -103,13 +108,16 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: str in {'legacy', 'standard'}
         """
+        private_key = self._get_field('key_path', None) or self._get_field('keyfile_dict', None)
+
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
         return read_gbq(sql,
                         project_id=self._get_field('project'),
                         dialect=dialect,
-                        verbose=False)
+                        verbose=False,
+                        private_key=private_key)
 
     def table_exists(self, project_id, dataset_id, table_id):
         """
@@ -131,7 +139,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
                 projectId=project_id, datasetId=dataset_id,
                 tableId=table_id).execute()
             return True
-        except errors.HttpError as e:
+        except HttpError as e:
             if e.resp['status'] == '404':
                 return False
             raise
@@ -201,7 +209,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  service,
                  project_id,
                  use_legacy_sql=True,
-                 api_resource_configs=None):
+                 api_resource_configs=None,
+                 location=None):
 
         self.service = service
         self.project_id = project_id
@@ -211,6 +220,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.api_resource_configs = api_resource_configs \
             if api_resource_configs else {}
         self.running_job_id = None
+        self.location = location
 
     def create_empty_table(self,
                            project_id,
@@ -495,6 +505,116 @@ class BigQueryBaseCursor(LoggingMixin):
                 'BigQuery job failed. Error was: {}'.format(err.content)
             )
 
+    def patch_table(self,
+                    dataset_id,
+                    table_id,
+                    project_id=None,
+                    description=None,
+                    expiration_time=None,
+                    external_data_configuration=None,
+                    friendly_name=None,
+                    labels=None,
+                    schema=None,
+                    time_partitioning=None,
+                    view=None,
+                    require_partition_filter=None):
+        """
+        Patch information in an existing table.
+        It only updates fileds that are provided in the request object.
+
+        Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
+
+        :param dataset_id: The dataset containing the table to be patched.
+        :type dataset_id: str
+        :param table_id: The Name of the table to be patched.
+        :type table_id: str
+        :param project_id: The project containing the table to be patched.
+        :type project_id: str
+        :param description: [Optional] A user-friendly description of this table.
+        :type description: str
+        :param expiration_time: [Optional] The time when this table expires,
+            in milliseconds since the epoch.
+        :type expiration_time: int
+        :param external_data_configuration: [Optional] A dictionary containing
+            properties of a table stored outside of BigQuery.
+        :type external_data_configuration: dict
+        :param friendly_name: [Optional] A descriptive name for this table.
+        :type friendly_name: str
+        :param labels: [Optional] A dictionary containing labels associated with this table.
+        :type labels: dict
+        :param schema: [Optional] If set, the schema field list as defined here:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+            The supported schema modifications and unsupported schema modification are listed here:
+            https://cloud.google.com/bigquery/docs/managing-table-schemas
+        :type schema: list
+
+        **Example**: ::
+
+            schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+
+        :param time_partitioning: [Optional] A dictionary containing time-based partitioning
+             definition for the table.
+        :type time_partitioning: dict
+        :param view: [Optional] A dictionary containing definition for the view.
+            If set, it will patch a view instead of a table:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+        :type view: dict
+
+        **Example**: ::
+
+            view = {
+                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+                "useLegacySql": False
+            }
+
+        :param require_partition_filter: [Optional] If true, queries over the this table require a
+            partition filter. If false, queries over the table
+        :type require_partition_filter: bool
+
+        """
+
+        project_id = project_id if project_id is not None else self.project_id
+
+        table_resource = {}
+
+        if description is not None:
+            table_resource['description'] = description
+        if expiration_time is not None:
+            table_resource['expirationTime'] = expiration_time
+        if external_data_configuration:
+            table_resource['externalDataConfiguration'] = external_data_configuration
+        if friendly_name is not None:
+            table_resource['friendlyName'] = friendly_name
+        if labels:
+            table_resource['labels'] = labels
+        if schema:
+            table_resource['schema'] = {'fields': schema}
+        if time_partitioning:
+            table_resource['timePartitioning'] = time_partitioning
+        if view:
+            table_resource['view'] = view
+        if require_partition_filter is not None:
+            table_resource['requirePartitionFilter'] = require_partition_filter
+
+        self.log.info('Patching Table %s:%s.%s',
+                      project_id, dataset_id, table_id)
+
+        try:
+            self.service.tables().patch(
+                projectId=project_id,
+                datasetId=dataset_id,
+                tableId=table_id,
+                body=table_resource).execute()
+
+            self.log.info('Table patched successfully: %s:%s.%s',
+                          project_id, dataset_id, table_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
     def run_query(self,
                   sql,
                   destination_dataset_table=None,
@@ -512,7 +632,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   priority='INTERACTIVE',
                   time_partitioning=None,
                   api_resource_configs=None,
-                  cluster_fields=None):
+                  cluster_fields=None,
+                  location=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -560,13 +681,13 @@ class BigQueryBaseCursor(LoggingMixin):
         :param create_disposition: Specifies whether the job is allowed to
             create new tables.
         :type create_disposition: str
-        :param query_params a dictionary containing query parameter types and
+        :param query_params: a dictionary containing query parameter types and
             values, passed to BigQuery
         :type query_params: dict
-        :param labels a dictionary containing labels for the job/query,
+        :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
-        :param schema_update_options: Allows the schema of the desitination
+        :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the query job.
         :type schema_update_options: tuple
         :param priority: Specifies a priority for the query.
@@ -579,8 +700,18 @@ class BigQueryBaseCursor(LoggingMixin):
         :param cluster_fields: Request that the result of this query be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list of str
+        :type cluster_fields: list[str]
+        :param location: The geographic location of the job. Required except for
+            US and EU. See details at
+            https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+        :type location: str
         """
+
+        if time_partitioning is None:
+            time_partitioning = {}
+
+        if location:
+            self.location = location
 
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
@@ -637,8 +768,8 @@ class BigQueryBaseCursor(LoggingMixin):
             cluster_fields = {'fields': cluster_fields}
 
         query_param_list = [
-            (sql, 'query', None, str),
-            (priority, 'priority', 'INTERACTIVE', str),
+            (sql, 'query', None, six.string_types),
+            (priority, 'priority', 'INTERACTIVE', six.string_types),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
             (query_params, 'queryParameters', None, dict),
             (udf_config, 'userDefinedFunctionResources', None, list),
@@ -801,7 +932,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type write_disposition: str
         :param create_disposition: The create disposition if the table doesn't exist.
         :type create_disposition: str
-        :param labels a dictionary containing labels for the job/query,
+        :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
         """
@@ -922,7 +1053,7 @@ class BigQueryBaseCursor(LoggingMixin):
             records, an invalid error is returned in the job result. Only applicable when
             soure_format is CSV.
         :type allow_jagged_rows: bool
-        :param schema_update_options: Allows the schema of the desitination
+        :param schema_update_options: Allows the schema of the destination
             table to be updated as a side effect of the load job.
         :type schema_update_options: tuple
         :param src_fmt_configs: configure optional fields specific to the source format
@@ -933,7 +1064,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param cluster_fields: Request that the result of this load be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list of str
+        :type cluster_fields: list[str]
         """
 
         # bigquery only allows certain source formats
@@ -1086,9 +1217,15 @@ class BigQueryBaseCursor(LoggingMixin):
         keep_polling_job = True
         while keep_polling_job:
             try:
-                job = jobs.get(
-                    projectId=self.project_id,
-                    jobId=self.running_job_id).execute()
+                if self.location:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id,
+                        location=self.location).execute()
+                else:
+                    job = jobs.get(
+                        projectId=self.project_id,
+                        jobId=self.running_job_id).execute()
                 if job['status']['state'] == 'DONE':
                     keep_polling_job = False
                     # Check if job had errors.
@@ -1117,7 +1254,13 @@ class BigQueryBaseCursor(LoggingMixin):
     def poll_job_complete(self, job_id):
         jobs = self.service.jobs()
         try:
-            job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
+            if self.location:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id,
+                               location=self.location).execute()
+            else:
+                job = jobs.get(projectId=self.project_id,
+                               jobId=job_id).execute()
             if job['status']['state'] == 'DONE':
                 return True
         except HttpError as err:
@@ -1140,9 +1283,15 @@ class BigQueryBaseCursor(LoggingMixin):
                 not self.poll_job_complete(self.running_job_id)):
             self.log.info('Attempting to cancel job : %s, %s', self.project_id,
                           self.running_job_id)
-            jobs.cancel(
-                projectId=self.project_id,
-                jobId=self.running_job_id).execute()
+            if self.location:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id,
+                    location=self.location).execute()
+            else:
+                jobs.cancel(
+                    projectId=self.project_id,
+                    jobId=self.running_job_id).execute()
         else:
             self.log.info('No running BigQuery jobs to cancel.')
             return
@@ -1591,7 +1740,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
                     dataset_project_id, dataset_id, table_id))
             else:
-                error_msg = '{} insert error(s) occured: {}:{}.{}. Details: {}'.format(
+                error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
                     len(resp['insertErrors']),
                     dataset_project_id, dataset_id, table_id, resp['insertErrors'])
                 if fail_on_error:
@@ -1614,11 +1763,13 @@ class BigQueryCursor(BigQueryBaseCursor):
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py
     """
 
-    def __init__(self, service, project_id, use_legacy_sql=True):
+    def __init__(self, service, project_id, use_legacy_sql=True, location=None):
         super(BigQueryCursor, self).__init__(
             service=service,
             project_id=project_id,
-            use_legacy_sql=use_legacy_sql)
+            use_legacy_sql=use_legacy_sql,
+            location=location,
+        )
         self.buffersize = None
         self.page_token = None
         self.job_id = None

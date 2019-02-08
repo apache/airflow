@@ -54,7 +54,7 @@ class KubernetesExecutorTest(unittest.TestCase):
     def _delete_airflow_pod():
         air_pod = check_output(['kubectl', 'get', 'pods']).decode()
         air_pod = air_pod.split('\n')
-        names = [re.compile('\s+').split(x)[0] for x in air_pod if 'airflow' in x]
+        names = [re.compile(r'\s+').split(x)[0] for x in air_pod if 'airflow' in x]
         if names:
             check_call(['kubectl', 'delete', 'pod', names[0]])
 
@@ -133,8 +133,13 @@ class KubernetesExecutorTest(unittest.TestCase):
             'http://{host}/api/experimental/'
             'dags/{dag_id}/paused/false'.format(host=host, dag_id=dag_id)
         )
+        try:
+            result_json = result.json()
+        except ValueError:
+            result_json = str(result)
+
         self.assertEqual(result.status_code, 200, "Could not enable DAG: {result}"
-                         .format(result=result.json()))
+                         .format(result=result_json))
 
         # Trigger a new dagrun
         result = requests.post(
@@ -142,8 +147,13 @@ class KubernetesExecutorTest(unittest.TestCase):
             'dags/{dag_id}/dag_runs'.format(host=host, dag_id=dag_id),
             json={}
         )
+        try:
+            result_json = result.json()
+        except ValueError:
+            result_json = str(result)
+
         self.assertEqual(result.status_code, 200, "Could not trigger a DAG-run: {result}"
-                         .format(result=result.json()))
+                         .format(result=result_json))
 
         time.sleep(1)
 

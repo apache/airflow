@@ -39,7 +39,7 @@ class WinRMOperator(BaseOperator):
     WinRMOperator to execute commands on given remote host using the winrm_hook.
 
     :param winrm_hook: predefined ssh_hook to use for remote execution
-    :type winrm_hook: :class:`WinRMHook`
+    :type winrm_hook: airflow.contrib.hooks.winrm_hook.WinRMHook
     :param ssh_conn_id: connection id from airflow Connections
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
@@ -115,7 +115,7 @@ class WinRMOperator(BaseOperator):
                         self.log.info(line)
                     for line in stderr.decode('utf-8').splitlines():
                         self.log.warning(line)
-                except WinRMOperationTimeoutError as e:
+                except WinRMOperationTimeoutError:
                     # this is an expected error when waiting for a
                     # long-running process, just silently retry
                     pass
@@ -126,7 +126,7 @@ class WinRMOperator(BaseOperator):
         except Exception as e:
             raise AirflowException("WinRM operator error: {0}".format(str(e)))
 
-        if return_code is 0:
+        if return_code == 0:
             # returning output if do_xcom_push is set
             if self.do_xcom_push:
                 enable_pickling = configuration.conf.getboolean(

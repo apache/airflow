@@ -129,16 +129,23 @@ described elsewhere in this document.
 
 Airflow provides operators for many common tasks, including:
 
-- ``BashOperator`` - executes a bash command
-- ``PythonOperator`` - calls an arbitrary Python function
-- ``EmailOperator`` - sends an email
-- ``SimpleHttpOperator`` - sends an HTTP request
-- ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
+- :class:`airflow.operators.bash_operator.BashOperator` - executes a bash command
+- :class:`airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
+- :class:`airflow.operators.email_operator.EmailOperator` - sends an email
+- :class:`airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
+- :class:`airflow.operators.mysql_operator.MySqlOperator`,
+  :class:`airflow.operators.sqlite_operator.SqliteOperator`,
+  :class:`airflow.operators.postgres_operator.PostgresOperator`,
+  :class:`airflow.operators.mssql_operator.MsSqlOperator`,
+  :class:`airflow.operators.oracle_operator.OracleOperator`,
+  :class:`airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransformOperator``,
-``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
+operators: :class:`airflow.operators.docker_operator.DockerOperator`,
+:class:`airflow.operators.hive_operator.HiveOperator`, :class:`airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
+:class:`airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
 community. These operators aren't always as complete or well-tested as those in
@@ -303,7 +310,7 @@ Hooks
 Hooks are interfaces to external platforms and databases like Hive, S3,
 MySQL, Postgres, HDFS, and Pig. Hooks implement a common interface when
 possible, and act as a building block for operators. They also use
-the ``airflow.models.Connection`` model to retrieve hostnames
+the ``airflow.models.connection.Connection`` model to retrieve hostnames
 and authentication information. Hooks keep authentication code and
 information out of pipelines, centralized in the metadata database.
 
@@ -522,6 +529,37 @@ Not like this, where the join task is skipped
 
 .. image:: img/branch_bad.png
 
+The ``BranchPythonOperator`` can also be used with XComs allowing branching
+context to dynamically decide what branch to follow based on previous tasks.
+For example:
+
+.. code:: python
+
+  def branch_func(**kwargs):
+      ti = kwargs['ti']
+      xcom_value = int(ti.xcom_pull(task_ids='start_task'))
+      if xcom_value >= 5:
+          return 'continue_task'
+      else:
+          return 'stop_task'
+
+  start_op = BashOperator(
+      task_id='start_task',
+      bash_command="echo 5",
+      xcom_push=True,
+      dag=dag)
+
+  branch_op = BranchPythonOperator(
+      task_id='branch_task',
+      provide_context=True,
+      python_callable=branch_func,
+      dag=dag)
+
+  continue_op = DummyOperator(task_id='continue_task', dag=dag)
+  stop_op = DummyOperator(task_id='stop_task', dag=dag)
+
+  start_op >> branch_op >> [continue_op, stop_op]
+
 SubDAGs
 =======
 
@@ -629,9 +667,37 @@ Service Level Agreements, or time by which a task or DAG should have
 succeeded, can be set at a task level as a ``timedelta``. If
 one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded
-in the database and made available in the web UI under ``Browse->Missed SLAs``
+in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
 
+Email Configuration
+-------------------
+
+You can configure the email that is being sent in your ``airflow.cfg``
+by setting a ``subject_template`` and/or a ``html_content_template``
+in the ``email`` section.
+
+.. code::
+
+  [email]
+
+  email_backend = airflow.utils.email.send_email_smtp
+
+  subject_template = /path/to/my_subject_template_file
+  html_content_template = /path/to/my_html_content_template_file
+
+To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
+
+For example a ``html_content_template`` file could look like this:
+
+.. code::
+
+  Try {{try_number}} out of {{max_tries + 1}}<br>
+  Exception:<br>{{exception_html}}<br>
+  Log: <a href="{{ti.log_url}}">Link</a><br>
+  Host: {{ti.hostname}}<br>
+  Log file: {{ti.log_filepath}}<br>
+  Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
 
 Trigger Rules
 =============
