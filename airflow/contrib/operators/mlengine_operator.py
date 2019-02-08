@@ -42,7 +42,7 @@ def _normalize_mlengine_job_id(job_id):
 
     # Add a prefix when a job_id starts with a digit or a template
     match = re.search(r'\d|\{{2}', job_id)
-    if match and match.start() is 0:
+    if match and match.start() == 0:
         job = 'z_{}'.format(job_id)
     else:
         job = job_id
@@ -106,7 +106,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     :param input_paths: A list of GCS paths of input data for batch
         prediction. Accepting wildcard operator ``*``, but only at the end. (templated)
-    :type input_paths: list of string
+    :type input_paths: list[str]
 
     :param output_path: The GCS path where the prediction results are
         written to. (templated)

@@ -140,13 +140,13 @@ class TestHttpHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_hook_uses_provided_header(self, m):
-            conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-            self.assertEqual(conn.headers.get('bareer'), "newT0k3n")
+        conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
+        self.assertEqual(conn.headers.get('bareer'), "newT0k3n")
 
     @requests_mock.mock()
     def test_hook_has_no_header_from_extra(self, m):
-            conn = self.get_hook.get_conn()
-            self.assertIsNone(conn.headers.get('bareer'))
+        conn = self.get_hook.get_conn()
+        self.assertIsNone(conn.headers.get('bareer'))
 
     @requests_mock.mock()
     def test_hooks_header_from_extra_is_overridden(self, m):

@@ -167,7 +167,7 @@ class _Dataflow(LoggingMixin):
             if self._proc.poll() is not None:
                 # Mark process completion but allows its outputs to be consumed.
                 process_ends = True
-        if self._proc.returncode is not 0:
+        if self._proc.returncode != 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
         return job_id

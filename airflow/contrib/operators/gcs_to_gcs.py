@@ -64,7 +64,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     :param last_modified_time: When specified, if the object(s) were
         modified after last_modified_time, they will be copied/moved.
         If tzinfo has not been set, UTC will be assumed.
-    :type last_modified_time: datetime
+    :type last_modified_time: datetime.datetime
 
     :Example:
 

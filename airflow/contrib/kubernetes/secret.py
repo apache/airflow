@@ -24,14 +24,14 @@ class Secret:
         the user.
         :param deploy_type: The type of secret deploy in Kubernetes, either `env` or
             `volume`
-        :type deploy_type: ``str``
+        :type deploy_type: str
         :param deploy_target: The environment variable when `deploy_type` `env` or
             file path when `deploy_type` `volume` where expose secret
-        :type deploy_target: ``str``
+        :type deploy_target: str
         :param secret: Name of the secrets object in Kubernetes
-        :type secret: ``str``
+        :type secret: str
         :param key: Key of the secret within the Kubernetes Secret
-        :type key: ``str``
+        :type key: str
         """
         self.deploy_type = deploy_type
         self.deploy_target = deploy_target.upper()
