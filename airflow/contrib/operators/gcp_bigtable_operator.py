@@ -51,6 +51,10 @@ class BigtableInstanceCreateOperator(BaseOperator, BigtableValidationMixin):
     For more details about instance creation have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.create
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableInstanceCreateOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to create.
     :type main_cluster_id: str
@@ -157,6 +161,10 @@ class BigtableInstanceDeleteOperator(BaseOperator, BigtableValidationMixin):
     For more details about deleting instance have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.delete
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableInstanceDeleteOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance to delete.
     :param project_id: Optional, the ID of the GCP project.  If set to None or missing,
@@ -198,6 +206,10 @@ class BigtableTableCreateOperator(BaseOperator, BigtableValidationMixin):
 
     For more details about creating table have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html#google.cloud.bigtable.table.Table.create
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableTableCreateOperator`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance that will
@@ -290,6 +302,10 @@ class BigtableTableDeleteOperator(BaseOperator, BigtableValidationMixin):
     For more details about deleting table have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html#google.cloud.bigtable.table.Table.delete
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableTableDeleteOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
     :type table_id: str
@@ -348,6 +364,10 @@ class BigtableClusterUpdateOperator(BaseOperator, BigtableValidationMixin):
     have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/cluster.html#google.cloud.bigtable.cluster.Cluster.update
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableClusterUpdateOperator`
+
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
     :type cluster_id: str
@@ -404,6 +424,10 @@ class BigtableTableWaitForReplicationSensor(BaseSensorOperator, BigtableValidati
 
     For more details about cluster states for a table, have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html#google.cloud.bigtable.table.Table.get_cluster_states
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BigtableTableWaitForReplicationSensor`
 
     :type instance_id: str
     :param instance_id: The ID of the Cloud Bigtable instance.
