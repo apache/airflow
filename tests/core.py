@@ -22,7 +22,6 @@ from __future__ import print_function
 import json
 import unittest
 
-import bleach
 import doctest
 import mock
 import multiprocessing
@@ -39,7 +38,6 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numpy.testing import assert_array_almost_equal
-from six.moves.urllib.parse import urlencode
 from tempfile import NamedTemporaryFile
 from time import sleep
 
@@ -60,17 +58,13 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
-from airflow.www.app import create_app
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
-from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
-from jinja2.sandbox import SecurityError
-from jinja2 import UndefinedError
 from pendulum import utcnow
 
 import six
