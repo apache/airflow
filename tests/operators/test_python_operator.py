@@ -23,7 +23,7 @@ import copy
 import logging
 import os
 import unittest
-from datetime import timedelta
+from datetime import timedelta, date
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -44,6 +44,18 @@ TI_CONTEXT_ENV_VARS = ['AIRFLOW_CTX_DAG_ID',
                        'AIRFLOW_CTX_TASK_ID',
                        'AIRFLOW_CTX_EXECUTION_DATE',
                        'AIRFLOW_CTX_DAG_RUN_ID']
+
+
+class Call:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+
+def build_recording_function(calls_collection):
+    def recording_function(*args, **kwargs):
+        calls_collection.append(Call(*args, **kwargs))
+    return recording_function
 
 
 class PythonOperatorTest(unittest.TestCase):
@@ -113,6 +125,73 @@ class PythonOperatorTest(unittest.TestCase):
                 python_callable=not_callable,
                 task_id='python_operator',
                 dag=self.dag)
+
+    def _assertCallsEqual(self, first, second):
+        self.assertIsInstance(first, Call)
+        self.assertIsInstance(second, Call)
+        self.assertTupleEqual(first.args, second.args)
+        self.assertDictEqual(first.kwargs, second.kwargs)
+
+    def test_python_callable_arguments_are_templatized(self):
+        """Test PythonOperator op_args are templatized"""
+        recorded_calls = []
+
+        task = PythonOperator(
+            task_id='python_operator',
+            python_callable=(build_recording_function(recorded_calls)),
+            op_args=[
+                4,
+                date(2019, 1, 1),
+                "dag {{dag.dag_id}} ran on {{ds}}."
+            ],
+            dag=self.dag)
+
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        self.assertEqual(1, len(recorded_calls))
+        self._assertCallsEqual(
+            recorded_calls[0],
+            Call(4,
+                 date(2019, 1, 1),
+                 "dag {} ran on {}.".format(self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
+        )
+
+    def test_python_callable_keyword_arguments_are_templatized(self):
+        """Test PythonOperator op_kwargs are templatized"""
+        recorded_calls = []
+
+        task = PythonOperator(
+            task_id='python_operator',
+            python_callable=(build_recording_function(recorded_calls)),
+            op_kwargs={
+                'an_int': 4,
+                'a_date': date(2019, 1, 1),
+                'a_templated_string': "dag {{dag.dag_id}} ran on {{ds}}."
+            },
+            dag=self.dag)
+
+        self.dag.create_dagrun(
+            run_id='manual__' + DEFAULT_DATE.isoformat(),
+            execution_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        self.assertEqual(1, len(recorded_calls))
+        self._assertCallsEqual(
+            recorded_calls[0],
+            Call(an_int=4,
+                 a_date=date(2019, 1, 1),
+                 a_templated_string="dag {} ran on {}.".format(
+                     self.dag.dag_id, DEFAULT_DATE.date().isoformat()))
+        )
 
     def test_python_operator_shallow_copy_attr(self):
         not_callable = lambda x: x
