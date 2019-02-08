@@ -1,0 +1,329 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+openapi: 3.0.0
+info:
+  title: Airflow API
+  description: This definition describes the resources and actions available to control the Airflow server with
+  contact: {}
+  version: '1.0.0'
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+- url: /api/experimental
+  description: Airfow Experimental API
+
+paths:
+  /dags/{dag_id}:
+    delete:
+      tags:
+      - DAG
+      description: Return a specific DAG
+      parameters:
+        - $ref: '#/components/parameters/DagID'
+      responses:
+        200:
+          description: Return a specific DAG
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAG'
+  /dags/{dag_id}/dag_runs:
+    post:
+      tags:
+      - DAG
+      description: Get a specific dag
+      parameters:
+        - $ref: '#/components/parameters/DagID'
+      responses:
+        200:
+          description: Trigger a dag run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRunState'
+    get:
+      tags:
+      - DAG
+      parameters:
+        - $ref: '#/components/parameters/DagID'
+      responses:
+        200:
+          $ref: '#/components/responses/DagRun'
+  /dags/{dag_id}/dag_runs/{execution_date}:
+    get:
+      tags:
+      - DAG
+      parameters:
+        - $ref: '#/components/parameters/DagID'
+        - $ref: '#/components/parameters/ExecutionDate'
+      responses:
+        200:
+          $ref: '#/components/responses/DagRun'
+  /dags/{dag_id}/dag_runs/{execution_date}/tasks/{task_id}:
+    get:
+      tags:
+        - DAG
+        - Task
+      parameters:
+        - $ref: '#/components/parameters/DagID'
+        - $ref: '#/components/parameters/ExecutionDate'
+        - $ref: '#/components/parameters/TaskID'
+      responses:
+        200:
+          $ref: '#/components/responses/Task'
+  /dags/{dag_id}/paused/{flag}:
+    get:
+      tags:
+        - DAG
+      parameters:
+        - $ref: '#/components/parameters/DagID'
+        - $ref: '#/components/parameters/Flag'
+      responses:
+        200:
+          $ref: '#/components/responses/NoContent'
+  /latest_runs:
+    get:
+      tags:
+        - DAG
+      responses:
+        200:
+          $ref: '#/components/responses/DagRuns'
+  /test:
+    get:
+      tags:
+      - Healthcheck
+      responses:
+        200:
+          $ref: '#/components/responses/Bool'
+  /dags/{dag_id}/tasks/{task_id}:
+    get:
+      tags:
+      - DAG
+      - Task
+      parameters:
+        - $ref: '#/components/parameters/DagID'
+        - $ref: '#/components/parameters/TaskID'
+      responses:
+        200:
+          $ref: '#/components/responses/Task'
+  /pools:
+    get:
+      tags:
+      - Pool
+      responses:
+        200:
+          $ref: '#/components/responses/Pools'
+    post:
+      tags:
+      - Pool
+      requestBody:
+        $ref: '#/components/requestBodies/Pool'
+      responses:
+        200:
+          $ref: '#/components/responses/Pool'
+  /pools/{pool_name}:
+    get:
+      tags:
+      - Pool
+      parameters:
+      - $ref: '#/components/parameters/PoolName'
+      responses:
+        200:
+          $ref: '#/components/responses/Pool'
+    delete:
+      tags:
+      - Pool
+      parameters:
+      - $ref: '#/components/parameters/PoolName'
+      responses:
+        204:
+          $ref: '#/components/responses/NoContent'
+components:
+  parameters:
+    TaskID:
+      name: task_id
+      in: path
+      description: ID of a specific Task
+      required: true
+      schema:
+        type: string
+    DagID:
+      name: dag_id
+      in: path
+      description: ID of a specific DAG
+      required: true
+      schema:
+        type: string
+    PoolName:
+      name: pool_name
+      in: path
+      description: ID of a specific DAG
+      required: true
+      schema:
+        type: string
+    ExecutionDate:
+      name: execution_date
+      in: path
+      description: Execution date for DAG
+      required: true
+      schema:
+        type: string
+    Flag:
+      name: flag
+      in: path
+      description: True/false flag
+      required: true
+      schema:
+        type: boolean
+  schemas:
+    DAGRunState:
+      title: DAGRunState
+      type: object
+      properties:
+        state:
+          type: string
+          enum:
+            - failed
+    DAG:
+      title: DAG
+      type: object
+      properties:
+        dag_id:
+          type: string
+        description:
+          type: string
+        owner:
+          type: string
+        subdags:
+          type: array
+          items:
+            type: string
+          description: ''
+    DAGInstance:
+      title: DAGInstance
+      type: object
+      properties:
+        dag_id:
+          type: string
+        dag_run_url:
+          type: string
+        execution_date:
+          type: string
+          format: dateTime
+        start_date:
+          type: string
+          format: dateTime
+    Pool:
+      title: Pool
+      type: object
+      properties:
+        description:
+          type: string
+        id:
+          type: number
+        pool:
+          type: string
+        slots:
+          type: number
+    Task:
+      title: Task
+      type: object
+      properties:
+        task_id:
+          type: string
+    Bool:
+      title: Flag response
+      type: object
+      properties:
+        result:
+          type: boolean
+  responses:
+    Tasks:
+      description: A list of tasks
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Task'
+    Task:
+      description: A single task
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Task'
+    DagRuns:
+      description: A specific dag run
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/DAGInstance'
+    DagRun:
+      description: A specific dag run
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DAGInstance'
+    Pool:
+      description: A pools
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Pool'
+    Pools:
+      description: A list of pools
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Pool'
+            description: A list of pools
+    NoContent:
+      description: No Content
+    Bool:
+      description: True/False response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Bool'
+  requestBodies:
+    Pool:
+      description: Pool
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              description:
+                type: string
+              pool:
+                type: string
+              slots:
+                type: number
+
+tags:
+- name: DAG
+  description: ''
+- name: Pool
+  description: ''

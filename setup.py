@@ -311,6 +311,7 @@ def do_setup():
             'alembic>=0.9, <1.0',
             'cached_property~=1.5',
             'configparser>=3.5.0, <3.6.0',
+            'connexion[swagger-ui]>=2.2.0,<3.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'dumb-init>=1.2.2',
@@ -428,6 +429,11 @@ def do_setup():
             'compile_assets': CompileAssets
         },
         python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*',
+        entry_points={
+            'airflow.plugins': [
+                'rest_api = airflow.plugin.rest_api:RestApiPlugin'
+            ]
+        }
     )
 
 

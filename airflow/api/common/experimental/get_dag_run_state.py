@@ -19,8 +19,10 @@
 
 from airflow.exceptions import DagNotFound, DagRunNotFound
 from airflow.models import DagBag
+from airflow.plugin.rest_api import path_cast
 
 
+@path_cast.datetime('execution_date')
 def get_dag_run_state(dag_id, execution_date):
     """Return the task object identified by the given dag_id and task_id."""
 

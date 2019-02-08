@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -15,20 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+import dateutil.parser
 
-include NOTICE
-include LICENSE
-include CHANGELOG.txt
-include README.md
-include airflow/contrib/api/*swagger.yaml
-graft licenses/
-graft airflow/www
-graft airflow/www/static
-graft airflow/www/templates
-graft airflow/_vendor/
-include airflow/alembic.ini
-graft scripts/systemd
-graft scripts/upstart
-graft airflow/config_templates
-recursive-exclude airflow/www/node_modules *
-global-exclude __pycache__  *.pyc
+
+def datetime(field):
+    def handler(func):
+        def handler_a(*args, **kwargs):
+            if field in kwargs:
+                kwargs[field] = dateutil.parser.parse(kwargs[field])
+            return func(*args, **kwargs)
+
+        return handler_a
+
+    return handler

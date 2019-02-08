@@ -42,7 +42,6 @@ api_experimental = Blueprint('api_experimental', __name__)
 
 
 @csrf.exempt
-@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
 @requires_authentication
 def trigger_dag(dag_id):
     """
@@ -93,7 +92,6 @@ def trigger_dag(dag_id):
 
 
 @csrf.exempt
-@api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
 @requires_authentication
 def delete_dag(dag_id):
     """
@@ -109,7 +107,6 @@ def delete_dag(dag_id):
     return jsonify(message="Removed {} record(s)".format(count), count=count)
 
 
-@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
 @requires_authentication
 def dag_runs(dag_id):
     """
@@ -131,7 +128,6 @@ def dag_runs(dag_id):
     return jsonify(dagruns)
 
 
-@api_experimental.route('/test', methods=['GET'])
 @requires_authentication
 def test():
     return jsonify(status='OK')
@@ -170,7 +166,6 @@ def task_info(dag_id, task_id):
 
 
 # ToDo: Shouldn't this be a PUT method?
-@api_experimental.route('/dags/<string:dag_id>/paused/<string:paused>', methods=['GET'])
 @requires_authentication
 def dag_paused(dag_id, paused):
     """(Un)pauses a dag"""
@@ -191,9 +186,6 @@ def dag_paused(dag_id, paused):
     return jsonify({'response': 'ok'})
 
 
-@api_experimental.route(
-    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>',
-    methods=['GET'])
 @requires_authentication
 def task_instance_info(dag_id, execution_date, task_id):
     """
@@ -232,9 +224,6 @@ def task_instance_info(dag_id, execution_date, task_id):
     return jsonify(fields)
 
 
-@api_experimental.route(
-    '/dags/<string:dag_id>/dag_runs/<string:execution_date>',
-    methods=['GET'])
 @requires_authentication
 def dag_run_status(dag_id, execution_date):
     """
@@ -269,7 +258,6 @@ def dag_run_status(dag_id, execution_date):
     return jsonify(info)
 
 
-@api_experimental.route('/latest_runs', methods=['GET'])
 @requires_authentication
 def latest_dag_runs():
     """Returns the latest DagRun for each DAG formatted for the UI. """
@@ -289,7 +277,6 @@ def latest_dag_runs():
     return jsonify(items=payload)  # old flask versions dont support jsonifying arrays
 
 
-@api_experimental.route('/pools/<string:name>', methods=['GET'])
 @requires_authentication
 def get_pool(name):
     """Get pool by a given name."""
@@ -304,7 +291,6 @@ def get_pool(name):
         return jsonify(pool.to_json())
 
 
-@api_experimental.route('/pools', methods=['GET'])
 @requires_authentication
 def get_pools():
     """Get all pools."""
@@ -320,7 +306,6 @@ def get_pools():
 
 
 @csrf.exempt
-@api_experimental.route('/pools', methods=['POST'])
 @requires_authentication
 def create_pool():
     """Create a pool."""
@@ -337,7 +322,6 @@ def create_pool():
 
 
 @csrf.exempt
-@api_experimental.route('/pools/<string:name>', methods=['DELETE'])
 @requires_authentication
 def delete_pool(name):
     """Delete pool."""
