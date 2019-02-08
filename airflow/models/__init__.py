@@ -293,6 +293,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         if filepath is None or not os.path.isfile(filepath):
             return found_dags
 
+        if filepath.endswith(".pyc"):
+            filepath = filepath.rstrip("c")
+
         try:
             # This failed before in what may have been a git sync
             # race condition
