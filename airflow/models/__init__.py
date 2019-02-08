@@ -2878,9 +2878,12 @@ class DagModel(Base):
         if self.is_subdag:
             root_dag, path = self._get_nested_path_dag()
             dagbag = DagBag(dag_folder=root_dag.fileloc)
-            return dagbag.get_dag(self.dag_id)
+            dag = dagbag.get_dag(self.dag_id)
         else:
-            return DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+            dag = DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
+            if dag is None:
+                raise RuntimeError("Dag '{}' nog found: {}".format(self.dag_id, self.fileloc))
+        return dag
 
     def _get_nested_path_dag(self, _path=None):
         if _path is None:
