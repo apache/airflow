@@ -4207,13 +4207,11 @@ class DAG(BaseDag, LoggingMixin):
         if self.is_subdag:
             orm_dag.parent_dag = self.parent_dag.dag_id
             orm_dag.is_subdag = True
-        else:
+        elif self.fileloc is not None:
             if self.fileloc.endswith(".pyc"):
                 orm_dag.fileloc = self.fileloc.rstrip(".pyc") + ".py"
             else:
                 orm_dag.fileloc = self.fileloc
-        if not os.path.exists(orm_dag.fileloc):
-            raise RuntimeError("Dag file not found: {}".format(orm_dag.fileloc))
         orm_dag.owners = owner
         orm_dag.is_active = True
         orm_dag.last_scheduler_run = sync_time
