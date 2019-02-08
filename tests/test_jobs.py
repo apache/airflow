@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import copy
 import datetime
 import json
 import logging
@@ -3771,6 +3772,7 @@ class SchedulerJobTest(unittest.TestCase):
 
 def clear_runs():
     with create_session() as session:
+        session.query(models.DagModel).delete()
         session.query(models.DagRun).delete()
         session.query(models.TaskInstance).delete()
         session.query(models.DagEdge).delete()

@@ -3861,8 +3861,10 @@ class DAG(BaseDag, LoggingMixin):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in list(self.__dict__.items()):
-            if k not in ('user_defined_macros', 'user_defined_filters', 'params'):
+            if k not in ('user_defined_macros', 'user_defined_filters', 'params', '_log'):
                 setattr(result, k, copy.deepcopy(v, memo))
+            if k == '_log':
+                setattr(result, k, v)
 
         result.user_defined_macros = self.user_defined_macros
         result.user_defined_filters = self.user_defined_filters
