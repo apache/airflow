@@ -83,6 +83,10 @@ class GcfFunctionDeployOperator(BaseOperator):
     Creates a function in Google Cloud Functions.
     If a function with this name already exists, it will be updated.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GcfFunctionDeployOperator`
+
     :param location: Google Cloud Platform region where the function should be created.
     :type location: str
     :param body: Body of the Cloud Functions definition. The body must be a
@@ -273,6 +277,10 @@ FUNCTION_NAME_COMPILED_PATTERN = re.compile(FUNCTION_NAME_PATTERN)
 class GcfFunctionDeleteOperator(BaseOperator):
     """
     Deletes the specified function from Google Cloud Functions.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GcfFunctionDeleteOperator`
 
     :param name: A fully-qualified function name, matching
         the pattern: `^projects/[^/]+/locations/[^/]+/functions/[^/]+$`
