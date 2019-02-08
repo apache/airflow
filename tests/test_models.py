@@ -2871,7 +2871,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     @patch('airflow.models.send_email')
     def test_email_alert(self, mock_send_email):
-        dag = models.DAG(dag_id='test_failure_email')
+        dag = models.DAG(dag_id='test_failure_email', default_args={})
         dag.sync_to_db()
         task = BashOperator(
             task_id='test_email_alert',

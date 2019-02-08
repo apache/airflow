@@ -2327,7 +2327,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         DagRuns with one failed and one incomplete root task -> FAILED
         """
-        DagBag().get("test_dagrun_states_fail").sync_to_db()
+        DagBag().get_dag("test_dagrun_states_fail").sync_to_db()
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_fail',
             expected_task_states={
@@ -2340,7 +2340,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         DagRuns with one failed and one successful root task -> SUCCESS
         """
-        DagBag().get_dag().sync_to_db()
+        DagBag().get_dag("test_dagrun_states_success").sync_to_db()
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_success',
             expected_task_states={
