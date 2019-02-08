@@ -697,7 +697,7 @@ class CloudSqlQueryOperator(BaseOperator):
         so it is useless to pass it DQL queries. Note that it is responsibility of the
         author of the queries to make sure that the queries are idempotent. For example
         you can use CREATE TABLE IF NOT EXISTS to create a table.
-    :type sql: str or [str]
+    :type sql: str or list[str]
     :param parameters: (optional) the parameters to render the SQL query with.
     :type parameters: mapping or iterable
     :param autocommit: if True, each command is automatically committed.
@@ -708,7 +708,7 @@ class CloudSqlQueryOperator(BaseOperator):
     :type gcp_conn_id: str
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
        its schema should be gcpcloudsql://.
-       See :class:`~airflow.contrib.hooks.gcp_sql_hooks.CloudSqlDatabaseHook` for
+       See :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` for
        details on how to define gcpcloudsql:// connection.
     :type gcp_cloudsql_conn_id: str
     """

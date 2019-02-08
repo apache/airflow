@@ -97,6 +97,7 @@ class SparkSubmitOperator(BaseOperator):
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
+                 archives=None,
                  driver_classpath=None,
                  jars=None,
                  java_class=None,
@@ -122,6 +123,7 @@ class SparkSubmitOperator(BaseOperator):
         self._conf = conf
         self._files = files
         self._py_files = py_files
+        self._archives = archives
         self._driver_classpath = driver_classpath
         self._jars = jars
         self._java_class = java_class
@@ -152,6 +154,7 @@ class SparkSubmitOperator(BaseOperator):
             conn_id=self._conn_id,
             files=self._files,
             py_files=self._py_files,
+            archives=self._archives,
             driver_classpath=self._driver_classpath,
             jars=self._jars,
             java_class=self._java_class,

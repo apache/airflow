@@ -185,7 +185,8 @@ class BigtableHook(GoogleCloudBaseHook):
             initially split the table.
         :type column_families: dict
         :param column_families: (Optional) A map of columns to create. The key is the
-            column_id str, and the value is a ``GarbageCollectionRule``.
+            column_id str, and the value is a
+            :class:`google.cloud.bigtable.column_family.GarbageCollectionRule`.
         """
         if column_families is None:
             column_families = {}
