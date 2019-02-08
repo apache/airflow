@@ -34,6 +34,10 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     point the operator to a Google cloud storage object name. The object in
     Google cloud storage must be a JSON file with the schema fields in it.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageToBigQueryOperator`
+
     :param bucket: The bucket to load from. (templated)
     :type bucket: str
     :param source_objects: List of Google cloud storage URIs to load from. (templated)

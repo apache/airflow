@@ -39,6 +39,10 @@ class PythonOperator(BaseOperator):
     """
     Executes a Python callable
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PythonOperator`
+
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
