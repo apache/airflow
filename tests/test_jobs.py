@@ -1283,14 +1283,14 @@ class LocalTaskJobTest(unittest.TestCase):
         task = dag.get_task('task1')
         dag.sync_to_db()
 
-        session = settings.Session()
+        with create_session() as session:
+            session.query(DagRun).delete()
 
         dag.clear()
         dag.create_dagrun(run_id="test",
                           state=State.RUNNING,
                           execution_date=DEFAULT_DATE,
-                          start_date=DEFAULT_DATE,
-                          session=session)
+                          start_date=DEFAULT_DATE)
         ti = TI(task=task, execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
         job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
@@ -1304,8 +1304,8 @@ class LocalTaskJobTest(unittest.TestCase):
             ti.refresh_from_db()
         self.assertEqual(State.RUNNING, ti.state)
         ti.state = State.SUCCESS
-        session.merge(ti)
-        session.commit()
+        with create_session() as session:
+            session.merge(ti)
 
         process.join(timeout=10)
         self.assertFalse(process.is_alive())
