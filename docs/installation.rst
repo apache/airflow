@@ -27,11 +27,11 @@ The easiest way to install the latest stable version of Airflow is with ``pip``:
 
     pip install apache-airflow
 
-You can also install Airflow with support for extra features like ``s3`` or ``postgres``:
+You can also install Airflow with support for extra features like ``gcp_api`` or ``postgres``:
 
 .. code-block:: bash
 
-    pip install apache-airflow[postgres,s3]
+    pip install apache-airflow[postgres,gcp_api]
 
 Extra Packages
 ''''''''''''''
@@ -55,6 +55,10 @@ Here's the list of the subpackages and what they enable:
 | all_dbs             | ``pip install apache-airflow[all_dbs]``           | All databases integrations                                           |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | async               | ``pip install apache-airflow[async]``             | Async worker classes for Gunicorn                                    |
++---------------------+---------------------------------------------------+----------------------------------------------------------------------+
+| azure               | ``pip install apache-airflow[azure]``             | Microsoft Azure                                                      |
++---------------------+---------------------------------------------------+----------------------------------------------------------------------+
+| aws                 | ``pip install apache-airflow[aws]``               | Amazon Web Services                                                  |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | celery              | ``pip install apache-airflow[celery]``            | CeleryExecutor                                                       |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
@@ -107,8 +111,6 @@ Here's the list of the subpackages and what they enable:
 | rabbitmq            | ``pip install apache-airflow[rabbitmq]``          | RabbitMQ support as a Celery backend                                 |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | redis               | ``pip install apache-airflow[redis]``             | Redis hooks and sensors                                              |
-+---------------------+---------------------------------------------------+----------------------------------------------------------------------+
-| s3                  | ``pip install apache-airflow[s3]``                | ``S3KeySensor``, ``S3PrefixSensor``                                  |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | samba               | ``pip install apache-airflow[samba]``             | :class:`airflow.operators.hive_to_samba_operator.Hive2SambaOperator` |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
