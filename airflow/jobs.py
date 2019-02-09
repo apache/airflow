@@ -1906,7 +1906,10 @@ class BackfillJob(BaseJob):
         :param args:
         :param kwargs:
         """
-        self.donot_pickle = donot_pickle or configuration.conf.getboolean("core", "donot_pickle")
+        if donot_pickle is None:
+            self.donot_pickle = configuration.conf.getboolean("core", "donot_pickle")
+        else:
+            self.donot_pickle = donot_pickle
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
