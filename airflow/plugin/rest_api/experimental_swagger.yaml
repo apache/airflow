@@ -23,7 +23,7 @@ info:
     This definition describes the resources and actions available to control the Airflow server with.
     This version of the API is experimental, so please note that we expect the endpoint definitions to change.
   contact: {}
-  version: '1.0.0'
+  version: '0.1.0'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
