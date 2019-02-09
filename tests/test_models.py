@@ -2883,7 +2883,7 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(task=task, execution_date=datetime.datetime.now())
 
         try:
-            ti.run()
+            ti._run_raw_task()
         except AirflowException:
             pass
 
@@ -2911,7 +2911,7 @@ class TaskInstanceTest(unittest.TestCase):
         opener = mock_open(read_data='template: {{ti.task_id}}')
         with patch('airflow.models.open', opener, create=True):
             try:
-                ti.run()
+                ti._run_raw_task()
             except AirflowException:
                 pass
 

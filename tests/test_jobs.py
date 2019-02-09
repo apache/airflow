@@ -3057,6 +3057,7 @@ class SchedulerJobTest(unittest.TestCase):
                              dag=dag,
                              owner='airflow',
                              sla=datetime.timedelta(hours=1))
+        dag.sync_to_db()
 
         session.merge(models.TaskInstance(task=task,
                                           execution_date=test_start_date,
@@ -3099,6 +3100,7 @@ class SchedulerJobTest(unittest.TestCase):
                              owner='airflow',
                              email='test@test.com',
                              sla=datetime.timedelta(hours=1))
+        dag.sync_to_db()
 
         session.merge(models.TaskInstance(task=task,
                                           execution_date=test_start_date,
