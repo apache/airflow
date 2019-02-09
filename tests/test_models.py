@@ -45,7 +45,7 @@ from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI, TaskInstance
+from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun, DagEdge
 from airflow.models import SkipMixin
 from airflow.models import State as ST
