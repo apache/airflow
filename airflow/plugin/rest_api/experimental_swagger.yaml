@@ -18,8 +18,10 @@
 # under the License.
 openapi: 3.0.0
 info:
-  title: Airflow API
-  description: This definition describes the resources and actions available to control the Airflow server with
+  title: "Airflow API (Experimental)"
+  description: |
+    This definition describes the resources and actions available to control the Airflow server with.
+    This version of the API is experimental, so please note that we expect the endpoint definitions to change.
   contact: {}
   version: '1.0.0'
   license:
@@ -32,12 +34,12 @@ servers:
 
 paths:
   /dags/{dag_id}:
+    parameters:
+      - $ref: '#/components/parameters/DagID'
     delete:
       tags:
       - DAG
       description: Return a specific DAG
-      parameters:
-        - $ref: '#/components/parameters/DagID'
       responses:
         200:
           description: Return a specific DAG
@@ -46,12 +48,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/DAG'
   /dags/{dag_id}/dag_runs:
+    parameters:
+      - $ref: '#/components/parameters/DagID'
     post:
       tags:
       - DAG
       description: Get a specific dag
-      parameters:
-        - $ref: '#/components/parameters/DagID'
       responses:
         200:
           description: Trigger a dag run
@@ -62,40 +64,38 @@ paths:
     get:
       tags:
       - DAG
-      parameters:
-        - $ref: '#/components/parameters/DagID'
       responses:
         200:
           $ref: '#/components/responses/DagRun'
   /dags/{dag_id}/dag_runs/{execution_date}:
+    parameters:
+      - $ref: '#/components/parameters/DagID'
+      - $ref: '#/components/parameters/ExecutionDate'
     get:
       tags:
       - DAG
-      parameters:
-        - $ref: '#/components/parameters/DagID'
-        - $ref: '#/components/parameters/ExecutionDate'
       responses:
         200:
           $ref: '#/components/responses/DagRun'
   /dags/{dag_id}/dag_runs/{execution_date}/tasks/{task_id}:
+    parameters:
+      - $ref: '#/components/parameters/DagID'
+      - $ref: '#/components/parameters/ExecutionDate'
+      - $ref: '#/components/parameters/TaskID'
     get:
       tags:
         - DAG
         - Task
-      parameters:
-        - $ref: '#/components/parameters/DagID'
-        - $ref: '#/components/parameters/ExecutionDate'
-        - $ref: '#/components/parameters/TaskID'
       responses:
         200:
           $ref: '#/components/responses/Task'
   /dags/{dag_id}/paused/{paused}:
+    parameters:
+      - $ref: '#/components/parameters/DagID'
+      - $ref: '#/components/parameters/PausedFlag'
     get:
       tags:
         - DAG
-      parameters:
-        - $ref: '#/components/parameters/DagID'
-        - $ref: '#/components/parameters/PausedFlag'
       responses:
         200:
           $ref: '#/components/responses/StatusResponse'
@@ -114,13 +114,13 @@ paths:
         200:
           $ref: '#/components/responses/Status'
   /dags/{dag_id}/tasks/{task_id}:
+    parameters:
+      - $ref: '#/components/parameters/DagID'
+      - $ref: '#/components/parameters/TaskID'
     get:
       tags:
       - DAG
       - Task
-      parameters:
-        - $ref: '#/components/parameters/DagID'
-        - $ref: '#/components/parameters/TaskID'
       responses:
         200:
           $ref: '#/components/responses/Task'
@@ -140,19 +140,17 @@ paths:
         200:
           $ref: '#/components/responses/Pool'
   /pools/{name}:
+    parameters:
+    - $ref: '#/components/parameters/PoolName'
     get:
       tags:
       - Pool
-      parameters:
-      - $ref: '#/components/parameters/PoolName'
       responses:
         200:
           $ref: '#/components/responses/Pool'
     delete:
       tags:
       - Pool
-      parameters:
-      - $ref: '#/components/parameters/PoolName'
       responses:
         204:
           $ref: '#/components/responses/NoContent'
