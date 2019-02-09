@@ -18,6 +18,7 @@
 # under the License.
 
 from builtins import range
+from collections import OrderedDict
 
 # To avoid circular imports
 import airflow.utils.dag_processing
@@ -40,7 +41,7 @@ class BaseExecutor(LoggingMixin):
         :type parallelism: int
         """
         self.parallelism = parallelism
-        self.queued_tasks = {}
+        self.queued_tasks = OrderedDict()
         self.running = {}
         self.event_buffer = {}
 
