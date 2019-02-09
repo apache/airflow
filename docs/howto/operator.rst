@@ -182,7 +182,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for start
+See Google Compute Engine API documentation to `start an instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_.
 
 .. _howto/operator:GceInstanceStopOperator:
@@ -237,7 +237,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for stop
+See Google Compute Engine API documentation to `stop an instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_.
 
 .. _howto/operator:GceSetMachineTypeOperator:
@@ -298,7 +298,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for setMachineType
+See Google Compute Engine API documentation to `set the machine type
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_.
 
 .. _howto/operator:GceInstanceTemplateCopyOperator:
@@ -359,7 +359,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for instanceTemplates
+See Google Compute Engine API documentation to `create a new instance with an existing template
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_.
 
 .. _howto/operator:GceInstanceGroupManagerUpdateTemplateOperator:
@@ -367,7 +367,7 @@ See `Google Compute Engine API documentation for instanceTemplates
 GceInstanceGroupManagerUpdateTemplateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use the operator to update template in Google Compute Engine Instance Group Manager.
+Use the operator to update a template in Google Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator`.
@@ -428,7 +428,7 @@ the permissions that theService Account User role provides
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for instanceGroupManagers
+See Google Compute Engine API documentation to `manage a group instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.
 
 Google Cloud Bigtable Operators
@@ -629,7 +629,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation for delete
+See Google Cloud Functions API documentation to `delete a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
 
 .. _howto/operator:GcfFunctionDeployOperator:
@@ -763,7 +763,7 @@ can be downloaded if necessary.
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation for create
+See Google Cloud API documentation `to create a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
 Google Cloud Spanner Operators
@@ -814,7 +814,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Spanner API documentation for database drop call
+See `Google Cloud Spanner API documentation for database drop
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/dropDatabase>`_.
 
 .. _howto/operator:CloudSpannerInstanceDatabaseDeployOperator:
@@ -865,7 +865,7 @@ More information
 """"""""""""""""
 
 See Google Cloud Spanner API documentation for `database create
-<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_
+<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_.
 
 .. _howto/operator:CloudSpannerInstanceDatabaseUpdateOperator:
 
@@ -971,7 +971,7 @@ Templating
 More information
 """"""""""""""""
 
-See Google Cloud Spanner API documentation for `the DML syntax
+See Google Cloud Spanner API documentation for more information about `DML syntax
 <https://cloud.google.com/spanner/docs/dml-syntax>`_.
 
 .. _howto/operator:CloudSpannerInstanceDeleteOperator:
@@ -1019,7 +1019,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Spanner API documentation for instance delete
+See Google Cloud Spanner API documentation for `instance delete
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.
 
 Google Cloud Sql Operators
@@ -1076,7 +1076,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database insert
+See Google Cloud SQL API documentation for `database insert
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert>`_.
 
 .. _howto/operator:CloudSqlInstanceDatabaseDeleteOperator:
@@ -1123,7 +1123,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database delete
+See Google Cloud SQL API documentation for `database delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/delete>`_.
 
 .. _howto/operator:CloudSqlInstanceDatabasePatchOperator:
@@ -1179,7 +1179,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database patch
+See Google Cloud SQL API documentation for `database patch
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch>`_.
 
 .. _howto/operator:CloudSqlInstanceDeleteOperator:
@@ -1237,7 +1237,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for delete
+See Google Cloud SQL API documentation for `delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
 .. _howto/operator:CloudSqlInstanceExportOperator:
@@ -1301,7 +1301,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for export <https://cloud.google
+See Google Cloud SQL API documentation to `export data <https://cloud.google
 .com/sql/docs/mysql/admin-api/v1beta4/instances/export>`_.
 
 Troubleshooting
@@ -1398,7 +1398,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for import <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import>`_.
+See Google Cloud SQL API documentation to `import data
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import>`_.
 
 Troubleshooting
 """""""""""""""
@@ -1492,7 +1493,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for insert
+See Google Cloud SQL API documentation to `create an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
 
 .. _howto/operator:CloudSqlInstancePatchOperator:
@@ -1550,7 +1551,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for patch
+See Google Cloud SQL API documentation to `patch an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
 .. _howto/operator:CloudSqlQueryOperator:
@@ -1642,7 +1643,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL Proxy documentation
+See `Google Cloud SQL documentation for more information
 <https://cloud.google.com/sql/docs/postgres/sql-proxy>`_.
 
 Google Cloud Storage Operators
@@ -1689,7 +1690,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Storage BucketAccessControls insert documentation
+See Google Cloud Storage Documentation to `create a new ACL entry for a bucket
 <https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_.
 
 .. _howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator:
@@ -1733,7 +1734,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Storage ObjectAccessControls insert documentation
+See Google Cloud Storage insert documentation to `create a ACL entry for ObjectAccess
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
 
 Google Cloud Vision Operators

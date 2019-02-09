@@ -368,8 +368,10 @@ Testing
 Running the Script
 ''''''''''''''''''
 
-Time to run some tests. First let's make sure that the pipeline
-parses. Let's assume we're saving the code from the previous step in
+Time to run some tests. First, let's make sure the pipeline
+is parsed successfully.
+
+Let's assume we're saving the code from the previous step in
 ``tutorial.py`` in the DAGs folder referenced in your ``airflow.cfg``.
 The default location for your DAGs is ``~/airflow/dags``.
 
