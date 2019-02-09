@@ -69,7 +69,6 @@ class PythonOperator(BaseOperator):
     :type templates_exts: list[str]
     """
     template_fields = ('templates_dict', 'op_args', 'op_kwargs')
-    template_ext = tuple()
     ui_color = '#ffefeb'
 
     # since we won't mutate the arguments, we should just do the shallow copy

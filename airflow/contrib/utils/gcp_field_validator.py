@@ -132,8 +132,8 @@ Here are the guidelines that you should follow to make validation forward-compat
 """
 
 import re
+from typing import Sequence, Dict, Callable
 
-from typing import Callable
 from airflow import LoggingMixin, AirflowException
 
 COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']
@@ -195,7 +195,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     """
     def __init__(self, validation_specs, api_version):
-        # type: ([dict], str) -> None
+        # type: (Sequence[Dict], str) -> None
         super(GcpBodyFieldValidator, self).__init__()
         self._validation_specs = validation_specs
         self._api_version = api_version

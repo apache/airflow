@@ -24,6 +24,7 @@ so that registered callbacks can be used all through the same python process.
 from __future__ import absolute_import
 
 import logging
+from typing import List, Callable
 
 from airflow.utils.db import create_session
 
@@ -98,8 +99,8 @@ def default_action_log(log, **_):
         session.add(log)
 
 
-__pre_exec_callbacks = []
-__post_exec_callbacks = []
+__pre_exec_callbacks = []  # type: List[Callable]
+__post_exec_callbacks = []  # type: List[Callable]
 
 # By default, register default action log into pre-execution callback
 register_pre_exec_callback(default_action_log)

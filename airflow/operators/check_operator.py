@@ -19,6 +19,7 @@
 
 from builtins import zip
 from builtins import str
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -62,8 +63,8 @@ class CheckOperator(BaseOperator):
     :type sql: str
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('sql',)  # type: Iterable[str]
+    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#fff7e6'
 
     @apply_defaults
@@ -120,8 +121,8 @@ class ValueCheckOperator(BaseOperator):
     __mapper_args__ = {
         'polymorphic_identity': 'ValueCheckOperator'
     }
-    template_fields = ('sql', 'pass_value',)
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('sql', 'pass_value',)  # type: Iterable[str]
+    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#fff7e6'
 
     @apply_defaults
@@ -196,8 +197,8 @@ class IntervalCheckOperator(BaseOperator):
     __mapper_args__ = {
         'polymorphic_identity': 'IntervalCheckOperator'
     }
-    template_fields = ('sql1', 'sql2')
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('sql1', 'sql2')  # type: Iterable[str]
+    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#fff7e6'
 
     @apply_defaults
