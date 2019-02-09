@@ -47,7 +47,7 @@ import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
-    errors
+    errors, TaskInstance
 from airflow.models.slamiss import SlaMiss
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
@@ -3146,11 +3146,11 @@ class SchedulerJobTest(unittest.TestCase):
         dag.clear()
         dag.is_subdag = False
 
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
+        with create_session() as session:
+            session.query(TaskInstance).delete()
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            orm_dag.is_paused = False
+            session.merge(orm_dag)
 
         dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
 
@@ -3187,10 +3187,10 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 2)
 
-        ti.refresh_from_db(lock_for_update=True, session=session)
-        ti.state = State.SCHEDULED
-        session.merge(ti)
-        session.commit()
+        ti.refresh_from_db(lock_for_update=True)
+        with create_session() as session:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
 
         # do not schedule
         do_schedule()
@@ -3213,7 +3213,7 @@ class SchedulerJobTest(unittest.TestCase):
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.RUNNING)
+        self.assertIn(ti.state, [State.RUNNING, State.SUCCESS])
 
     @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
     def test_retry_handling_job(self):
