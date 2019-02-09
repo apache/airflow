@@ -45,7 +45,7 @@ from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI, TaskInstance
 from airflow.models import DagModel, DagRun, DagEdge
 from airflow.models import SkipMixin
 from airflow.models import State as ST
@@ -2872,7 +2872,6 @@ class TaskInstanceTest(unittest.TestCase):
     @patch('airflow.models.send_email')
     def test_email_alert(self, mock_send_email):
         dag = models.DAG(dag_id='test_failure_email', default_args={})
-        dag.sync_to_db()
         task = BashOperator(
             task_id='test_email_alert',
             dag=dag,

@@ -1281,6 +1281,7 @@ class LocalTaskJobTest(unittest.TestCase):
         )
         dag = dagbag.dags.get('test_mark_success')
         task = dag.get_task('task1')
+        dag.sync_to_db()
 
         session = settings.Session()
 
