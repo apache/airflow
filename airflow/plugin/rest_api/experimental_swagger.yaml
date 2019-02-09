@@ -89,16 +89,16 @@ paths:
       responses:
         200:
           $ref: '#/components/responses/Task'
-  /dags/{dag_id}/paused/{flag}:
+  /dags/{dag_id}/paused/{paused}:
     get:
       tags:
         - DAG
       parameters:
         - $ref: '#/components/parameters/DagID'
-        - $ref: '#/components/parameters/Flag'
+        - $ref: '#/components/parameters/PausedFlag'
       responses:
         200:
-          $ref: '#/components/responses/NoContent'
+          $ref: '#/components/responses/StatusResponse'
   /latest_runs:
     get:
       tags:
@@ -112,7 +112,7 @@ paths:
       - Healthcheck
       responses:
         200:
-          $ref: '#/components/responses/Bool'
+          $ref: '#/components/responses/Status'
   /dags/{dag_id}/tasks/{task_id}:
     get:
       tags:
@@ -139,7 +139,7 @@ paths:
       responses:
         200:
           $ref: '#/components/responses/Pool'
-  /pools/{pool_name}:
+  /pools/{name}:
     get:
       tags:
       - Pool
@@ -173,9 +173,9 @@ components:
       schema:
         type: string
     PoolName:
-      name: pool_name
+      name: name
       in: path
-      description: ID of a specific DAG
+      description: Name of a Worker Pool
       required: true
       schema:
         type: string
@@ -186,13 +186,16 @@ components:
       required: true
       schema:
         type: string
-    Flag:
-      name: flag
+    PausedFlag:
+      name: paused
       in: path
       description: True/false flag
       required: true
       schema:
-        type: boolean
+        type: string
+        enum:
+          - "true"
+          - "false"
   schemas:
     DAGRunState:
       title: DAGRunState
@@ -249,21 +252,23 @@ components:
       properties:
         task_id:
           type: string
-    Bool:
-      title: Flag response
+    Status:
+      title: Airflow API Healthcheck
       type: object
       properties:
-        result:
-          type: boolean
+        status:
+          type: string
+          enum:
+            - OK
+    StatusResponse:
+      title: StatusResponse
+      type: object
+      properties:
+        response:
+          type: string
+          enum:
+            - ok
   responses:
-    Tasks:
-      description: A list of tasks
-      content:
-        application/json:
-          schema:
-            type: array
-            items:
-              $ref: '#/components/schemas/Task'
     Task:
       description: A single task
       content:
@@ -301,12 +306,18 @@ components:
             description: A list of pools
     NoContent:
       description: No Content
-    Bool:
-      description: True/False response
+    Status:
+      description: Describe the health of Airflow API
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Bool'
+            $ref: '#/components/schemas/Status'
+    StatusResponse:
+      description: State of Action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StatusResponse'
   requestBodies:
     Pool:
       description: Pool
