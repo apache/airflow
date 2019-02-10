@@ -29,7 +29,8 @@ import dill
 from builtins import str
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import BaseOperator
+from airflow.models.skipmixin import SkipMixin
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.operator_helpers import context_to_airflow_vars

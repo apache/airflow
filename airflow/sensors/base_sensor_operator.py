@@ -23,7 +23,8 @@ from datetime import timedelta
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
     AirflowSkipException, AirflowRescheduleException
-from airflow.models import BaseOperator, SkipMixin
+from airflow.models import BaseOperator
+from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
