@@ -23,10 +23,11 @@ import pickle
 import subprocess
 import sys
 import types
+from builtins import str
 from textwrap import dedent
 
 import dill
-from builtins import str
+import six
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -138,7 +139,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
-        if isinstance(branch, str):
+        if isinstance(branch, six.string_types):
             branch = [branch]
         self.log.info("Following branch %s", branch)
         self.log.info("Marking other directly downstream tasks as skipped")
@@ -146,8 +147,18 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
         downstream_tasks = context['task'].downstream_list
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
-        skip_tasks = [t for t in downstream_tasks if t.task_id not in branch]
         if downstream_tasks:
+            # Also check downstream tasks of the branch task. In case the task to skip
+            # is a downstream task of the branch task, we exclude it from skipping.
+            branch_downstream_task_ids = set()
+            for b in branch:
+                branch_downstream_task_ids.update(context["dag"].
+                                                  get_task(b).
+                                                  get_flat_relative_ids(upstream=False))
+            skip_tasks = [t
+                          for t in downstream_tasks
+                          if t.task_id not in branch and
+                          t.task_id not in branch_downstream_task_ids]
             self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
 
         self.log.info("Done.")
