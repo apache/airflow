@@ -33,6 +33,40 @@ class DataFlowJavaOperator(BaseOperator):
     Start a Java Cloud DataFlow batch job. The parameters of the operation
     will be passed to the job.
 
+    **Example**: ::
+
+        default_args = {
+            'owner': 'airflow',
+            'depends_on_past': False,
+            'start_date':
+                (2016, 8, 1),
+            'email': ['alex@vanboxel.be'],
+            'email_on_failure': False,
+            'email_on_retry': False,
+            'retries': 1,
+            'retry_delay': timedelta(minutes=30),
+            'dataflow_default_options': {
+                'project': 'my-gcp-project',
+                'zone': 'us-central1-f',
+                'stagingLocation': 'gs://bucket/tmp/dataflow/staging/',
+            }
+        }
+
+        dag = DAG('test-dag', default_args=default_args)
+
+        task = DataFlowJavaOperator(
+            gcp_conn_id='gcp_default',
+            task_id='normalize-cal',
+            jar='{{var.value.gcp_dataflow_base}}pipeline-ingress-cal-normalize-1.0.jar',
+            options={
+                'autoscalingAlgorithm': 'BASIC',
+                'maxNumWorkers': '50',
+                'start': '{{ds}}',
+                'partitionType': 'DAY'
+
+            },
+            dag=dag)
+
     .. seealso::
         For more detail on job submission have a look at the reference:
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
@@ -279,8 +313,8 @@ class DataFlowPythonOperator(BaseOperator):
         (templated). This ends up being set in the pipeline options, so any entry
         with key ``'jobName'`` or ``'job_name'`` in ``options`` will be overwritten.
     :type job_name: str
-    :param py_options: Additional python options.
-    :type pyt_options: list of strings, e.g., ["-m", "-v"].
+    :param py_options: Additional python options, e.g., ["-m", "-v"].
+    :type pyt_options: list[str]
     :param dataflow_default_options: Map of default job options.
     :type dataflow_default_options: dict
     :param options: Map of job specific options.
@@ -365,7 +399,7 @@ class GoogleCloudBucketHelper(object):
         :param file_name: The full path of input file.
         :type file_name: str
         :return: The full path of local file.
-        :type: str
+        :type str
         """
         if not file_name.startswith('gs://'):
             return file_name

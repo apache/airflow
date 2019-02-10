@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowException
 class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
+
     :param http_conn_id: connection that has the base API url i.e https://www.google.com/
         and optional authentication credentials. Default headers can also be specified in
         the Extra field in json format.
@@ -52,6 +53,7 @@ class HttpHook(BaseHook):
     def get_conn(self, headers=None):
         """
         Returns http session for use with requests
+
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
         """
@@ -83,6 +85,7 @@ class HttpHook(BaseHook):
     def run(self, endpoint, data=None, headers=None, extra_options=None):
         """
         Performs the request
+
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :type endpoint: str
         :param data: payload to be uploaded or request parameters
@@ -130,6 +133,7 @@ class HttpHook(BaseHook):
         """
         Checks the status code and raise an AirflowException exception on non 2XX or 3XX
         status codes
+
         :param response: A requests response object
         :type response: requests.response
         """
@@ -145,6 +149,7 @@ class HttpHook(BaseHook):
         """
         Grabs extra options like timeout and actually runs the request,
         checking for the result
+
         :param session: the session to be used to execute the request
         :type session: requests.Session
         :param prepped_request: the prepared request generated in run()
@@ -179,12 +184,14 @@ class HttpHook(BaseHook):
         Runs Hook.run() with a Tenacity decorator attached to it. This is useful for
         connectors which might be disturbed by intermittent issues and should not
         instantly fail.
+
         :param _retry_args: Arguments which define the retry behaviour.
             See Tenacity documentation at https://github.com/jd/tenacity
         :type _retry_args: dict
 
 
-        Example: ::
+        :Example::
+
             hook = HttpHook(http_conn_id='my_conn',method='GET')
             retry_args = dict(
                  wait=tenacity.wait_exponential(),

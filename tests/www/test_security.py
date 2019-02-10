@@ -30,7 +30,8 @@ from flask_appbuilder.views import ModelView, BaseView
 
 from sqlalchemy import Column, Integer, String, Date, Float
 
-from airflow.www.security import AirflowSecurityManager, dag_perms
+from airflow.exceptions import AirflowException
+from airflow.www.security import AirflowSecurityManager, DAG_PERMS
 
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
@@ -143,8 +144,8 @@ class TestSecurity(unittest.TestCase):
                          {('can_some_action', 'SomeBaseView')})
 
         mock_get_user_roles.return_value = []
-        self.assertEquals(len(self.security_manager
-                              .get_all_permissions_views()), 0)
+        self.assertEqual(len(self.security_manager
+                             .get_all_permissions_views()), 0)
 
     @mock.patch('airflow.www.security.AirflowSecurityManager'
                 '.get_all_permissions_views')
@@ -163,8 +164,8 @@ class TestSecurity(unittest.TestCase):
         mock_get_all_permissions_views.return_value = {('can_dag_read', 'dag_id')}
 
         mock_get_user_roles.return_value = [role]
-        self.assertEquals(self.security_manager
-                          .get_accessible_dag_ids(user), set(['dag_id']))
+        self.assertEqual(self.security_manager
+                         .get_accessible_dag_ids(user), set(['dag_id']))
 
     @mock.patch('airflow.www.security.AirflowSecurityManager._has_view_access')
     def test_has_access(self, mock_has_view_access):
@@ -173,10 +174,10 @@ class TestSecurity(unittest.TestCase):
         mock_has_view_access.return_value = True
         self.assertTrue(self.security_manager.has_access('perm', 'view', user))
 
-    def test_sync_perm_for_dag(self):
+    def test_sync_perm_for_dag_creates_permissions_on_view_menus(self):
         test_dag_id = 'TEST_DAG'
-        self.security_manager.sync_perm_for_dag(test_dag_id)
-        for dag_perm in dag_perms:
+        self.security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
+        for dag_perm in DAG_PERMS:
             self.assertIsNotNone(self.security_manager.
                                  find_permission_view_menu(dag_perm, test_dag_id))
 
@@ -192,3 +193,97 @@ class TestSecurity(unittest.TestCase):
 
         mock_has_perm.return_value = True
         self.assertTrue(self.security_manager.has_all_dags_access())
+
+    def test_access_control_with_non_existent_role(self):
+        with self.assertRaises(AirflowException) as context:
+            self.security_manager.sync_perm_for_dag(
+                dag_id='access-control-test',
+                access_control={
+                    'this-role-does-not-exist': ['can_dag_edit', 'can_dag_read']
+                })
+        self.assertIn("role does not exist", str(context.exception))
+
+    def test_access_control_with_invalid_permission(self):
+        invalid_permissions = [
+            'can_varimport',  # a real permission, but not a member of DAG_PERMS
+            'can_eat_pudding',  # clearly not a real permission
+        ]
+        for permission in invalid_permissions:
+            self.expect_user_is_in_role(self.user, rolename='team-a')
+            with self.assertRaises(AirflowException) as context:
+                self.security_manager.sync_perm_for_dag(
+                    'access_control_test',
+                    access_control={
+                        'team-a': {permission}
+                    })
+            self.assertIn("invalid permissions", str(context.exception))
+
+    def test_access_control_is_set_on_init(self):
+        self.expect_user_is_in_role(self.user, rolename='team-a')
+        self.security_manager.sync_perm_for_dag(
+            'access_control_test',
+            access_control={
+                'team-a': ['can_dag_edit', 'can_dag_read']
+            })
+        self.assert_user_has_dag_perms(
+            perms=['can_dag_edit', 'can_dag_read'],
+            dag_id='access_control_test',
+        )
+
+        self.expect_user_is_in_role(self.user, rolename='NOT-team-a')
+        self.assert_user_does_not_have_dag_perms(
+            perms=['can_dag_edit', 'can_dag_read'],
+            dag_id='access_control_test',
+        )
+
+    def test_access_control_stale_perms_are_revoked(self):
+        READ_WRITE = {'can_dag_read', 'can_dag_edit'}
+        READ_ONLY = {'can_dag_read'}
+
+        self.expect_user_is_in_role(self.user, rolename='team-a')
+        self.security_manager.sync_perm_for_dag(
+            'access_control_test',
+            access_control={'team-a': READ_WRITE})
+        self.assert_user_has_dag_perms(
+            perms=READ_WRITE,
+            dag_id='access_control_test',
+        )
+
+        self.security_manager.sync_perm_for_dag(
+            'access_control_test',
+            access_control={'team-a': READ_ONLY})
+        self.assert_user_has_dag_perms(
+            perms=['can_dag_read'],
+            dag_id='access_control_test',
+        )
+        self.assert_user_does_not_have_dag_perms(
+            perms=['can_dag_edit'],
+            dag_id='access_control_test',
+        )
+
+    def expect_user_is_in_role(self, user, rolename):
+        self.security_manager.init_role(rolename, [], [])
+        role = self.security_manager.find_role(rolename)
+        if not role:
+            self.security_manager.add_role(rolename)
+            role = self.security_manager.find_role(rolename)
+        user.roles = [role]
+        self.security_manager.update_user(user)
+
+    def assert_user_has_dag_perms(self, perms, dag_id):
+        for perm in perms:
+            self.assertTrue(
+                self._has_dag_perm(perm, dag_id),
+                "User should have '{}' on DAG '{}'".format(perm, dag_id))
+
+    def assert_user_does_not_have_dag_perms(self, dag_id, perms):
+        for perm in perms:
+            self.assertFalse(
+                self._has_dag_perm(perm, dag_id),
+                "User should not have '{}' on DAG '{}'".format(perm, dag_id))
+
+    def _has_dag_perm(self, perm, dag_id):
+        return self.security_manager.has_access(
+            perm,
+            dag_id,
+            self.user)

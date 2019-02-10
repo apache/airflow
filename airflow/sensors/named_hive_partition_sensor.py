@@ -34,7 +34,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         Thrift client ``get_partitions_by_name`` method. Note that
         you cannot use logical or comparison operators as in
         HivePartitionSensor.
-    :type partition_names: list of strings
+    :type partition_names: list[str]
     :param metastore_conn_id: reference to the metastore thrift service
         connection id
     :type metastore_conn_id: str

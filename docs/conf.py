@@ -33,27 +33,61 @@
 # serve to show the default.
 import os
 import sys
-import mock
 
 import airflow
 
-MOCK_MODULES = [
-    'googleapiclient',
-    'googleapiclient.errors',
-    'googleapiclient.discovery',
-    'googleapiclient.http',
-    'mesos',
-    'mesos.interface',
-    'mesos.native',
-    'google.auth.default',
+autodoc_mock_imports = [
+    'MySQLdb',
+    'adal',
+    'analytics',
+    'azure',
+    'azure.cosmos',
+    'azure.datalake',
+    'azure.mgmt',
+    'boto3',
+    'botocore',
+    'bson',
+    'cassandra',
+    'celery',
+    'cloudant',
+    'cx_Oracle',
+    'datadog',
+    'distributed',
+    'docker',
+    'google',
     'google_auth_httplib2',
-    'google.oauth2.service_account',
-    'pandas.io.gbq',
+    'googleapiclient',
+    'hdfs',
+    'httplib2',
+    'jaydebeapi',
+    'jenkins',
+    'jira',
+    'kubernetes',
+    'mesos',
+    'msrestazure',
+    'pandas',
+    'pandas_gbq',
+    'paramiko',
+    'pinotdb',
+    'psycopg2',
+    'pydruid',
+    'pyhive',
+    'pyhive',
+    'pymongo',
+    'pymssql',
+    'pysftp',
+    'qds_sdk',
+    'redis',
+    'simple_salesforce',
+    'slackclient',
+    'smbclient',
+    'snowflake',
+    'sshtunnel',
+    'tenacity',
     'vertica_python',
-    'pymssql'
+    'winrm',
+    'zdesk',
 ]
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
@@ -152,7 +186,14 @@ pygments_style = 'sphinx'
 
 
 intersphinx_mapping = {
-    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest', None),
+    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
+    'google-cloud-python': (
+        'https://googleapis.github.io/google-cloud-python/latest/', None),
+    'mongodb': ('https://api.mongodb.com/python/current/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'python': ('https://docs.python.org/3/', None),
+    'requests': ('http://docs.python-requests.org/en/master/', None),
+    'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
 }
 
 # -- Options for HTML output ----------------------------------------------
@@ -191,7 +232,7 @@ html_short_title = ""
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

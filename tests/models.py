@@ -31,6 +31,7 @@ import textwrap
 import time
 import unittest
 import urllib
+import uuid
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
@@ -46,14 +47,14 @@ from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun
-from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.models import SkipMixin
 from airflow.models import State as ST
-from airflow.models import TaskReschedule as TR
-from airflow.models import XCom
 from airflow.models import Variable
 from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.xcom import XCom
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
@@ -232,7 +233,7 @@ class DagTest(unittest.TestCase):
             start_date=DEFAULT_DATE,
             default_args={'owner': 'owner1'})
 
-        self.assertEquals(tuple(), dag.topological_sort())
+        self.assertEqual(tuple(), dag.topological_sort())
 
     def test_dag_naive_default_args_start_date(self):
         dag = DAG('DAG', default_args={'start_date': datetime.datetime(2018, 1, 1)})
@@ -277,7 +278,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = ((depth - (task_depth + 1)) * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Same test as above except use 'upstream' for weight calculation
         weight = 3
@@ -303,7 +304,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = (task_depth * width + 1) * weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Same test as above except use 'absolute' for weight calculation
         weight = 10
@@ -329,7 +330,7 @@ class DagTest(unittest.TestCase):
                 correct_weight = weight
 
                 calculated_weight = task.priority_weight_total
-                self.assertEquals(calculated_weight, correct_weight)
+                self.assertEqual(calculated_weight, correct_weight)
 
         # Test if we enter an invalid weight rule
         with DAG('dag', start_date=DEFAULT_DATE,
@@ -407,6 +408,122 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', '{{ foo }}', dict(foo='bar'))
         self.assertEqual(result, 'bar')
+
+    def test_render_template_list_field(self):
+        """Tests if render_template from a list field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertListEqual(
+            task.render_template('', ['{{ foo }}_1', '{{ foo }}_2'], {'foo': 'bar'}),
+            ['bar_1', 'bar_2']
+        )
+
+    def test_render_template_tuple_field(self):
+        """Tests if render_template from a tuple field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        # tuple is replaced by a list
+        self.assertListEqual(
+            task.render_template('', ('{{ foo }}_1', '{{ foo }}_2'), {'foo': 'bar'}),
+            ['bar_1', 'bar_2']
+        )
+
+    def test_render_template_dict_field(self):
+        """Tests if render_template from a dict field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertDictEqual(
+            task.render_template('', {'key1': '{{ foo }}_1', 'key2': '{{ foo }}_2'}, {'foo': 'bar'}),
+            {'key1': 'bar_1', 'key2': 'bar_2'}
+        )
+
+    def test_render_template_dict_field_with_templated_keys(self):
+        """Tests if render_template from a dict field works as expected:
+        dictionary keys are not templated"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertDictEqual(
+            task.render_template('', {'key_{{ foo }}_1': 1, 'key_2': '{{ foo }}_2'}, {'foo': 'bar'}),
+            {'key_{{ foo }}_1': 1, 'key_2': 'bar_2'}
+        )
+
+    def test_render_template_date_field(self):
+        """Tests if render_template from a date field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertEqual(
+            task.render_template('', datetime.date(2018, 12, 6), {'foo': 'bar'}),
+            datetime.date(2018, 12, 6)
+        )
+
+    def test_render_template_datetime_field(self):
+        """Tests if render_template from a datetime field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        self.assertEqual(
+            task.render_template('', datetime.datetime(2018, 12, 6, 10, 55), {'foo': 'bar'}),
+            datetime.datetime(2018, 12, 6, 10, 55)
+        )
+
+    def test_render_template_UUID_field(self):
+        """Tests if render_template from a UUID field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        random_uuid = uuid.uuid4()
+        self.assertIs(
+            task.render_template('', random_uuid, {'foo': 'bar'}),
+            random_uuid
+        )
+
+    def test_render_template_object_field(self):
+        """Tests if render_template from an object field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        test_object = object()
+        self.assertIs(
+            task.render_template('', test_object, {'foo': 'bar'}),
+            test_object
+        )
 
     def test_render_template_field_macro(self):
         """ Tests if render_template from a field works,
@@ -842,7 +959,7 @@ class DagRunTest(unittest.TestCase):
             DagRun.dag_id == dag_id,
             DagRun.execution_date == now
         ).first()
-        self.assertEquals(dr0.state, State.RUNNING)
+        self.assertEqual(dr0.state, State.RUNNING)
 
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
@@ -1304,20 +1421,20 @@ class DagRunTest(unittest.TestCase):
 
         dagrun = self.create_dag_run(dag)
         flaky_ti = dagrun.get_task_instances()[0]
-        self.assertEquals('flaky_task', flaky_ti.task_id)
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual('flaky_task', flaky_ti.task_id)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
         dagrun.dag = with_all_tasks_removed(dag)
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
         dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
 
         dagrun.verify_integrity()
         flaky_ti.refresh_from_db()
-        self.assertEquals(State.NONE, flaky_ti.state)
+        self.assertEqual(State.NONE, flaky_ti.state)
 
 
 class DagBagTest(unittest.TestCase):
@@ -1472,12 +1589,12 @@ class DagBagTest(unittest.TestCase):
 
         for dag_id in expected_dag_ids:
             actual_dagbag.log.info('validating %s' % dag_id)
-            self.assertEquals(
+            self.assertEqual(
                 dag_id in actual_found_dag_ids, should_be_found,
                 'dag "%s" should %shave been found after processing dag "%s"' %
                 (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
             )
-            self.assertEquals(
+            self.assertEqual(
                 dag_id in actual_dagbag.dags, should_be_found,
                 'dag "%s" should %sbe in dagbag.dags after processing dag "%s"' %
                 (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
@@ -1816,7 +1933,7 @@ class DagBagTest(unittest.TestCase):
             if dag.dag_id in expected_active_dags:
                 self.assertTrue(dag.is_active)
             else:
-                self.assertEquals(dag.dag_id, 'test_deactivate_unknown_dags')
+                self.assertEqual(dag.dag_id, 'test_deactivate_unknown_dags')
                 self.assertFalse(dag.is_active)
 
         # clean up
@@ -1828,8 +1945,8 @@ class TaskInstanceTest(unittest.TestCase):
 
     def tearDown(self):
         with create_session() as session:
-            session.query(models.TaskFail).delete()
-            session.query(models.TaskReschedule).delete()
+            session.query(TaskFail).delete()
+            session.query(TaskReschedule).delete()
             session.query(models.TaskInstance).delete()
 
     def test_set_task_dates(self):
@@ -1878,7 +1995,7 @@ class TaskInstanceTest(unittest.TestCase):
         op_no_dag = DummyOperator(task_id='op_no_dag')
         ti = TI(task=op_no_dag, execution_date=NAIVE_DATETIME)
 
-        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+        self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
         # check with dag without localized execution_date
         dag = DAG('dag', start_date=DEFAULT_DATE)
@@ -1886,14 +2003,14 @@ class TaskInstanceTest(unittest.TestCase):
         dag.add_task(op1)
         ti = TI(task=op1, execution_date=NAIVE_DATETIME)
 
-        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+        self.assertEqual(ti.execution_date, DEFAULT_DATE)
 
         # with dag and localized execution_date
         tz = pendulum.timezone("Europe/Amsterdam")
         execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tz)
         utc_date = timezone.convert_to_utc(execution_date)
         ti = TI(task=op1, execution_date=execution_date)
-        self.assertEquals(ti.execution_date, utc_date)
+        self.assertEqual(ti.execution_date, utc_date)
 
     def test_task_naive_datetime(self):
         NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
@@ -2250,7 +2367,7 @@ class TaskInstanceTest(unittest.TestCase):
             self.assertEqual(ti.start_date, expected_start_date)
             self.assertEqual(ti.end_date, expected_end_date)
             self.assertEqual(ti.duration, expected_duration)
-            trs = TR.find_for_task_instance(ti)
+            trs = TaskReschedule.find_for_task_instance(ti)
             self.assertEqual(len(trs), expected_task_reschedule_count)
 
         date1 = timezone.utcnow()
@@ -2603,9 +2720,9 @@ class TaskInstanceTest(unittest.TestCase):
         session.add(ti3)
         session.commit()
 
-        self.assertEquals(1, ti1.get_num_running_task_instances(session=session))
-        self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
-        self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti1.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti2.get_num_running_task_instances(session=session))
+        self.assertEqual(1, ti3.get_num_running_task_instances(session=session))
 
     # def test_log_url(self):
     #     now = pendulum.now('Europe/Brussels')
@@ -3337,36 +3454,3 @@ class TestSkipMixin(unittest.TestCase):
         SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
         self.assertFalse(session.query.called)
         self.assertFalse(session.commit.called)
-
-
-class TestKubeResourceVersion(unittest.TestCase):
-
-    def test_checkpoint_resource_version(self):
-        session = settings.Session()
-        KubeResourceVersion.checkpoint_resource_version('7', session)
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '7')
-
-    def test_reset_resource_version(self):
-        session = settings.Session()
-        version = KubeResourceVersion.reset_resource_version(session)
-        self.assertEqual(version, '0')
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '0')
-
-
-class TestKubeWorkerIdentifier(unittest.TestCase):
-
-    @patch('airflow.models.uuid.uuid4')
-    def test_get_or_create_not_exist(self, mock_uuid):
-        session = settings.Session()
-        session.query(KubeWorkerIdentifier).update({
-            KubeWorkerIdentifier.worker_uuid: ''
-        })
-        mock_uuid.return_value = 'abcde'
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'abcde')
-
-    def test_get_or_create_exist(self):
-        session = settings.Session()
-        KubeWorkerIdentifier.checkpoint_kube_worker_uuid('fghij', session)
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'fghij')

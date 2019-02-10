@@ -27,6 +27,8 @@ information.
 
 .. contents:: :local:
 
+.. _howto/operator:BashOperator:
+
 BashOperator
 ------------
 
@@ -71,6 +73,8 @@ template to it, which will fail.
         bash_command="/home/batcher/test.sh ",
         dag=dag)
 
+.. _howto/operator:PythonOperator:
+
 PythonOperator
 --------------
 
@@ -106,6 +110,8 @@ is evaluated as a :ref:`Jinja template <jinja-templating>`.
 Google Cloud Storage Operators
 ------------------------------
 
+.. _howto/operator:GoogleCloudStorageToBigQueryOperator:
+
 GoogleCloudStorageToBigQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -122,6 +128,8 @@ to execute a BigQuery load job.
 
 Google Compute Engine Operators
 -------------------------------
+
+.. _howto/operator:GceInstanceStartOperator:
 
 GceInstanceStartOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -174,9 +182,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for start
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_.
 
+.. _howto/operator:GceInstanceStopOperator:
 
 GceInstanceStopOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -228,9 +237,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for stop
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_.
 
+.. _howto/operator:GceSetMachineTypeOperator:
 
 GceSetMachineTypeOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -288,9 +298,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for setMachineType
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_.
 
+.. _howto/operator:GceInstanceTemplateCopyOperator:
 
 GceInstanceTemplateCopyOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -348,8 +359,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for instanceTemplates
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_.
+
+.. _howto/operator:GceInstanceGroupManagerUpdateTemplateOperator:
 
 GceInstanceGroupManagerUpdateTemplateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -415,14 +428,14 @@ the permissions that theService Account User role provides
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for instanceGroupManagers
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.
 
 Google Cloud Bigtable Operators
 -------------------------------
 
 Arguments
-"""""""""
+^^^^^^^^^
 
 All examples below rely on the following variables, which can be passed via environment variables.
 
@@ -431,6 +444,7 @@ All examples below rely on the following variables, which can be passed via envi
     :start-after: [START howto_operator_gcp_bigtable_args]
     :end-before: [END howto_operator_gcp_bigtable_args]
 
+.. _howto/operator:BigtableInstanceCreateOperator:
 
 BigtableInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -453,6 +467,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :start-after: [START howto_operator_gcp_bigtable_instance_create]
     :end-before: [END howto_operator_gcp_bigtable_instance_create]
 
+.. _howto/operator:BigtableInstanceDeleteOperator:
+
 BigtableInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -471,6 +487,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :start-after: [START howto_operator_gcp_bigtable_instance_delete]
     :end-before: [END howto_operator_gcp_bigtable_instance_delete]
 
+.. _howto/operator:BigtableClusterUpdateOperator:
+
 BigtableClusterUpdateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -488,6 +506,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_cluster_update]
     :end-before: [END howto_operator_gcp_bigtable_cluster_update]
+
+.. _howto/operator:BigtableTableCreateOperator:
 
 BigtableTableCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -519,6 +539,7 @@ Please refer to the Python Client for Google Cloud Bigtable documentation
 `for Table <https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html>`_ and `for Column
 Families <https://googleapis.github.io/google-cloud-python/latest/bigtable/column-family.html>`_.
 
+.. _howto/operator:BigtableTableDeleteOperator:
 
 BigtableTableDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -537,6 +558,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_delete]
     :end-before: [END howto_operator_gcp_bigtable_table_delete]
+
+.. _howto/operator:BigtableTableWaitForReplicationSensor:
 
 BigtableTableWaitForReplicationSensor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -563,6 +586,8 @@ Using the operator
 
 Google Cloud Functions Operators
 --------------------------------
+
+.. _howto/operator:GcfFunctionDeleteOperator:
 
 GcfFunctionDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -604,8 +629,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation
+See `Google Cloud Functions API documentation for delete
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
+
+.. _howto/operator:GcfFunctionDeployOperator:
 
 GcfFunctionDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -736,11 +763,13 @@ can be downloaded if necessary.
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation
+See `Google Cloud Functions API documentation for create
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
 Google Cloud Spanner Operators
 ------------------------------
+
+.. _howto/operator:CloudSpannerInstanceDatabaseDeleteOperator:
 
 CloudSpannerInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -788,6 +817,7 @@ More information
 See `Google Cloud Spanner API documentation for database drop call
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/dropDatabase>`_.
 
+.. _howto/operator:CloudSpannerInstanceDatabaseDeployOperator:
 
 CloudSpannerInstanceDatabaseDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -836,6 +866,8 @@ More information
 
 See Google Cloud Spanner API documentation for `database create
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_
+
+.. _howto/operator:CloudSpannerInstanceDatabaseUpdateOperator:
 
 CloudSpannerInstanceDatabaseUpdateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -895,6 +927,8 @@ More information
 See Google Cloud Spanner API documentation for `database update_ddl
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_.
 
+.. _howto/operator:CloudSpannerInstanceDatabaseQueryOperator:
+
 CloudSpannerInstanceDatabaseQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -939,6 +973,8 @@ More information
 
 See Google Cloud Spanner API documentation for `the DML syntax
 <https://cloud.google.com/spanner/docs/dml-syntax>`_.
+
+.. _howto/operator:CloudSpannerInstanceDeleteOperator:
 
 CloudSpannerInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -988,6 +1024,8 @@ See `Google Cloud Spanner API documentation for instance delete
 
 Google Cloud Sql Operators
 --------------------------
+
+.. _howto/operator:CloudSqlInstanceDatabaseCreateOperator:
 
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1041,6 +1079,8 @@ More information
 See `Google Cloud SQL API documentation for database insert
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert>`_.
 
+.. _howto/operator:CloudSqlInstanceDatabaseDeleteOperator:
+
 CloudSqlInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1085,6 +1125,8 @@ More information
 
 See `Google Cloud SQL API documentation for database delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/delete>`_.
+
+.. _howto/operator:CloudSqlInstanceDatabasePatchOperator:
 
 CloudSqlInstanceDatabasePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1140,6 +1182,8 @@ More information
 See `Google Cloud SQL API documentation for database patch
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch>`_.
 
+.. _howto/operator:CloudSqlInstanceDeleteOperator:
+
 CloudSqlInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1185,7 +1229,7 @@ More information
 See `Google Cloud SQL API documentation for delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
-.. CloudSqlInstanceExportOperator:
+.. _howto/operator:CloudSqlInstanceExportOperator:
 
 CloudSqlInstanceExportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1193,8 +1237,9 @@ CloudSqlInstanceExportOperator
 Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
 or CSV file.
 
-Note: This operator is idempotent. If executed multiple times with the same
-export file URI, the export file in GCS will simply be overridden.
+.. note::
+    This operator is idempotent. If executed multiple times with the same
+    export file URI, the export file in GCS will simply be overridden.
 
 For parameter definition take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator`.
@@ -1268,7 +1313,7 @@ as shown in the example:
     :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
 
 
-.. CloudSqlInstanceImportOperator:
+.. _howto/operator:CloudSqlInstanceImportOperator:
 
 CloudSqlInstanceImportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1363,7 +1408,7 @@ as shown in the example:
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
     :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
 
-.. _CloudSqlInstanceCreateOperator:
+.. _howto/operator:CloudSqlInstanceCreateOperator:
 
 CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1420,7 +1465,7 @@ More information
 See `Google Cloud SQL API documentation for insert
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
 
-.. _CloudSqlInstancePatchOperator:
+.. _howto/operator:CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1478,6 +1523,7 @@ More information
 See `Google Cloud SQL API documentation for patch
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
+.. _howto/operator:CloudSqlQueryOperator:
 
 CloudSqlQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^
@@ -1572,6 +1618,8 @@ See `Google Cloud SQL Proxy documentation
 Google Cloud Storage Operators
 ------------------------------
 
+.. _howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator:
+
 GoogleCloudStorageBucketCreateAclEntryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1613,6 +1661,8 @@ More information
 
 See `Google Cloud Storage BucketAccessControls insert documentation
 <https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_.
+
+.. _howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator:
 
 GoogleCloudStorageObjectCreateAclEntryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

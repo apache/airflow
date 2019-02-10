@@ -22,7 +22,7 @@ import functools
 import pendulum
 from io import BytesIO as IO
 from flask import after_this_request, redirect, request, url_for, g
-from airflow import models
+from airflow.models.log import Log
 from airflow.utils.db import create_session
 
 
@@ -39,7 +39,7 @@ def action_logging(f):
             else:
                 user = g.user.username
 
-            log = models.Log(
+            log = Log(
                 event=f.__name__,
                 task_instance=None,
                 owner=user,

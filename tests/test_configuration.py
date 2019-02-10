@@ -98,6 +98,8 @@ class ConfTest(unittest.TestCase):
         opt = conf.get('testsection', 'testpercent')
         self.assertEqual(opt, 'with%percent')
 
+        self.assertTrue(conf.has_option('testsection', 'testkey'))
+
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
 
@@ -164,6 +166,10 @@ key6 = value6
         self.assertEqual('airflow', test_conf.get('test', 'key3'))
         self.assertEqual('key4_result', test_conf.get('test', 'key4'))
         self.assertEqual('value6', test_conf.get('another', 'key6'))
+
+        self.assertEqual('hello', test_conf.get('test', 'key1', fallback='fb'))
+        self.assertEqual('value6', test_conf.get('another', 'key6', fallback='fb'))
+        self.assertEqual('fb', test_conf.get('another', 'key7', fallback='fb'))
 
         self.assertTrue(test_conf.has_option('test', 'key1'))
         self.assertTrue(test_conf.has_option('test', 'key2'))
@@ -245,12 +251,12 @@ key3 = value3
 
         with self.assertWarns(DeprecationWarning):
             os.environ['AIRFLOW__CELERY__CELERYD_CONCURRENCY'] = '99'
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             os.environ.pop('AIRFLOW__CELERY__CELERYD_CONCURRENCY')
 
         with self.assertWarns(DeprecationWarning):
             conf.set('celery', 'celeryd_concurrency', '99')
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             conf.remove_option('celery', 'celeryd_concurrency')
 
     def test_deprecated_options_cmd(self):
@@ -266,6 +272,6 @@ key3 = value3
             tmp = None
             if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
                 tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-            self.assertEquals(conf.getint('celery', 'result_backend'), 99)
+            self.assertEqual(conf.getint('celery', 'result_backend'), 99)
             if tmp:
                 os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp

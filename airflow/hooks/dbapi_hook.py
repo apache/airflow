@@ -196,7 +196,7 @@ class DbApiHook(BaseHook):
         :param conn: Connection to get autocommit setting from.
         :type conn: connection object.
         :return: connection autocommit setting.
-        :rtype bool.
+        :rtype: bool
         """
 
         return getattr(conn, 'autocommit', False) and self.supports_autocommit
