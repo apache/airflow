@@ -92,6 +92,22 @@ Endpoints
 
   Delete pool.
 
+.. http:get:: /api/experimental/connections
+
+  Get all connections.
+
+.. http:post:: /api/experimental/connections
+
+  Create a connection.
+
+.. http:delete:: /api/experimental/connections/<string:conn_id>
+
+  Delete a connection.
+
+.. http:patch:: /api/experimental/connections/<string:conn_id>
+
+  Update a connection.
+
 
 CLI
 -----

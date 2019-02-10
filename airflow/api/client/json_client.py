@@ -26,7 +26,8 @@ from airflow.api.client import api_client
 class Client(api_client.Client):
     """Json API client implementation."""
 
-    def _request(self, url, method='GET', json=None):
+    def _request(self, endpoint, method='GET', json=None):
+        url = urljoin(self._api_base_url, endpoint)
         params = {
             'url': url,
             'auth': self._auth,
@@ -46,8 +47,7 @@ class Client(api_client.Client):
 
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
         endpoint = '/api/experimental/dags/{}/dag_runs'.format(dag_id)
-        url = urljoin(self._api_base_url, endpoint)
-        data = self._request(url, method='POST',
+        data = self._request(endpoint, method='POST',
                              json={
                                  "run_id": run_id,
                                  "conf": conf,
@@ -57,26 +57,22 @@ class Client(api_client.Client):
 
     def delete_dag(self, dag_id):
         endpoint = '/api/experimental/dags/{}/delete_dag'.format(dag_id)
-        url = urljoin(self._api_base_url, endpoint)
-        data = self._request(url, method='DELETE')
+        data = self._request(endpoint, method='DELETE')
         return data['message']
 
     def get_pool(self, name):
         endpoint = '/api/experimental/pools/{}'.format(name)
-        url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url)
+        pool = self._request(endpoint)
         return pool['pool'], pool['slots'], pool['description']
 
     def get_pools(self):
         endpoint = '/api/experimental/pools'
-        url = urljoin(self._api_base_url, endpoint)
-        pools = self._request(url)
+        pools = self._request(endpoint)
         return [(p['pool'], p['slots'], p['description']) for p in pools]
 
     def create_pool(self, name, slots, description):
         endpoint = '/api/experimental/pools'
-        url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url, method='POST',
+        pool = self._request(endpoint, method='POST',
                              json={
                                  'name': name,
                                  'slots': slots,
@@ -86,6 +82,82 @@ class Client(api_client.Client):
 
     def delete_pool(self, name):
         endpoint = '/api/experimental/pools/{}'.format(name)
-        url = urljoin(self._api_base_url, endpoint)
-        pool = self._request(url, method='DELETE')
+        pool = self._request(endpoint, method='DELETE')
         return pool['pool'], pool['slots'], pool['description']
+
+    def add_connection(self, conn_id,
+                       conn_uri=None,
+                       conn_type=None,
+                       conn_host=None,
+                       conn_login=None,
+                       conn_password=None,
+                       conn_schema=None,
+                       conn_port=None,
+                       conn_extra=None):
+        endpoint = '/api/experimental/connections'
+        conn = self._request(endpoint, method='POST', json={
+            'conn_id': conn_id,
+            'conn_uri': conn_uri,
+            'conn_type': conn_type,
+            'conn_host': conn_host,
+            'conn_login': conn_login,
+            'conn_password': conn_password,
+            'conn_schema': conn_schema,
+            'conn_port': conn_port,
+            'conn_extra': conn_extra})
+        return conn.to_json()
+
+    def delete_connection(self, conn_id, delete_all=False):
+        """
+
+        :param conn_id:
+        :param delete_all:
+        :return: the conn_id(s) of the Connection(s) that were removed
+        """
+        endpoint = '/api/experimental/connections/{}'.format(conn_id)
+        conn_id = self._request(endpoint, method='DELETE', json={'delete_all': delete_all})
+        return conn_id
+
+    def list_connections(self):
+        """
+
+        :return: All Connections
+        """
+        endpoint = '/api/experimental/connections'
+        conns = self._request(endpoint)
+        return conns
+
+    def update_connection(self, conn_id,
+                          conn_uri=None,
+                          conn_type=None,
+                          conn_host=None,
+                          conn_login=None,
+                          conn_password=None,
+                          conn_schema=None,
+                          conn_port=None,
+                          conn_extra=None):
+        """
+
+        :param conn_id:
+        :param conn_uri:
+        :param conn_type:
+        :param conn_host:
+        :param conn_login:
+        :param conn_password:
+        :param conn_schema:
+        :param conn_port:
+        :param conn_extra:
+        :return: The updated Connection
+        """
+        endpoint = '/api/experimental/connections/'
+        conn = self._request(endpoint, method='PATCH', json={
+            'conn_id': conn_id,
+            'conn_uri': conn_uri,
+            'conn_type': conn_type,
+            'conn_host': conn_host,
+            'conn_login': conn_login,
+            'conn_password': conn_password,
+            'conn_schema': conn_schema,
+            'conn_port': conn_port,
+            'conn_extra': conn_extra})
+        return conn.to_json()

@@ -19,6 +19,7 @@
 import airflow.api
 from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
+from airflow.api.common.experimental import connections as connection_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_task import get_task
@@ -38,6 +39,13 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+
+def _build_error_response(err, status_code=None):
+    _log.error(err)
+    response = jsonify(error="{}".format(err))
+    response.status_code = status_code or err.status_code
+    return response
 
 
 @csrf.exempt
@@ -70,19 +78,12 @@ def trigger_dag(dag_id):
                 'Given execution date, {}, could not be identified '
                 'as a date. Example date format: 2015-11-16T14:34:15+00:00'
                 .format(execution_date))
-            _log.info(error_message)
-            response = jsonify({'error': error_message})
-            response.status_code = 400
-
-            return response
+            return _build_error_response(error_message, 400)
 
     try:
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date)
     except AirflowException as err:
-        _log.error(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
 
     if getattr(g, 'user', None):
         _log.info("User {} created {}".format(g.user, dr))
@@ -101,10 +102,7 @@ def delete_dag(dag_id):
     try:
         count = delete.delete_dag(dag_id)
     except AirflowException as err:
-        _log.error(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
     return jsonify(message="Removed {} record(s)".format(count), count=count)
 
 
@@ -122,10 +120,7 @@ def dag_runs(dag_id):
         state = request.args.get('state')
         dagruns = get_dag_runs(dag_id, state)
     except AirflowException as err:
-        _log.info(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = 400
-        return response
+        return _build_error_response(err, 400)
 
     return jsonify(dagruns)
 
@@ -143,10 +138,7 @@ def task_info(dag_id, task_id):
     try:
         info = get_task(dag_id, task_id)
     except AirflowException as err:
-        _log.info(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
 
     # JSONify and return.
     fields = {k: str(v)
@@ -197,19 +189,12 @@ def task_instance_info(dag_id, execution_date, task_id):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'
             .format(execution_date))
-        _log.info(error_message)
-        response = jsonify({'error': error_message})
-        response.status_code = 400
-
-        return response
+        return _build_error_response(error_message, 400)
 
     try:
         info = get_task_instance(dag_id, task_id, execution_date)
     except AirflowException as err:
-        _log.info(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
 
     # JSONify and return.
     fields = {k: str(v)
@@ -238,19 +223,12 @@ def dag_run_status(dag_id, execution_date):
             'Given execution date, {}, could not be identified '
             'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
                 execution_date))
-        _log.info(error_message)
-        response = jsonify({'error': error_message})
-        response.status_code = 400
-
-        return response
+        return _build_error_response(error_message, 400)
 
     try:
         info = get_dag_run_state(dag_id, execution_date)
     except AirflowException as err:
-        _log.info(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
 
     return jsonify(info)
 
@@ -282,10 +260,7 @@ def get_pool(name):
     try:
         pool = pool_api.get_pool(name=name)
     except AirflowException as err:
-        _log.error(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
     else:
         return jsonify(pool.to_json())
 
@@ -297,10 +272,7 @@ def get_pools():
     try:
         pools = pool_api.get_pools()
     except AirflowException as err:
-        _log.error(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
     else:
         return jsonify([p.to_json() for p in pools])
 
@@ -314,10 +286,7 @@ def create_pool():
     try:
         pool = pool_api.create_pool(**params)
     except AirflowException as err:
-        _log.error(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
     else:
         return jsonify(pool.to_json())
 
@@ -330,9 +299,62 @@ def delete_pool(name):
     try:
         pool = pool_api.delete_pool(name=name)
     except AirflowException as err:
-        _log.error(err)
-        response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
-        return response
+        return _build_error_response(err)
     else:
         return jsonify(pool.to_json())
+
+
+@csrf.exempt
+@api_experimental.route('/connections', methods=['GET'])
+@requires_authentication
+def list_connections():
+    """Get all connections."""
+    try:
+        connections = connection_api.list_connections()
+    except AirflowException as err:
+        return _build_error_response(err)
+    else:
+        return jsonify([c.to_json() for c in connections])
+
+
+@csrf.exempt
+@api_experimental.route('/connections/<string:conn_id>', methods=['DELETE'])
+@requires_authentication
+def delete_connection(conn_id):
+    """Delete connection."""
+    params = request.get_json(force=True)
+    try:
+        msg = connection_api.delete_connection(conn_id=conn_id, **params)
+    except AirflowException as err:
+        return _build_error_response(err)
+
+    else:
+        return jsonify({"success": msg})
+
+
+@csrf.exempt
+@api_experimental.route('/connections', methods=['POST'])
+@requires_authentication
+def add_connection():
+    """Add connection."""
+    params = request.get_json(force=True)
+    try:
+        new_conn = connection_api.add_connection(**params)
+    except AirflowException as err:
+        return _build_error_response(err)
+    else:
+        return jsonify(new_conn.to_json())
+
+
+@csrf.exempt
+@api_experimental.route('/connections', methods=['PATCH'])
+@requires_authentication
+def update_connection():
+    """Update connection."""
+    params = request.get_json(force=True)
+    try:
+        new_conn = connection_api.update_connection(**params)
+    except AirflowException as err:
+        return _build_error_response(err)
+    else:
+        return jsonify(new_conn.to_json())
