@@ -94,6 +94,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
         self.check_existence = check_existence
+        # we only check the existence for the first time.
+        self.has_checked_existence = False
 
     @provide_session
     def poke(self, context, session=None):
@@ -117,7 +119,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         DM = DagModel
         TI = TaskInstance
         DR = DagRun
-        if self.check_existence:
+
+        # we only do the check for 1st time, no need for subsequent poke
+        if self.check_existence and not self.has_checked_existence:
             dag_to_wait = session.query(DM).filter(
                 DM.dag_id == self.external_dag_id
             ).first()
@@ -136,6 +140,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     raise AirflowException('The external task'
                                            '{} in DAG {} does not exist.'.format(self.external_task_id,
                                                                                  self.external_dag_id))
+            self.has_checked_existence = True
 
         if self.external_task_id:
             count = session.query(TI).filter(
