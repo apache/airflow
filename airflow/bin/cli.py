@@ -372,7 +372,7 @@ def import_helper(filepath):
         try:
             n = 0
             for k, v in d.items():
-                if isinstance(v, dict):
+                if isinstance(v, dict) or isinstance(v, list):
                     Variable.set(k, v, serialize_json=True)
                 else:
                     Variable.set(k, v)
