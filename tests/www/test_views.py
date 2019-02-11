@@ -21,19 +21,19 @@ import copy
 import io
 import json
 import logging.config
-import mock
 import os
 import shutil
 import sys
 import tempfile
 import unittest
 import urllib
-
 from datetime import timedelta
-from flask._compat import PY2
-from parameterized import parameterized
 from urllib.parse import quote_plus
 
+import mock
+from flask import url_for
+from flask._compat import PY2
+from parameterized import parameterized
 from werkzeug.test import Client
 
 from airflow import configuration as conf
@@ -411,6 +411,15 @@ class TestAirflowBaseViews(TestBase):
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
+
+    def test_edit_dagrun_page(self):
+        resp = self.client.get('dagmodel/edit/example_bash_operator', follow_redirects=False)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_edit_dagrun_url(self):
+        with self.app.test_request_context():
+            url = url_for('DagModelView.edit', pk='example_bash_operator')
+            self.assertEqual(url, '/dagmodel/edit/example_bash_operator')
 
     def test_rendered(self):
         url = ('rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'

@@ -521,7 +521,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $('#btn_edit_dagrun').click(function() {
-      window.location = "{{ url_for('DagModelView.show', pk=dag.dag_id) }}";
+      window.location = "{{ url_for('DagModelView.edit', pk=dag.dag_id) }}";
     });
 
   </script>
