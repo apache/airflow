@@ -1475,7 +1475,7 @@ class DagBagTest(unittest.TestCase):
 
     def test_dont_load_example(self):
         """
-        test that check that the example are not loaded
+        test that the example are not loaded
         """
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
