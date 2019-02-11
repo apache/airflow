@@ -1471,6 +1471,14 @@ class DagBagTest(unittest.TestCase):
         non_existing_dag_id = "non_existing_dag_id"
         self.assertIsNone(dagbag.get_dag(non_existing_dag_id))
 
+    def test_dont_load_example(self):
+        """
+        test that the example are not loaded
+        """
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        self.assertEqual(dagbag.size(), 0)
+
     def test_process_file_that_contains_multi_bytes_char(self):
         """
         test that we're able to parse file that contains multi-byte char

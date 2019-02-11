@@ -304,7 +304,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors = {}
         self.has_logged = False
 
-        self.collect_dags(dag_folder, include_examples)
+        self.collect_dags(dag_folder=dag_folder, include_examples=include_examples)
 
     def size(self):
         """
@@ -559,7 +559,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        for filepath in list_py_file_paths(dag_folder, include_examples):
+        for filepath in list_py_file_paths(dag_folder, include_examples=include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
