@@ -255,7 +255,7 @@ class BigQueryBaseCursor(LoggingMixin):
             partition by field, type and expiration as per API specifications.
 
             .. seealso::
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will create a view instead of a table:
@@ -269,7 +269,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 "useLegacySql": False
             }
 
-        :return:
+        :return: None
         """
 
         project_id = project_id if project_id is not None else self.project_id
@@ -356,7 +356,7 @@ class BigQueryBaseCursor(LoggingMixin):
             Possible values include GZIP and NONE.
             The default value is NONE.
             This setting is ignored for Google Cloud Bigtable,
-                Google Cloud Datastore backups and Avro formats.
+            Google Cloud Datastore backups and Avro formats.
         :type compression: str
         :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
             extra values that are not represented in the table schema.
@@ -546,28 +546,26 @@ class BigQueryBaseCursor(LoggingMixin):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
             The supported schema modifications and unsupported schema modification are listed here:
             https://cloud.google.com/bigquery/docs/managing-table-schemas
+            **Example**: ::
+
+                schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                               {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+
         :type schema: list
-
-        **Example**: ::
-
-            schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
-
         :param time_partitioning: [Optional] A dictionary containing time-based partitioning
              definition for the table.
         :type time_partitioning: dict
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will patch a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+            **Example**: ::
+
+                view = {
+                    "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+                    "useLegacySql": False
+                }
+
         :type view: dict
-
-        **Example**: ::
-
-            view = {
-                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
-                "useLegacySql": False
-            }
-
         :param require_partition_filter: [Optional] If true, queries over the this table require a
             partition filter. If false, queries over the table
         :type require_partition_filter: bool
@@ -919,14 +917,14 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param source_project_dataset_tables: One or more dotted
-            (project:|project.)<dataset>.<table>
+            ``(project:|project.)<dataset>.<table>``
             BigQuery tables to use as the source data. Use a list if there are
             multiple source tables.
             If <project> is not included, project will be the project defined
             in the connection json.
         :type source_project_dataset_tables: list|string
         :param destination_project_dataset_table: The destination BigQuery
-            table. Format is: (project:|project.)<dataset>.<table>
+            table. Format is: ``(project:|project.)<dataset>.<table>``
         :type destination_project_dataset_table: str
         :param write_disposition: The write disposition if the table already exists.
         :type write_disposition: str
@@ -1371,11 +1369,11 @@ class BigQueryBaseCursor(LoggingMixin):
         is set to True.
 
         :param deletion_dataset_table: A dotted
-        (<project>.|<project>:)<dataset>.<table> that indicates which table
-        will be deleted.
+            ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
+            will be deleted.
         :type deletion_dataset_table: str
         :param ignore_if_missing: if True, then return success even if the
-        requested table does not exist.
+            requested table does not exist.
         :type ignore_if_missing: bool
         :return:
         """
@@ -1410,7 +1408,7 @@ class BigQueryBaseCursor(LoggingMixin):
             https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
         :type table_resource: dict
         :param project_id: the project to upsert the table into.  If None,
-        project will be self.project_id.
+            project will be self.project_id.
         :return:
         """
         # check to see if the table exists
@@ -1464,10 +1462,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :param view_table: the table of the view
         :type view_table: str
         :param source_project: the project of the source dataset. If None,
-        self.project_id will be used.
+            self.project_id will be used.
         :type source_project: str
         :param view_project: the project that the view is in. If None,
-        self.project_id will be used.
+            self.project_id will be used.
         :type view_project: str
         :return: the datasets resource of the source dataset.
         """
