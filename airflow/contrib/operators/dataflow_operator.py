@@ -399,7 +399,7 @@ class GoogleCloudBucketHelper(object):
         :param file_name: The full path of input file.
         :type file_name: str
         :return: The full path of local file.
-        :type str
+        :rtype: str
         """
         if not file_name.startswith('gs://'):
             return file_name
