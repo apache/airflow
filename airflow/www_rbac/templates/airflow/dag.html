@@ -491,9 +491,8 @@ function updateQueryStringParameter(uri, key, value) {
       $.post(url);
     });
 
-    $('#btn_edit_dagrun').click(function(){
-      window.location = "{{ url_for('DagModelView.show', pk=id) }}";
-
+    $('#btn_edit_dagrun').click(function() {
+      window.location = "{{ url_for('DagModelView.edit', pk=dag.dag_id) }}";
     });
 
   </script>
