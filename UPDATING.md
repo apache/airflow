@@ -24,6 +24,20 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator` 
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator` 
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+
 ### Renamed "extra" requirments for cloud providers
 
 Subpackages for specific services have been combined into one variant for
