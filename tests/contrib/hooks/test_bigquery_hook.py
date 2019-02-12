@@ -321,6 +321,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         self.assertIsNone(_api_resource_configs_duplication_check(
             "key_one", key_one, {"key_one": True}))
 
+
+class TestTableDataOperations(unittest.TestCase):
     def test_insert_all_succeed(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
@@ -369,6 +371,8 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             cursor.insert_all(project_id, dataset_id, table_id,
                               rows, fail_on_error=True)
 
+
+class TestTableOperations(unittest.TestCase):
     def test_create_view_fails_on_exception(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
@@ -409,8 +413,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         }
         method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_patch_table(self, run_with_config):
+    def test_patch_table(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         table_id = 'bq_table'
@@ -461,8 +464,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             body=body
         )
 
-    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
-    def test_patch_view(self, run_with_config):
+    def test_patch_view(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
         view_id = 'bq_view'
@@ -475,6 +477,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
         method = (mock_service.tables.return_value.patch)
         cursor = hook.BigQueryBaseCursor(mock_service, project_id)
         cursor.patch_table(dataset_id, view_id, project_id, view=view_patched)
+
         body = {
             'view': view_patched
         }
@@ -484,6 +487,86 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             tableId=view_id,
             body=body
         )
+
+    def test_create_empty_table_succeed(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_table(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id)
+
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            }
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=body
+        )
+
+    def test_create_empty_table_with_extras_succeed(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        schema_fields = [
+            {'name': 'id', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'created', 'type': 'DATE', 'mode': 'REQUIRED'},
+        ]
+        time_partitioning = {"field": "created", "type": "DAY"}
+        cluster_fields = ['name']
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+
+        cursor.create_empty_table(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            schema_fields=schema_fields,
+            time_partitioning=time_partitioning,
+            cluster_fields=cluster_fields
+        )
+
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            },
+            'schema': {
+                'fields': schema_fields
+            },
+            'timePartitioning': time_partitioning,
+            'clustering': {
+                'fields': cluster_fields
+            }
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=body
+        )
+
+    def test_create_empty_table_on_exception(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        method.return_value.execute.side_effect = HttpError(
+            resp={'status': '400'}, content=b'Bad request')
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        with self.assertRaises(Exception):
+            cursor.create_empty_table(project_id, dataset_id, table_id)
 
 
 class TestBigQueryCursor(unittest.TestCase):
