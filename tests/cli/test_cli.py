@@ -184,12 +184,15 @@ class TestCLI(unittest.TestCase):
         )
 
         saved_stdout = sys.stdout
+        saved_stderr = sys.stderr
         try:
             sys.stdout = out = StringIO()
+            sys.stderr = err = StringIO()
             cli.test(args)
 
             out.flush()
-            output = out.getvalue()
+            err.flush()
+            output = out.getvalue() + "\n" + err.getvalue()
             # Check that prints, and log messages, are shown
             self.assertIn('Done. Returned value was: Whatever you return gets printed in the logs',
                           output)
@@ -197,6 +200,7 @@ class TestCLI(unittest.TestCase):
                           output)
         finally:
             sys.stdout = saved_stdout
+            sys.stderr = saved_stderr
 
     def test_next_execution(self):
         # A scaffolding function
