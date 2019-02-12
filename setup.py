@@ -191,7 +191,7 @@ hive = [
     'pyhive>=0.6.0',
 ]
 jdbc = ['jaydebeapi>=1.1.1']
-jenkins = ['python-jenkins>=0.4.15']
+jenkins = ['python-jenkins>=1.0.0']
 jira = ['JIRA>1.0.7']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
