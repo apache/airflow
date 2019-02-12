@@ -41,7 +41,7 @@ class BashOperator(BaseOperator):
 
     If BaseOperator.do_xcom_push is True, the last line written to stdout
     will also be pushed to an XCom when the bash command completes
-    
+
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
     :type bash_command: str
