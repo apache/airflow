@@ -213,7 +213,7 @@ def create_evaluate_ops(task_prefix,
     evaluate_summary = DataFlowPythonOperator(
         task_id=(task_prefix + "-summary"),
         py_options=["-m"],
-        py_file="airflow.contrib.operators.mlengine_prediction_summary",
+        py_file="airflow.contrib.utils.mlengine_prediction_summary",
         dataflow_default_options=dataflow_options,
         options={
             "prediction_path": prediction_path,

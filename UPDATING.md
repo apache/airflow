@@ -25,7 +25,6 @@ assists users migrating to a new version.
 ## Airflow Master
 
 
-
 #### Change default aws_conn_id in EMR operators
 
 The default value for the [aws_conn_id](https://airflow.apache.org/howto/manage-connections.html#amazon-web-services) was accidently set to 's3_default' instead of 'aws_default' in some of the emr operators in previous 
@@ -33,6 +32,19 @@ versions. This was leading to EmrStepSensor not being able to find their corresp
 changes in the EmrAddStepsOperator, EmrTerminateJobFlowOperator and EmrCreateJobFlowOperator this issue is 
 solved.
 
+### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator` 
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator` 
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
 
 ### Renamed "extra" requirments for cloud providers
 
@@ -50,8 +62,8 @@ If you want to install integration for Amazon Web Services, then instead of
 
 The integration with GCP is unchanged.
 
+### Changes in Google Cloud Platform related operators
 
-## Changes in Google Cloud Platform related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -78,7 +90,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-## Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
