@@ -40,7 +40,7 @@
       {% endif %}
     </h3>
     <h4 class="pull-right">
-      <a class="label label-default" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+      <a class="label label-default" href="{{ url_for('dagrun.index_view') }}?_flt_2_dag_id={{ dag.dag_id }}">
         schedule: {{ dag.schedule_interval }}
       </a>
     </h4>
@@ -369,7 +369,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_ti").click(function(){
-      url = "/admin/taskinstance/" +
+      url = "{{ url_for('taskinstance.index_view') }}" +
         "?flt1_dag_id_equals=" + encodeURIComponent(dag_id) +
         "&flt2_task_id_equals=" + encodeURIComponent(task_id) +
         "&sort=3&desc=1";
@@ -481,7 +481,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $('#btn_edit_dagrun').click(function(){
-      window.location = '/admin/dagrun/edit/?id=' + id;
+      window.location = "{{ url_for('dagrun.edit_view') }}?id=" + id;
     });
 
   </script>
