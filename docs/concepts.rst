@@ -381,6 +381,8 @@ UI. As slots free up, queued tasks start running based on the
 Note that by default tasks aren't assigned to any pool and their
 execution parallelism is only limited to the executor's setting.
 
+To combine Pools with SubDAGs see the `SubDAGs`_ section.
+
 .. _concepts-connections:
 
 Connections
@@ -681,6 +683,9 @@ Some other tips when using SubDAGs:
    a single slot
 
 See ``airflow/example_dags`` for a demonstration.
+
+Note that airflow pool is not honored by SubDagOperator. Hence resources could be
+consumed by SubdagOperators.
 
 SLAs
 ====
