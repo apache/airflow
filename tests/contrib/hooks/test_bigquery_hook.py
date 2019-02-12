@@ -823,5 +823,38 @@ class TestBigQueryHookLocation(unittest.TestCase):
             self.assertEqual(bq_cursor.location, 'US')
 
 
+class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
+    def test_run_with_configuration_location(self):
+        project_id = 'bq-project'
+        running_job_id = 'job_vjdi28vskdui2onru23'
+        location = 'asia-east1'
+
+        mock_service = mock.Mock()
+        method = (mock_service.jobs.return_value.get)
+
+        mock_service.jobs.return_value.insert.return_value.execute.return_value = {
+            'jobReference': {
+                'jobId': running_job_id,
+                'location': location
+            }
+        }
+
+        mock_service.jobs.return_value.get.return_value.execute.return_value = {
+            'status': {
+                'state': 'DONE'
+            }
+        }
+
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.running_job_id = running_job_id
+        cursor.run_with_configuration({})
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            jobId=running_job_id,
+            location=location
+        )
+
+
 if __name__ == '__main__':
     unittest.main()

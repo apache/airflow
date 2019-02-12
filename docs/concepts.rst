@@ -531,9 +531,9 @@ that happened in an upstream task. One way to do this is by using the
 ``BranchPythonOperator``.
 
 The ``BranchPythonOperator`` is much like the PythonOperator except that it
-expects a python_callable that returns a task_id (or list of task_ids). The
+expects a ``python_callable`` that returns a task_id (or list of task_ids). The
 task_id returned is followed, and all of the other paths are skipped.
-The task_id returned by the Python function has to be referencing a task
+The task_id returned by the Python function has to reference a task
 directly downstream from the BranchPythonOperator task.
 
 Note that using tasks with ``depends_on_past=True`` downstream from
@@ -542,16 +542,14 @@ will invariably lead to block tasks that depend on their past successes.
 ``skipped`` states propagates where all directly upstream tasks are
 ``skipped``.
 
-If you want to skip some tasks, keep in mind that you can't have an empty
-path, if so make a dummy task.
+Note that when a path is a downstream task of the returned task (list), it will
+not be skipped:
 
-like this, the dummy task "branch_false" is skipped
+.. image:: img/branch_note.png
 
-.. image:: img/branch_good.png
-
-Not like this, where the join task is skipped
-
-.. image:: img/branch_bad.png
+Paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since
+``join`` is a downstream task of ``branch_a``, it will be excluded from the skipped
+tasks when ``branch_a`` is returned by the Python callable.
 
 The ``BranchPythonOperator`` can also be used with XComs allowing branching
 context to dynamically decide what branch to follow based on previous tasks.

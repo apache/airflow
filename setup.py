@@ -191,7 +191,7 @@ hive = [
     'pyhive>=0.6.0',
 ]
 jdbc = ['jaydebeapi>=1.1.1']
-jenkins = ['python-jenkins>=0.4.15']
+jenkins = ['python-jenkins>=1.0.0']
 jira = ['JIRA>1.0.7']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
@@ -293,7 +293,7 @@ def do_setup():
             'dill>=0.2.2, <0.3',
             'enum34~=1.1.6;python_version<"3.4"',
             'flask>=0.12.4, <0.13',
-            'flask-appbuilder==1.12.1',
+            'flask-appbuilder==1.12.3',
             'flask-admin==1.5.2',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',

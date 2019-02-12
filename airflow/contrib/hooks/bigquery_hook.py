@@ -1210,16 +1210,20 @@ class BigQueryBaseCursor(LoggingMixin):
             .insert(projectId=self.project_id, body=job_data) \
             .execute()
         self.running_job_id = query_reply['jobReference']['jobId']
+        if 'location' in query_reply['jobReference']:
+            location = query_reply['jobReference']['location']
+        else:
+            location = self.location
 
         # Wait for query to finish.
         keep_polling_job = True
         while keep_polling_job:
             try:
-                if self.location:
+                if location:
                     job = jobs.get(
                         projectId=self.project_id,
                         jobId=self.running_job_id,
-                        location=self.location).execute()
+                        location=location).execute()
                 else:
                     job = jobs.get(
                         projectId=self.project_id,
