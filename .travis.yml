@@ -48,6 +48,9 @@ jobs:
     - name: Check license header
       stage: pre-test
       script: scripts/ci/6-check-license.sh
+    - name: Check docs
+      stage: pre-test
+      script: pip install -e .[doc] && docs/build.sh
 
 cache:
   directories:

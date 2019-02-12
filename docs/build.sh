@@ -18,5 +18,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-rm -r _build
-make html
+set -e
+
+FWDIR="$(cd "`dirname "$0"`"; pwd)"
+cd "$FWDIR"
+
+[ -d _build ] && rm -r _build
+
+NUM_IGNORED_WARNINGS=4
+NUM_CURRENT_WARNINGS=$(make html |\
+    tee /dev/tty |\
+    grep 'build succeeded' |\
+    head -1 |\
+    sed -E 's/build succeeded, ([0-9]+) warnings\./\1/g')
+
+if [ "${NUM_CURRENT_WARNINGS}" != "${NUM_IGNORED_WARNINGS}" ]; then
+    echo
+    echo "Unexpected problems found in the documentation. "
+    echo "Currently, ${NUM_IGNORED_WARNINGS} warnings are ignored."
+    echo
+    exit 1
+fi
