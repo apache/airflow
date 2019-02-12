@@ -54,7 +54,7 @@ If you want to install integration for Amazon Web Services, then instead of
 
 The integration with GCP is unchanged.
 
-## Changes in Google Cloud Platform related operators
+### Changes in Google Cloud Platform related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -81,7 +81,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-## Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
