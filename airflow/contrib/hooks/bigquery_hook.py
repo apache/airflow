@@ -1204,7 +1204,7 @@ class BigQueryBaseCursor(LoggingMixin):
         """
         jobs = self.service.jobs()
         job_data = {'configuration': configuration}
-        print(1)
+
         # Send query and wait for reply.
         query_reply = jobs \
             .insert(projectId=self.project_id, body=job_data) \
@@ -1214,7 +1214,6 @@ class BigQueryBaseCursor(LoggingMixin):
             location = query_reply['jobReference']['location']
         else:
             location = self.location
-        print(location)
 
         # Wait for query to finish.
         keep_polling_job = True
