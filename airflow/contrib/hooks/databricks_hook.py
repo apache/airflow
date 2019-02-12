@@ -79,16 +79,18 @@ class DatabricksHook(BaseHook):
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
 
-
         For example -- when users supply ``https://xx.cloud.databricks.com`` as the
-        host, we must strip out the protocol to get the host.
-        >>> h = DatabricksHook()
-        >>> assert h._parse_host('https://xx.cloud.databricks.com') == \
-            'xx.cloud.databricks.com'
+        host, we must strip out the protocol to get the host.::
+
+            h = DatabricksHook()
+            assert h._parse_host('https://xx.cloud.databricks.com') == \
+                'xx.cloud.databricks.com'
 
         In the case where users supply the correct ``xx.cloud.databricks.com`` as the
-        host, this function is a no-op.
-        >>> assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
+        host, this function is a no-op.::
+
+            assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
+
         """
         urlparse_host = urlparse.urlparse(host).hostname
         if urlparse_host:
@@ -101,8 +103,9 @@ class DatabricksHook(BaseHook):
     def _do_api_call(self, endpoint_info, json):
         """
         Utility function to perform an API call with retries
+
         :param endpoint_info: Tuple of method and endpoint
-        :type endpoint_info: (string, string)
+        :type endpoint_info: tuple[string, string]
         :param json: Parameters for this API call.
         :type json: dict
         :return: If the api call returns a OK status code,

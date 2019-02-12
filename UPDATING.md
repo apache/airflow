@@ -24,6 +24,22 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Renamed "extra" requirments for cloud providers
+
+Subpackages for specific services have been combined into one variant for
+each cloud provider.
+
+If you want to install integration for Microsoft Azure, then instead of
+```
+pip install apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]
+```
+you should execute `pip install apache-airflow[azure]`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install apache-airflow[s3,emr]`, you should execute `pip install apache-airflow[aws]`
+
+The integration with GCP is unchanged.
+
 ## Changes in Google Cloud Platform related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,

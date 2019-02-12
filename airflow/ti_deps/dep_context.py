@@ -44,7 +44,7 @@ class DepContext(object):
 
     :param deps: The context-specific dependencies that need to be evaluated for a
         task instance to run in this execution context.
-    :type deps: set(BaseTIDep)
+    :type deps: set(airflow.ti_deps.deps.base_ti_dep.BaseTIDep)
     :param flag_upstream_failed: This is a hack to generate the upstream_failed state
         creation while checking to see whether the task instance is runnable. It was the
         shortest path to add the feature. This is bad since this class should be pure (no

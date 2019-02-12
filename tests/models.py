@@ -36,10 +36,10 @@ from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
-from mock import ANY, Mock, mock_open, patch
-from parameterized import parameterized
-from freezegun import freeze_time
 from cryptography.fernet import Fernet
+from freezegun import freeze_time
+from mock import ANY, mock_open, patch
+from parameterized import parameterized
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -47,8 +47,6 @@ from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun
-from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
-from airflow.models import SkipMixin
 from airflow.models import State as ST
 from airflow.models import Variable
 from airflow.models import clear_task_instances
@@ -1472,6 +1470,14 @@ class DagBagTest(unittest.TestCase):
 
         non_existing_dag_id = "non_existing_dag_id"
         self.assertIsNone(dagbag.get_dag(non_existing_dag_id))
+
+    def test_dont_load_example(self):
+        """
+        test that the example are not loaded
+        """
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        self.assertEqual(dagbag.size(), 0)
 
     def test_process_file_that_contains_multi_bytes_char(self):
         """
@@ -3392,99 +3398,3 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password with space')
         self.assertEqual(connection.port, 1234)
-
-
-class TestSkipMixin(unittest.TestCase):
-
-    @patch('airflow.models.timezone.utcnow')
-    def test_skip(self, mock_now):
-        session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
-            tasks = [DummyOperator(task_id='task')]
-        dag_run = dag.create_dagrun(
-            run_id='manual__' + now.isoformat(),
-            state=State.FAILED,
-        )
-        SkipMixin().skip(
-            dag_run=dag_run,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
-
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    @patch('airflow.models.timezone.utcnow')
-    def test_skip_none_dagrun(self, mock_now):
-        session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
-            tasks = [DummyOperator(task_id='task')]
-        SkipMixin().skip(
-            dag_run=None,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
-
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    def test_skip_none_tasks(self):
-        session = Mock()
-        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
-        self.assertFalse(session.query.called)
-        self.assertFalse(session.commit.called)
-
-
-class TestKubeResourceVersion(unittest.TestCase):
-
-    def test_checkpoint_resource_version(self):
-        session = settings.Session()
-        KubeResourceVersion.checkpoint_resource_version('7', session)
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '7')
-
-    def test_reset_resource_version(self):
-        session = settings.Session()
-        version = KubeResourceVersion.reset_resource_version(session)
-        self.assertEqual(version, '0')
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '0')
-
-
-class TestKubeWorkerIdentifier(unittest.TestCase):
-
-    @patch('airflow.models.uuid.uuid4')
-    def test_get_or_create_not_exist(self, mock_uuid):
-        session = settings.Session()
-        session.query(KubeWorkerIdentifier).update({
-            KubeWorkerIdentifier.worker_uuid: ''
-        })
-        mock_uuid.return_value = 'abcde'
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'abcde')
-
-    def test_get_or_create_exist(self):
-        session = settings.Session()
-        KubeWorkerIdentifier.checkpoint_kube_worker_uuid('fghij', session)
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'fghij')

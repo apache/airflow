@@ -139,7 +139,7 @@ class ConfTest(unittest.TestCase):
         self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
         self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
 
-    def test_command_config(self):
+    def test_command_precedence(self):
         TEST_CONFIG = '''[test]
 key1 = hello
 key2_cmd = printf cmd_result
@@ -170,6 +170,9 @@ key6 = value6
         self.assertEqual('hello', test_conf.get('test', 'key1', fallback='fb'))
         self.assertEqual('value6', test_conf.get('another', 'key6', fallback='fb'))
         self.assertEqual('fb', test_conf.get('another', 'key7', fallback='fb'))
+        self.assertEqual(True, test_conf.getboolean('another', 'key8_boolean', fallback='True'))
+        self.assertEqual(10, test_conf.getint('another', 'key8_int', fallback='10'))
+        self.assertEqual(1.0, test_conf.getfloat('another', 'key8_float', fallback='1'))
 
         self.assertTrue(test_conf.has_option('test', 'key1'))
         self.assertTrue(test_conf.has_option('test', 'key2'))

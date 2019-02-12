@@ -103,7 +103,7 @@ class TriggerRuleDep(BaseTIDep):
         rule was met.
 
         :param ti: the task instance to evaluate the trigger rule of
-        :type ti: TaskInstance
+        :type ti: airflow.models.TaskInstance
         :param successes: Number of successful upstream tasks
         :type successes: bool
         :param skipped: Number of skipped upstream tasks
@@ -120,7 +120,7 @@ class TriggerRuleDep(BaseTIDep):
             path to add the feature
         :type flag_upstream_failed: bool
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
 
         TR = airflow.models.TriggerRule

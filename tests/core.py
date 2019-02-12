@@ -1089,6 +1089,10 @@ class CliTests(unittest.TestCase):
             test_user = self.appbuilder.sm.find_user(email=email)
             if test_user:
                 self.appbuilder.sm.del_register_user(test_user)
+        for role_name in ['FakeTeamA', 'FakeTeamB']:
+            if self.appbuilder.sm.find_role(role_name):
+                self.appbuilder.sm.delete_role(role_name)
+
         super(CliTests, self).tearDown()
 
     @staticmethod
@@ -1313,12 +1317,77 @@ class CliTests(unittest.TestCase):
             "User should have been removed from role 'Viewer'"
         )
 
-    def test_cli_sync_perm(self):
-        # test whether sync_perm cli will throw exceptions or not
+    @mock.patch("airflow.bin.cli.DagBag")
+    def test_cli_sync_perm(self, dagbag_mock):
+        self.expect_dagbag_contains([
+            DAG('has_access_control',
+                access_control={
+                    'Public': {'can_dag_read'}
+                }),
+            DAG('no_access_control')
+        ], dagbag_mock)
+        self.appbuilder.sm = mock.Mock()
+
         args = self.parser.parse_args([
             'sync_perm'
         ])
         cli.sync_perm(args)
+
+        self.appbuilder.sm.sync_roles.assert_called_once()
+
+        self.assertEqual(2,
+                         len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))
+        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
+            'has_access_control',
+            {'Public': {'can_dag_read'}}
+        )
+        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
+            'no_access_control',
+            None,
+        )
+
+    def expect_dagbag_contains(self, dags, dagbag_mock):
+        dagbag = mock.Mock()
+        dagbag.dags = {dag.dag_id: dag for dag in dags}
+        dagbag_mock.return_value = dagbag
+
+    def test_cli_create_roles(self):
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+        args = self.parser.parse_args([
+            'roles', '--create', 'FakeTeamA', 'FakeTeamB'
+        ])
+        cli.roles(args)
+
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+    def test_cli_create_roles_is_reentrant(self):
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+        args = self.parser.parse_args([
+            'roles', '--create', 'FakeTeamA', 'FakeTeamB'
+        ])
+
+        cli.roles(args)
+        cli.roles(args)
+
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+    def test_cli_list_roles(self):
+        self.appbuilder.sm.add_role('FakeTeamA')
+        self.appbuilder.sm.add_role('FakeTeamB')
+
+        with mock.patch('sys.stdout',
+                        new_callable=six.StringIO) as mock_stdout:
+            cli.roles(self.parser.parse_args(['roles', '-l']))
+            stdout = mock_stdout.getvalue()
+
+        self.assertIn('FakeTeamA', stdout)
+        self.assertIn('FakeTeamB', stdout)
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():

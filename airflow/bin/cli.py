@@ -603,13 +603,12 @@ def next_execution(args):
 
 @cli_utils.action_logging
 def rotate_fernet_key(args):
-    session = settings.Session()
-    for conn in session.query(Connection).filter(
-            Connection.is_encrypted | Connection.is_extra_encrypted):
-        conn.rotate_fernet_key()
-    for var in session.query(Variable).filter(Variable.is_encrypted):
-        var.rotate_fernet_key()
-    session.commit()
+    with db.create_session() as session:
+        for conn in session.query(Connection).filter(
+                Connection.is_encrypted | Connection.is_extra_encrypted):
+            conn.rotate_fernet_key()
+        for var in session.query(Variable).filter(Variable.is_encrypted):
+            var.rotate_fernet_key()
 
 
 @cli_utils.action_logging
@@ -917,6 +916,7 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
+            '-c', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -1579,6 +1579,28 @@ def _import_users(users_list):
 
 
 @cli_utils.action_logging
+def roles(args):
+    if args.create and args.list:
+        raise AirflowException("Please specify either --create or --list, "
+                               "but not both")
+
+    appbuilder = cached_appbuilder()
+    if args.create:
+        for role_name in args.role:
+            appbuilder.sm.add_role(role_name)
+    elif args.list:
+        roles = appbuilder.sm.get_all_roles()
+        print("Existing roles:\n")
+        role_names = sorted([[r.name] for r in roles])
+        msg = tabulate(role_names,
+                       headers=['Role'],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
+
+
+@cli_utils.action_logging
 def list_dag_runs(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
@@ -1633,8 +1655,14 @@ def list_dag_runs(args, dag=None):
 @cli_utils.action_logging
 def sync_perm(args):
     appbuilder = cached_appbuilder()
-    print('Update permission, view-menu for all existing roles')
+    print('Updating permission, view-menu for all existing roles')
     appbuilder.sm.sync_roles()
+    print('Updating permission on all DAG views')
+    dags = DagBag().dags.values()
+    for dag in dags:
+        appbuilder.sm.sync_perm_for_dag(
+            dag.dag_id,
+            dag.access_control)
 
 
 Arg = namedtuple(
@@ -2119,6 +2147,19 @@ class CLIFactory(object):
             ("-e", "--export"),
             metavar="FILEPATH",
             help="Export users to JSON file"),
+        # roles
+        'create_role': Arg(
+            ('-c', '--create'),
+            help='Create a new role',
+            action='store_true'),
+        'list_roles': Arg(
+            ('-l', '--list'),
+            help='List roles',
+            action='store_true'),
+        'roles': Arg(
+            ('role',),
+            help='The name of a role',
+            nargs='*'),
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
@@ -2290,10 +2331,13 @@ class CLIFactory(object):
                      'add_role', 'remove_role', 'user_import', 'user_export',
                      'username', 'email', 'firstname', 'lastname', 'role',
                      'password', 'use_random_password'),
-        },
-        {
+        }, {
+            'func': roles,
+            'help': 'Create/List roles',
+            'args': ('create_role', 'list_roles', 'roles'),
+        }, {
             'func': sync_perm,
-            'help': "Update existing role's permissions.",
+            'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
         },
         {

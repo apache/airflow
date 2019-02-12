@@ -314,13 +314,13 @@ class HiveCliHook(BaseHook):
         not be sanitized.
 
         :param df: DataFrame to load into a Hive table
-        :type df: DataFrame
+        :type df: pandas.DataFrame
         :param table: target Hive table, use dot notation to target a
             specific database
         :type table: str
         :param field_dict: mapping from column name to hive data type.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: OrderedDict
+        :type field_dict: collections.OrderedDict
         :param delimiter: field delimiter in the file
         :type delimiter: str
         :param encoding: str encoding to use when writing DataFrame to file
@@ -406,7 +406,7 @@ class HiveCliHook(BaseHook):
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: OrderedDict
+        :type field_dict: collections.OrderedDict
         :param create: whether to create the table if it doesn't exist
         :type create: bool
         :param overwrite: whether to overwrite the data in table or partition
@@ -761,6 +761,9 @@ class HiveServer2Hook(BaseHook):
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
     def get_conn(self, schema=None):
+        """
+        Returns a Hive connection object.
+        """
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
         if auth_mechanism == 'NONE' and db.login is None:
@@ -836,11 +839,17 @@ class HiveServer2Hook(BaseHook):
     def get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
         """
         Get results of the provided hql in target schema.
+
         :param hql: hql to be executed.
+        :type hql: str or list
         :param schema: target schema, default to 'default'.
-        :param fetch_size max size of result to fetch.
+        :type schema: str
+        :param fetch_size: max size of result to fetch.
+        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :return: results of hql execution.
+        :type hive_conf: dict
+        :return: results of hql execution, dict with data (list of results) and header
+        :rtype: dict
         """
         results_iter = self._get_results(hql, schema,
                                          fetch_size=fetch_size, hive_conf=hive_conf)
@@ -863,15 +872,24 @@ class HiveServer2Hook(BaseHook):
             hive_conf=None):
         """
         Execute hql in target schema and write results to a csv file.
+
         :param hql: hql to be executed.
+        :type hql: str or list
         :param csv_filepath: filepath of csv to write results into.
+        :type csv_filepath: str
         :param schema: target schema, default to 'default'.
-        :param delimiter: delimiter of the csv file.
+        :type schema: str
+        :param delimiter: delimiter of the csv file, default to ','.
+        :type delimiter: str
         :param lineterminator: lineterminator of the csv file.
-        :param output_header: header of the csv file.
-        :param fetch_size: number of result rows to write into the csv file.
+        :type lineterminator: str
+        :param output_header: header of the csv file, default to True.
+        :type output_header: bool
+        :param fetch_size: number of result rows to write into the csv file, default to 1000.
+        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :return:
+        :type hive_conf: dict
+
         """
 
         results_iter = self._get_results(hql, schema,
@@ -907,6 +925,15 @@ class HiveServer2Hook(BaseHook):
         """
         Get a set of records from a Hive query.
 
+        :param hql: hql to be executed.
+        :type hql: str or list
+        :param schema: target schema, default to 'default'.
+        :type schema: str
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :type hive_conf: dict
+        :return: result of hive execution
+        :rtype: list
+
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
         >>> len(hh.get_records(sql))
@@ -918,11 +945,20 @@ class HiveServer2Hook(BaseHook):
         """
         Get a pandas dataframe from a Hive query
 
+        :param hql: hql to be executed.
+        :type hql: str or list
+        :param schema: target schema, default to 'default'.
+        :type schema: str
+        :return: result of hql execution
+        :rtype: DataFrame
+
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
         >>> df = hh.get_pandas_df(sql)
         >>> len(df.index)
         100
+
+        :return: pandas.DateFrame
         """
         import pandas as pd
         res = self.get_results(hql, schema=schema)
