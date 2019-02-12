@@ -31,8 +31,8 @@ from airflow.models import TaskInstance as TI, DAG, DagRun
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
-from airflow.settings import Session
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -51,12 +51,9 @@ class PythonOperatorTest(unittest.TestCase):
     def setUpClass(cls):
         super(PythonOperatorTest, cls).setUpClass()
 
-        session = Session()
-
-        session.query(DagRun).delete()
-        session.query(TI).delete()
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TI).delete()
 
     def setUp(self):
         super(PythonOperatorTest, self).setUp()
@@ -74,13 +71,9 @@ class PythonOperatorTest(unittest.TestCase):
     def tearDown(self):
         super(PythonOperatorTest, self).tearDown()
 
-        session = Session()
-
-        session.query(DagRun).delete()
-        session.query(TI).delete()
-        print(len(session.query(DagRun).all()))
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TI).delete()
 
         for var in TI_CONTEXT_ENV_VARS:
             if var in os.environ:
@@ -170,12 +163,9 @@ class BranchOperatorTest(unittest.TestCase):
     def setUpClass(cls):
         super(BranchOperatorTest, cls).setUpClass()
 
-        session = Session()
-
-        session.query(DagRun).delete()
-        session.query(TI).delete()
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TI).delete()
 
     def setUp(self):
         self.dag = DAG('branch_operator_test',
@@ -190,13 +180,9 @@ class BranchOperatorTest(unittest.TestCase):
     def tearDown(self):
         super(BranchOperatorTest, self).tearDown()
 
-        session = Session()
-
-        session.query(DagRun).delete()
-        session.query(TI).delete()
-        print(len(session.query(DagRun).all()))
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TI).delete()
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
@@ -209,23 +195,22 @@ class BranchOperatorTest(unittest.TestCase):
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        session = Session()
-        tis = session.query(TI).filter(
-            TI.dag_id == self.dag.dag_id,
-            TI.execution_date == DEFAULT_DATE
-        )
-        session.close()
+        with create_session() as session:
+            tis = session.query(TI).filter(
+                TI.dag_id == self.dag.dag_id,
+                TI.execution_date == DEFAULT_DATE
+            )
 
-        for ti in tis:
-            if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
-                # should exist with state None
-                self.assertEqual(ti.state, State.NONE)
-            elif ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
-            else:
-                raise Exception
+            for ti in tis:
+                if ti.task_id == 'make_choice':
+                    self.assertEqual(ti.state, State.SUCCESS)
+                elif ti.task_id == 'branch_1':
+                    # should exist with state None
+                    self.assertEqual(ti.state, State.NONE)
+                elif ti.task_id == 'branch_2':
+                    self.assertEqual(ti.state, State.SKIPPED)
+                else:
+                    raise Exception
 
     def test_branch_list_without_dag_run(self):
         """This checks if the BranchPythonOperator supports branching off to a list of tasks."""
@@ -240,25 +225,24 @@ class BranchOperatorTest(unittest.TestCase):
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        session = Session()
-        tis = session.query(TI).filter(
-            TI.dag_id == self.dag.dag_id,
-            TI.execution_date == DEFAULT_DATE
-        )
-        session.close()
+        with create_session() as session:
+            tis = session.query(TI).filter(
+                TI.dag_id == self.dag.dag_id,
+                TI.execution_date == DEFAULT_DATE
+            )
 
-        expected = {
-            "make_choice": State.SUCCESS,
-            "branch_1": State.NONE,
-            "branch_2": State.NONE,
-            "branch_3": State.SKIPPED,
-        }
+            expected = {
+                "make_choice": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.NONE,
+                "branch_3": State.SKIPPED,
+            }
 
-        for ti in tis:
-            if ti.task_id in expected:
-                self.assertEqual(ti.state, expected[ti.task_id])
-            else:
-                raise Exception
+            for ti in tis:
+                if ti.task_id in expected:
+                    self.assertEqual(ti.state, expected[ti.task_id])
+                else:
+                    raise Exception
 
     def test_with_dag_run(self):
         self.branch_op = BranchPythonOperator(task_id='make_choice',
@@ -353,22 +337,16 @@ class ShortCircuitOperatorTest(unittest.TestCase):
     def setUpClass(cls):
         super(ShortCircuitOperatorTest, cls).setUpClass()
 
-        session = Session()
-
-        session.query(DagRun).delete()
-        session.query(TI).delete()
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TI).delete()
 
     def tearDown(self):
         super(ShortCircuitOperatorTest, self).tearDown()
 
-        session = Session()
-
-        session.query(DagRun).delete()
-        session.query(TI).delete()
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TI).delete()
 
     def test_without_dag_run(self):
         """This checks the defensive against non existent tasks in a dag run"""
@@ -392,39 +370,37 @@ class ShortCircuitOperatorTest(unittest.TestCase):
 
         short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        session = Session()
-        tis = session.query(TI).filter(
-            TI.dag_id == dag.dag_id,
-            TI.execution_date == DEFAULT_DATE
-        )
+        with create_session() as session:
+            tis = session.query(TI).filter(
+                TI.dag_id == dag.dag_id,
+                TI.execution_date == DEFAULT_DATE
+            )
 
-        for ti in tis:
-            if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'upstream':
-                # should not exist
-                raise Exception
-            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.SKIPPED)
-            else:
-                raise Exception
+            for ti in tis:
+                if ti.task_id == 'make_choice':
+                    self.assertEqual(ti.state, State.SUCCESS)
+                elif ti.task_id == 'upstream':
+                    # should not exist
+                    raise Exception
+                elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
+                    self.assertEqual(ti.state, State.SKIPPED)
+                else:
+                    raise Exception
 
-        value = True
-        dag.clear()
+            value = True
+            dag.clear()
 
-        short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        for ti in tis:
-            if ti.task_id == 'make_choice':
-                self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == 'upstream':
-                # should not exist
-                raise Exception
-            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
-                self.assertEqual(ti.state, State.NONE)
-            else:
-                raise Exception
-
-        session.close()
+            short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            for ti in tis:
+                if ti.task_id == 'make_choice':
+                    self.assertEqual(ti.state, State.SUCCESS)
+                elif ti.task_id == 'upstream':
+                    # should not exist
+                    raise Exception
+                elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
+                    self.assertEqual(ti.state, State.NONE)
+                else:
+                    raise Exception
 
     def test_with_dag_run(self):
         value = False
