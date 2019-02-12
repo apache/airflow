@@ -572,10 +572,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :param create_disposition: Specifies whether the job is allowed to
             create new tables.
         :type create_disposition: str
-        :param query_params a dictionary containing query parameter types and
+        :param query_params: a list of dictionary containing query parameter types and
             values, passed to BigQuery
-        :type query_params: dict
-        :param labels a dictionary containing labels for the job/query,
+        :type query_params: list
+        :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
         :param schema_update_options: Allows the schema of the destination
@@ -675,7 +675,7 @@ class BigQueryBaseCursor(LoggingMixin):
             (sql, 'query', None, six.string_types),
             (priority, 'priority', 'INTERACTIVE', six.string_types),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
-            (query_params, 'queryParameters', None, dict),
+            (query_params, 'queryParameters', None, list),
             (udf_config, 'userDefinedFunctionResources', None, list),
             (maximum_billing_tier, 'maximumBillingTier', None, int),
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
@@ -728,7 +728,7 @@ class BigQueryBaseCursor(LoggingMixin):
                         'createDisposition': create_disposition,
                     })
 
-        if 'useLegacySql' in configuration['query'] and \
+        if 'useLegacySql' in configuration['query'] and configuration['query']['useLegacySql'] and\
                 'queryParameters' in configuration['query']:
             raise ValueError("Query parameters are not allowed "
                              "when using legacy SQL")
