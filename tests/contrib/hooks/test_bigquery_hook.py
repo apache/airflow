@@ -290,6 +290,29 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             self.assertIs(args[0]['query']['useLegacySql'], bool_val)
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_sql_dialect_legacy_with_query_params(self, run_with_config):
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        params = [{
+            'name': "param_name",
+            'parameterType': {'type': "STRING"},
+            'parameterValue': {'value': "param_value"}
+        }]
+        cursor.run_query('query', use_legacy_sql=False, query_params=params)
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['query']['useLegacySql'], False)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_sql_dialect_legacy_with_query_params_fails(self, run_with_config):
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        params = [{
+            'name': "param_name",
+            'parameterType': {'type': "STRING"},
+            'parameterValue': {'value': "param_value"}
+        }]
+        with self.assertRaises(ValueError):
+            cursor.run_query('query', use_legacy_sql=True, query_params=params)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_api_resource_configs(self, run_with_config):
         for bool_val in [True, False]:
             cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
