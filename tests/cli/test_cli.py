@@ -175,6 +175,7 @@ class TestCLI(unittest.TestCase):
 
     def test_test(self):
         """Test the `airflow test` command"""
+        models.DagBag(include_examples=True).get_dag("example_python_operator").sync_to_db()
         args = create_mock_args(
             task_id='print_the_context',
             dag_id='example_python_operator',
