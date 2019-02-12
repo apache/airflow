@@ -175,7 +175,8 @@ class TestCLI(unittest.TestCase):
 
     def test_test(self):
         """Test the `airflow test` command"""
-        models.DagBag(include_examples=True).get_dag("example_python_operator").sync_to_db()
+        dag = models.DagBag(include_examples=True).get_dag("example_python_operator")
+        dag.sync_to_db()
         args = create_mock_args(
             task_id='print_the_context',
             dag_id='example_python_operator',
@@ -184,15 +185,11 @@ class TestCLI(unittest.TestCase):
         )
 
         saved_stdout = sys.stdout
-        saved_stderr = sys.stderr
         try:
             sys.stdout = out = StringIO()
-            sys.stderr = err = StringIO()
-            cli.test(args)
+            cli.test(args, dag)
 
-            out.flush()
-            err.flush()
-            output = out.getvalue() + "\n" + err.getvalue()
+            output = out.getvalue()
             # Check that prints, and log messages, are shown
             self.assertIn('Done. Returned value was: Whatever you return gets printed in the logs',
                           output)
@@ -200,7 +197,6 @@ class TestCLI(unittest.TestCase):
                           output)
         finally:
             sys.stdout = saved_stdout
-            sys.stderr = saved_stderr
 
     def test_next_execution(self):
         # A scaffolding function
