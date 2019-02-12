@@ -188,6 +188,7 @@ class TestCLI(unittest.TestCase):
             sys.stdout = out = StringIO()
             cli.test(args)
 
+            out.flush()
             output = out.getvalue()
             # Check that prints, and log messages, are shown
             self.assertIn('Done. Returned value was: Whatever you return gets printed in the logs',
