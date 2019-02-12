@@ -67,7 +67,6 @@ class SlackWebhookHook(HttpHook):
                  **kwargs
                  ):
         super(SlackWebhookHook, self).__init__(*args, **kwargs)
-        self.http_conn_id = http_conn_id
         self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
         self.attachments = attachments
@@ -81,7 +80,9 @@ class SlackWebhookHook(HttpHook):
         """
         Given either a manually set token or a conn_id, return the webhook_token to use
         :param token: The manually provided token
-        :param conn_id: The conn_id provided
+        :type token: str
+        :param http_conn_id: The conn_id provided
+        :type http_conn_id: str
         :return: webhook_token (str) to use
         """
         if token:
@@ -119,9 +120,6 @@ class SlackWebhookHook(HttpHook):
     def execute(self):
         """
         Remote Popen (actually execute the slack webhook call)
-
-        :param cmd: command to remotely execute
-        :param kwargs: extra arguments to Popen (see subprocess.Popen)
         """
         proxies = {}
         if self.proxy:
