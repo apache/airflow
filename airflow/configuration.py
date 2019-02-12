@@ -269,7 +269,7 @@ class AirflowConfigParser(ConfigParser):
         elif val in ('f', 'false', '0'):
             return False
         else:
-            raise AirflowConfigException(
+            raise ValueError(
                 'The value for configuration option "{}:{}" is not a '
                 'boolean (received "{}").'.format(section, key, val))
 
