@@ -235,8 +235,10 @@ class DockerOperator(BaseOperator):
             if result['StatusCode'] != 0:
                 raise AirflowException('docker container failed: ' + repr(result))
 
-            return self.cli.logs(container=self.container['Id']) \
-                if self.xcom_all else line.encode('utf-8')
+            # duplicated conditional logic because of expensive operation
+            if self.do_xcom_push:
+                return self.cli.logs(container=self.container['Id']) \
+                    if self.xcom_all else line.encode('utf-8')
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
