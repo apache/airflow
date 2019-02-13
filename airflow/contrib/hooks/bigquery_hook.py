@@ -228,8 +228,10 @@ class BigQueryBaseCursor(LoggingMixin):
                            table_id,
                            schema_fields=None,
                            time_partitioning=None,
+                           cluster_fields=None,
                            labels=None,
-                           view=None):
+                           view=None,
+                           num_retries=5):
         """
         Creates a new, empty table in the dataset.
         To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
@@ -257,6 +259,11 @@ class BigQueryBaseCursor(LoggingMixin):
             .. seealso::
                 https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
+        :param cluster_fields: [Optional] The fields used for clustering.
+            Must be specified with time_partitioning, data in the table will be first
+            partitioned and subsequently clustered.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
+        :type cluster_fields: list
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will create a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
@@ -286,6 +293,11 @@ class BigQueryBaseCursor(LoggingMixin):
         if time_partitioning:
             table_resource['timePartitioning'] = time_partitioning
 
+        if cluster_fields:
+            table_resource['clustering'] = {
+                'fields': cluster_fields
+            }
+
         if labels:
             table_resource['labels'] = labels
 
@@ -299,7 +311,7 @@ class BigQueryBaseCursor(LoggingMixin):
             self.service.tables().insert(
                 projectId=project_id,
                 datasetId=dataset_id,
-                body=table_resource).execute()
+                body=table_resource).execute(num_retries=num_retries)
 
             self.log.info('Table created successfully: %s:%s.%s',
                           project_id, dataset_id, table_id)
@@ -679,9 +691,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :param create_disposition: Specifies whether the job is allowed to
             create new tables.
         :type create_disposition: str
-        :param query_params: a dictionary containing query parameter types and
+        :param query_params: a list of dictionary containing query parameter types and
             values, passed to BigQuery
-        :type query_params: dict
+        :type query_params: list
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
@@ -769,7 +781,7 @@ class BigQueryBaseCursor(LoggingMixin):
             (sql, 'query', None, six.string_types),
             (priority, 'priority', 'INTERACTIVE', six.string_types),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
-            (query_params, 'queryParameters', None, dict),
+            (query_params, 'queryParameters', None, list),
             (udf_config, 'userDefinedFunctionResources', None, list),
             (maximum_billing_tier, 'maximumBillingTier', None, int),
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
@@ -822,7 +834,7 @@ class BigQueryBaseCursor(LoggingMixin):
                         'createDisposition': create_disposition,
                     })
 
-        if 'useLegacySql' in configuration['query'] and \
+        if 'useLegacySql' in configuration['query'] and configuration['query']['useLegacySql'] and\
                 'queryParameters' in configuration['query']:
             raise ValueError("Query parameters are not allowed "
                              "when using legacy SQL")

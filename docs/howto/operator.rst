@@ -1189,6 +1189,8 @@ CloudSqlInstanceDeleteOperator
 
 Deletes a Cloud SQL instance in Google Cloud Platform.
 
+It is also used for deleting read and failover replicas.
+
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator`.
 
@@ -1213,6 +1215,15 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_delete]
     :end-before: [END howto_operator_cloudsql_delete]
+
+Note: If the instance has read or failover replicas you need to delete them before you delete the primary instance.
+Replicas are deleted the same way as primary instances:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_replicas_delete]
+    :end-before: [END howto_operator_cloudsql_replicas_delete]
 
 Templating
 """"""""""
@@ -1415,6 +1426,8 @@ CloudSqlInstanceCreateOperator
 
 Creates a new Cloud SQL instance in Google Cloud Platform.
 
+It is also used for creating read replicas.
+
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`.
 
@@ -1431,12 +1444,29 @@ Some arguments in the example DAG are taken from OS environment variables:
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
 
-Example body defining the instance:
+Some other arguments are created based on the arguments above:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_create_arguments]
+    :end-before: [END howto_operator_cloudsql_create_arguments]
+
+Example body defining the instance with failover replica:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_create_body]
     :end-before: [END howto_operator_cloudsql_create_body]
+
+Example body defining read replica for the instance above:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_create_replica]
+    :end-before: [END howto_operator_cloudsql_create_replica]
+
+Note: Failover replicas are created together with the instance in a single task.
+Read replicas need to be created in separate tasks.
 
 Using the operator
 """"""""""""""""""
