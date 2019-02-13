@@ -207,7 +207,7 @@ password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
 ]
-pinot = ['pinotdb>=0.1.1']
+pinot = ['pinotdb==0.1.1']
 postgres = ['psycopg2>=2.7.4']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
