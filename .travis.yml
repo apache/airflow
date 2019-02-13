@@ -49,8 +49,8 @@ jobs:
       script: mypy airflow
     - name: Check license header
       stage: pre-test
-      install: skip
-      script: scripts/ci/6-check-license.sh
+      install: scripts/ci/6-check-license.sh install
+      script: scripts/ci/6-check-license.sh run
     - name: Check docs
       stage: pre-test
       install: pip install -e .[doc]

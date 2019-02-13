@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -17,12 +16,28 @@
 # limitations under the License.
 #
 
+declare -r RAT_VERSION=0.12
+declare -r URL="http://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
+
+declare -r TMP_DIR=/tmp
+declare -r rat_jar="${TMP_DIR}"/lib/apache-rat-${RAT_VERSION}.jar
+
+declare -r DEFAULT_JAVA_CMD="$JAVA_HOME/bin/java"
+
+# Go to the Airflow project root directory
+FWDIR="$(cd "`dirname "$0"`"/../..; pwd)"
+cd "$FWDIR"
 
 acquire_rat_jar () {
-
-  URL="http://repo1.maven.org/maven2/org/apache/rat/apache-rat/${RAT_VERSION}/apache-rat-${RAT_VERSION}.jar"
+  set -e
 
   JAR="$rat_jar"
+
+  if [ -f "JAR" ]; then
+    return 0
+  fi
+
+  mkdir -p ${TMP_DIR}/lib
 
   # Download rat launch jar if it hasn't been downloaded yet
   if [ ! -f "$JAR" ]; then
@@ -44,50 +59,51 @@ acquire_rat_jar () {
     # We failed to download
     rm "$JAR"
     printf "Our attempt to download rat locally to ${JAR} failed. Please install rat manually.\n"
-    exit -1
+    return -1
   fi
   printf "Done downloading.\n"
+
+  set +e
 }
 
-# Go to the Airflow project root directory
-FWDIR="$(cd "`dirname "$0"`"/../..; pwd)"
-cd "$FWDIR"
+run_rat () {
 
-TMP_DIR=/tmp
+    if test -x $DEFAULT_JAVA_CMD; then
+        declare -r java_cmd=$DEFAULT_JAVA_CMD
+    else
+        declare -r java_cmd=java
+    fi
 
-if test -x "$JAVA_HOME/bin/java"; then
-    declare java_cmd="$JAVA_HOME/bin/java"
-else
-    declare java_cmd=java
-fi
+    # This is the target of a symlink in airflow/www/static/docs - and rat exclude doesn't cope with the symlink target doesn't exist
+    mkdir -p docs/_build/html/
 
-export RAT_VERSION=0.12
-export rat_jar="${TMP_DIR}"/lib/apache-rat-${RAT_VERSION}.jar
-mkdir -p ${TMP_DIR}/lib
+    echo "Running license checks. This can take a while."
+    $java_cmd -jar "$rat_jar" -E "$FWDIR"/.rat-excludes  -d "$FWDIR" > rat-results.txt
 
+    if [ $? -ne 0 ]; then
+       echo "RAT exited abnormally"
+       exit 1
+    fi
 
-[[ -f "$rat_jar" ]] || acquire_rat_jar || {
-    echo "Download failed. Obtain the rat jar manually and place it at $rat_jar"
-    exit 1
+    ERRORS="$(cat rat-results.txt | grep -e "??")"
+
+    if test ! -z "$ERRORS"; then
+        echo >&2 "Could not find Apache license headers in the following files:"
+        echo >&2 "$ERRORS"
+        exit 1
+    else
+        echo -e "RAT checks passed."
+    fi
+
 }
 
-# This is the target of a symlink in airflow/www/static/docs - and rat exclude doesn't cope with the symlink target doesn't exist
-mkdir -p docs/_build/html/
+declare -r ACTION=${1:-install_run}
 
-echo "Running license checks. This can take a while."
-$java_cmd -jar "$rat_jar" -E "$FWDIR"/.rat-excludes  -d "$FWDIR" > rat-results.txt
-
-if [ $? -ne 0 ]; then
-   echo "RAT exited abnormally"
-   exit 1
+if [[ "${ACTION,,}" == *"install"* ]]; then
+    acquire_rat_jar
 fi
 
-ERRORS="$(cat rat-results.txt | grep -e "??")"
-
-if test ! -z "$ERRORS"; then
-    echo >&2 "Could not find Apache license headers in the following files:"
-    echo >&2 "$ERRORS"
-    exit 1
-else
-    echo -e "RAT checks passed."
+if [[ "${ACTION,,}" == *"run"* ]]; then
+    run_rat
 fi
+
