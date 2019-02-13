@@ -97,6 +97,14 @@ looks like:
         appbuilder_views = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_menu_items = []
+        # A callback to perform actions when airflow starts and the plugin is loaded.
+        # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
+        #   to protect against extra parameters injected into the on_load(...)
+        #   function in future changes
+        def on_load(*args, **kwargs):
+           # ... perform Plugin boot actions
+           pass
+
 
 
 
@@ -232,7 +240,7 @@ It is possible to load plugins via `setuptools entrypoint <https://packaging.pyt
 your plugin using an entrypoint in your package. If the package is installed, airflow
 will automatically load the registered plugins from the entrypoint list.
 
-.. note:: 
+.. note::
     Neither the entrypoint name (eg, `my_plugin`) nor the name of the
     plugin class will contribute towards the module and class name of the plugin
     itself. The structure is determined by
