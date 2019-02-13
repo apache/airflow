@@ -25,7 +25,7 @@ class AirflowPluginDagSource(object):
     """
     __metaclass__ = ABCMeta
 
-    name = None  # type: basestring
+    name = None  # type: str
 
     def __init__(self, config=None):
         self._config = config

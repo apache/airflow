@@ -201,17 +201,21 @@ for p in plugins:
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
 
     admin_views.extend(p.admin_views)
-    dag_sources.extend(
-        [src(configuration.conf) for src in p.dag_sources])
-    flask_blueprints.extend(p.flask_blueprints)
+    dag_sources.extend([
+        src(configuration.conf)
+        for src in p.dag_sources
+    ])
     menu_links.extend(p.menu_links)
     flask_appbuilder_views.extend(p.appbuilder_views)
     flask_appbuilder_menu_links.extend(p.appbuilder_menu_items)
-    flask_blueprints.extend([{
-        'name': p.name,
-        'blueprint': bp
-    } for bp in p.flask_blueprints])
-    if p.stat_name_handler:
+    flask_blueprints.extend([
+        {
+            'name': p.name,
+            'blueprint': bp
+        } for bp in p.flask_blueprints
+    ])
+
+if p.stat_name_handler:
         stat_name_handlers.append(p.stat_name_handler)
 
 if len(stat_name_handlers) > 1:
@@ -220,3 +224,4 @@ if len(stat_name_handlers) > 1:
         'is not allowed.'.format(stat_name_handlers))
 
 stat_name_handler = stat_name_handlers[0] if len(stat_name_handlers) == 1 else None
+
