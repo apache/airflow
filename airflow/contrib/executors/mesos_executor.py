@@ -19,9 +19,6 @@
 
 from future import standard_library
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-
 from builtins import str
 from queue import Queue
 
