@@ -75,10 +75,11 @@ def execute_command(command_to_exec):
 class ExceptionWithTraceback(object):
     """
     Wrapper class used to propagate exceptions to parent processes from subprocesses.
+
     :param exception: The exception to wrap
     :type exception: Exception
-    :param traceback: The stacktrace to wrap
-    :type traceback: str
+    :param exception_traceback: The stacktrace to wrap
+    :type exception_traceback: str
     """
 
     def __init__(self, exception, exception_traceback):
@@ -90,11 +91,12 @@ def fetch_celery_task_state(celery_task):
     """
     Fetch and return the state of the given celery task. The scope of this function is
     global so that it can be called by subprocesses in the pool.
+
     :param celery_task: a tuple of the Celery task key and the async Celery object used
-                        to fetch the task's state
+        to fetch the task's state
     :type celery_task: tuple(str, celery.result.AsyncResult)
     :return: a tuple of the Celery task key and the Celery state of the task
-    :rtype: luple[str, str]
+    :rtype: tuple[str, str]
     """
 
     try:

@@ -43,6 +43,8 @@ class CloudSqlExampleDagsIntegrationTest(DagGcpSystemTestCase):
         # Delete instances just in case the test failed and did not cleanup after itself
         self.gcp_authenticator.gcp_authenticate()
         try:
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-failover-replica")
+            SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="-read-replica")
             SQL_QUERY_TEST_HELPER.delete_instances()
             SQL_QUERY_TEST_HELPER.delete_instances(instance_suffix="2")
             SQL_QUERY_TEST_HELPER.delete_service_account_acls()

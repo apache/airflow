@@ -205,6 +205,10 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceCreateOperator`
+
     :param body: Body required by the Cloud SQL insert API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert
         #request-body
@@ -278,6 +282,10 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
     to the rules of patch semantics.
     https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstancePatchOperator`
+
     :param body: Body required by the Cloud SQL patch API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body
     :type body: dict
@@ -329,6 +337,10 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
     """
     Deletes a Cloud SQL instance.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDeleteOperator`
+
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
     :param project_id: Optional, Google Cloud Platform Project ID. If set to None or missing,
@@ -368,6 +380,10 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
 class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
     """
     Creates a new database inside a Cloud SQL instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDatabaseCreateOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
@@ -438,6 +454,10 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
     instance using patch semantics.
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDatabasePatchOperator`
+
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
     :param database: Name of the database to be updated in the instance.
@@ -507,6 +527,10 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
     """
     Deletes a database from a Cloud SQL instance.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceDatabaseDeleteOperator`
+
     :param instance: Database instance ID. This does not include the project ID.
     :type instance: str
     :param database: Name of the database to be deleted in the instance.
@@ -562,6 +586,10 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
 
     Note: This operator is idempotent. If executed multiple times with the same
     export file URI, the export file in GCS will simply be overridden.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceImportOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
@@ -635,6 +663,10 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
     If the import file was generated in a different way, idempotence is not guaranteed.
     It has to be ensured on the SQL file level.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlInstanceImportOperator`
+
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :type instance: str
     :param body: The request body, as described in
@@ -691,6 +723,10 @@ class CloudSqlQueryOperator(BaseOperator):
     """
     Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
     cloud-sql-proxy to establish secure connection with the database.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSqlQueryOperator`
 
     :param sql: SQL query or list of queries to run (should be DML or DDL query -
         this operator does not return any data from the database,

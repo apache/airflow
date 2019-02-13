@@ -603,13 +603,12 @@ def next_execution(args):
 
 @cli_utils.action_logging
 def rotate_fernet_key(args):
-    session = settings.Session()
-    for conn in session.query(Connection).filter(
-            Connection.is_encrypted | Connection.is_extra_encrypted):
-        conn.rotate_fernet_key()
-    for var in session.query(Variable).filter(Variable.is_encrypted):
-        var.rotate_fernet_key()
-    session.commit()
+    with db.create_session() as session:
+        for conn in session.query(Connection).filter(
+                Connection.is_encrypted | Connection.is_extra_encrypted):
+            conn.rotate_fernet_key()
+        for var in session.query(Variable).filter(Variable.is_encrypted):
+            var.rotate_fernet_key()
 
 
 @cli_utils.action_logging
@@ -917,6 +916,7 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
+            '-c', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
