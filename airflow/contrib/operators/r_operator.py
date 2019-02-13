@@ -48,13 +48,11 @@ class ROperator(BaseOperator):
     def __init__(
             self,
             r_command,
-            xcom_push=False,
             output_encoding='utf-8',
             *args, **kwargs):
 
         super(ROperator, self).__init__(*args, **kwargs)
         self.r_command = r_command
-        self.xcom_push = xcom_push
         self.output_encoding = output_encoding
 
     def execute(self, context):
@@ -79,7 +77,7 @@ class ROperator(BaseOperator):
                     self.log.error("Received R error: %s", e)
                     res = None
 
-        if self.xcom_push and res:
+        if self.do_xcom_push and res:
             # This will be a pickled rpy2.robjects.vectors.ListVector
             self.log.info('Pushing last line of output to Xcom: \n %s', res)
             return res
