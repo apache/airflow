@@ -25,17 +25,18 @@ cd "$FWDIR"
 
 [ -d _build ] && rm -r _build
 
-NUM_IGNORED_WARNINGS=4
-NUM_CURRENT_WARNINGS=$(make html |\
+SUCCEED_LINE=$(make html |\
     tee /dev/tty |\
     grep 'build succeeded' |\
-    head -1 |\
-    sed -E 's/build succeeded, ([0-9]+) warnings\./\1/g')
+    head -1)
 
-if [ "${NUM_CURRENT_WARNINGS}" != "${NUM_IGNORED_WARNINGS}" ]; then
+NUM_CURRENT_WARNINGS=$(echo $SUCCEED_LINE |\
+    sed -E 's/build succeeded, ([0-9]+) warnings?\./\1/g')
+
+if echo $SUCCEED_LINE | grep -q "warning"; then
     echo
     echo "Unexpected problems found in the documentation. "
-    echo "Currently, ${NUM_IGNORED_WARNINGS} warnings are ignored."
+    echo "Currently, ${NUM_CURRENT_WARNINGS} warnings found"
     echo
     exit 1
 fi
