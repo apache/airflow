@@ -2757,7 +2757,8 @@ class DAG(BaseDag, LoggingMixin):
             sla_miss_callback=None,
             orientation=configuration.get('webserver', 'dag_orientation'),
             catchup=configuration.getboolean('scheduler', 'catchup_by_default'),
-            params=None):
+            params=None,
+            access_control=None):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -2815,6 +2816,17 @@ class DAG(BaseDag, LoggingMixin):
             'template_searchpath',
             'last_loaded',
         }
+
+        # We don't actually do anything with this parameter - it's
+        # here only for the sake of forwards-compatibility on TARS
+        # with Airflow 2.0.0.dev0+. Otherwise, DAGs that are using
+        # Airflow 2.0 (e.g., Enterprise Data Warehouses DAGs will get
+        # TypeErrors like: '__init__() got an unexpected keyword
+        # argument'
+        if access_control:
+            # just make sure it looks like a dict
+            for role, perms in access_control.items():
+                pass
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
