@@ -4477,11 +4477,12 @@ class DagRun(Base, LoggingMixin):
         ).first()
 
     @provide_session
-    def update_state(self, session=None):
+    def update_state(self, session=None, finished_tasks=None):
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
 
+        :param finished_tasks: The finished tasks collected ordered by dagrun as a column (task_name, state)
         :return: State
         """
 
@@ -4520,7 +4521,8 @@ class DagRun(Base, LoggingMixin):
                     dep_context=DepContext(
                         flag_upstream_failed=True,
                         ignore_in_retry_period=True,
-                        ignore_in_reschedule_period=True),
+                        ignore_in_reschedule_period=True,
+                        finished_tasks=finished_tasks),
                     session=session)
                 if deps_met or old_state != ut.current_state(session=session):
                     no_dependencies_met = False

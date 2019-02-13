@@ -49,33 +49,49 @@ class TriggerRuleDep(BaseTIDep):
             yield self._passing_status(reason="The task had a dummy trigger rule set.")
             return
 
-        # TODO(unknown): this query becomes quite expensive with dags that have many
-        # tasks. It should be refactored to let the task report to the dag run and get the
-        # aggregates from there.
-        qry = (
-            session
-            .query(
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.FAILED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
-                func.count(TI.task_id),
+        successes, skipped, failed, upstream_failed, done = 0, 0, 0, 0, 0
+        if dep_context.finished_tasks is None:
+            qry = (
+                session
+                .query(
+                    func.coalesce(func.sum(
+                        case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
+                    func.coalesce(func.sum(
+                        case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
+                    func.coalesce(func.sum(
+                        case([(TI.state == State.FAILED, 1)], else_=0)), 0),
+                    func.coalesce(func.sum(
+                        case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
+                    func.count(TI.task_id),
+                )
+                .filter(
+                    TI.dag_id == ti.dag_id,
+                    TI.task_id.in_(ti.task.upstream_task_ids),
+                    TI.execution_date == ti.execution_date,
+                    TI.state.in_([
+                        State.SUCCESS, State.FAILED,
+                        State.UPSTREAM_FAILED, State.SKIPPED]),
+                )
             )
-            .filter(
-                TI.dag_id == ti.dag_id,
-                TI.task_id.in_(ti.task.upstream_task_ids),
-                TI.execution_date == ti.execution_date,
-                TI.state.in_([
-                    State.SUCCESS, State.FAILED,
-                    State.UPSTREAM_FAILED, State.SKIPPED]),
-            )
-        )
+            successes, skipped, failed, upstream_failed, done = qry.first()
+        else:
+            # see if the task name is in the task upstream for our task
+            upstream_tasks = [task_status for task_status in dep_context.finished_tasks
+                              if task_status[0] in ti.task.upstream_task_ids]
+            from itertools import groupby
+            if upstream_tasks:
+                upstream_tasks_sorted = sorted(upstream_tasks, key=lambda x: x[1])
+                for k, g in groupby(upstream_tasks_sorted, key=lambda x: x[1]):
+                    if k == 'success':
+                        successes = len(list(g))
+                    elif k == 'skipped':
+                        skipped = len(list(g))
+                    elif k == 'failed':
+                        failed = len(list(g))
+                    elif k == 'upstream_failed':
+                        upstream_failed = len(list(g))
+                done = len(upstream_tasks_sorted)
 
-        successes, skipped, failed, upstream_failed, done = qry.first()
         for dep_status in self._evaluate_trigger_rule(
                 ti=ti,
                 successes=successes,
