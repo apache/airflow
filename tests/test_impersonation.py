@@ -49,6 +49,8 @@ class ImpersonationTest(unittest.TestCase):
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
+        for name in self.dagbag.dags:
+            self.dagbag.get_dag(name).sync_to_db()
         logger.info('Loaded DAGS:')
         logger.info(self.dagbag.dagbag_report())
 

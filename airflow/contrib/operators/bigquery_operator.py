@@ -96,7 +96,7 @@ class BigQueryOperator(BaseOperator):
     :param cluster_fields: Request that the result of this query be stored sorted
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
-    :type cluster_fields: list of str
+    :type cluster_fields: list[str]
     :param location: The geographic location of the job. Required except for
         US and EU. See details at
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location

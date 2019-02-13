@@ -131,14 +131,17 @@ async_packages = [
     'gevent>=0.13'
 ]
 atlas = ['atlasclient>=0.1.2']
-azure_blob_storage = ['azure-storage>=0.34.0']
-azure_data_lake = [
+aws = [
+    'boto3>=1.7.0, <1.8.0',
+]
+azure = [
+    'azure-storage>=0.34.0',
     'azure-mgmt-resource==1.2.2',
     'azure-mgmt-datalake-store==0.4.0',
-    'azure-datalake-store==0.0.19'
+    'azure-datalake-store==0.0.19',
+    'azure-cosmos>=3.0.1',
+    'azure-mgmt-containerinstance',
 ]
-azure_cosmos = ['azure-cosmos>=3.0.1']
-azure_container_instances = ['azure-mgmt-containerinstance']
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery>=4.1.1, <4.2.0',
@@ -156,7 +159,6 @@ dask = [
 databricks = ['requests>=2.20.0, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
-    'mock',
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
     'sphinx-rtd-theme>=0.1.6',
@@ -169,7 +171,6 @@ elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
-emr = ['boto3>=1.0.0, <1.8.0']
 gcp_api = [
     'httplib2>=0.9.2',
     'google-api-python-client>=1.6.0, <2.0.0dev',
@@ -190,7 +191,7 @@ hive = [
     'pyhive>=0.6.0',
 ]
 jdbc = ['jaydebeapi>=1.1.1']
-jenkins = ['python-jenkins>=0.4.15']
+jenkins = ['python-jenkins>=1.0.0']
 jira = ['JIRA>1.0.7']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
@@ -206,12 +207,11 @@ password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
 ]
-pinot = ['pinotdb>=0.1.1']
+pinot = ['pinotdb==0.1.1']
 postgres = ['psycopg2>=2.7.4']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis>=2.10.5,<3.0.0']
-s3 = ['boto3>=1.7.0, <1.8.0']
 salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
@@ -249,19 +249,19 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
+    'typing',
 ]
 
 if not PY3:
     devel += ['unittest2']
 
-devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
+devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_azure = devel_minreq + azure_data_lake + azure_cosmos
-devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
+devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
+             docker + ssh + kubernetes + celery + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
-             atlas + azure_container_instances)
+             druid + pinot + segment + snowflake + elasticsearch +
+             atlas + azure + aws)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -291,9 +291,9 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'enum34~=1.1.6',
+            'enum34~=1.1.6;python_version<"3.4"',
             'flask>=0.12.4, <0.13',
-            'flask-appbuilder==1.12.1',
+            'flask-appbuilder==1.12.3',
             'flask-admin==1.5.2',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
@@ -318,7 +318,7 @@ def do_setup():
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
-            'tenacity==4.8.0',
+            'tenacity==4.12.0',
             'text-unidecode==1.2',  # Avoid GPL dependency, pip uses reverse order(!)
             'thrift>=0.9.2',
             'tzlocal>=1.4',
@@ -335,10 +335,8 @@ def do_setup():
             'all_dbs': all_dbs,
             'atlas': atlas,
             'async': async_packages,
-            'azure_blob_storage': azure_blob_storage,
-            'azure_data_lake': azure_data_lake,
-            'azure_cosmos': azure_cosmos,
-            'azure_container_instances': azure_container_instances,
+            'aws': aws,
+            'azure': azure,
             'cassandra': cassandra,
             'celery': celery,
             'cgroups': cgroups,
@@ -349,12 +347,10 @@ def do_setup():
             'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
-            'devel_azure': devel_azure,
             'doc': doc,
             'docker': docker,
             'druid': druid,
             'elasticsearch': elasticsearch,
-            'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
             'google_auth': google_auth,
@@ -375,7 +371,6 @@ def do_setup():
             'qds': qds,
             'rabbitmq': rabbitmq,
             'redis': redis,
-            's3': s3,
             'salesforce': salesforce,
             'samba': samba,
             'sendgrid': sendgrid,

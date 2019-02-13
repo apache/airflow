@@ -106,6 +106,7 @@ class TestStandardTaskRunner(unittest.TestCase):
             include_examples=False,
         )
         dag = dagbag.dags.get('test_on_kill')
+        dag.sync_to_db()
         task = dag.get_task('task1')
 
         session = settings.Session()

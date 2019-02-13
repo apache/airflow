@@ -67,6 +67,7 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         :param job: MLEngine Job object that should be provided to the MLEngine
             API, such as: ::
+
                 {
                   'jobId': 'my_job_id',
                   'trainingInput': {
@@ -74,6 +75,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                     ...
                   }
                 }
+
         :type job: dict
 
         :param use_existing_job_fn: In case that a MLEngine job with the same

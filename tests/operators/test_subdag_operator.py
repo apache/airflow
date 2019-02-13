@@ -131,6 +131,7 @@ class SubDagOperatorTests(unittest.TestCase):
     def test_subdag_deadlock(self):
         dagbag = DagBag()
         dag = dagbag.get_dag('test_subdag_deadlock')
+        dag.sync_to_db()
         dag.clear()
         subdag = dagbag.get_dag('test_subdag_deadlock.subdag')
         subdag.clear()

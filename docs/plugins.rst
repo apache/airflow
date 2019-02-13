@@ -228,15 +228,16 @@ the fields appbuilder_views and appbuilder_menu_items were added to the AirflowT
 Plugins as Python packages
 --------------------------
 
-It is possible to load plugins via `setuptools' entrypoint<https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_ mechanism. To do this link
+It is possible to load plugins via `setuptools entrypoint <https://packaging.python.org/guides/creating-and-discovering-plugins/#using-package-metadata>`_ mechanism. To do this link
 your plugin using an entrypoint in your package. If the package is installed, airflow
 will automatically load the registered plugins from the entrypoint list.
 
-_Note_: Neither the entrypoint name (eg, `my_plugin`) nor the name of the
-plugin class will contribute towards the module and class name of the plugin
-itself. The structure is determined by
-`airflow.plugins_manager.AirflowPlugin.name` and the class name of the plugin
-component with the pattern `airflow.{component}.{name}.{component_class_name}`.
+.. note:: 
+    Neither the entrypoint name (eg, `my_plugin`) nor the name of the
+    plugin class will contribute towards the module and class name of the plugin
+    itself. The structure is determined by
+    `airflow.plugins_manager.AirflowPlugin.name` and the class name of the plugin
+    component with the pattern `airflow.{component}.{name}.{component_class_name}`.
 
 .. code-block:: python
 
@@ -271,7 +272,6 @@ component with the pattern `airflow.{component}.{name}.{component_class_name}`.
         }
     )
 
-::
 
 This will create a hook, and an operator accessible at:
  - `airflow.hooks.my_namespace.MyHook`

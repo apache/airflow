@@ -81,6 +81,7 @@ class ExternalTaskSensorTests(unittest.TestCase):
             default_args=self.args,
             end_date=DEFAULT_DATE,
             schedule_interval='@once')
+        other_dag.sync_to_db()
         other_dag.create_dagrun(
             run_id='test',
             start_date=DEFAULT_DATE,

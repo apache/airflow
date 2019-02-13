@@ -21,18 +21,19 @@ import copy
 import io
 import json
 import logging.config
-import mock
 import os
 import shutil
 import sys
 import tempfile
 import unittest
 import urllib
-
 from datetime import timedelta
+from urllib.parse import quote_plus
+
+import mock
+from flask import url_for
 from flask._compat import PY2
 from parameterized import parameterized
-from urllib.parse import quote_plus
 from werkzeug.test import Client
 
 from airflow import configuration as conf
@@ -308,8 +309,11 @@ class TestAirflowBaseViews(TestBase):
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
         self.bash_dag = dagbag.dags['example_bash_operator']
+        self.bash_dag.sync_to_db()
         self.sub_dag = dagbag.dags['example_subdag_operator']
+        self.sub_dag.sync_to_db()
         self.xcom_dag = dagbag.dags['example_xcom']
+        self.xcom_dag.sync_to_db()
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_id=self.run_id,
@@ -410,6 +414,15 @@ class TestAirflowBaseViews(TestBase):
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('XCom', resp)
+
+    def test_edit_dagrun_page(self):
+        resp = self.client.get('dagmodel/edit/example_bash_operator', follow_redirects=False)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_edit_dagrun_url(self):
+        with self.app.test_request_context():
+            url = url_for('DagModelView.edit', pk='example_bash_operator')
+            self.assertEqual(url, '/dagmodel/edit/example_bash_operator')
 
     def test_rendered(self):
         url = ('rendered?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
@@ -516,6 +529,11 @@ class TestAirflowBaseViews(TestBase):
     def test_refresh(self):
         resp = self.client.get('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
+
+    def test_refresh_all(self):
+        resp = self.client.get("/refresh_all",
+                               follow_redirects=True)
+        self.check_content_in_response('', resp, resp_code=200)
 
     def test_delete_dag_button_normal(self):
         resp = self.client.get('/', follow_redirects=True)
@@ -728,8 +746,13 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
     def setUp(self):
         from airflow.www.views import dagbag
         from airflow.utils.state import State
+        with create_session() as session:
+            session.query(models.DagRun).filter(models.DagRun.dag_id == self.DAG_ID).delete()
+            session.query(models.dag_edge.DagEdge).delete()
+            session.query(models.TaskInstance).delete()
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        dag.sync_to_db()
         self.runs = []
         for rd in self.RUNS_DATA:
             run = dag.create_dagrun(
@@ -1034,6 +1057,17 @@ class TestDagACLView(TestBase):
                 email='test_user@fab.org',
                 role=role_user,
                 password='test_user')
+
+        role_viewer = self.appbuilder.sm.find_role('User')
+        test_viewer = self.appbuilder.sm.find_user(username='test_viewer')
+        if not test_viewer:
+            self.appbuilder.sm.add_user(
+                username='test_viewer',
+                first_name='test_viewer',
+                last_name='test_viewer',
+                email='test_viewer@fab.org',
+                role=role_viewer,
+                password='test_viewer')
 
         dag_acl_role = self.appbuilder.sm.add_role('dag_acl_tester')
         dag_tester = self.appbuilder.sm.find_user(username='dag_tester')
@@ -1521,6 +1555,14 @@ class TestDagACLView(TestBase):
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('"message":', resp)
         self.check_content_in_response('"metadata":', resp)
+
+    def test_tree_view_for_viewer(self):
+        self.logout()
+        self.login(username='test_viewer',
+                   password='test_viewer')
+        url = 'tree?dag_id=example_bash_operator'
+        resp = self.client.get(url, follow_redirects=True)
+        self.check_content_in_response('runme_1', resp)
 
 
 class TestTaskInstanceView(TestBase):

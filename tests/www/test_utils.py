@@ -94,7 +94,7 @@ class UtilsTest(unittest.TestCase):
 
     def test_params_no_values(self):
         """Should return an empty string if no params are passed"""
-        self.assertEquals('', utils.get_params())
+        self.assertEqual('', utils.get_params())
 
     def test_params_search(self):
         self.assertEqual('search=bash_',

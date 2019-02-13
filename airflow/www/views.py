@@ -54,8 +54,13 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import XCom, DagRun, errors
+from airflow.models import DagRun, errors
 from airflow.models.connection import Connection
+from airflow.models.log import Log
+from airflow.models.slamiss import SlaMiss
+from airflow.models.taskfail import TaskFail
+from airflow.models.xcom import XCom
+from airflow import configuration
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -88,7 +93,10 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     if dttm:
         dttm = pendulum.parse(dttm)
     else:
-        dttm = dag.latest_execution_date or timezone.utcnow()
+        execution_date = session.query(sqla.func.max(DagRun.execution_date)).filter(
+            DagRun.dag_id == dag.dag_id
+        ).scalar()
+        dttm = execution_date or timezone.utcnow()
 
     base_date = request.args.get('base_date')
     if base_date:
@@ -916,10 +924,16 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
-        dag = dagbag.get_dag(dag_id)
+        orm_dag = models.DagModel.get_dagmodel(dag_id)
+        if not orm_dag:
+            flash("Dag '{}' does not exist".format(dag_id), 'error')
+            return redirect(origin)
+        dag = orm_dag.get_dag()
+        if task_id not in dag.task_dict:
+            flash("Task '{}' does not exist in '{}' anymore".format(task_id, orm_dag.fileloc), 'error')
+            return redirect(origin)
 
-        execution_date = request.args.get('execution_date')
-        execution_date = pendulum.parse(execution_date)
+        execution_date = pendulum.parse(request.args.get('execution_date'))
         confirmed = request.args.get('confirmed') == "true"
         upstream = request.args.get('upstream') == "true"
         downstream = request.args.get('downstream') == "true"
@@ -945,11 +959,11 @@ class Airflow(AirflowBaseView):
     def dagrun_clear(self):
         dag_id = request.args.get('dag_id')
         origin = request.args.get('origin')
-        execution_date = request.args.get('execution_date')
         confirmed = request.args.get('confirmed') == "true"
 
-        dag = dagbag.get_dag(dag_id)
-        execution_date = pendulum.parse(execution_date)
+        orm_dag = models.DagModel.get_dagmodel(dag_id)
+        dag = orm_dag.get_dag()
+        execution_date = pendulum.parse(request.args.get('execution_date'))
         start_date = execution_date
         end_date = execution_date
 
@@ -1289,24 +1303,30 @@ class Airflow(AirflowBaseView):
     def graph(self, session=None):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
-        dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
-
         root = request.args.get('root')
         if root:
-            dag = dag.sub_dag(
-                task_regex=root,
-                include_upstream=True,
-                include_downstream=False)
+            show_dag_id = root
+        else:
+            show_dag_id = dag_id
+        dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
+        if not dag:
+            flash('DAG "{0}" seems to be missing.'.format(show_dag_id), "error")
+            return redirect('/admin/')
 
-        arrange = request.args.get('arrange', dag.orientation)
+        arrange = request.args.get('arrange', configuration.conf.get('webserver', 'dag_orientation'))
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dt_nr_dr_data['arrange'] = arrange
+        dttm = dt_nr_dr_data['dttm']
 
-        nodes = []
-        edges = []
-        for task in dag.tasks:
-            nodes.append({
+        dag_run = session.query(models.DagRun) \
+            .filter(models.DagRun.dag_id == show_dag_id) \
+            .filter(models.DagRun.execution_date == dttm).one()
+
+        task_instances = session.query(models.TaskInstance)\
+            .filter(models.TaskInstance.dag_id == show_dag_id)\
+            .filter(models.TaskInstance.execution_date == dttm).all()
+        nodes = [
+            {
                 'id': task.task_id,
                 'value': {
                     'label': task.task_id,
@@ -1315,24 +1335,20 @@ class Airflow(AirflowBaseView):
                     'rx': 5,
                     'ry': 5,
                 }
-            })
+            }
+            for task in task_instances
+        ]
 
-        def get_upstream(task):
-            for t in task.upstream_list:
-                edge = {
-                    'u': t.task_id,
-                    'v': task.task_id,
-                }
-                if edge not in edges:
-                    edges.append(edge)
-                    get_upstream(t)
-
-        for t in dag.roots:
-            get_upstream(t)
-
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-        dt_nr_dr_data['arrange'] = arrange
-        dttm = dt_nr_dr_data['dttm']
+        edge_query = session.query(models.DagEdge) \
+            .filter(models.DagEdge.dag_id == show_dag_id) \
+            .filter(models.DagEdge.graph_id == dag_run.graph_id)
+        edges = [
+            {
+                'u': edge.to_task,
+                'v': edge.from_task,
+            }
+            for edge in edge_query
+        ]
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
@@ -1345,20 +1361,25 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        task_instances = {
+        task_instances_dict = {
             ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(session, dttm, dttm)}
+            for ti in task_instances}
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
-                'task_type': t.task_type,
+                'task_type': t.operator,
             }
-            for t in dag.tasks}
+            for t in task_instances}
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
+
+        unique_ops = {
+            op.operator: {"name": op.operator, "ui_color": op.ui_color, "ui_fgcolor": op.ui_fgcolor}
+            for op in task_instances
+        }.values()
 
         return self.render(
             'airflow/graph.html',
@@ -1370,13 +1391,10 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
+            operators=unique_ops,
             blur=blur,
             root=root or '',
-            task_instances=json.dumps(task_instances, indent=2),
+            task_instances=json.dumps(task_instances_dict, indent=2),
             tasks=json.dumps(tasks, indent=2),
             nodes=json.dumps(nodes, indent=2),
             edges=json.dumps(edges, indent=2), )
@@ -1425,7 +1443,7 @@ class Airflow(AirflowBaseView):
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
-        TF = models.TaskFail
+        TF = TaskFail
         ti_fails = (
             session.query(TF)
                    .filter(TF.dag_id == dag.dag_id,
@@ -1656,7 +1674,6 @@ class Airflow(AirflowBaseView):
         session.merge(orm_dag)
         session.commit()
 
-        dagbag.get_dag(dag_id)
         return "OK"
 
     @expose('/refresh')
@@ -1675,10 +1692,10 @@ class Airflow(AirflowBaseView):
             session.merge(orm_dag)
         session.commit()
 
+        dag = dagbag.get_dag(dag_id)
         # sync dag permission
-        appbuilder.sm.sync_perm_for_dag(dag_id)
+        appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
 
-        dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
@@ -1688,7 +1705,8 @@ class Airflow(AirflowBaseView):
     def refresh_all(self):
         dagbag.collect_dags(only_if_updated=False)
         # sync permissions for all dags
-        appbuilder.sm.sync_perm_for_dag()
+        for dag_id, dag in dagbag.dags.items():
+            appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
         flash("All DAGs are now up to date")
         return redirect('/')
 
@@ -1719,7 +1737,7 @@ class Airflow(AirflowBaseView):
             ti for ti in dag.get_task_instances(session, dttm, dttm)
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
-        TF = models.TaskFail
+        TF = TaskFail
         ti_fails = list(itertools.chain(*[(
             session
             .query(TF)
@@ -1884,7 +1902,7 @@ class AirflowModelView(ModelView):
 class SlaMissModelView(AirflowModelView):
     route_base = '/slamiss'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.SlaMiss)
+    datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)
 
     base_permissions = ['can_list']
 
@@ -1906,7 +1924,7 @@ class SlaMissModelView(AirflowModelView):
 class XComModelView(AirflowModelView):
     route_base = '/xcom'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.XCom)
+    datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
@@ -2275,7 +2293,7 @@ class DagRunModelView(AirflowModelView):
 class LogModelView(AirflowModelView):
     route_base = '/log'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.Log)
+    datamodel = AirflowModelView.CustomSQLAInterface(Log)
 
     base_permissions = ['can_list']
 
@@ -2356,7 +2374,7 @@ class TaskInstanceModelView(AirflowModelView):
                 tis.append(ti)
 
             for dag, tis in dag_to_tis.items():
-                models.clear_task_instances(tis, session, dag=dag)
+                models.TaskInstance.clear_task_instances(tis, session, dag=dag)
 
             session.commit()
             flash("{0} task instances have been cleared".format(len(tis)))
@@ -2424,7 +2442,7 @@ class DagModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagModel)
 
-    base_permissions = ['can_list', 'can_show']
+    base_permissions = ['can_list', 'can_show', 'can_edit']
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']

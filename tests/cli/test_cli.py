@@ -175,6 +175,8 @@ class TestCLI(unittest.TestCase):
 
     def test_test(self):
         """Test the `airflow test` command"""
+        dag = models.DagBag(include_examples=True).get_dag("example_python_operator")
+        dag.sync_to_db()
         args = create_mock_args(
             task_id='print_the_context',
             dag_id='example_python_operator',
@@ -185,12 +187,12 @@ class TestCLI(unittest.TestCase):
         saved_stdout = sys.stdout
         try:
             sys.stdout = out = StringIO()
-            cli.test(args)
+            cli.test(args, dag)
 
             output = out.getvalue()
             # Check that prints, and log messages, are shown
-            self.assertIn('Done. Returned value was: Whatever you return gets printed in the logs',
-                          output)
+            self.assertIn("END_DATE", output)
+            self.assertIn("2018-01-01", output)
             self.assertIn("'example_python_operator__print_the_context__20180101'",
                           output)
         finally:
@@ -237,6 +239,7 @@ class TestCLI(unittest.TestCase):
 
         for i in range(len(dag_ids)):
             dag_id = dag_ids[i]
+            dagbag.get_dag(dag_id).sync_to_db()
 
             # Clear dag run so no execution history fo each DAG
             reset_dr_db(dag_id)

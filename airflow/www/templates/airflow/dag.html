@@ -95,7 +95,7 @@
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin="/tree?dag_id="+dag.dag_id) }}"
+        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=request.base_url ) }}"
           onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
           <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
           Trigger DAG
@@ -521,7 +521,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $('#btn_edit_dagrun').click(function() {
-      window.location = "{{ url_for('DagModelView.show', pk=dag.dag_id) }}";
+      window.location = "{{ url_for('DagModelView.edit', pk=dag.dag_id) }}";
     });
 
   </script>

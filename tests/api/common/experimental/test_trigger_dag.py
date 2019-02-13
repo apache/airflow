@@ -93,6 +93,7 @@ class TriggerDagTests(unittest.TestCase):
     def test_trigger_dag_with_str_conf(self, dag_bag_mock):
         dag_id = "trigger_dag_with_str_conf"
         dag = DAG(dag_id)
+        dag.sync_to_db()
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         conf = "{\"foo\": \"bar\"}"
@@ -106,12 +107,13 @@ class TriggerDagTests(unittest.TestCase):
             execution_date=None,
             replace_microseconds=True)
 
-        self.assertEquals(triggers[0].conf, json.loads(conf))
+        self.assertEqual(triggers[0].conf, json.loads(conf))
 
     @mock.patch('airflow.models.DagBag')
     def test_trigger_dag_with_dict_conf(self, dag_bag_mock):
         dag_id = "trigger_dag_with_dict_conf"
         dag = DAG(dag_id)
+        dag.sync_to_db()
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         conf = dict(foo="bar")
@@ -125,7 +127,7 @@ class TriggerDagTests(unittest.TestCase):
             execution_date=None,
             replace_microseconds=True)
 
-        self.assertEquals(triggers[0].conf, conf)
+        self.assertEqual(triggers[0].conf, conf)
 
 
 if __name__ == '__main__':
