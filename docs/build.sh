@@ -32,7 +32,7 @@ NUM_CURRENT_WARNINGS=$(make html |\
     head -1 |\
     sed -E 's/build succeeded, ([0-9]+) warnings\./\1/g')
 
-if [ "${NUM_CURRENT_WARNINGS}" != "${NUM_IGNORED_WARNINGS}" ]; then
+if [ "${NUM_CURRENT_WARNINGS}" -lt "${NUM_IGNORED_WARNINGS}" ]; then
     echo
     echo "Unexpected problems found in the documentation. "
     echo "Currently, ${NUM_IGNORED_WARNINGS} warnings are ignored."
