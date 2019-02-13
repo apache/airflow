@@ -50,7 +50,7 @@ export AIRFLOW__CORE__UNIT_TEST_MODE=True
 nose_args=$@
 
 # Generate the `airflow` executable if needed
-which airflow > /dev/null || python setup.py develop
+which airflow > /dev/null || pip install -e .
 
 # For impersonation tests on Travis, make airflow accessible to other users via the global PATH
 # (which contains /usr/local/bin)
@@ -78,7 +78,7 @@ if [ -z "$nose_args" ]; then
   --rednose \
   --with-timer \
   -v \
-  --logging-level=INFO"
+  --logging-level=DEBUG"
 fi
 
 if [ -z "$KUBERNETES_VERSION" ]; then
