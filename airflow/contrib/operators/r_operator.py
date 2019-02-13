@@ -31,10 +31,6 @@ class ROperator(BaseOperator):
     :param r_command: The command or a reference to an R script (must have
         '.r' extension) to be executed (templated)
     :type r_command: string
-    :param xcom_push: If xcom_push is True (default: False), the last line
-        written to stdout will also be pushed to an XCom (key 'return_value')
-        when the R command completes.
-    :type xcom_push: bool
     :param output_encoding: encoding output from R (default: 'utf-8')
     :type output_encoding: string
 
