@@ -49,29 +49,6 @@ class ROperatorTest(unittest.TestCase):
             dag=self.dag
         )
 
-    def test_invalid_rscript_bin(self):
-        """Fail if invalid rscript_bin supplied"""
-
-        try:
-            expected_error = FileNotFoundError
-        except NameError:
-            # py2
-            expected_error = OSError
-
-        task = ROperator(
-            task_id='test_r_bad_rscript',
-            r_command='print(Sys.Date())',
-            rscript_bin='somebadrscript',
-            dag=self.dag
-        )
-
-        self.assertIsNotNone(task)
-
-        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-
-        with self.assertRaises(expected_error):
-            ti.run()
-
     def test_xcom_output(self):
         """Test whether Xcom output is produced using last line"""
 
@@ -104,30 +81,6 @@ class ROperatorTest(unittest.TestCase):
         self.assertIsNotNone(ti.duration)
         self.assertIsNone(ti.xcom_pull(task_ids=self.task_xcom.task_id))
 
-    def test_env_vars(self):
-        """Test whether environment is passed properly"""
-
-        test_var = 'TEST_VALUE_X'
-        test_str = 'Hello Airflow'
-
-        task = ROperator(
-            task_id='test_env_vars',
-            r_command='cat(Sys.getenv("{}"))'.format(test_var),
-            env={test_var: test_str, "PATH": os.environ['PATH']},
-            xcom_push=True,
-            dag=self.dag
-        )
-
-        ti = TaskInstance(task=task, execution_date=timezone.utcnow())
-
-        ti.run()
-        self.assertIsNotNone(ti.duration)
-
-        self.assertEqual(
-            ti.xcom_pull(task_ids=task.task_id, key='return_value'),
-            test_str
-        )
-
     def test_command_template(self):
         """Test whether templating works properly with r_command"""
 
@@ -143,27 +96,6 @@ class ROperatorTest(unittest.TestCase):
         self.assertEqual(
             ti.task.r_command,
             'cat("{}")'.format(DEFAULT_DATE.date().isoformat())
-        )
-
-    def test_env_templates(self):
-        """Test whether templating works properly with env vars"""
-
-        test_var = 'TEST_CURR_DATE'
-
-        task = ROperator(
-            task_id='test_env_template',
-            r_command='cat(Sys.getenv("{}"))'.format(test_var),
-            env={test_var: "{{ ds }}"},
-            xcom_push=True,
-            dag=self.dag
-        )
-
-        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
-        ti.run()
-
-        self.assertEqual(
-            ti.xcom_pull(task_ids=task.task_id, key='return_value'),
-            DEFAULT_DATE.date().isoformat()
         )
 
 
