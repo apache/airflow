@@ -2942,9 +2942,7 @@ class DAG(BaseDag, LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
-    :param access_control: Specify optional DAG-level permissions, e.g.,
-        {'role1': {'can_dag_read'},
-         'role2': {'can_dag_read', 'can_dag_edit'}}
+    :param access_control: Specify optional DAG-level permissions, e.g., {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}
     :type access_control: dict
     """
 
