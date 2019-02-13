@@ -75,7 +75,7 @@ class ROperatorTest(unittest.TestCase):
     def test_xcom_output(self):
         """Test whether Xcom output is produced using last line"""
 
-        self.task_xcom.xcom_push = True
+        self.task_xcom.do_xcom_push = True
 
         ti = TaskInstance(
             task=self.task_xcom,
@@ -93,7 +93,7 @@ class ROperatorTest(unittest.TestCase):
     def test_xcom_none(self):
         """Test whether no Xcom output is produced when push=False"""
 
-        self.task_xcom.xcom_push = False
+        self.task_xcom.do_xcom_push = False
 
         ti = TaskInstance(
             task=self.task_xcom,
