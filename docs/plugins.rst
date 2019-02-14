@@ -130,9 +130,10 @@ For example,
 
 * For ``Operator`` plugin, an ``execute`` method is compulsory.
 * For ``Sensor`` plugin, a ``poke`` method returning a Boolean value is compulsory.
-* For ``AirflowPluginDagSource`` plugin, ``name``, ``add_dags_to_dagbag`, and
+* For ``AirflowPluginDagSource`` plugin, ``name``, ``add_dags_to_dagbag``, and
     ``put_dags_on_disk`` must be overridden. If you only wish to implement
     one of the two, simple use ``pass``.
+
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
 
