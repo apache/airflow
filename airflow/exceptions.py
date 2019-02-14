@@ -55,8 +55,6 @@ class AirflowRescheduleException(AirflowException):
     :type reschedule: datetime.datetime
     """
     def __init__(self, reschedule_date):
-
-        
         self.reschedule_date = reschedule_date
 
 
