@@ -133,7 +133,17 @@ The AzureContainerRegistryHook requires a host/login/password to be defined in t
 :class:`airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook`
     Interface with ACR
 
+Azure Kubernetes Service
+'''''''''''''''''''''''''
+Azure Kubernetes Service (AKS) simplifies the deployment and operations of Kubernetes and enables you to dynamically scale your application infrastructure.
+The AzureKubernetesServiceHook requires a service principal. The credentials for this principal can either be defined in the extra field `key_path`, as an
+environment variable named `AIRFLOW_CONN_AZURE_DEFAULT`.
 
+:class: `airflow.contrib.operators.aks_operator.AzureKubernetesOperator`
+   Start a new AKS
+
+:class: `airflow.contrib.hooks.azure_kubernetes_hook.AzureKubernetesServiceHook`
+   Interface with Azure Kubernetes
 
 .. _AWS:
 

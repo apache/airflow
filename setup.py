@@ -151,6 +151,7 @@ azure = [
     'azure-datalake-store==0.0.19',
     'azure-cosmos>=3.0.1',
     'azure-mgmt-containerinstance',
+    'azure-mgmt-containerservice'
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [

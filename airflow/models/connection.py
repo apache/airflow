@@ -102,6 +102,7 @@ class Connection(Base, LoggingMixin):
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),
+        ('azure', 'Azure'),
         ('cassandra', 'Cassandra',),
         ('qubole', 'Qubole'),
         ('mongo', 'MongoDB'),
