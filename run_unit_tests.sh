@@ -32,7 +32,7 @@ export PYTHONPATH=$PYTHONPATH:${DIR}/tests/test_utils
 nose_args=$@
 
 # Generate the `airflow` executable if needed
-which airflow > /dev/null || python setup.py develop
+which airflow > /dev/null || pip install -e .
 
 echo "Initializing the DB"
 yes | airflow initdb
