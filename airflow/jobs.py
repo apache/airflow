@@ -30,7 +30,7 @@ import signal
 import sys
 import threading
 import time
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from time import sleep
 
 import six
@@ -1833,7 +1833,7 @@ class BackfillJob(BaseJob):
             :param total_runs: Number of total dag runs able to run
             :type total_runs: int
             """
-            self.to_run = to_run or dict()
+            self.to_run = to_run or OrderedDict()
             self.running = running or dict()
             self.skipped = skipped or set()
             self.succeeded = succeeded or set()
@@ -1859,6 +1859,7 @@ class BackfillJob(BaseJob):
             verbose=False,
             conf=None,
             rerun_failed_tasks=False,
+            run_backwards=False,
             *args, **kwargs):
         """
         :param dag: DAG object.
@@ -1885,6 +1886,8 @@ class BackfillJob(BaseJob):
         :param rerun_failed_tasks: flag to whether to
                                    auto rerun the failed task in backfill
         :type rerun_failed_tasks: bool
+        :param run_backwards: Whether to process the dates from most to least recent
+        :type run_backwards bool
         :param args:
         :param kwargs:
         """
@@ -1901,6 +1904,7 @@ class BackfillJob(BaseJob):
         self.verbose = verbose
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
+        self.run_backwards = run_backwards
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
@@ -2141,8 +2145,10 @@ class BackfillJob(BaseJob):
             # or leaf to root, as otherwise tasks might be
             # determined deadlocked while they are actually
             # waiting for their upstream to finish
+
             for task in self.dag.topological_sort():
                 for key, ti in list(ti_status.to_run.items()):
+
                     if task.task_id != ti.task_id:
                         continue
 
@@ -2228,6 +2234,7 @@ class BackfillJob(BaseJob):
                                 self.log.debug('Sending %s to executor', ti)
                                 # Skip scheduled state, we are executing immediately
                                 ti.state = State.QUEUED
+                                ti.queued_dttm = timezone.utcnow() if not ti.queued_dttm else ti.queued_dttm
                                 session.merge(ti)
 
                                 cfg_path = None
@@ -2409,6 +2416,14 @@ class BackfillJob(BaseJob):
         # Get intervals between the start/end dates, which will turn into dag runs
         run_dates = self.dag.get_run_dates(start_date=start_date,
                                            end_date=self.bf_end_date)
+        if self.run_backwards:
+            tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
+            if tasks_that_depend_on_past:
+                raise AirflowException(
+                    'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
+                        ",".join(tasks_that_depend_on_past)))
+            run_dates = run_dates[::-1]
+
         if len(run_dates) == 0:
             self.log.info("No run dates were found for the given dates and dag interval.")
             return
