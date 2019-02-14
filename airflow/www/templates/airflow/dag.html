@@ -27,7 +27,7 @@
 {% block content %}
 <div>
     <h3 class="pull-left">
-      {% if dag.parent_dag %}
+      {% if dag.parent_dag is defined and dag.parent_dag %}
         <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
       {% else %}
         <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
@@ -48,7 +48,7 @@
     {% set base_date_arg = request.args.get('base_date') %}
     {% set num_runs_arg = request.args.get('num_runs') %}
     <ul class="nav nav-pills">
-      {% if dag.parent_dag %}
+      {% if dag.parent_dag is defined and dag.parent_dag %}
           <li class="never_active"><a href="{{ url_for('Airflow.' + dag.get_default_view(), dag_id=dag.parent_dag.dag_id) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
               Back to {{ dag.parent_dag.dag_id }}</a>
