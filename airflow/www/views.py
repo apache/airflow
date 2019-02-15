@@ -29,7 +29,6 @@ import traceback
 from collections import defaultdict
 from datetime import timedelta
 
-
 import markdown
 import nvd3
 import pendulum
@@ -49,6 +48,7 @@ from sqlalchemy import func, or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
+from airflow import configuration
 from airflow import configuration as conf
 from airflow import models, jobs
 from airflow import settings
@@ -60,7 +60,6 @@ from airflow.models.log import Log
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail
 from airflow.models.xcom import XCom
-from airflow import configuration
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -75,6 +74,7 @@ from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm,
                                DagRunForm, ConnectionForm)
 from airflow.www.widgets import AirflowModelListWidget
+
 if PY2:
     from cStringIO import StringIO
 else:

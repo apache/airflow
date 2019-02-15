@@ -23,9 +23,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import copy
+from builtins import ImportError as BuiltinImportError, bytes, object, str
 from collections import defaultdict, namedtuple, OrderedDict
 
-from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
 from airflow.models.base import Base, ID_LEN
@@ -97,7 +97,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
 from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
-from airflow.utils.db import provide_session, create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container, validate_key, pprinttable
