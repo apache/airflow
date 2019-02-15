@@ -19,20 +19,22 @@
 
 import json
 
-from airflow.exceptions import DagRunAlreadyExists, DagNotFound
-from airflow.models import DagRun, DagBag, DagModel
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.models import DagBag, DagModel, DagRun
+from airflow.plugin.rest_api import path_cast
+from airflow.plugin.rest_api.path_cast import validate_datetime
 from airflow.utils import timezone
 from airflow.utils.state import State
 
 
 def _trigger_dag(
-        dag_id,
-        dag_bag,
-        dag_run,
-        run_id,
-        conf,
-        execution_date,
-        replace_microseconds,
+    dag_id,
+    dag_bag,
+    dag_run,
+    run_id,
+    conf,
+    execution_date,
+    replace_microseconds,
 ):
     if dag_id not in dag_bag.dags:
         raise DagNotFound("Dag id {} not found".format(dag_id))
@@ -82,13 +84,25 @@ def _trigger_dag(
     return triggers
 
 
+@path_cast.datetime('execution_date')
+@path_cast.body_var('conf')
 def trigger_dag(
-        dag_id,
-        run_id=None,
-        conf=None,
-        execution_date=None,
-        replace_microseconds=True,
+    dag_id,
+    run_id=None,
+    conf=None,
+    execution_date=None,
+    replace_microseconds=True,
 ):
+    if conf is not None:
+        if run_id is None and 'run_id' in conf:
+            run_id = conf['run_id']
+
+        if execution_date is None and 'execution_date' in conf:
+            execution_date = validate_datetime(
+                'execution_date',
+                conf['execution_date']
+            )
+
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise DagNotFound("Dag id {} not found in DagModel".format(dag_id))
@@ -104,4 +118,8 @@ def trigger_dag(
         replace_microseconds=replace_microseconds,
     )
 
-    return triggers[0] if triggers else None
+    response = triggers[0] if triggers else None
+
+    return {
+        'message': "Created {}".format(response)
+    }

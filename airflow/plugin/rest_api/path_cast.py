@@ -17,16 +17,55 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import dateutil.parser
+
+from airflow.exceptions import AirflowBadRequest
+from airflow.utils import timezone
+
+
+def validate_datetime(field, date_value):
+    try:
+        if isinstance(date_value, str):
+            return timezone.parse(date_value)
+    except ValueError:
+        error_message = (
+            "Given '{}', '{}', could not be identified "
+            "as a date. Example date format: 2015-11-16T14:34:15+00:00"
+        ).format(field, date_value)
+        raise AirflowBadRequest(error_message)
 
 
 def datetime(field):
     def handler(func):
-        def handler_a(*args, **kwargs):
+        def callback(*args, **kwargs):
             if field in kwargs:
-                kwargs[field] = dateutil.parser.parse(kwargs[field])
+                kwargs[field] = validate_datetime(field, kwargs[field])
             return func(*args, **kwargs)
 
-        return handler_a
+        return callback
+
+    return handler
+
+
+def body_var(field):
+    def handler(func):
+        def callback(*args, **kwargs):
+            if 'body' in kwargs:
+                kwargs[field] = kwargs['body']
+                del kwargs['body']
+            return func(*args, **kwargs)
+
+        return callback
+
+    return handler
+
+
+def body_to_vars():
+    def handler(func):
+        def callback(*args, **kwargs):
+            if 'body' in kwargs:
+                kwargs = kwargs['body']
+            return func(*args, **kwargs)
+
+        return callback
 
     return handler

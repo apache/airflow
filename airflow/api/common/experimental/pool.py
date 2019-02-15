@@ -19,6 +19,7 @@
 
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
+from airflow.plugin.rest_api import path_cast
 from airflow.utils.db import provide_session
 
 
@@ -41,6 +42,7 @@ def get_pools(session=None):
     return session.query(Pool).all()
 
 
+@path_cast.body_to_vars()
 @provide_session
 def create_pool(name, slots, description, session=None):
     """Create a pool with a given parameters."""

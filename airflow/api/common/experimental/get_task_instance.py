@@ -20,8 +20,10 @@
 from airflow.exceptions import (DagNotFound, TaskNotFound,
                                 DagRunNotFound, TaskInstanceNotFound)
 from airflow.models import DagBag
+from airflow.plugin.rest_api import path_cast
 
 
+@path_cast.datetime('execution_date')
 def get_task_instance(dag_id, task_id, execution_date):
     """Return the task object identified by the given dag_id and task_id."""
 

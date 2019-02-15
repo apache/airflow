@@ -63,8 +63,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DagRunTrigger"
-
+              $ref: '#/components/schemas/DAGRunTrigger'
       responses:
         200:
           description: Trigger a dag run
@@ -220,6 +219,9 @@ components:
       properties:
         run_id:
           type: string
+        execution_date:
+          type: string
+          format: 'date-time'
     DAG:
       title: DAG
       type: object

@@ -71,6 +71,9 @@ class AirflowRestyResolver(Resolver):
     """
     A class to allow mapping between the API Path/Method operations
     and python modules in the airflow package.
+    In future, this mapping should not be needed and handlers should
+    be picked up from airflow.plugin.rest_api. This migration would be
+    an ongoing
     """
 
     handler_mapping = {
@@ -100,22 +103,31 @@ class AirflowRestyResolver(Resolver):
         """
         method = super(AirflowRestyResolver, self).resolve_function_from_operation_id(operation_id)
 
+        def var_properties(obj):
+            return {
+                k: str(v)
+                for k, v in vars(obj).items()
+                if not k.startswith('_')
+            }
+
         def ensure_serialisable(func):
             def handler(*args, **kwargs):
                 try:
                     result = func(*args, **kwargs)
                     if isinstance(result, list):
-                        return [dict(i) for i in result]
+                        if len(result):
+                            if hasattr(result[0], 'to_json'):
+                                return [i.to_json() for i in result]
+                            else:
+                                return [dict(i) for i in result]
+                        else:
+                            return []
                     elif hasattr(result, 'to_json'):
                         return result.to_json()
                     elif isinstance(result, dict):
                         return result
                     else:
-                        return {
-                            k: str(v)
-                            for k, v in vars(result).items()
-                            if not k.startswith('_')
-                        }
+                        return var_properties(result)
                 except AirflowException as err:
                     response = jsonify(error="{}".format(err))
                     response.status_code = err.status_code
@@ -145,7 +157,7 @@ class AirflowRestyResolver(Resolver):
 
         handler = '{}.{}'.format(controller, get_function_name())
         if (self.version == 'experimental') \
-            and (handler in self.handler_mapping):
+           and (handler in self.handler_mapping):
             # If we're using the experimental API, use the explicit mapping
             # from `self.handler_mapping`.
             return self.handler_mapping[handler]
