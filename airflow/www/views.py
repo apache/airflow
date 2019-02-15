@@ -1322,9 +1322,7 @@ class Airflow(AirflowBaseView):
             .filter(models.DagRun.dag_id == show_dag_id) \
             .filter(models.DagRun.execution_date == dttm).one()
 
-        task_instances = session.query(models.TaskInstance)\
-            .filter(models.TaskInstance.dag_id == show_dag_id)\
-            .filter(models.TaskInstance.execution_date == dttm).all()
+        task_instances = dag_run.get_task_instances()
         nodes = [
             {
                 'id': task.task_id,
