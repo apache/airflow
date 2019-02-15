@@ -322,7 +322,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            xcom_push=True
+            do_xcom_push=True
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
 

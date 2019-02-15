@@ -89,13 +89,12 @@ class BashOperatorTest(unittest.TestCase):
 
             os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
 
-    def test_return_value_to_xcom(self):
+    def test_return_value(self):
         bash_operator = BashOperator(
             bash_command='echo "stdout"',
-            xcom_push=True,
-            task_id='test_return_value_to_xcom',
+            task_id='test_return_value',
             dag=None
         )
-        xcom_return_value = bash_operator.execute(context={})
+        return_value = bash_operator.execute(context={})
 
-        self.assertEqual(xcom_return_value, u'stdout')
+        self.assertEqual(return_value, u'stdout')

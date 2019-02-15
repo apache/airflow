@@ -48,8 +48,6 @@ class WinRMOperator(BaseOperator):
     :type command: str
     :param timeout: timeout for executing the command.
     :type timeout: int
-    :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
-    :type do_xcom_push: bool
     """
     template_fields = ('command',)
 
@@ -60,7 +58,6 @@ class WinRMOperator(BaseOperator):
                  remote_host=None,
                  command=None,
                  timeout=10,
-                 do_xcom_push=False,
                  *args,
                  **kwargs):
         super(WinRMOperator, self).__init__(*args, **kwargs)
@@ -69,7 +66,6 @@ class WinRMOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
-        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         if self.ssh_conn_id and not self.winrm_hook:
@@ -128,14 +124,13 @@ class WinRMOperator(BaseOperator):
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            if self.do_xcom_push:
-                enable_pickling = configuration.conf.getboolean(
-                    'core', 'enable_xcom_pickling'
-                )
-                if enable_pickling:
-                    return stdout_buffer
-                else:
-                    return b64encode(b''.join(stdout_buffer)).decode('utf-8')
+            enable_pickling = configuration.conf.getboolean(
+                'core', 'enable_xcom_pickling'
+            )
+            if enable_pickling:
+                return stdout_buffer
+            else:
+                return b64encode(b''.join(stdout_buffer)).decode('utf-8')
         else:
             error_msg = "Error running cmd: {0}, return code: {1}, error: {2}".format(
                 self.command,
@@ -143,7 +138,3 @@ class WinRMOperator(BaseOperator):
                 b''.join(stderr_buffer).decode('utf-8')
             )
             raise AirflowException(error_msg)
-
-        self.log.info("Finished!")
-
-        return True
