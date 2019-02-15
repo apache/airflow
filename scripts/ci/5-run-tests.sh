@@ -19,6 +19,7 @@
 #  under the License.
 
 set -o verbose
+set -e
 
 if [ -z "$HADOOP_HOME" ]; then
     echo "HADOOP_HOME not set - abort" >&2
@@ -54,6 +55,12 @@ which airflow > /dev/null || python setup.py develop
 # For impersonation tests on Travis, make airflow accessible to other users via the global PATH
 # (which contains /usr/local/bin)
 sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
+
+# Fix codecov build path
+if [ ! -h /home/travis/build/apache/airflow ]; then
+  sudo mkdir -p /home/travis/build/apache
+  sudo ln -s ${ROOTDIR} /home/travis/build/apache/airflow
+fi
 
 if [ -z "$KUBERNETES_VERSION" ]; then
   echo "Initializing the DB"

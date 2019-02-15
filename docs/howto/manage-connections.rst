@@ -16,7 +16,7 @@
     under the License.
 
 Managing Connections
-=====================
+====================
 
 Airflow needs to know how to connect to your environment. Information
 such as hostname, port, login and passwords to other systems and services is
@@ -28,7 +28,7 @@ will author will reference the 'conn_id' of the Connection objects.
 Connections can be created and managed using either the UI or environment
 variables.
 
-See the :ref:`Connenctions Concepts <concepts-connections>` documentation for
+See the :ref:`Connections Concepts <concepts-connections>` documentation for
 more information.
 
 Creating a Connection with the UI
@@ -114,18 +114,26 @@ The following connection IDs are used by default.
     hook.
 
 ``google_cloud_default``
-    Used by the
-    :class:`~airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`,
-    :class:`~airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook`,
-    :class:`~airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook`,
-    :class:`~airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook`, and
-    :class:`~airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` hooks.
+    Used by those hooks:
+
+    * :class:`~airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`
+    * :class:`~airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook`
+    * :class:`~airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook`
+    * :class:`~airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook`
+    * :class:`~airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook`
+    * :class:`~airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook`
+    * :class:`~airflow.contrib.hooks.gcp_compute_hook.GceHook`
+    * :class:`~airflow.contrib.hooks.gcp_function_hook.GcfHook`
+    * :class:`~airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook`
+    * :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook`
+
 
 Configuring the Connection
 ''''''''''''''''''''''''''
 
-Project Id (required)
-    The Google Cloud project ID to connect to.
+Project Id (optional)
+    The Google Cloud project ID to connect to. It is used as default project id by operators using it and
+    can usually be overridden at the operator level.
 
 Keyfile Path
     Path to a `service account
@@ -151,6 +159,53 @@ Scopes (comma separated)
         issue `AIRFLOW-2522
         <https://issues.apache.org/jira/browse/AIRFLOW-2522>`_.
 
+Amazon Web Services
+~~~~~~~~~~~~~~~~~~~
+
+The Amazon Web Services connection type enables the :ref:`AWS Integrations
+<AWS>`.
+
+Authenticating to AWS
+'''''''''''''''''''''
+
+Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
+
+To use IAM instance profile, create an "empty" connection (i.e. one with no Login or Password specified).
+
+Default Connection IDs
+''''''''''''''''''''''
+
+The default connection ID is ``aws_default``.
+
+Configuring the Connection
+''''''''''''''''''''''''''
+
+Login (optional)
+    Specify the AWS access key ID.
+
+Password (optional)
+    Specify the AWS secret access key.
+
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in AWS
+    connection. The following parameters are supported:
+
+    * **aws_account_id**: AWS account ID for the connection
+    * **aws_iam_role**: AWS IAM role for the connection
+    * **external_id**: AWS external ID for the connection
+    * **host**: Endpoint URL for the connection
+    * **region_name**: AWS region for the connection
+    * **role_arn**: AWS role ARN for the connection
+
+    Example "extras" field:
+
+    .. code-block:: json
+
+       {
+          "aws_iam_role": "aws_iam_role_name",
+          "region_name": "ap-southeast-2"
+       }
+
 MySQL
 ~~~~~
 The MySQL connection type provides connection to a MySQL database.
@@ -165,26 +220,26 @@ Schema (optional)
 
 Login (required)
     Specify the user name to connect.
-    
+
 Password (required)
-    Specify the password to connect.    
-    
+    Specify the password to connect.
+
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in mysql
+    Specify the extra parameters (as json dictionary) that can be used in MySQL
     connection. The following parameters are supported:
 
     * **charset**: specify charset of the connection
-    * **cursor**: one of "sscursor", "dictcursor, "ssdictcursor" - specifies cursor class to be
+    * **cursor**: one of "sscursor", "dictcursor, "ssdictcursor" . Specifies cursor class to be
       used
     * **local_infile**: controls MySQL's LOCAL capability (permitting local data loading by
       clients). See `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_
       for details.
-    * **unix_socket**: UNIX socket used instead of the default socket
-    * **ssl**: Dictionary of SSL parameters that control connecting using SSL (those
+    * **unix_socket**: UNIX socket used instead of the default socket.
+    * **ssl**: Dictionary of SSL parameters that control connecting using SSL. Those
       parameters are server specific and should contain "ca", "cert", "key", "capath",
       "cipher" parameters. See
       `MySQLdb docs <https://mysqlclient.readthedocs.io/user_guide.html>`_ for details.
-      Note that in order to be useful in URL notation, this parameter might also be
+      Note that to be useful in URL notation, this parameter might also be
       a string where the SSL dictionary is a string-encoded JSON dictionary.
 
     Example "extras" field:
@@ -216,8 +271,8 @@ Extra (optional)
        }
 
     When specifying the connection as URI (in AIRFLOW_CONN_* variable) you should specify it
-    following the standard syntax of DB connections, where extras are passed as parameters
-    of the URI (note that all components of the URI should be URL-encoded).
+    following the standard syntax of DB connections - where extras are passed as parameters
+    of the URI. Note that all components of the URI should be URL-encoded.
 
     For example:
 
@@ -226,7 +281,7 @@ Extra (optional)
        mysql://mysql_user:XXXXXXXXXXXX@1.1.1.1:3306/mysqldb?ssl=%7B%22cert%22%3A+%22%2Ftmp%2Fclient-cert.pem%22%2C+%22ca%22%3A+%22%2Ftmp%2Fserver-ca.pem%22%2C+%22key%22%3A+%22%2Ftmp%2Fclient-key.pem%22%7D
 
     .. note::
-        If encounter UnicodeDecodeError while working with MySQL connection check
+        If encounter UnicodeDecodeError while working with MySQL connection, check
         the charset defined is matched to the database charset.
 
 Postgres
@@ -269,7 +324,7 @@ Extra (optional)
       should send a keepalive message to the server.
 
     More details on all Postgres parameters supported can be found in
-    `Postgres documentation <https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>`_
+    `Postgres documentation <https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>`_.
 
     Example "extras" field:
 
@@ -297,14 +352,14 @@ Cloudsql
 The gcpcloudsql:// connection is used by
 :class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator` to perform query
 on a Google Cloud SQL database. Google Cloud SQL database can be either
-Postgres or MySQL, so this is a "meta" connection type - it introduces common schema
+Postgres or MySQL, so this is a "meta" connection type. It introduces common schema
 for both MySQL and Postgres, including what kind of connectivity should be used.
-Google Cloud SQL supports connecting via public IP or via Cloud Sql Proxy
-and in the latter case the
+Google Cloud SQL supports connecting via public IP or via Cloud SQL Proxy.
+In the latter case the
 :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` uses
 :class:`~airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner` to automatically prepare
 and use temporary Postgres or MySQL connection that will use the proxy to connect
-(either via TCP or UNIX socket)
+(either via TCP or UNIX socket.
 
 Configuring the Connection
 ''''''''''''''''''''''''''
@@ -321,7 +376,7 @@ Password (required)
     Specify the password to connect.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in gcpcloudsql
+    Specify the extra parameters (as JSON dictionary) that can be used in Google Cloud SQL
     connection.
 
     Details of all the parameters supported in extra field can be found in
@@ -340,9 +395,9 @@ Extra (optional)
           "sql_proxy_use_tcp": false
        }
 
-    When specifying the connection as URI (in AIRFLOW_CONN_* variable) you should specify it
-    following the standard syntax of DB connections, where extras are passed as parameters
-    of the URI (note that all components of the URI should be URL-encoded).
+    When specifying the connection as URI (in AIRFLOW_CONN_* variable), you should specify
+    it following the standard syntax of DB connection, where extras are passed as
+    parameters of the URI. Note that all components of the URI should be URL-encoded.
 
     For example:
 

@@ -65,9 +65,22 @@ GIT_LOG_FORMAT = '%x1f'.join(GIT_LOG_FORMAT) + '%x1e'
 def get_jiras_for_version(version):
     asf_jira = jira.client.JIRA({'server': JIRA_API_BASE})
 
-    return asf_jira.search_issues(
-        'PROJECT={} and fixVersion={}'.format(PROJECT, version)
-    )
+    start_at = 0
+    page_size = 50
+    while True:
+        results = asf_jira.search_issues(
+            'PROJECT={} and fixVersion={}'.format(PROJECT, version),
+            maxResults=page_size,
+            startAt=start_at,
+        )
+
+        for r in results:
+            yield r
+
+        if len(results) < page_size:
+            break
+
+        start_at += page_size
 
 
 def get_merged_issues(version):

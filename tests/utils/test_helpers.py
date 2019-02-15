@@ -20,12 +20,18 @@
 import logging
 import multiprocessing
 import os
-import psutil
 import signal
 import time
 import unittest
+from datetime import datetime
 
+import psutil
+import six
+
+from airflow import DAG
 from airflow.utils import helpers
+from airflow.models import TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 
 
 class TestHelpers(unittest.TestCase):
@@ -56,6 +62,28 @@ class TestHelpers(unittest.TestCase):
         setup_done.release()
         while True:
             time.sleep(1)
+
+    def test_render_log_filename(self):
+        try_number = 1
+        dag_id = 'test_render_log_filename_dag'
+        task_id = 'test_render_log_filename_task'
+        execution_date = datetime(2016, 1, 1)
+
+        dag = DAG(dag_id, start_date=execution_date)
+        task = DummyOperator(task_id=task_id, dag=dag)
+        ti = TaskInstance(task=task, execution_date=execution_date)
+
+        filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
+
+        ts = ti.get_template_context()['ts']
+        expected_filename = "{dag_id}/{task_id}/{ts}/{try_number}.log".format(dag_id=dag_id,
+                                                                              task_id=task_id,
+                                                                              ts=ts,
+                                                                              try_number=try_number)
+
+        rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
+
+        self.assertEqual(rendered_filename, expected_filename)
 
     def test_reap_process_group(self):
         """
@@ -143,12 +171,12 @@ class TestHelpers(unittest.TestCase):
         self.assertTrue(helpers.is_container(["a", "list", "is", "a", "container"]))
 
     def test_as_tuple(self):
-        self.assertEquals(
+        self.assertEqual(
             helpers.as_tuple("a string is not a container"),
             ("a string is not a container",)
         )
 
-        self.assertEquals(
+        self.assertEqual(
             helpers.as_tuple(["a", "list", "is", "a", "container"]),
             ("a", "list", "is", "a", "container")
         )
@@ -209,6 +237,16 @@ class HelpersTest(unittest.TestCase):
         self.assertFalse(helpers.is_container('test_str_not_iterable'))
         # Pass an object that is not iter nor a string.
         self.assertFalse(helpers.is_container(10))
+
+    def test_cross_downstream(self):
+        """Test if all dependencies between tasks are all set correctly."""
+        dag = DAG(dag_id="test_dag", start_date=datetime.now())
+        start_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(1, 4)]
+        end_tasks = [DummyOperator(task_id="t{i}".format(i=i), dag=dag) for i in range(4, 7)]
+        helpers.cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
+
+        for start_task in start_tasks:
+            six.assertCountEqual(self, start_task.get_direct_relatives(upstream=False), end_tasks)
 
 
 if __name__ == '__main__':

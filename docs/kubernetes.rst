@@ -15,6 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
+Kubernetes
+----------
+
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
@@ -34,6 +37,9 @@ Kubernetes Operator
     from airflow.contrib.operators import KubernetesOperator
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
+    from airflow.contrib.kubernetes.volume import Volume
+    from airflow.contrib.kubernetes.volume_mount import VolumeMount
+
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
     secret_env  = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
@@ -56,11 +62,11 @@ Kubernetes Operator
             {
               "weight": 1,
               "preference": {
-                "matchExpressions": [
+                "matchExpressions": {
                   "key": "disktype",
                   "operator": "In",
                   "values": ["ssd"]
-                ]
+                }
               }
             }
           ]
@@ -125,6 +131,10 @@ Kubernetes Operator
 
 
 .. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
+    :noindex:
+
 
 .. autoclass:: airflow.contrib.kubernetes.secret.Secret
+    :noindex:
+
 

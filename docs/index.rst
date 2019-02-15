@@ -18,30 +18,15 @@
 
 .. image:: img/pin_large.png
     :width: 100
-.. image:: img/incubator.jpg
-    :width: 150
 
-Apache Airflow (incubating) Documentation
+Apache Airflow Documentation
 =========================================
-
-.. important::
-
-    **Disclaimer**: Apache Airflow is an effort undergoing incubation at The
-    Apache Software Foundation (ASF), sponsored by the Apache Incubator.
-    Incubation is required of all newly accepted projects until a further
-    review indicates that the infrastructure, communications, and
-    decision making process have stabilized in a manner consistent with
-    other successful ASF projects. While incubation status is not
-    necessarily a reflection of the completeness or stability of
-    the code, it does indicate that the project has yet to be fully
-    endorsed by the ASF.
-
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
 
-Use airflow to author workflows as directed acyclic graphs (DAGs) of tasks.
-The airflow scheduler executes your tasks on an array of workers while
+Use Airflow to author workflows as Directed Acyclic Graphs (DAGs) of tasks.
+The Airflow scheduler executes your tasks on an array of workers while
 following the specified dependencies. Rich command line utilities make
 performing complex surgeries on DAGs a snap. The rich user interface
 makes it easy to visualize pipelines running in production,
@@ -95,7 +80,6 @@ Content
     howto/index
     ui
     concepts
-    profiling
     cli
     scheduler
     plugins
@@ -104,6 +88,8 @@ Content
     api
     integration
     metrics
+    kubernetes
     lineage
+    changelog
     faq
     code

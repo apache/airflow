@@ -63,7 +63,7 @@ def _closest_date(target_dt, date_list, before_target=None):
     :param target_dt: The target date
     :type target_dt: datetime.date
     :param date_list: The list of dates to search
-    :type date_list: datetime.date list
+    :type date_list: list[datetime.date]
     :param before_target: closest before or after the target
     :type before_target: bool or None
     :returns: The closest date
@@ -90,7 +90,7 @@ def closest_ds_partition(
     :param table: A hive table name
     :type table: str
     :param ds: A datestamp ``%Y-%m-%d`` e.g. ``yyyy-mm-dd``
-    :type ds: datetime.date list
+    :type ds: list[datetime.date]
     :param before: closest before (True), after (False) or either side of ds
     :type before: bool or None
     :returns: The closest date

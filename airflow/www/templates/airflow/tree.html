@@ -21,11 +21,12 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css"
-    href="{{ url_for('static', filename='tree.css') }}">
-<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
+      href="{{ url_for('static', filename='css/tree.css') }}">
+<link rel="stylesheet" type="text/css"
+    href="{{url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 {% endblock %}
 
-{% block body %}
+{% block content %}
 {{ super() }}
 <div style="float: left" class="form-inline">
     <form method="get" style="float:left;">
@@ -47,6 +48,8 @@
     <div class="square" style="background: grey;"></div>
     <div class="legend_item" style="border: none;">retry</div>
     <div class="square" style="background: gold;"></div>
+    <div class="legend_item" style="border: none;">rescheduled</div>
+    <div class="square" style="background: turquoise;"></div>
     <div class="legend_item" style="border: none;">skipped</div>
     <div class="square" style="background: pink;"></div>
     <div class="legend_item" style="border: none;">failed</div>
@@ -76,7 +79,7 @@
 
 {% block tail %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
+  <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script>
 $('span.status_square').tooltip({html: true});
 
@@ -233,9 +236,9 @@ function update(source) {
         if(d.task_id === undefined)
             call_modal_dag(d);
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
-            call_modal(d.task_id, d.execution_date, true);
+            call_modal(d.task_id, d.execution_date, d.try_number, true);
         else
-            call_modal(d.task_id, d.execution_date);
+            call_modal(d.task_id, d.execution_date, d.try_number);
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")

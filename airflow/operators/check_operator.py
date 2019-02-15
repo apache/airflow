@@ -158,7 +158,7 @@ class ValueCheckOperator(BaseOperator):
         elif is_numeric_value_check:
             try:
                 num_rec = [float(r) for r in records]
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 cvestr = "Converting a result to float failed.\n"
                 raise AirflowException(cvestr + except_temp.format(**locals()))
             if self.has_tolerance:

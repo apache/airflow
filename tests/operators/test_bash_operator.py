@@ -1,20 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import os
 import unittest
 from datetime import datetime, timedelta
+from tempfile import NamedTemporaryFile
 
 from airflow import DAG
 from airflow.models import State
@@ -26,7 +32,8 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-class BashOperatorTestCase(unittest.TestCase):
+class BashOperatorTest(unittest.TestCase):
+
     def test_echo_env_variables(self):
         """
         Test that env variables are exported correctly to the
@@ -52,10 +59,8 @@ class BashOperatorTestCase(unittest.TestCase):
             external_trigger=False,
         )
 
-        import tempfile
-        with tempfile.NamedTemporaryFile() as f:
-            fname = f.name
-            t = BashOperator(
+        with NamedTemporaryFile() as tmp_file:
+            task = BashOperator(
                 task_id='echo_env_vars',
                 dag=self.dag,
                 bash_command='echo $AIRFLOW_HOME>> {0};'
@@ -63,17 +68,17 @@ class BashOperatorTestCase(unittest.TestCase):
                              'echo $AIRFLOW_CTX_DAG_ID >> {0};'
                              'echo $AIRFLOW_CTX_TASK_ID>> {0};'
                              'echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};'
-                             'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(fname)
+                             'echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};'.format(tmp_file.name)
             )
 
             original_AIRFLOW_HOME = os.environ['AIRFLOW_HOME']
 
             os.environ['AIRFLOW_HOME'] = 'MY_PATH_TO_AIRFLOW_HOME'
-            t.run(DEFAULT_DATE, DEFAULT_DATE,
-                  ignore_first_depends_on_past=True, ignore_ti_state=True)
+            task.run(DEFAULT_DATE, DEFAULT_DATE,
+                     ignore_first_depends_on_past=True, ignore_ti_state=True)
 
-            with open(fname, 'r') as fr:
-                output = ''.join(fr.readlines())
+            with open(tmp_file.name, 'r') as file:
+                output = ''.join(file.readlines())
                 self.assertIn('MY_PATH_TO_AIRFLOW_HOME', output)
                 # exported in run_unit_tests.sh as part of PYTHONPATH
                 self.assertIn('tests/test_utils', output)
@@ -83,3 +88,13 @@ class BashOperatorTestCase(unittest.TestCase):
                 self.assertIn('manual__' + DEFAULT_DATE.isoformat(), output)
 
             os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
+
+    def test_return_value(self):
+        bash_operator = BashOperator(
+            bash_command='echo "stdout"',
+            task_id='test_return_value',
+            dag=None
+        )
+        return_value = bash_operator.execute(context={})
+
+        self.assertEqual(return_value, u'stdout')

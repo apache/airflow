@@ -39,7 +39,7 @@ class WinRMOperator(BaseOperator):
     WinRMOperator to execute commands on given remote host using the winrm_hook.
 
     :param winrm_hook: predefined ssh_hook to use for remote execution
-    :type winrm_hook: :class:`WinRMHook`
+    :type winrm_hook: airflow.contrib.hooks.winrm_hook.WinRMHook
     :param ssh_conn_id: connection id from airflow Connections
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
@@ -48,8 +48,6 @@ class WinRMOperator(BaseOperator):
     :type command: str
     :param timeout: timeout for executing the command.
     :type timeout: int
-    :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
-    :type do_xcom_push: bool
     """
     template_fields = ('command',)
 
@@ -60,7 +58,6 @@ class WinRMOperator(BaseOperator):
                  remote_host=None,
                  command=None,
                  timeout=10,
-                 do_xcom_push=False,
                  *args,
                  **kwargs):
         super(WinRMOperator, self).__init__(*args, **kwargs)
@@ -69,7 +66,6 @@ class WinRMOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
-        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         if self.ssh_conn_id and not self.winrm_hook:
@@ -115,7 +111,7 @@ class WinRMOperator(BaseOperator):
                         self.log.info(line)
                     for line in stderr.decode('utf-8').splitlines():
                         self.log.warning(line)
-                except WinRMOperationTimeoutError as e:
+                except WinRMOperationTimeoutError:
                     # this is an expected error when waiting for a
                     # long-running process, just silently retry
                     pass
@@ -126,16 +122,15 @@ class WinRMOperator(BaseOperator):
         except Exception as e:
             raise AirflowException("WinRM operator error: {0}".format(str(e)))
 
-        if return_code is 0:
+        if return_code == 0:
             # returning output if do_xcom_push is set
-            if self.do_xcom_push:
-                enable_pickling = configuration.conf.getboolean(
-                    'core', 'enable_xcom_pickling'
-                )
-                if enable_pickling:
-                    return stdout_buffer
-                else:
-                    return b64encode(b''.join(stdout_buffer)).decode('utf-8')
+            enable_pickling = configuration.conf.getboolean(
+                'core', 'enable_xcom_pickling'
+            )
+            if enable_pickling:
+                return stdout_buffer
+            else:
+                return b64encode(b''.join(stdout_buffer)).decode('utf-8')
         else:
             error_msg = "Error running cmd: {0}, return code: {1}, error: {2}".format(
                 self.command,
@@ -143,7 +138,3 @@ class WinRMOperator(BaseOperator):
                 b''.join(stderr_buffer).decode('utf-8')
             )
             raise AirflowException(error_msg)
-
-        self.log.info("Finished!")
-
-        return True
