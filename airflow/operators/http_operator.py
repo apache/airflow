@@ -46,10 +46,6 @@ class SimpleHttpOperator(BaseOperator):
         'requests' documentation (options to modify timeout, ssl, etc.)
     :type extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
-    :param xcom_push: Push the response to Xcom (default: False).
-        If xcom_push is True, response of an HTTP request will also
-        be pushed to an XCom.
-    :type xcom_push: bool
     :param log_response: Log the response (default: False)
     :type log_response: bool
     """
@@ -66,7 +62,6 @@ class SimpleHttpOperator(BaseOperator):
                  headers=None,
                  response_check=None,
                  extra_options=None,
-                 xcom_push=False,
                  http_conn_id='http_default',
                  log_response=False,
                  *args, **kwargs):
@@ -78,8 +73,9 @@ class SimpleHttpOperator(BaseOperator):
         self.data = data or {}
         self.response_check = response_check
         self.extra_options = extra_options or {}
-        self.xcom_push_flag = xcom_push
         self.log_response = log_response
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
@@ -93,7 +89,6 @@ class SimpleHttpOperator(BaseOperator):
         if self.response_check:
             if not self.response_check(response):
                 raise AirflowException("Response check returned False.")
-        if self.xcom_push_flag:
-            return response.text
         if self.log_response:
             self.log.info(response.text)
+        return response.text

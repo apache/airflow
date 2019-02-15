@@ -80,10 +80,10 @@ class KubernetesPodOperator(BaseOperator):
     :type node_selectors: dict
     :param config_file: The path to the Kubernetes config file
     :type config_file: str
-    :param xcom_push: If xcom_push is True, the content of the file
+    :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
-    :type xcom_push: bool
+    :type do_xcom_push: bool
     :param hostnetwork: If True enable host networking on the pod
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
@@ -125,7 +125,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.tolerations = self.tolerations
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
-                                                extract_xcom=self.xcom_push)
+                                                extract_xcom=self.do_xcom_push)
             try:
                 (final_state, result) = launcher.run_pod(
                     pod,
@@ -139,8 +139,8 @@ class KubernetesPodOperator(BaseOperator):
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state)
                 )
-            if self.xcom_push:
-                return result
+
+            return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
@@ -165,7 +165,7 @@ class KubernetesPodOperator(BaseOperator):
                  resources=None,
                  affinity=None,
                  config_file=None,
-                 xcom_push=False,
+                 do_xcom_push=False,
                  node_selectors=None,
                  image_pull_secrets=None,
                  service_account_name="default",
@@ -193,7 +193,10 @@ class KubernetesPodOperator(BaseOperator):
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.xcom_push = xcom_push
+        self.do_xcom_push = do_xcom_push
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
+
         self.resources = resources or Resources()
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets

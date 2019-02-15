@@ -574,11 +574,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
                 # Currently only instantiate Kubernetes client for killing a spark pod.
                 try:
+                    import kubernetes
                     client = kube_client.get_kube_client()
                     api_response = client.delete_namespaced_pod(
                         self._kubernetes_driver_pod,
                         self._connection['namespace'],
-                        body=client.V1DeleteOptions(),
+                        body=kubernetes.client.V1DeleteOptions(),
                         pretty=True)
 
                     self.log.info("Spark on K8s killed with response: %s", api_response)

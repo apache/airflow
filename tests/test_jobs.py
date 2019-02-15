@@ -623,6 +623,41 @@ class BackfillJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.SUCCESS)
         dag.clear()
 
+    def test_cli_backfill_depends_on_past_backwards(self):
+        """
+        Test that CLI respects -B argument and raises on interaction with depends_on_past
+        """
+        dag_id = 'test_depends_on_past'
+        start_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        end_date = start_date + datetime.timedelta(days=1)
+        args = [
+            'backfill',
+            dag_id,
+            '-l',
+            '-s',
+            start_date.isoformat(),
+            '-e',
+            end_date.isoformat(),
+            '-I'
+        ]
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+
+        cli.backfill(self.parser.parse_args(args + ['-I']))
+        ti = TI(dag.get_task('test_dop_task'), end_date)
+        ti.refresh_from_db()
+        # runs fine forwards
+        self.assertEqual(ti.state, State.SUCCESS)
+
+        # raises backwards
+        expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
+            'test_dop_task')
+        self.assertRaisesRegexp(
+            AirflowException,
+            expected_msg,
+            cli.backfill,
+            self.parser.parse_args(args + ['-B']))
+
     def test_cli_receives_delay_arg(self):
         """
         Tests that the --delay argument is passed correctly to the BackfillJob
@@ -1147,7 +1182,8 @@ class BackfillJobTest(unittest.TestCase):
             DummyOperator(
                 task_id='dummy',
                 dag=dag,
-                owner='airflow')
+                owner='airflow',
+            )
             return dag
 
         test_dag = get_test_dag_for_backfill()
@@ -1163,6 +1199,30 @@ class BackfillJobTest(unittest.TestCase):
                          test_dag.get_run_dates(
                              start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
                              end_date=DEFAULT_DATE,))
+
+    def test_backfill_run_backwards(self):
+        dag = self.dagbag.get_dag("test_start_date_scheduling")
+        dag.clear()
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=5),
+            run_backwards=True
+        )
+        job.run()
+
+        session = settings.Session()
+        tis = session.query(TI).filter(
+            TI.dag_id == 'test_start_date_scheduling' and TI.task_id == 'dummy'
+        ).order_by(TI.execution_date).all()
+
+        queued_times = [ti.queued_dttm for ti in tis]
+        self.assertTrue(queued_times == sorted(queued_times, reverse=True))
+        self.assertTrue(all([ti.state == State.SUCCESS for ti in tis]))
+
+        dag.clear()
+        session.close()
 
 
 class LocalTaskJobTest(unittest.TestCase):

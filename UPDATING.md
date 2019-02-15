@@ -174,6 +174,12 @@ To remove a user from a role:
 airflow users --remove-role --username jondoe --role Public
 ```
 
+### Unification of `do_xcom_push` flag
+The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+
 ## Airflow 1.10.2
 
 ### DAG level Access Control for new RBAC UI

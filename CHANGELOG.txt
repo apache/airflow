@@ -941,7 +941,7 @@ Airflow 1.10.0, 2018-08-03
 - [AIRFLOW-1688] Support load.time_partitioning in bigquery_hook
 - [AIRFLOW-1975] Make TriggerDagRunOperator callback optional
 - [AIRFLOW-1480] Render template attributes for ExternalTaskSensor fields
-- [AIRFLOW-1958] Add **kwargs to send_email
+- [AIRFLOW-1958] Add kwargs to send_email
 - [AIRFLOW-1976] Fix for missing log/logger attribute FileProcessHandler
 - [AIRFLOW-1982] Fix Executor event log formatting
 - [AIRFLOW-1971] Propagate hive config on impersonation
@@ -2167,7 +2167,7 @@ Airflow 1.7.1, 2016-05-19
 - Show only Airflow's deprecation warnings
 - Set DAG_FOLDER for unit tests
 - Missing comma in setup.py
-- Deprecate *args and **kwargs in BaseOperator
+- Deprecate args and kwargs in BaseOperator
 - Raise deep scheduler exceptions to force a process restart.
 - Change inconsistent example DAG owners
 - Fix module path of send_email_smtp in configuration

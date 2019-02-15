@@ -215,6 +215,7 @@ def backfill(args, dag=None):
             verbose=args.verbose,
             conf=run_conf,
             rerun_failed_tasks=args.rerun_failed_tasks,
+            run_backwards=args.run_backwards
         )
 
 
@@ -1782,6 +1783,13 @@ class CLIFactory(object):
                 "all the failed tasks for the backfill date range "
                 "instead of throwing exceptions"),
             "store_true"),
+        'run_backwards': Arg(
+            ("-B", "--run_backwards",),
+            (
+                "if set, the backfill will run tasks from the most "
+                "recent day first.  if there are tasks that depend_on_past "
+                "this option will throw an exception"),
+            "store_true"),
 
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
@@ -2181,7 +2189,7 @@ class CLIFactory(object):
                 'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                 'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
-                'reset_dag_run', 'rerun_failed_tasks',
+                'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
             )
         }, {
             'func': list_dag_runs,
