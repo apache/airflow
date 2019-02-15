@@ -47,6 +47,14 @@ class WebHDFSHook(BaseHook):
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
 
+class WebHDFSHook(BaseHook):
+    """
+    Interact with HDFS. This class is a wrapper around the hdfscli library.
+    """
+    def __init__(self, webhdfs_conn_id='webhdfs_default', proxy_user=None):
+        self.webhdfs_conn_id = webhdfs_conn_id
+        self.proxy_user = proxy_user
+
     def get_conn(self):
         """
         Returns a hdfscli InsecureClient object.
@@ -55,7 +63,9 @@ class WebHDFSHook(BaseHook):
         for nn in nn_connections:
             try:
                 self.log.debug('Trying namenode %s', nn.host)
-                connection_str = 'http://{nn.host}:{nn.port}'.format(nn=nn)
+                #connection_str = 'httpl://{nn.host}:'.format(nn=nn):{nn.port}.format(nn=nn)'
+                connection_str = self.connection_url('http://', '{nn.host}'.format(nn=nn), '{nn.port}'.format(nn=nn))
+                logging.info(connection_str)
                 if _kerberos_security_mode:
                     client = KerberosClient(connection_str)
                 else:
@@ -67,9 +77,10 @@ class WebHDFSHook(BaseHook):
             except HdfsError as e:
                 self.log.debug(
                     "Read operation on namenode {nn.host} "
-                    "failed with error: {e}".format(nn=nn, e=e)
+                    "failed with error: {e}".format(**locals())
                 )
         nn_hosts = [c.host for c in nn_connections]
+        logging.info(nn_host)
         no_nn_error = "Read operations failed " \
                       "on the namenodes below:\n{}".format("\n".join(nn_hosts))
         raise AirflowWebHDFSHookException(no_nn_error)
