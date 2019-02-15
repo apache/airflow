@@ -88,6 +88,19 @@ class BaseHook(LoggingMixin):
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
 
+    @classmethod
+    def connection_url(cls, conn_id, conn_url, conn_port):
+        conn = 
+        conn_tmp = conn_url.split(';')
+        if len(conn_tmp) == 1:
+            conn = conn_id + conn_tmp[0] + ':' + conn_port
+        else:
+            for i in range(len(conn_tmp)-1):
+                conn = conn + conn_id + conn_tmp[i] + ':' +  conn_port + ';'
+                if i == len(conn_tmp)-2:
+                   conn = conn + conn_id + conn_tmp[i+1] + ':' + conn_port
+        return conn
+    
     def get_conn(self):
         raise NotImplementedError()
 
