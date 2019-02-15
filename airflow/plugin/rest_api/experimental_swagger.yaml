@@ -50,10 +50,21 @@ paths:
   /dags/{dag_id}/dag_runs:
     parameters:
       - $ref: '#/components/parameters/DagID'
+      - in: query
+        name: state
+        schema:
+          type: string
     post:
       tags:
       - DAG
-      description: Get a specific dag
+      description: Trigger a DAG run
+      requestBody:
+        required: True
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DagRunTrigger"
+
       responses:
         200:
           description: Trigger a dag run
@@ -203,6 +214,12 @@ components:
           type: string
           enum:
             - failed
+    DAGRunTrigger:
+      title: DAG Run Trigger
+      type: object
+      properties:
+        run_id:
+          type: string
     DAG:
       title: DAG
       type: object
