@@ -18,7 +18,7 @@
 # under the License.
 from flask import url_for
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowBadRequest
 from airflow.models import DagBag, DagRun
 
 
@@ -35,7 +35,10 @@ def get_dag_runs(dag_id, state=None):
     # Check DAG exists.
     if dag_id not in dagbag.dags:
         error_message = "Dag id {} not found".format(dag_id)
-        raise AirflowException(error_message)
+        raise AirflowBadRequest(error_message)
+        # TODO This should be a 404, not a 400.
+        # Should be changed in a breaking release.
+        # raise AirflowNotFoundException(error_message)
 
     dag_runs = list()
     state = state.lower() if state else None
