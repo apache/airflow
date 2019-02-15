@@ -43,7 +43,7 @@ class DagEdge(Base):
     from_task = Column(String(250), primary_key=True)
     to_task = Column(String(250), primary_key=True)
 
-    __table_args__ = (Index('idx_dag_edge', dag_id, graph_id, from_task, to_task, unique=True),)
+    __table_args__ = (Index('idx_dag_edge', dag_id, graph_id, unique=False),)
 
     def __init__(self, dag_id, execution_date, from_task, to_task):
         self.dag_id = dag_id
