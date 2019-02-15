@@ -3181,19 +3181,6 @@ class DAG(BaseDag, LoggingMixin):
             tis.append(TaskInstance(task=task, execution_date=execution_date))
         return tis
 
-    def get_db_tis_and_edges(self, execution_date):
-        with create_session() as session:
-            dag_run = session.query(DagRun)\
-                .filter(DagRun.execution_date == execution_date)\
-                .filter(DagRun.dag_id == self.dag_id).one()
-            tis = session.query(TaskInstance)\
-                .filter(TaskInstance.execution_date == execution_date)\
-                .filter(TaskInstance.dag_id == self.dag_id).all()
-            edges = session.query(DagEdge)\
-                .filter(DagEdge.graph_id == dag_run.graph_id)\
-                .filter(DagEdge.dag_id == self.dag_id).all()
-            return tis, edges
-
     def is_fixed_time_schedule(self):
         """
         Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
