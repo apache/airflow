@@ -1851,13 +1851,6 @@ class TaskInstance(Base, LoggingMixin):
         self.raw = raw
         self._set_context(self)
 
-    @staticmethod
-    @provide_session
-    def fetch_tis_db(dag_id, execution_date, session=None):
-        return session.query(TaskInstance)\
-            .filter(TaskInstance.dag_id == dag_id)\
-            .filter(TaskInstance.execution_date == execution_date)
-
 
 @functools.total_ordering
 class BaseOperator(LoggingMixin):
@@ -2850,7 +2843,7 @@ class DagModel(Base):
         if _path is None:
             _path = []
         if self.is_subdag:
-            _path.insert(0, self.dag_id)
+            _path = [self.dag_id] + _path
             return self.get_dagmodel(self.parent_dag)._get_nested_path_dag(_path)
         else:
             return self, _path

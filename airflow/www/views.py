@@ -930,7 +930,7 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
         dag = orm_dag.get_dag()
         if task_id not in dag.task_dict:
-            flash("Task '{}' does not exist in '{}' anymore".format(task_id, orm_dag.fileloc), 'error')
+            flash("Task '{}' does not exist in DAG '{}' anymore".format(task_id, dag_id), 'error')
             return redirect(origin)
 
         execution_date = pendulum.parse(request.args.get('execution_date'))
@@ -1320,7 +1320,10 @@ class Airflow(AirflowBaseView):
 
         dag_run = session.query(models.DagRun) \
             .filter(models.DagRun.dag_id == show_dag_id) \
-            .filter(models.DagRun.execution_date == dttm).one()
+            .filter(models.DagRun.execution_date == dttm).first()
+        if not dag_run:
+            flash('Run "{}" for DAG "{}" is not found.'.format(dttm, show_dag_id), "error")
+            return redirect(url_for('Airflow.index'))
 
         task_instances = dag_run.get_task_instances()
         nodes = [
