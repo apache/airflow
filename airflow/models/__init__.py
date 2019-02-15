@@ -4092,33 +4092,34 @@ class DAG(BaseDag, LoggingMixin):
         dag_model = DagModel.get_dagmodel(self.dag_id)
 
         tis = self.create_tis(execution_date)
-        edges = self.create_edges(-1)
+        # Setting graph_id temparary on -1, will set set later.
+        edges = self.create_edges(graph_id=-1)
 
-        last_run = dag_model.get_last_dagrun(include_externally_triggered=True)
-        if last_run is None:
-            same = False
+        last_dagrun = dag_model.get_last_dagrun(include_externally_triggered=True)
+        if last_dagrun is None:
+            same_dag_run = False
         else:
-            last_edges = DagEdge.fetch_edges_db(self.dag_id, last_run.graph_id)
+            last_edges = DagEdge.fetch_edges_db(self.dag_id, last_dagrun.graph_id)
 
             # Compare edges from last run
-            same = True
+            same_dag_run = True
             if len(last_edges) != len(edges):
-                same = False
+                same_dag_run = False
             else:
                 e1 = set([(edge.from_task, edge.to_task) for edge in last_edges])
                 e2 = set([(edge.from_task, edge.to_task) for edge in edges])
                 if e1 != e2:
-                    same = False
+                    same_dag_run = False
 
-        if same:
+        if same_dag_run:
             # graph is not changed, keep last graph_id
-            graph_id = last_run.graph_id
-        elif last_run is None or last_run.graph_id is None:
+            graph_id = last_dagrun.graph_id
+        elif last_dagrun is None or last_dagrun.graph_id is None:
             # no graph known yet, beginning at 1
             graph_id = 1
         else:
             # graph is changed
-            graph_id = last_run.graph_id + 1
+            graph_id = last_dagrun.graph_id + 1
 
         for edge in edges:
             edge.graph_id = graph_id
@@ -4128,7 +4129,7 @@ class DAG(BaseDag, LoggingMixin):
 
         for ti in tis:
             session.merge(ti)
-        if not same:
+        if not same_dag_run:
             for edge in edges:
                 session.merge(edge)
 
