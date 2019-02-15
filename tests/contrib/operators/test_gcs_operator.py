@@ -42,6 +42,12 @@ class GoogleCloudStorageCreateBucketTest(unittest.TestCase):
         operator = GoogleCloudStorageCreateBucketOperator(
             task_id=TASK_ID,
             bucket_name=TEST_BUCKET,
+            resource={"lifecycle": {
+                "rule": [{"action": {"type": "Delete"},
+                          "condition": {"age": 7}
+                          }
+                         ]}
+            },
             storage_class='MULTI_REGIONAL',
             location='EU',
             labels={'env': 'prod'},
