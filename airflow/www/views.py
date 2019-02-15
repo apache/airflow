@@ -1311,7 +1311,7 @@ class Airflow(AirflowBaseView):
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
         if not dag:
             flash('DAG "{0}" seems to be missing.'.format(show_dag_id), "error")
-            return redirect('/admin/')
+            return redirect(url_for('Airflow.index'))
 
         arrange = request.args.get('arrange', configuration.conf.get('webserver', 'dag_orientation'))
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
