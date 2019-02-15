@@ -22,12 +22,15 @@ import os
 import time
 import datetime
 import six
+import re
 
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+from airflow.models import TaskInstance
 
 from qds_sdk.qubole import Qubole
 from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, \
@@ -199,6 +202,30 @@ class QuboleHook(BaseHook):
         if self.cmd is None:
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_jobs_id(self.cls, cmd_id)
+
+    def get_extra_links(self, task, dttm):
+        log = LoggingMixin().log
+        session = settings.Session()
+        url = ''
+
+        try:
+            conn = BaseHook.get_connection(task.kwargs['qubole_conn_id'])
+            if conn and conn.host:
+                host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
+            else:
+                host = 'https://api.qubole.com/v2/analyze?command_id='
+
+            ti = TaskInstance(task=task, execution_date=dttm)
+            qds_command_id = ti.xcom_pull(task_ids=task.task_id, key='qbol_cmd_id')
+
+            url = host + str(qds_command_id) if qds_command_id else ''
+        except Exception as e:
+            log.warning('Could not find the url to redirect. Error: %s' % str(e))
+        finally:
+            session.commit()
+            session.close()
+
+        return url
 
     def create_cmd_args(self, context):
         args = []
