@@ -105,15 +105,21 @@ class AirflowRestyResolver(Resolver):
                 try:
                     result = func(*args, **kwargs)
                     if isinstance(result, list):
-                        return [i.to_json() for i in result]
+                        return [dict(i) for i in result]
                     elif hasattr(result, 'to_json'):
                         return result.to_json()
-                    else:
+                    elif isinstance(result, dict):
                         return result
+                    else:
+                        return {
+                            k: str(v)
+                            for k, v in vars(result).items()
+                            if not k.startswith('_')
+                        }
                 except AirflowException as err:
                     response = jsonify(error="{}".format(err))
                     response.status_code = err.status_code
-                    return response
+                    return response, response.status_code
 
             return handler
 
@@ -139,7 +145,7 @@ class AirflowRestyResolver(Resolver):
 
         handler = '{}.{}'.format(controller, get_function_name())
         if (self.version == 'experimental') \
-           and (handler in self.handler_mapping):
+            and (handler in self.handler_mapping):
             # If we're using the experimental API, use the explicit mapping
             # from `self.handler_mapping`.
             return self.handler_mapping[handler]
