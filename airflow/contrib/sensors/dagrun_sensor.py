@@ -11,9 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
-from airflow import settings
 from airflow.exceptions import AirflowException
+from airflow.utils import db
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.trigger_rule import TriggerRule
@@ -43,15 +42,14 @@ class DagRunSensor(BaseSensorOperator):
         self.trigger_task_id = trigger_task_id
 
     def poke(self, context):
-        session = settings.Session()
-        try:
+        with db.create_session() as session:
             runcount = 0
             ti = context['ti']
             dagrun_ids = ti.xcom_pull(task_ids=self.trigger_task_id)
             if dagrun_ids:
                 ids = dagrun_ids[:2]
                 ids = ids + ['...'] if len(dagrun_ids) > 2 else ids
-                logging.info('Poking for {}'.format(','.join(ids)))
+                self.log.info('Poking for %s', ','.join(ids))
                 runcount = session.query(DagRun).filter(
                     DagRun.run_id.in_(dagrun_ids),
                     DagRun.state == State.RUNNING,
@@ -59,7 +57,7 @@ class DagRunSensor(BaseSensorOperator):
             else:
                 raise AirflowException("No dagrun ids returned by '{}'".format(
                     self.trigger_task_id))
-            logging.info('runcount={}'.format(runcount))
+            self.log.info('runcount=%s', runcount)
             if runcount == 0:
                 successcount = session.query(DagRun).filter(
                     DagRun.run_id.in_(dagrun_ids),
@@ -72,5 +70,3 @@ class DagRunSensor(BaseSensorOperator):
                     raise AirflowException("sensor rule '{}' is not supported".format(
                         self.sensor_rule))
             return runcount == 0
-        finally:
-            session.close()
