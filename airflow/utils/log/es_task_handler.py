@@ -21,6 +21,7 @@
 import elasticsearch
 import json
 import logging
+import re
 import sys
 
 import pendulum
@@ -305,6 +306,21 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                 msg = 'Could not read log with log_id: {}, ' \
                       'error: {}'.format(log_id, str(e))
                 self.log.exception(msg)
+        # If logs are JSONs, format the JSONs correctly, to match airflow log
+        # syntax before writing them to the web UI
+        # Pretext should encapsulate everything in the log message before the
+        # JSON, which includes the supervisor process logs
+        if self.json_format:
+            for log in logs:
+                break_string_at_bracket = re.split(r"\s(?=[{\[])", log.message)
+                check_for_valid_json = break_string_at_bracket[-1]
+                try:
+                    valid_json = json.loads(check_for_valid_json.replace('\n', ''))
+                except Exception as e:
+                    continue
+                pretext = break_string_at_bracket[0]
+                reconstructed_log = "[{asctime}] {{{filename}:{lineno}}} {levelname} - {message}".format(**valid_json)
+                log['message'] = pretext + " " + reconstructed_log
 
         return logs
 
