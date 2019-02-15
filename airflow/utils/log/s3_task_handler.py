@@ -45,7 +45,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         except Exception:
             self.log.error(
                 'Could not create an S3Hook with connection id "%s". '
-                'Please make sure that airflow[s3] is installed and '
+                'Please make sure that airflow[aws] is installed and '
                 'the S3 connection exists.', remote_conn_id
             )
 

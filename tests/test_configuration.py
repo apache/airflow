@@ -21,6 +21,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
+import contextlib
 from collections import OrderedDict
 
 import six
@@ -33,6 +34,23 @@ if six.PY2:
     import unittest2 as unittest
 else:
     import unittest
+
+
+@contextlib.contextmanager
+def env_vars(**vars):
+    original = {}
+    for key, value in vars.items():
+        original[key] = os.environ.get(key)
+        if value is not None:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
+    yield
+    for key, value in original.items():
+        if value is not None:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
 
 
 class ConfTest(unittest.TestCase):
@@ -49,12 +67,38 @@ class ConfTest(unittest.TestCase):
         del os.environ['AIRFLOW__TESTSECTION__TESTKEY']
         del os.environ['AIRFLOW__TESTSECTION__TESTPERCENT']
 
+    def test_airflow_home_default(self):
+        with env_vars(AIRFLOW_HOME=None):
+            self.assertEqual(
+                configuration.get_airflow_home(),
+                configuration.expand_env_var('~/airflow'))
+
+    def test_airflow_home_override(self):
+        with env_vars(AIRFLOW_HOME='/path/to/airflow'):
+            self.assertEqual(
+                configuration.get_airflow_home(),
+                '/path/to/airflow')
+
+    def test_airflow_config_default(self):
+        with env_vars(AIRFLOW_CONFIG=None):
+            self.assertEqual(
+                configuration.get_airflow_config('/home/airflow'),
+                configuration.expand_env_var('/home/airflow/airflow.cfg'))
+
+    def test_airflow_config_override(self):
+        with env_vars(AIRFLOW_CONFIG='/path/to/airflow/airflow.cfg'):
+            self.assertEqual(
+                configuration.get_airflow_config('/home//airflow'),
+                '/path/to/airflow/airflow.cfg')
+
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
         self.assertEqual(opt, 'testvalue')
 
         opt = conf.get('testsection', 'testpercent')
         self.assertEqual(opt, 'with%percent')
+
+        self.assertTrue(conf.has_option('testsection', 'testkey'))
 
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
@@ -95,7 +139,7 @@ class ConfTest(unittest.TestCase):
         self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
         self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
 
-    def test_command_config(self):
+    def test_command_precedence(self):
         TEST_CONFIG = '''[test]
 key1 = hello
 key2_cmd = printf cmd_result
@@ -123,6 +167,13 @@ key6 = value6
         self.assertEqual('key4_result', test_conf.get('test', 'key4'))
         self.assertEqual('value6', test_conf.get('another', 'key6'))
 
+        self.assertEqual('hello', test_conf.get('test', 'key1', fallback='fb'))
+        self.assertEqual('value6', test_conf.get('another', 'key6', fallback='fb'))
+        self.assertEqual('fb', test_conf.get('another', 'key7', fallback='fb'))
+        self.assertEqual(True, test_conf.getboolean('another', 'key8_boolean', fallback='True'))
+        self.assertEqual(10, test_conf.getint('another', 'key8_int', fallback='10'))
+        self.assertEqual(1.0, test_conf.getfloat('another', 'key8_float', fallback='1'))
+
         self.assertTrue(test_conf.has_option('test', 'key1'))
         self.assertTrue(test_conf.has_option('test', 'key2'))
         self.assertTrue(test_conf.has_option('test', 'key3'))
@@ -133,6 +184,67 @@ key6 = value6
         cfg_dict = test_conf.as_dict(display_sensitive=True)
         self.assertEqual('cmd_result', cfg_dict['test']['key2'])
         self.assertNotIn('key2_cmd', cfg_dict['test'])
+
+    def test_getboolean(self):
+        """Test AirflowConfigParser.getboolean"""
+        TEST_CONFIG = """
+[type_validation]
+key1 = non_bool_value
+
+[true]
+key2 = t
+key3 = true
+key4 = 1
+
+[false]
+key5 = f
+key6 = false
+key7 = 0
+
+[inline-comment]
+key8 = true #123
+"""
+        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        with self.assertRaises(ValueError):
+            test_conf.getboolean('type_validation', 'key1')
+        self.assertTrue(isinstance(test_conf.getboolean('true', 'key3'), bool))
+        self.assertEqual(True, test_conf.getboolean('true', 'key2'))
+        self.assertEqual(True, test_conf.getboolean('true', 'key3'))
+        self.assertEqual(True, test_conf.getboolean('true', 'key4'))
+        self.assertEqual(False, test_conf.getboolean('false', 'key5'))
+        self.assertEqual(False, test_conf.getboolean('false', 'key6'))
+        self.assertEqual(False, test_conf.getboolean('false', 'key7'))
+        self.assertEqual(True, test_conf.getboolean('inline-comment', 'key8'))
+
+    def test_getint(self):
+        """Test AirflowConfigParser.getint"""
+        TEST_CONFIG = """
+[invalid]
+key1 = str
+
+[valid]
+key2 = 1
+"""
+        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        with self.assertRaises(ValueError):
+            test_conf.getint('invalid', 'key1')
+        self.assertTrue(isinstance(test_conf.getint('valid', 'key2'), int))
+        self.assertEqual(1, test_conf.getint('valid', 'key2'))
+
+    def test_getfloat(self):
+        """Test AirflowConfigParser.getfloat"""
+        TEST_CONFIG = """
+[invalid]
+key1 = str
+
+[valid]
+key2 = 1.23
+"""
+        test_conf = AirflowConfigParser(default_config=TEST_CONFIG)
+        with self.assertRaises(ValueError):
+            test_conf.getfloat('invalid', 'key1')
+        self.assertTrue(isinstance(test_conf.getfloat('valid', 'key2'), float))
+        self.assertEqual(1.23, test_conf.getfloat('valid', 'key2'))
 
     def test_remove_option(self):
         TEST_CONFIG = '''[test]
@@ -203,12 +315,12 @@ key3 = value3
 
         with self.assertWarns(DeprecationWarning):
             os.environ['AIRFLOW__CELERY__CELERYD_CONCURRENCY'] = '99'
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             os.environ.pop('AIRFLOW__CELERY__CELERYD_CONCURRENCY')
 
         with self.assertWarns(DeprecationWarning):
             conf.set('celery', 'celeryd_concurrency', '99')
-            self.assertEquals(conf.getint('celery', 'worker_concurrency'), 99)
+            self.assertEqual(conf.getint('celery', 'worker_concurrency'), 99)
             conf.remove_option('celery', 'celeryd_concurrency')
 
     def test_deprecated_options_cmd(self):
@@ -224,6 +336,6 @@ key3 = value3
             tmp = None
             if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
                 tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-            self.assertEquals(conf.getint('celery', 'result_backend'), 99)
+            self.assertEqual(conf.getint('celery', 'result_backend'), 99)
             if tmp:
                 os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp

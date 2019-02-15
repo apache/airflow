@@ -129,7 +129,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         :type remote_log_location: str (path)
         """
         bkt, blob = self.parse_gcs_url(remote_log_location)
-        return self.hook.download(bkt, blob).decode()
+        return self.hook.download(bkt, blob).decode('utf-8')
 
     def gcs_write(self, log, remote_log_location, append=True):
         """

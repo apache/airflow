@@ -31,8 +31,10 @@ from importlib import import_module
 import getpass
 import reprlib
 import argparse
+from argparse import RawTextHelpFormatter
 from builtins import input
 from collections import namedtuple
+
 from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
@@ -54,22 +56,16 @@ from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import GetDefaultExecutor
-from airflow.models import (DagModel, DagBag, TaskInstance,
-                            DagPickle, DagRun, Variable, DagStat,
-                            Connection, DAG)
-
+from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
+from airflow.models.connection import Connection
+from airflow.models.dagpickle import DagPickle
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
-from airflow.utils import cli as cli_utils
-from airflow.utils import db as db_utils
+from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
-from airflow.www.app import (cached_app, create_app)
-from airflow.www_rbac.app import cached_app as cached_app_rbac
-from airflow.www_rbac.app import create_app as create_app_rbac
-from airflow.www_rbac.app import cached_appbuilder
+from airflow.www.app import cached_app, create_app, cached_appbuilder
 
-from sqlalchemy import func
 from sqlalchemy.orm import exc
 
 api.load_auth()
@@ -219,6 +215,7 @@ def backfill(args, dag=None):
             verbose=args.verbose,
             conf=run_conf,
             rerun_failed_tasks=args.rerun_failed_tasks,
+            run_backwards=args.run_backwards
         )
 
 
@@ -344,10 +341,8 @@ def variables(args):
         except ValueError as e:
             print(e)
     if args.delete:
-        session = settings.Session()
-        session.query(Variable).filter_by(key=args.delete).delete()
-        session.commit()
-        session.close()
+        with db.create_session() as session:
+            session.query(Variable).filter_by(key=args.delete).delete()
     if args.set:
         Variable.set(args.set[0], args.set[1])
     # Work around 'import' as a reserved keyword
@@ -361,10 +356,10 @@ def variables(args):
         export_helper(args.export)
     if not (args.set or args.get or imp or args.export or args.delete):
         # list all variables
-        session = settings.Session()
-        vars = session.query(Variable)
-        msg = "\n".join(var.key for var in vars)
-        print(msg)
+        with db.create_session() as session:
+            vars = session.query(Variable)
+            msg = "\n".join(var.key for var in vars)
+            print(msg)
 
 
 def import_helper(filepath):
@@ -391,19 +386,17 @@ def import_helper(filepath):
 
 
 def export_helper(filepath):
-    session = settings.Session()
-    qry = session.query(Variable).all()
-    session.close()
-
     var_dict = {}
-    d = json.JSONDecoder()
-    for var in qry:
-        val = None
-        try:
-            val = d.decode(var.val)
-        except Exception:
-            val = var.val
-        var_dict[var.key] = val
+    with db.create_session() as session:
+        qry = session.query(Variable).all()
+
+        d = json.JSONDecoder()
+        for var in qry:
+            try:
+                val = d.decode(var.val)
+            except Exception:
+                val = var.val
+            var_dict[var.key] = val
 
     with open(filepath, 'w') as varfile:
         varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
@@ -423,14 +416,12 @@ def unpause(args, dag=None):
 def set_is_paused(is_paused, args, dag=None):
     dag = dag or get_dag(args)
 
-    session = settings.Session()
-    dm = session.query(DagModel).filter(
-        DagModel.dag_id == dag.dag_id).first()
-    dm.is_paused = is_paused
-    session.commit()
+    with db.create_session() as session:
+        dm = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).first()
+        dm.is_paused = is_paused
+        session.commit()
 
-    msg = "Dag: {}, paused: {}".format(dag, str(dag.is_paused))
-    print(msg)
+    print("Dag: {}, paused: {}".format(dag, str(dag.is_paused)))
 
 
 def _run(args, dag, ti):
@@ -456,14 +447,12 @@ def _run(args, dag, ti):
         if args.ship_dag:
             try:
                 # Running remotely, so pickling the DAG
-                session = settings.Session()
-                pickle = DagPickle(dag)
-                session.add(pickle)
-                session.commit()
-                pickle_id = pickle.id
-                # TODO: This should be written to a log
-                print('Pickled dag {dag} as pickle_id:{pickle_id}'
-                      .format(**locals()))
+                with db.create_session() as session:
+                    pickle = DagPickle(dag)
+                    session.add(pickle)
+                    pickle_id = pickle.id
+                    # TODO: This should be written to a log
+                    print('Pickled dag {dag} as pickle_id:{pickle_id}'.format(**locals()))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -512,13 +501,12 @@ def run(args, dag=None):
     if not args.pickle and not dag:
         dag = get_dag(args)
     elif not dag:
-        session = settings.Session()
-        log.info('Loading pickle id {args.pickle}'.format(args=args))
-        dag_pickle = session.query(
-            DagPickle).filter(DagPickle.id == args.pickle).first()
-        if not dag_pickle:
-            raise AirflowException("Who hid the pickle!? [missing pickle]")
-        dag = dag_pickle.pickle
+        with db.create_session() as session:
+            log.info('Loading pickle id {args.pickle}'.format(args=args))
+            dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
+            if not dag_pickle:
+                raise AirflowException("Who hid the pickle!? [missing pickle]")
+            dag = dag_pickle.pickle
 
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
@@ -615,6 +603,16 @@ def next_execution(args):
 
 
 @cli_utils.action_logging
+def rotate_fernet_key(args):
+    with db.create_session() as session:
+        for conn in session.query(Connection).filter(
+                Connection.is_encrypted | Connection.is_extra_encrypted):
+            conn.rotate_fernet_key()
+        for var in session.query(Variable).filter(Variable.is_encrypted):
+            var.rotate_fernet_key()
+
+
+@cli_utils.action_logging
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     s = textwrap.dedent("""\n
@@ -637,6 +635,39 @@ def list_tasks(args, dag=None):
     else:
         tasks = sorted([t.task_id for t in dag.tasks])
         print("\n".join(sorted(tasks)))
+
+
+@cli_utils.action_logging
+def list_jobs(args, dag=None):
+    queries = []
+    if dag:
+        args.dag_id = dag.dag_id
+    if args.dag_id:
+        dagbag = DagBag()
+
+        if args.dag_id not in dagbag.dags:
+            error_message = "Dag id {} not found".format(args.dag_id)
+            raise AirflowException(error_message)
+        queries.append(jobs.BaseJob.dag_id == args.dag_id)
+
+    if args.state:
+        queries.append(jobs.BaseJob.state == args.state)
+
+    with db.create_session() as session:
+        all_jobs = (session
+                    .query(jobs.BaseJob)
+                    .filter(*queries)
+                    .order_by(jobs.BaseJob.start_date.desc())
+                    .limit(args.limit)
+                    .all())
+        fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
+        all_jobs = [[job.__getattribute__(field) for field in fields] for job in all_jobs]
+        msg = tabulate(all_jobs,
+                       [field.capitalize().replace('_', ' ') for field in fields],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
 
 
 @cli_utils.action_logging
@@ -751,7 +782,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
         """
         t = time.time()
         while not fn():
-            if 0 < timeout and timeout <= time.time() - t:
+            if 0 < timeout <= time.time() - t:
                 raise AirflowWebServerTimeout(
                     "No response from gunicorn master within {0} seconds"
                     .format(timeout))
@@ -853,16 +884,13 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        if settings.RBAC:
-            app, _ = create_app_rbac(conf, testing=conf.get('core', 'unit_test_mode'))
-        else:
-            app = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app, _ = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
+        app = cached_app(conf)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         os.environ.pop('SKIP_DAGS_PARSING')
@@ -904,7 +932,7 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        webserver_module = 'www_rbac' if settings.RBAC else 'www'
+        webserver_module = 'www'
         run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
         gunicorn_master_proc = None
@@ -971,7 +999,6 @@ def scheduler(args):
     job = jobs.SchedulerJob(
         dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
-        run_duration=args.run_duration,
         num_runs=args.num_runs,
         do_pickle=args.do_pickle)
 
@@ -1052,6 +1079,9 @@ def worker(args):
         'loglevel': conf.get('core', 'LOGGING_LEVEL'),
     }
 
+    if conf.has_option("celery", "pool"):
+        options["pool"] = conf.get("celery", "pool")
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker",
                                                         args.pid,
@@ -1087,7 +1117,7 @@ def worker(args):
 
 def initdb(args):
     print("DB: " + repr(settings.engine.url))
-    db_utils.initdb(settings.RBAC)
+    db.initdb()
     print("Done.")
 
 
@@ -1096,7 +1126,7 @@ def resetdb(args):
     if args.yes or input("This will drop existing tables "
                          "if they exist. Proceed? "
                          "(y/n)").upper() == "Y":
-        db_utils.resetdb(settings.RBAC)
+        db.resetdb()
     else:
         print("Bail.")
 
@@ -1104,19 +1134,7 @@ def resetdb(args):
 @cli_utils.action_logging
 def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
-    db_utils.upgradedb()
-
-    # Populate DagStats table
-    session = settings.Session()
-    ds_rows = session.query(DagStat).count()
-    if not ds_rows:
-        qry = (
-            session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-                   .group_by(DagRun.dag_id, DagRun.state)
-        )
-        for dag_id, state, count in qry:
-            session.add(DagStat(dag_id=dag_id, state=state, count=count))
-        session.commit()
+    db.upgradedb()
 
 
 @cli_utils.action_logging
@@ -1143,20 +1161,20 @@ def connections(args):
             print(msg)
             return
 
-        session = settings.Session()
-        conns = session.query(Connection.conn_id, Connection.conn_type,
-                              Connection.host, Connection.port,
-                              Connection.is_encrypted,
-                              Connection.is_extra_encrypted,
-                              Connection.extra).all()
-        conns = [map(reprlib.repr, conn) for conn in conns]
-        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
-                               'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
-        print(msg)
-        return
+        with db.create_session() as session:
+            conns = session.query(Connection.conn_id, Connection.conn_type,
+                                  Connection.host, Connection.port,
+                                  Connection.is_encrypted,
+                                  Connection.is_extra_encrypted,
+                                  Connection.extra).all()
+            conns = [map(reprlib.repr, conn) for conn in conns]
+            msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
+                                   'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
+                           tablefmt="fancy_grid")
+            if sys.version_info[0] < 3:
+                msg = msg.encode('utf-8')
+            print(msg)
+            return
 
     if args.delete:
         # Check that only the `conn_id` arg was passed to the command
@@ -1176,31 +1194,30 @@ def connections(args):
                   'the --conn_id flag.\n')
             return
 
-        session = settings.Session()
-        try:
-            to_delete = (session
-                         .query(Connection)
-                         .filter(Connection.conn_id == args.conn_id)
-                         .one())
-        except exc.NoResultFound:
-            msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
+        with db.create_session() as session:
+            try:
+                to_delete = (session
+                             .query(Connection)
+                             .filter(Connection.conn_id == args.conn_id)
+                             .one())
+            except exc.NoResultFound:
+                msg = '\n\tDid not find a connection with `conn_id`={conn_id}\n'
+                msg = msg.format(conn_id=args.conn_id)
+                print(msg)
+                return
+            except exc.MultipleResultsFound:
+                msg = ('\n\tFound more than one connection with ' +
+                       '`conn_id`={conn_id}\n')
+                msg = msg.format(conn_id=args.conn_id)
+                print(msg)
+                return
+            else:
+                deleted_conn_id = to_delete.conn_id
+                session.delete(to_delete)
+                msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
+                msg = msg.format(conn_id=deleted_conn_id)
+                print(msg)
             return
-        except exc.MultipleResultsFound:
-            msg = ('\n\tFound more than one connection with ' +
-                   '`conn_id`={conn_id}\n')
-            msg = msg.format(conn_id=args.conn_id)
-            print(msg)
-            return
-        else:
-            deleted_conn_id = to_delete.conn_id
-            session.delete(to_delete)
-            session.commit()
-            msg = '\n\tSuccessfully deleted `conn_id`={conn_id}\n'
-            msg = msg.format(conn_id=deleted_conn_id)
-            print(msg)
-        return
 
     if args.add:
         # Check that the conn_id and conn_uri args were passed to the command:
@@ -1239,26 +1256,25 @@ def connections(args):
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
-        session = settings.Session()
-        if not (session.query(Connection)
-                       .filter(Connection.conn_id == new_conn.conn_id).first()):
-            session.add(new_conn)
-            session.commit()
-            msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id,
-                             uri=args.conn_uri or
-                             urlunparse((args.conn_type,
-                                        '{login}:{password}@{host}:{port}'
-                                         .format(login=args.conn_login or '',
-                                                 password=args.conn_password or '',
-                                                 host=args.conn_host or '',
-                                                 port=args.conn_port or ''),
-                                         args.conn_schema or '', '', '', '')))
-            print(msg)
-        else:
-            msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
-            msg = msg.format(conn_id=new_conn.conn_id)
-            print(msg)
+        with db.create_session() as session:
+            if not (session.query(Connection)
+                           .filter(Connection.conn_id == new_conn.conn_id).first()):
+                session.add(new_conn)
+                msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
+                msg = msg.format(conn_id=new_conn.conn_id,
+                                 uri=args.conn_uri or
+                                 urlunparse((args.conn_type,
+                                            '{login}:{password}@{host}:{port}'
+                                             .format(login=args.conn_login or '',
+                                                     password=args.conn_password or '',
+                                                     host=args.conn_host or '',
+                                                     port=args.conn_port or ''),
+                                             args.conn_schema or '', '', '', '')))
+                print(msg)
+            else:
+                msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
+                msg = msg.format(conn_id=new_conn.conn_id)
+                print(msg)
 
         return
 
@@ -1334,12 +1350,12 @@ def kerberos(args):
         )
 
         with ctx:
-            airflow.security.kerberos.run()
+            airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
         stdout.close()
         stderr.close()
     else:
-        airflow.security.kerberos.run()
+        airflow.security.kerberos.run(principal=args.principal, keytab=args.keytab)
 
 
 @cli_utils.action_logging
@@ -1358,7 +1374,7 @@ def users(args):
 
         return
 
-    if args.create:
+    elif args.create:
         fields = {
             'role': args.role,
             'username': args.username,
@@ -1396,7 +1412,7 @@ def users(args):
         else:
             raise SystemExit('Failed to create user.')
 
-    if args.delete:
+    elif args.delete:
         if not args.username:
             raise SystemExit('Required arguments are missing: username')
 
@@ -1412,6 +1428,177 @@ def users(args):
             print('User {} deleted.'.format(args.username))
         else:
             raise SystemExit('Failed to delete user.')
+
+    elif args.add_role or args.remove_role:
+        if args.add_role and args.remove_role:
+            raise SystemExit('Conflicting args: --add-role and --remove-role'
+                             ' are mutually exclusive')
+
+        if not args.username and not args.email:
+            raise SystemExit('Missing args: must supply one of --username or --email')
+
+        if args.username and args.email:
+            raise SystemExit('Conflicting args: must supply either --username'
+                             ' or --email, but not both')
+        if not args.role:
+            raise SystemExit('Required args are missing: role')
+
+        appbuilder = cached_appbuilder()
+        user = (appbuilder.sm.find_user(username=args.username) or
+                appbuilder.sm.find_user(email=args.email))
+        if not user:
+            raise SystemExit('User "{}" does not exist'.format(
+                args.username or args.email))
+
+        role = appbuilder.sm.find_role(args.role)
+        if not role:
+            raise SystemExit('"{}" is not a valid role.'.format(args.role))
+
+        if args.remove_role:
+            if role in user.roles:
+                user.roles = [r for r in user.roles if r != role]
+                appbuilder.sm.update_user(user)
+                print('User "{}" removed from role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                raise SystemExit('User "{}" is not a member of role "{}".'.format(
+                    user,
+                    args.role))
+        elif args.add_role:
+            if role in user.roles:
+                raise SystemExit('User "{}" is already a member of role "{}".'.format(
+                    user,
+                    args.role))
+            else:
+                user.roles.append(role)
+                appbuilder.sm.update_user(user)
+                print('User "{}" added to role "{}".'.format(
+                    user,
+                    args.role))
+    elif args.export:
+        appbuilder = cached_appbuilder()
+        users = appbuilder.sm.get_all_users()
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'roles']
+
+        # In the User model the first and last name fields have underscores,
+        # but the corresponding parameters in the CLI don't
+        def remove_underscores(s):
+            return re.sub("_", "", s)
+
+        users = [
+            {remove_underscores(field): user.__getattribute__(field)
+             if field != 'roles' else [r.name for r in user.roles]
+             for field in fields}
+            for user in users
+        ]
+
+        with open(args.export, 'w') as f:
+            f.write(json.dumps(users, sort_keys=True, indent=4))
+            print("{} users successfully exported to {}".format(len(users), f.name))
+
+    elif getattr(args, 'import'):  # "import" is a reserved word
+        json_file = getattr(args, 'import')
+        if not os.path.exists(json_file):
+            print("File '{}' does not exist")
+            exit(1)
+
+        users_list = None
+        try:
+            with open(json_file, 'r') as f:
+                users_list = json.loads(f.read())
+        except ValueError as e:
+            print("File '{}' is not valid JSON. Error: {}".format(json_file, e))
+            exit(1)
+
+        users_created, users_updated = _import_users(users_list)
+        if users_created:
+            print("Created the following users:\n\t{}".format(
+                "\n\t".join(users_created)))
+
+        if users_updated:
+            print("Updated the following users:\n\t{}".format(
+                "\n\t".join(users_updated)))
+
+
+def _import_users(users_list):
+    appbuilder = cached_appbuilder()
+    users_created = []
+    users_updated = []
+
+    for user in users_list:
+        roles = []
+        for rolename in user['roles']:
+            role = appbuilder.sm.find_role(rolename)
+            if not role:
+                print("Error: '{}' is not a valid role".format(rolename))
+                exit(1)
+            else:
+                roles.append(role)
+
+        required_fields = ['username', 'firstname', 'lastname',
+                           'email', 'roles']
+        for field in required_fields:
+            if not user.get(field):
+                print("Error: '{}' is a required field, but was not "
+                      "specified".format(field))
+                exit(1)
+
+        existing_user = appbuilder.sm.find_user(email=user['email'])
+        if existing_user:
+            print("Found existing user with email '{}'".format(user['email']))
+            existing_user.roles = roles
+            existing_user.first_name = user['firstname']
+            existing_user.last_name = user['lastname']
+
+            if existing_user.username != user['username']:
+                print("Error: Changing ther username is not allowed - "
+                      "please delete and recreate the user with "
+                      "email '{}'".format(user['email']))
+                exit(1)
+
+            appbuilder.sm.update_user(existing_user)
+            users_updated.append(user['email'])
+        else:
+            print("Creating new user with email '{}'".format(user['email']))
+            appbuilder.sm.add_user(
+                username=user['username'],
+                first_name=user['firstname'],
+                last_name=user['lastname'],
+                email=user['email'],
+                role=roles[0],  # add_user() requires exactly 1 role
+            )
+
+            if len(roles) > 1:
+                new_user = appbuilder.sm.find_user(email=user['email'])
+                new_user.roles = roles
+                appbuilder.sm.update_user(new_user)
+
+            users_created.append(user['email'])
+
+    return users_created, users_updated
+
+
+@cli_utils.action_logging
+def roles(args):
+    if args.create and args.list:
+        raise AirflowException("Please specify either --create or --list, "
+                               "but not both")
+
+    appbuilder = cached_appbuilder()
+    if args.create:
+        for role_name in args.role:
+            appbuilder.sm.add_role(role_name)
+    elif args.list:
+        roles = appbuilder.sm.get_all_roles()
+        print("Existing roles:\n")
+        role_names = sorted([[r.name] for r in roles])
+        msg = tabulate(role_names,
+                       headers=['Role'],
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
 
 
 @cli_utils.action_logging
@@ -1468,12 +1655,15 @@ def list_dag_runs(args, dag=None):
 
 @cli_utils.action_logging
 def sync_perm(args):
-    if settings.RBAC:
-        appbuilder = cached_appbuilder()
-        print('Update permission, view-menu for all existing roles')
-        appbuilder.sm.sync_roles()
-    else:
-        print('The sync_perm command only works for rbac UI.')
+    appbuilder = cached_appbuilder()
+    print('Updating permission, view-menu for all existing roles')
+    appbuilder.sm.sync_roles()
+    print('Updating permission on all DAG views')
+    dags = DagBag().dags.values()
+    for dag in dags:
+        appbuilder.sm.sync_perm_for_dag(
+            dag.dag_id,
+            dag.access_control)
 
 
 Arg = namedtuple(
@@ -1534,6 +1724,12 @@ class CLIFactory(object):
             "Only list the dag runs corresponding to the state"
         ),
 
+        # list_jobs
+        'limit': Arg(
+            ("--limit",),
+            "Return a limited number of records"
+        ),
+
         # backfill
         'mark_success': Arg(
             ("-m", "--mark_success"),
@@ -1586,6 +1782,13 @@ class CLIFactory(object):
                 "if set, the backfill will auto-rerun "
                 "all the failed tasks for the backfill date range "
                 "instead of throwing exceptions"),
+            "store_true"),
+        'run_backwards': Arg(
+            ("-B", "--run_backwards",),
+            (
+                "if set, the backfill will run tasks from the most "
+                "recent day first.  if there are tasks that depend_on_past "
+                "this option will throw an exception"),
             "store_true"),
 
         # list_tasks
@@ -1678,8 +1881,7 @@ class CLIFactory(object):
             help="Delete a variable"),
         # kerberos
         'principal': Arg(
-            ("principal",), "kerberos principal",
-            nargs='?', default=conf.get('kerberos', 'principal')),
+            ("principal",), "kerberos principal", nargs='?'),
         'keytab': Arg(
             ("-kt", "--keytab"), "keytab",
             nargs='?', default=conf.get('kerberos', 'keytab')),
@@ -1779,10 +1981,6 @@ class CLIFactory(object):
                  "stderr."),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
-        'run_duration': Arg(
-            ("-r", "--run-duration"),
-            default=None, type=int,
-            help="Set number of seconds to execute before exiting"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
             default=-1, type=int,
@@ -1930,6 +2128,46 @@ class CLIFactory(object):
             ('-d', '--delete'),
             help='Delete a user',
             action='store_true'),
+        'add_role': Arg(
+            ('--add-role',),
+            help='Add user to a role',
+            action='store_true'),
+        'remove_role': Arg(
+            ('--remove-role',),
+            help='Remove user from a role',
+            action='store_true'),
+        'user_import': Arg(
+            ("-i", "--import"),
+            metavar="FILEPATH",
+            help="Import users from JSON file. Example format:" +
+                    textwrap.dedent('''
+                    [
+                        {
+                            "email": "foo@bar.org",
+                            "firstname": "Jon",
+                            "lastname": "Doe",
+                            "roles": ["Public"],
+                            "username": "jondoe"
+                        }
+                    ]'''),
+        ),
+        'user_export': Arg(
+            ("-e", "--export"),
+            metavar="FILEPATH",
+            help="Export users to JSON file"),
+        # roles
+        'create_role': Arg(
+            ('-c', '--create'),
+            help='Create a new role',
+            action='store_true'),
+        'list_roles': Arg(
+            ('-l', '--list'),
+            help='List roles',
+            action='store_true'),
+        'roles': Arg(
+            ('role',),
+            help='The name of a role',
+            nargs='*'),
         'autoscale': Arg(
             ('-a', '--autoscale'),
             help="Minimum and Maximum number of worker to autoscale"),
@@ -1951,7 +2189,7 @@ class CLIFactory(object):
                 'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                 'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
-                'reset_dag_run', 'rerun_failed_tasks',
+                'reset_dag_run', 'rerun_failed_tasks', 'run_backwards'
             )
         }, {
             'func': list_dag_runs,
@@ -1966,6 +2204,10 @@ class CLIFactory(object):
             'func': list_tasks,
             'help': "List the tasks within a DAG",
             'args': ('dag_id', 'tree', 'subdir'),
+        }, {
+            'func': list_jobs,
+            'help': "List the jobs",
+            'args': ('dag_id_opt', 'state', 'limit'),
         }, {
             'func': clear,
             'help': "Clear a set of task instance, as if they never ran",
@@ -2068,7 +2310,7 @@ class CLIFactory(object):
         }, {
             'func': scheduler,
             'help': "Start a scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
+            'args': ('dag_id_opt', 'subdir', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {
@@ -2092,21 +2334,32 @@ class CLIFactory(object):
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
         }, {
             'func': users,
-            'help': "List/Create/Delete users",
+            'help': "List/Create/Delete/Update users",
             'args': ('list_users', 'create_user', 'delete_user',
+                     'add_role', 'remove_role', 'user_import', 'user_export',
                      'username', 'email', 'firstname', 'lastname', 'role',
                      'password', 'use_random_password'),
-        },
-        {
+        }, {
+            'func': roles,
+            'help': 'Create/List roles',
+            'args': ('create_role', 'list_roles', 'roles'),
+        }, {
             'func': sync_perm,
-            'help': "Update existing role's permissions.",
+            'help': "Update permissions for existing roles and DAGs.",
             'args': tuple(),
         },
         {
             'func': next_execution,
             'help': "Get the next execution datetime of a DAG.",
             'args': ('dag_id', 'subdir')
-        }
+        },
+        {
+            'func': rotate_fernet_key,
+            'help': 'Rotate all encrypted connection credentials and variables; see '
+                    'https://airflow.readthedocs.io/en/stable/howto/secure-connections.html'
+                    '#rotating-encryption-keys.',
+            'args': (),
+        },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
@@ -2123,6 +2376,7 @@ class CLIFactory(object):
         for sub in subparser_list:
             sub = cls.subparsers_dict[sub]
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
+            sp.formatter_class = RawTextHelpFormatter
             for arg in sub['args']:
                 if 'dag_id' in arg and dag_parser:
                     continue

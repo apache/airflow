@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 # Time to sleep between active checks of the operation results
-TIME_TO_SLEEP_IN_SECONDS = 1
+TIME_TO_SLEEP_IN_SECONDS = 10
 
 
 # noinspection PyAbstractClass
@@ -56,34 +56,19 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    def create_transfer_job(self, project_id, transfer_spec, **kwargs):
-        conn = self.get_conn()
-        now = datetime.datetime.utcnow()
+    def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
         transfer_job = {
             'status': 'ENABLED',
-            'projectId': project_id,
+            'projectId': project_id or self.project_id,
+            'description': description,
             'transferSpec': transfer_spec,
-            'schedule': {
-                'scheduleStartDate': {
-                    'day': now.day,
-                    'month': now.month,
-                    'year': now.year,
-                },
-                'scheduleEndDate': {
-                    'day': now.day,
-                    'month': now.month,
-                    'year': now.year,
-                }
-            }
+            'schedule': schedule or self._schedule_once_now(),
         }
-        transfer_job.update(kwargs)
-        result = conn.transferJobs().create(body=transfer_job).execute()
-        self.wait_for_transfer_job(result, conn=conn)
+        return self.get_conn().transferJobs().create(body=transfer_job).execute()
 
-    def wait_for_transfer_job(self, job, conn=None):
-        conn = conn or self.get_conn()
+    def wait_for_transfer_job(self, job):
         while True:
-            result = conn.transferOperations().list(
+            result = self.get_conn().transferOperations().list(
                 name='transferOperations',
                 filter=json.dumps({
                     'project_id': job['projectId'],
@@ -105,3 +90,18 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             if operation['metadata']['status'] != 'SUCCESS':
                 return False
         return True
+
+    def _schedule_once_now(self):
+        now = datetime.datetime.utcnow()
+        return {
+            'scheduleStartDate': {
+                'day': now.day,
+                'month': now.month,
+                'year': now.year,
+            },
+            'scheduleEndDate': {
+                'day': now.day,
+                'month': now.month,
+                'year': now.year,
+            }
+        }

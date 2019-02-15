@@ -37,14 +37,14 @@ class KubernetesPodOperator(BaseOperator):
     :param image: Docker image you wish to launch. Defaults to dockerhub.io,
         but fully qualified URLS will point to custom repositories
     :type image: str
-    :param: namespace: the namespace to run within kubernetes
-    :type: namespace: str
+    :param namespace: the namespace to run within kubernetes
+    :type namespace: str
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provide.
-    :type cmds: list of str
-    :param arguments: arguments of to the entrypoint. (templated)
+    :type cmds: list[str]
+    :param arguments: arguments of the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
-    :type arguments: list of str
+    :type arguments: list[str]
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
@@ -52,9 +52,9 @@ class KubernetesPodOperator(BaseOperator):
                                comma separated list: secret_a,secret_b
     :type image_pull_secrets: str
     :param volume_mounts: volumeMounts for launched pod
-    :type volume_mounts: list of VolumeMount
+    :type volume_mounts: list[airflow.contrib.kubernetes.volume_mount.VolumeMount]
     :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
-    :type volumes: list of Volume
+    :type volumes: list[airflow.contrib.kubernetes.volume.Volume]
     :param labels: labels to apply to the Pod
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod
@@ -66,7 +66,7 @@ class KubernetesPodOperator(BaseOperator):
     :type env_vars: dict
     :param secrets: Kubernetes secrets to inject in the container,
         They can be exposed as environment vars or files in a volume.
-    :type secrets: list of Secret
+    :type secrets: list[airflow.contrib.kubernetes.secret.Secret]
     :param in_cluster: run kubernetes client with in_cluster configuration
     :type in_cluster: bool
     :param cluster_context: context that points to kubernetes cluster.
@@ -80,12 +80,14 @@ class KubernetesPodOperator(BaseOperator):
     :type node_selectors: dict
     :param config_file: The path to the Kubernetes config file
     :type config_file: str
-    :param xcom_push: If xcom_push is True, the content of the file
+    :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
-    :type xcom_push: bool
-    :param tolerations: Kubernetes tolerations
-    :type list of tolerations
+    :type do_xcom_push: bool
+    :param hostnetwork: If True enable host networking on the pod
+    :type hostnetwork: bool
+    :param tolerations: A list of kubernetes tolerations
+    :type tolerations: list tolerations
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -123,7 +125,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.tolerations = self.tolerations
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
-                                                extract_xcom=self.xcom_push)
+                                                extract_xcom=self.do_xcom_push)
             try:
                 (final_state, result) = launcher.run_pod(
                     pod,
@@ -137,8 +139,8 @@ class KubernetesPodOperator(BaseOperator):
                 raise AirflowException(
                     'Pod returned a failure: {state}'.format(state=final_state)
                 )
-            if self.xcom_push:
-                return result
+
+            return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
@@ -163,7 +165,7 @@ class KubernetesPodOperator(BaseOperator):
                  resources=None,
                  affinity=None,
                  config_file=None,
-                 xcom_push=False,
+                 do_xcom_push=False,
                  node_selectors=None,
                  image_pull_secrets=None,
                  service_account_name="default",
@@ -191,7 +193,10 @@ class KubernetesPodOperator(BaseOperator):
         self.node_selectors = node_selectors or {}
         self.annotations = annotations or {}
         self.affinity = affinity or {}
-        self.xcom_push = xcom_push
+        self.do_xcom_push = do_xcom_push
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
+
         self.resources = resources or Resources()
         self.config_file = config_file
         self.image_pull_secrets = image_pull_secrets

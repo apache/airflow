@@ -26,7 +26,7 @@ class FakeTI(object):
         self.__dict__.update(kwds)
 
     def pool_full(self):
-        # Allow users of this fake to set pool_filled in the contructor to make this
+        # Allow users of this fake to set pool_filled in the constructor to make this
         # return True
         try:
             return self.pool_filled

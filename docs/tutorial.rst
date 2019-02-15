@@ -32,7 +32,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -308,7 +308,7 @@ something like this:
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -390,10 +390,10 @@ Let's run a few commands to validate this script further.
     # print the list of active DAGs
     airflow list_dags
 
-    # prints the list of tasks the "tutorial" dag_id
+    # prints the list of tasks in the "tutorial" DAG
     airflow list_tasks tutorial
 
-    # prints the hierarchy of tasks in the tutorial DAG
+    # prints the hierarchy of tasks in the "tutorial" DAG
     airflow list_tasks tutorial --tree
 
 

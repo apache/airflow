@@ -50,8 +50,6 @@ class DatastoreImportOperator(BaseOperator):
     :param polling_interval_in_seconds: number of seconds to wait before polling for
         execution status again
     :type polling_interval_in_seconds: int
-    :param xcom_push: push operation name to xcom for reference
-    :type xcom_push: bool
     """
 
     @apply_defaults
@@ -64,7 +62,6 @@ class DatastoreImportOperator(BaseOperator):
                  datastore_conn_id='google_cloud_default',
                  delegate_to=None,
                  polling_interval_in_seconds=10,
-                 xcom_push=False,
                  *args,
                  **kwargs):
         super(DatastoreImportOperator, self).__init__(*args, **kwargs)
@@ -76,7 +73,8 @@ class DatastoreImportOperator(BaseOperator):
         self.entity_filter = entity_filter
         self.labels = labels
         self.polling_interval_in_seconds = polling_interval_in_seconds
-        self.xcom_push = xcom_push
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
@@ -94,5 +92,4 @@ class DatastoreImportOperator(BaseOperator):
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
 
-        if self.xcom_push:
-            return result
+        return result

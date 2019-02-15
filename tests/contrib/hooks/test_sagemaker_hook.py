@@ -256,6 +256,14 @@ class TestSageMakerHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
 
+    @mock.patch.object(SageMakerHook, 'log_stream')
+    def test_multi_stream_iter(self, mock_log_stream):
+        event = {'timestamp': 1}
+        mock_log_stream.side_effect = [iter([event]), iter([]), None]
+        hook = SageMakerHook()
+        event_iter = hook.multi_stream_iter('log', [None, None, None])
+        self.assertEqual(next(event_iter), (0, event))
+
     @mock.patch.object(S3Hook, 'create_bucket')
     @mock.patch.object(S3Hook, 'load_file')
     def test_configure_s3_resources(self, mock_load_file, mock_create_bucket):
