@@ -245,6 +245,9 @@
               Downstream
             </button>
           </span>
+          <hr/>
+          <span class="btn-group" id="extra_links">
+          </span>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">
@@ -315,7 +318,8 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
-    function call_modal(t, d, try_numbers, sd) {
+
+    function call_modal(t, d, extra_links, sd, try_numbers) {
       task_id = t;
       loc = String(window.location);
       $("#btn_filter").on("click", function(){
@@ -326,12 +330,14 @@ function updateQueryStringParameter(uri, key, value) {
       $('#task_id').html(t);
       $('#execution_date').html(d);
       $('#myModal').modal({});
-      $("#myModal").css("margin-top","0px")
+      $("#myModal").css("margin-top","0px");
+      $('#extra_links').prev('hr').hide();
+      $('#extra_links').empty().hide();
       if (subdag_id === undefined)
           $("#div_btn_subdag").hide();
       else {
           $("#div_btn_subdag").show();
-          subdag_id = "{{ dag.dag_id }}."+t;
+          subdag_id = "{{ dag.dag_id }}." + t;
       }
 
       $("#try_index > li").remove();
@@ -356,6 +362,45 @@ function updateQueryStringParameter(uri, key, value) {
           </li>`
         );
       }
+
+      if (extra_links && extra_links.length > 0){
+        var markupArr = [];
+
+        $.each(extra_links, function(i, link){
+          var url = "{{ url_for('airflow.extra_links') }}" +
+                  "?task_id=" + encodeURIComponent(task_id) +
+                  "&dag_id=" + encodeURIComponent(dag_id) +
+                  "&execution_date=" + encodeURIComponent(execution_date) +
+                  "&link_name=" + encodeURIComponent(link);
+
+          var underscore_link = link.split(" ").join("_");
+          var a = '<span class="tool-tip" data-toggle="tooltip" style="padding-right: 1px; padding-left: 1px" data-placement="top" ' +
+                  'title="link not yet available" id="tooltip-' + underscore_link +'">' +
+                    '<a id="link-' + underscore_link +'" href="#" data-toggle="tooltip" class="btn btn-primary disabled" target="_blank">' + link + '</a>' +
+                  '</span>';
+          $.ajax(
+            {url: url,
+             cache: false,
+             success: function (data, textStatus, jqXHR) {
+               var external_link = $( "#link-" + underscore_link );
+               external_link.attr('href', data['url']);
+               external_link.removeClass('disabled');
+               $("#tooltip-" + underscore_link).tooltip('disable');
+             },
+             error:  function (data) {
+               var link_tooltip = $("#tooltip-" + underscore_link);
+               link_tooltip.tooltip('hide').attr('title', data['responseJSON']['error']).tooltip('fixTitle');
+             }
+           });
+
+          markupArr.push(a)
+        });
+
+        $('#extra_links').prev('hr').show();
+        $('#extra_links').append(markupArr.join('')).show();
+        $('[data-toggle="tooltip"]').tooltip();
+      }
+
     }
 
     function call_modal_dag(dag) {
