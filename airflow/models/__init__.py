@@ -4577,6 +4577,13 @@ class DagRun(Base, LoggingMixin):
 
         return ti
 
+    def get_edges(self):
+        with create_session() as session:
+            edges =  session.query(DagEdge) \
+                .filter(DagEdge.dag_id == self.dag_id) \
+                .filter(DagEdge.graph_id == self.graph_id).all()
+        return edges
+
     def get_dag(self):
         """
         Returns the Dag associated with this DagRun.
