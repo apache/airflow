@@ -2842,8 +2842,8 @@ class DagModel(Base):
             dag = dagbag.get_dag(self.dag_id)
         else:
             dag = DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
-            if dag is None:
-                raise RuntimeError("Dag '{}' nog found: {}".format(self.dag_id, self.fileloc))
+        if dag is None:
+            raise RuntimeError("Dag '{}' nog found: {}".format(self.dag_id, self.fileloc))
         return dag
 
     def _get_nested_path_dag(self, _path=None):
