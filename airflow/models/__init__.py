@@ -2843,7 +2843,7 @@ class DagModel(Base):
         else:
             dag = DagBag(dag_folder=self.fileloc).get_dag(self.dag_id)
         if dag is None:
-            raise RuntimeError("Dag '{}' nog found: {}".format(self.dag_id, self.fileloc))
+            raise RuntimeError("Dag '{}' not found: {}".format(self.dag_id, self.fileloc))
         return dag
 
     def _get_nested_path_dag(self, _path=None):
@@ -4097,21 +4097,17 @@ class DAG(BaseDag, LoggingMixin):
 
         last_dagrun = dag_model.get_last_dagrun(include_externally_triggered=True)
         if last_dagrun is None:
-            same_dag_run = False
+            is_dag_unchanged = False
         else:
-            last_edges = DagEdge.fetch_edges_db(self.dag_id, last_dagrun.graph_id)
+            last_edges = DagEdge.fetch_edges(self.dag_id, last_dagrun.graph_id)
 
             # Compare edges from last run
-            same_dag_run = True
-            if len(last_edges) != len(edges):
-                same_dag_run = False
-            else:
-                e1 = set([(edge.from_task, edge.to_task) for edge in last_edges])
-                e2 = set([(edge.from_task, edge.to_task) for edge in edges])
-                if e1 != e2:
-                    same_dag_run = False
+            prev_edges = [(edge.from_task, edge.to_task) for edge in last_edges]
+            current_edges = [(edge.from_task, edge.to_task) for edge in edges]
+            is_dag_unchanged = len(current_edges) == len(prev_edges)
+            is_dag_unchanged &= set(current_edges) == set(prev_edges)
 
-        if same_dag_run:
+        if is_dag_unchanged:
             # graph is not changed, keep last graph_id
             graph_id = last_dagrun.graph_id
         elif last_dagrun is None or last_dagrun.graph_id is None:
@@ -4129,7 +4125,7 @@ class DAG(BaseDag, LoggingMixin):
 
         for ti in tis:
             session.merge(ti)
-        if not same_dag_run:
+        if not is_dag_unchanged:
             for edge in edges:
                 session.merge(edge)
 

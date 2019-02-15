@@ -26,14 +26,7 @@ from airflow.models.base import Base
 
 class DagEdge(Base):
     """
-    Dags can originate from different places (user repos, master repo, ...)
-    and also get executed in different places (different executors). This
-    object represents a version of a DAG and becomes a source of truth for
-    a BackfillJob execution. A pickle is a native python serialized object,
-    and in this case gets stored in the database for the duration of the job.
-
-    The executors pick up the DagPickle id and read the dag definition from
-    the database.
+    This will store DAG edges. This will be the upstream and downstream dependencies of task inside a DAG.
     """
 
     __tablename__ = "dag_edge"
@@ -52,7 +45,7 @@ class DagEdge(Base):
         self.to_task = to_task
 
     @staticmethod
-    def fetch_edges_db(dag_id, graph_id):
+    def fetch_edges(dag_id, graph_id):
         with create_session() as session:
             return session.query(DagEdge) \
                 .filter(DagEdge.dag_id == dag_id) \

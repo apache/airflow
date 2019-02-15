@@ -926,7 +926,7 @@ class Airflow(AirflowBaseView):
         origin = request.args.get('origin')
         orm_dag = models.DagModel.get_dagmodel(dag_id)
         if not orm_dag:
-            flash("Dag '{}' does not exist".format(dag_id), 'error')
+            flash("DAG '{}' does not exist".format(dag_id), 'error')
             return redirect(origin)
         dag = orm_dag.get_dag()
         if task_id not in dag.task_dict:
@@ -1310,7 +1310,7 @@ class Airflow(AirflowBaseView):
             show_dag_id = dag_id
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == show_dag_id).first()
         if not dag:
-            flash('DAG "{0}" seems to be missing.'.format(show_dag_id), "error")
+            flash('DAG "{0}" not found.'.format(show_dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
         arrange = request.args.get('arrange', configuration.conf.get('webserver', 'dag_orientation'))
@@ -1357,9 +1357,9 @@ class Airflow(AirflowBaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
-        task_instances_dict = {
+        task_instances_json = json.dumps({
             ti.task_id: alchemy_to_dict(ti)
-            for ti in task_instances}
+            for ti in task_instances}, indent=2)
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
@@ -1390,7 +1390,7 @@ class Airflow(AirflowBaseView):
             operators=unique_ops,
             blur=blur,
             root=root or '',
-            task_instances=json.dumps(task_instances_dict, indent=2),
+            task_instances=task_instances_json,
             tasks=json.dumps(tasks, indent=2),
             nodes=json.dumps(nodes, indent=2),
             edges=json.dumps(edges, indent=2), )
