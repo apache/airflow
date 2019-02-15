@@ -43,8 +43,8 @@ def upgrade():
     )
 
     op.create_index('idx_dag_edge', 'dag_edge',
-                    ['dag_id', 'graph_id', 'from_task', 'to_task'],
-                    unique=True)
+                    ['dag_id', 'graph_id'],
+                    unique=False)
 
     op.add_column("task_instance", sa.Column("ui_color", sa.String(10), nullable=True))
     op.add_column(
