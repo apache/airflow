@@ -3991,6 +3991,7 @@ class DAG(BaseDag, LoggingMixin):
             verbose=False,
             conf=None,
             rerun_failed_tasks=False,
+            run_backwards=False,
     ):
         """
         Runs the DAG.
@@ -4021,6 +4022,11 @@ class DAG(BaseDag, LoggingMixin):
         :type verbose: bool
         :param conf: user defined dictionary passed from CLI
         :type conf: dict
+        :param rerun_failed_tasks:
+        :type: bool
+        :param run_backwards:
+        :type: bool
+
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
@@ -4041,6 +4047,7 @@ class DAG(BaseDag, LoggingMixin):
             verbose=verbose,
             conf=conf,
             rerun_failed_tasks=rerun_failed_tasks,
+            run_backwards=run_backwards,
         )
         job.run()
 

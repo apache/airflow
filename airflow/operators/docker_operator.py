@@ -100,9 +100,6 @@ class DockerOperator(BaseOperator):
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
-    :param xcom_push: Does the stdout will be pushed to the next step using XCom.
-        The default is False.
-    :type xcom_push: bool
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
     :type xcom_all: bool
@@ -136,7 +133,6 @@ class DockerOperator(BaseOperator):
             user=None,
             volumes=None,
             working_dir=None,
-            xcom_push=False,
             xcom_all=False,
             docker_conn_id=None,
             dns=None,
@@ -168,10 +164,11 @@ class DockerOperator(BaseOperator):
         self.user = user
         self.volumes = volumes or []
         self.working_dir = working_dir
-        self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
         self.cli = None
         self.container = None
@@ -238,9 +235,10 @@ class DockerOperator(BaseOperator):
             if result['StatusCode'] != 0:
                 raise AirflowException('docker container failed: ' + repr(result))
 
-            if self.xcom_push_flag:
+            # duplicated conditional logic because of expensive operation
+            if self.do_xcom_push:
                 return self.cli.logs(container=self.container['Id']) \
-                    if self.xcom_all else str(line)
+                    if self.xcom_all else line.encode('utf-8')
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:

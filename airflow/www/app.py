@@ -53,6 +53,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.config.from_pyfile(webserver_config_path, silent=True)
     app.config['APP_NAME'] = app_name
     app.config['TESTING'] = testing
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     csrf.init_app(app)
 
