@@ -24,8 +24,6 @@ import os
 import re
 import subprocess
 import time
-import socket
-import logging
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
