@@ -497,49 +497,37 @@ class HiveMetastoreHook(BaseHook):
         """
         Returns a Hive thrift client.
         """
+        import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
-        result = 1
         ms = self.metastore_conn
         auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
         if configuration.conf.get('core', 'security') == 'kerberos':
             auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
-        hosts_list = ms.host.split(';') #split by semicolon
-        for host_name in range(len(hosts_list)):
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            logging.info("Trying to connect to " + hosts_list[host_name])
-            try:
-                result = host_socket.connect_ex((hosts_list[host_name], ms.port))
-                host_socket.close()
-            except Exception:
-                pass
-            if result == 0:
-                logging.info('Connected to ' + hosts_list[host_name] + ':' + str(ms.port))
-                conn_url = hosts_list[host_name]
-                break
-        conn_socket = TSocket.TSocket(conn_url, ms.port)
+
+        socket = TSocket.TSocket(ms.host, ms.port)
         if configuration.conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
             try:
                 import saslwrapper as sasl
             except ImportError:
                 import sasl
- 
+
             def sasl_factory():
                 sasl_client = sasl.Client()
-                sasl_client.setAttr("host", conn_url)
+                sasl_client.setAttr("host", ms.host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
- 
+
             from thrift_sasl import TSaslClientTransport
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
+            transport = TSaslClientTransport(sasl_factory, "GSSAPI", socket)
         else:
-            transport = TTransport.TBufferedTransport(conn_socket)
- 
+            transport = TTransport.TBufferedTransport(socket)
+
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
- 
+
         return hmsclient.HMSClient(iprot=protocol)
 
     def get_conn(self):
