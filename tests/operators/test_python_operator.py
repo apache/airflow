@@ -53,6 +53,12 @@ class Call:
 
 
 def build_recording_function(calls_collection):
+    """
+    We can not use a Mock instance as a PythonOperator callable function or some tests fail with a
+    TypeError: Object of type Mock is not JSON serializable
+    Then using this custom function recording custom Call objects for further testing
+    (replacing Mock.assert_called_with assertion method)
+    """
     def recording_function(*args, **kwargs):
         calls_collection.append(Call(*args, **kwargs))
     return recording_function
@@ -138,6 +144,8 @@ class PythonOperatorTest(unittest.TestCase):
 
         task = PythonOperator(
             task_id='python_operator',
+            # a Mock instance cannot be used as a callable function or test fails with a
+            # TypeError: Object of type Mock is not JSON serializable
             python_callable=(build_recording_function(recorded_calls)),
             op_args=[
                 4,
@@ -168,6 +176,8 @@ class PythonOperatorTest(unittest.TestCase):
 
         task = PythonOperator(
             task_id='python_operator',
+            # a Mock instance cannot be used as a callable function or test fails with a
+            # TypeError: Object of type Mock is not JSON serializable
             python_callable=(build_recording_function(recorded_calls)),
             op_kwargs={
                 'an_int': 4,
