@@ -32,6 +32,7 @@ from datetime import timedelta
 
 import pytest
 import six
+import jinja2
 from flask import Markup, session as flask_session, url_for
 from flask._compat import PY2
 from parameterized import parameterized
@@ -66,6 +67,7 @@ class TestBase(unittest.TestCase):
     def setUpClass(cls):
         cls.app, cls.appbuilder = application.create_app(session=Session, testing=True)
         cls.app.config['WTF_CSRF_ENABLED'] = False
+        cls.app.jinja_env.undefined = jinja2.StrictUndefined
         settings.configure_orm()
         cls.session = Session
 
