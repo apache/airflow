@@ -2383,7 +2383,7 @@ class CLIFactory(object):
                 arg = cls.args[arg]
                 kwargs = {
                     f: getattr(arg, f)
-                    for f in arg._fields if f != 'flags' and getattr(arg, f)}
+                    for f in arg._fields if f != 'flags'}
                 sp.add_argument(*arg.flags, **kwargs)
             sp.set_defaults(func=sub['func'])
         return parser
