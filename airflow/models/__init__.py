@@ -3145,7 +3145,7 @@ class DAG(BaseDag, LoggingMixin):
 
     def _create_edges(self, graph_id):
         """
-        This will create all tasks and edges for a single execution date.
+        This will create all tasks instances for a single execution date.
         This will not push to the database.
         :param execution_date: Execution date of tasks
         :return:
@@ -3158,20 +3158,18 @@ class DAG(BaseDag, LoggingMixin):
 
     def _create_tis(self, execution_date):
         """
-        This will create all tasks and edges for a single execution date.
+        This will create all task edges for a single execution date.
         This will not push to the database.
         :param execution_date: Execution date of tasks
         :return:
         """
-        tasks = []
         tis = []
+
         for task in self.task_dict.values():
-            if task.start_date is None:
-                tasks.append(task)
-            elif task.start_date <= execution_date:
-                tasks.append(task)
-        for task in tasks:
+            if task.start_date is not None and task.start_date > execution_date:
+                continue
             tis.append(TaskInstance(task=task, execution_date=execution_date))
+
         return tis
 
     def is_fixed_time_schedule(self):
