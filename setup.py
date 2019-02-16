@@ -292,7 +292,7 @@ def do_setup():
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'enum34~=1.1.6;python_version<"3.4"',
-            'flask>=0.12.4, <0.13',
+            'flask>=1.0, <2.0',
             'flask-appbuilder==1.12.3',
             'flask-admin==1.5.2',
             'flask-caching>=1.3.3, <1.4.0',
