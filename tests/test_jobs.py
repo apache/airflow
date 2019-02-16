@@ -1418,6 +1418,8 @@ class SchedulerJobTest(unittest.TestCase):
         self.dagbag = DagBag()
         with create_session() as session:
             session.query(models.DagRun).delete()
+            session.query(models.TaskInstance).delete()
+            session.query(models.DagEdge).delete()
             session.query(errors.ImportError).delete()
             session.commit()
 

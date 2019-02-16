@@ -41,7 +41,7 @@ from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs import BaseJob
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance, DagEdge
 from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
@@ -291,6 +291,11 @@ class TestAirflowBaseViews(TestBase):
 
     def setUp(self):
         super(TestAirflowBaseViews, self).setUp()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
+
         self.logout()
         self.login()
         self.cleanup_dagruns()
@@ -1031,6 +1036,10 @@ class TestDagACLView(TestBase):
 
     def setUp(self):
         super(TestDagACLView, self).setUp()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
         self.cleanup_dagruns()
         self.prepare_dagruns()
         self.logout()

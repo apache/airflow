@@ -39,6 +39,11 @@ configuration.load_test_config()
 class TestMarkTasks(unittest.TestCase):
 
     def setUp(self):
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
+
         self.dagbag = models.DagBag(include_examples=True)
         self.dag1 = self.dagbag.dags['example_bash_operator']
         self.dag2 = self.dagbag.dags['example_subdag_operator']
