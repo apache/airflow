@@ -1358,6 +1358,9 @@ class TestDagACLView(TestBase):
     def test_xcom_success(self):
         self.logout()
         self.login()
+        ti = TaskInstance(self.bash_dag.get_task("runme_0"), self.default_date)
+        with create_session() as session:
+            session.add(ti)
         url = ('xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
@@ -1376,6 +1379,9 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
+        ti = TaskInstance(self.bash_dag.get_task("runme_0"), self.default_date)
+        with create_session() as session:
+            session.add(ti)
         url = ('xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.default_date)))
         resp = self.client.get(url, follow_redirects=True)
