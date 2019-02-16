@@ -659,6 +659,7 @@ class BackfillJobTest(unittest.TestCase):
             '-I'
         ]
         dag = self.dagbag.get_dag(dag_id)
+        dag.sync_to_db()
         dag.clear()
 
         cli.backfill(self.parser.parse_args(args + ['-I']))
@@ -1226,6 +1227,7 @@ class BackfillJobTest(unittest.TestCase):
 
     def test_backfill_run_backwards(self):
         dag = self.dagbag.get_dag("test_start_date_scheduling")
+        dag.sync_to_db()
         dag.clear()
 
         job = BackfillJob(
