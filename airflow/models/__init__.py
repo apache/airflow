@@ -4108,11 +4108,9 @@ class DAG(BaseDag, LoggingMixin):
         run.graph_id = graph_id
         session.add(run)
 
-        for ti in tis:
-            session.merge(ti)
+        session.add_all(tis)
         if not is_dag_unchanged:
-            for edge in edges:
-                session.merge(edge)
+            session.add_all(edges)
 
         session.commit()
 
