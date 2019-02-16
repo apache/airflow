@@ -24,8 +24,8 @@ class DagRunSensor(BaseSensorOperator):
     """
     Waits for DAG run(s) to complete and checks status.
 
-    :param trigger_task_id: The task_id that triggered the dags and returns a list
-        of dagrun ids to monitor
+    :param trigger_task_id: The id of the task that triggered the dags
+        and returns a list of dagrun ids to monitor
     :type trigger_task_id: str
     :param sensor_rule: criteria for success after dagruns complete.
         Default is ``TriggerRule.ONE_SUCCESS``
