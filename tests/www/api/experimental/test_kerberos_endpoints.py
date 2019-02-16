@@ -27,6 +27,8 @@ from datetime import datetime
 
 from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import client_auth
+from airflow.models import DagRun, DagEdge, TaskInstance
+from airflow.utils.db import create_session
 from airflow.www import app as application
 
 
@@ -34,6 +36,11 @@ from airflow.www import app as application
                  'Skipping Kerberos API tests due to missing KRB5_KTNAME')
 class ApiKerberosTests(unittest.TestCase):
     def setUp(self):
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
+
         configuration.load_test_config()
         try:
             configuration.conf.add_section("api")

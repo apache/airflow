@@ -26,8 +26,9 @@ from urllib.parse import quote_plus
 from airflow import configuration as conf
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models import DagBag, DagRun, Pool, TaskInstance, DagEdge
 from airflow.settings import Session
+from airflow.utils.db import create_session
 from airflow.utils.timezone import datetime, utcnow
 from airflow.www import app as application
 
@@ -47,24 +48,18 @@ class TestBase(unittest.TestCase):
 
 class TestApiExperimental(TestBase):
 
-    @classmethod
-    def setUpClass(cls):
-        super(TestApiExperimental, cls).setUpClass()
-        session = Session()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        session.commit()
-        session.close()
-
     def setUp(self):
         super(TestApiExperimental, self).setUp()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
 
     def tearDown(self):
-        session = Session()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        session.commit()
-        session.close()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
         super(TestApiExperimental, self).tearDown()
 
     def test_task_info(self):

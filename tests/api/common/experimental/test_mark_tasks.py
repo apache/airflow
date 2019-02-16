@@ -29,7 +29,7 @@ from airflow.utils import timezone
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
-from airflow.models import DagRun
+from airflow.models import DagRun, DagEdge, TaskInstance
 
 DEV_NULL = "/dev/null"
 
@@ -216,13 +216,21 @@ class TestMarkTasks(unittest.TestCase):
 
 
 class TestMarkDAGRun(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = models.DagBag(include_examples=True)
+        cls.dag1 = cls.dagbag.dags['example_bash_operator']
+        cls.dag1.sync_to_db()
+        cls.dag2 = cls.dagbag.dags['example_subdag_operator']
+        cls.dag2.sync_to_db()
+        cls.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
+
     def setUp(self):
-        self.dagbag = models.DagBag(include_examples=True)
-        self.dag1 = self.dagbag.dags['example_bash_operator']
-        self.dag1.sync_to_db()
-        self.dag2 = self.dagbag.dags['example_subdag_operator']
-        self.dag2.sync_to_db()
-        self.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
 
     def _set_default_task_instance_states(self, dr):
         # success task

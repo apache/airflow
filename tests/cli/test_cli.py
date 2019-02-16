@@ -32,8 +32,9 @@ from argparse import Namespace
 from airflow import settings
 import airflow.bin.cli as cli
 from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, DagRun, DagEdge
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
@@ -109,6 +110,10 @@ def create_mock_args(
 
 class TestCLI(unittest.TestCase):
     def setUp(self):
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
         self.gunicorn_master_proc = Mock(pid=None)
         self.children = MagicMock()
         self.child = MagicMock()

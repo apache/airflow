@@ -27,7 +27,7 @@ from datetime import timedelta
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance as TI, DAG, DagRun
+from airflow.models import TaskInstance as TI, DAG, DagRun, DagEdge, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
@@ -164,11 +164,12 @@ class BranchOperatorTest(unittest.TestCase):
     def setUpClass(cls):
         super(BranchOperatorTest, cls).setUpClass()
 
+    def setUp(self):
         with create_session() as session:
             session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
 
-    def setUp(self):
         self.dag = DAG('branch_operator_test',
                        default_args={
                            'owner': 'airflow',

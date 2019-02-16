@@ -23,10 +23,11 @@ import datetime
 import unittest
 
 from airflow import configuration, DAG, settings
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, DagRun, DagEdge
 from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.state import State
 from freezegun import freeze_time
 
@@ -48,7 +49,10 @@ def get_task_instances(task_id):
 class LatestOnlyOperatorTest(unittest.TestCase):
 
     def setUp(self):
-        super(LatestOnlyOperatorTest, self).setUp()
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(DagEdge).delete()
+            session.query(TaskInstance).delete()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

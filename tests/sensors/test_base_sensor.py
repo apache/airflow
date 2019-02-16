@@ -23,7 +23,7 @@ from mock import Mock
 from airflow import DAG, configuration
 from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
                                 AirflowRescheduleException)
-from airflow.models import DagRun, TaskInstance
+from airflow.models import DagRun, TaskInstance, DagEdge
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -66,6 +66,7 @@ class BaseSensorTest(unittest.TestCase):
         with create_session() as session:
             session.query(TaskReschedule).delete()
             session.query(DagRun).delete()
+            session.query(DagEdge).delete()
             session.query(TaskInstance).delete()
 
     def _make_dag_run(self):
