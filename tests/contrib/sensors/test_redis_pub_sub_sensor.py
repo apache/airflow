@@ -19,71 +19,61 @@
 
 
 import unittest
-import logging
 from airflow import DAG
 from airflow import configuration
 from airflow.contrib.sensors.redis_pub_sub_sensor import RedisPubSubSensor
 from airflow.utils import timezone
 from mock import patch
 from mock import call
-
-from unittest.mock import MagicMock
+from mock import MagicMock
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestRedisPubSubSensor(unittest.TestCase):
 
-    @patch('airflow.contrib.hooks.redis_hook.RedisHook')
-    def setUp(self, mock_redis_hook):
+    @patch('airflow.contrib.hooks.redis_hook.RedisHook.get_conn')
+    def setUp(self, mock_redis_conn):
         configuration.load_test_config()
-
-        self.log = logging.getLogger()
-        self.log.setLevel(logging.DEBUG)
 
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE
         }
 
-        self.mock_redis_hook = mock_redis_hook
-        self.mock_context = MagicMock()
-
         self.dag = DAG('test_dag_id', default_args=args)
-
+        self.mock_redis_conn = mock_redis_conn
         self.sensor = RedisPubSubSensor(
             task_id='test_task',
             dag=self.dag,
             channels='test',
-            hook=self.mock_redis_hook
+            redis_conn_id='redis_default'
         )
 
+        self.mock_context = MagicMock()
+
     def test_poke_success(self):
-        self.mock_redis_hook.get_conn().pubsub().get_message.return_value = \
+
+        self.mock_redis_conn().pubsub().get_message.return_value = \
             {'type': 'message', 'channel': b'test', 'data': b'd1'}
 
         result = self.sensor.poke(self.mock_context)
         self.assertTrue(result)
 
-        hook_calls = [call.get_conn(), call.get_conn()]
         context_calls = [call.xcom_push(key='message',
                                         value={'type': 'message', 'channel': b'test', 'data': b'd1'})]
 
-        self.assertTrue(self.mock_redis_hook.method_calls == hook_calls, "calls should be same")
-        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "calls should be same")
+        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
     def test_poke_failed(self):
-        self.mock_redis_hook.get_conn().pubsub().get_message.return_value = \
+        self.mock_redis_conn().pubsub().get_message.return_value = \
             {'type': 'subscribe', 'channel': b'test', 'data': b'd1'}
 
         result = self.sensor.poke(self.mock_context)
         self.assertFalse(result)
 
-        hook_calls = [call.get_conn(), call.get_conn()]
         context_calls = []
-
-        self.assertTrue(self.mock_redis_hook.method_calls == hook_calls, "calls should be same")
-        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "calls should be same")
+        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
 
 
 if __name__ == '__main__':

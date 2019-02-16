@@ -19,9 +19,11 @@
 
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.contrib.hooks.redis_hook import RedisHook
 
 
 class RedisPubSubSensor(BaseSensorOperator):
+
     """
     Redis sensor for reading a message from pub sub channels
     """
@@ -29,21 +31,21 @@ class RedisPubSubSensor(BaseSensorOperator):
     ui_color = '#f0eee4'
 
     @apply_defaults
-    def __init__(self, channels, hook, *args, **kwargs):
+    def __init__(self, channels, redis_conn_id, *args, **kwargs):
         """
-        Create a new RedisPubSubSensor
+        Create a new RedisPubSubSensor and subscribe to the channels
 
         :param channels: The channels to be subscribed to (templated)
         :type channels: str or list of str
-        :param hook: the redis hook
-        :type hook: RedisHook
+        :param redis_conn_id: the redis connection id
+        :type redis_conn_id: str
         """
 
         super(RedisPubSubSensor, self).__init__(*args, **kwargs)
         self.channels = channels
-        self.hook = hook
-        self.ps = hook.get_conn().pubsub()
-        self.ps.subscribe(self.channels)
+        self.redis_conn_id = redis_conn_id
+        self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
+        self.pubsub.subscribe(self.channels)
 
     def poke(self, context):
         """
@@ -54,19 +56,21 @@ class RedisPubSubSensor(BaseSensorOperator):
         :param context: the context object
         :type context: dict
         :return: ``True`` if message (with type 'message') is available or ``False`` if not
-        :rtype: bool
         """
         self.log.info('RedisPubSubSensor checking for message on channels: %s', self.channels)
 
-        message = self.ps.get_message()
+        message = self.pubsub.get_message()
         self.log.info('Message %s from channel %s', message, self.channels)
 
         # Process only message types
         if message and message['type'] == 'message':
+
             self.log.info('Message from channel %s is %s',
                           message['channel'].decode('utf-8'), message['data'].decode('utf-8'))
+
             context['ti'].xcom_push(key='message', value=message)
-            self.ps.unsubscribe(self.channels)
+            self.pubsub.unsubscribe(self.channels)
+
             return True
 
         return False
