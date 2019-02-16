@@ -1420,8 +1420,8 @@ class SchedulerJobTest(unittest.TestCase):
             session.query(models.DagRun).delete()
             session.query(models.TaskInstance).delete()
             session.query(models.DagEdge).delete()
+            session.query(models.slamiss.SlaMiss).delete()
             session.query(errors.ImportError).delete()
-            session.commit()
 
     @staticmethod
     def run_single_scheduler_loop_with_no_dags(dags_folder):
