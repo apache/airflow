@@ -4397,7 +4397,7 @@ class DagRun(Base, LoggingMixin):
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=True)
     conf = Column(PickleType)
-    graph_id = Column(Integer, default=0)
+    graph_id = Column(Integer)
 
     dag = None
 

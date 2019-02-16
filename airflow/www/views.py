@@ -54,7 +54,7 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import DagRun, errors
+from airflow.models import DagRun, errors, DagEdge
 from airflow.models.connection import Connection
 from airflow.models.log import Log
 from airflow.models.slamiss import SlaMiss
@@ -1340,7 +1340,19 @@ class Airflow(AirflowBaseView):
             for task in task_instances
         ]
 
-        edge_query = dag_run.get_edges()
+        if not dag_run.graph_id:
+            flash('Run "{}" for DAG "{}" does not have historical graph data, graph can be incorrect.'
+                  .format(dttm, show_dag_id), "error")
+            # Fall back on the first graph known in the database, might return an empty query.
+            tis_names = [ti.task_id for ti in task_instances]
+            edge_query = session.query(DagEdge) \
+                .filter(DagEdge.dag_id == dag_id and DagEdge.graph_id == 1).all()
+            # Filter tasks that does not exist on current DagRun
+            for e in edge_query:
+                if e.from_task not in tis_names or e.to_task not in tis_names:
+                    edge_query.remove(e)
+        else:
+            edge_query = dag_run.get_edges()
         edges = [
             {
                 'u': edge.to_task,

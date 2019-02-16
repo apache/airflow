@@ -51,7 +51,7 @@ def upgrade():
         "task_instance", sa.Column("ui_fgcolor", sa.String(10), nullable=True)
     )
     op.add_column("dag", sa.Column("parent_dag", sa.String(250), nullable=True))
-    op.add_column("dag_run", sa.Column("graph_id", sa.Integer, nullable=True, default=0))
+    op.add_column("dag_run", sa.Column("graph_id", sa.Integer, nullable=True))
 
 
 def downgrade():
