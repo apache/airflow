@@ -40,7 +40,7 @@ from airflow import configuration as conf
 from airflow import models, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs import BaseJob
-from airflow.models import DAG, DagRun, TaskInstance, BaseOperator
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.connection import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
@@ -1597,80 +1597,6 @@ class TestTriggerDag(TestBase):
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
         self.assertIn("manual__", run.run_id)
-
-
-class TestExtraLinks(unittest.TestCase):
-    def setUp(self):
-        self.ENDPOINT = '/admin/airflow/extra_links'
-        self.DEFAULT_DATE = datetime(2017, 1, 1)
-        self.app = application.create_app().test_client()
-
-        class DummyTestOperator(BaseOperator):
-            extra_links = ['foo-bar']
-
-            def get_extra_links(self, dttm, link_name):
-                if link_name == 'raise_error':
-                    raise ValueError('This is an error')
-                if link_name == 'no_response':
-                    return None
-                return 'http://www.example.com/{0}/{1}/{2}'.format(self.task_id,
-                                                                   link_name, dttm)
-
-        self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
-        self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
-
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_extra_links_works(self, get_dag_function):
-        get_dag_function.return_value = self.dag
-
-        response = self.app.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=foo-bar"
-            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
-            follow_redirects=True)
-
-        self.assertEqual(response.status_code, 200)
-        response_str = response.data
-        if isinstance(response.data, bytes):
-            response_str = response_str.decode()
-        self.assertEqual(json.loads(response_str), {
-            'url': ('http://www.example.com/some_dummy_task/'
-                    'foo-bar/2017-01-01T00:00:00+00:00'),
-            'error': None
-        })
-
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_extra_links_error_raised(self, get_dag_function):
-        get_dag_function.return_value = self.dag
-
-        response = self.app.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=raise_error"
-            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
-            follow_redirects=True)
-
-        self.assertEqual(404, response.status_code)
-        response_str = response.data
-        if isinstance(response.data, bytes):
-            response_str = response_str.decode()
-        self.assertEqual(json.loads(response_str), {
-            'url': None,
-            'error': 'This is an error'})
-
-    @mock.patch('airflow.www.views.dagbag.get_dag')
-    def test_extra_links_no_response(self, get_dag_function):
-        get_dag_function.return_value = self.dag
-
-        response = self.app.get(
-            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=no_response"
-            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
-            follow_redirects=True)
-
-        self.assertEqual(response.status_code, 404)
-        response_str = response.data
-        if isinstance(response.data, bytes):
-            response_str = response_str.decode()
-        self.assertEqual(json.loads(response_str), {
-            'url': None,
-            'error': 'No URL found for no_response'})
 
 
 if __name__ == '__main__':

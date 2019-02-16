@@ -126,7 +126,7 @@ d3.gantt = function() {
     .on('mouseover', tip.show)
     .on('mouseout', tip.hide)
     .on('click', function(d) {
-      call_modal(d.taskName, d.executionDate, d.extraLinks);
+      call_modal(d.taskName, d.executionDate);
     })
     .attr("class", function(d){
       if(taskStatus[d.status] == null){ return "null";}
