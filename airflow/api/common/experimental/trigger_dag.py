@@ -118,8 +118,5 @@ def trigger_dag(
         replace_microseconds=replace_microseconds,
     )
 
-    response = triggers[0] if triggers else None
+    return triggers[0] if triggers else None
 
-    return {
-        'message': "Created {}".format(response)
-    }
