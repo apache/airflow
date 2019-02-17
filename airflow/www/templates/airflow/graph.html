@@ -21,82 +21,81 @@
 
 {% block head_css %}
 {{ super() }}
-<link rel="stylesheet" type="text/css"
-      href="{{ url_for('static', filename='css/graph.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/graph.css') }}">
 {% endblock %}
 
 {% block content %}
 {{ super() }}
-    {% if doc_md %}
-        <div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
-    {% endif %}
-    <div class="form-inline">
-        <form method="get" style="float:left;">
-            {{ state_token }}
-            Base date: {{ form.base_date(class_="form-control") }}
-            Number of runs: {{ form.num_runs(class_="form-control") }}
-            Run:
-            {{ form.execution_date(class_="form-control") | safe }}
-            Layout:
-            {{ form.arrange(class_="form-control") | safe }}
-            <input type="hidden" name="root" value="{{ root }}">
-            <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-            <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-            <input type="submit" value="Go" class="btn btn-default"
-            action="" method="get">
-        </form>
-            <div class="input-group" style="float: right;">
-              <input type="text" id="searchbox" class="form-control" placeholder="Search for..." onenter="null">
-            </div><!-- /input-group -->
-        <div style="clear: both;"/>
-    </div>
+{% if doc_md %}
+<div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
+{% endif %}
+<div class="form-inline">
+  <form method="get" style="float:left;">
+    {{ state_token }}
+    Base date: {{ form.base_date(class_="form-control") }}
+    Number of runs: {{ form.num_runs(class_="form-control") }}
+    Run:
+    {{ form.execution_date(class_="form-control") | safe }}
+    Layout:
+    {{ form.arrange(class_="form-control") | safe }}
+    <input type="hidden" name="root" value="{{ root }}">
+    <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+    <input type="submit" value="Go" class="btn btn-default">
+  </form>
+  <div class="input-group" style="float: right;">
+    <input type="text" id="searchbox" class="form-control" placeholder="Search for...">
+  </div>
+  <div style="clear: both;"></div>
+</div>
 <hr/>
 <div>
-    {% for op in operators %}
-    <div class="legend_item" style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
-        {{ op.__name__ }}
-    </div>
-    {% endfor %}
+  {% for op in operators %}
+  <div class="legend_item"
+       style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
+    {{ op.__name__ }}
+  </div>
+  {% endfor %}
 
-    <div style"background-color: blue;">
-    <div class="legend_item state" style="border-color:white;">no status</div>
+  <div>
+    <div class="legend_item state" style="border-color:white;">no_status</div>
     <div class="legend_item state" style="border-color:grey;">queued</div>
-    <div class="legend_item state" style="border-color:gold;">retry</div>
-    <div class="legend_item state" style="border-color:turquoise;">rescheduled</div>
+    <div class="legend_item state" style="border-color:gold;">up_for_retry</div>
+    <div class="legend_item state" style="border-color:turquoise;">up_for_reschedule</div>
     <div class="legend_item state" style="border-color:pink;">skipped</div>
     <div class="legend_item state" style="border-color:red;">failed</div>
     <div class="legend_item state" style="border-color:lime;">running</div>
     <div class="legend_item state" style="border-color:green;">success</div>
-    </div>
-    <div style="clear:both;"></div>
+  </div>
+  <div style="clear:both;"></div>
 </div>
 <div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
-        <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
-        <span id="error_msg">Oops.</span>
+  <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+  <span id="error_msg">Oops.</span>
 </div>
 <hr style="margin-bottom: 0px;"/>
 <button class="btn btn-default pull-right" id="refresh_button">
-    <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+  <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
 </button>
 <div id="svg_container">
 
-    <svg width="{{ width }}" height="{{ height }}">
-        <g id='dig' transform="translate(20,20)"/>
-        <filter id="blur-effect-1">
-        <feGaussianBlur stdDeviation="3" />
-        </filter>
-    </svg>
-    <img id="loading" alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
+  <svg width="{{ width }}" height="{{ height }}">
+    <g id='dig' transform="translate(20,20)"></g>
+    <filter id="blur-effect-1">
+      <feGaussianBlur stdDeviation="3"></feGaussianBlur>
+    </filter>
+  </svg>
+  <img id="loading" alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
 </div>
 <hr>
 {% endblock %}
 
 {% block tail %}
-    {{ super() }}
+{{ super() }}
 
-    <script src="{{ url_for_asset('d3.min.js') }}"></script>
-    <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
-    <script>
+<script src="{{ url_for_asset('d3.min.js') }}"></script>
+<script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
+<script>
 
     var highlight_color = "#000000";
     var upstream_color = "#2020A0";
@@ -118,8 +117,15 @@
 
     var duration = 500;
     var stateFocusMap = {
-        'no status':false, 'failed':false, 'running':false,
-        'queued': false, 'success': false};
+        'success': false,
+        'running':false,
+        'failed':false,
+        'skipped': false,
+        'up_for_reschedule': false,
+        'up_for_retry': false,
+        'queued': false,
+        'no_status': false
+    };
 
     // Preparation of DagreD3 data structures
     var g = new dagreD3.graphlib.Graph().setGraph({
@@ -352,8 +358,10 @@
         }
         return false
     }
-    </script>
-    <script src="{{ url_for_asset('graph.js') }}"></script>
+
+
+</script>
+<script src="{{ url_for_asset('graph.js') }}"></script>
 
 
 {% endblock %}
