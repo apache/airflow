@@ -27,7 +27,7 @@ function update_nodes_states(task_instances) {
       return $(this).text() === task_id;
     })
       .parent().parent().parent().parent()
-      .attr("class", "node enter " + ti.state)
+      .attr("class", "node enter " + (ti.state ? ti.state : "no_status"))
       .attr("data-toggle", "tooltip")
       .attr("data-original-title", function (d) {
         // Tooltip
