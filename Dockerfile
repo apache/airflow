@@ -19,7 +19,7 @@ FROM python:3.6-slim
 ARG AIRFLOW_HOME=/usr/local/airflow
 ARG AIRFLOW_DEPS="all"
 ARG PYTHON_DEPS=""
-ARG buildDeps="freetds-dev libkrb5-dev libsasl2-dev libssl-dev libffi-dev libpq-dev git"
+ARG buildDeps="freetds-dev libkrb5-dev libssl-dev libffi-dev libpq-dev git"
 ARG APT_DEPS="libsasl2-dev freetds-bin build-essential default-libmysqlclient-dev apt-utils curl rsync netcat locales"
 
 ENV PATH="$HOME/.npm-packages/bin:$PATH"
