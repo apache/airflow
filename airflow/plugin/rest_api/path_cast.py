@@ -26,12 +26,15 @@ def validate_datetime(field, date_value):
     try:
         if isinstance(date_value, str):
             return timezone.parse(date_value)
+        else:
+            return date_value
     except ValueError:
-        error_message = (
-            "Given '{}', '{}', could not be identified "
-            "as a date. Example date format: 2015-11-16T14:34:15+00:00"
-        ).format(field, date_value)
-        raise AirflowBadRequest(error_message)
+        raise AirflowBadRequest(
+            (
+                "Given '{}', '{}', could not be identified "
+                "as a date. Example date format: 2015-11-16T14:34:15+00:00"
+            ).format(field, date_value)
+        )
 
 
 def datetime(field):
