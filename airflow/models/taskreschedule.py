@@ -47,7 +47,8 @@ class TaskReschedule(Base):
         ForeignKeyConstraint([task_id, dag_id, execution_date],
                              ['task_instance.task_id', 'task_instance.dag_id',
                               'task_instance.execution_date'],
-                             name='task_reschedule_dag_task_date_fkey')
+                             name='task_reschedule_dag_task_date_fkey',
+                             ondelete='CASCADE')
     )
 
     def __init__(self, task, execution_date, try_number, start_date, end_date,
