@@ -119,4 +119,3 @@ def trigger_dag(
     )
 
     return triggers[0] if triggers else None
-

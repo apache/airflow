@@ -80,7 +80,7 @@ class AirflowRestyResolver(Resolver):
         'dags.delete': 'airflow.api.common.experimental.delete_dag.delete_dag',
         'dags.dag_runs.list': 'airflow.api.common.experimental.get_dag_runs.get_dag_runs',
         'dags.dag_runs.get': 'airflow.api.common.experimental.get_dag_run_state.get_dag_run_state',
-        'dags.dag_runs.post': 'airflow.api.common.experimental.trigger_dag.trigger_dag',
+        # 'dags.dag_runs.post': 'airflow.api.common.experimental.trigger_dag.trigger_dag',
         'dags.dag_runs.tasks.get': 'airflow.api.common.experimental.get_task_instance.get_task_instance',
         'dags.paused.get': 'airflow.www.api.experimental.endpoints.dag_paused',
         'dags.tasks.get': 'airflow.api.common.experimental.get_task.get_task',

@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import six
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.utils import timezone
@@ -24,7 +25,8 @@ from airflow.utils import timezone
 
 def validate_datetime(field, date_value):
     try:
-        if isinstance(date_value, str):
+        # TODO Remove when deprecating Python2.7
+        if isinstance(date_value, six.string_types):
             return timezone.parse(date_value)
         else:
             return date_value
