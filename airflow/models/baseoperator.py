@@ -384,6 +384,7 @@ class BaseOperator(LoggingMixin):
         # Private attributes
         self._upstream_task_ids = set()  # type: Set[str]
         self._downstream_task_ids = set()  # type: Set[str]
+        self._rendered_template_object_ids = set()  # type: Set[str]
 
         if not dag and settings.CONTEXT_MANAGER_DAG:
             dag = settings.CONTEXT_MANAGER_DAG
@@ -704,7 +705,21 @@ class BaseOperator(LoggingMixin):
             return {self.render_template(element, context, jinja_env) for element in content}
 
         else:
-            return content
+            return self._render_nested_template_fields(content, context)
+
+    def _render_nested_template_fields(self, content, context):
+        if id(content) not in self._rendered_template_object_ids:
+            self._rendered_template_object_ids.add(id(content))
+            try:
+                nested_template_fields = content.template_fields
+            except AttributeError:
+                # content has no inner template fields
+                return content
+
+            for field in nested_template_fields:
+                rendered = self.render_template(field, getattr(content, field), context)
+                setattr(content, field, rendered)
+        return content
 
     def get_template_env(self) -> jinja2.Environment:
         """Fetch a Jinja template environment from the DAG or instantiate empty environment if no DAG."""
