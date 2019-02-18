@@ -593,6 +593,23 @@ Transfer Service
 They also use :class:`airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook` to communicate with Google Cloud Platform.
 
 
+Cloud Text to Speech
+''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator`
+    Synthesizes input text into audio file and stores this file to GCS.
+
+They also use :class:`airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook` to communicate with Google Cloud Platform.
+
+Cloud Speech to Text
+''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator`
+    Recognizes speech in audio input and returns text.
+
+They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
+
+
 Google Kubernetes Engine
 ''''''''''''''''''''''''
 
