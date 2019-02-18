@@ -23,25 +23,19 @@
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from future.standard_library import install_aliases
-
-from airflow.utils.log.logging_mixin import LoggingMixin
-
 import kerberos
 import os
+from functools import wraps
+from socket import getfqdn
+
+import connexion
+from flask import _request_ctx_stack as stack  # type: ignore
+from flask import Response, g, make_response
+from future.standard_library import install_aliases
+from requests_kerberos import HTTPKerberosAuth
 
 from airflow import configuration as conf
-
-from flask import Response
-from flask import _request_ctx_stack as stack  # type: ignore
-from flask import make_response
-from flask import request
-from flask import g
-from functools import wraps
-
-from requests_kerberos import HTTPKerberosAuth
-from socket import getfqdn
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 
@@ -81,11 +75,11 @@ def _unauthorized():
     Indicate that authorization is required
     :return:
     """
-    return Response("Unauthorized", 401, {"WWW-Authenticate": "Negotiate"})
+    return "Unauthorized", 401, {"WWW-Authenticate": "Negotiate"}
 
 
 def _forbidden():
-    return Response("Forbidden", 403)
+    return "Forbidden", 403
 
 
 def _gssapi_authenticate(token):
@@ -111,10 +105,26 @@ def _gssapi_authenticate(token):
             kerberos.authGSSServerClean(state)
 
 
+def merge_response_headers(response, new_headers):
+    if type(response) is tuple:
+        if len(response) == 1:
+            return response[0], 200, new_headers
+        elif len(response) == 2:
+            return response[0], response[1], new_headers
+        elif len(response) == 3:
+            headers = response[2]
+            for header, value in new_headers.items():
+                headers[header] = value
+            return response[0], response[1], headers
+    else:
+        return response, 200, new_headers
+
+
 def requires_authentication(function):
     @wraps(function)
     def decorated(*args, **kwargs):
-        header = request.headers.get("Authorization")
+        response_headers = {}
+        header = connexion.request.headers['Authorization']
         if header:
             ctx = stack.top
             token = ''.join(header.split()[1:])
@@ -124,11 +134,12 @@ def requires_authentication(function):
                 response = function(*args, **kwargs)
                 response = make_response(response)
                 if ctx.kerberos_token is not None:
-                    response.headers['WWW-Authenticate'] = ' '.join(['negotiate',
+                    response_headers['WWW-Authenticate'] = ' '.join(['negotiate',
                                                                      ctx.kerberos_token])
 
-                return response
+                return merge_response_headers(response, response_headers)
             elif rc != kerberos.AUTH_GSS_CONTINUE:
                 return _forbidden()
         return _unauthorized()
+
     return decorated
