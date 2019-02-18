@@ -408,6 +408,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
             }
         )
 
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_compose(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
