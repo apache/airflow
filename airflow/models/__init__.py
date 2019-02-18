@@ -3143,7 +3143,7 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
-    def _create_edges(self, graph_id):
+    def create_edges(self, graph_id):
         """
         This will create all tasks instances for a single execution date.
         This will not push to the database.
@@ -3156,7 +3156,7 @@ class DAG(BaseDag, LoggingMixin):
                 edges.append(DagEdge(self.dag_id, graph_id, down, task.task_id))
         return edges
 
-    def _create_tis(self, execution_date):
+    def create_tis(self, execution_date):
         """
         This will create all task edges for a single execution date.
         This will not push to the database.
@@ -4076,9 +4076,9 @@ class DAG(BaseDag, LoggingMixin):
 
         dag_model = DagModel.get_dagmodel(self.dag_id)
 
-        tis = self._create_tis(execution_date)
+        tis = self.create_tis(execution_date)
         # Setting graph_id temparary on -1, will set set later.
-        edges = self._create_edges(graph_id=-1)
+        edges = self.create_edges(graph_id=-1)
 
         last_dagrun = dag_model.get_last_dagrun(include_externally_triggered=True)
         if last_dagrun is None:

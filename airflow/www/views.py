@@ -1304,6 +1304,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         root = request.args.get('root')
+        read_from_file = request.args.get('read_from_file')
         if root:
             show_dag_id = root
         else:
@@ -1318,14 +1319,35 @@ class Airflow(AirflowBaseView):
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
 
-        dag_run = session.query(models.DagRun) \
-            .filter(models.DagRun.dag_id == show_dag_id) \
-            .filter(models.DagRun.execution_date == dttm).first()
-        if not dag_run:
-            flash('Run "{}" for DAG "{}" is not found.'.format(dttm, show_dag_id), "error")
-            return redirect(url_for('Airflow.index'))
+        if read_from_file == "True":
+            flash('This is showing the dag parsed from the DAG file', "info")
+            d = dag.get_dag()
+            task_instances = d.create_tis(dttm)
+            edge_query = d.create_edges(graph_id=-1)
+        else:
+            dag_run = session.query(models.DagRun) \
+                .filter(models.DagRun.dag_id == show_dag_id) \
+                .filter(models.DagRun.execution_date == dttm).first()
+            if not dag_run:
+                flash('Run "{}" for DAG "{}" is not found.'.format(dttm, show_dag_id), "error")
+                task_instances = []
+                edge_query = []
+            else:
+                task_instances = dag_run.get_task_instances()
+                if not dag_run.graph_id:
+                    flash('Run "{}" for DAG "{}" does not have historical graph data, graph can be incorrect.'
+                          .format(dttm, show_dag_id), "error")
+                    # Fall back on the first graph known in the database, might return an empty query.
+                    tis_names = [ti.task_id for ti in task_instances]
+                    edge_query = session.query(DagEdge) \
+                        .filter(DagEdge.dag_id == dag_id and DagEdge.graph_id == 1).all()
+                    # Filter tasks that does not exist on current DagRun
+                    for e in edge_query:
+                        if e.from_task not in tis_names or e.to_task not in tis_names:
+                            edge_query.remove(e)
+                else:
+                    edge_query = dag_run.get_edges()
 
-        task_instances = dag_run.get_task_instances()
         nodes = [
             {
                 'id': task.task_id,
@@ -1340,19 +1362,6 @@ class Airflow(AirflowBaseView):
             for task in task_instances
         ]
 
-        if not dag_run.graph_id:
-            flash('Run "{}" for DAG "{}" does not have historical graph data, graph can be incorrect.'
-                  .format(dttm, show_dag_id), "error")
-            # Fall back on the first graph known in the database, might return an empty query.
-            tis_names = [ti.task_id for ti in task_instances]
-            edge_query = session.query(DagEdge) \
-                .filter(DagEdge.dag_id == dag_id and DagEdge.graph_id == 1).all()
-            # Filter tasks that does not exist on current DagRun
-            for e in edge_query:
-                if e.from_task not in tis_names or e.to_task not in tis_names:
-                    edge_query.remove(e)
-        else:
-            edge_query = dag_run.get_edges()
         edges = [
             {
                 'u': edge.to_task,
