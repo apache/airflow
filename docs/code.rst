@@ -278,6 +278,8 @@ Operators
 .. autoclass:: airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer
 .. autoclass:: airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator
 .. autoclass:: airflow.contrib.operators.winrm_operator.WinRMOperator
+.. autoclass:: airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator
+.. autoclass:: airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator
 
 Sensors
 ^^^^^^^
@@ -534,6 +536,8 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.vertica_hook.VerticaHook
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 .. autoclass:: airflow.contrib.hooks.winrm_hook.WinRMHook
+.. autoclass:: airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook
+.. autoclass:: airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook
 
 Executors
 ---------

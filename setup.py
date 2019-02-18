@@ -180,6 +180,8 @@ gcp_api = [
     'google-cloud-bigtable==0.31.0',
     'google-cloud-spanner>=1.7.1',
     'google-cloud-vision>=0.35.2',
+    'google-cloud-texttospeech',
+    'google-cloud-speech',
     'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
