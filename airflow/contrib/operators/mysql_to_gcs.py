@@ -185,6 +185,8 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         # Save file header for csv if required
         if(self.export_format['file_format'] == 'csv'):
 
+            # nit(ttanay): Can be made into a configure_csv function?
+            #   PS: only for the dialect part. (Maybe a classmethod?)
             # Deal with CSV formatting. Try to use dialect if passed
             if('csv_dialect' in self.export_format):
                 # Use dialect name from params
@@ -192,28 +194,30 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             else:
                 # Create internal dialect based on parameters passed
                 dialect_name = 'mysql_to_gcs'
+                # TODO(ttanay): check if there's a better way to do multi-line fns
+                # TODO(ttanay): Find a way to update the kwargs based on export
+                # format and pass that dict as kwargs to the register_dialect fn
                 csv.register_dialect(dialect_name,
-                                     delimiter=self.export_format.get('csv_delimiter') or
-                                     ',',
+                                     delimiter=self.export_format.get(
+                                         'csv_delimiter', ','),
                                      doublequote=self.export_format.get(
-                                         'csv_doublequote') or
-                                     'True',
+                                         'csv_doublequote', True),
                                      escapechar=self.export_format.get(
-                                         'csv_escapechar') or
-                                     None,
+                                         'csv_escapechar', None),
                                      lineterminator=self.export_format.get(
-                                         'csv_lineterminator') or
-                                     '\r\n',
-                                     quotechar=self.export_format.get('csv_quotechar') or
-                                     '"',
-                                     quoting=eval(self.export_format.get(
-                                         'csv_quoting') or
-                                         'csv.QUOTE_MINIMAL'))
+                                         'csv_lineterminator', '\r\n'),
+                                     quotechar=self.export_format.get(
+                                         'csv_quotechar', '"'),
+                                     quoting=self.export_format.get(
+                                         'csv_quoting', csv.QUOTE_MINIMAL))
             # Create CSV writer using either provided or generated dialect
             csv_writer = csv.writer(tmp_file_handle,
                                     encoding='utf-8',
                                     dialect=dialect_name)
 
+            # nit(ttanay): The user will need to specify this config each time.
+            #   Otherwise, it will be missed out. Should the headers be specified?
+            #   Check with BigQuery file loads as well.
             # Include column header in first row
             if('csv_columnheader' in self.export_format and
                     eval(self.export_format['csv_columnheader'])):
@@ -292,6 +296,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                         'type': field_type,
                         'mode': field_mode,
                     })
+            # WON'T WORK. dumps doesn't take a file pointer.
             s = json.dumps(schema, tmp_schema_file_handle, sort_keys=True)
             if PY3:
                 s = s.encode('utf-8')
@@ -306,6 +311,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         Google cloud storage.
         """
         # Compose mime_type using file format passed as param
+        # TODO(ttanay): Find correct MIME type for CSV files.
         mime_type = 'application/' + self.export_format['file_format']
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
