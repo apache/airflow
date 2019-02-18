@@ -42,12 +42,7 @@ class GoogleCloudStorageCreateBucketTest(unittest.TestCase):
         operator = GoogleCloudStorageCreateBucketOperator(
             task_id=TASK_ID,
             bucket_name=TEST_BUCKET,
-            resource={"lifecycle": {
-                "rule": [{"action": {"type": "Delete"},
-                          "condition": {"age": 7}
-                          }
-                         ]}
-            },
+            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
             storage_class='MULTI_REGIONAL',
             location='EU',
             labels={'env': 'prod'},
@@ -60,5 +55,6 @@ class GoogleCloudStorageCreateBucketTest(unittest.TestCase):
             location='EU', labels={
                 'airflow-version': 'v' + version.replace('.', '-').replace('+', '-'),
                 'env': 'prod'
-            }, project_id=TEST_PROJECT
+            }, project_id=TEST_PROJECT,
+            resource={'lifecycle': {'rule': [{'action': {'type': 'Delete'}, 'condition': {'age': 7}}]}}
         )

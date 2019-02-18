@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
@@ -28,7 +29,6 @@ import gzip as gz
 import shutil
 import re
 import os
-import copy
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -549,7 +549,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             raise ValueError('Bucket names must end with a number or letter.')
 
         service = self.get_conn()
-        bucket_resource = copy.copy(resource)
+        bucket_resource = resource or {}
         bucket_resource.update({
             'name': bucket_name,
             'location': location,
