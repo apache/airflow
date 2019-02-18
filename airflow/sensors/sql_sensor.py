@@ -34,22 +34,25 @@ class SqlSensor(BaseSensorOperator):
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
     :type sql: str
+    :param parameters: The parameters to render the SQL query with (optional).
+    :type parameters: mapping or iterable
     """
     template_fields = ('sql',)
     template_ext = ('.hql', '.sql',)
     ui_color = '#7c7287'
 
     @apply_defaults
-    def __init__(self, conn_id, sql, *args, **kwargs):
-        self.sql = sql
+    def __init__(self, conn_id, sql, parameters=None, *args, **kwargs):
         self.conn_id = conn_id
+        self.sql = sql
+        self.parameters = parameters
         super(SqlSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
         hook = BaseHook.get_connection(self.conn_id).get_hook()
 
-        self.log.info('Poking: %s', self.sql)
-        records = hook.get_records(self.sql)
+        self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)
+        records = hook.get_records(self.sql, self.parameters)
         if not records:
             return False
         return str(records[0][0]) not in ('0', '')
