@@ -2447,7 +2447,8 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertTrue(dag.start_date > datetime.datetime.utcnow())
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # zero tasks ran
@@ -2471,7 +2472,8 @@ class SchedulerJobTest(unittest.TestCase):
             session.commit()
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # still one task

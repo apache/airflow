@@ -39,12 +39,12 @@ class BashOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BashOperator`
 
+    If BaseOperator.do_xcom_push is True, the last line written to stdout
+    will also be pushed to an XCom when the bash command completes
+
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
     :type bash_command: str
-    :param xcom_push: If xcom_push is True, the last line written to stdout
-        will also be pushed to an XCom when the bash command completes.
-    :type xcom_push: bool
     :param env: If env is not None, it must be a mapping that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
@@ -69,18 +69,19 @@ class BashOperator(BaseOperator):
     ui_color = '#f0ede4'
 
     @apply_defaults
-    def __init__(self,
-                 bash_command,
-                 xcom_push=False,
-                 env=None,
-                 output_encoding='utf-8',
-                 *args, **kwargs):
+    def __init__(
+            self,
+            bash_command,
+            env=None,
+            output_encoding='utf-8',
+            *args, **kwargs):
 
         super(BashOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
-        self.xcom_push_flag = xcom_push
         self.output_encoding = output_encoding
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context):
         """
@@ -140,8 +141,7 @@ class BashOperator(BaseOperator):
                 if sub_process.returncode:
                     raise AirflowException('Bash command failed')
 
-        if self.xcom_push_flag:
-            return line
+        return line
 
     def on_kill(self):
         self.log.info('Sending SIGTERM signal to bash process group')
