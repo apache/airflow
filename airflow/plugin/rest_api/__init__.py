@@ -38,7 +38,6 @@ class RestApiPlugin(AirflowPlugin):
     Add swagger entrypoint
     """
     name = 'restful-api'
-    requires_authentication = None
 
     @classmethod
     def on_load(cls, flask_app, configuration, *args, **kwargs):
@@ -68,7 +67,14 @@ class RestApiPlugin(AirflowPlugin):
         # )
         # cls.flask_blueprints.append(v1_api.blueprint)
 
-        cls.requires_authentication = airflow.api.api_auth.requires_authentication
+    @classmethod
+    def requires_authentication(cls, func):
+        def callback(*args, **kwargs):
+            return airflow.api.api_auth.requires_authentication(
+                func
+            )(*args, **kwargs)
+
+        return callback
 
 
 class AirflowRestyResolver(Resolver):
@@ -118,6 +124,7 @@ class AirflowRestyResolver(Resolver):
                     response = jsonify(error="{}".format(err))
                     response.status_code = err.status_code
                     return response, response.status_code
+
             return handler
 
         def ensure_serialisable(func):
