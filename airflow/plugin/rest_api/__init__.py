@@ -114,32 +114,42 @@ class AirflowRestyResolver(Resolver):
                 if not k.startswith('_')
             }
 
-        def ensure_serialisable(func):
+        def handle_errors(func):
             def handler(*args, **kwargs):
                 try:
-                    result = func(*args, **kwargs)
-                    if isinstance(result, list):
-                        if len(result):
-                            if hasattr(result[0], 'to_json'):
-                                return [i.to_json() for i in result]
-                            else:
-                                return [dict(i) for i in result]
-                        else:
-                            return []
-                    elif hasattr(result, 'to_json'):
-                        return result.to_json()
-                    elif isinstance(result, dict):
-                        return result
-                    else:
-                        return var_properties(result)
+                    return func(*args, **kwargs)
                 except AirflowException as err:
                     response = jsonify(error="{}".format(err))
                     response.status_code = err.status_code
                     return response, response.status_code
+            return handler
+
+        def ensure_serialisable(func):
+            def handler(*args, **kwargs):
+                result = func(*args, **kwargs)
+                if isinstance(result, list):
+                    if len(result):
+                        if hasattr(result[0], 'to_json'):
+                            return [i.to_json() for i in result]
+                        else:
+                            return [dict(i) for i in result]
+                    else:
+                        return []
+                elif hasattr(result, 'to_json'):
+                    return result.to_json()
+                elif isinstance(result, dict):
+                    return result
+                else:
+                    return var_properties(result)
 
             return handler
 
-        return ensure_serialisable(method)
+        if self.version == 'experimental':
+            return handle_errors(
+                ensure_serialisable(method)
+            )
+        else:
+            return handle_errors(method)
 
     def resolve_operation_id(self, operation):
         """
