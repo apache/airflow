@@ -1329,9 +1329,11 @@ class Airflow(AirflowBaseView):
                 .filter(models.DagRun.dag_id == show_dag_id) \
                 .filter(models.DagRun.execution_date == dttm).first()
             if not dag_run:
-                flash('Run "{}" for DAG "{}" is not found.'.format(dttm, show_dag_id), "error")
-                task_instances = []
-                edge_query = []
+                url = url_for('Airflow.graph') + '?dag_id={}&read_from_file=True'.format(dag_id)
+
+                if root is not None:
+                    url += "&root={}".format(root)
+                return redirect(url)
             else:
                 task_instances = dag_run.get_task_instances()
                 if not dag_run.graph_id:
