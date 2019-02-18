@@ -1320,7 +1320,7 @@ class Airflow(AirflowBaseView):
         dttm = dt_nr_dr_data['dttm']
 
         if read_from_file == "True":
-            flash('This is showing the dag parsed from the DAG file', "info")
+            flash('This is showing the dag parsed from the DAG file. This is not an active DagRun', "info")
             d = dag.get_dag()
             task_instances = d.create_tis(dttm)
             edge_query = d.create_edges(graph_id=-1)
