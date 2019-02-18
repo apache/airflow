@@ -20,8 +20,10 @@ from flask import url_for
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.models import DagBag, DagRun
+from airflow.plugin.rest_api import RestApiPlugin
 
 
+@RestApiPlugin.requires_authentication
 def get_dag_runs(dag_id, state=None):
     """
     Returns a list of Dag Runs for a specific DAG ID.

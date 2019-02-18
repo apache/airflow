@@ -25,6 +25,7 @@ import pkg_resources
 from connexion import Resolver
 from flask import jsonify
 
+import airflow
 from airflow import AirflowException
 from airflow.api import load_auth
 from airflow.plugins_manager import AirflowPlugin
@@ -37,6 +38,7 @@ class RestApiPlugin(AirflowPlugin):
     Add swagger entrypoint
     """
     name = 'restful-api'
+    requires_authentication = None
 
     @classmethod
     def on_load(cls, flask_app, configuration, *args, **kwargs):
@@ -66,6 +68,8 @@ class RestApiPlugin(AirflowPlugin):
         # )
         # cls.flask_blueprints.append(v1_api.blueprint)
 
+        cls.requires_authentication = airflow.api.api_auth.requires_authentication
+
 
 class AirflowRestyResolver(Resolver):
     """
@@ -85,7 +89,7 @@ class AirflowRestyResolver(Resolver):
         'dags.paused.get': 'airflow.www.api.experimental.endpoints.dag_paused',
         'dags.tasks.get': 'airflow.api.common.experimental.get_task.get_task',
         'latest_runs.list': 'airflow.www.api.experimental.endpoints.latest_dag_runs',
-        'test.list': 'airflow.www.api.experimental.endpoints.test',
+        # 'test.list': 'airflow.www.api.experimental.endpoints.test',
         'pools.list': 'airflow.api.common.experimental.pool.get_pools',
         'pools.get': 'airflow.api.common.experimental.pool.get_pool',
         'pools.post': 'airflow.api.common.experimental.pool.create_pool',
@@ -157,7 +161,7 @@ class AirflowRestyResolver(Resolver):
 
         handler = '{}.{}'.format(controller, get_function_name())
         if (self.version == 'experimental') \
-           and (handler in self.handler_mapping):
+            and (handler in self.handler_mapping):
             # If we're using the experimental API, use the explicit mapping
             # from `self.handler_mapping`.
             return self.handler_mapping[handler]

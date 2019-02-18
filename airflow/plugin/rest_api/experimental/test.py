@@ -17,3 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from airflow.plugin.rest_api import RestApiPlugin
+
+
+@RestApiPlugin.requires_authentication
+def list():
+    return "OK", 200

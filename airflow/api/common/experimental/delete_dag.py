@@ -22,12 +22,14 @@ import os
 from sqlalchemy import or_
 
 from airflow import models
-from airflow.models import TaskFail
+from airflow.models.taskfail import TaskFail
+from airflow.plugin.rest_api import RestApiPlugin
 from airflow.utils.db import provide_session
 from airflow.exceptions import DagNotFound, DagFileExists
 
 
 @provide_session
+@RestApiPlugin.requires_authentication
 def delete_dag(dag_id, keep_records_in_log=True, session=None):
     """
     :param dag_id: the dag_id of the DAG to delete

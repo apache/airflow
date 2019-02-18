@@ -18,11 +18,12 @@
 # under the License.
 #
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.plugin.rest_api import path_cast
+from airflow.plugin.rest_api import RestApiPlugin, path_cast
 
 
 @path_cast.datetime('execution_date')
 @path_cast.body_var('conf')
+@RestApiPlugin.requires_authentication
 def post(
     dag_id,
     run_id=None,

@@ -21,7 +21,7 @@ import json
 
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.plugin.rest_api import path_cast
+from airflow.plugin.rest_api import path_cast, RestApiPlugin
 from airflow.plugin.rest_api.path_cast import validate_datetime
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -86,6 +86,7 @@ def _trigger_dag(
 
 @path_cast.datetime('execution_date')
 @path_cast.body_var('conf')
+@RestApiPlugin.requires_authentication
 def trigger_dag(
     dag_id,
     run_id=None,
