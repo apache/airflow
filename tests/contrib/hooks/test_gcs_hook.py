@@ -389,7 +389,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         # Assert for resource other than None.
         response = self.gcs_hook.create_bucket(
             bucket_name=test_bucket,
-            resource={"lifecycle":{"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
+            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
             storage_class=test_storage_class,
             location=test_location,
             labels=test_labels,
@@ -405,8 +405,9 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                 'location': test_location,
                 'storageClass': test_storage_class,
                 'labels': test_labels
-            }        
-          
+            }
+        )
+
     def test_compose(self, mock_service):
         test_bucket = 'test_bucket'
         test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
