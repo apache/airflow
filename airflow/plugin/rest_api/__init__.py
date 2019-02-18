@@ -171,7 +171,7 @@ class AirflowRestyResolver(Resolver):
 
         handler = '{}.{}'.format(controller, get_function_name())
         if (self.version == 'experimental') \
-            and (handler in self.handler_mapping):
+           and (handler in self.handler_mapping):
             # If we're using the experimental API, use the explicit mapping
             # from `self.handler_mapping`.
             return self.handler_mapping[handler]
