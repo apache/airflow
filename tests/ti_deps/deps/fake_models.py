@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,7 +26,7 @@ class FakeTI(object):
         self.__dict__.update(kwds)
 
     def pool_full(self):
-        # Allow users of this fake to set pool_filled in the contructor to make this
+        # Allow users of this fake to set pool_filled in the constructor to make this
         # return True
         try:
             return self.pool_filled

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,18 +19,51 @@
 #
 
 import unittest
-import mock
 
-from airflow import AirflowException
+from google.auth.exceptions import GoogleAuthError
+import mock
+from googleapiclient.errors import HttpError
+
 from airflow.contrib.hooks import bigquery_hook as hook
-from oauth2client.contrib.gce import HttpAccessTokenRefreshError
+from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
+    _validate_value, _api_resource_configs_duplication_check
 
 bq_available = True
 
 try:
     hook.BigQueryHook().get_service()
-except HttpAccessTokenRefreshError:
+except GoogleAuthError:
     bq_available = False
+
+
+class TestPandasGbqPrivateKey(unittest.TestCase):
+    def setUp(self):
+        self.instance = hook.BigQueryHook()
+        if not bq_available:
+            self.instance.extras['extra__google_cloud_platform__project'] = 'mock_project'
+
+    def test_key_path_provided(self):
+        private_key_path = '/Fake/Path'
+        self.instance.extras['extra__google_cloud_platform__key_path'] = private_key_path
+
+        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq',
+                        new=lambda *args, **kwargs: kwargs['private_key']):
+
+            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_path)
+
+    def test_key_json_provided(self):
+        private_key_json = 'Fake Private Key'
+        self.instance.extras['extra__google_cloud_platform__keyfile_dict'] = private_key_json
+
+        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
+                        **kwargs: kwargs['private_key']):
+            self.assertEqual(self.instance.get_pandas_df('select 1'), private_key_json)
+
+    def test_no_key_provided(self):
+        with mock.patch('airflow.contrib.hooks.bigquery_hook.read_gbq', new=lambda *args,
+                        **kwargs: kwargs['private_key']):
+            self.assertEqual(self.instance.get_pandas_df('select 1'), None)
+
 
 class TestBigQueryDataframeResults(unittest.TestCase):
     def setUp(self):
@@ -46,25 +79,26 @@ class TestBigQueryDataframeResults(unittest.TestCase):
     def test_throws_exception_with_invalid_query(self):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df('from `1`')
-        self.assertIn('pandas_gbq.gbq.GenericGBQException: Reason: invalidQuery',
-                      str(context.exception), "")
+        self.assertIn('Reason: ', str(context.exception), "")
 
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_suceeds_with_explicit_legacy_query(self):
+    def test_succeeds_with_explicit_legacy_query(self):
         df = self.instance.get_pandas_df('select 1', dialect='legacy')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
-    def test_suceeds_with_explicit_std_query(self):
-        df = self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='standard')
+    def test_succeeds_with_explicit_std_query(self):
+        df = self.instance.get_pandas_df(
+            'select * except(b) from (select 1 a, 2 b)', dialect='standard')
         self.assertEqual(df.iloc(0)[0][0], 1)
 
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
     def test_throws_exception_with_incompatible_syntax(self):
         with self.assertRaises(Exception) as context:
-            self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='legacy')
-        self.assertIn('pandas_gbq.gbq.GenericGBQException: Reason: invalidQuery',
-                      str(context.exception), "")
+            self.instance.get_pandas_df(
+                'select * except(b) from (select 1 a, 2 b)', dialect='legacy')
+        self.assertIn('Reason: ', str(context.exception), "")
+
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
@@ -103,15 +137,13 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertEqual("dataset", dataset)
         self.assertEqual("table", table)
 
-
     def test_valid_double_column(self):
         project, dataset, table = hook._split_tablename('alt1:alt:dataset.table',
-                                  'project')
+                                                        'project')
 
         self.assertEqual('alt1:alt', project)
         self.assertEqual("dataset", dataset)
         self.assertEqual("table", table)
-
 
     def test_invalid_syntax_triple_colon(self):
         with self.assertRaises(Exception) as context:
@@ -121,7 +153,6 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertIn('Use either : or . to specify project',
                       str(context.exception), "")
         self.assertFalse('Format exception for' in str(context.exception))
-
 
     def test_invalid_syntax_triple_dot(self):
         with self.assertRaises(Exception) as context:
@@ -212,7 +243,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 "test_schema.json",
                 ["test_data.json"],
                 schema_update_options=["THIS IS NOT VALID"]
-                )
+            )
         self.assertIn("THIS IS NOT VALID", str(context.exception))
 
     def test_invalid_schema_update_and_write_disposition(self):
@@ -226,9 +257,7 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             )
         self.assertIn("schema_update_options is only", str(context.exception))
 
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
-    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
-    def test_cancel_queries(self, mocked_logging, mocked_time):
+    def test_cancel_queries(self):
         project_id = 12345
         running_job_id = 3
 
@@ -260,74 +289,520 @@ class TestBigQueryBaseCursor(unittest.TestCase):
             args, kwargs = run_with_config.call_args
             self.assertIs(args[0]['query']['useLegacySql'], bool_val)
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_sql_dialect_legacy_with_query_params(self, run_with_config):
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        params = [{
+            'name': "param_name",
+            'parameterType': {'type': "STRING"},
+            'parameterValue': {'value': "param_value"}
+        }]
+        cursor.run_query('query', use_legacy_sql=False, query_params=params)
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['query']['useLegacySql'], False)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_sql_dialect_legacy_with_query_params_fails(self, run_with_config):
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        params = [{
+            'name': "param_name",
+            'parameterType': {'type': "STRING"},
+            'parameterValue': {'value': "param_value"}
+        }]
+        with self.assertRaises(ValueError):
+            cursor.run_query('query', use_legacy_sql=True, query_params=params)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_api_resource_configs(self, run_with_config):
+        for bool_val in [True, False]:
+            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+            cursor.run_query('query',
+                             api_resource_configs={
+                                 'query': {'useQueryCache': bool_val}})
+            args, kwargs = run_with_config.call_args
+            self.assertIs(args[0]['query']['useQueryCache'], bool_val)
+            self.assertIs(args[0]['query']['useLegacySql'], True)
+
+    def test_api_resource_configs_duplication_warning(self):
+        with self.assertRaises(ValueError):
+            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+            cursor.run_query('query',
+                             use_legacy_sql=True,
+                             api_resource_configs={
+                                 'query': {'useLegacySql': False}})
+
+    def test_validate_value(self):
+        with self.assertRaises(TypeError):
+            _validate_value("case_1", "a", dict)
+        self.assertIsNone(_validate_value("case_2", 0, int))
+
+    def test_duplication_check(self):
+        with self.assertRaises(ValueError):
+            key_one = True
+            _api_resource_configs_duplication_check(
+                "key_one", key_one, {"key_one": False})
+        self.assertIsNone(_api_resource_configs_duplication_check(
+            "key_one", key_one, {"key_one": True}))
+
+
+class TestTableDataOperations(unittest.TestCase):
+    def test_insert_all_succeed(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        rows = [
+            {"json": {"a_key": "a_value_0"}}
+        ]
+        body = {
+            "rows": rows,
+            "ignoreUnknownValues": False,
+            "kind": "bigquery#tableDataInsertAllRequest",
+            "skipInvalidRows": False,
+        }
+
+        mock_service = mock.Mock()
+        method = mock_service.tabledata.return_value.insertAll
+        method.return_value.execute.return_value = {
+            "kind": "bigquery#tableDataInsertAllResponse"
+        }
+        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        cursor.insert_all(project_id, dataset_id, table_id, rows)
+        method.assert_called_with(projectId=project_id, datasetId=dataset_id,
+                                  tableId=table_id, body=body)
+
+    def test_insert_all_fail(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        rows = [
+            {"json": {"a_key": "a_value_0"}}
+        ]
+
+        mock_service = mock.Mock()
+        method = mock_service.tabledata.return_value.insertAll
+        method.return_value.execute.return_value = {
+            "kind": "bigquery#tableDataInsertAllResponse",
+            "insertErrors": [
+                {
+                    "index": 1,
+                    "errors": []
+                }
+            ]
+        }
+        cursor = hook.BigQueryBaseCursor(mock_service, 'project_id')
+        with self.assertRaises(Exception):
+            cursor.insert_all(project_id, dataset_id, table_id,
+                              rows, fail_on_error=True)
+
+
+class TestTableOperations(unittest.TestCase):
+    def test_create_view_fails_on_exception(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_view'
+        view = {
+            'incorrect_key': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
+            "useLegacySql": False
+        }
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        method.return_value.execute.side_effect = HttpError(
+            resp={'status': '400'}, content=b'Query is required for views')
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        with self.assertRaises(Exception):
+            cursor.create_empty_table(project_id, dataset_id, table_id,
+                                      view=view)
+
+    def test_create_view(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table_view'
+        view = {
+            'query': 'SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*`',
+            "useLegacySql": False
+        }
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_table(project_id, dataset_id, table_id,
+                                  view=view)
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            },
+            'view': view
+        }
+        method.assert_called_once_with(projectId=project_id, datasetId=dataset_id, body=body)
+
+    def test_patch_table(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+
+        description_patched = 'Test description.'
+        expiration_time_patched = 2524608000000
+        friendly_name_patched = 'Test friendly name.'
+        labels_patched = {'label1': 'test1', 'label2': 'test2'}
+        schema_patched = [
+            {'name': 'id', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'balance', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'new_field', 'type': 'STRING', 'mode': 'NULLABLE'}
+        ]
+        time_partitioning_patched = {
+            'expirationMs': 10000000
+        }
+        require_partition_filter_patched = True
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_table(
+            dataset_id, table_id, project_id,
+            description=description_patched,
+            expiration_time=expiration_time_patched,
+            friendly_name=friendly_name_patched,
+            labels=labels_patched, schema=schema_patched,
+            time_partitioning=time_partitioning_patched,
+            require_partition_filter=require_partition_filter_patched
+        )
+
+        body = {
+            "description": description_patched,
+            "expirationTime": expiration_time_patched,
+            "friendlyName": friendly_name_patched,
+            "labels": labels_patched,
+            "schema": {
+                "fields": schema_patched
+            },
+            "timePartitioning": time_partitioning_patched,
+            "requirePartitionFilter": require_partition_filter_patched
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            body=body
+        )
+
+    def test_patch_view(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        view_id = 'bq_view'
+        view_patched = {
+            'query': "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+            'useLegacySql': False
+        }
+
+        mock_service = mock.Mock()
+        method = (mock_service.tables.return_value.patch)
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.patch_table(dataset_id, view_id, project_id, view=view_patched)
+
+        body = {
+            'view': view_patched
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=view_id,
+            body=body
+        )
+
+    def test_create_empty_table_succeed(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.create_empty_table(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id)
+
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            }
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=body
+        )
+
+    def test_create_empty_table_with_extras_succeed(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        schema_fields = [
+            {'name': 'id', 'type': 'STRING', 'mode': 'REQUIRED'},
+            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {'name': 'created', 'type': 'DATE', 'mode': 'REQUIRED'},
+        ]
+        time_partitioning = {"field": "created", "type": "DAY"}
+        cluster_fields = ['name']
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+
+        cursor.create_empty_table(
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            schema_fields=schema_fields,
+            time_partitioning=time_partitioning,
+            cluster_fields=cluster_fields
+        )
+
+        body = {
+            'tableReference': {
+                'tableId': table_id
+            },
+            'schema': {
+                'fields': schema_fields
+            },
+            'timePartitioning': time_partitioning,
+            'clustering': {
+                'fields': cluster_fields
+            }
+        }
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            body=body
+        )
+
+    def test_create_empty_table_on_exception(self):
+        project_id = 'bq-project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+
+        mock_service = mock.Mock()
+        method = mock_service.tables.return_value.insert
+        method.return_value.execute.side_effect = HttpError(
+            resp={'status': '400'}, content=b'Bad request')
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        with self.assertRaises(Exception):
+            cursor.create_empty_table(project_id, dataset_id, table_id)
+
+
+class TestBigQueryCursor(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_execute_with_parameters(self, mocked_rwc):
+        hook.BigQueryCursor("test", "test").execute(
+            "SELECT %(foo)s", {"foo": "bar"})
+        mocked_rwc.assert_called_once()
+
+
+class TestLabelsInRunJob(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['labels'], {'label1': 'test1', 'label2': 'test2'}
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(
+            sql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            labels={'label1': 'test1', 'label2': 'test2'}
+        )
+
+        mocked_rwc.assert_called_once()
+
+
+class TestDatasetsOperations(unittest.TestCase):
+
+    def test_create_empty_dataset_no_dataset_id_err(self):
+
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="")
+
+    def test_create_empty_dataset_duplicates_call_err(self):
+        with self.assertRaises(ValueError):
+            hook.BigQueryBaseCursor(
+                mock.Mock(), "test_create_empty_dataset").create_empty_dataset(
+                dataset_id="", project_id="project_test",
+                dataset_reference={
+                    "datasetReference":
+                        {"datasetId": "test_dataset",
+                         "projectId": "project_test2"}})
+
+    def test_get_dataset_without_dataset_id(self):
+        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+            with self.assertRaises(ValueError):
+                hook.BigQueryBaseCursor(
+                    mock.Mock(), "test_create_empty_dataset").get_dataset(
+                    dataset_id="", project_id="project_test")
+
+    def test_get_dataset(self):
+        expected_result = {
+            "kind": "bigquery#dataset",
+            "location": "US",
+            "id": "your-project:dataset_2_test",
+            "datasetReference": {
+                "projectId": "your-project",
+                "datasetId": "dataset_2_test"
+            }
+        }
+        dataset_id = "test_dataset"
+        project_id = "project_test"
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        with mock.patch.object(bq_hook.service, 'datasets') as MockService:
+            MockService.return_value.get(datasetId=dataset_id,
+                                         projectId=project_id).execute.\
+                return_value = expected_result
+            result = bq_hook.get_dataset(dataset_id=dataset_id,
+                                         project_id=project_id)
+            self.assertEqual(result, expected_result)
+
+    def test_get_datasets_list(self):
+        expected_result = {'datasets': [
+            {
+                "kind": "bigquery#dataset",
+                "location": "US",
+                "id": "your-project:dataset_2_test",
+                "datasetReference": {
+                    "projectId": "your-project",
+                    "datasetId": "dataset_2_test"
+                }
+            },
+            {
+                "kind": "bigquery#dataset",
+                "location": "US",
+                "id": "your-project:dataset_1_test",
+                "datasetReference": {
+                    "projectId": "your-project",
+                    "datasetId": "dataset_1_test"
+                }
+            }
+        ]}
+        project_id = "project_test"''
+
+        mocked = mock.Mock()
+        with mock.patch.object(hook.BigQueryBaseCursor(mocked, project_id).service,
+                               'datasets') as MockService:
+            MockService.return_value.list(
+                projectId=project_id).execute.return_value = expected_result
+            result = hook.BigQueryBaseCursor(
+                mocked, "test_create_empty_dataset").get_datasets_list(
+                project_id=project_id)
+            self.assertEqual(result, expected_result['datasets'])
+
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_default(self, mocked_rwc):
+        project_id = 12345
 
-    class BigQueryBaseCursorTest(hook.BigQueryBaseCursor):
-        """Use this class to verify the load configuration"""
-        def run_with_configuration(self, configuration):
-            return configuration
+        def run_with_config(config):
+            self.assertIsNone(config['load'].get('timePartitioning'))
+        mocked_rwc.side_effect = run_with_config
 
-    class Serv(object):
-        """mocks the behaviour of a succezsfull Job"""
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+        )
 
-        class Job(object):
-            """mocks the behaviour of a succezsfull Job"""
-            def __getitem__(self, item=None):
-                return self
+        mocked_rwc.assert_called_once()
 
-            def get(self, projectId, jobId=None):
-                return self.__getitem__(projectId)
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_with_auto_detect(self, run_with_config):
+        destination_project_dataset_table = "autodetect.table"
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_load(destination_project_dataset_table, [], [], autodetect=True)
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['load']['autodetect'], True)
 
-            def insert(self, projectId, body=None):
-                return self.get(projectId, body)
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_with_arg(self, mocked_rwc):
+        project_id = 12345
 
-            def execute(self):
-                return {
-                    'status': {'state': 'DONE'},
-                    'jobReference': {'jobId': 0}
+        def run_with_config(config):
+            self.assertEqual(
+                config['load']['timePartitioning'],
+                {
+                    'field': 'test_field',
+                    'type': 'DAY',
+                    'expirationMs': 1000
                 }
+            )
+        mocked_rwc.side_effect = run_with_config
 
-        def __int__(self, job='mock_load'):
-            self.job = job
-
-        def jobs(self):
-            return self.Job()
-
-    def test_the_job_execution_wont_break(self):
-        s = self.Serv()
-        bqc = hook.BigQueryBaseCursor(s, 'str')
-        job = bqc.run_load(
-            destination_project_dataset_table='test.teast',
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
             schema_fields=[],
             source_uris=[],
             time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
-        self.assertEquals(job, 0)
+        mocked_rwc.assert_called_once()
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_default(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['query'].get('timePartitioning'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(sql='select 1')
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['query']['timePartitioning'],
+                {
+                    'field': 'test_field',
+                    'type': 'DAY',
+                    'expirationMs': 1000
+                }
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(
+            sql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            time_partitioning={'type': 'DAY',
+                               'field': 'test_field', 'expirationMs': 1000}
+        )
+
+        mocked_rwc.assert_called_once()
 
     def test_dollar_makes_partition(self):
-        s = self.Serv()
-        bqc = self.BigQueryBaseCursorTest(s, 'str')
-        cnfg = bqc.run_load(
-            destination_project_dataset_table='test.teast$20170101',
-            schema_fields=[],
-            source_uris=[],
-            src_fmt_configs={}
-        )
+        tp_out = _cleanse_time_partitioning('test.teast$20170101', {})
         expect = {
             'type': 'DAY'
         }
-        self.assertEqual(cnfg['load'].get('timePartitioning'), expect)
+        self.assertEqual(tp_out, expect)
 
     def test_extra_time_partitioning_options(self):
-        s = self.Serv()
-        bqc = self.BigQueryBaseCursorTest(s, 'str')
-        cnfg = bqc.run_load(
-            destination_project_dataset_table='test.teast',
-            schema_fields=[],
-            source_uris=[],
-            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+        tp_out = _cleanse_time_partitioning(
+            'test.teast',
+            {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
         expect = {
@@ -335,21 +810,87 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
             'field': 'test_field',
             'expirationMs': 1000
         }
+        self.assertEqual(tp_out, expect)
 
-        self.assertEqual(cnfg['load'].get('timePartitioning'), expect)
 
-    def test_cant_add_dollar_and_field_name(self):
-        s = self.Serv()
-        bqc = self.BigQueryBaseCursorTest(s, 'str')
+class TestClusteringInRunJob(unittest.TestCase):
 
-        with self.assertRaises(AirflowException):
-            tp_dict = {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
-            bqc.run_load(
-                destination_project_dataset_table='test.teast$20170101',
-                schema_fields=[],
-                source_uris=[],
-                time_partitioning=tp_dict
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_default(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['load'].get('clustering'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+        )
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_load_with_arg(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['load']['clustering'],
+                {
+                    'fields': ['field1', 'field2']
+                }
             )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_load(
+            destination_project_dataset_table='my_dataset.my_table',
+            schema_fields=[],
+            source_uris=[],
+            cluster_fields=['field1', 'field2'],
+            time_partitioning={'type': 'DAY'}
+        )
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_default(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertIsNone(config['query'].get('clustering'))
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(sql='select 1')
+
+        mocked_rwc.assert_called_once()
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_with_arg(self, mocked_rwc):
+        project_id = 12345
+
+        def run_with_config(config):
+            self.assertEqual(
+                config['query']['clustering'],
+                {
+                    'fields': ['field1', 'field2']
+                }
+            )
+        mocked_rwc.side_effect = run_with_config
+
+        bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
+        bq_hook.run_query(
+            sql='select 1',
+            destination_dataset_table='my_dataset.my_table',
+            cluster_fields=['field1', 'field2'],
+            time_partitioning={'type': 'DAY'}
+        )
+
+        mocked_rwc.assert_called_once()
 
 
 class TestBigQueryHookLegacySql(unittest.TestCase):
@@ -370,6 +911,55 @@ class TestBigQueryHookLegacySql(unittest.TestCase):
             bq_hook.get_first('query')
             args, kwargs = run_with_config.call_args
             self.assertIs(args[0]['query']['useLegacySql'], False)
+
+
+class TestBigQueryHookLocation(unittest.TestCase):
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_location_propagates_properly(self, run_with_config):
+        with mock.patch.object(hook.BigQueryHook, 'get_service'):
+            bq_hook = hook.BigQueryHook(location=None)
+            self.assertIsNone(bq_hook.location)
+
+            bq_cursor = hook.BigQueryBaseCursor(mock.Mock(),
+                                                'test-project',
+                                                location=None)
+            self.assertIsNone(bq_cursor.location)
+            bq_cursor.run_query(sql='select 1', location='US')
+            run_with_config.assert_called_once()
+            self.assertEqual(bq_cursor.location, 'US')
+
+
+class TestBigQueryHookRunWithConfiguration(unittest.TestCase):
+    def test_run_with_configuration_location(self):
+        project_id = 'bq-project'
+        running_job_id = 'job_vjdi28vskdui2onru23'
+        location = 'asia-east1'
+
+        mock_service = mock.Mock()
+        method = (mock_service.jobs.return_value.get)
+
+        mock_service.jobs.return_value.insert.return_value.execute.return_value = {
+            'jobReference': {
+                'jobId': running_job_id,
+                'location': location
+            }
+        }
+
+        mock_service.jobs.return_value.get.return_value.execute.return_value = {
+            'status': {
+                'state': 'DONE'
+            }
+        }
+
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id)
+        cursor.running_job_id = running_job_id
+        cursor.run_with_configuration({})
+
+        method.assert_called_once_with(
+            projectId=project_id,
+            jobId=running_job_id,
+            location=location
+        )
 
 
 if __name__ == '__main__':

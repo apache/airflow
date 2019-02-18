@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Using `from elasticsearch import *` would break elasticseach mocking used in unit test.
+# Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import pendulum
 from elasticsearch_dsl import Search
@@ -87,7 +87,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param try_number: try_number of the task instance
         :param metadata: log metadata,
                          can be used for steaming log reading and auto-tailing.
-        :return a list of log documents and metadata.
+        :return: a list of log documents and metadata.
         """
         if not metadata:
             metadata = {'offset': 0}
@@ -135,7 +135,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Offset is the unique key for sorting logs given log_id.
         s = Search(using=self.client) \
-            .query('match', log_id=log_id) \
+            .query('match_phrase', log_id=log_id) \
             .sort('offset')
 
         s = s.filter('range', offset={'gt': offset})

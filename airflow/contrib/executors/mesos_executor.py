@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,10 +19,6 @@
 
 from future import standard_library
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.utils import LoginMixin
-
-standard_library.install_aliases()
 from builtins import str
 from queue import Queue
 
@@ -36,7 +32,7 @@ from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.exceptions import AirflowException
 
-
+standard_library.install_aliases()
 DEFAULT_FRAMEWORK_NAME = 'Airflow'
 FRAMEWORK_CONNID_PREFIX = 'mesos_framework_'
 
@@ -49,7 +45,7 @@ def get_framework_name():
 
 # AirflowMesosScheduler, implements Mesos Scheduler interface
 # To schedule airflow jobs on mesos
-class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
+class AirflowMesosScheduler(mesos.interface.Scheduler):
     """
     Airflow Mesos scheduler implements mesos scheduler interface
     to schedule airflow tasks on mesos.
@@ -74,12 +70,13 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
             )
 
     def registered(self, driver, frameworkId, masterInfo):
-        self.log.info("AirflowScheduler registered to Mesos with framework ID %s", frameworkId.value)
+        self.log.info("AirflowScheduler registered to Mesos with framework ID %s",
+                      frameworkId.value)
 
         if configuration.conf.getboolean('mesos', 'CHECKPOINT') and \
                 configuration.conf.get('mesos', 'FAILOVER_TIMEOUT'):
             # Import here to work around a circular import error
-            from airflow.models import Connection
+            from airflow.models.connection import Connection
 
             # Update the Framework ID in the database.
             session = Session()
@@ -128,14 +125,15 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
                 elif resource.name == "mem":
                     offerMem += resource.scalar.value
 
-            self.log.info("Received offer %s with cpus: %s and mem: %s", offer.id.value, offerCpus, offerMem)
+            self.log.info("Received offer %s with cpus: %s and mem: %s",
+                          offer.id.value, offerCpus, offerMem)
 
             remainingCpus = offerCpus
             remainingMem = offerMem
 
             while (not self.task_queue.empty()) and \
-                  remainingCpus >= self.task_cpu and \
-                  remainingMem >= self.task_mem:
+                    remainingCpus >= self.task_cpu and \
+                    remainingMem >= self.task_mem:
                 key, cmd = self.task_queue.get()
                 tid = self.task_counter
                 self.task_counter += 1
@@ -160,7 +158,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
 
                 command = mesos_pb2.CommandInfo()
                 command.shell = True
-                command.value = cmd
+                command.value = " ".join(cmd)
                 task.command.MergeFrom(command)
 
                 # If docker image for airflow is specified in config then pull that
@@ -194,7 +192,8 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
         try:
             key = self.task_key_map[update.task_id.value]
         except KeyError:
-            # The map may not contain an item if the framework re-registered after a failover.
+            # The map may not contain an item if the framework re-registered
+            # after a failover.
             # Discard these tasks.
             self.log.warning("Unrecognised task key %s", update.task_id.value)
             return
@@ -210,7 +209,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
             self.task_queue.task_done()
 
 
-class MesosExecutor(BaseExecutor, LoginMixin):
+class MesosExecutor(BaseExecutor):
     """
     MesosExecutor allows distributing the execution of task
     instances to multiple mesos workers.
@@ -250,14 +249,15 @@ class MesosExecutor(BaseExecutor, LoginMixin):
 
             if configuration.conf.get('mesos', 'FAILOVER_TIMEOUT'):
                 # Import here to work around a circular import error
-                from airflow.models import Connection
+                from airflow.models.connection import Connection
 
                 # Query the database to get the ID of the Mesos Framework, if available.
                 conn_id = FRAMEWORK_CONNID_PREFIX + framework.name
                 session = Session()
                 connection = session.query(Connection).filter_by(conn_id=conn_id).first()
                 if connection is not None:
-                    # Set the Framework ID to let the scheduler reconnect with running tasks.
+                    # Set the Framework ID to let the scheduler reconnect
+                    # with running tasks.
                     framework.id.value = connection.extra
 
                 framework.failover_timeout = configuration.conf.getint(
@@ -268,7 +268,8 @@ class MesosExecutor(BaseExecutor, LoginMixin):
 
         self.log.info(
             'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s',
-            master, framework.name, str(task_cpu), str(task_memory), str(framework.checkpoint)
+            master, framework.name,
+            str(task_cpu), str(task_memory), str(framework.checkpoint)
         )
 
         implicit_acknowledgements = 1
@@ -276,10 +277,12 @@ class MesosExecutor(BaseExecutor, LoginMixin):
         if configuration.conf.getboolean('mesos', 'AUTHENTICATE'):
             if not configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL'):
                 self.log.error("Expecting authentication principal in the environment")
-                raise AirflowException("mesos.default_principal not provided in authenticated mode")
+                raise AirflowException(
+                    "mesos.default_principal not provided in authenticated mode")
             if not configuration.conf.get('mesos', 'DEFAULT_SECRET'):
                 self.log.error("Expecting authentication secret in the environment")
-                raise AirflowException("mesos.default_secret not provided in authenticated mode")
+                raise AirflowException(
+                    "mesos.default_secret not provided in authenticated mode")
 
             credential = mesos_pb2.Credential()
             credential.principal = configuration.conf.get('mesos', 'DEFAULT_PRINCIPAL')
@@ -288,7 +291,10 @@ class MesosExecutor(BaseExecutor, LoginMixin):
             framework.principal = credential.principal
 
             driver = mesos.native.MesosSchedulerDriver(
-                AirflowMesosScheduler(self.task_queue, self.result_queue, task_cpu, task_memory),
+                AirflowMesosScheduler(self.task_queue,
+                                      self.result_queue,
+                                      task_cpu,
+                                      task_memory),
                 framework,
                 master,
                 implicit_acknowledgements,
@@ -296,7 +302,10 @@ class MesosExecutor(BaseExecutor, LoginMixin):
         else:
             framework.principal = 'Airflow'
             driver = mesos.native.MesosSchedulerDriver(
-                AirflowMesosScheduler(self.task_queue, self.result_queue, task_cpu, task_memory),
+                AirflowMesosScheduler(self.task_queue,
+                                      self.result_queue,
+                                      task_cpu,
+                                      task_memory),
                 framework,
                 master,
                 implicit_acknowledgements)

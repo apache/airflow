@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,13 +19,12 @@
 from future.utils import native
 
 import flask_login
-from flask_login import login_required, current_user, logout_user
+from flask_login import login_required, current_user, logout_user  # noqa: F401
 from flask import flash
-from wtforms import (
-    Form, PasswordField, StringField)
+from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE, BASE
+from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE
 import ssl
 
 from flask import url_for, redirect
@@ -56,16 +55,18 @@ class LdapException(Exception):
 
 
 def get_ldap_connection(dn=None, password=None):
-    tls_configuration = None
-    use_ssl = False
     try:
         cacert = configuration.conf.get("ldap", "cacert")
-        tls_configuration = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cacert)
-        use_ssl = True
-    except:
+    except AirflowConfigException:
         pass
 
-    server = Server(configuration.conf.get("ldap", "uri"), use_ssl, tls_configuration)
+    tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
+                            ca_certs_file=cacert)
+
+    server = Server(configuration.conf.get("ldap", "uri"),
+                    use_ssl=True,
+                    tls=tls_configuration)
+
     conn = Connection(server, native(dn), native(password))
 
     if not conn.bind():
@@ -83,7 +84,8 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
         log.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for entry in conn.entries:
-            if username.lower() in map(lambda attr: attr.lower(), getattr(entry, user_name_attr).values):
+            if username.lower() in map(lambda attr: attr.lower(),
+                                       getattr(entry, user_name_attr).values):
                 return True
 
     return False
@@ -93,7 +95,7 @@ def groups_user(conn, search_base, user_filter, user_name_att, username):
     search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
     try:
         memberof_attr = configuration.conf.get("ldap", "group_member_attr")
-    except:
+    except Exception:
         memberof_attr = "memberOf"
     res = conn.search(native(search_base), native(search_filter),
                       attributes=[native(memberof_attr)])
@@ -191,12 +193,6 @@ class LdapUser(models.User):
             username
         )
 
-        search_scopes = {
-            "LEVEL": LEVEL,
-            "SUBTREE": SUBTREE,
-            "BASE": BASE
-        }
-
         search_scope = LEVEL
         if configuration.conf.has_option("ldap", "search_scope"):
             if configuration.conf.get("ldap", "search_scope") == "SUBTREE":
@@ -226,39 +222,46 @@ class LdapUser(models.User):
 
         try:
             conn = get_ldap_connection(entry['dn'], password)
-        except KeyError as e:
+        except KeyError:
             log.error("""
-            Unable to parse LDAP structure. If you're using Active Directory and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
+            Unable to parse LDAP structure. If you're using Active Directory
+            and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
             %s
             """ % traceback.format_exc())
-            raise LdapException("Could not parse LDAP structure. Try setting search_scope in airflow.cfg, or check logs")
+            raise LdapException(
+                "Could not parse LDAP structure. "
+                "Try setting search_scope in airflow.cfg, or check logs"
+            )
 
         if not conn:
             log.info("Password incorrect for user %s", username)
             raise AuthenticationError("Invalid username or password")
 
+    @property
     def is_active(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return False
 
     def get_id(self):
-        '''Returns the current user id as required by flask_login'''
+        """Returns the current user id as required by flask_login"""
         return self.user.get_id()
 
     def data_profiling(self):
-        '''Provides access to data profiling tools'''
+        """Provides access to data profiling tools"""
         return self.data_profiler
 
     def is_superuser(self):
-        '''Access all the things'''
+        """Access all the things"""
         return self.superuser
 
 
@@ -272,9 +275,10 @@ def load_user(userid, session=None):
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
     return LdapUser(user)
 
+
 @provide_session
 def login(self, request, session=None):
-    if current_user.is_authenticated():
+    if current_user.is_authenticated:
         flash("You are already logged in")
         return redirect(url_for('admin.index'))
 
@@ -303,9 +307,10 @@ def login(self, request, session=None):
             user = models.User(
                 username=username,
                 is_superuser=False)
+            session.add(user)
 
-        session.merge(user)
         session.commit()
+        session.merge(user)
         flask_login.login_user(LdapUser(user))
         session.commit()
 

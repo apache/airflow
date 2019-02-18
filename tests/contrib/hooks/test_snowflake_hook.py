@@ -8,9 +8,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,7 +39,8 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.schema = 'public'
         self.conn.extra_dejson = {'database': 'db',
                                   'account': 'airflow',
-                                  'warehouse': 'af_wh'}
+                                  'warehouse': 'af_wh',
+                                  'region': 'af_region'}
 
         class UnitTestSnowflakeHook(SnowflakeHook):
             conn_name_attr = 'snowflake_conn_id'
@@ -62,7 +63,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                 'schema': 'public',
                                 'database': 'db',
                                 'account': 'airflow',
-                                'warehouse': 'af_wh'}
+                                'warehouse': 'af_wh',
+                                'region': 'af_region'}
         self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
 
     def test_get_conn(self):

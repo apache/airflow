@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,6 +29,7 @@ from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import utils as wwwutils
+from airflow.www.decorators import gzipped
 
 METASTORE_CONN_ID = 'metastore_default'
 METASTORE_MYSQL_CONN_ID = 'metastore_mysql'
@@ -86,7 +87,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         return self.render(
             "metastore_browser/db.html", tables=tables, db=db)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/partitions/')
     def partitions(self):
         schema, table = request.args.get("table").split('.')
@@ -114,7 +115,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
             index=False,
             na_rep='',)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/objects/')
     def objects(self):
         where_clause = ''
@@ -138,11 +139,11 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         """.format(where_clause=where_clause, LIMIT=TABLE_SELECTOR_LIMIT)
         h = MySqlHook(METASTORE_MYSQL_CONN_ID)
         d = [
-                {'id': row[0], 'text': row[0]}
+            {'id': row[0], 'text': row[0]}
             for row in h.get_records(sql)]
         return json.dumps(d)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/data/')
     def data(self):
         table = request.args.get("table")
@@ -161,9 +162,10 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         h = HiveCliHook(HIVE_CLI_CONN_ID)
         return h.run_cli(sql)
 
+
 v = MetastoreBrowserView(category="Plugins", name="Hive Metadata Browser")
 
-# Creating a flask blueprint to intergrate the templates and static folder
+# Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
     "metastore_browser", __name__,
     template_folder='templates',

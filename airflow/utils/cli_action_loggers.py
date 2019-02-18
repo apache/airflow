@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,7 +25,7 @@ from __future__ import absolute_import
 
 import logging
 
-import airflow.settings
+from airflow.utils.db import create_session
 
 
 def register_pre_exec_callback(action_logger):
@@ -94,9 +94,8 @@ def default_action_log(log, **_):
     :param **_: other keyword arguments that is not being used by this function
     :return: None
     """
-    session = airflow.settings.Session()
-    session.add(log)
-    session.commit()
+    with create_session() as session:
+        session.add(log)
 
 
 __pre_exec_callbacks = []

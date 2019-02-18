@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,24 +25,24 @@ import subprocess
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 from copy import deepcopy
 
 
-class SqoopHook(BaseHook, LoggingMixin):
+class SqoopHook(BaseHook):
     """
     This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
     it is required that "sqoop" is in the PATH.
 
     Additional arguments that can be passed via the 'extra' JSON field of the
     sqoop connection:
-    * job_tracker: Job tracker local|jobtracker:port.
-    * namenode: Namenode.
-    * lib_jars: Comma separated jar files to include in the classpath.
-    * files: Comma separated files to be copied to the map reduce cluster.
-    * archives: Comma separated archives to be unarchived on the compute
-        machines.
-    * password_file: Path to file containing the password.
+
+        * ``job_tracker``: Job tracker local|jobtracker:port.
+        * ``namenode``: Namenode.
+        * ``lib_jars``: Comma separated jar files to include in the classpath.
+        * ``files``: Comma separated files to be copied to the map reduce cluster.
+        * ``archives``: Comma separated archives to be unarchived on the compute
+            machines.
+        * ``password_file``: Path to file containing the password.
 
     :param conn_id: Reference to the sqoop connection.
     :type conn_id: str
@@ -71,7 +71,11 @@ class SqoopHook(BaseHook, LoggingMixin):
         self.verbose = verbose
         self.num_mappers = num_mappers
         self.properties = properties or {}
-        self.log.info("Using connection to: {}:{}/{}".format(self.conn.host, self.conn.port, self.conn.schema))
+        self.log.info(
+            "Using connection to: {}:{}/{}".format(
+                self.conn.host, self.conn.port, self.conn.schema
+            )
+        )
 
     def get_conn(self):
         return self.conn
@@ -95,10 +99,11 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         masked_cmd = ' '.join(self.cmd_mask_password(cmd))
         self.log.info("Executing command: {}".format(masked_cmd))
-        self.sp = subprocess.Popen(cmd,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT,
-                              **kwargs)
+        self.sp = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            **kwargs)
 
         for line in iter(self.sp.stdout):
             self.log.info(line.strip())
@@ -189,7 +194,8 @@ class SqoopHook(BaseHook, LoggingMixin):
         if extra_import_options:
             for key, value in extra_import_options.items():
                 cmd += ['--{}'.format(key)]
-                if value: cmd += [value]
+                if value:
+                    cmd += [value]
 
         return cmd
 
@@ -199,6 +205,7 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
+
         :param table: Table to read
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
@@ -229,6 +236,7 @@ class SqoopHook(BaseHook, LoggingMixin):
                      split_by=None, direct=None, driver=None, extra_import_options=None):
         """
         Imports a specific query from the rdbms to hdfs
+
         :param query: Free format query to run
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
@@ -295,7 +303,8 @@ class SqoopHook(BaseHook, LoggingMixin):
         if extra_export_options:
             for key, value in extra_export_options.items():
                 cmd += ['--{}'.format(key)]
-                if value: cmd += [value]
+                if value:
+                    cmd += [value]
 
         # The required option
         cmd += ["--table", table]
@@ -312,6 +321,7 @@ class SqoopHook(BaseHook, LoggingMixin):
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
+
         :param table: Table remote destination
         :param export_dir: Hive table to export
         :param input_null_string: The string to be interpreted as null for

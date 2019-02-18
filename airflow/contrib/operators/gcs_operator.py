@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,51 +32,51 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             For more information, see Bucket Naming Guidelines:
             https://cloud.google.com/storage/docs/bucketnaming.html#requirements
 
-    :param bucket_name: The name of the bucket.
-    :type bucket_name: string
+    :param bucket_name: The name of the bucket. (templated)
+    :type bucket_name: str
     :param storage_class: This defines how objects in the bucket are stored
-            and determines the SLA and the cost of storage. Values include
+            and determines the SLA and the cost of storage (templated). Values include
 
             - ``MULTI_REGIONAL``
             - ``REGIONAL``
             - ``STANDARD``
             - ``NEARLINE``
             - ``COLDLINE``.
+
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
-    :type storage_class: string
-    :param location: The location of the bucket.
+    :type storage_class: str
+    :param location: The location of the bucket. (templated)
         Object data for objects in the bucket resides in physical storage
         within this region. Defaults to US.
 
-        .. seealso::
-            https://developers.google.com/storage/docs/bucket-locations
+        .. seealso:: https://developers.google.com/storage/docs/bucket-locations
 
-    :type location: string
-    :param project_id: The ID of the GCP Project.
-    :type project_id: string
+    :type location: str
+    :param project_id: The ID of the GCP Project. (templated)
+    :type project_id: str
     :param labels: User-provided labels, in key/value pairs.
     :type labels: dict
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
-    :type google_cloud_storage_conn_id: string
+    :type google_cloud_storage_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must
         have domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
 
-    **Example**:
-        The following Operator would create a new bucket ``test-bucket``
-        with ``MULTI_REGIONAL`` storage class in ``EU`` region ::
+    :Example::
+    The following Operator would create a new bucket ``test-bucket``
+    with ``MULTI_REGIONAL`` storage class in ``EU`` region ::
 
-            CreateBucket = GoogleCloudStorageCreateBucketOperator(
-                task_id='CreateNewBucket',
-                bucket_name='test-bucket',
-                storage_class='MULTI_REGIONAL',
-                location='EU',
-                labels={'env': 'dev', 'team': 'airflow'},
-                google_cloud_storage_conn_id='airflow-service-account'
-            )
+        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+            task_id='CreateNewBucket',
+            bucket_name='test-bucket',
+            storage_class='MULTI_REGIONAL',
+            location='EU',
+            labels={'env': 'dev', 'team': 'airflow'},
+            google_cloud_storage_conn_id='airflow-service-account'
+        )
     """
 
     template_fields = ('bucket_name', 'storage_class',

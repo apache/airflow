@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-
 from airflow.contrib.kubernetes.pod import Pod
 import uuid
+from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
+from airflow.contrib.kubernetes.volume import Volume  # noqa
 
 
 class PodGenerator:
@@ -64,16 +64,30 @@ class PodGenerator:
     def _get_init_containers(self):
         return self.init_containers
 
-    def add_volume(self, name):
+    def add_volume(self, volume):
+        """
+        Args:
+            volume (Volume):
+        """
+
+        self._add_volume(name=volume.name, configs=volume.configs)
+
+    def _add_volume(self, name, configs):
         """
 
         Args:
             name (str):
+            configs (dict): Configurations for the volume.
+            Could be used to define PersistentVolumeClaim, ConfigMap, etc...
 
         Returns:
 
         """
-        self.volumes.append({'name': name})
+        volume_map = {'name': name}
+        for k, v in configs.items():
+            volume_map[k] = v
+
+        self.volumes.append(volume_map)
 
     def add_volume_with_configmap(self, name, config_map):
         self.volumes.append(
@@ -83,11 +97,11 @@ class PodGenerator:
             }
         )
 
-    def add_mount(self,
-                  name,
-                  mount_path,
-                  sub_path,
-                  read_only):
+    def _add_mount(self,
+                   name,
+                   mount_path,
+                   sub_path,
+                   read_only):
         """
 
         Args:
@@ -107,6 +121,19 @@ class PodGenerator:
             'readOnly': read_only
         })
 
+    def add_mount(self,
+                  volume_mount):
+        """
+        Args:
+            volume_mount (VolumeMount):
+        """
+        self._add_mount(
+            name=volume_mount.name,
+            mount_path=volume_mount.mount_path,
+            sub_path=volume_mount.sub_path,
+            read_only=volume_mount.read_only
+        )
+
     def _get_volumes_and_mounts(self):
         return self.volumes, self.volume_mounts
 
@@ -122,7 +149,7 @@ class PodGenerator:
 
         return Pod(
             namespace=namespace,
-            name=pod_id + "-" + str(uuid.uuid1())[:8],
+            name=pod_id + "-" + str(uuid.uuid4())[:8],
             image=image,
             cmds=cmds,
             args=arguments,

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -101,7 +101,7 @@ class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
         mock_hook.return_value.create_subscription.assert_called_once_with(
             TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, None,
             10, False)
-        self.assertEquals(response, TEST_SUBSCRIPTION)
+        self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.contrib.operators.pubsub_operator.PubSubHook')
     def test_execute_different_project_ids(self, mock_hook):
@@ -116,7 +116,7 @@ class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
         mock_hook.return_value.create_subscription.assert_called_once_with(
             TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION, another_project,
             10, False)
-        self.assertEquals(response, TEST_SUBSCRIPTION)
+        self.assertEqual(response, TEST_SUBSCRIPTION)
 
     @mock.patch('airflow.contrib.operators.pubsub_operator.PubSubHook')
     def test_execute_no_subscription(self, mock_hook):
@@ -127,7 +127,7 @@ class PubSubSubscriptionCreateOperatorTest(unittest.TestCase):
         response = operator.execute(None)
         mock_hook.return_value.create_subscription.assert_called_once_with(
             TEST_PROJECT, TEST_TOPIC, None, None, 10, False)
-        self.assertEquals(response, TEST_SUBSCRIPTION)
+        self.assertEqual(response, TEST_SUBSCRIPTION)
 
 
 class PubSubSubscriptionDeleteOperatorTest(unittest.TestCase):

@@ -1,7 +1,24 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Concepts
 ########
 
-The Airflow Platform is a tool for describing, executing, and monitoring
+The Airflow platform is a tool for describing, executing, and monitoring
 workflows.
 
 Core Ideas
@@ -34,6 +51,9 @@ DAGs are defined in standard Python files that are placed in Airflow's
 the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
+
+.. note:: When searching for DAGs, Airflow will only consider files where the string
+   "airflow" and "DAG" both appear in the contents of the ``.py`` file.
 
 Scope
 -----
@@ -87,6 +107,8 @@ DAGs can be used as context managers to automatically assign new operators to th
 
     op.dag is dag # True
 
+.. _concepts-operators:
+
 Operators
 =========
 
@@ -107,17 +129,23 @@ described elsewhere in this document.
 
 Airflow provides operators for many common tasks, including:
 
-- ``BashOperator`` - executes a bash command
-- ``PythonOperator`` - calls an arbitrary Python function
-- ``EmailOperator`` - sends an email
-- ``HTTPOperator`` - sends an HTTP request
-- ``MySqlOperator``, ``SqliteOperator``, ``PostgresOperator``, ``MsSqlOperator``, ``OracleOperator``, ``JdbcOperator``, etc. - executes a SQL command
+- :class:`airflow.operators.bash_operator.BashOperator` - executes a bash command
+- :class:`airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
+- :class:`airflow.operators.email_operator.EmailOperator` - sends an email
+- :class:`airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
+- :class:`airflow.operators.mysql_operator.MySqlOperator`,
+  :class:`airflow.operators.sqlite_operator.SqliteOperator`,
+  :class:`airflow.operators.postgres_operator.PostgresOperator`,
+  :class:`airflow.operators.mssql_operator.MsSqlOperator`,
+  :class:`airflow.operators.oracle_operator.OracleOperator`,
+  :class:`airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
-
 In addition to these basic building blocks, there are many more specific
-operators: ``DockerOperator``, ``HiveOperator``, ``S3FileTransferOperator``,
-``PrestoToMysqlOperator``, ``SlackOperator``... you get the idea!
+operators: :class:`airflow.operators.docker_operator.DockerOperator`,
+:class:`airflow.operators.hive_operator.HiveOperator`, :class:`airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
+:class:`airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
 The ``airflow/contrib/`` directory contains yet more operators built by the
 community. These operators aren't always as complete or well-tested as those in
@@ -125,6 +153,8 @@ the main distribution, but allow users to more easily add new functionality to
 the platform.
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
+
+See :doc:`howto/operator` for how to use Airflow operators.
 
 DAG Assignment
 --------------
@@ -217,6 +247,25 @@ We can put this all together to build a simple pipeline:
                 python_callable=lambda: print("GOODBYE!"))
         )
 
+Bitshift can also be used with lists. For example:
+
+.. code:: python
+
+    op1 >> [op2, op3]
+
+is equivalent to:
+
+.. code:: python
+
+    op1 >> op2
+    op1 >> op3
+    
+and equivalent to:
+
+.. code:: python
+
+    op1.set_downstream([op2, op3])
+
 Tasks
 =====
 
@@ -228,9 +277,33 @@ Task Instances
 ==============
 
 A task instance represents a specific run of a task and is characterized as the
-combination of a dag, a task, and a point in time. Task instances also have an
+combination of a DAG, a task, and a point in time. Task instances also have an
 indicative state, which could be "running", "success", "failed", "skipped", "up
 for retry", etc.
+
+Task Lifecycle
+==============
+
+A task goes through various stages from start to completion. In the Airflow UI
+(graph and tree views), these stages are displayed by a color representing each
+stage:
+
+.. image:: img/task_lifecycle.png
+
+The happy flow consists of the following stages:
+
+1. no status (scheduler created empty task instance)
+2. queued (scheduler placed a task to run on the queue)
+3. running (worker picked up a task and is now running it)
+4. success (task completed)
+
+There is also visual difference between scheduled and manually triggered
+DAGs/tasks:
+
+.. image:: img/task_manual_vs_scheduled.png
+
+The DAGs/tasks with a black border are scheduled runs, whereas the non-bordered
+DAGs/tasks are manually triggered, i.e. by `airflow trigger_dag`.
 
 Workflows
 =========
@@ -261,7 +334,7 @@ Hooks
 Hooks are interfaces to external platforms and databases like Hive, S3,
 MySQL, Postgres, HDFS, and Pig. Hooks implement a common interface when
 possible, and act as a building block for operators. They also use
-the ``airflow.models.Connection`` model to retrieve hostnames
+the ``airflow.models.connection.Connection`` model to retrieve hostnames
 and authentication information. Hooks keep authentication code and
 information out of pipelines, centralized in the metadata database.
 
@@ -308,11 +381,15 @@ UI. As slots free up, queued tasks start running based on the
 Note that by default tasks aren't assigned to any pool and their
 execution parallelism is only limited to the executor's setting.
 
+To combine Pools with SubDAGs see the `SubDAGs`_ section.
+
+.. _concepts-connections:
+
 Connections
 ===========
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``)
+metadata database and managed in the UI (``Menu -> Admin -> Connections``).
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
@@ -325,20 +402,27 @@ for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
 Airflow also has the ability to reference connections via environment
-variables from the operating system. The environment variable needs to be
-prefixed with ``AIRFLOW_CONN_`` to be considered a connection. When
-referencing the connection in the Airflow pipeline, the ``conn_id`` should
-be the name of the variable without the prefix. For example, if the ``conn_id``
-is named ``postgres_master`` the environment variable should be named
-``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable must be
-all uppercase). Airflow assumes the value returned from the environment
-variable to be in a URI format (e.g.
-``postgres://user:password@localhost:5432/master`` or ``s3://accesskey:secretkey@S3``).
+variables from the operating system. But it only supports URI format. If you
+need to specify ``extra`` for your connection, please use web UI.
+
+If connections with the same ``conn_id`` are defined in both Airflow metadata
+database and environment variables, only the one in environment variables
+will be referenced by Airflow (for example, given ``conn_id`` ``postgres_master``,
+Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+in environment variables first and directly reference it if found,
+before it starts to search in metadata database).
+
+Many hooks have a default ``conn_id``, where operators using that hook do not
+need to supply an explicit connection ID. For example, the default
+``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
+``postgres_default``.
+
+See :doc:`howto/manage-connections` for how to create and manage connections.
 
 Queues
 ======
 
-When using the CeleryExecutor, the celery queues that tasks are sent to
+When using the CeleryExecutor, the Celery queues that tasks are sent to
 can be specified. ``queue`` is an attribute of BaseOperator, so any
 task can be assigned to any queue. The default queue for the environment
 is defined in the ``airflow.cfg``'s ``celery -> default_queue``. This defines
@@ -346,7 +430,7 @@ the queue that tasks get assigned to when not specified, as well as which
 queue Airflow workers listen to when started.
 
 Workers can listen to one or multiple queues of tasks. When a worker is
-started (using the command ``airflow worker``), a set of comma delimited
+started (using the command ``airflow worker``), a set of comma-delimited
 queue names can be specified (e.g. ``airflow worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
@@ -410,7 +494,7 @@ Variables
 Variables are a generic way to store and retrieve arbitrary content or
 settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
-code or CLI. In addition, json settings files can be bulk uploaded through 
+code or CLI. In addition, json settings files can be bulk uploaded through
 the UI. While your pipeline code definition and most of your constants
 and variables should be defined in code and stored in source control,
 it can be useful to have some variables or configuration items
@@ -427,18 +511,18 @@ The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
 as such.
 
-You can use a variable from a jinja template with the syntax : 
+You can use a variable from a jinja template with the syntax :
 
 .. code:: bash
 
     echo {{ var.value.<variable_name> }}
-    
-or if you need to deserialize a json object from the variable : 
+
+or if you need to deserialize a json object from the variable :
 
 .. code:: bash
 
     echo {{ var.json.<variable_name> }}
-    
+
 
 Branching
 =========
@@ -449,9 +533,9 @@ that happened in an upstream task. One way to do this is by using the
 ``BranchPythonOperator``.
 
 The ``BranchPythonOperator`` is much like the PythonOperator except that it
-expects a python_callable that returns a task_id. The task_id returned
-is followed, and all of the other paths are skipped.
-The task_id returned by the Python function has to be referencing a task
+expects a ``python_callable`` that returns a task_id (or list of task_ids). The
+task_id returned is followed, and all of the other paths are skipped.
+The task_id returned by the Python function has to reference a task
 directly downstream from the BranchPythonOperator task.
 
 Note that using tasks with ``depends_on_past=True`` downstream from
@@ -460,16 +544,45 @@ will invariably lead to block tasks that depend on their past successes.
 ``skipped`` states propagates where all directly upstream tasks are
 ``skipped``.
 
-If you want to skip some tasks, keep in mind that you can't have an empty
-path, if so make a dummy task.
+Note that when a path is a downstream task of the returned task (list), it will
+not be skipped:
 
-like this, the dummy task "branch_false" is skipped
+.. image:: img/branch_note.png
 
-.. image:: img/branch_good.png
+Paths of the branching task are ``branch_a``, ``join`` and ``branch_b``. Since
+``join`` is a downstream task of ``branch_a``, it will be excluded from the skipped
+tasks when ``branch_a`` is returned by the Python callable.
 
-Not like this, where the join task is skipped
+The ``BranchPythonOperator`` can also be used with XComs allowing branching
+context to dynamically decide what branch to follow based on previous tasks.
+For example:
 
-.. image:: img/branch_bad.png
+.. code:: python
+
+  def branch_func(**kwargs):
+      ti = kwargs['ti']
+      xcom_value = int(ti.xcom_pull(task_ids='start_task'))
+      if xcom_value >= 5:
+          return 'continue_task'
+      else:
+          return 'stop_task'
+
+  start_op = BashOperator(
+      task_id='start_task',
+      bash_command="echo 5",
+      xcom_push=True,
+      dag=dag)
+
+  branch_op = BranchPythonOperator(
+      task_id='branch_task',
+      provide_context=True,
+      python_callable=branch_func,
+      dag=dag)
+
+  continue_op = DummyOperator(task_id='continue_task', dag=dag)
+  stop_op = DummyOperator(task_id='stop_task', dag=dag)
+
+  start_op >> branch_op >> [continue_op, stop_op]
 
 SubDAGs
 =======
@@ -571,6 +684,9 @@ Some other tips when using SubDAGs:
 
 See ``airflow/example_dags`` for a demonstration.
 
+Note that airflow pool is not honored by SubDagOperator. Hence resources could be
+consumed by SubdagOperators.
+
 SLAs
 ====
 
@@ -578,9 +694,37 @@ Service Level Agreements, or time by which a task or DAG should have
 succeeded, can be set at a task level as a ``timedelta``. If
 one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded
-in the database and made available in the web UI under ``Browse->Missed SLAs``
+in the database and made available in the web UI under ``Browse->SLA Misses``
 where events can be analyzed and documented.
 
+Email Configuration
+-------------------
+
+You can configure the email that is being sent in your ``airflow.cfg``
+by setting a ``subject_template`` and/or a ``html_content_template``
+in the ``email`` section.
+
+.. code::
+
+  [email]
+
+  email_backend = airflow.utils.email.send_email_smtp
+
+  subject_template = /path/to/my_subject_template_file
+  html_content_template = /path/to/my_html_content_template_file
+
+To access the task's information you use `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  in your template files.
+
+For example a ``html_content_template`` file could look like this:
+
+.. code::
+
+  Try {{try_number}} out of {{max_tries + 1}}<br>
+  Exception:<br>{{exception_html}}<br>
+  Log: <a href="{{ti.log_url}}">Link</a><br>
+  Host: {{ti.hostname}}<br>
+  Log file: {{ti.log_filepath}}<br>
+  Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>
 
 Trigger Rules
 =============
@@ -601,6 +745,7 @@ while creating tasks:
 * ``all_done``: all parents are done with their execution
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
+* ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
 * ``dummy``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)
@@ -635,7 +780,7 @@ It is possible, through use of trigger rules to mix tasks that should run
 in the typical date/time dependent mode and those using the
 ``LatestOnlyOperator``.
 
-For example, consider the following dag:
+For example, consider the following DAG:
 
 .. code:: python
 
@@ -668,7 +813,7 @@ For example, consider the following dag:
                         trigger_rule=TriggerRule.ALL_DONE)
   task4.set_upstream([task1, task2])
 
-In the case of this dag, the ``latest_only`` task will show up as skipped
+In the case of this DAG, the ``latest_only`` task will show up as skipped
 for all runs except the latest run. ``task1`` is directly downstream of
 ``latest_only`` and will also skip for all runs except the latest.
 ``task2`` is entirely independent of ``latest_only`` and will run in all
@@ -707,7 +852,7 @@ state.
 Cluster Policy
 ==============
 
-Your local airflow settings file can define a ``policy`` function that
+Your local Airflow settings file can define a ``policy`` function that
 has the ability to mutate task attributes based on other task or DAG
 attributes. It receives a single argument as a reference to task objects,
 and is expected to alter its attributes.
@@ -730,8 +875,8 @@ may look like inside your ``airflow_settings.py``:
 Documentation & Notes
 =====================
 
-It's possible to add documentation or notes to your dags & task objects that
-become visible in the web interface ("Graph View" for dags, "Task Details" for
+It's possible to add documentation or notes to your DAGs & task objects that
+become visible in the web interface ("Graph View" for DAGs, "Task Details" for
 tasks). There are a set of special task attributes that get rendered as rich
 content if defined:
 
@@ -745,7 +890,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, doc_md is the only attribute interpreted.
+Please note that for DAGs, doc_md is the only attribute interpreted.
 
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led
@@ -799,14 +944,14 @@ You can use Jinja templating with every parameter that is marked as "templated"
 in the documentation. Template substitution occurs just before the pre_execute
 function of your operator is called.
 
-Packaged dags
+Packaged DAGs
 '''''''''''''
-While often you will specify dags in a single ``.py`` file it might sometimes
-be required to combine dag and its dependencies. For example, you might want
-to combine several dags together to version them together or you might want
+While often you will specify DAGs in a single ``.py`` file it might sometimes
+be required to combine a DAG and its dependencies. For example, you might want
+to combine several DAGs together to version them together or you might want
 to manage them together or you might need an extra module that is not available
-by default on the system you are running airflow on. To allow this you can create
-a zip file that contains the dag(s) in the root of the zip file and have the extra
+by default on the system you are running Airflow on. To allow this you can create
+a zip file that contains the DAG(s) in the root of the zip file and have the extra
 modules unpacked in directories.
 
 For instance you can create a zip file that looks like this:
@@ -848,3 +993,31 @@ do the same, but then it is more to use a virtualenv and pip.
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
 
+
+.airflowignore
+''''''''''''''
+
+A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+that Airflow should intentionally ignore. Each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names
+(not DAG id) match any of the patterns would be ignored (under the hood,
+``re.findall()`` is used to match the pattern). Overall it works like a
+``.gitignore`` file.
+
+``.airflowignore`` file should be put in your ``DAG_FOLDER``.
+For example, you can prepare a ``.airflowignore`` file with contents
+
+.. code::
+
+    project_a
+    tenant_[\d]
+
+
+Then files like "project_a_dag_1.py", "TESTING_project_a.py", "tenant_1.py",
+"project_a/dag_1.py", and "tenant_1/dag_1.py" in your ``DAG_FOLDER`` would be ignored
+(If a directory's name matches any of the patterns, this directory and all its subfolders
+would not be scanned by Airflow at all. This improves efficiency of DAG finding).
+
+The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
+You can also prepare ``.airflowignore`` file for a subfolder in ``DAG_FOLDER`` and it
+would only be applicable for that subfolder.

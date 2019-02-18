@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,19 +22,17 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import errno
+
 import psutil
 
 from builtins import input
 from past.builtins import basestring
 from datetime import datetime
-import getpass
-import imp
+from functools import reduce
 import os
 import re
 import signal
-import subprocess
-import sys
-import warnings
 
 from jinja2 import Template
 
@@ -123,6 +121,28 @@ def as_tuple(obj):
         return tuple([obj])
 
 
+def chunks(items, chunk_size):
+    """
+    Yield successive chunks of a given size from a list of items
+    """
+    if chunk_size <= 0:
+        raise ValueError('Chunk size must be a positive integer')
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
+
+
+def reduce_in_chunks(fn, iterable, initializer, chunk_size=0):
+    """
+    Reduce the given list of items by splitting it into chunks
+    of the given size and passing each chunk through the reducer
+    """
+    if len(iterable) == 0:
+        return initializer
+    if chunk_size == 0:
+        chunk_size = len(iterable)
+    return reduce(fn, chunks(iterable, chunk_size), initializer)
+
+
 def as_flattened_list(iterable):
     """
     Return an iterable with one level flattened
@@ -147,6 +167,37 @@ def chain(*tasks):
     """
     for up_task, down_task in zip(tasks[:-1], tasks[1:]):
         up_task.set_downstream(down_task)
+
+
+def cross_downstream(from_tasks, to_tasks):
+    r"""
+    Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
+    E.g.: cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
+    Is equivalent to:
+
+    t1 --> t4
+       \ /
+    t2 -X> t5
+       / \
+    t3 --> t6
+
+    t1.set_downstream(t4)
+    t1.set_downstream(t5)
+    t1.set_downstream(t6)
+    t2.set_downstream(t4)
+    t2.set_downstream(t5)
+    t2.set_downstream(t6)
+    t3.set_downstream(t4)
+    t3.set_downstream(t5)
+    t3.set_downstream(t6)
+
+    :param from_tasks: List of tasks to start from.
+    :type from_tasks: List[airflow.models.BaseOperator]
+    :param to_tasks: List of tasks to set as downstream dependencies.
+    :type to_tasks: List[airflow.models.BaseOperator]
+    """
+    for task in from_tasks:
+        task.set_downstream(to_tasks)
 
 
 def pprinttable(rows):
@@ -204,6 +255,7 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     :param sig: signal type
     :param timeout: how much time a process has to terminate
     """
+
     def on_terminate(p):
         log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
 
@@ -215,7 +267,15 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     children = parent.children(recursive=True)
     children.append(parent)
 
-    log.info("Sending %s to GPID %s", sig, os.getpgid(pid))
+    try:
+        pg = os.getpgid(pid)
+    except OSError as err:
+        # Skip if not such process - we experience a race and it just terminated
+        if err.errno == errno.ESRCH:
+            return
+        raise
+
+    log.info("Sending %s to GPID %s", sig, pg)
     os.killpg(os.getpgid(pid), sig)
 
     gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
@@ -239,116 +299,23 @@ def parse_template_string(template_string):
         return template_string, None
 
 
-class AirflowImporter(object):
+def render_log_filename(ti, try_number, filename_template):
     """
-    Importer that dynamically loads a class and module from its parent. This
-    allows Airflow to support ``from airflow.operators import BashOperator``
-    even though BashOperator is actually in
-    ``airflow.operators.bash_operator``.
+    Given task instance, try_number, filename_template, return the rendered log
+    filename
 
-    The importer also takes over for the parent_module by wrapping it. This is
-    required to support attribute-based usage:
-
-    .. code:: python
-
-        from airflow import operators
-        operators.BashOperator(...)
+    :param ti: task instance
+    :param try_number: try_number of the task
+    :param filename_template: filename template, which can be jinja template or
+        python string template
     """
+    filename_template, filename_jinja_template = parse_template_string(filename_template)
+    if filename_jinja_template:
+        jinja_context = ti.get_template_context()
+        jinja_context['try_number'] = try_number
+        return filename_jinja_template.render(**jinja_context)
 
-    def __init__(self, parent_module, module_attributes):
-        """
-        :param parent_module: The string package name of the parent module. For
-            example, 'airflow.operators'
-        :type parent_module: string
-        :param module_attributes: The file to class mappings for all importable
-            classes.
-        :type module_attributes: string
-        """
-        self._parent_module = parent_module
-        self._attribute_modules = self._build_attribute_modules(module_attributes)
-        self._loaded_modules = {}
-
-        # Wrap the module so we can take over __getattr__.
-        sys.modules[parent_module.__name__] = self
-
-    @staticmethod
-    def _build_attribute_modules(module_attributes):
-        """
-        Flips and flattens the module_attributes dictionary from:
-
-            module => [Attribute, ...]
-
-        To:
-
-            Attribute => module
-
-        This is useful so that we can find the module to use, given an
-        attribute.
-        """
-        attribute_modules = {}
-
-        for module, attributes in list(module_attributes.items()):
-            for attribute in attributes:
-                attribute_modules[attribute] = module
-
-        return attribute_modules
-
-    def _load_attribute(self, attribute):
-        """
-        Load the class attribute if it hasn't been loaded yet, and return it.
-        """
-        module = self._attribute_modules.get(attribute, False)
-
-        if not module:
-            # This shouldn't happen. The check happens in find_modules, too.
-            raise ImportError(attribute)
-        elif module not in self._loaded_modules:
-            # Note that it's very important to only load a given modules once.
-            # If they are loaded more than once, the memory reference to the
-            # class objects changes, and Python thinks that an object of type
-            # Foo that was declared before Foo's module was reloaded is no
-            # longer the same type as Foo after it's reloaded.
-            path = os.path.realpath(self._parent_module.__file__)
-            folder = os.path.dirname(path)
-            f, filename, description = imp.find_module(module, [folder])
-            self._loaded_modules[module] = imp.load_module(module, f, filename, description)
-
-            # This functionality is deprecated, and AirflowImporter should be
-            # removed in 2.0.
-            warnings.warn(
-                "Importing {i} directly from {m} has been "
-                "deprecated. Please import from "
-                "'{m}.[operator_module]' instead. Support for direct "
-                "imports will be dropped entirely in Airflow 2.0.".format(
-                    i=attribute, m=self._parent_module),
-                DeprecationWarning)
-
-        loaded_module = self._loaded_modules[module]
-
-        return getattr(loaded_module, attribute)
-
-    def __getattr__(self, attribute):
-        """
-        Get an attribute from the wrapped module. If the attribute doesn't
-        exist, try and import it as a class from a submodule.
-
-        This is a Python trick that allows the class to pretend it's a module,
-        so that attribute-based usage works:
-
-            from airflow import operators
-            operators.BashOperator(...)
-
-        It also allows normal from imports to work:
-
-            from airflow.operators.bash_operator import BashOperator
-        """
-        if hasattr(self._parent_module, attribute):
-            # Always default to the parent module if the attribute exists.
-            return getattr(self._parent_module, attribute)
-        elif attribute in self._attribute_modules:
-            # Try and import the attribute if it's got a module defined.
-            loaded_attribute = self._load_attribute(attribute)
-            setattr(self, attribute, loaded_attribute)
-            return loaded_attribute
-
-        raise AttributeError
+    return filename_template.format(dag_id=ti.dag_id,
+                                    task_id=ti.task_id,
+                                    execution_date=ti.execution_date.isoformat(),
+                                    try_number=try_number)

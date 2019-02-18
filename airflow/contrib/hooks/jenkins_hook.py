@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,7 +21,7 @@
 from airflow.hooks.base_hook import BaseHook
 
 import jenkins
-import distutils
+from distutils.util import strtobool
 
 
 class JenkinsHook(BaseHook):
@@ -38,7 +38,7 @@ class JenkinsHook(BaseHook):
             connection.extra = 'false'
             # set a default value to connection.extra
             # to avoid rising ValueError in strtobool
-        if distutils.util.strtobool(connection.extra):
+        if strtobool(connection.extra):
             connectionPrefix = 'https'
         url = '%s://%s:%d' % (connectionPrefix, connection.host, connection.port)
         self.log.info('Trying to connect to %s', url)

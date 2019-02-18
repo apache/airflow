@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -70,7 +70,7 @@ class JenkinsOperatorTestCase(unittest.TestCase):
 
             operator.execute(None)
 
-            self.assertEquals(jenkins_mock.get_build_info.call_count, 1)
+            self.assertEqual(jenkins_mock.get_build_info.call_count, 1)
             jenkins_mock.get_build_info.assert_called_with(name='a_job_on_jenkins',
                                                            number='1')
 
@@ -107,7 +107,7 @@ class JenkinsOperatorTestCase(unittest.TestCase):
                 sleep_time=1)
 
             operator.execute(None)
-            self.assertEquals(jenkins_mock.get_build_info.call_count, 2)
+            self.assertEqual(jenkins_mock.get_build_info.call_count, 2)
 
     @unittest.skipIf(mock is None, 'mock package not present')
     def test_execute_job_failure(self):

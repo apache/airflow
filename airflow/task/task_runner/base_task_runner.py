@@ -7,15 +7,16 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import unicode_literals
 
 import getpass
@@ -59,12 +60,6 @@ class BaseTaskRunner(LoggingMixin):
 
         # Always provide a copy of the configuration file settings
         cfg_path = tmp_configuration_copy()
-        # The following command should always work since the user doing chmod is the same
-        # as the one who just created the file.
-        subprocess.call(
-            ['chmod', '600', cfg_path],
-            close_fds=True
-        )
 
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
@@ -105,7 +100,7 @@ class BaseTaskRunner(LoggingMixin):
                           self._task_instance.job_id, self._task_instance.task_id,
                           line.rstrip('\n'))
 
-    def run_command(self, run_with, join_args=False):
+    def run_command(self, run_with=None, join_args=False):
         """
         Run the task command
 
@@ -118,8 +113,10 @@ class BaseTaskRunner(LoggingMixin):
         :return: the process that was run
         :rtype: subprocess.Popen
         """
+        run_with = run_with or []
         cmd = [" ".join(self._command)] if join_args else self._command
         full_cmd = run_with + cmd
+
         self.log.info('Running: %s', full_cmd)
         proc = subprocess.Popen(
             full_cmd,
@@ -150,7 +147,7 @@ class BaseTaskRunner(LoggingMixin):
         """
         :return: The return code associated with running the task instance or
         None if the task is not yet done.
-        :rtype int:
+        :rtype: int
         """
         raise NotImplementedError()
 

@@ -1,4 +1,4 @@
-# Copyright 2015 Matthew Pelland (matt@pelland.io)
+# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,18 +19,14 @@
 import flask_login
 
 # Need to expose these downstream
-# pylint: disable=unused-import
-from flask_login import (current_user,
-                         logout_user,
-                         login_required,
-                         login_user)
-# pylint: enable=unused-import
+# flake8: noqa: F401
+from flask_login import current_user, logout_user, login_required, login_user
 
 from flask import url_for, redirect, request
 
 from flask_oauthlib.client import OAuth
 
-from airflow import models, configuration, settings
+from airflow import models, configuration
 from airflow.configuration import AirflowConfigException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -47,28 +43,31 @@ class GHEUser(models.User):
     def __init__(self, user):
         self.user = user
 
+    @property
     def is_active(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
+    @property
     def is_authenticated(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
+    @property
     def is_anonymous(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return False
 
     def get_id(self):
-        '''Returns the current user id as required by flask_login'''
+        """Returns the current user id as required by flask_login"""
         return self.user.get_id()
 
     def data_profiling(self):
-        '''Provides access to data profiling tools'''
+        """Provides access to data profiling tools"""
         return True
 
     def is_superuser(self):
-        '''Access all the things'''
+        """Access all the things"""
         return True
 
 
@@ -84,17 +83,18 @@ class GHEAuthBackend(object):
         self.login_manager.login_view = 'airflow.login'
         self.flask_app = None
         self.ghe_oauth = None
-        self.api_rev = None
+        self.api_url = None
 
     def ghe_api_route(self, leaf):
-        if not self.api_rev:
-            self.api_rev = get_config_param('api_rev')
-
-        return '/'.join(['https:/',
-                         self.ghe_host,
-                         'api',
-                         self.api_rev,
-                         leaf.strip('/')])
+        if not self.api_url:
+            self.api_url = (
+                'https://api.github.com' if self.ghe_host == 'github.com'
+                else '/'.join(['https:/',
+                               self.ghe_host,
+                               'api',
+                               get_config_param('api_rev')])
+            )
+        return self.api_url + leaf
 
     def init_app(self, flask_app):
         self.flask_app = flask_app
@@ -150,8 +150,9 @@ class GHEAuthBackend(object):
                                  get_config_param('allowed_teams').split(',')]
             except ValueError:
                 # this is to deprecate using the string name for a team
-                raise ValueError('it appears that you are using the string name for a team, '
-                                 'please use the id number instead')
+                raise ValueError(
+                    'it appears that you are using the string name for a team, '
+                    'please use the id number instead')
 
         except AirflowConfigException:
             # No allowed teams defined, let anyone in GHE in.
@@ -175,8 +176,8 @@ class GHEAuthBackend(object):
                 return True
 
         log.debug('Denying access for user "%s", not a member of "%s"',
-                   username,
-                   str(allowed_teams))
+                  username,
+                  str(allowed_teams))
 
         return False
 
@@ -229,6 +230,7 @@ class GHEAuthBackend(object):
         session.commit()
 
         return redirect(next_url)
+
 
 login_manager = GHEAuthBackend()
 

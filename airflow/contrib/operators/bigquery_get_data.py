@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -50,22 +50,22 @@ class BigQueryGetDataOperator(BaseOperator):
             bigquery_conn_id='airflow-service-account'
         )
 
-    :param dataset_id: The dataset ID of the requested table.
-    :type destination_dataset_table: string
-    :param table_id: The table ID of the requested table.
-    :type table_id: string
+    :param dataset_id: The dataset ID of the requested table. (templated)
+    :type dataset_id: str
+    :param table_id: The table ID of the requested table. (templated)
+    :type table_id: str
     :param max_results: The maximum number of records (rows) to be fetched
-        from the table.
-    :type max_results: string
+        from the table. (templated)
+    :type max_results: str
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
-    :type selected_fields: string
+    :type selected_fields: str
     :param bigquery_conn_id: reference to a specific BigQuery hook.
-    :type bigquery_conn_id: string
+    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
     ui_color = '#e4f0e8'

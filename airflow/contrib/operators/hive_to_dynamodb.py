@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -31,7 +31,7 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
     into memory before being pushed to DynamoDB, so this operator should
     be used for smallish amount of data.
 
-    :param sql: SQL query to execute against the hive database
+    :param sql: SQL query to execute against the hive database. (templated)
     :type sql: str
     :param table_name: target DynamoDB table
     :type table_name: str

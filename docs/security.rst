@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Security
 ========
 
@@ -10,6 +27,34 @@ backends or creating your own.
 
 Be sure to checkout :doc:`api` for securing the API.
 
+.. note::
+
+   Airflow uses the config parser of Python. This config parser interpolates
+   '%'-signs.  Make sure escape any ``%`` signs in your config file (but not
+   environment variables) as ``%%``, otherwise Airflow might leak these
+   passwords on a config parser exception to a log.
+
+Reporting Vulnerabilities
+-------------------------
+
+The Apache Software Foundation takes security issues very seriously. Apache
+Airflow specifically offers security features and is responsive to issues
+around its features. If you have any concern around Airflow Security or believe
+you have uncovered a vulnerability, we suggest that you get in touch via the
+e-mail address security@apache.org. In the message, try to provide a
+description of the issue and ideally a way of reproducing it. The security team
+will get back to you after assessing the description.
+
+Note that this security address should be used only for undisclosed
+vulnerabilities. Dealing with fixed issues or general questions on how to use
+the security features should be handled regularly via the user and the dev
+lists. Please report any security problems to the project security address
+before disclosing it publicly.
+
+The `ASF Security team's page <https://www.apache.org/security/>`_ describes
+how vulnerability reports are handled, and includes PGP keys if you wish to use
+that.
+
 Web Authentication
 ------------------
 
@@ -17,45 +62,15 @@ Password
 ''''''''
 
 One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
-Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
-uses bcrypt before storing passwords.
 
-.. code-block:: bash
+Please use command line interface ``airflow users --create`` to create accounts, or do that in the UI.
 
-    [webserver]
-    authenticate = True
-    auth_backend = airflow.contrib.auth.backends.password_auth
-
-When password auth is enabled, an initial user credential will need to be created before anyone can login. An initial
-user was not created in the migrations for this authenication backend to prevent default Airflow installations from
-attack. Creating a new user has to be done via a Python REPL on the same machine Airflow is installed.
-
-.. code-block:: bash
-
-    # navigate to the airflow installation directory
-    $ cd ~/airflow
-    $ python
-    Python 2.7.9 (default, Feb 10 2015, 03:28:08)
-    Type "help", "copyright", "credits" or "license" for more information.
-    >>> import airflow
-    >>> from airflow import models, settings
-    >>> from airflow.contrib.auth.backends.password_auth import PasswordUser
-    >>> user = PasswordUser(models.User())
-    >>> user.username = 'new_user_name'
-    >>> user.email = 'new_user_email@example.com'
-    >>> user.password = 'set_the_password'
-    >>> session = settings.Session()
-    >>> session.add(user)
-    >>> session.commit()
-    >>> session.close()
-    >>> exit()
 
 LDAP
 ''''
 
 To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please note that the example uses
-an encrypted connection to the ldap server as you probably do not want passwords be readable on the network level.
-It is however possible to configure without encryption if you really want to.
+an encrypted connection to the ldap server as we do not want passwords be readable on the network level.
 
 Additionally, if you are using Active Directory, and are not explicitly specifying an OU that your users are in,
 you will need to change ``search_scope`` to "SUBTREE".
@@ -226,6 +241,12 @@ and in your DAG, when initializing the HiveOperator, specify:
 
     run_as_owner=True
 
+To use kerberos authentication, you must install Airflow with the `kerberos` extras group:
+
+.. code-block:: bash
+
+   pip install apache-airflow[kerberos]
+
 OAuth Authentication
 --------------------
 
@@ -253,6 +274,12 @@ to only members of those teams.
 .. note:: If you do not specify a team whitelist, anyone with a valid account on
    your GHE installation will be able to login to Airflow.
 
+To use GHE authentication, you must install Airflow with the `github_enterprise` extras group:
+
+.. code-block:: bash
+
+   pip install apache-airflow[github_enterprise]
+
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -263,15 +290,24 @@ backend. In order to setup an application:
 2. Select 'Applications' from the left hand nav
 3. Select the 'Developer Applications' tab
 4. Click 'Register new application'
-5. Fill in the required information (the 'Authorization callback URL' must be fully qualifed e.g. http://airflow.example.com/example/ghe_oauth/callback)
+5. Fill in the required information (the 'Authorization callback URL' must be fully qualified e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
 7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
+
+Using GHE Authentication with github.com
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to use GHE authentication with github.com:
+
+1. `Create an Oauth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
+2. Copy 'Client ID', 'Client Secret' to your airflow.cfg according to the above example
+3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in airflow.cfg
 
 Google Authentication
 '''''''''''''''''''''
 
 The Google authentication backend can be used to authenticate users
-against Google using OAuth2. You must specify the domains to restrict
+against Google using OAuth2. You must specify the email domains to restrict
 login, separated with a comma, to only members of those domains.
 
 .. code-block:: bash
@@ -284,7 +320,13 @@ login, separated with a comma, to only members of those domains.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = "example1.com,example2.com"
+    domain = example1.com,example2.com
+
+To use Google authentication, you must install Airflow with the `google_auth` extras group:
+
+.. code-block:: bash
+
+   pip install apache-airflow[google_auth]
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -296,7 +338,7 @@ backend. In order to setup an application:
 2. Select 'Credentials' from the left hand nav
 3. Click 'Create credentials' and choose 'OAuth client ID'
 4. Choose 'Web application'
-5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualifed e.g. http://airflow.example.com/oauth2callback)
+5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualified e.g. http://airflow.example.com/oauth2callback)
 6. Click 'Create'
 7. Copy 'Client ID', 'Client Secret', and your redirect URI to your airflow.cfg according to the above example
 
@@ -328,10 +370,10 @@ certs and keys.
 .. code-block:: bash
 
     [celery]
-    CELERY_SSL_ACTIVE = True
-    CELERY_SSL_KEY = <path to key>
-    CELERY_SSL_CERT = <path to cert>
-    CELERY_SSL_CACERT = <path to cacert>
+    ssl_active = True
+    ssl_key = <path to key>
+    ssl_cert = <path to cert>
+    ssl_cacert = <path to cacert>
 
 Impersonation
 -------------
@@ -363,3 +405,171 @@ not set.
 
     [core]
     default_impersonation = airflow
+
+
+Flower Authentication
+---------------------
+
+Basic authentication for Celery Flower is supported.
+
+You can specify the details either as an optional argument in the Flower process launching
+command, or as a configuration item in your ``airflow.cfg``. For both cases, please provide
+`user:password` pairs separated by a comma.
+
+.. code-block:: bash
+
+    airflow flower --basic_auth=user1:password1,user2:password2
+
+.. code-block:: bash
+
+    [celery]
+    flower_basic_auth = user1:password1,user2:password2
+
+
+RBAC UI Security
+----------------
+
+Security of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
+Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
+regarding its security model.
+
+Default Roles
+'''''''''''''
+Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
+Only ``Admin`` users could configure/alter the permissions for other roles. But it is not recommended
+that ``Admin`` users alter these default roles in any way by removing
+or adding permissions to these roles.
+
+Admin
+^^^^^
+``Admin`` users have all possible permissions, including granting or revoking permissions from
+other users.
+
+Public
+^^^^^^
+``Public`` users (anonymous) don't have any permissions.
+
+Viewer
+^^^^^^
+``Viewer`` users have limited viewer permissions
+
+.. code:: python
+
+    VIEWER_PERMS = {
+        'menu_access',
+        'can_index',
+        'can_list',
+        'can_show',
+        'can_chart',
+        'can_dag_stats',
+        'can_dag_details',
+        'can_task_stats',
+        'can_code',
+        'can_log',
+        'can_get_logs_with_metadata',
+        'can_tries',
+        'can_graph',
+        'can_tree',
+        'can_task',
+        'can_task_instances',
+        'can_xcom',
+        'can_gantt',
+        'can_landing_times',
+        'can_duration',
+        'can_blocked',
+        'can_rendered',
+        'can_pickle_info',
+        'can_version',
+    }
+
+on limited web views
+
+.. code:: python
+
+    VIEWER_VMS = {
+        'Airflow',
+        'DagModelView',
+        'Browse',
+        'DAG Runs',
+        'DagRunModelView',
+        'Task Instances',
+        'TaskInstanceModelView',
+        'SLA Misses',
+        'SlaMissModelView',
+        'Jobs',
+        'JobModelView',
+        'Logs',
+        'LogModelView',
+        'Docs',
+        'Documentation',
+        'Github',
+        'About',
+        'Version',
+        'VersionView',
+    }
+
+User
+^^^^
+``User`` users have ``Viewer`` permissions plus additional user permissions
+
+.. code:: python
+
+    USER_PERMS = {
+        'can_dagrun_clear',
+        'can_run',
+        'can_trigger',
+        'can_add',
+        'can_edit',
+        'can_delete',
+        'can_paused',
+        'can_refresh',
+        'can_success',
+        'muldelete',
+        'set_failed',
+        'set_running',
+        'set_success',
+        'clear',
+        'can_clear',
+    }
+
+
+on User web views which is the same as Viewer web views.
+
+Op
+^^
+``Op`` users have ``User`` permissions plus additional op permissions
+
+.. code:: python
+
+    OP_PERMS = {
+        'can_conf',
+        'can_varimport',
+    }
+
+on ``User`` web views plus these additional op web views
+
+.. code:: python
+
+    OP_VMS = {
+        'Admin',
+        'Configurations',
+        'ConfigurationView',
+        'Connections',
+        'ConnectionModelView',
+        'Pools',
+        'PoolModelView',
+        'Variables',
+        'VariableModelView',
+        'XComs',
+        'XComModelView',
+    }
+
+Custom Roles
+'''''''''''''
+
+DAG Level Role
+^^^^^^^^^^^^^^
+``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
+is treated as a ``View`` which has two permissions associated with it (``can_dag_read`` and ``can_dag_edit``). There is a special view called ``all_dags`` which
+allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``all_dags`` view.
+

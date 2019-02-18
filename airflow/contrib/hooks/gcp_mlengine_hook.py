@@ -15,9 +15,8 @@
 # limitations under the License.
 import random
 import time
-from apiclient import errors
-from apiclient.discovery import build
-from oauth2client.client import GoogleCredentials
+from googleapiclient.errors import HttpError
+from googleapiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -38,7 +37,7 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
                 return response
             else:
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
-        except errors.HttpError as e:
+        except HttpError as e:
             if e.resp.status != 429:
                 log.info('Something went wrong. Not retrying: %s', format(e))
                 raise
@@ -55,8 +54,8 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Returns a Google MLEngine service object.
         """
-        credentials = GoogleCredentials.get_application_default()
-        return build('ml', 'v1', credentials=credentials)
+        authed_http = self._authorize()
+        return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
     def create_job(self, project_id, job, use_existing_job_fn=None):
         """
@@ -64,10 +63,11 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         :param project_id: The Google Cloud project id within which MLEngine
             job will be launched.
-        :type project_id: string
+        :type project_id: str
 
         :param job: MLEngine Job object that should be provided to the MLEngine
             API, such as: ::
+
                 {
                   'jobId': 'my_job_id',
                   'trainingInput': {
@@ -75,6 +75,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                     ...
                   }
                 }
+
         :type job: dict
 
         :param use_existing_job_fn: In case that a MLEngine job with the same
@@ -97,7 +98,7 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         try:
             request.execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             # 409 means there is an existing job with the same job ID.
             if e.resp.status == 409:
                 if use_existing_job_fn is not None:
@@ -127,14 +128,14 @@ class MLEngineHook(GoogleCloudBaseHook):
         :rtype: dict
 
         Raises:
-            apiclient.errors.HttpError: if HTTP error is returned from server
+            googleapiclient.errors.HttpError: if HTTP error is returned from server
         """
         job_name = 'projects/{}/jobs/{}'.format(project_id, job_id)
         request = self._mlengine.projects().jobs().get(name=job_name)
         while True:
             try:
                 return request.execute()
-            except errors.HttpError as e:
+            except HttpError as e:
                 if e.resp.status == 429:
                     # polling after 30 seconds when quota failure occurs
                     time.sleep(30)
@@ -150,10 +151,11 @@ class MLEngineHook(GoogleCloudBaseHook):
         a terminal state.
 
         Raises:
-            apiclient.errors.HttpError: if HTTP error is returned when getting
+            googleapiclient.errors.HttpError: if HTTP error is returned when getting
             the job
         """
-        assert interval > 0
+        if interval <= 0:
+            raise ValueError("Interval must be > 0")
         while True:
             job = self._get_job(project_id, job_id)
             if job['state'] in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
@@ -193,7 +195,7 @@ class MLEngineHook(GoogleCloudBaseHook):
             response = request.execute()
             self.log.info('Successfully set version: %s to default', response)
             return response
-        except errors.HttpError as e:
+        except HttpError as e:
             self.log.error('Something went wrong: %s', e)
             raise
 
@@ -243,7 +245,9 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Create a Model. Blocks until finished.
         """
-        assert model['name'] is not None and model['name'] is not ''
+        if not model['name']:
+            raise ValueError("Model name must be provided and "
+                             "could not be an empty string")
         project = 'projects/{}'.format(project_id)
 
         request = self._mlengine.projects().models().create(
@@ -254,13 +258,15 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Gets a Model. Blocks until finished.
         """
-        assert model_name is not None and model_name is not ''
+        if not model_name:
+            raise ValueError("Model name must be provided and "
+                             "it could not be an empty string")
         full_model_name = 'projects/{}/models/{}'.format(
             project_id, model_name)
         request = self._mlengine.projects().models().get(name=full_model_name)
         try:
             return request.execute()
-        except errors.HttpError as e:
+        except HttpError as e:
             if e.resp.status == 404:
                 self.log.error('Model was not found: %s', e)
                 return None

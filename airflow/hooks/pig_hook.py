@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -55,7 +55,7 @@ class PigCliHook(BaseHook):
 
         with TemporaryDirectory(prefix='airflow_pigop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
-                f.write(pig)
+                f.write(pig.encode('utf-8'))
                 f.flush()
                 fname = f.name
                 pig_bin = 'pig'
@@ -76,8 +76,8 @@ class PigCliHook(BaseHook):
                     close_fds=True)
                 self.sp = sp
                 stdout = ''
-                for line in iter(sp.stdout.readline, ''):
-                    stdout += line
+                for line in iter(sp.stdout.readline, b''):
+                    stdout += line.decode('utf-8')
                     if verbose:
                         self.log.info(line.strip())
                 sp.wait()

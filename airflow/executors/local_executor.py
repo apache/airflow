@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -75,16 +75,15 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         """
         Executes command received and stores result state in queue.
         :param key: the key to identify the TI
-        :type key: Tuple(dag_id, task_id, execution_date)
+        :type key: tuple(dag_id, task_id, execution_date)
         :param command: the command to execute
-        :type command: string
+        :type command: str
         """
         if key is None:
             return
         self.log.info("%s running %s", self.__class__.__name__, command)
-        command = "exec bash -c '{0}'".format(command)
         try:
-            subprocess.check_call(command, shell=True, close_fds=True)
+            subprocess.check_call(command, close_fds=True)
             state = State.SUCCESS
         except subprocess.CalledProcessError as e:
             state = State.FAILED
@@ -145,9 +144,9 @@ class LocalExecutor(BaseExecutor):
         def execute_async(self, key, command):
             """
             :param key: the key to identify the TI
-            :type key: Tuple(dag_id, task_id, execution_date)
+            :type key: tuple(dag_id, task_id, execution_date)
             :param command: the command to execute
-            :type command: string
+            :type command: str
             """
             local_worker = LocalWorker(self.executor.result_queue)
             local_worker.key = key
@@ -190,9 +189,9 @@ class LocalExecutor(BaseExecutor):
         def execute_async(self, key, command):
             """
             :param key: the key to identify the TI
-            :type key: Tuple(dag_id, task_id, execution_date)
+            :type key: tuple(dag_id, task_id, execution_date)
             :param command: the command to execute
-            :type command: string
+            :type command: str
             """
             self.executor.queue.put((key, command))
 

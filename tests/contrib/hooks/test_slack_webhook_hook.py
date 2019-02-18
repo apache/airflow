@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,7 +20,8 @@
 import json
 import unittest
 
-from airflow import configuration, models
+from airflow import configuration
+from airflow.models.connection import Connection
 from airflow.utils import db
 
 from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
@@ -32,24 +33,27 @@ class TestSlackWebhookHook(unittest.TestCase):
         'http_conn_id': 'slack-webhook-default',
         'webhook_token': 'manual_token',
         'message': 'Awesome message to put on Slack',
+        'attachments': [{'fallback': 'Required plain-text summary'}],
         'channel': '#general',
         'username': 'SlackMcSlackFace',
         'icon_emoji': ':hankey:',
         'link_names': True,
         'proxy': 'https://my-horrible-proxy.proxyist.com:8080'
     }
-    expected_message_dict = {'channel': _config['channel'],
-                             'username': _config['username'],
-                             'icon_emoji': _config['icon_emoji'],
-                             'link_names': 1,
-                             'text': _config['message']
-                             }
+    expected_message_dict = {
+        'channel': _config['channel'],
+        'username': _config['username'],
+        'icon_emoji': _config['icon_emoji'],
+        'link_names': 1,
+        'attachments': _config['attachments'],
+        'text': _config['message']
+    }
     expected_message = json.dumps(expected_message_dict)
 
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
-            models.Connection(
+            Connection(
                 conn_id='slack-webhook-default',
                 extra='{"webhook_token": "your_token_here"}')
         )

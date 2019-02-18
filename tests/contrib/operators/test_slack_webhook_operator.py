@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -33,6 +33,7 @@ class TestSlackWebhookOperator(unittest.TestCase):
         'http_conn_id': 'slack-webhook-default',
         'webhook_token': 'manual_token',
         'message': 'your message here',
+        'attachments': [{'fallback': 'Required plain-text summary'}],
         'channel': '#general',
         'username': 'SlackMcSlackFace',
         'icon_emoji': ':hankey',
@@ -59,6 +60,7 @@ class TestSlackWebhookOperator(unittest.TestCase):
         self.assertEqual(self._config['http_conn_id'], operator.http_conn_id)
         self.assertEqual(self._config['webhook_token'], operator.webhook_token)
         self.assertEqual(self._config['message'], operator.message)
+        self.assertEqual(self._config['attachments'], operator.attachments)
         self.assertEqual(self._config['channel'], operator.channel)
         self.assertEqual(self._config['username'], operator.username)
         self.assertEqual(self._config['icon_emoji'], operator.icon_emoji)

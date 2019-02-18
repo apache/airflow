@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -43,10 +43,10 @@ class MySqlToHiveTransfer(BaseOperator):
     stage the data into a temporary table before loading it into its
     final destination using a ``HiveOperator``.
 
-    :param sql: SQL query to execute against the MySQL database
+    :param sql: SQL query to execute against the MySQL database. (templated)
     :type sql: str
     :param hive_table: target Hive table, use dot notation to target a
-        specific database
+        specific database. (templated)
     :type hive_table: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
@@ -54,7 +54,7 @@ class MySqlToHiveTransfer(BaseOperator):
         execution
     :type recreate: bool
     :param partition: target partition as a dict of partition columns
-        and values
+        and values. (templated)
     :type partition: dict
     :param delimiter: field delimiter in the file
     :type delimiter: str
@@ -101,13 +101,16 @@ class MySqlToHiveTransfer(BaseOperator):
         d = {
             t.BIT: 'INT',
             t.DECIMAL: 'DOUBLE',
+            t.NEWDECIMAL: 'DOUBLE',
             t.DOUBLE: 'DOUBLE',
             t.FLOAT: 'DOUBLE',
             t.INT24: 'INT',
-            t.LONG: 'INT',
-            t.LONGLONG: 'BIGINT',
+            t.LONG: 'BIGINT',
+            t.LONGLONG: 'DECIMAL(38,0)',
             t.SHORT: 'INT',
+            t.TINY: 'SMALLINT',
             t.YEAR: 'INT',
+            t.TIMESTAMP: 'TIMESTAMP',
         }
         return d[mysql_type] if mysql_type in d else 'STRING'
 
@@ -120,7 +123,8 @@ class MySqlToHiveTransfer(BaseOperator):
         cursor = conn.cursor()
         cursor.execute(self.sql)
         with NamedTemporaryFile("wb") as f:
-            csv_writer = csv.writer(f, delimiter=self.delimiter, encoding="utf-8")
+            csv_writer = csv.writer(f, delimiter=self.delimiter,
+                                    encoding="utf-8")
             field_dict = OrderedDict()
             for field in cursor.description:
                 field_dict[field[0]] = self.type_map(field[1])

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,7 +24,6 @@ from mock import Mock
 from airflow.models import DAG, BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
-from airflow.utils.state import State
 
 
 class TaskConcurrencyDepTest(unittest.TestCase):
@@ -53,4 +52,3 @@ class TaskConcurrencyDepTest(unittest.TestCase):
         self.assertTrue(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
         ti.get_num_running_task_instances = lambda x: 2
         self.assertFalse(TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context))
-

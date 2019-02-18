@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,7 +18,7 @@
 # under the License.
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.contrib.hooks.datadog_hook import DatadogHook
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 from datadog import api
 
@@ -32,7 +32,7 @@ class DatadogSensor(BaseSensorOperator):
     Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
-    :param datadog_conn_id: string
+    :param datadog_conn_id: str
     """
     ui_color = '#66c3dd'
 

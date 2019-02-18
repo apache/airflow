@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,7 +37,7 @@ import time
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SalesforceHook(BaseHook, LoggingMixin):
+class SalesforceHook(BaseHook):
     def __init__(
             self,
             conn_id,
@@ -53,14 +53,14 @@ class SalesforceHook(BaseHook, LoggingMixin):
 
         :param conn_id:     the name of the connection that has the parameters
                             we need to connect to Salesforce.
-                            The conenction shoud be type `http` and include a
+                            The connection should be type `http` and include a
                             user's security token in the `Extras` field.
         .. note::
             For the HTTP connection type, you can include a
             JSON structure in the `Extras` field.
             We need a user's security token to connect to Salesforce.
             So we define it in the `Extras` field as:
-                `{"security_token":"YOUR_SECRUITY_TOKEN"}`
+                `{"security_token":"YOUR_SECURITY_TOKEN"}`
         """
         self.conn_id = conn_id
         self._args = args
@@ -135,7 +135,8 @@ class SalesforceHook(BaseHook, LoggingMixin):
 
         return [f['name'] for f in desc['fields']]
 
-    def _build_field_list(self, fields):
+    @staticmethod
+    def _build_field_list(fields):
         # join all of the fields in a comma separated list
         return ",".join(fields)
 

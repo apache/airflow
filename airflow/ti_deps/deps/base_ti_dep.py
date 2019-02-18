@@ -7,15 +7,16 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from collections import namedtuple
 
 from airflow.utils.db import provide_session
@@ -65,9 +66,9 @@ class BaseTIDep(object):
         representing if each of the passed in task's upstream tasks succeeded or not.
 
         :param ti: the task instance to get the dependency status for
-        :type ti: TaskInstance
+        :type ti: airflow.models.TaskInstance
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: the context for which this dependency should be evaluated for
         :type dep_context: DepContext
         """
@@ -80,9 +81,9 @@ class BaseTIDep(object):
         checks for all dependencies.
 
         :param ti: the task instance to get the dependency status for
-        :type ti: TaskInstance
+        :type ti: airflow.models.TaskInstance
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: the context for which this dependency should be evaluated for
         :type dep_context: DepContext
         """
@@ -113,9 +114,9 @@ class BaseTIDep(object):
         passing.
 
         :param ti: the task instance to see if this dependency is met for
-        :type ti: TaskInstance
+        :type ti: airflow.models.TaskInstance
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: The context this dependency is being checked under that stores
             state that can be used by this dependency.
         :type dep_context: BaseDepContext
@@ -129,9 +130,9 @@ class BaseTIDep(object):
         Returns an iterable of strings that explain why this dependency wasn't met.
 
         :param ti: the task instance to see if this dependency is met for
-        :type ti: TaskInstance
+        :type ti: airflow.models.TaskInstance
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: The context this dependency is being checked under that stores
             state that can be used by this dependency.
         :type dep_context: BaseDepContext

@@ -18,11 +18,12 @@
 # under the License.
 
 import unittest
+import tempfile
+import os
 
-import airflow.contrib.hooks.gcs_hook as gcs_hook
-
+from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
-from apiclient.errors import HttpError
+from googleapiclient.errors import HttpError
 
 try:
     from unittest import mock
@@ -66,14 +67,14 @@ class TestGCSBucket(unittest.TestCase):
     def test_bucket_name_value(self):
 
         bad_start_bucket_name = '/testing123'
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
 
             gcs_hook.GoogleCloudStorageHook().create_bucket(
                 bucket_name=bad_start_bucket_name
             )
 
         bad_end_bucket_name = 'testing123/'
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             gcs_hook.GoogleCloudStorageHook().create_bucket(
                 bucket_name=bad_end_bucket_name
             )
@@ -206,7 +207,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'Either source/destination bucket or source/destination object '
             'must be different, not both the same: bucket=%s, object=%s' %
@@ -226,7 +227,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'source_bucket and source_object cannot be empty.'
         )
@@ -244,9 +245,76 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'source_bucket and source_object cannot be empty.'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_rewrite(self, mock_service):
+        source_bucket = 'test-source-bucket'
+        source_object = 'test-source-object'
+        destination_bucket = 'test-dest-bucket'
+        destination_object = 'test-dest-object'
+
+        # First response has `done` equals False has it has not completed copying
+        # It also has `rewriteToken` which would be passed to the second call
+        # to the api.
+        first_response = {
+            "kind": "storage#rewriteResponse",
+            "totalBytesRewritten": "9111",
+            "objectSize": "9111",
+            "done": False,
+            "rewriteToken": "testRewriteToken"
+        }
+
+        second_response = {
+            "kind": "storage#rewriteResponse",
+            "totalBytesRewritten": "9111",
+            "objectSize": "9111",
+            "done": True,
+            "resource": {
+                "kind": "storage#object",
+                # The ID of the object, including the bucket name,
+                # object name, and generation number.
+                "id": "{}/{}/1521132662504504".format(
+                    destination_bucket, destination_object),
+                "name": destination_object,
+                "bucket": destination_bucket,
+                "generation": "1521132662504504",
+                "contentType": "text/csv",
+                "timeCreated": "2018-03-15T16:51:02.502Z",
+                "updated": "2018-03-15T16:51:02.502Z",
+                "storageClass": "MULTI_REGIONAL",
+                "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+                "size": "9111",
+                "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+                "metadata": {
+                    "md5-hash": "95e614241516ad1b64b3551e50538d25"
+                },
+                "crc32c": "xgdNfQ==",
+                "etag": "CLf4hODk7tkCEAE="
+            }
+        }
+
+        (mock_service.return_value.objects.return_value
+         .rewrite.return_value.execute.side_effect) = [first_response, second_response]
+
+        result = self.gcs_hook.rewrite(
+            source_bucket=source_bucket,
+            source_object=source_object,
+            destination_bucket=destination_bucket,
+            destination_object=destination_object
+        )
+
+        self.assertTrue(result)
+        mock_service.return_value.objects.return_value.rewrite.assert_called_with(
+            sourceBucket=source_bucket,
+            sourceObject=source_object,
+            destinationBucket=destination_bucket,
+            destinationObject=destination_object,
+            rewriteToken=first_response['rewriteToken'],
+            body=''
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -273,3 +341,225 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
 
         self.assertFalse(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = 'test_object_composed'
+
+        method = (mock_service.return_value.objects.return_value.compose)
+
+        self.gcs_hook.compose(
+            bucket=test_bucket,
+            source_objects=test_source_objects,
+            destination_object=test_destination_object
+        )
+
+        body = {
+            'sourceObjects': [
+                {'name': 'test_object_1'},
+                {'name': 'test_object_2'},
+                {'name': 'test_object_3'}
+            ]
+        }
+
+        method.assert_called_once_with(
+            destinationBucket=test_bucket,
+            destinationObject=test_destination_object,
+            body=body
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_with_empty_source_objects(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = []
+        test_destination_object = 'test_object_composed'
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'source_objects cannot be empty.'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_without_bucket(self, mock_service):
+        test_bucket = None
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = 'test_object_composed'
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'bucket and destination_object cannot be empty.'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_without_destination_object(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = None
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'bucket and destination_object cannot be empty.'
+        )
+
+
+class TestGoogleCloudStorageHookUpload(unittest.TestCase):
+    def setUp(self):
+        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__')):
+            self.gcs_hook = gcs_hook.GoogleCloudStorageHook(
+                google_cloud_storage_conn_id='test'
+            )
+
+        # generate a 384KiB test file (larger than the minimum 256KiB multipart chunk size)
+        self.testfile = tempfile.NamedTemporaryFile(delete=False)
+        self.testfile.write(b"x" * 393216)
+        self.testfile.flush()
+
+    def tearDown(self):
+        os.unlink(self.testfile.name)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.execute.return_value) = {
+            "kind": "storage#object",
+            "id": "{}/{}/0123456789012345".format(test_bucket, test_object),
+            "name": test_object,
+            "bucket": test_bucket,
+            "generation": "0123456789012345",
+            "contentType": "application/octet-stream",
+            "timeCreated": "2018-03-15T16:51:02.502Z",
+            "updated": "2018-03-15T16:51:02.502Z",
+            "storageClass": "MULTI_REGIONAL",
+            "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+            "size": "393216",
+            "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+            "crc32c": "xgdNfQ==",
+            "etag": "CLf4hODk7tkCEAE="
+        }
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name)
+
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_gzip(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.execute.return_value) = {
+            "kind": "storage#object",
+            "id": "{}/{}/0123456789012345".format(test_bucket, test_object),
+            "name": test_object,
+            "bucket": test_bucket,
+            "generation": "0123456789012345",
+            "contentType": "application/octet-stream",
+            "timeCreated": "2018-03-15T16:51:02.502Z",
+            "updated": "2018-03-15T16:51:02.502Z",
+            "storageClass": "MULTI_REGIONAL",
+            "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+            "size": "393216",
+            "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+            "crc32c": "xgdNfQ==",
+            "etag": "CLf4hODk7tkCEAE="
+        }
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name,
+                                        gzip=True)
+        self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_gzip_error(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.execute.side_effect) = HttpError(
+            resp={'status': '404'}, content=EMPTY_CONTENT)
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name,
+                                        gzip=True)
+        self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
+        self.assertFalse(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_multipart(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        class MockProgress:
+            def __init__(self, value):
+                self.value = value
+
+            def progress(self):
+                return self.value
+
+        (mock_service.return_value.objects.return_value
+         .insert.return_value.next_chunk.side_effect) = [
+            (MockProgress(0.66), None),
+            (MockProgress(1.0), {
+                "kind": "storage#object",
+                "id": "{}/{}/0123456789012345".format(test_bucket, test_object),
+                "name": test_object,
+                "bucket": test_bucket,
+                "generation": "0123456789012345",
+                "contentType": "application/octet-stream",
+                "timeCreated": "2018-03-15T16:51:02.502Z",
+                "updated": "2018-03-15T16:51:02.502Z",
+                "storageClass": "MULTI_REGIONAL",
+                "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+                "size": "393216",
+                "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+                "crc32c": "xgdNfQ==",
+                "etag": "CLf4hODk7tkCEAE="
+            })
+        ]
+
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name,
+                                        multipart=True)
+
+        self.assertTrue(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_multipart_wrong_chunksize(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        with self.assertRaises(ValueError):
+            self.gcs_hook.upload(test_bucket, test_object,
+                                 self.testfile.name, multipart=123)

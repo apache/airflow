@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -28,29 +28,28 @@ class DatastoreImportOperator(BaseOperator):
     Import entities from Cloud Storage to Google Cloud Datastore
 
     :param bucket: container in Cloud Storage to store data
-    :type bucket: string
+    :type bucket: str
     :param file: path of the backup metadata file in the specified Cloud Storage bucket.
         It should have the extension .overall_export_metadata
-    :type file: string
+    :type file: str
     :param namespace: optional namespace of the backup metadata file in
         the specified Cloud Storage bucket.
     :type namespace: str
-    :param entity_filter: description of what data from the project is included in the export,
-        refer to https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
+    :param entity_filter: description of what data from the project is included in
+        the export, refer to
+        https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
     :type entity_filter: dict
     :param labels: client-assigned labels for cloud storage
     :type labels: dict
     :param datastore_conn_id: the name of the connection id to use
-    :type datastore_conn_id: string
+    :type datastore_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param polling_interval_in_seconds: number of seconds to wait before polling for
         execution status again
     :type polling_interval_in_seconds: int
-    :param xcom_push: push operation name to xcom for reference
-    :type xcom_push: bool
     """
 
     @apply_defaults
@@ -63,7 +62,6 @@ class DatastoreImportOperator(BaseOperator):
                  datastore_conn_id='google_cloud_default',
                  delegate_to=None,
                  polling_interval_in_seconds=10,
-                 xcom_push=False,
                  *args,
                  **kwargs):
         super(DatastoreImportOperator, self).__init__(*args, **kwargs)
@@ -75,7 +73,8 @@ class DatastoreImportOperator(BaseOperator):
         self.entity_filter = entity_filter
         self.labels = labels
         self.polling_interval_in_seconds = polling_interval_in_seconds
-        self.xcom_push = xcom_push
+        if kwargs.get('xcom_push') is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
@@ -93,5 +92,4 @@ class DatastoreImportOperator(BaseOperator):
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
 
-        if self.xcom_push:
-            return result
+        return result

@@ -164,9 +164,9 @@ def datetime(*args, **kwargs):
     return dt.datetime(*args, **kwargs)
 
 
-def parse(string):
+def parse(string, timezone=None):
     """
     Parse a time string and return an aware datetime
     :param string: time string
     """
-    return pendulum.parse(string, tz=TIMEZONE)
+    return pendulum.parse(string, tz=timezone or TIMEZONE)

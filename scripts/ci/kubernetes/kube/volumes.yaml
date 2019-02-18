@@ -23,7 +23,7 @@ metadata:
   name: airflow-dags
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadOnlyMany
   capacity:
     storage: 2Gi
   hostPath:
@@ -35,7 +35,7 @@ metadata:
   name: airflow-dags
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadOnlyMany
   resources:
     requests:
       storage: 2Gi
@@ -46,7 +46,7 @@ metadata:
   name: airflow-logs
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadOnlyMany
   capacity:
     storage: 2Gi
   hostPath:
@@ -58,8 +58,30 @@ metadata:
   name: airflow-logs
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadOnlyMany
   resources:
     requests:
       storage: 2Gi
-
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: test-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 2Gi
+  hostPath:
+    path: /airflow-dags/
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: test-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

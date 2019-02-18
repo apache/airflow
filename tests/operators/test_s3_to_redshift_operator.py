@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,11 +19,11 @@
 #
 
 import mock
-import re
 import unittest
 
 from boto3.session import Session
 from airflow.operators.s3_to_redshift_operator import S3ToRedshiftTransfer
+from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
 class TestS3ToRedshiftTransfer(unittest.TestCase):
@@ -67,9 +67,5 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                    secret_key=secret_key,
                    copy_options=copy_options)
 
-        def _trim(s):
-            return re.sub("\s+", " ", s.strip())
-
-        self.assertEqual(_trim(mock_run.call_args[0][0]),
-                         _trim(copy_query))
         mock_run.assert_called_once()
+        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,7 +22,7 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class FSHook(BaseHook):
-    '''
+    """
     Allows for interaction with an file server.
 
     Connection should have a name and a path specified under extra:
@@ -32,7 +32,7 @@ class FSHook(BaseHook):
     Conn Type: File (path)
     Host, Shchema, Login, Password, Port: empty
     Extra: {"path": "/tmp"}
-    '''
+    """
 
     def __init__(self, conn_id='fs_default'):
         conn = self.get_connection(conn_id)

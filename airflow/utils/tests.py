@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,7 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import re
 import unittest
+
 
 def skipUnlessImported(module, obj):
     import importlib
@@ -29,3 +31,9 @@ def skipUnlessImported(module, obj):
         obj in dir(m),
         "Skipping test because {} could not be imported from {}".format(
             obj, module))
+
+
+def assertEqualIgnoreMultipleSpaces(case, first, second, msg=None):
+    def _trim(s):
+        re.sub(r"\s+", " ", s.strip())
+    return case.assertEqual(_trim(first), _trim(second), msg)
