@@ -172,6 +172,7 @@ password = [
 pinot = ['pinotdb>=0.1.1']
 postgres = ['psycopg2-binary>=2.7.4']
 qds = ['qds-sdk>=1.9.6']
+r = ['rpy2>=2.9.5']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis>=2.10.5']
 s3 = ['boto3>=1.7.0']
@@ -209,7 +210,7 @@ devel = [
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + azure + redis + gcp_api + datadog +
+             docker + ssh + kubernetes + celery + azure + r + redis + gcp_api + datadog +
              zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + snowflake + elasticsearch)
 
@@ -310,6 +311,7 @@ def do_setup():
             'pinot': pinot,
             'postgres': postgres,
             'qds': qds,
+            'r': r,
             'rabbitmq': rabbitmq,
             'redis': redis,
             's3': s3,
