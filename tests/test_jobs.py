@@ -133,6 +133,11 @@ class BaseJobTest(unittest.TestCase):
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.Pool).delete()
+            session.query(models.TaskInstance).delete()
+
         configuration.conf.set("core", "donot_pickle", "True")
         clear_runs()
         self.parser = cli.CLIFactory.get_parser()
@@ -1233,7 +1238,7 @@ class BackfillJobTest(unittest.TestCase):
         job = BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=5),
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
             run_backwards=True
         )
         job.run()
@@ -1415,13 +1420,32 @@ class LocalTaskJobTest(unittest.TestCase):
 class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
-        self.dagbag = DagBag()
         with create_session() as session:
             session.query(models.DagRun).delete()
             session.query(models.TaskInstance).delete()
+            session.query(models.Pool).delete()
             session.query(models.DagEdge).delete()
-            session.query(models.slamiss.SlaMiss).delete()
+            session.query(models.DagModel).delete()
+            session.query(SlaMiss).delete()
             session.query(errors.ImportError).delete()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag()
+
+        def getboolean(section, key):
+            if section.lower() == 'core' and key.lower() == 'load_examples':
+                return False
+            else:
+                return configuration.conf.getboolean(section, key)
+
+        cls.patcher = mock.patch('airflow.jobs.conf.getboolean')
+        mock_getboolean = cls.patcher.start()
+        mock_getboolean.side_effect = getboolean
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patcher.stop()
 
     @staticmethod
     def run_single_scheduler_loop_with_no_dags(dags_folder):
@@ -2499,7 +2523,8 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertTrue(dag.start_date > datetime.datetime.utcnow())
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # zero tasks ran
@@ -2523,7 +2548,8 @@ class SchedulerJobTest(unittest.TestCase):
             session.commit()
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # still one task
@@ -2565,7 +2591,8 @@ class SchedulerJobTest(unittest.TestCase):
             dag.clear()
 
         scheduler = SchedulerJob(dag_ids=dag_ids,
-                                 num_runs=2)
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
         scheduler.run()
 
         # zero tasks ran
