@@ -72,6 +72,7 @@ class Connection(Base, LoggingMixin):
         ('samba', 'Samba',),
         ('sqlite', 'Sqlite',),
         ('ssh', 'SSH',),
+        ('sftp', 'SFTP',),
         ('cloudant', 'IBM Cloudant',),
         ('mssql', 'Microsoft SQL Server'),
         ('mesos_framework-id', 'Mesos Framework ID'),
