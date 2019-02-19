@@ -3249,7 +3249,7 @@ class SchedulerJobTest(unittest.TestCase):
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.RUNNING)
+        self.assertIn(ti.state, [State.RUNNING, State.SUCCESS])
 
     @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
     def test_retry_handling_job(self):
