@@ -90,7 +90,7 @@ class BaseHook(LoggingMixin):
 
     @classmethod
     def connection_url(cls, conn_id, conn_url, conn_port):
-        conn = 
+        conn = ''
         conn_tmp = conn_url.split(';')
         if len(conn_tmp) == 1:
             conn = conn_id + conn_tmp[0] + ':' + conn_port
