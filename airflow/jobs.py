@@ -2013,8 +2013,7 @@ class BackfillJob(BaseJob):
                     self.log.error(msg)
                     ti.handle_failure(msg)
 
-    @provide_session
-    def _get_dag_run(self, run_date, session=None):
+    def _get_dag_run(self, run_date):
         """
         Returns a dag run for the given run date, which will be matched to an existing
         dag run if available or create a new dag run otherwise. If the max_active_runs
@@ -2022,8 +2021,6 @@ class BackfillJob(BaseJob):
 
         :param run_date: the execution date for the dag run
         :type run_date: datetime.datetime
-        :param session: the database session object
-        :type session: sqlalchemy.orm.session.Session
         :return: a DagRun in state RUNNING or None
         """
         run_id = BackfillJob.ID_FORMAT_PREFIX.format(run_date.isoformat())
@@ -2039,8 +2036,7 @@ class BackfillJob(BaseJob):
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
         run = DagRun.find(dag_id=self.dag.dag_id,
-                          execution_date=run_date,
-                          session=session)
+                          execution_date=run_date)
 
         if run is not None and len(run) > 0:
             run = run[0]
@@ -2061,7 +2057,6 @@ class BackfillJob(BaseJob):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             external_trigger=False,
-            session=session,
             conf=self.conf,
         )
 
@@ -2071,19 +2066,16 @@ class BackfillJob(BaseJob):
         # explicitly mark as backfill and running
         run.state = State.RUNNING
         run.run_id = run_id
-        run.verify_integrity(session=session)
+        run.verify_integrity()
         return run
 
-    @provide_session
-    def _task_instances_for_dag_run(self, dag_run, session=None):
+    def _task_instances_for_dag_run(self, dag_run):
         """
         Returns a map of task instance key to task instance object for the tasks to
         run in the given dag run.
 
         :param dag_run: the dag run to get the tasks from
         :type dag_run: airflow.models.DagRun
-        :param session: the database session object
-        :type session: sqlalchemy.orm.session.Session
         """
         tasks_to_run = {}
 
@@ -2091,7 +2083,7 @@ class BackfillJob(BaseJob):
             return tasks_to_run
 
         # check if we have orphaned tasks
-        self.reset_state_for_orphaned_tasks(filter_by_dag_run=dag_run, session=session)
+        self.reset_state_for_orphaned_tasks(filter_by_dag_run=dag_run)
 
         # for some reason if we don't refresh the reference to run is lost
         dag_run.refresh_from_db()
@@ -2101,7 +2093,7 @@ class BackfillJob(BaseJob):
         for ti in dag_run.get_task_instances():
             # all tasks part of the backfill are scheduled to run
             if ti.state == State.NONE:
-                ti.set_state(State.SCHEDULED, session=session)
+                ti.set_state(State.SCHEDULED)
             if ti.state != State.REMOVED:
                 tasks_to_run[ti.key] = ti
 
@@ -2135,12 +2127,11 @@ class BackfillJob(BaseJob):
             ti_status.to_run.values()
         )
 
-    @provide_session
     def _process_backfill_task_instances(self,
                                          ti_status,
                                          executor,
                                          pickle_id,
-                                         start_date=None, session=None):
+                                         start_date=None):
         """
         Process a set of task instances from a set of dag runs. Special handling is done
         to account for different task instance states that could be present when running
@@ -2154,8 +2145,6 @@ class BackfillJob(BaseJob):
         :type pickle_id: int
         :param start_date: the start date of the backfill job
         :type start_date: datetime.datetime
-        :param session: the current session object
-        :type session: sqlalchemy.orm.session.Session
         :return: the list of execution_dates for the finished dag runs
         :rtype: list
         """
@@ -2213,7 +2202,7 @@ class BackfillJob(BaseJob):
                             "FIXME: task instance {} state was set to None "
                             "externally. This should not happen"
                         )
-                        ti.set_state(State.SCHEDULED, session=session)
+                        ti.set_state(State.SCHEDULED)
                     if self.rerun_failed_tasks:
                         # Rerun failed tasks or upstreamed failed tasks
                         if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
@@ -2223,7 +2212,7 @@ class BackfillJob(BaseJob):
                             if key in ti_status.running:
                                 ti_status.running.pop(key)
                             # Reset the failed task in backfill to scheduled state
-                            ti.set_state(State.SCHEDULED, session=session)
+                            ti.set_state(State.SCHEDULED)
                     else:
                         # Default behaviour which works for subdag.
                         if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
@@ -2246,9 +2235,8 @@ class BackfillJob(BaseJob):
                     # the dependency checker can change states of tis
                     if ti.are_dependencies_met(
                             dep_context=backfill_context,
-                            session=session,
                             verbose=self.verbose):
-                        ti.refresh_from_db(lock_for_update=True, session=session)
+                        ti.refresh_from_db(lock_for_update=True)
                         if ti.state in (State.SCHEDULED, State.UP_FOR_RETRY, State.UP_FOR_RESCHEDULE):
                             if executor.has_task(ti):
                                 self.log.debug(
@@ -2261,7 +2249,8 @@ class BackfillJob(BaseJob):
                                 # Skip scheduled state, we are executing immediately
                                 ti.state = State.QUEUED
                                 ti.queued_dttm = timezone.utcnow() if not ti.queued_dttm else ti.queued_dttm
-                                session.merge(ti)
+                                with create_session() as session:
+                                    session.merge(ti)
 
                                 cfg_path = None
                                 if executor.__class__ in (executors.LocalExecutor,
@@ -2278,7 +2267,6 @@ class BackfillJob(BaseJob):
                                     cfg_path=cfg_path)
                                 ti_status.running[key] = ti
                                 ti_status.to_run.pop(key)
-                        session.commit()
                         continue
 
                     if ti.state == State.UPSTREAM_FAILED:
@@ -2339,7 +2327,7 @@ class BackfillJob(BaseJob):
             # update dag run state
             _dag_runs = ti_status.active_runs[:]
             for run in _dag_runs:
-                run.update_state(session=session)
+                run.update_state()
                 if run.state in State.finished():
                     ti_status.finished_runs += 1
                     ti_status.active_runs.remove(run)
@@ -2350,8 +2338,7 @@ class BackfillJob(BaseJob):
         # return updated status
         return executed_run_dates
 
-    @provide_session
-    def _collect_errors(self, ti_status, session=None):
+    def _collect_errors(self, ti_status):
         err = ''
         if ti_status.failed:
             err += (
@@ -2364,11 +2351,9 @@ class BackfillJob(BaseJob):
             deadlocked_depends_on_past = any(
                 t.are_dependencies_met(
                     dep_context=DepContext(ignore_depends_on_past=False),
-                    session=session,
                     verbose=self.verbose) !=
                 t.are_dependencies_met(
                     dep_context=DepContext(ignore_depends_on_past=True),
-                    session=session,
                     verbose=self.verbose)
                 for t in ti_status.deadlocked)
             if deadlocked_depends_on_past:
@@ -2386,9 +2371,8 @@ class BackfillJob(BaseJob):
 
         return err
 
-    @provide_session
     def _execute_for_run_dates(self, run_dates, ti_status, executor, pickle_id,
-                               start_date, session=None):
+                               start_date):
         """
         Computes the dag runs and their respective task instances for
         the given run dates and executes the task instances.
@@ -2404,13 +2388,10 @@ class BackfillJob(BaseJob):
         :type pickle_id: int
         :param start_date: backfill start date
         :type start_date: datetime.datetime
-        :param session: the current session object
-        :type session: sqlalchemy.orm.session.Session
         """
         for next_run_date in run_dates:
-            dag_run = self._get_dag_run(next_run_date, session=session)
-            tis_map = self._task_instances_for_dag_run(dag_run,
-                                                       session=session)
+            dag_run = self._get_dag_run(next_run_date)
+            tis_map = self._task_instances_for_dag_run(dag_run)
             if dag_run is None:
                 continue
 
@@ -2421,13 +2402,11 @@ class BackfillJob(BaseJob):
             ti_status=ti_status,
             executor=executor,
             pickle_id=pickle_id,
-            start_date=start_date,
-            session=session)
+            start_date=start_date)
 
         ti_status.executed_dag_run_dates.update(processed_dag_run_dates)
 
-    @provide_session
-    def _execute(self, session=None):
+    def _execute(self):
         """
         Initializes all components required to run a dag for a specified date range and
         calls helper method to execute the tasks.
@@ -2456,8 +2435,8 @@ class BackfillJob(BaseJob):
         if not self.donot_pickle and self.executor.__class__ not in (
                 executors.LocalExecutor, executors.SequentialExecutor):
             pickle = DagPickle(self.dag)
-            session.add(pickle)
-            session.commit()
+            with create_session() as session:
+                session.add(pickle)
             pickle_id = pickle.id
 
         executor = self.executor
@@ -2475,13 +2454,12 @@ class BackfillJob(BaseJob):
                                             ti_status=ti_status,
                                             executor=executor,
                                             pickle_id=pickle_id,
-                                            start_date=start_date,
-                                            session=session)
+                                            start_date=start_date)
 
                 remaining_dates = (
                     ti_status.total_runs - len(ti_status.executed_dag_run_dates)
                 )
-                err = self._collect_errors(ti_status=ti_status, session=session)
+                err = self._collect_errors(ti_status=ti_status)
                 if err:
                     raise AirflowException(err)
 
@@ -2494,7 +2472,6 @@ class BackfillJob(BaseJob):
                     time.sleep(self.delay_on_limit_secs)
         finally:
             executor.end()
-            session.commit()
 
         self.log.info("Backfill done. Exiting.")
 
