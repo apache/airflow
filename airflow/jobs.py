@@ -1569,7 +1569,7 @@ class SchedulerJob(BaseJob):
                     "Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            self.log.info("Harvesting DAG parsing results")
+            self.log.debug("Harvesting DAG parsing results")
             simple_dags = self.processor_agent.harvest_simple_dags()
             self.log.debug("Harvested {} SimpleDAGs".format(len(simple_dags)))
 
