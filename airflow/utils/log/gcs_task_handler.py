@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import shutil
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -31,13 +32,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from GCS remote storage. Upon log reading
     failure, it reads from host machine's local disk.
     """
-    def __init__(self, base_log_folder, gcs_log_folder, filename_template):
+    def __init__(self, base_log_folder, gcs_log_folder, filename_template, delete_local_copy):
         super(GCSTaskHandler, self).__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
         self.log_relative_path = ''
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.delete_local_copy = delete_local_copy
 
     def _build_hook(self):
         remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
@@ -89,7 +91,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc, 'r') as logfile:
                 log = logfile.read()
-            self.gcs_write(log, remote_loc)
+            successfully_written = self.gcs_write(log, remote_loc)
+            if successfully_written and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -161,8 +165,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 # closed).
                 tmpfile.flush()
                 self.hook.upload(bkt, blob, tmpfile.name)
+            return True
         except Exception as e:
             self.log.error('Could not write logs to %s: %s', remote_log_location, e)
+        return False
 
     @staticmethod
     def parse_gcs_url(gsurl):

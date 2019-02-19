@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import shutil
 
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -29,13 +30,14 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     task instance logs. It extends airflow FileTaskHandler and
     uploads to and reads from S3 remote storage.
     """
-    def __init__(self, base_log_folder, s3_log_folder, filename_template):
+    def __init__(self, base_log_folder, s3_log_folder, filename_template, delete_local_copy):
         super(S3TaskHandler, self).__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''
         self._hook = None
         self.closed = False
         self.upload_on_close = True
+        self.delete_local_copy = delete_local_copy
 
     def _build_hook(self):
         remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
@@ -65,6 +67,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     def close(self):
         """
         Close and upload local log file to remote storage S3.
+        Upon successful upload, deletes the local log file
         """
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
@@ -84,7 +87,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc, 'r') as logfile:
                 log = logfile.read()
-            self.s3_write(log, remote_loc)
+            successfully_written = self.s3_write(log, remote_loc)
+            if successfully_written and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -169,5 +174,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 replace=True,
                 encrypt=configuration.conf.getboolean('core', 'ENCRYPT_S3_LOGS'),
             )
+            return True
         except Exception:
             self.log.exception('Could not write logs to %s', remote_log_location)
+        return False

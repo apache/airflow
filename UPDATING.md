@@ -24,6 +24,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Default to deleting local logs after remote upload
+
+Following a successful upload of local TaskInstance log files to S3, GCS, or WASB, the default behavior has been changed to delete the log file.
+
+To disable this behavior, modify `DEFAULT_LOGGING_CONFIG` to have `'delete_local_copy': False` for any `'task'`
+
 ### Changes to CloudantHook
 
 * upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`

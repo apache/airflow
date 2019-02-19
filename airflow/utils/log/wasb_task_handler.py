@@ -90,9 +90,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc, 'r') as logfile:
                 log = logfile.read()
-            self.wasb_write(log, remote_loc, append=True)
-
-            if self.delete_local_copy:
+            successfully_written = self.wasb_write(log, remote_loc)
+            if successfully_written and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -176,6 +175,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 self.wasb_container,
                 remote_log_location,
             )
+            return True
         except AzureHttpError:
-            self.log.exception('Could not write logs to %s',
-                               remote_log_location)
+            self.log.exception('Could not write logs to %s', remote_log_location)
+        return False

@@ -138,6 +138,7 @@ REMOTE_HANDLERS = {
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             's3_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': FILENAME_TEMPLATE,
+            'delete_local_copy': True,
         },
         'processor': {
             'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
@@ -145,6 +146,7 @@ REMOTE_HANDLERS = {
             'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
             's3_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
+            'delete_local_copy': False,
         },
     },
     'gcs': {
@@ -154,6 +156,7 @@ REMOTE_HANDLERS = {
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': FILENAME_TEMPLATE,
+            'delete_local_copy': True,
         },
         'processor': {
             'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
@@ -161,6 +164,7 @@ REMOTE_HANDLERS = {
             'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
             'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
+            'delete_local_copy': False,
         },
     },
     'wasb': {
@@ -171,7 +175,7 @@ REMOTE_HANDLERS = {
             'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,
             'wasb_container': 'airflow-logs',
             'filename_template': FILENAME_TEMPLATE,
-            'delete_local_copy': False,
+            'delete_local_copy': True,
         },
         'processor': {
             'class': 'airflow.utils.log.wasb_task_handler.WasbTaskHandler',

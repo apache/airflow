@@ -49,10 +49,12 @@ class TestS3TaskHandler(unittest.TestCase):
         self.remote_log_key = 'remote/log/location/1.log'
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
+        self.delete_local_copy = True
         self.s3_task_handler = S3TaskHandler(
-            self.local_log_location,
-            self.remote_log_base,
-            self.filename_template
+            base_log_folder=self.local_log_location,
+            s3_log_folder=self.remote_log_base,
+            filename_template=self.filename_template,
+            delete_local_copy=self.delete_local_copy
         )
 
         configuration.load_test_config()
@@ -136,7 +138,8 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_write(self):
         with mock.patch.object(self.s3_task_handler.log, 'error') as mock_error:
-            self.s3_task_handler.s3_write('text', self.remote_log_location)
+            successful_write = self.s3_task_handler.s3_write('text', self.remote_log_location)
+            assert successful_write is True
             # We shouldn't expect any error logs in the default working case.
             mock_error.assert_not_called()
         body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
@@ -145,16 +148,18 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def test_write_existing(self):
         self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'previous ')
-        self.s3_task_handler.s3_write('text', self.remote_log_location)
+        successful_write = self.s3_task_handler.s3_write('text', self.remote_log_location)
         body = boto3.resource('s3').Object('bucket', self.remote_log_key).get()['Body'].read()
 
+        assert successful_write is True
         self.assertEqual(body, b'previous \ntext')
 
     def test_write_raises(self):
         handler = self.s3_task_handler
         url = 's3://nonexistentbucket/foo'
         with mock.patch.object(handler.log, 'error') as mock_error:
-            handler.s3_write('text', url)
+            successful_write = handler.s3_write('text', url)
+            assert successful_write is False
             self.assertEqual
             mock_error.assert_called_once_with(
                 'Could not write logs to %s', url, exc_info=True)
