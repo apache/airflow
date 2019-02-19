@@ -294,7 +294,7 @@ def do_setup():
             'enum34~=1.1.6;python_version<"3.4"',
             'flask>=1.0, <2.0',
             'flask-appbuilder==1.12.3',
-            'flask-admin==1.5.2',
+            'flask-admin==1.5.3',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
