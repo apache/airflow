@@ -462,8 +462,8 @@ class TestHiveServer2Hook(unittest.TestCase):
             self.assertListEqual(df.columns.tolist(), self.columns)
             self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
             self.assertEqual(len(df), 2)
-            self.assertIn('airflow.hooks.hive_hooks.HiveServer2Hook: '
-                          'INFO: Written 2 rows so far.', cm.output)
+            self.assertIn('INFO:airflow.hooks.hive_hooks.HiveServer2Hook:'
+                          'Written 2 rows so far.', cm.output)
 
     def test_multi_statements(self):
         sqls = [
