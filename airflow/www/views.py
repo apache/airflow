@@ -1338,15 +1338,16 @@ class Airflow(AirflowBaseView):
                 task_instances = dag_run.get_task_instances()
                 if not dag_run.graph_id:
                     # Fall back on the first graph known in the database, might return an empty query.
-                    tis_names = [ti.task_id for ti in task_instances]
                     edge_query = session.query(DagEdge) \
                         .filter(DagEdge.dag_id == dag_id and DagEdge.graph_id == 1).all()
                     # Filter tasks that does not exist on current DagRun
-                    for e in edge_query:
-                        if e.from_task not in tis_names or e.to_task not in tis_names:
-                            edge_query.remove(e)
                 else:
                     edge_query = dag_run.get_edges()
+        tis_names = [ti.task_id for ti in task_instances]
+        # Cleaning edges in case some taskinstances does not exists anymore
+        for e in edge_query:
+            if e.from_task not in tis_names or e.to_task not in tis_names:
+                edge_query.remove(e)
 
         nodes = [
             {
