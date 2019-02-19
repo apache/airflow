@@ -70,10 +70,15 @@ When referencing the connection in the Airflow pipeline, the ``conn_id``
 should be the name of the variable without the prefix. For example, if the
 ``conn_id`` is named ``postgres_master`` the environment variable should be
 named ``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable
-must be all uppercase). Airflow assumes the value returned from the
-environment variable to be in a URI format (e.g.
-``postgres://user:password@localhost:5432/master`` or
-``s3://accesskey:secretkey@S3``).
+must be all uppercase).
+
+Airflow assumes the value returned from the environment variable to be in a URI
+format (e.g.``postgres://user:password@localhost:5432/master`` or
+``s3://accesskey:secretkey@S3``). The underscore character is not allowed
+in the scheme part of URI, so it must be changed to a hyphen character
+(e.g. `google-compute-platform` if `conn_type` is `google_compute_platform`).
+Query parameters are parsed to one-dimensional dict and then used to fill extra.
+
 
 .. _manage-connections-connection-types:
 
@@ -158,6 +163,28 @@ Scopes (comma separated)
         Scopes are ignored when using application default credentials. See
         issue `AIRFLOW-2522
         <https://issues.apache.org/jira/browse/AIRFLOW-2522>`_.
+
+    When specifying the connection in environment variable you should specify
+    it using URI syntax, with the following requirements:
+
+      * scheme part should be equals ``google-cloud-platform`` (Note: look for a
+        hyphen character)
+      * authority (username, password, host, port), path is ignored
+      * query parameters contains information specific to this type of
+        connection. The following keys are accepted:
+
+        * ``extra__google_cloud_platform__project`` - Project Id
+        * ``extra__google_cloud_platform__key_path`` - Keyfile Path
+        * ``extra__google_cloud_platform__key_dict`` - Keyfile JSON
+        * ``extra__google_cloud_platform__scope`` - Scopes
+
+    Note that all components of the URI should be URL-encoded.
+
+    For example:
+
+    .. code-block:: bash
+
+       google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow
 
 Amazon Web Services
 ~~~~~~~~~~~~~~~~~~~

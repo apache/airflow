@@ -110,22 +110,24 @@ class Connection(Base, LoggingMixin):
             self.extra = extra
 
     def parse_from_uri(self, uri):
-        temp_uri = urlparse(uri)
-        hostname = temp_uri.hostname or ''
-        conn_type = temp_uri.scheme
+        uri_parts = urlparse(uri)
+        hostname = uri_parts.hostname or ''
+        conn_type = uri_parts.scheme
         if conn_type == 'postgresql':
             conn_type = 'postgres'
+        elif '-' in conn_type:
+            conn_type = conn_type.replace('-', '_')
         self.conn_type = conn_type
         self.host = unquote(hostname) if hostname else hostname
-        quoted_schema = temp_uri.path[1:]
+        quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
-        self.login = unquote(temp_uri.username) \
-            if temp_uri.username else temp_uri.username
-        self.password = unquote(temp_uri.password) \
-            if temp_uri.password else temp_uri.password
-        self.port = temp_uri.port
-        if temp_uri.query:
-            self.extra = json.dumps(dict(parse_qsl(temp_uri.query)))
+        self.login = unquote(uri_parts.username) \
+            if uri_parts.username else uri_parts.username
+        self.password = unquote(uri_parts.password) \
+            if uri_parts.password else uri_parts.password
+        self.port = uri_parts.port
+        if uri_parts.query:
+            self.extra = json.dumps(dict(parse_qsl(uri_parts.query)))
 
     def get_password(self):
         if self._password and self.is_encrypted:
