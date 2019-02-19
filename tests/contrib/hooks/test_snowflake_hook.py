@@ -40,7 +40,8 @@ class TestSnowflakeHook(unittest.TestCase):
         self.conn.extra_dejson = {'database': 'db',
                                   'account': 'airflow',
                                   'warehouse': 'af_wh',
-                                  'region': 'af_region'}
+                                  'region': 'af_region',
+                                  'role': 'af_role'}
 
         class UnitTestSnowflakeHook(SnowflakeHook):
             conn_name_attr = 'snowflake_conn_id'
@@ -54,7 +55,7 @@ class TestSnowflakeHook(unittest.TestCase):
         self.db_hook = UnitTestSnowflakeHook()
 
     def test_get_uri(self):
-        uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh'
+        uri_shouldbe = 'snowflake://user:pw@airflow/db/public?warehouse=af_wh&role=af_role'
         self.assertEqual(uri_shouldbe, self.db_hook.get_uri())
 
     def test_get_conn_params(self):
@@ -64,7 +65,8 @@ class TestSnowflakeHook(unittest.TestCase):
                                 'database': 'db',
                                 'account': 'airflow',
                                 'warehouse': 'af_wh',
-                                'region': 'af_region'}
+                                'region': 'af_region',
+                                'role': 'af_role'}
         self.assertEqual(conn_params_shouldbe, self.db_hook._get_conn_params())
 
     def test_get_conn(self):
