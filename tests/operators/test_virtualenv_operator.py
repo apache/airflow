@@ -205,3 +205,14 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         def f(**kwargs):
             return kwargs['templates_dict']['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
+
+    def test_provide_context(self):
+        operator = PythonVirtualenvOperator(
+            python_callable=lambda x: 4,
+            task_id='task',
+            dag=self.dag,
+            provide_context=True
+        )
+        self.assertTrue(
+            operator.provide_context
+        )
