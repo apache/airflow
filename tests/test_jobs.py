@@ -1392,11 +1392,32 @@ class LocalTaskJobTest(unittest.TestCase):
 class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
-        self.dagbag = DagBag()
         with create_session() as session:
             session.query(models.DagRun).delete()
+            session.query(models.TaskInstance).delete()
+            session.query(models.Pool).delete()
+            session.query(models.DagModel).delete()
+            session.query(SlaMiss).delete()
             session.query(errors.ImportError).delete()
             session.commit()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag()
+
+        def getboolean(section, key):
+            if section.lower() == 'core' and key.lower() == 'load_examples':
+                return False
+            else:
+                return configuration.conf.getboolean(section, key)
+
+        cls.patcher = mock.patch('airflow.jobs.conf.getboolean')
+        mock_getboolean = cls.patcher.start()
+        mock_getboolean.side_effect = getboolean
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patcher.stop()
 
     @staticmethod
     def run_single_scheduler_loop_with_no_dags(dags_folder):
@@ -2495,6 +2516,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
         scheduler = SchedulerJob(dag_id,
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
                                  num_runs=2)
         scheduler.run()
 
@@ -2517,7 +2539,8 @@ class SchedulerJobTest(unittest.TestCase):
             dag.clear()
 
         scheduler = SchedulerJob(dag_ids=dag_ids,
-                                 num_runs=2)
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
         scheduler.run()
 
         # zero tasks ran

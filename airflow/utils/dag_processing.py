@@ -277,7 +277,7 @@ class SimpleDagBag(BaseDagBag):
 
 
 def list_py_file_paths(directory, safe_mode=True,
-                       include_examples=conf.getboolean('core', 'LOAD_EXAMPLES')):
+                       include_examples=None):
     """
     Traverse a directory and look for Python files.
 
@@ -288,6 +288,8 @@ def list_py_file_paths(directory, safe_mode=True,
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
+    if include_examples is None:
+        include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
     file_paths = []
     if directory is None:
         return []
