@@ -29,7 +29,7 @@ import mock
 import pandas as pd
 from hmsclient import HMSClient
 
-from airflow import DAG, configuration, LoggingMixin
+from airflow import DAG, configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.operators.hive_operator import HiveOperator
