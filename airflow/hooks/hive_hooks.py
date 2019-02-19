@@ -519,7 +519,7 @@ class HiveMetastoreHook(BaseHook):
  
             def sasl_factory():
                 sasl_client = sasl.Client()
-                sasl_client.setAttr("host", conn.host)
+                sasl_client.setAttr("host", valid_conn.host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
@@ -538,14 +538,14 @@ class HiveMetastoreHook(BaseHook):
         conns = self.get_connections(self.conn_id)
         for conn in conns:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.log.info("Trying to connect to %:%", conn.host, conn.port)
+            self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
             try:
                 result = host_socket.connect_ex((conn.host, conn.port))
                 host_socket.close()
             except Exception:
                 pass
             if result == 0:
-                logging.info('Connected to %s:%s', conn.host, str(conn.port))
+                self.log.info("Connected to %s:%s", conn.host, conn.port)
                 valid_conn = conn
                 break
         return valid_conn
