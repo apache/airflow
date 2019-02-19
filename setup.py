@@ -258,18 +258,11 @@ if not PY3:
 
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-<<<<<<< HEAD
-devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + azure + r + redis + gcp_api + datadog +
-             zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + snowflake + elasticsearch)
-=======
 devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
              docker + ssh + kubernetes + celery + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws)
->>>>>>> upstream/master
+             atlas + azure + aws + r)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
