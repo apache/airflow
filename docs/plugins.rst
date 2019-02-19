@@ -19,7 +19,7 @@ Plugins
 =======
 
 Airflow has a simple plugin manager built-in that can integrate external
-features to its core by simply dropping files in your
+features to its core using `pip` or by dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
 The python modules in the ``plugins`` folder get imported,
@@ -136,6 +136,10 @@ Example
 The code below defines a plugin that injects a set of dummy object
 definitions in Airflow.
 
+To ensure your plugin's compatibility between updates in Airflow, make sure
+to instantiate classes, in the `on_load(...)` callback, so that any airflow
+classes you wish to access are available.
+
 .. code:: python
 
     # This is the class you derive to create a plugin
@@ -178,19 +182,6 @@ definitions in Airflow.
         def test(self):
             # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
             return self.render("test_plugin/test.html", content="Hello galaxy!")
-    v = TestView(category="Test Plugin", name="Test View")
-
-    # Creating a flask blueprint to integrate the templates and static folder
-    bp = Blueprint(
-        "test_plugin", __name__,
-        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
-        static_folder='static',
-        static_url_path='/static/test_plugin')
-
-    ml = MenuLink(
-        category='Test Plugin',
-        name='Test Menu Link',
-        url='https://airflow.apache.org/')
 
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):
@@ -199,16 +190,6 @@ definitions in Airflow.
         @expose("/")
         def test(self):
             return self.render("test_plugin/test.html", content="Hello galaxy!")
-    v_appbuilder_view = TestAppBuilderBaseView()
-    v_appbuilder_package = {"name": "Test View",
-                            "category": "Test Plugin",
-                            "view": v_appbuilder_view}
-
-    # Creating a flask appbuilder Menu Item
-    appbuilder_mitem = {"name": "Google",
-                        "category": "Search",
-                        "category_icon": "fa-th",
-                        "href": "https://www.google.com"}
 
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
@@ -218,11 +199,54 @@ definitions in Airflow.
         hooks = [PluginHook]
         executors = [PluginExecutor]
         macros = [plugin_macro]
-        admin_views = [v]
-        flask_blueprints = [bp]
-        menu_links = [ml]
-        appbuilder_views = [v_appbuilder_package]
-        appbuilder_menu_items = [appbuilder_mitem]
+        admin_views = []
+        flask_blueprints = []
+        menu_links = []
+        appbuilder_views = []
+        appbuilder_menu_items = []
+
+        @classmethod
+        def on_load(cls, *args, **kwargs):
+            """
+            NOTE: Ensure your plugin has *args, and **kwargs in the method definition
+               to protect against extra parameters injected into the on_load(...)
+               function in future changes.
+            """
+
+            cls.admin_views.append(TestView(
+                category="Test Plugin", name="Test View"
+            ))
+
+            # Creating a flask blueprint to integrate the templates and static folder
+            cls.flask_blueprints.append(Blueprint(
+                "test_plugin", __name__,
+                template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
+                static_folder='static',
+                static_url_path='/static/test_plugin'
+            ))
+
+            cls.menu_links.append(MenuLink(
+                category='Test Plugin',
+                name='Test Menu Link',
+                url='https://airflow.apache.org/'
+            ))
+
+            v_appbuilder_view = TestAppBuilderBaseView()
+            cls.appbuilder_views.append({
+                "name": "Test View",
+                "category": "Test Plugin",
+                "view": v_appbuilder_view
+            })
+
+            # Creating a flask appbuilder Menu Item
+            cls.appbuilder_menu_items.append({
+                "name": "Google",
+                "category": "Search",
+                "category_icon": "fa-th",
+                "href": "https://www.google.com"
+            })
+
+
 
 
 Note on role based views
