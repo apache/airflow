@@ -349,6 +349,17 @@ from ``BaseHook``, Airflow will choose one connection randomly, allowing
 for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
+Airflow also has the ability to reference connections via environment
+variables from the operating system. Then connection parameters must
+be saved in URI format.
+
+If connections with the same ``conn_id`` are defined in both Airflow metadata
+database and environment variables, only the one in environment variables
+will be referenced by Airflow (for example, given ``conn_id``
+``postgres_master``, Airflow will search for ``AIRFLOW_CONN_POSTGRES_MASTER``
+in environment variables first and directly reference it if found,
+before it starts to search in metadata database).
+
 Many hooks have a default ``conn_id``, where operators using that hook do not
 need to supply an explicit connection ID. For example, the default
 ``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
