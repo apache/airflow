@@ -19,6 +19,7 @@ from tempfile import NamedTemporaryFile
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 import rpy2.robjects as robjects
 from rpy2.rinterface import RRuntimeError
@@ -28,15 +29,23 @@ class ROperator(BaseOperator):
     """
     Execute an R script or command
 
+    If BaseOperator.do_xcom_push is True, the last line written to stdout
+    will also be pushed to an XCom when the R command completes
+
     :param r_command: The command or a reference to an R script (must have
         '.r' extension) to be executed (templated)
     :type r_command: string
+    :param env: Optional list of environment variables and their (string)
+        values to set (templated). Unlike `BashOperator`, this does not
+        replace the current environment, although it can be used to override
+        existing values. Values can be read in R with `Sys.getenv()`.
+    :type env: dict
     :param output_encoding: encoding output from R (default: 'utf-8')
     :type output_encoding: string
 
     """
 
-    template_fields = ('r_command',)
+    template_fields = ('r_command', 'env',)
     template_ext = ('.r', '.R')
     ui_color = '#C8D5E6'
 
@@ -44,17 +53,30 @@ class ROperator(BaseOperator):
     def __init__(
             self,
             r_command,
+            env={},
             output_encoding='utf-8',
             *args, **kwargs):
 
         super(ROperator, self).__init__(*args, **kwargs)
         self.r_command = r_command
+        self.env = env
         self.output_encoding = output_encoding
 
     def execute(self, context):
         """
         Execute the R command or script in a temporary directory
         """
+
+        # Export additional environment variables
+        os.environ.update(self.env)
+
+        # Export context as environment variables
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        self.log.info('Exporting the following env vars:\n' +
+                      '\n'.join(["{}={}".format(k, v)
+                                 for k, v in
+                                 airflow_context_vars.items()]))
+        os.environ.update(airflow_context_vars)
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
@@ -73,7 +95,5 @@ class ROperator(BaseOperator):
                     self.log.error("Received R error: %s", e)
                     res = None
 
-        if self.do_xcom_push and res:
-            # This will be a pickled rpy2.robjects.vectors.ListVector
-            self.log.info('Pushing last line of output to Xcom: \n %s', res)
-            return res
+                # This will be a pickled rpy2.robjects.vectors.ListVector
+                return res
