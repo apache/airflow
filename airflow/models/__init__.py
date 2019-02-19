@@ -3147,13 +3147,13 @@ class DAG(BaseDag, LoggingMixin):
         """
         This will create all tasks instances for a single execution date.
         This will not push to the database.
-        :param execution_date: Execution date of tasks
-        :return:
         """
         edges = []
         for task in self.task_dict.values():
             for down in task.downstream_task_ids:
                 edges.append(DagEdge(self.dag_id, graph_id, down, task.task_id))
+        for edge in edges:
+            edge.graph_id = graph_id
         return edges
 
     def create_tis(self, execution_date):

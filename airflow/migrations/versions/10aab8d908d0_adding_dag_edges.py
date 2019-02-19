@@ -60,7 +60,7 @@ def upgrade():
     op.add_column("dag_run", sa.Column("graph_id", sa.Integer, nullable=True))
 
     dag_models = session.query(DagModel).all()
-    session.query(DagRun).filter(DagRun.graph_id is None).update(graph_id=0)
+    session.query(DagRun).filter(DagRun.graph_id is None).update({"graph_id": 0})
     for dag_model in dag_models:
         first_run = session.query(DagRun)\
             .filter(DagRun.dag_id == dag_model.dag_id).first()
@@ -69,6 +69,7 @@ def upgrade():
             if dag is not None:
                 edges = dag.create_edges(graph_id=0)
                 session.add_all(edges)
+        session.commit()
 
 
 def downgrade():

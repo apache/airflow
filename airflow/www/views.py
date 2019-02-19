@@ -1337,8 +1337,6 @@ class Airflow(AirflowBaseView):
             else:
                 task_instances = dag_run.get_task_instances()
                 if not dag_run.graph_id:
-                    flash('Run "{}" for DAG "{}" does not have historical graph data, graph can be incorrect.'
-                          .format(dttm, show_dag_id), "error")
                     # Fall back on the first graph known in the database, might return an empty query.
                     tis_names = [ti.task_id for ti in task_instances]
                     edge_query = session.query(DagEdge) \

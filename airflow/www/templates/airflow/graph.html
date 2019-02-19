@@ -43,12 +43,6 @@
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <input type="submit" value="Go" class="btn btn-default">
   </form>
-  <form method="get" style="float:left;">
-    <input type="hidden" name="root" value="{{ root }}">
-    <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-    <input type="hidden" value="True" name="read_from_file">
-    <input type="submit" value="Show graph latest from DAG file" class="btn btn-default">
-  </form>
   <div class="input-group" style="float: right;">
     <input type="text" id="searchbox" class="form-control" placeholder="Search for...">
   </div>
