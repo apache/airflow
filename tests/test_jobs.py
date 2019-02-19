@@ -133,6 +133,11 @@ class BaseJobTest(unittest.TestCase):
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.Pool).delete()
+            session.query(models.TaskInstance).delete()
+
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
 
@@ -1207,7 +1212,7 @@ class BackfillJobTest(unittest.TestCase):
         job = BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE + datetime.timedelta(days=5),
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
             run_backwards=True
         )
         job.run()
