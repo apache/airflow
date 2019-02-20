@@ -21,6 +21,7 @@ import unittest
 
 from airflow import DAG
 from airflow import configuration
+from airflow.exceptions import AirflowException
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
 
@@ -39,6 +40,17 @@ class SqlSensorTests(unittest.TestCase):
             'start_date': DEFAULT_DATE
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
+
+    def test_unsupported_conn_type(self):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='redis_default',
+            sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @unittest.skipUnless(
         'mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")
@@ -88,6 +100,7 @@ class SqlSensorTests(unittest.TestCase):
             sql="SELECT 1",
         )
 
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []

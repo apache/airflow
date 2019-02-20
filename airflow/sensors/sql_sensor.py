@@ -19,6 +19,7 @@
 
 from builtins import str
 
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -49,7 +50,15 @@ class SqlSensor(BaseSensorOperator):
         super(SqlSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
-        hook = BaseHook.get_connection(self.conn_id).get_hook()
+        conn = BaseHook.get_connection(self.conn_id)
+
+        allowed_conn_type = {'google_cloud_platform', 'jdbc', 'mssql',
+                             'mysql', 'oracle', 'postgres',
+                             'presto', 'sqlite', 'vertica'}
+        if conn.conn_type not in allowed_conn_type:
+            raise AirflowException("The connection type is not supported by SqlSensor. " +
+                                   "Supported connection types: {}".format(list(allowed_conn_type)))
+        hook = conn.get_hook()
 
         self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)
         records = hook.get_records(self.sql, self.parameters)
