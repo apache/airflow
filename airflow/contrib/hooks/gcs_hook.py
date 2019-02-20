@@ -655,6 +655,54 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 'Object ACL entry creation failed. Error was: {}'.format(ex.content)
             )
 
+    def compose(self, bucket, source_objects, destination_object, num_retries=5):
+        """
+        Composes a list of existing object into a new object in the same storage bucket
+
+        Currently it only supports up to 32 objects that can be concatenated
+        in a single operation
+
+        https://cloud.google.com/storage/docs/json_api/v1/objects/compose
+
+        :param bucket: The name of the bucket containing the source objects.
+            This is also the same bucket to store the composed destination object.
+        :type bucket: str
+        :param source_objects: The list of source objects that will be composed
+            into a single object.
+        :type source_objects: list
+        :param destination_object: The path of the object if given.
+        :type destination_object: str
+        """
+
+        if not source_objects or not len(source_objects):
+            raise ValueError('source_objects cannot be empty.')
+
+        if not bucket or not destination_object:
+            raise ValueError('bucket and destination_object cannot be empty.')
+
+        service = self.get_conn()
+
+        dict_source_objects = [{'name': source_object}
+                               for source_object in source_objects]
+        body = {
+            'sourceObjects': dict_source_objects
+        }
+
+        try:
+            self.log.info("Composing %s to %s in the bucket %s",
+                          source_objects, destination_object, bucket)
+            service \
+                .objects() \
+                .compose(destinationBucket=bucket,
+                         destinationObject=destination_object,
+                         body=body) \
+                .execute(num_retries=num_retries)
+            return True
+        except HttpError as ex:
+            if ex.resp['status'] == '404':
+                return False
+            raise
+
 
 def _parse_gcs_url(gsurl):
     """

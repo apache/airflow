@@ -168,15 +168,17 @@ class BaseJob(Base, LoggingMixin):
             if job.state == State.SHUTDOWN:
                 self.kill()
 
-            # Figure out how long to sleep for
-            sleep_for = 0
-            if job.latest_heartbeat:
-                sleep_for = max(
-                    0,
-                    self.heartrate - (timezone.utcnow() -
-                                      job.latest_heartbeat).total_seconds())
+            is_unit_test = conf.getboolean('core', 'unit_test_mode')
+            if not is_unit_test:
+                # Figure out how long to sleep for
+                sleep_for = 0
+                if job.latest_heartbeat:
+                    seconds_remaining = self.heartrate - \
+                        (timezone.utcnow() - job.latest_heartbeat)\
+                        .total_seconds()
+                    sleep_for = max(0, seconds_remaining)
 
-            sleep(sleep_for)
+                sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:
@@ -1567,7 +1569,7 @@ class SchedulerJob(BaseJob):
                     "Waiting for processors to finish since we're using sqlite")
                 self.processor_agent.wait_until_finished()
 
-            self.log.info("Harvesting DAG parsing results")
+            self.log.debug("Harvesting DAG parsing results")
             simple_dags = self.processor_agent.harvest_simple_dags()
             self.log.debug("Harvested {} SimpleDAGs".format(len(simple_dags)))
 
@@ -1620,13 +1622,16 @@ class SchedulerJob(BaseJob):
                 self.heartbeat()
                 last_self_heartbeat_time = timezone.utcnow()
 
+            is_unit_test = conf.getboolean('core', 'unit_test_mode')
             loop_end_time = time.time()
             loop_duration = loop_end_time - loop_start_time
             self.log.debug(
                 "Ran scheduling loop in %.2f seconds",
                 loop_duration)
-            self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
-            time.sleep(self._processor_poll_interval)
+
+            if not is_unit_test:
+                self.log.debug("Sleeping for %.2f seconds", self._processor_poll_interval)
+                time.sleep(self._processor_poll_interval)
 
             # Exit early for a test mode, run one additional scheduler loop
             # to reduce the possibility that parsed DAG was put into the queue
@@ -1639,7 +1644,7 @@ class SchedulerJob(BaseJob):
                               " have been processed {} times".format(self.num_runs))
                 break
 
-            if loop_duration < 1:
+            if loop_duration < 1 and not is_unit_test:
                 sleep_length = 1 - loop_duration
                 self.log.debug(
                     "Sleeping for {0:.2f} seconds to prevent excessive logging"
