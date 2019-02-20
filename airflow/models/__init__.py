@@ -4087,7 +4087,7 @@ class DAG(BaseDag, LoggingMixin):
             last_edges = DagEdge.fetch_edges(self.dag_id, last_dagrun.graph_id)
 
             # Compare edges from last run
-            prev_edges = [(edge.from_task, edge.to_task) for edge in last_edges]
+            prev_edges = [(edge.task_from, edge.task_to) for edge in last_edges]
             current_edges = [(edge.task_from, edge.task_to) for edge in edges]
             is_dag_unchanged = len(current_edges) == len(prev_edges)
             is_dag_unchanged &= set(current_edges) == set(prev_edges)
