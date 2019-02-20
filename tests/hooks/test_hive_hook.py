@@ -21,8 +21,8 @@
 import datetime
 import itertools
 import os
-import sys
 import random
+import sys
 import unittest
 from collections import OrderedDict
 
@@ -39,7 +39,6 @@ from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 configuration.load_test_config()
-
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -454,7 +453,7 @@ class TestHiveServer2Hook(unittest.TestCase):
         self.assertListEqual(results['data'], [(1, 1), (2, 2)])
 
     @unittest.skipIf(NOT_ASSERTLOGS_VERSION < 3.4, 'assertLogs not support before python 3.4')
-    def test_to_csv_assertLogs(self):
+    def test_to_csv_assertlogs(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
         csv_filepath = 'query_results.csv'
@@ -469,12 +468,12 @@ class TestHiveServer2Hook(unittest.TestCase):
                           'Written 2 rows so far.', cm.output)
 
     @unittest.skipIf(NOT_ASSERTLOGS_VERSION >= 3.4, 'test could cover by test_to_csv_assertLogs')
-    def test_to_csv(self):
+    def test_to_csv_without_assertlogs(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
         csv_filepath = 'query_results.csv'
         hook.to_csv(query, csv_filepath, schema=self.database,
-                    delimiter=',', lineterminator='\n', output_header=True, fetch_size=2)
+                    delimiter=',', lineterminator='\n', output_header=True)
         df = pd.read_csv(csv_filepath, sep=',')
         self.assertListEqual(df.columns.tolist(), self.columns)
         self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
