@@ -226,8 +226,9 @@ class WorkerConfiguration(LoggingMixin):
 
         return dag_volume_mount_path
 
-    def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
-                 try_number, airflow_command, kube_executor_config):
+    def make_pod(self, namespace, worker_uuid, pod_id, cfg_annotations, dag_id,
+                 task_id, execution_date, try_number, airflow_command,
+                 kube_executor_config):
         volumes_dict, volume_mounts_dict = self.init_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers(
             copy.deepcopy(volume_mounts_dict))
@@ -241,7 +242,7 @@ class WorkerConfiguration(LoggingMixin):
         annotations = dict(kube_executor_config.annotations)
         if gcp_sa_key:
             annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
-
+        annotations.update(cfg_annotations)
         volumes = [value for value in volumes_dict.values()] + kube_executor_config.volumes
         volume_mounts = [value for value in volume_mounts_dict.values()] + kube_executor_config.volume_mounts
 
