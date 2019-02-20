@@ -69,7 +69,7 @@ def upgrade():
             if dag is not None:
                 edges = dag.create_edges(graph_id=0)
                 session.add_all(edges)
-        session.commit()
+    session.commit()
 
 
 def downgrade():
