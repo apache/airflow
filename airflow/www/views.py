@@ -1345,7 +1345,7 @@ class Airflow(AirflowBaseView):
         tis_names = [ti.task_id for ti in task_instances]
         # Cleaning edges in case some taskinstances does not exists anymore
         for e in edge_query:
-            if e.from_task not in tis_names or e.to_task not in tis_names:
+            if e.task_from not in tis_names or e.task_to not in tis_names:
                 edge_query.remove(e)
 
         nodes = [
@@ -1364,8 +1364,8 @@ class Airflow(AirflowBaseView):
 
         edges = [
             {
-                'u': edge.to_task,
-                'v': edge.from_task,
+                'u': edge.task_to,
+                'v': edge.task_from,
             }
             for edge in edge_query
         ]

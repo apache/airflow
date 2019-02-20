@@ -1089,9 +1089,9 @@ class DagRunTest(unittest.TestCase):
         edges = session.query(DagEdge)\
             .filter(DagEdge.dag_id == dag.dag_id and DagEdge.graph_id == dr.graph_id).all()
         self.assertEqual(len(edges), 3)
-        self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'B' for edge in edges))
-        self.assertTrue(any(edge.from_task == 'A' and edge.to_task == 'C' for edge in edges))
-        self.assertTrue(any(edge.from_task == 'C' and edge.to_task == 'D' for edge in edges))
+        self.assertTrue(any(edge.task_from == 'A' and edge.task_to == 'B' for edge in edges))
+        self.assertTrue(any(edge.task_from == 'A' and edge.task_to == 'C' for edge in edges))
+        self.assertTrue(any(edge.task_from == 'C' and edge.task_to == 'D' for edge in edges))
 
         # root is successful, but unfinished tasks
         state = dr.update_state()
