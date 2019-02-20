@@ -39,7 +39,7 @@ from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import configuration as conf, configuration
+from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, errors
@@ -1915,7 +1915,7 @@ class BackfillJob(BaseJob):
         :param kwargs:
         """
         if donot_pickle is None:
-            self.donot_pickle = configuration.conf.getboolean("core", "donot_pickle")
+            self.donot_pickle = conf.getboolean("core", "donot_pickle")
         else:
             self.donot_pickle = donot_pickle
         self.dag = dag
@@ -2371,8 +2371,7 @@ class BackfillJob(BaseJob):
 
         return err
 
-    def _execute_for_run_dates(self, run_dates, ti_status, executor, pickle_id,
-                               start_date):
+    def _execute_for_run_dates(self, run_dates, ti_status, executor, pickle_id, start_date):
         """
         Computes the dag runs and their respective task instances for
         the given run dates and executes the task instances.

@@ -644,9 +644,9 @@ class TaskInstance(Base, LoggingMixin):
         get killed.
 
         :param tis: a list of task instances
-        :param session: current session
         :param activate_dag_runs: flag to check for active dag run
         :param dag: DAG object
+        :param session: current session
         """
         job_ids = set()
         for ti in tis:
@@ -4088,7 +4088,7 @@ class DAG(BaseDag, LoggingMixin):
 
             # Compare edges from last run
             prev_edges = [(edge.from_task, edge.to_task) for edge in last_edges]
-            current_edges = [(edge.from_task, edge.to_task) for edge in edges]
+            current_edges = [(edge.task_from, edge.task_to) for edge in edges]
             is_dag_unchanged = len(current_edges) == len(prev_edges)
             is_dag_unchanged &= set(current_edges) == set(prev_edges)
 

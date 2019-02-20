@@ -43,9 +43,9 @@ def upgrade():
         "dag_edge",
         sa.Column("dag_id", sa.String(length=250), nullable=False),
         sa.Column("graph_id", sa.Integer, nullable=False),
-        sa.Column("from_task", sa.String(length=250), nullable=False),
-        sa.Column("to_task", sa.String(length=250), nullable=False),
-        sa.PrimaryKeyConstraint("dag_id", "graph_id", "from_task", "to_task"),
+        sa.Column("task_from", sa.String(length=250), nullable=False),
+        sa.Column("task_to", sa.String(length=250), nullable=False),
+        sa.PrimaryKeyConstraint("dag_id", "graph_id", "task_from", "task_to"),
     )
 
     op.create_index('idx_dag_edge', 'dag_edge',

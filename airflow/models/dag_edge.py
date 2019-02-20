@@ -33,16 +33,16 @@ class DagEdge(Base):
 
     dag_id = Column(String(250), primary_key=True)
     graph_id = Column(Integer, primary_key=True)
-    from_task = Column(String(250), primary_key=True)
-    to_task = Column(String(250), primary_key=True)
+    task_from = Column(String(250), primary_key=True)
+    task_to = Column(String(250), primary_key=True)
 
     __table_args__ = (Index('idx_dag_edge', dag_id, graph_id, unique=False),)
 
-    def __init__(self, dag_id, execution_date, from_task, to_task):
+    def __init__(self, dag_id, execution_date, task_from, task_to):
         self.dag_id = dag_id
         self.execution_date = execution_date
-        self.from_task = from_task
-        self.to_task = to_task
+        self.task_from = task_from
+        self.task_to = task_to
 
     @staticmethod
     def fetch_edges(dag_id, graph_id):

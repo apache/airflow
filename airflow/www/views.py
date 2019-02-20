@@ -48,8 +48,7 @@ from sqlalchemy import func, or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
-from airflow import configuration
-from airflow import configuration as conf
+from airflow.configuration import conf
 from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
@@ -1314,7 +1313,7 @@ class Airflow(AirflowBaseView):
             flash('DAG "{0}" not found.'.format(show_dag_id), "error")
             return redirect(url_for('Airflow.index'))
 
-        arrange = request.args.get('arrange', configuration.conf.get('webserver', 'dag_orientation'))
+        arrange = request.args.get('arrange', conf.get('webserver', 'dag_orientation'))
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
