@@ -77,6 +77,20 @@ class TestApiExperimental(unittest.TestCase):
         self.assertIn('error', response.data.decode('utf-8'))
         self.assertEqual(404, response.status_code)
 
+    def test_get_dag_code(self):
+        url_template = '/api/experimental/dags/{}/code'
+
+        response = self.app.get(
+            url_template.format('example_bash_operator')
+        )
+        self.assertIn('BashOperator(', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+        response = self.app.get(
+            url_template.format('xyz')
+        )
+        self.assertEqual(404, response.status_code)
+
     def test_task_paused(self):
         url_template = '/api/experimental/dags/{}/paused/{}'
 
