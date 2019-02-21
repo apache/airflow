@@ -24,27 +24,31 @@ ARG APT_DEPS="libsasl2-dev freetds-bin build-essential default-libmysqlclient-de
 
 ENV PATH="$HOME/.npm-packages/bin:$PATH"
 
-RUN if [ -n "${APT_DEPS}" ]; then apt install -y $APT_DEPS; fi \
+RUN set -euxo pipefail \
+    && apt update \
+    && if [ -n "${APT_DEPS}" ]; then apt install -y $APT_DEPS; fi \
+    && curl -sL https://deb.nodesource.com/setup_10.x | bash - \
+    && apt update \
+    && apt install -y nodejs \
     && apt autoremove -yqq --purge \
     && apt clean
 
 COPY . /opt/airflow/
 
+WORKDIR /opt/airflow/airflow/www
+RUN npm install \
+    && npm run prod
+
 WORKDIR /opt/airflow
-RUN set -x \
+RUN set -euxo pipefail \
     && apt update \
     && if [ -n "${buildDeps}" ]; then apt install -y $buildDeps; fi \
-    && curl -sL https://deb.nodesource.com/setup_11.x | bash - \
-    && apt install -y nodejs \
     && if [ -n "${PYTHON_DEPS}" ]; then pip install --no-cache-dir ${PYTHON_DEPS}; fi \
-    && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir --upgrade pip==19.0.1 \
     && pip install --no-cache-dir --no-use-pep517 -e .[$AIRFLOW_DEPS] \
     && apt purge --auto-remove -yqq $buildDeps \
     && apt autoremove -yqq --purge \
     && apt clean \
-    && cd /opt/airflow/airflow/www \
-    && npm install \
-    && npm run prod
 
 WORKDIR $AIRFLOW_HOME
 RUN mkdir -p $AIRFLOW_HOME
