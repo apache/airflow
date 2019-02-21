@@ -21,6 +21,7 @@ import unittest
 
 from airflow import DAG
 from airflow import configuration
+from airflow.exceptions import AirflowException
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime
 
@@ -40,27 +41,56 @@ class SqlSensorTests(unittest.TestCase):
         }
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
+    def test_unsupported_conn_type(self):
+        t = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='redis_default',
+            sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
+            dag=self.dag
+        )
+
+        with self.assertRaises(AirflowException):
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
     @unittest.skipUnless(
         'mysql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a mysql test")
     def test_sql_sensor_mysql(self):
-        t = SqlSensor(
+        t1 = SqlSensor(
             task_id='sql_sensor_check',
             conn_id='mysql_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag
         )
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        t1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        t2 = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='mysql_default',
+            sql="SELECT count(%s) FROM INFORMATION_SCHEMA.TABLES",
+            parameters=["table_name"],
+            dag=self.dag
+        )
+        t2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @unittest.skipUnless(
         'postgresql' in configuration.conf.get('core', 'sql_alchemy_conn'), "this is a postgres test")
     def test_sql_sensor_postgres(self):
-        t = SqlSensor(
+        t1 = SqlSensor(
             task_id='sql_sensor_check',
             conn_id='postgres_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag
         )
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        t1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        t2 = SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT count(%s) FROM INFORMATION_SCHEMA.TABLES",
+            parameters=["table_name"],
+            dag=self.dag
+        )
+        t2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch('airflow.sensors.sql_sensor.BaseHook')
     def test_sql_sensor_postgres_poke(self, mock_hook):
@@ -70,6 +100,7 @@ class SqlSensorTests(unittest.TestCase):
             sql="SELECT 1",
         )
 
+        mock_hook.get_connection('postgres_default').conn_type = "postgres"
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
