@@ -534,7 +534,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Advanced
 """"""""
 
-When creating a table, you can specify the optional ``initial_split_keys`` and ``column_familes``.
+When creating a table, you can specify the optional ``initial_split_keys`` and ``column_families``.
 Please refer to the Python Client for Google Cloud Bigtable documentation
 `for Table <https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html>`_ and `for Column
 Families <https://googleapis.github.io/google-cloud-python/latest/bigtable/column-family.html>`_.

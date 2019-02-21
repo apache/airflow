@@ -92,7 +92,7 @@ class DataFlowJavaOperator(BaseOperator):
         Cloud Platform for the dataflow job status while the job is in the
         JOB_STATE_RUNNING state.
     :type poll_sleep: int
-    :param job_class: The name of the dataflow job class to be executued, it
+    :param job_class: The name of the dataflow job class to be executed, it
         is often not the main class configured in the dataflow jar file.
     :type job_class: str
 
