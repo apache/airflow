@@ -26,13 +26,13 @@
 import kerberos
 import os
 from functools import wraps
-from socket import getfqdn
 
 import connexion
 from flask import _request_ctx_stack as stack  # type: ignore
 from flask import Response, g, make_response
 from future.standard_library import install_aliases
 from requests_kerberos import HTTPKerberosAuth
+from socket import getfqdn
 
 from airflow import configuration as conf
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -124,6 +124,12 @@ def requires_authentication(function):
     @wraps(function)
     def decorated(*args, **kwargs):
         response_headers = {}
+        log.info("Testing kerberos authentication")
+        [
+            log.info("Kerberos Headers. {k}:{v}".format(k=k, v=v))
+            for k, v
+            in connexion.request.headers.items()
+        ]
         header = connexion.request.headers['Authorization']
         if header:
             ctx = stack.top
