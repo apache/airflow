@@ -49,13 +49,15 @@ scheduler_heartbeat                 Scheduler heartbeats
 Gauges
 ------
 
-===================== =====================================
-Name                  Description
-===================== =====================================
-collect_dags          Seconds taken to scan and import DAGs
-dagbag_import_errors  DAG import errors
-dagbag_size           DAG bag size
-===================== =====================================
+=============================================== ========================================================================
+Name                                            Description
+=============================================== ========================================================================
+collect_dags                                    Seconds taken to scan and import DAGs
+dagbag_import_errors                            DAG import errors
+dagbag_size                                     DAG bag size
+dag_processing.last_runtime.<dag_file>          Seconds spent processing <dag_file> (in most recent iteration)
+dag_processing.last_run.seconds_ago.<dag_file>  Seconds since <dag_file> was last processed
+=============================================== ========================================================================
 
 Timers
 ------
