@@ -427,8 +427,8 @@ Extra (optional)
        {
           "encoding": "UTF-8",
           "nencoding": "UTF-8",
-          "threaded": False,
-          "events": False,
+          "threaded": false,
+          "events": false,
           "mode": "sysdba",
           "purity": "new"
        }
