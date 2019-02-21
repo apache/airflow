@@ -69,7 +69,8 @@ class QuboleCheckOperator(CheckOperator, QuboleOperator):
             which the checks have to be performed.
 
     .. note:: All fields in common with template fields of
-            QuboleOperator and CheckOperator are template-supported.
+        QuboleOperator and CheckOperator are template-supported.
+
     """
 
     template_fields = QuboleOperator.template_fields + CheckOperator.template_fields
@@ -128,13 +129,13 @@ class QuboleValueCheckOperator(ValueCheckOperator, QuboleOperator):
     :type qubole_conn_id: str
 
     :param pass_value: Expected value of the query results.
-    :type pass_value: str/int/float
+    :type pass_value: str or int or float
 
     :param tolerance: Defines the permissible pass_value range, for example if
         tolerance is 2, the Qubole command output can be anything between
         -2*pass_value and 2*pass_value, without the operator erring out.
 
-    :type tolerance: int/float
+    :type tolerance: int or float
 
 
     kwargs:

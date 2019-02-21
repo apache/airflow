@@ -96,6 +96,6 @@ class BaseDagBag(object):
     def get_dag(self, dag_id):
         """
         :return: whether the task exists in this bag
-        :rtype: BaseDag
+        :rtype: airflow.dag.base_dag.BaseDag
         """
         raise NotImplementedError()

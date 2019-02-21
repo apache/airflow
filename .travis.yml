@@ -48,6 +48,9 @@ jobs:
     - name: Check license header
       stage: pre-test
       script: scripts/ci/6-check-license.sh
+    - name: Check docs
+      stage: pre-test
+      script: pip install -e .[doc] && docs/build.sh
 
 cache:
   directories:
@@ -65,8 +68,11 @@ install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
+  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet --parallel
 script:
-  - if [ -z "$KUBERNETES_VERSION" ]; then docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh; fi
+  - if [ -z "$KUBERNETES_VERSION" ]; then
+      docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
+    fi
   - if [ ! -z "$KUBERNETES_VERSION" ]; then
       ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
       ./scripts/ci/kubernetes/setup_kubernetes.sh &&

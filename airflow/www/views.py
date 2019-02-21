@@ -54,8 +54,12 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import XCom, DagRun, errors
+from airflow.models import DagRun, errors
 from airflow.models.connection import Connection
+from airflow.models.log import Log
+from airflow.models.slamiss import SlaMiss
+from airflow.models.taskfail import TaskFail
+from airflow.models.xcom import XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -1425,7 +1429,7 @@ class Airflow(AirflowBaseView):
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
-        TF = models.TaskFail
+        TF = TaskFail
         ti_fails = (
             session.query(TF)
                    .filter(TF.dag_id == dag.dag_id,
@@ -1675,10 +1679,10 @@ class Airflow(AirflowBaseView):
             session.merge(orm_dag)
         session.commit()
 
+        dag = dagbag.get_dag(dag_id)
         # sync dag permission
-        appbuilder.sm.sync_perm_for_dag(dag_id)
+        appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
 
-        dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
@@ -1688,7 +1692,8 @@ class Airflow(AirflowBaseView):
     def refresh_all(self):
         dagbag.collect_dags(only_if_updated=False)
         # sync permissions for all dags
-        appbuilder.sm.sync_perm_for_dag()
+        for dag_id, dag in dagbag.dags.items():
+            appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
         flash("All DAGs are now up to date")
         return redirect('/')
 
@@ -1719,7 +1724,7 @@ class Airflow(AirflowBaseView):
             ti for ti in dag.get_task_instances(session, dttm, dttm)
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
-        TF = models.TaskFail
+        TF = TaskFail
         ti_fails = list(itertools.chain(*[(
             session
             .query(TF)
@@ -1884,7 +1889,7 @@ class AirflowModelView(ModelView):
 class SlaMissModelView(AirflowModelView):
     route_base = '/slamiss'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.SlaMiss)
+    datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)
 
     base_permissions = ['can_list']
 
@@ -1906,7 +1911,7 @@ class SlaMissModelView(AirflowModelView):
 class XComModelView(AirflowModelView):
     route_base = '/xcom'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.XCom)
+    datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
@@ -2275,7 +2280,7 @@ class DagRunModelView(AirflowModelView):
 class LogModelView(AirflowModelView):
     route_base = '/log'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.Log)
+    datamodel = AirflowModelView.CustomSQLAInterface(Log)
 
     base_permissions = ['can_list']
 
@@ -2424,7 +2429,7 @@ class DagModelView(AirflowModelView):
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagModel)
 
-    base_permissions = ['can_list', 'can_show']
+    base_permissions = ['can_list', 'can_show', 'can_edit']
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']

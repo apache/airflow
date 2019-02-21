@@ -26,6 +26,10 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     """
     Creates a new ACL entry on the specified bucket.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator`
+
     :param bucket: Name of a bucket.
     :type bucket: str
     :param entity: The entity holding the permission, in one of the following forms:
@@ -68,6 +72,10 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
 class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
     """
     Creates a new ACL entry on the specified object.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator`
 
     :param bucket: Name of a bucket.
     :type bucket: str

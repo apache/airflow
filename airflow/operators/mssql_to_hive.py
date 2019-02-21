@@ -19,9 +19,10 @@
 
 from builtins import chr
 from collections import OrderedDict
-import unicodecsv as csv
 from tempfile import NamedTemporaryFile
+
 import pymssql
+import unicodecsv as csv
 
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.hooks.mssql_hook import MsSqlHook
@@ -72,18 +73,17 @@ class MsSqlToHiveTransfer(BaseOperator):
     ui_color = '#a0e08c'
 
     @apply_defaults
-    def __init__(
-            self,
-            sql,
-            hive_table,
-            create=True,
-            recreate=False,
-            partition=None,
-            delimiter=chr(1),
-            mssql_conn_id='mssql_default',
-            hive_cli_conn_id='hive_cli_default',
-            tblproperties=None,
-            *args, **kwargs):
+    def __init__(self,
+                 sql,
+                 hive_table,
+                 create=True,
+                 recreate=False,
+                 partition=None,
+                 delimiter=chr(1),
+                 mssql_conn_id='mssql_default',
+                 hive_cli_conn_id='hive_cli_default',
+                 tblproperties=None,
+                 *args, **kwargs):
         super(MsSqlToHiveTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table
@@ -98,38 +98,34 @@ class MsSqlToHiveTransfer(BaseOperator):
 
     @classmethod
     def type_map(cls, mssql_type):
-        t = pymssql
-        d = {
-            t.BINARY.value: 'INT',
-            t.DECIMAL.value: 'FLOAT',
-            t.NUMBER.value: 'INT',
+        map_dict = {
+            pymssql.BINARY.value: 'INT',
+            pymssql.DECIMAL.value: 'FLOAT',
+            pymssql.NUMBER.value: 'INT',
         }
-        return d[mssql_type] if mssql_type in d else 'STRING'
+        return map_dict[mssql_type] if mssql_type in map_dict else 'STRING'
 
     def execute(self, context):
-        hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mssql = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
-
         self.log.info("Dumping Microsoft SQL Server query results to local file")
-        conn = mssql.get_conn()
-        cursor = conn.cursor()
-        cursor.execute(self.sql)
-        with NamedTemporaryFile("w") as f:
-            csv_writer = csv.writer(f, delimiter=self.delimiter, encoding='utf-8')
-            field_dict = OrderedDict()
-            col_count = 0
-            for field in cursor.description:
-                col_count += 1
-                col_position = "Column{position}".format(position=col_count)
-                field_dict[col_position if field[0] == '' else field[0]] \
-                    = self.type_map(field[1])
-            csv_writer.writerows(cursor)
-            f.flush()
-            cursor.close()
-            conn.close()
+        with mssql.get_conn() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(self.sql)
+                with NamedTemporaryFile("w") as tmp_file:
+                    csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding='utf-8')
+                    field_dict = OrderedDict()
+                    col_count = 0
+                    for field in cursor.description:
+                        col_count += 1
+                        col_position = "Column{position}".format(position=col_count)
+                        field_dict[col_position if field[0] == '' else field[0]] = self.type_map(field[1])
+                    csv_writer.writerows(cursor)
+                    tmp_file.flush()
+
+            hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
             self.log.info("Loading file into Hive")
             hive.load_file(
-                f.name,
+                tmp_file.name,
                 self.hive_table,
                 field_dict=field_dict,
                 create=self.create,

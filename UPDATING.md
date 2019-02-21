@@ -24,7 +24,37 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-## Changes in Google Cloud Platform related operators
+### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator` 
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator` 
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+
+### Renamed "extra" requirements for cloud providers
+
+Subpackages for specific services have been combined into one variant for
+each cloud provider.
+
+If you want to install integration for Microsoft Azure, then instead of
+```
+pip install apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]
+```
+you should execute `pip install apache-airflow[azure]`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install apache-airflow[s3,emr]`, you should execute `pip install apache-airflow[aws]`
+
+The integration with GCP is unchanged.
+
+### Changes in Google Cloud Platform related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -51,7 +81,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-## Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
@@ -107,14 +137,6 @@ so you might need to update your config.
 
 `task_runner = StandardTaskRunner`
 
-### DAG level Access Control for new RBAC UI
-
-Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
-The admin will create new role, associate the dag permission with the target dag and assign that role to users. That user can only access / view the certain dags on the UI
-that he has permissions on. If a new role wants to access all the dags, the admin could associate dag permissions on an artificial view(``all_dags``) with that role.
-
-We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
-
 
 ### min_file_parsing_loop_time config option temporarily disabled
 
@@ -152,10 +174,24 @@ To remove a user from a role:
 airflow users --remove-role --username jondoe --role Public
 ```
 
+### Unification of `do_xcom_push` flag
+The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+
 ## Airflow 1.10.2
 
+### DAG level Access Control for new RBAC UI
+
+Extend and enhance new Airflow RBAC UI to support DAG level ACL. Each dag now has two permissions(one for write, one for read) associated('can_dag_edit', 'can_dag_read').
+The admin will create new role, associate the dag permission with the target dag and assign that role to users. That user can only access / view the certain dags on the UI
+that he has permissions on. If a new role wants to access all the dags, the admin could associate dag permissions on an artificial view(``all_dags``) with that role.
+
+We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
+
 ### Modification to `ts_nodash` macro
-`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes. 
+`ts_nodash` previously contained TimeZone information along with execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
 
 Examples:
   * `ts_nodash`: `20150101T000000`

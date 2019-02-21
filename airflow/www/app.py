@@ -53,6 +53,11 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.config.from_pyfile(webserver_config_path, silent=True)
     app.config['APP_NAME'] = app_name
     app.config['TESTING'] = testing
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
+    app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
 
     csrf.init_app(app)
 
@@ -130,7 +135,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 href='https://airflow.apache.org/',
                                 category="Docs",
                                 category_icon="fa-cube")
-            appbuilder.add_link("Github",
+            appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
             appbuilder.add_link('Version',
@@ -141,7 +146,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             def integrate_plugins():
                 """Integrate plugins to the context"""
                 from airflow.plugins_manager import (
-                    flask_appbuilder_views, flask_appbuilder_menu_links)
+                    flask_appbuilder_views, flask_appbuilder_menu_links
+                )
 
                 for v in flask_appbuilder_views:
                     log.debug("Adding view %s", v["name"])
@@ -161,7 +167,15 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
             # will add the new Views and Menus names to the backend, but will not
             # delete the old ones.
 
+        def init_plugin_blueprints(app):
+            from airflow.plugins_manager import flask_blueprints
+
+            for bp in flask_blueprints:
+                log.debug("Adding blueprint %s:%s", bp["name"], bp["blueprint"].import_name)
+                app.register_blueprint(bp["blueprint"])
+
         init_views(appbuilder)
+        init_plugin_blueprints(app)
 
         security_manager = appbuilder.sm
         security_manager.sync_roles()
@@ -193,7 +207,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
 
 def root_app(env, resp):
-    resp(b'404 Not Found', [(b'Content-Type', b'text/plain')])
+    resp(b'404 Not Found', [('Content-Type', 'text/plain')])
     return [b'Apache Airflow is not at this location']
 
 

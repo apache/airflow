@@ -59,8 +59,10 @@ class TestWorkerPrecheck(unittest.TestCase):
         Test to check the behaviour of validate_session method
         when worker_precheck is absent in airflow configuration
         """
-        mock_getboolean.side_effect = airflow.configuration.AirflowConfigException
-        self.assertEqual(airflow.settings.validate_session(), True)
+        mock_getboolean.return_value = False
+
+        self.assertTrue(airflow.settings.validate_session())
+        mock_getboolean.assert_called_once_with('core', 'worker_precheck', fallback=False)
 
     @mock.patch('sqlalchemy.orm.session.Session.execute')
     @mock.patch('airflow.configuration.getboolean')

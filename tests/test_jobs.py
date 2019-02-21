@@ -48,6 +48,7 @@ from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
     errors
+from airflow.models.slamiss import SlaMiss
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -132,6 +133,11 @@ class BaseJobTest(unittest.TestCase):
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.Pool).delete()
+            session.query(models.TaskInstance).delete()
+
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
 
@@ -340,44 +346,44 @@ class BackfillJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_upstream_failed_tasks(self):
-            dag = DAG(
-                dag_id='test_backfill_rerun_upstream_failed',
-                start_date=DEFAULT_DATE,
-                schedule_interval='@daily')
+        dag = DAG(
+            dag_id='test_backfill_rerun_upstream_failed',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
 
-            with dag:
-                t1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
-                                   dag=dag)
-                t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
-                                   dag=dag)
-                t1.set_upstream(t2)
+        with dag:
+            t1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
+                               dag=dag)
+            t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
+                               dag=dag)
+            t1.set_upstream(t2)
 
-            dag.clear()
-            executor = TestExecutor(do_update=True)
+        dag.clear()
+        executor = TestExecutor(do_update=True)
 
-            job = BackfillJob(dag=dag,
-                              executor=executor,
-                              start_date=DEFAULT_DATE,
-                              end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                              )
-            job.run()
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          )
+        job.run()
 
-            ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
-                    execution_date=DEFAULT_DATE)
-            ti.refresh_from_db()
-            ti.set_state(State.UPSTREAM_FAILED)
+        ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.set_state(State.UPSTREAM_FAILED)
 
-            job = BackfillJob(dag=dag,
-                              executor=executor,
-                              start_date=DEFAULT_DATE,
-                              end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                              rerun_failed_tasks=True
-                              )
-            job.run()
-            ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
-                    execution_date=DEFAULT_DATE)
-            ti.refresh_from_db()
-            self.assertEqual(ti.state, State.SUCCESS)
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          rerun_failed_tasks=True
+                          )
+        job.run()
+        ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_failed_tasks_without_flag(self):
         dag = DAG(
@@ -621,6 +627,41 @@ class BackfillJobTest(unittest.TestCase):
         # task ran
         self.assertEqual(ti.state, State.SUCCESS)
         dag.clear()
+
+    def test_cli_backfill_depends_on_past_backwards(self):
+        """
+        Test that CLI respects -B argument and raises on interaction with depends_on_past
+        """
+        dag_id = 'test_depends_on_past'
+        start_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        end_date = start_date + datetime.timedelta(days=1)
+        args = [
+            'backfill',
+            dag_id,
+            '-l',
+            '-s',
+            start_date.isoformat(),
+            '-e',
+            end_date.isoformat(),
+            '-I'
+        ]
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+
+        cli.backfill(self.parser.parse_args(args + ['-I']))
+        ti = TI(dag.get_task('test_dop_task'), end_date)
+        ti.refresh_from_db()
+        # runs fine forwards
+        self.assertEqual(ti.state, State.SUCCESS)
+
+        # raises backwards
+        expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
+            'test_dop_task')
+        self.assertRaisesRegexp(
+            AirflowException,
+            expected_msg,
+            cli.backfill,
+            self.parser.parse_args(args + ['-B']))
 
     def test_cli_receives_delay_arg(self):
         """
@@ -1146,7 +1187,8 @@ class BackfillJobTest(unittest.TestCase):
             DummyOperator(
                 task_id='dummy',
                 dag=dag,
-                owner='airflow')
+                owner='airflow',
+            )
             return dag
 
         test_dag = get_test_dag_for_backfill()
@@ -1162,6 +1204,30 @@ class BackfillJobTest(unittest.TestCase):
                          test_dag.get_run_dates(
                              start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
                              end_date=DEFAULT_DATE,))
+
+    def test_backfill_run_backwards(self):
+        dag = self.dagbag.get_dag("test_start_date_scheduling")
+        dag.clear()
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            run_backwards=True
+        )
+        job.run()
+
+        session = settings.Session()
+        tis = session.query(TI).filter(
+            TI.dag_id == 'test_start_date_scheduling' and TI.task_id == 'dummy'
+        ).order_by(TI.execution_date).all()
+
+        queued_times = [ti.queued_dttm for ti in tis]
+        self.assertTrue(queued_times == sorted(queued_times, reverse=True))
+        self.assertTrue(all([ti.state == State.SUCCESS for ti in tis]))
+
+        dag.clear()
+        session.close()
 
 
 class LocalTaskJobTest(unittest.TestCase):
@@ -1326,11 +1392,32 @@ class LocalTaskJobTest(unittest.TestCase):
 class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
-        self.dagbag = DagBag()
         with create_session() as session:
             session.query(models.DagRun).delete()
+            session.query(models.TaskInstance).delete()
+            session.query(models.Pool).delete()
+            session.query(models.DagModel).delete()
+            session.query(SlaMiss).delete()
             session.query(errors.ImportError).delete()
             session.commit()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag()
+
+        def getboolean(section, key):
+            if section.lower() == 'core' and key.lower() == 'load_examples':
+                return False
+            else:
+                return configuration.conf.getboolean(section, key)
+
+        cls.patcher = mock.patch('airflow.jobs.conf.getboolean')
+        mock_getboolean = cls.patcher.start()
+        mock_getboolean.side_effect = getboolean
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patcher.stop()
 
     @staticmethod
     def run_single_scheduler_loop_with_no_dags(dags_folder):
@@ -2386,7 +2473,8 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertTrue(dag.start_date > datetime.datetime.utcnow())
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # zero tasks ran
@@ -2410,7 +2498,8 @@ class SchedulerJobTest(unittest.TestCase):
             session.commit()
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # still one task
@@ -2427,6 +2516,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
         scheduler = SchedulerJob(dag_id,
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
                                  num_runs=2)
         scheduler.run()
 
@@ -2449,7 +2539,8 @@ class SchedulerJobTest(unittest.TestCase):
             dag.clear()
 
         scheduler = SchedulerJob(dag_ids=dag_ids,
-                                 num_runs=2)
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
         scheduler.run()
 
         # zero tasks ran
@@ -2974,11 +3065,11 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date,
-                                     email_sent=False,
-                                     notification_sent=True))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date,
+                              email_sent=False,
+                              notification_sent=True))
 
         # Now call manage_slas and see if the sla_miss callback gets called
         scheduler = SchedulerJob(dag_id='test_sla_miss',
@@ -3011,9 +3102,9 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='Success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
 
         # Now call manage_slas and see if the sla_miss callback gets called
         scheduler = SchedulerJob(dag_id='test_sla_miss')
@@ -3053,9 +3144,9 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='Success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
 
         scheduler = SchedulerJob(dag_id='test_sla_miss',
                                  num_runs=1)
@@ -3158,7 +3249,7 @@ class SchedulerJobTest(unittest.TestCase):
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.RUNNING)
+        self.assertIn(ti.state, [State.RUNNING, State.SUCCESS])
 
     @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
     def test_retry_handling_job(self):
