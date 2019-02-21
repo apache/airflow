@@ -46,10 +46,11 @@ class OracleHook(DbApiHook):
         :param dsn: the host address for the Oracle server
         :param service_name: the db_unique_name of the database
               that you are connecting to (CONNECT_DATA part of TNS)
+        
         You can set these parameters in the extra fields of your connection
         as in ``{ "dsn":"some.host.address" , "service_name":"some.service.name" }``
         see more param detail in
-        ``https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect``
+        `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
         """
         conn = self.get_connection(self.oracle_conn_id)
         conn_config = {
