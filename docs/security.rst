@@ -519,7 +519,7 @@ on limited web views
         'LogModelView',
         'Docs',
         'Documentation',
-        'Github',
+        'GitHub',
         'About',
         'Version',
         'VersionView',

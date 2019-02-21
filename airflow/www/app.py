@@ -119,7 +119,7 @@ def create_app(config=None, testing=False):
             url='https://airflow.apache.org/'))
         admin.add_link(
             base.MenuLink(category='Docs',
-                          name='Github',
+                          name='GitHub',
                           url='https://github.com/apache/airflow'))
 
         av(vs.VersionView(name='Version', category="About"))

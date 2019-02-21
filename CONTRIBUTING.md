@@ -263,7 +263,7 @@ The JIRA link should also be contained in the PR description.
 4. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]**
 where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release.
 By placing the JIRA number in the commit title and hence in the release notes,
-Airflow users can look into JIRA and Github PRs for more details about a particular change.
+Airflow users can look into JIRA and GitHub PRs for more details about a particular change.
 5. Add an [Apache License](http://www.apache.org/legal/src-headers.html)
  header to all new files
 6. If the pull request adds functionality, the docs should be updated as part
@@ -284,7 +284,6 @@ using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --
 9. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on
 commit messages and adhere to them. It makes the lives of those who
 come after you a lot easier.
-
 
 ### Changing the Metadata Database
 
