@@ -63,7 +63,7 @@ AIRFLOW_GIT_LOCATION = os.environ.get(
     "AIRFLOW_GIT",
     os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-# Remote name which points to the Gihub site
+# Remote name which points to the GitHub site
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
 # OAuth key used for issuing requests against the GitHub API. If this is not
 # defined, then requests will be unauthenticated. You should only need to

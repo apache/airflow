@@ -276,7 +276,7 @@ class SalesforceHook(BaseHook):
 
             schema = self.describe_object(object_name)
 
-            # possible columns that can be convereted to timestamps
+            # possible columns that can be converted to timestamps
             # are the ones that are either date or datetime types
             # strings are too general and we risk unintentional conversion
             possible_timestamp_cols = [
