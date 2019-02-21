@@ -2113,7 +2113,7 @@ class BaseOperator(LoggingMixin):
             raise AirflowException(
                 "The trigger_rule must be one of {all_triggers},"
                 "'{d}.{t}'; received '{tr}'."
-                .format(all_triggers=TriggerRule.all_triggers,
+                .format(all_triggers=TriggerRule.all_triggers(),
                         d=dag.dag_id if dag else "", t=task_id, tr=trigger_rule))
 
         self.trigger_rule = trigger_rule
