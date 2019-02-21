@@ -75,7 +75,7 @@ Here's the list of the subpackages and what they enable:
 | gcp_api             | ``pip install apache-airflow[gcp_api]``           | Google Cloud Platform hooks and operators                            |
 |                     |                                                   | (using ``google-api-python-client``)                                 |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
-| github_enterprise   | ``pip install apache-airflow[github_enterprise]`` | Github Enterprise auth backend                                       |
+| github_enterprise   | ``pip install apache-airflow[github_enterprise]`` | GitHub Enterprise auth backend                                       |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | google_auth         | ``pip install apache-airflow[google_auth]``       | Google auth backend                                                  |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
