@@ -44,13 +44,16 @@ jobs:
   include:
     - name: Flake8
       stage: pre-test
-      script: pip install flake8 && flake8
+      install: pip install flake8
+      script: flake8
     - name: Check license header
       stage: pre-test
+      install: skip
       script: scripts/ci/6-check-license.sh
     - name: Check docs
       stage: pre-test
-      script: pip install -e .[doc] && docs/build.sh
+      install: pip install -e .[doc]
+      script: docs/build.sh
 
 cache:
   directories:
