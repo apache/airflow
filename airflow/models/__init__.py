@@ -1718,10 +1718,12 @@ class TaskInstance(Base, LoggingMixin):
     def email_alert(self, exception):
         exception_html = str(exception).replace('\n', '<br>')
         jinja_context = self.get_template_context()
+        # This function is called after changing the state
+        # from State.RUNNING so need to subtract 1 from self.try_number.
         jinja_context.update(dict(
             exception=exception,
             exception_html=exception_html,
-            try_number=self.try_number,
+            try_number=self.try_number - 1,
             max_tries=self.max_tries))
 
         jinja_env = self.task.get_template_env()
