@@ -208,6 +208,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator
+.. autoclass:: airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator
 .. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
@@ -492,12 +493,18 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.fs_hook.FSHook
 .. autoclass:: airflow.contrib.hooks.ftp_hook.FTPHook
 .. autoclass:: airflow.contrib.hooks.ftp_hook.FTPSHook
+.. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
 .. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
 .. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
 .. autoclass:: airflow.contrib.hooks.gcp_compute_hook.GceHook
+.. autoclass:: airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook
 .. autoclass:: airflow.contrib.hooks.gcp_function_hook.GcfHook
-.. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
 .. autoclass:: airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook
+.. autoclass:: airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook
+.. autoclass:: airflow.contrib.hooks.gcp_sql_hook.CloudSqlProxyRunner
+.. autoclass:: airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook
+.. autoclass:: airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
