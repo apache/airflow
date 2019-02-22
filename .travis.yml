@@ -17,7 +17,7 @@
 # under the License.
 #
 sudo: true
-dist: trusty
+dist: xenial
 language: python
 python:
   - "3.6"
@@ -33,7 +33,7 @@ env:
     - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
     - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
     - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
-    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.10.0 PYTHON_VERSION=3
+    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
 
 stages:
   - pre-test
