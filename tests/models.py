@@ -2819,6 +2819,7 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(email, 'to')
         self.assertIn('test_email_alert', title)
         self.assertIn('test_email_alert', body)
+        self.assertIn('Try 1', body)
 
     @patch('airflow.models.send_email')
     def test_email_alert_with_config(self, mock_send_email):
