@@ -31,6 +31,7 @@ GCP_CLOUDSQL_KEY = 'gcp_cloudsql.json'
 GCP_BIGTABLE_KEY = 'gcp_bigtable.json'
 GCP_SPANNER_KEY = 'gcp_spanner.json'
 GCP_GCS_KEY = 'gcp_gcs.json'
+GCP_AI_KEY = 'gcp_ai.json'
 
 KEYPATH_EXTRA = 'extra__google_cloud_platform__key_path'
 KEYFILE_DICT_EXTRA = 'extra__google_cloud_platform__keyfile_dict'

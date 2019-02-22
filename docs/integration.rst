@@ -593,6 +593,31 @@ Transfer Service
 They also use :class:`airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook` to communicate with Google Cloud Platform.
 
 
+Cloud Vision
+''''''''''''
+
+Cloud Vision Product Search Operators
+"""""""""""""""""""""""""""""""""""""
+
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
+    Creates a new ProductSet resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
+    Gets information associated with a ProductSet.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
+    Makes changes to a ProductSet resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
+    Permanently deletes a ProductSet.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
+    Creates a new Product resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
+    Gets information associated with a Product.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
+    Makes changes to a Product resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
+    Permanently deletes a product and its reference images.
+
+They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
+
 Google Kubernetes Engine
 ''''''''''''''''''''''''
 
