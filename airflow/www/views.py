@@ -35,7 +35,6 @@ from textwrap import dedent
 
 import bleach
 import markdown
-import nvd3
 import pendulum
 import sqlalchemy as sqla
 from flask import (
@@ -79,6 +78,7 @@ from airflow.utils.json import json_ser
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
+from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
