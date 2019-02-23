@@ -24,6 +24,12 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### New `dag_discovery_safe_mode` config option
+
+If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
+they contain the strings "airflow" and "DAG". For backwards
+compatibility, this option is enabled by default.
+
 ### Removed deprecated import mechanism
 
 The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
