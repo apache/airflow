@@ -30,6 +30,6 @@ def init_app(app):
 def requires_authentication(function):
     @wraps(function)
     def decorated(*args, **kwargs):
-        return Response("Forbidden", 403)
+        return "Forbidden", 403
 
     return decorated
