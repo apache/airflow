@@ -19,6 +19,10 @@
 
 from functools import wraps
 
+import connexion
+
+from airflow.api import log
+
 client_auth = None
 
 
@@ -29,6 +33,12 @@ def init_app(app):
 def requires_authentication(function):
     @wraps(function)
     def decorated(*args, **kwargs):
+        log.info("Testing kerberos authentication")
+        [
+            log.info("Kerberos Headers. {k}:{v}".format(k=k, v=v))
+            for k, v
+            in connexion.request.headers.items()
+        ]
         return function(*args, **kwargs)
 
     return decorated

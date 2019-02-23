@@ -47,7 +47,8 @@ class RestApiPlugin(AirflowPlugin):
             specification_dir=pkg_resources.resource_filename(
                 __name__,
                 ''
-            )
+            ),
+            debug=True
         )
         log.debug("Loading airflow API.")
         experimental_api = app.add_api(
@@ -124,26 +125,34 @@ class AirflowRestyResolver(Resolver):
                     response = jsonify(error="{}".format(err))
                     response.status_code = err.status_code
                     return response, response.status_code
+                except Exception as err:
+                    return str(err), 500
 
             return handler
 
         def ensure_serialisable(func):
             def handler(*args, **kwargs):
+                status = 200
+                headers = {}
                 result = func(*args, **kwargs)
+                if isinstance(result, tuple):
+                    result, status, headers = result
                 if isinstance(result, list):
                     if len(result):
                         if hasattr(result[0], 'to_json'):
-                            return [i.to_json() for i in result]
+                            return [i.to_json() for i in result], status, headers
                         else:
-                            return [dict(i) for i in result]
+                            return [dict(i) for i in result], status, headers
                     else:
-                        return []
+                        return [], status, headers
                 elif hasattr(result, 'to_json'):
-                    return result.to_json()
+                    return result.to_json(), status, headers
                 elif isinstance(result, dict):
-                    return result
+                    return result, status, headers
+                elif isinstance(result, str):
+                    return result, status, headers
                 else:
-                    return var_properties(result)
+                    return var_properties(result), status, headers
 
             return handler
 
@@ -174,7 +183,7 @@ class AirflowRestyResolver(Resolver):
 
         handler = '{}.{}'.format(controller, get_function_name())
         if (self.version == 'experimental') \
-           and (handler in self.handler_mapping):
+            and (handler in self.handler_mapping):
             # If we're using the experimental API, use the explicit mapping
             # from `self.handler_mapping`.
             return self.handler_mapping[handler]

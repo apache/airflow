@@ -124,14 +124,14 @@ def requires_authentication(function):
     @wraps(function)
     def decorated(*args, **kwargs):
         response_headers = {}
-        log.info("Testing kerberos authentication")
         [
-            log.info("Kerberos Headers. {k}:{v}".format(k=k, v=v))
+            log.debug("Kerberos Headers - {k}:{v}".format(k=k, v=v))
             for k, v
             in connexion.request.headers.items()
         ]
-        header = connexion.request.headers['Authorization']
-        if header:
+        headers = connexion.request.headers
+        if 'Authorization' in headers:
+            header = headers['Authorization']
             ctx = stack.top
             token = ''.join(header.split()[1:])
             rc = _gssapi_authenticate(token)
