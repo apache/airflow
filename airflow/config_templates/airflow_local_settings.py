@@ -22,6 +22,7 @@ from typing import Dict, Any
 
 from airflow import configuration as conf
 from airflow.utils.file import mkdirs
+from airflow.utils.log.json_formatter import create_formatter
 
 # TODO: Logging format and level should be configured
 # in this file instead of from airflow.cfg. Currently
@@ -56,9 +57,16 @@ REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
 ELASTICSEARCH_HOST = conf.get('elasticsearch', 'ELASTICSEARCH_HOST')
 
-LOG_ID_TEMPLATE = conf.get('elasticsearch', 'ELASTICSEARCH_LOG_ID_TEMPLATE')
+ELASTICSEARCH_LOG_ID_TEMPLATE = conf.get('elasticsearch', 'ELASTICSEARCH_LOG_ID_TEMPLATE')
 
-END_OF_LOG_MARK = conf.get('elasticsearch', 'ELASTICSEARCH_END_OF_LOG_MARK')
+ELASTICSEARCH_END_OF_LOG_MARK = conf.get('elasticsearch', 'ELASTICSEARCH_END_OF_LOG_MARK')
+
+ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'ELASTICSEARCH_WRITE_STDOUT')
+
+ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'ELASTICSEARCH_JSON_FORMAT')
+
+ELASTICSEARCH_RECORD_LABELS = conf.get('elasticsearch', 'ELASTICSEARCH_RECORD_LABELS')
+
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
@@ -67,6 +75,10 @@ DEFAULT_LOGGING_CONFIG = {
         'airflow': {
             'format': LOG_FORMAT,
         },
+        'json': {
+            '()': create_formatter,
+            'record_labels': ['created', 'filename', 'lineno', 'levelname', 'msg'],
+        }
     },
     'handlers': {
         'console': {
@@ -165,10 +177,13 @@ REMOTE_HANDLERS = {
             'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            'log_id_template': LOG_ID_TEMPLATE,
+            'log_id_template': ELASTICSEARCH_LOG_ID_TEMPLATE,
             'filename_template': FILENAME_TEMPLATE,
-            'end_of_log_mark': END_OF_LOG_MARK,
+            'end_of_log_mark': ELASTICSEARCH_END_OF_LOG_MARK,
             'host': ELASTICSEARCH_HOST,
+            'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
+            'json_format': ELASTICSEARCH_JSON_FORMAT,
+            'record_labels': ELASTICSEARCH_RECORD_LABELS
         },
     },
 }

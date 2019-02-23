@@ -19,6 +19,9 @@
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
+import logging
+import re
+import sys
 import pendulum
 from elasticsearch_dsl import Search
 
@@ -26,6 +29,21 @@ from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.json_formatter import create_formatter
+
+
+class ParentStdout():
+    """
+    Keep track of the ParentStdout stdout context in child process
+    """
+    def __init__(self):
+        self.closed = False
+
+    def write(self, string):
+        sys.__stdout__.write(string)
+
+    def close(self):
+        self.closed = True
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -50,6 +68,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
+                 write_stdout, json_format, record_labels,
                  host='localhost:9200'):
         """
         :param base_log_folder: base folder to store logs locally
@@ -67,6 +86,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
+        self.write_stdout = write_stdout
+        self.json_format = json_format
+        self.record_labels = [label.strip() for label in record_labels.split(",")]
+
+        self.handler = None
 
     def _render_log_id(self, ti, try_number):
         if self.log_id_jinja_template:
@@ -74,11 +98,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             jinja_context['try_number'] = try_number
             return self.log_id_jinja_template.render(**jinja_context)
 
+        execution_date = self._clean_execution_date(ti.execution_date)
         return self.log_id_template.format(dag_id=ti.dag_id,
                                            task_id=ti.task_id,
-                                           execution_date=ti
-                                           .execution_date.isoformat(),
+                                           execution_date=execution_date,
                                            try_number=try_number)
+
+    # Remove elasticsearch reserved characters
+    # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
+    def _clean_execution_date(self, execution_date):
+        return re.sub(r"[\+\-\:\.]", "", execution_date.isoformat())
 
     def _read(self, ti, try_number, metadata=None):
         """
@@ -164,6 +193,35 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         super().set_context(ti)
         self.mark_end_on_close = not ti.raw
 
+        if self.write_stdout:
+            self.writer = ParentStdout()
+            sys.stdout = self.writer
+
+            self.handler = logging.StreamHandler(stream=sys.stdout)
+            self.handler.setLevel(self.level)
+            if self.json_format and not ti.raw:
+                self.handler.setFormatter(create_formatter(self.record_labels, {
+                    'dag_id': str(ti.dag_id),
+                    'task_id': str(ti.task_id),
+                    'execution_date': self._clean_execution_date(ti.execution_date),
+                    'try_number': str(ti.try_number)}))
+            else:
+                self.handler.setFormatter(self.formatter)
+        else:
+            super(ElasticsearchTaskHandler, self).set_context(ti)
+
+    def emit(self, record):
+        if self.write_stdout:
+            self.formatter.format(record)
+            if self.handler is not None:
+                self.handler.emit(record)
+        else:
+            super(ElasticsearchTaskHandler, self).emit(record)
+
+    def flush(self):
+        if self.handler is not None:
+            self.handler.flush()
+
     def close(self):
         # When application exit, system shuts down all handlers by
         # calling close method. Here we check if logger is already
@@ -189,6 +247,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
         self.handler.stream.write(self.end_of_log_mark)
+
+        if self.write_stdout:
+            self.writer.close()
+            self.handler.close()
+            sys.stdout = sys.__stdout__
 
         super().close()
 
