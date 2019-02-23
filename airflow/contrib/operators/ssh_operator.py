@@ -95,6 +95,8 @@ class SSHOperator(BaseOperator):
                 if self.command.startswith('sudo'):
                     get_pty = True
 
+                self.log.info("Running command: %s", self.command)
+
                 # set timeout taken as params
                 stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
                                                                 get_pty=get_pty,
