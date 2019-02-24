@@ -74,7 +74,7 @@ from croniter import (
 import six
 
 from airflow import settings, utils
-from airflow.executors import GetDefaultExecutor, LocalExecutor
+from airflow.executors import get_default_executor, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout,
@@ -293,7 +293,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
-            executor = GetDefaultExecutor()
+            executor = get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.log.info("Filling up the DagBag from %s", dag_folder)
         self.dag_folder = dag_folder
@@ -559,7 +559,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        for filepath in list_py_file_paths(dag_folder, include_examples=include_examples):
+
+        safe_mode = configuration.conf.getboolean('core', 'dag_discovery_safe_mode')
+        for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
+                                           include_examples=include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
@@ -1718,10 +1721,12 @@ class TaskInstance(Base, LoggingMixin):
     def email_alert(self, exception):
         exception_html = str(exception).replace('\n', '<br>')
         jinja_context = self.get_template_context()
+        # This function is called after changing the state
+        # from State.RUNNING so need to subtract 1 from self.try_number.
         jinja_context.update(dict(
             exception=exception,
             exception_html=exception_html,
-            try_number=self.try_number,
+            try_number=self.try_number - 1,
             max_tries=self.max_tries))
 
         jinja_env = self.task.get_template_env()
@@ -2113,7 +2118,7 @@ class BaseOperator(LoggingMixin):
             raise AirflowException(
                 "The trigger_rule must be one of {all_triggers},"
                 "'{d}.{t}'; received '{tr}'."
-                .format(all_triggers=TriggerRule.all_triggers,
+                .format(all_triggers=TriggerRule.all_triggers(),
                         d=dag.dag_id if dag else "", t=task_id, tr=trigger_rule))
 
         self.trigger_rule = trigger_rule
@@ -3808,7 +3813,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def pickle_info(self, session=None):
-        d = {}
+        d = dict()
         d['is_picklable'] = True
         try:
             dttm = timezone.utcnow()
@@ -3956,7 +3961,7 @@ class DAG(BaseDag, LoggingMixin):
         if not executor and local:
             executor = LocalExecutor()
         elif not executor:
-            executor = GetDefaultExecutor()
+            executor = get_default_executor()
         job = BackfillJob(
             self,
             start_date=start_date,

@@ -49,22 +49,66 @@ class OracleHook(DbApiHook):
 
         You can set these parameters in the extra fields of your connection
         as in ``{ "dsn":"some.host.address" , "service_name":"some.service.name" }``
+        see more param detail in
+        `cx_Oracle.connect <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_
         """
         conn = self.get_connection(self.oracle_conn_id)
+        conn_config = {
+            'user': conn.login,
+            'password': conn.password
+        }
         dsn = conn.extra_dejson.get('dsn', None)
         sid = conn.extra_dejson.get('sid', None)
         mod = conn.extra_dejson.get('module', None)
 
         service_name = conn.extra_dejson.get('service_name', None)
+        port = conn.port if conn.port else 1521
         if dsn and sid and not service_name:
-            dsn = cx_Oracle.makedsn(dsn, conn.port, sid)
-            conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
+            conn_config['dsn'] = cx_Oracle.makedsn(dsn, port, sid)
         elif dsn and service_name and not sid:
-            dsn = cx_Oracle.makedsn(dsn, conn.port, service_name=service_name)
-            conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
+            conn_config['dsn'] = cx_Oracle.makedsn(dsn, port, service_name=service_name)
         else:
-            conn = cx_Oracle.connect(conn.login, conn.password, conn.host)
+            conn_config['dsn'] = conn.host
 
+        if 'encoding' in conn.extra_dejson:
+            conn_config['encoding'] = conn.extra_dejson.get('encoding')
+            # if `encoding` is specific but `nencoding` is not
+            # `nencoding` should use same values as `encoding` to set encoding, inspired by
+            # https://github.com/oracle/python-cx_Oracle/issues/157#issuecomment-371877993
+            if 'nencoding' not in conn.extra_dejson:
+                conn_config['nencoding'] = conn.extra_dejson.get('encoding')
+        if 'nencoding' in conn.extra_dejson:
+            conn_config['nencoding'] = conn.extra_dejson.get('nencoding')
+        if 'threaded' in conn.extra_dejson:
+            conn_config['threaded'] = conn.extra_dejson.get('threaded')
+        if 'events' in conn.extra_dejson:
+            conn_config['events'] = conn.extra_dejson.get('events')
+
+        mode = conn.extra_dejson.get('mode', '').lower()
+        if mode == 'sysdba':
+            conn_config['mode'] = cx_Oracle.SYSDBA
+        elif mode == 'sysasm':
+            conn_config['mode'] = cx_Oracle.SYSASM
+        elif mode == 'sysoper':
+            conn_config['mode'] = cx_Oracle.SYSOPER
+        elif mode == 'sysbkp':
+            conn_config['mode'] = cx_Oracle.SYSBKP
+        elif mode == 'sysdgd':
+            conn_config['mode'] = cx_Oracle.SYSDGD
+        elif mode == 'syskmt':
+            conn_config['mode'] = cx_Oracle.SYSKMT
+        elif mode == 'sysrac':
+            conn_config['mode'] = cx_Oracle.SYSRAC
+
+        purity = conn.extra_dejson.get('purity', '').lower()
+        if purity == 'new':
+            conn_config['purity'] = cx_Oracle.ATTR_PURITY_NEW
+        elif purity == 'self':
+            conn_config['purity'] = cx_Oracle.ATTR_PURITY_SELF
+        elif purity == 'default':
+            conn_config['purity'] = cx_Oracle.ATTR_PURITY_DEFAULT
+
+        conn = cx_Oracle.connect(**conn_config)
         if mod is not None:
             conn.module = mod
 
@@ -80,6 +124,18 @@ class OracleHook(DbApiHook):
         - Replace NaN values with NULL using `numpy.nan_to_num` (not using
           `is_nan()` because of input types error for strings)
         - Coerce datetime cells to Oracle DATETIME format during insert
+
+        :param table: target Oracle table, use dot notation to target a
+            specific database
+        :type table: str
+        :param rows: the rows to insert into the table
+        :type rows: iterable of tuples
+        :param target_fields: the names of the columns to fill in the table
+        :type target_fields: iterable of str
+        :param commit_every: the maximum number of rows to insert in one transaction
+            Default 1000, Set greater than 0.
+            Set 1 to insert each row in each single transaction
+        :type commit_every: int
         """
         if target_fields:
             target_fields = ', '.join(target_fields)
@@ -130,6 +186,18 @@ class OracleHook(DbApiHook):
         A performant bulk insert for cx_Oracle
         that uses prepared statements via `executemany()`.
         For best performance, pass in `rows` as an iterator.
+
+        :param table: target Oracle table, use dot notation to target a
+            specific database
+        :type table: str
+        :param rows: the rows to insert into the table
+        :type rows: iterable of tuples
+        :param target_fields: the names of the columns to fill in the table, default None.
+            If None, each rows should have some order as table columns name
+        :type target_fields: iterable of str Or None
+        :param commit_every: the maximum number of rows to insert in one transaction
+            Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
+        :type commit_every: int
         """
         conn = self.get_conn()
         cursor = conn.cursor()

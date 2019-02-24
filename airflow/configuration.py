@@ -383,7 +383,7 @@ class AirflowConfigParser(ConfigParser):
                 opt = self._get_env_var_option(section, key)
             except ValueError:
                 continue
-            if (not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
+            if not display_sensitive and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE':
                 opt = '< hidden >'
             elif raw:
                 opt = opt.replace('%', '%%')

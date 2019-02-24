@@ -179,6 +179,7 @@ gcp_api = [
     'google-cloud-container>=0.1.1',
     'google-cloud-bigtable==0.31.0',
     'google-cloud-spanner>=1.7.1',
+    'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
@@ -313,13 +314,12 @@ def do_setup():
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',
             'python-dateutil>=2.3, <3',
-            'python-nvd3==0.15.0',
             'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=1.1.15, <1.3.0',
             'tabulate>=0.7.5, <=0.8.2',
             'tenacity==4.12.0',
-            'text-unidecode==1.2',  # Avoid GPL dependency, pip uses reverse order(!)
+            'text-unidecode==1.2',
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'unicodecsv>=0.14.1',
