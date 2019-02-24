@@ -33,6 +33,7 @@ from airflow import settings
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
 from airflow.www.static_config import configure_manifest_files
+import warnings
 
 app = None
 appbuilder = None
@@ -151,15 +152,18 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
                 for v in flask_appbuilder_views:
                     log.debug("Adding view %s", v["name"])
-                    appbuilder.add_view(v["view"],
-                                        v["name"],
-                                        category=v["category"])
+                    if 'view' in v:
+                        v['baseview'] = v.pop('view')
+                        warnings.warn(
+                            "AirflowPlugin.flask_appbuilder_views[] dictionaries should use 'baseview' instead of 'view. "
+                            "Using 'view' has been deprecated and will be removed in future versions.",
+                            DeprecationWarning,
+                        )
+
+                    appbuilder.add_view(**v)
                 for ml in sorted(flask_appbuilder_menu_links, key=lambda x: x["name"]):
                     log.debug("Adding menu link %s", ml["name"])
-                    appbuilder.add_link(ml["name"],
-                                        href=ml["href"],
-                                        category=ml["category"],
-                                        category_icon=ml["category_icon"])
+                    appbuilder.add_link(**ml)
 
             integrate_plugins()
             # Garbage collect old permissions/views after they have been modified.

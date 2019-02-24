@@ -94,8 +94,11 @@ looks like:
         # A list of menu links (flask_admin.base.MenuLink). For use with the flask_admin based GUI
         menu_links = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
+        # https://flask-appbuilder.readthedocs.io/en/latest/api.html#flask_appbuilder.base.AppBuilder.add_view
         appbuilder_views = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
+        # https://flask-appbuilder.readthedocs.io/en/latest/api.html#flask_appbuilder.base.AppBuilder.add_link
+        # Note
         appbuilder_menu_items = []
         # A callback to perform actions when airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
