@@ -531,7 +531,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             self.log.debug('Loaded DAG %s', dag)
         except AirflowDagCycleException as cycle_exception:
             # There was an error in bagging the dag. Remove it from the list of dags
-            self.log.exception('Exception bagging dag: {dag.dag_id}'.format(**locals()))
+            self.log.exception('Exception bagging dag: %s', dag.dag_id)
             # Only necessary at the root level since DAG.subdags automatically
             # performs DFS to search through all subdags
             if dag == root_dag:
@@ -873,8 +873,8 @@ class TaskInstance(Base, LoggingMixin):
     def log_filepath(self):
         iso = self.execution_date.isoformat()
         log = os.path.expanduser(configuration.conf.get('core', 'BASE_LOG_FOLDER'))
-        return (
-            "{log}/{self.dag_id}/{self.task_id}/{iso}.log".format(**locals()))
+        return ("{log}/{dag_id}/{task_id}/{iso}.log".format(
+            log=log, dag_id=self.dag_id, task_id=self.task_id, iso=iso))
 
     @property
     def log_url(self):
@@ -883,9 +883,9 @@ class TaskInstance(Base, LoggingMixin):
         return base_url + (
             "/log?"
             "execution_date={iso}"
-            "&task_id={self.task_id}"
-            "&dag_id={self.dag_id}"
-        ).format(**locals())
+            "&task_id={task_id}"
+            "&dag_id={dag_id}"
+        ).format(iso=iso, task_id=self.task_id, dag_id=self.dag_id)
 
     @property
     def mark_success_url(self):
@@ -893,12 +893,12 @@ class TaskInstance(Base, LoggingMixin):
         base_url = configuration.conf.get('webserver', 'BASE_URL')
         return base_url + (
             "/success"
-            "?task_id={self.task_id}"
-            "&dag_id={self.dag_id}"
+            "?task_id={task_id}"
+            "&dag_id={dag_id}"
             "&execution_date={iso}"
             "&upstream=false"
             "&downstream=false"
-        ).format(**locals())
+        ).format(task_id=self.task_id, dag_id=self.dag_id, iso=iso)
 
     @provide_session
     def current_state(self, session=None):
@@ -1633,8 +1633,8 @@ class TaskInstance(Base, LoggingMixin):
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
         tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
 
-        ti_key_str = "{task.dag_id}__{task.task_id}__{ds_nodash}"
-        ti_key_str = ti_key_str.format(**locals())
+        ti_key_str = "{dag_id}__{task_id}__{ds_nodash}".format(
+            dag_id=task.dag_id, task_id=task.task_id, ds_nodash=ds_nodash)
 
         if task.params:
             params.update(task.params)
@@ -2681,7 +2681,7 @@ class BaseOperator(LoggingMixin):
         if item in item_set:
             self.log.warning(
                 'Dependency {self}, {item} already registered'
-                ''.format(**locals()))
+                ''.format(self=self, item=item))
         else:
             item_set.add(item)
 
@@ -3698,7 +3698,7 @@ class DAG(BaseDag, LoggingMixin):
             question = (
                 "You are about to delete these {count} tasks:\n"
                 "{ti_list}\n\n"
-                "Are you sure? (yes/no): ").format(**locals())
+                "Are you sure? (yes/no): ").format(count=count, ti_list=ti_list)
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
@@ -3838,7 +3838,7 @@ class DAG(BaseDag, LoggingMixin):
     def get_task(self, task_id):
         if task_id in self.task_dict:
             return self.task_dict[task_id]
-        raise AirflowException("Task {task_id} not found".format(**locals()))
+        raise AirflowException("Task {task_id} not found".format(task_id=task_id))
 
     @provide_session
     def pickle_info(self, session=None):

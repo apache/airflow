@@ -1995,7 +1995,7 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         if pool_id is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id)
-            return Markup("<a href='{url}'>{pool_id}</a>").format(**locals())
+            return Markup("<a href='{url}'>{pool_id}</a>").format(url=url, pool_id=pool_id)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2004,7 +2004,7 @@ class PoolModelView(AirflowModelView):
         used_slots = attr.get('used_slots')
         if pool_id is not None and used_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
-            return Markup("<a href='{url}'>{used_slots}</a>").format(**locals())
+            return Markup("<a href='{url}'>{used_slots}</a>").format(url=url, used_slots=used_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2013,7 +2013,7 @@ class PoolModelView(AirflowModelView):
         queued_slots = attr.get('queued_slots')
         if pool_id is not None and queued_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='queued')
-            return Markup("<a href='{url}'>{queued_slots}</a>").format(**locals())
+            return Markup("<a href='{url}'>{queued_slots}</a>").format(url=url, queued_slots=queued_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2201,7 +2201,7 @@ class DagRunModelView(AirflowModelView):
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
             session.commit()
-            flash("{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(count=count))
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
@@ -2229,7 +2229,7 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to failed".format(**locals()))
+                "were set to failed".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -2256,7 +2256,7 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to success".format(**locals()))
+                "were set to success".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -2310,7 +2310,7 @@ class TaskInstanceModelView(AirflowModelView):
         return Markup(
             '<a href="{log_url}">'
             '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-            '</span></a>').format(**locals())
+            '</span></a>').format(log_url=log_url)
 
     def duration_f(attr):
         end_date = attr.get('end_date')
@@ -2363,8 +2363,8 @@ class TaskInstanceModelView(AirflowModelView):
             for ti in tis:
                 ti.set_state(target_state, session)
             session.commit()
-            flash(
-                "{count} task instances were set to '{target_state}'".format(**locals()))
+            flash("{count} task instances were set to '{target_state}'".format(
+                count=count, target_state=target_state))
         except Exception:
             flash('Failed to set state', 'error')
 
