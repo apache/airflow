@@ -36,6 +36,7 @@ depends_on = None
 TABLE_NAME = 'dag_edge'
 INDEX_NAME = 'idx_' + TABLE_NAME
 
+
 def upgrade():
     connection = op.get_bind()
     sessionmaker = sa.orm.sessionmaker()
