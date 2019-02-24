@@ -16,7 +16,7 @@
 
 FROM python:3.6-slim
 
-ARG AIRFLOW_HOME=/usr/local/airflow
+ENV AIRFLOW_HOME=/usr/local/airflow
 ARG AIRFLOW_DEPS="all"
 ARG PYTHON_DEPS=""
 ARG buildDeps="freetds-dev libkrb5-dev libssl-dev libffi-dev libpq-dev git"
@@ -48,11 +48,10 @@ RUN set -euxo pipefail \
     && pip install --no-cache-dir --no-use-pep517 -e .[$AIRFLOW_DEPS] \
     && apt purge --auto-remove -yqq $buildDeps \
     && apt autoremove -yqq --purge \
-    && apt clean \
+    && apt clean
 
 WORKDIR $AIRFLOW_HOME
 RUN mkdir -p $AIRFLOW_HOME
-ENV AIRFLOW_HOME=$AIRFLOW_HOME
 COPY scripts/docker/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--help"]
