@@ -55,8 +55,8 @@ class PluginsTest(unittest.TestCase):
         from airflow.executors.test_plugin import PluginExecutor
         self.assertTrue(issubclass(PluginExecutor, BaseExecutor))
 
-        from airflow.executors import GetDefaultExecutor
-        self.assertTrue(issubclass(type(GetDefaultExecutor()), BaseExecutor))
+        from airflow.executors import get_default_executor
+        self.assertTrue(issubclass(type(get_default_executor()), BaseExecutor))
 
         # test plugin executor import based on a name string, (like defined in airflow.cfg)
         # this is not identical to the first assertion!

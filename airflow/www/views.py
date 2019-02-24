@@ -1031,8 +1031,8 @@ class Airflow(BaseView):
         ignore_task_deps = request.form.get('ignore_task_deps') == "true"
         ignore_ti_state = request.form.get('ignore_ti_state') == "true"
 
-        from airflow.executors import GetDefaultExecutor
-        executor = GetDefaultExecutor()
+        from airflow.executors import get_default_executor
+        executor = get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
 

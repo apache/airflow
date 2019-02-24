@@ -79,8 +79,8 @@ def alchemy_to_dict(obj):
 
 
 def ask_yesno(question):
-    yes = set(['yes', 'y'])
-    no = set(['no', 'n'])
+    yes = {'yes', 'y'}
+    no = {'no', 'n'}
 
     done = False
     print(question)
