@@ -420,5 +420,3 @@ class PythonVirtualenvOperator(PythonOperator):
                     python_callable_lines=dedent(inspect.getsource(fn)),
                     python_callable_name=fn.__name__,
                     pickling_library=pickling_library)
-
-        self.log.info("Done.")

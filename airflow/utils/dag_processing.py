@@ -336,8 +336,8 @@ def list_py_file_paths(directory, safe_mode=True,
                     # Airflow DAG definition.
                     might_contain_dag = True
                     if safe_mode and not zipfile.is_zipfile(file_path):
-                        with open(file_path, 'rb') as f:
-                            content = f.read()
+                        with open(file_path, 'rb') as fp:
+                            content = fp.read()
                             might_contain_dag = all(
                                 [s in content for s in (b'DAG', b'airflow')])
 
