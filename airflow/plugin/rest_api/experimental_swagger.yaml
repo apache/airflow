@@ -48,6 +48,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAG'
+  /dags/{dag_id}/code:
+    parameters:
+      - $ref: '#/components/parameters/DagID'
+    get:
+      tags:
+        - DAG
+      description: Return the code for a given DAG
+      responses:
+        200:
+          description: Python code for a DAG
+          content:
+            text/plain:
+              schema:
+                type: string
   /dags/{dag_id}/dag_runs:
     parameters:
       - $ref: '#/components/parameters/DagID'
