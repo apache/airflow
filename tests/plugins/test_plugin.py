@@ -21,9 +21,7 @@
 from airflow.plugins_manager import AirflowPlugin
 
 from flask import Blueprint
-from flask_admin import BaseView, expose
-from flask_admin.base import MenuLink
-from flask_appbuilder import BaseView as AppBuilderBaseView
+from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
@@ -57,18 +55,6 @@ def plugin_macro():
     pass
 
 
-# Creating a flask admin BaseView
-class PluginTestView(BaseView):
-    @expose('/')
-    def test(self):
-        # in this example, put your test_plugin/test.html
-        # template at airflow/plugins/templates/test_plugin/test.html
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
-
-
-v = PluginTestView(category="Test Plugin", name="Test View")
-
-
 # Creating a flask appbuilder BaseView
 class PluginTestAppBuilderBaseView(AppBuilderBaseView):
     default_view = "test"
@@ -98,12 +84,6 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-ml = MenuLink(
-    category='Test Plugin',
-    name="Test Menu Link",
-    url="https://airflow.apache.org/")
-
-
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -112,9 +92,7 @@ class AirflowTestPlugin(AirflowPlugin):
     hooks = [PluginHook]
     executors = [PluginExecutor]
     macros = [plugin_macro]
-    admin_views = [v]
     flask_blueprints = [bp]
-    menu_links = [ml]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
 

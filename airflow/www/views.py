@@ -2411,18 +2411,6 @@ class TaskInstanceModelView(AirflowModelView):
         self.update_redirect()
         return redirect(self.get_redirect())
 
-    def get_one(self, id):
-        """
-        As a workaround for AIRFLOW-252, this method overrides Flask-Admin's
-        ModelView.get_one().
-
-        TODO: this method should be removed once the below bug is fixed on
-        Flask-Admin side. https://github.com/flask-admin/flask-admin/issues/1226
-        """
-        task_id, dag_id, execution_date = iterdecode(id)  # noqa
-        execution_date = pendulum.parse(execution_date)
-        return self.session.query(self.model).get((task_id, dag_id, execution_date))
-
 
 class DagModelView(AirflowModelView):
     route_base = '/dagmodel'

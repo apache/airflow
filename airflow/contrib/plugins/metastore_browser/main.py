@@ -43,7 +43,7 @@ TABLE_SELECTOR_LIMIT = 2000
 pd.set_option('display.max_colwidth', -1)
 
 
-# Creating a flask admin BaseView
+# Creating a Flask-AppBuilder BaseView
 class MetastoreBrowserView(BaseView):
 
     default_view = 'index'
