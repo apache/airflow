@@ -18,11 +18,10 @@
 # under the License.
 
 import subprocess
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.file import TemporaryDirectory
 
 
 class PigCliHook(BaseHook):

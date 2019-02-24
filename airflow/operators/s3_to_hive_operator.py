@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
-from airflow.utils.file import TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 import gzip
 import bz2
 import tempfile

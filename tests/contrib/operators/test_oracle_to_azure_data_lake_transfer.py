@@ -18,9 +18,10 @@
 # under the License.
 
 import unittest
+from tempfile import TemporaryDirectory
+
 from airflow.contrib.operators.oracle_to_azure_data_lake_transfer \
     import OracleToAzureDataLakeTransfer
-from airflow.utils.file import TemporaryDirectory
 import unicodecsv as csv
 import os
 

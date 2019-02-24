@@ -23,8 +23,12 @@ import shutil
 from tempfile import mkdtemp
 
 from contextlib import contextmanager
+from zope import deprecation
 
 
+@deprecation.deprecate(msg="This function will be removed in Airflow 2.0. "
+                           "tempfile.TemporaryDirectory (Python >=3.2) provides the "
+                           "same functionality.")
 @contextmanager
 def TemporaryDirectory(suffix='', prefix=None, dir=None):
     name = mkdtemp(suffix=suffix, prefix=prefix, dir=dir)
