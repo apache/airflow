@@ -1726,7 +1726,7 @@ class TaskInstance(Base, LoggingMixin):
         jinja_context.update(dict(
             exception=exception,
             exception_html=exception_html,
-            try_number=self.try_number - 1,
+            try_number=self.try_number,
             max_tries=self.max_tries))
 
         jinja_env = self.task.get_template_env()
