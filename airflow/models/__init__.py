@@ -289,7 +289,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             executor=None,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
@@ -304,7 +305,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors = {}
         self.has_logged = False
 
-        self.collect_dags(dag_folder=dag_folder, include_examples=include_examples)
+        self.collect_dags(
+            dag_folder=dag_folder,
+            include_examples=include_examples,
+            safe_mode=safe_mode)
 
     def size(self):
         """
@@ -539,7 +543,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             only_if_updated=True,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -560,13 +565,13 @@ class DagBag(BaseDagBag, LoggingMixin):
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
 
-        safe_mode = configuration.conf.getboolean('core', 'dag_discovery_safe_mode')
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
-                    filepath, only_if_updated=only_if_updated)
+                    filepath, only_if_updated=only_if_updated,
+                    safe_mode=safe_mode)
 
                 td = timezone.utcnow() - ts
                 td = td.total_seconds() + (
