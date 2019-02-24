@@ -55,7 +55,7 @@ from airflow import api
 from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
-from airflow.executors import GetDefaultExecutor
+from airflow.executors import get_default_executor
 from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
 from airflow.models.connection import Connection
 from airflow.models.dagpickle import DagPickle
@@ -458,7 +458,7 @@ def _run(args, dag, ti):
                 print(e)
                 raise e
 
-        executor = GetDefaultExecutor()
+        executor = get_default_executor()
         executor.start()
         print("Sending to executor.")
         executor.queue_task_instance(
@@ -1045,10 +1045,8 @@ def serve_logs(args):
             mimetype="application/json",
             as_attachment=False)
 
-    WORKER_LOG_SERVER_PORT = \
-        int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
-    flask_app.run(
-        host='0.0.0.0', port=WORKER_LOG_SERVER_PORT)
+    worker_log_server_port = int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
+    flask_app.run(host='0.0.0.0', port=worker_log_server_port)
 
 
 @cli_utils.action_logging

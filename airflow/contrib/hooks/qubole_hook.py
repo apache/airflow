@@ -204,7 +204,7 @@ class QuboleHook(BaseHook):
         args = []
         cmd_type = self.kwargs['command_type']
         inplace_args = None
-        tags = set([self.dag_id, self.task_id, context['run_id']])
+        tags = {self.dag_id, self.task_id, context['run_id']}
         positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
         for k, v in self.kwargs.items():

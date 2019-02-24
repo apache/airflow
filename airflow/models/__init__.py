@@ -74,7 +74,7 @@ from croniter import (
 import six
 
 from airflow import settings, utils
-from airflow.executors import GetDefaultExecutor, LocalExecutor
+from airflow.executors import get_default_executor, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout,
@@ -293,7 +293,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
-            executor = GetDefaultExecutor()
+            executor = get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.log.info("Filling up the DagBag from %s", dag_folder)
         self.dag_folder = dag_folder
@@ -3813,7 +3813,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def pickle_info(self, session=None):
-        d = {}
+        d = dict()
         d['is_picklable'] = True
         try:
             dttm = timezone.utcnow()
@@ -3961,7 +3961,7 @@ class DAG(BaseDag, LoggingMixin):
         if not executor and local:
             executor = LocalExecutor()
         elif not executor:
-            executor = GetDefaultExecutor()
+            executor = get_default_executor()
         job = BackfillJob(
             self,
             start_date=start_date,
