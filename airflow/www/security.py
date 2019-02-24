@@ -428,7 +428,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 update_perm_views.append({'permission_view_id': perm_view_id,
                                           'role_id': role.id})
 
-        self.get_session.execute(ab_perm_view_role.insert(), update_perm_views)
+        if update_perm_views:
+            self.get_session.execute(ab_perm_view_role.insert(), update_perm_views)
         self.get_session.commit()
 
     def update_admin_perm_view(self):
