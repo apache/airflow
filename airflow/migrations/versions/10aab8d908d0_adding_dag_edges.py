@@ -33,6 +33,8 @@ down_revision = ('a56c9515abdc', 'dd4ecb8fbee3')
 branch_labels = None
 depends_on = None
 
+TABLE_NAME = 'dag_edge'
+INDEX_NAME = 'idx_' + TABLE_NAME
 
 def upgrade():
     connection = op.get_bind()
@@ -40,7 +42,7 @@ def upgrade():
     session = sessionmaker(bind=connection)
 
     op.create_table(
-        "dag_edge",
+        TABLE_NAME,
         sa.Column("dag_id", sa.String(length=250), nullable=False),
         sa.Column("graph_id", sa.Integer, nullable=False),
         sa.Column("task_from", sa.String(length=250), nullable=False),
@@ -48,7 +50,7 @@ def upgrade():
         sa.PrimaryKeyConstraint("dag_id", "graph_id", "task_from", "task_to"),
     )
 
-    op.create_index('idx_dag_edge', 'dag_edge',
+    op.create_index(INDEX_NAME, TABLE_NAME,
                     ['dag_id', 'graph_id'],
                     unique=False)
 
@@ -77,8 +79,8 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index('idx_dag_edge', table_name='dag_edge')
-    op.drop_table("dag_edge")
+    op.drop_index(INDEX_NAME, table_name=TABLE_NAME)
+    op.drop_table(TABLE_NAME)
     op.drop_column("dag_run", "graph_id")
     op.drop_column("task_instance", "ui_color")
     op.drop_column("task_instance", "ui_fgcolor")

@@ -293,6 +293,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         if filepath is None or not os.path.isfile(filepath):
             return found_dags
 
+        # Sometimes the pyc files did endup in the database, this is correcting this
         if filepath.endswith(".pyc"):
             filepath = filepath.rstrip("c")
 
@@ -647,9 +648,13 @@ class TaskInstance(Base, LoggingMixin):
         get killed.
 
         :param tis: a list of task instances
+        :type tis: [airflow.models.TaskInstance]
         :param activate_dag_runs: flag to check for active dag run
+        :type activate_dag_runs: boolean
         :param dag: DAG object
+        :type dag: airflow.models.DAG
         :param session: current session
+        :type session: sqlalchemy.orm.session.Session
         """
         job_ids = set()
         for ti in tis:
@@ -2771,7 +2776,7 @@ class DagModel(Base):
     is_subdag = Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
     is_active = Column(Boolean, default=False)
-    # parent dag, if set this dag is a subdag
+    # parent dag, only subdag will set parent_dag to not none
     parent_dag = Column(String(ID_LEN))
     # Last time the scheduler started
     last_scheduler_run = Column(UtcDateTime)
@@ -3807,6 +3812,7 @@ class DAG(BaseDag, LoggingMixin):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in list(self.__dict__.items()):
+            # Filtering the log object to not be copied
             if k not in ('user_defined_macros', 'user_defined_filters', 'params', '_log'):
                 setattr(result, k, copy.deepcopy(v, memo))
             if k == '_log':
@@ -4082,7 +4088,7 @@ class DAG(BaseDag, LoggingMixin):
         dag_model = DagModel.get_dagmodel(self.dag_id)
 
         tis = self.create_tis(execution_date)
-        # Setting graph_id temparary on -1, will set set later.
+        # Setting graph_id temparary on -1, will reset it later.
         edges = self.create_edges(graph_id=-1)
 
         last_dagrun = dag_model.get_last_dagrun(include_externally_triggered=True)
@@ -4094,8 +4100,8 @@ class DAG(BaseDag, LoggingMixin):
             # Compare edges from last run
             prev_edges = [(edge.task_from, edge.task_to) for edge in last_edges]
             current_edges = [(edge.task_from, edge.task_to) for edge in edges]
-            is_dag_unchanged = len(current_edges) == len(prev_edges)
-            is_dag_unchanged &= set(current_edges) == set(prev_edges)
+            is_dag_unchanged = (len(current_edges) == len(prev_edges)) and \
+                               (set(current_edges) == set(prev_edges))
 
         if is_dag_unchanged:
             # graph is not changed, keep last graph_id
