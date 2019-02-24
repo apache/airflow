@@ -135,7 +135,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
                                 href='https://airflow.apache.org/',
                                 category="Docs",
                                 category_icon="fa-cube")
-            appbuilder.add_link("Github",
+            appbuilder.add_link("GitHub",
                                 href='https://github.com/apache/airflow',
                                 category="Docs")
             appbuilder.add_link('Version',
