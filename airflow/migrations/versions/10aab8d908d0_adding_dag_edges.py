@@ -26,7 +26,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-from airflow.models import DagModel, DagRun
+from airflow.models import DagModel, DagRun, TaskInstance
 
 revision = "10aab8d908d0"
 down_revision = ('a56c9515abdc', 'dd4ecb8fbee3')
@@ -69,6 +69,10 @@ def upgrade():
             if dag is not None:
                 edges = dag.create_edges(graph_id=0)
                 session.add_all(edges)
+                for task in dag.tasks:
+                    session.query(TaskInstance).filter(TaskInstance.dag_id == dag.dag_id)\
+                        .filter(TaskInstance.task_id == task.task_id)\
+                        .update({"ui_color": task.ui_color, "ui_fgcolor": task.ui_fgcolor})
     session.commit()
 
 
