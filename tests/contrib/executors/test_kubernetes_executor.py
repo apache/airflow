@@ -25,15 +25,20 @@ import mock
 import re
 import string
 import random
+from os import path
 from urllib3 import HTTPResponse
 from datetime import datetime
 
 try:
     from kubernetes.client.rest import ApiException
+    from airflow import configuration
+    from airflow.configuration import conf
     from airflow.contrib.executors.kubernetes_executor import AirflowKubernetesScheduler
     from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+    from airflow.contrib.executors.kubernetes_executor import KubeConfig
     from airflow.contrib.executors.kubernetes_executor import KubernetesExecutorConfig
     from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
+    from airflow.exceptions import AirflowConfigException
 except ImportError:
     AirflowKubernetesScheduler = None
 
@@ -161,6 +166,39 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                     "subPath shouldn't be defined"
                 )
 
+    @mock.patch.object(conf, 'get')
+    @mock.patch.object(configuration, 'as_dict')
+    def test_worker_configuration_auth_both_ssh_and_user(self, mock_config_as_dict, mock_conf_get):
+        def get_conf(*args, **kwargs):
+            if(args[0] == 'core'):
+                return '1'
+            if(args[0] == 'kubernetes'):
+                if(args[1] == 'airflow_configmap'):
+                    return 'airflow-configmap'
+                if(args[1] == 'git_ssh_key_secret_name'):
+                    return 'airflow-secrets'
+                if(args[1] == 'git_ssh_key_secret_key'):
+                    return 'gitSshKey'
+                if(args[1] == 'git_user'):
+                    return 'some-user'
+                if(args[1] == 'git_password'):
+                    return 'some-password'
+                if(args[1] == 'git_repo'):
+                    return 'git@github.com:apache/airflow.git'
+                if(args[1] == 'git_branch'):
+                    return 'master'
+                if(args[1] == 'git_dags_folder_mount_point'):
+                    return '/usr/local/airflow/dags'
+                if(args[1] == 'delete_worker_pods'):
+                    return True
+                return '1'
+            return None
+
+        mock_conf_get.side_effect = get_conf
+        mock_config_as_dict.return_value = {'core': ''}
+        with self.assertRaises(AirflowConfigException):
+            KubeConfig()
+
     def test_worker_with_subpaths(self):
         self.kube_config.dags_volume_subpath = 'dags'
         self.kube_config.logs_volume_subpath = 'logs'
@@ -236,6 +274,62 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
         self.assertEqual(dags_folder, env['AIRFLOW__CORE__DAGS_FOLDER'])
 
+    def test_init_environment_using_git_sync_ssh(self):
+        # Tests the init environment created with git-sync SSH authentication option is correct
+        self.kube_config.airflow_configmap = 'airflow-configmap'
+        self.kube_config.git_ssh_key_secret_name = 'airflow-secrets'
+        self.kube_config.git_ssh_key_secret_key = 'gitSshKey'
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        init_containers = worker_config._get_init_containers()
+
+        self.assertTrue(init_containers)  # check not empty
+        env = init_containers[0]['env']
+
+        self.assertTrue({'name': 'GIT_SSH_KEY_FILE', 'value': '/etc/git-secret/ssh'} in env)
+        self.assertTrue({'name': 'GIT_KNOWN_HOSTS', 'value': 'false'} in env)
+        self.assertTrue({'name': 'GIT_SYNC_SSH', 'value': 'true'} in env)
+
+    def test_make_pod_git_sync_ssh(self):
+        # Tests the pod created with git-sync SSH authentication option is correct
+        self.kube_config.airflow_configmap = 'airflow-configmap'
+        self.kube_config.git_ssh_key_secret_name = 'airflow-secrets'
+        self.kube_config.git_ssh_key_secret_key = 'gitSshKey'
+        self.kube_config.dags_volume_claim = None
+        self.kube_config.dags_volume_host = None
+        self.kube_config.dags_in_image = None
+        self.kube_config.git_sync_ssh_secret_volume_name = 'dags-repo-secret'
+
+        worker_config = WorkerConfiguration(self.kube_config)
+        kube_executor_config = KubernetesExecutorConfig(annotations=[],
+                                                        volumes=[],
+                                                        volume_mounts=[])
+
+        pod = worker_config.make_pod("default", str(uuid.uuid4()), "test_pod_id", "test_dag_id",
+                                     "test_task_id", str(datetime.utcnow()), 1, "bash -c 'ls /'",
+                                     kube_executor_config)
+        pod_git_sync_secret_volume = next((x for x in pod.volumes
+                                          if x['name'] == self.kube_config.git_sync_ssh_secret_volume_name),
+                                          None)
+
+        init_containers = worker_config._get_init_containers()
+        git_ssh_key_file = next((x['value'] for x in init_containers[0]['env']
+                                if x['name'] == 'GIT_SSH_KEY_FILE'), None)
+        volume_mount_ssh_key = next((x['mountPath'] for x in init_containers[0]['volumeMounts']
+                                    if x['name'] == self.kube_config.git_sync_ssh_secret_volume_name),
+                                    None)
+        self.assertTrue(git_ssh_key_file)
+        self.assertTrue(volume_mount_ssh_key)
+        self.assertEqual({'fsGroup': 65533}, pod.security_context)
+        self.assertEqual(git_ssh_key_file,
+                         path.join(volume_mount_ssh_key,
+                                   pod_git_sync_secret_volume['secret']['items'][0]['path']),
+                         ('The location where the git ssh secret is mounted'
+                          ' needs to be the same as the GIT_SSH_KEY_FILE path'))
+
     def test_make_pod_with_empty_executor_config(self):
         self.kube_config.kube_affinity = self.affinity_config
         self.kube_config.kube_tolerations = self.tolerations_config
@@ -292,7 +386,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         worker_config = WorkerConfiguration(self.kube_config)
         volumes, volume_mounts = worker_config.init_volumes_and_mounts()
 
-        init_containers = worker_config._get_init_containers(volume_mounts)
+        init_containers = worker_config._get_init_containers()
 
         dag_volume = [volume for volume in volumes.values() if volume['name'] == 'airflow-dags']
         dag_volume_mount = [mount for mount in volume_mounts.values() if mount['name'] == 'airflow-dags']
@@ -327,7 +421,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(self.kube_config.git_dags_folder_mount_point, dag_volume_mount[0]['mountPath'])
         self.assertTrue(dag_volume_mount[0]['readOnly'])
 
-        init_container = worker_config._get_init_containers(volume_mounts)[0]
+        init_container = worker_config._get_init_containers()[0]
         init_container_volume_mount = [mount for mount in init_container['volumeMounts']
                                        if mount['name'] == 'airflow-dags']
 
@@ -346,7 +440,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         dag_volume = [volume for volume in volumes.values() if volume['name'] == 'airflow-dags']
         dag_volume_mount = [mount for mount in volume_mounts.values() if mount['name'] == 'airflow-dags']
 
-        init_containers = worker_config._get_init_containers(volume_mounts)
+        init_containers = worker_config._get_init_containers()
 
         self.assertEqual(0, len(dag_volume))
         self.assertEqual(0, len(dag_volume_mount))
