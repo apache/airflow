@@ -120,7 +120,7 @@ def has_dag_access(**dag_kwargs):
                                                                    dag_id)))):
                 return f(self, *args, **kwargs)
             else:
-                flash("User can't access DAG {}.".format(dag_id), "danger")
+                flash("Access is Denied", "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
         return wrapper
