@@ -4100,13 +4100,18 @@ class DAG(BaseDag, LoggingMixin):
         if last_dagrun is None:
             is_dag_unchanged = False
         else:
+            last_tis = last_dagrun.get_task_instances()
             last_edges = DagEdge.fetch_edges(self.dag_id, last_dagrun.graph_id)
 
             # Compare edges from last run
             prev_edges = [(edge.task_from, edge.task_to) for edge in last_edges]
             current_edges = [(edge.task_from, edge.task_to) for edge in edges]
+            prev_taskids = [ti.task_id for ti in last_tis]
+            current_taskids = [ti.task_id for ti in tis]
             is_dag_unchanged = (len(current_edges) == len(prev_edges)) and \
-                               (set(current_edges) == set(prev_edges))
+                               (len(prev_taskids) == len(current_taskids)) and \
+                               (set(current_edges) == set(prev_edges)) and \
+                               (set(prev_taskids) == set(current_taskids))
 
         if is_dag_unchanged:
             # graph is not changed, keep last graph_id
@@ -4116,9 +4121,9 @@ class DAG(BaseDag, LoggingMixin):
             graph_id = 1
         else:
             # graph is changed
-            m = session.query(func.max(DagEdge.graph_id)).filter(DagEdge.dag_id == self.dag_id).first()
-            if m is not None:
-                graph_id = m + 1
+            max_graph_id = session.query(func.max(DagEdge.graph_id)).filter(DagEdge.dag_id == self.dag_id).first()
+            if max_graph_id is not None:
+                graph_id = max_graph_id + 1
             else:
                 graph_id = 1
 
