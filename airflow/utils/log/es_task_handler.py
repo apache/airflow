@@ -130,7 +130,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         next_offset = offset if not logs else logs[-1].offset
 
-        metadata['offset'] = next_offset
+        # Ensure a string here. Large offset numbers will get JSON.parsed incorretly
+        # on the client. Sending as a string prevents this issue.
+        # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
+        metadata['offset'] = str(next_offset)
+
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
         metadata['end_of_log'] = False if not logs \
@@ -170,7 +174,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             .query('match_phrase', log_id=log_id) \
             .sort('offset')
 
-        s = s.filter('range', offset={'gt': offset})
+        s = s.filter('range', offset={'gt': int(offset)})
         max_log_line = s.count()
         if 'download_logs' in metadata and metadata['download_logs'] and 'max_offset' not in metadata:
             try:
