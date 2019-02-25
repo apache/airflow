@@ -651,7 +651,8 @@ class SchedulerJob(BaseJob):
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
             if task.sla:
-                dttm = dag.following_schedule(dttm)
+                if not dag.run_at_beginning:
+                    dttm = dag.following_schedule(dttm)
                 while dttm < timezone.utcnow():
                     following_schedule = dag.following_schedule(dttm)
                     if following_schedule + task.sla < timezone.utcnow():
@@ -889,7 +890,10 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-            if next_run_date and period_end and period_end <= timezone.utcnow():
+            should_run = next_run_date and period_end and period_end <= timezone.utcnow()
+            if dag.run_at_beginning:
+                should_run = next_run_date and next_run_date <= timezone.utcnow()
+            if should_run:
                 next_run = dag.create_dagrun(
                     run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
                     execution_date=next_run_date,

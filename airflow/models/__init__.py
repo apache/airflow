@@ -2031,6 +2031,9 @@ class BaseOperator(LoggingMixin):
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
     :type do_xcom_push: bool
+    :param run_at_beginning: if True, dag will be scheduled at the
+        beginning of the interval
+    :type run_at_beginning: bool
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -2088,6 +2091,7 @@ class BaseOperator(LoggingMixin):
             do_xcom_push=True,
             inlets=None,
             outlets=None,
+            run_at_beginning=False,
             *args,
             **kwargs):
 
@@ -2171,6 +2175,7 @@ class BaseOperator(LoggingMixin):
         self.task_concurrency = task_concurrency
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
+        self.run_at_beginning = run_at_beginning
 
         # Private attributes
         self._upstream_task_ids = set()
