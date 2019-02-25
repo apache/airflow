@@ -32,20 +32,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.json_formatter import create_formatter
 
 
-class ParentStdout():
-    """
-    Keep track of the ParentStdout stdout context in child process
-    """
-    def __init__(self):
-        self.closed = False
-
-    def write(self, string):
-        sys.__stdout__.write(string)
-
-    def close(self):
-        self.closed = True
-
-
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
     PAGE = 0
     MAX_LINE_PER_PAGE = 1000
@@ -198,10 +184,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         self.mark_end_on_close = not ti.raw
 
         if self.write_stdout:
-            self.writer = ParentStdout()
-            sys.stdout = self.writer
-
-            self.handler = logging.StreamHandler(stream=sys.stdout)
+            self.handler = logging.StreamHandler(stream=sys.__stdout__)
             self.handler.setLevel(self.level)
             if self.json_format and not ti.raw:
                 self.handler.setFormatter(create_formatter(self.record_labels, {
