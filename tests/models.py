@@ -32,6 +32,7 @@ import time
 import unittest
 import urllib
 import uuid
+import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
@@ -1443,7 +1444,7 @@ class DagBagTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        os.rmdir(cls.empty_dir)
+        shutil.rmtree(cls.empty_dir)
 
     def test_get_existing_dag(self):
         """
@@ -1478,6 +1479,41 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual(dagbag.size(), 0)
+
+    def test_safe_mode_heuristic_match(self):
+        """With safe mode enabled, a file matching the discovery heuristics
+        should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            fp.write("# airflow".encode())
+            fp.write("# DAG".encode())
+            fp.flush()
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
+
+    def test_safe_mode_heuristic_mismatch(self):
+        """With safe mode enabled, a file not matching the discovery heuristics
+        should not be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py"):
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 0)
+
+    def test_safe_mode_disabled(self):
+        """With safe mode disabled, an empty python file should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=False)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
 
     def test_process_file_that_contains_multi_bytes_char(self):
         """
