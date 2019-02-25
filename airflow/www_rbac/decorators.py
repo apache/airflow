@@ -21,7 +21,7 @@ import gzip
 import functools
 import pendulum
 from io import BytesIO as IO
-from flask import after_this_request, redirect, request, url_for, g
+from flask import after_this_request, flash, redirect, request, url_for, g
 from airflow.models.log import Log
 from airflow.utils.db import create_session
 
@@ -120,6 +120,7 @@ def has_dag_access(**dag_kwargs):
                                                                    dag_id)))):
                 return f(self, *args, **kwargs)
             else:
+                flash("Access is Denied", "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
         return wrapper
