@@ -24,6 +24,11 @@ from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+try:
+    basestring
+except NameError:
+    basestring = str  # For python3 compatibility
+
 
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     """
@@ -200,7 +205,6 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
-
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
                 gcs_hook = GoogleCloudStorageHook(
@@ -216,10 +220,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 schema_fields = None
 
         else:
-            schema_fields = self.schema_fields
+            schema_fields = self._get_elements_list(self.schema_fields)
 
+        source_objects = self._get_elements_list(self.source_objects)
         source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
-                       for source_object in self.source_objects]
+                       for source_object in source_objects]
+
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
@@ -271,3 +277,22 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 self.destination_project_dataset_table, self.max_id_key, max_id
             )
             return max_id
+
+    def _get_elements_list(self, elements):
+        if isinstance(elements, basestring):
+            import ast
+
+            if "," in elements:
+                elements_list = ast.literal_eval(elements)
+                elements_list = [
+                    element.strip() if isinstance(element, basestring) else element
+                    for element in elements_list
+                ]
+            else:
+                try:
+                    elements_list = ast.literal_eval(elements)
+                except (ValueError, SyntaxError):
+                    elements_list = [elements]
+
+            return elements_list
+        return elements
