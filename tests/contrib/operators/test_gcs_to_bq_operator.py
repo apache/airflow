@@ -102,6 +102,7 @@ class GoogleCloudStorageToBigQueryOperatorTest(unittest.TestCase):
         gcs_to_bq = GoogleCloudStorageToBigQueryOperator(
             task_id=TASK_ID,
             bucket=BUCKET,
+            # source_objects="['{}']".format(SOURCE_OBJECT),
             source_objects="['{}']".format(SOURCE_OBJECT),
             schema_fields=BQ_SCHEMA,
             destination_project_dataset_table=BQ_DESTINATION,
@@ -109,7 +110,7 @@ class GoogleCloudStorageToBigQueryOperatorTest(unittest.TestCase):
         gcs_to_bq.bq_hook = mock_hook
         gcs_to_bq.execute(None)
 
-        source_uris = []
+        source_uris = ["gs://{}/{}".format(BUCKET, SOURCE_OBJECT)]
         mock_hook.return_value.get_conn().cursor().run_load.assert_called_once_with(
             source_uris=source_uris, schema_fields=BQ_SCHEMA, **KWARGS
         )
@@ -139,7 +140,7 @@ class GoogleCloudStorageToBigQueryOperatorTest(unittest.TestCase):
         gcs_to_bq = GoogleCloudStorageToBigQueryOperator(
             task_id=TASK_ID,
             bucket=BUCKET,
-            source_objects="['{}', '{}']".format(BUCKET, SOURCE_OBJECT),
+            source_objects="['{}', '{}']".format(SOURCE_OBJECT, SOURCE_OBJECT),
             schema_fields=BQ_SCHEMA,
             destination_project_dataset_table=BQ_DESTINATION,
         )
