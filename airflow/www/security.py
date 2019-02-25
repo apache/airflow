@@ -443,11 +443,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         pvms = [p for p in pvms if p.permission and p.view_menu]
 
         admin = self.find_role('Admin')
-        existing_perms_vms = set(admin.permissions)
-        for p in pvms:
-            if p not in existing_perms_vms:
-                existing_perms_vms.add(p)
-        admin.permissions = list(existing_perms_vms)
+        admin.permissions = list(set(admin.permissions) | set(pvms))
 
         self.get_session.commit()
 
