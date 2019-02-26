@@ -144,7 +144,6 @@ class BaseJob(Base, LoggingMixin):
         """
         raise e
 
-
     def heartbeat_callback(self, session=None):
         pass
 
