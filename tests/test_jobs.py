@@ -1304,7 +1304,6 @@ class LocalTaskJobTest(unittest.TestCase):
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
         self.assertEqual(ti.pid, 1)
         self.assertEqual(ti.state, State.RUNNING)
-        self.assertTrue(ti.handle_failure.called)
         self.assertTrue(ti, State.FAILED)
         session.close()
 
