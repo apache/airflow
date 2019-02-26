@@ -4121,7 +4121,8 @@ class DAG(BaseDag, LoggingMixin):
             graph_id = 1
         else:
             # graph is changed
-            max_graph_id = session.query(func.max(DagEdge.graph_id)).filter(DagEdge.dag_id == self.dag_id).first()
+            max_graph_id = session.query(func.max(DagEdge.graph_id))\
+                .filter(DagEdge.dag_id == self.dag_id).first()
             if max_graph_id is not None:
                 graph_id = max_graph_id + 1
             else:
