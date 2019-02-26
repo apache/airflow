@@ -59,6 +59,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           list_py_file_paths)
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.email import send_email, get_email_address_list
+from airflow.utils.lock import acquire_lock
 from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
@@ -604,6 +605,22 @@ class SchedulerJob(BaseJob):
         if run_duration is None:
             self.run_duration = conf.getint('scheduler',
                                             'run_duration')
+
+        self._lock_exit = False
+
+    def on_lock_error(self):
+        self._lock_exit = True
+
+    def run(self):
+        def on_stolen_lock(*args, **kwargs):
+            self.log.info("Scheduler has lost the lock. Shutting down")
+            self.on_lock_error()
+
+        # Scheduler locking logic
+        self.log.error("Acquiring lock...")
+        with acquire_lock(callback=on_stolen_lock):
+            self.log.info("Lock Acquired!")
+            return super(SchedulerJob, self).run()
 
     @provide_session
     def manage_slas(self, dag, session=None):
@@ -1748,6 +1765,10 @@ class SchedulerJob(BaseJob):
                 self.log.info(
                     "Exiting loop as all files have been processed %s times",
                     self.num_runs)
+                break
+
+            # Exit if _lock_exit got hit
+            if self._lock_exit:
                 break
 
         # Stop any processors

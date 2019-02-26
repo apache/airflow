@@ -159,6 +159,7 @@ doc = [
 ]
 docker = ['docker~=3.0']
 druid = ['pydruid>=0.4.1']
+dynamodb_lock = ['python-dynamodb-lock==0.9.1']
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
     'elasticsearch-dsl>=5.0.0,<6.0.0'
@@ -245,7 +246,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + or
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake +
-             atlas)
+             atlas + dynamodb_lock)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -331,6 +332,7 @@ def do_setup():
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'dynamodb_lock': dynamodb_lock,
             'elasticsearch': elasticsearch,
             'emr': emr,
             'gcp_api': gcp_api,
