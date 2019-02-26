@@ -23,11 +23,7 @@ from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-try:
-    basestring
-except NameError:
-    basestring = str  # For python3 compatibility
+from six import string_types
 
 
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
@@ -279,13 +275,13 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             return max_id
 
     def _get_elements_list(self, elements):
-        if isinstance(elements, basestring):
+        if isinstance(elements, string_types):
             import ast
 
             if "," in elements:
                 elements_list = ast.literal_eval(elements)
                 elements_list = [
-                    element.strip() if isinstance(element, basestring) else element
+                    element.strip() if isinstance(element, string_types) else element
                     for element in elements_list
                 ]
             else:
