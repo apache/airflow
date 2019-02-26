@@ -1267,6 +1267,17 @@ class LocalTaskJobTest(unittest.TestCase):
         check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
         self.assertTrue(all(check_result_2))
 
+    @mock.patch('airflow.jobs.LocalTaskJob.heartbeat_callback', return_value=True)
+    def test_localtaskjob_invalid_return_code(self, heartbeat_callback):
+        ti = mock.MagicMock()
+        ti.command.return_value = "\"ls -l not_exists\""
+        ti.handle_failure.return_value = True
+        ti.state = State.RUNNING
+        local_task_job = LocalTaskJob(ti)
+        local_task_job.run()
+        self.assertTrue(local_task_job.task_instance.handle_failure.called)
+        self.assertTrue(local_task_job.state, State.FAILED)
+
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
         session = settings.Session()

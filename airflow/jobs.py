@@ -137,6 +137,14 @@ class BaseJob(Base, LoggingMixin):
         """
         pass
 
+    def on_failure(self, e):
+        """
+        Will be called when an exception happens during _execute
+        default just raise exception again
+        """
+        raise e
+
+
     def heartbeat_callback(self, session=None):
         pass
 
@@ -203,6 +211,7 @@ class BaseJob(Base, LoggingMixin):
             make_transient(self)
             self.id = id_
 
+            # Run
             try:
                 self._execute()
                 # In case of max runs or max duration
@@ -210,9 +219,11 @@ class BaseJob(Base, LoggingMixin):
             except SystemExit:
                 # In case of ^C or SIGTERM
                 self.state = State.SUCCESS
-            except Exception:
+            except Exception as e:
                 self.state = State.FAILED
-                raise
+                self.log.error("Job finished with an exception")
+                self.log.exception(e)
+                self.on_failure(e)
             finally:
                 self.end_date = timezone.utcnow()
                 session.merge(self)
@@ -2559,7 +2570,13 @@ class LocalTaskJob(BaseJob):
             while True:
                 # Monitor the task to see if it's done
                 return_code = self.task_runner.return_code()
+
                 if return_code is not None:
+                    if return_code != 0:
+                        msg = ("LocalTaskJob process exited with non zero status "
+                               "{}".format(return_code))
+                        raise AirflowException(msg)
+
                     self.log.info("Task exited with return code %s", return_code)
                     return
 
@@ -2592,6 +2609,12 @@ class LocalTaskJob(BaseJob):
     def on_kill(self):
         self.task_runner.terminate()
         self.task_runner.on_finish()
+
+    def on_failure(self, e):
+        # Only handle the failure if the state is not already set to unsuccessful states
+        self.task_instance.refresh_from_db()
+        if self.task_instance.state not in State.unsuccessful():
+            self.task_instance.handle_failure(e)
 
     @provide_session
     def heartbeat_callback(self, session=None):
