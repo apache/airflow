@@ -75,7 +75,6 @@ class ImpersonationTest(unittest.TestCase):
     def run_backfill(self, dag_id, task_id):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
-
         jobs.BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
@@ -86,7 +85,7 @@ class ImpersonationTest(unittest.TestCase):
             execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.SUCCESS)
+        self.assertEqual(ti.state, State.FAILED)
 
     def test_impersonation(self):
         """
