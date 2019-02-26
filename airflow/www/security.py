@@ -267,9 +267,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :param permission: permission on dag_id(e.g can_read, can_edit).
         :type permission: str
         :param view_name: name of view-menu(e.g dag id is a view-menu as well).
-        :type permission: str
+        :type view_name: str
         :param user: user name
-        :type permission: str
+        :type user: str
         :return: a bool whether user could perform certain permission on the dag_id.
         :rtype bool
         """
