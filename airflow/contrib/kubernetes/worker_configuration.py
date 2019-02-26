@@ -236,7 +236,7 @@ class WorkerConfiguration(LoggingMixin):
                 'secret': {
                     'secretName': self.kube_config.git_ssh_key_secret_name,
                     'items': [{
-                        'key': self.kube_config.git_ssh_key_secret_key,
+                        'key': self.git_ssh_key_secret_key,
                         'path': 'ssh',
                         'mode': 288
                     }]
