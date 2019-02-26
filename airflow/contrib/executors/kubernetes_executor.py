@@ -164,12 +164,10 @@ class KubeConfig:
                                                     'git_dags_folder_mount_point')
 
         # Optionally a user may supply a (`git_user` AND `git_password`) OR
-        # (`git_ssh_key_secret_name` AND `git_ssh_key_secret_key`) for
-        # private repositories
+        # (`git_ssh_secret_name` AND `git_ssh_key_secret_key`) for private repositories
         self.git_user = conf.get(self.kubernetes_section, 'git_user')
         self.git_password = conf.get(self.kubernetes_section, 'git_password')
-        self.git_ssh_key_secret_name = conf.get(self.kubernetes_section, 'git_ssh_key_secret_name')
-        self.git_ssh_key_secret_key = conf.get(self.kubernetes_section, 'git_ssh_key_secret_key')
+        self.git_ssh_secret_name = conf.get(self.kubernetes_section, 'git_ssh_secret_name')
 
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
@@ -256,13 +254,13 @@ class KubeConfig:
                 'or `git_repo and git_branch and git_dags_folder_mount_point`')
         if self.git_repo \
            and (self.git_user or self.git_password) \
-           and (self.git_ssh_key_secret_name or self.git_ssh_key_secret_key):
+           and self.git_ssh_secret_name:
             raise AirflowConfigException(
                 'In kubernetes mode, using `git_repo` to pull the DAGs: '
                 'for private repositories, either `git_user` and `git_password` '
                 'must be set for authentication through user credentials; '
-                'or `git_ssh_key_secret_name` and git_ssh_key_secret_key '
-                'must be set for authentication through ssh key, but not both')
+                'or `git_ssh_secret_name` must be set for authentication '
+                'through ssh key, but not both')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
