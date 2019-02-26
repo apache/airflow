@@ -22,7 +22,6 @@ from typing import Dict, Any
 
 from airflow import configuration as conf
 from airflow.utils.file import mkdirs
-from airflow.utils.log.json_formatter import create_formatter
 
 # TODO: Logging format and level should be configured
 # in this file instead of from airflow.cfg. Currently
@@ -65,7 +64,7 @@ ELASTICSEARCH_WRITE_STDOUT = conf.get('elasticsearch', 'ELASTICSEARCH_WRITE_STDO
 
 ELASTICSEARCH_JSON_FORMAT = conf.get('elasticsearch', 'ELASTICSEARCH_JSON_FORMAT')
 
-ELASTICSEARCH_RECORD_LABELS = conf.get('elasticsearch', 'ELASTICSEARCH_RECORD_LABELS')
+ELASTICSEARCH_JSON_FIELDS = conf.get('elasticsearch', 'ELASTICSEARCH_JSON_FIELDS')
 
 
 DEFAULT_LOGGING_CONFIG = {
@@ -75,10 +74,6 @@ DEFAULT_LOGGING_CONFIG = {
         'airflow': {
             'format': LOG_FORMAT,
         },
-        'json': {
-            '()': create_formatter,
-            'record_labels': ['created', 'filename', 'lineno', 'levelname', 'msg'],
-        }
     },
     'handlers': {
         'console': {
@@ -183,7 +178,7 @@ REMOTE_HANDLERS = {
             'host': ELASTICSEARCH_HOST,
             'write_stdout': ELASTICSEARCH_WRITE_STDOUT,
             'json_format': ELASTICSEARCH_JSON_FORMAT,
-            'record_labels': ELASTICSEARCH_RECORD_LABELS
+            'json_fields': ELASTICSEARCH_JSON_FIELDS
         },
     },
 }

@@ -2,10 +2,10 @@ import logging
 import json
 
 
-class JsonFormatter(logging.Formatter):
-    def __init__(self, record_labels, extras={}):
-        super(JsonFormatter, self).__init__()
-        self.record_labels = record_labels
+class JSONFormatter(logging.Formatter):
+    def __init__(self, fmt=None, datefmt=None, style='%', json_fields=[], extras={}):
+        super(JSONFormatter, self).__init__(fmt, datefmt, style)
+        self.json_fields = json_fields
         self.extras = extras
 
     def _merge_dicts(self, d1, d2):
@@ -14,11 +14,8 @@ class JsonFormatter(logging.Formatter):
         return merged
 
     def format(self, record):
-        record_dict = {label: getattr(record, label)
-                       for label in self.record_labels}
+        super(JSONFormatter, self).format(record)
+        record_dict = {label: getattr(record, label, None)
+                       for label in self.json_fields}
         merged_record = self._merge_dicts(record_dict, self.extras)
         return json.dumps(merged_record)
-
-
-def create_formatter(record_labels, extras={}):
-    return JsonFormatter(record_labels, extras)

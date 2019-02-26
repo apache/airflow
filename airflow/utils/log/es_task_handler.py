@@ -90,9 +90,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
                                            execution_date=execution_date,
                                            try_number=try_number)
 
-    # Remove elasticsearch reserved characters
-    # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
     def _clean_execution_date(self, execution_date):
+        """
+        Clean up an execution date so that it is safe to query in elasticsearch
+        by removing reserved characters.
+        # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
+        :param execution_date: execution date of the dag run.
+        """
         return re.sub(r"[\+\-\:\.]", "", execution_date.isoformat())
 
     def _read(self, ti, try_number, metadata=None):
@@ -180,6 +184,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         return logs
 
     def set_context(self, ti):
+        """
+        Provide task_instance context to airflow task handler.
+        :param ti: task instance object
+        """
         super().set_context(ti)
         self.mark_end_on_close = not ti.raw
 
@@ -187,11 +195,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             self.handler = logging.StreamHandler(stream=sys.__stdout__)
             self.handler.setLevel(self.level)
             if self.json_format and not ti.raw:
-                self.handler.setFormatter(create_formatter(self.record_labels, {
-                    'dag_id': str(ti.dag_id),
-                    'task_id': str(ti.task_id),
-                    'execution_date': self._clean_execution_date(ti.execution_date),
-                    'try_number': str(ti.try_number)}))
+                self.handler.setFormatter(
+                    JSONFormatter(self.formatter._fmt, json_fields=self.json_fields, extras={
+                        'dag_id': str(ti.dag_id),
+                        'task_id': str(ti.task_id),
+                        'execution_date': self._clean_execution_date(ti.execution_date),
+                        'try_number': str(ti.try_number)}))
             else:
                 self.handler.setFormatter(self.formatter)
         else:
