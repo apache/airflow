@@ -41,14 +41,6 @@ class AirflowWebHDFSHookException(AirflowException):
 
 class WebHDFSHook(BaseHook):
     """
-    Interact with HDFS. This class is a wrapper around the hdfscli library.
-    """
-    def __init__(self, webhdfs_conn_id='webhdfs_default', proxy_user=None):
-        self.webhdfs_conn_id = webhdfs_conn_id
-        self.proxy_user = proxy_user
-
-class WebHDFSHook(BaseHook):
-    """
     Interact with WebHDFS. This class is a wrapper around the hdfscli library.
     """
     def __init__(self, webhdfs_conn_id='webhdfs_default', proxy_user=None):
@@ -71,7 +63,8 @@ class WebHDFSHook(BaseHook):
                     proxy_user = self.proxy_user or nn.login
                     client = InsecureClient(connection_str, user=proxy_user)
                 client.status('/')
-                self.log.debug('Using namenode %s for hook', nn.host)
+                self.log.debug('Using namenode %s for hook',
+                                nn.host)
                 return client
             except HdfsError as e:
                 self.log.debug(
