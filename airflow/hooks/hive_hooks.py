@@ -908,7 +908,7 @@ class HiveServer2Hook(BaseHook):
                     self.log.debug('Cursor description is %s', header)
                     writer.writerow([c[0] for c in header])
 
-                for i, row in enumerate(results_iter):
+                for i, row in enumerate(results_iter, 1):
                     writer.writerow(row)
                     if i % fetch_size == 0:
                         self.log.info("Written %s rows so far.", i)
