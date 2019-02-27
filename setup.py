@@ -152,7 +152,7 @@ cgroups = [
 ]
 # major update coming soon, clamp to 0.x
 cloudant = ['cloudant>=0.5.9,<2.0']
-crypto = ['cryptography>=0.9.3']
+crypto = ['cryptography>=0.9.3,<2.6']
 dask = [
     'distributed>=1.17.1, <2'
 ]
