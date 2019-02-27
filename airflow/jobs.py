@@ -220,8 +220,6 @@ class BaseJob(Base, LoggingMixin):
                 self.state = State.SUCCESS
             except Exception as e:
                 self.state = State.FAILED
-                self.log.error("Job finished with an exception")
-                self.log.exception(e)
                 self.on_failure(e)
             finally:
                 self.end_date = timezone.utcnow()
