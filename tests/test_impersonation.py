@@ -85,7 +85,7 @@ class ImpersonationTest(unittest.TestCase):
             execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
 
-        self.assertEqual(ti.state, State.FAILED)
+        self.assertEqual(ti.state, State.SUCCESS)
 
     def test_impersonation(self):
         """
