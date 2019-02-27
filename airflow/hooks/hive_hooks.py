@@ -496,6 +496,7 @@ class HiveMetastoreHook(BaseHook):
         """
         Returns a Hive thrift client.
         """
+        import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
 
@@ -516,21 +517,21 @@ class HiveMetastoreHook(BaseHook):
                 import saslwrapper as sasl
             except ImportError:
                 import sasl
- 
+
             def sasl_factory():
                 sasl_client = sasl.Client()
                 sasl_client.setAttr("host", valid_conn.host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
- 
+
             from thrift_sasl import TSaslClientTransport
             transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
         else:
             transport = TTransport.TBufferedTransport(conn_socket)
- 
+
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
- 
+
         return hmsclient.HMSClient(iprot=protocol)
 
     def _find_valid_server(self):
