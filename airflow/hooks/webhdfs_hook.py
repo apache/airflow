@@ -55,7 +55,9 @@ class WebHDFSHook(BaseHook):
         for nn in nn_connections:
             try:
                 self.log.debug('Trying namenode %s', nn.host)
-                connection_str = self.connection_url('http://', '{nn.host}'.format(nn=nn), '{nn.port}'.format(nn=nn))
+                connection_str = self.connection_url('http://',
+                    '{nn.host}'.format(nn=nn),
+                    '{nn.port}'.format(nn=nn))
                 self.log.debug("Connection to WebHDFS: %s", connection_str)
                 if _kerberos_security_mode:
                     client = KerberosClient(connection_str)
