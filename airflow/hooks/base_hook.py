@@ -95,13 +95,12 @@ class BaseHook(LoggingMixin):
         if len(conn_tmp) == 1:
             conn = conn_id + conn_tmp[0] + ':' + conn_port
         else:
-            for i in range(len(conn_tmp)-1):
-                conn = conn + conn_id + conn_tmp[i] + ':' +  conn_port + ';'
-                if i == len(conn_tmp)-2:
-                   conn = conn + conn_id + conn_tmp[i+1] + ':' + conn_port
+            for i in range(len(conn_tmp) - 1):
+                conn = conn + conn_id + conn_tmp[i] + ':' + conn_port + ';'
+                if i == len(conn_tmp) - 2:
+                   conn = conn + conn_id + conn_tmp[i + 1] + ':' + conn_port
         return conn
 
-    
     def get_conn(self):
         raise NotImplementedError()
 
