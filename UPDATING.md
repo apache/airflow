@@ -47,7 +47,8 @@ becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
 ### Renamed "extra" requirements for cloud providers
 
 Subpackages for specific services have been combined into one variant for
-each cloud provider.
+each cloud provider. The name of the subpackage for the Google Cloud Platform
+has changed to follow style.
 
 If you want to install integration for Microsoft Azure, then instead of
 ```
@@ -58,7 +59,9 @@ you should execute `pip install apache-airflow[azure]`
 If you want to install integration for Amazon Web Services, then instead of
 `pip install apache-airflow[s3,emr]`, you should execute `pip install apache-airflow[aws]`
 
-The integration with GCP is unchanged.
+If you want to install integration for Google Cloud Platform, then instead of
+`pip install apache-airflow[gcp_api]`, you should execute `pip install apache-airflow[gcp]`.
+The old way will work until the release of Airflow 2.1.
 
 ### Changes in Google Cloud Platform related operators
 

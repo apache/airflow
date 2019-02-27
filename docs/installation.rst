@@ -27,11 +27,11 @@ The easiest way to install the latest stable version of Airflow is with ``pip``:
 
     pip install apache-airflow
 
-You can also install Airflow with support for extra features like ``gcp_api`` or ``postgres``:
+You can also install Airflow with support for extra features like ``gcp`` or ``postgres``:
 
 .. code-block:: bash
 
-    pip install apache-airflow[postgres,gcp_api]
+    pip install apache-airflow[postgres,gcp]
 
 Extra Packages
 ''''''''''''''
@@ -72,8 +72,7 @@ Here's the list of the subpackages and what they enable:
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | druid               | ``pip install apache-airflow[druid]``             | Druid related operators & hooks                                      |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
-| gcp_api             | ``pip install apache-airflow[gcp_api]``           | Google Cloud Platform hooks and operators                            |
-|                     |                                                   | (using ``google-api-python-client``)                                 |
+| gcp                 | ``pip install apache-airflow[gcp]``               | Google Cloud Platform                                                |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+
 | github_enterprise   | ``pip install apache-airflow[github_enterprise]`` | GitHub Enterprise auth backend                                       |
 +---------------------+---------------------------------------------------+----------------------------------------------------------------------+

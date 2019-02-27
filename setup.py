@@ -171,7 +171,7 @@ elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
-gcp_api = [
+gcp = [
     'httplib2>=0.9.2',
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth>=1.0.0, <2.0.0dev',
@@ -259,7 +259,7 @@ if not PY3:
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + redis + gcp_api +
+             docker + ssh + kubernetes + celery + redis + gcp +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
              atlas + azure + aws)
@@ -350,7 +350,8 @@ def do_setup():
             'docker': docker,
             'druid': druid,
             'elasticsearch': elasticsearch,
-            'gcp_api': gcp_api,
+            'gcp': gcp,
+            'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
             'github_enterprise': github_enterprise,
             'google_auth': google_auth,
             'hdfs': hdfs,
