@@ -87,7 +87,7 @@ class BaseHook(LoggingMixin):
     def get_hook(cls, conn_id):
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
-    
+
     def get_conn(self):
         raise NotImplementedError()
 
