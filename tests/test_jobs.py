@@ -2670,11 +2670,11 @@ class SchedulerJobTest(unittest.TestCase):
             dag_id='test_scheduler_do_not_schedule_without_tasks',
             start_date=DEFAULT_DATE)
 
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
+            session.commit()
+            session.close()
         scheduler = SchedulerJob()
         dag.clear()
         dag.start_date = None
