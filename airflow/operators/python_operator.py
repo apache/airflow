@@ -130,12 +130,6 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     these paths can't move forward. The ``skipped`` states are propagated
     downstream to allow for the DAG state to fill up and the DAG run's state
     to be inferred.
-
-    Note that using tasks with ``depends_on_past=True`` downstream from
-    ``BranchPythonOperator`` is logically unsound as ``skipped`` status
-    will invariably lead to block tasks that depend on their past successes.
-    ``skipped`` states propagates where all directly upstream tasks are
-    ``skipped``.
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)

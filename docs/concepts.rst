@@ -540,12 +540,6 @@ task_id returned is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to reference a task
 directly downstream from the BranchPythonOperator task.
 
-Note that using tasks with ``depends_on_past=True`` downstream from
-``BranchPythonOperator`` is logically unsound as ``skipped`` status
-will invariably lead to block tasks that depend on their past successes.
-``skipped`` states propagates where all directly upstream tasks are
-``skipped``.
-
 Note that when a path is a downstream task of the returned task (list), it will
 not be skipped:
 
