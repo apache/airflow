@@ -102,13 +102,12 @@ class BaseTaskRunner(LoggingMixin):
 
     def run_command(self, run_with=None, join_args=False):
         """
-        Run the task command
+        Run the task command.
 
-        :param run_with: list of tokens to run the task command with
-        E.g. ['bash', '-c']
+        :param run_with: list of tokens to run the task command with e.g. ``['bash', '-c']``
         :type run_with: list
-        :param join_args: whether to concatenate the list of command tokens
-        E.g. ['airflow', 'run'] vs ['airflow run']
+        :param join_args: whether to concatenate the list of command tokens e.g. ``['airflow', 'run']`` vs
+            ``['airflow run']``
         :param join_args: bool
         :return: the process that was run
         :rtype: subprocess.Popen
@@ -146,7 +145,7 @@ class BaseTaskRunner(LoggingMixin):
     def return_code(self):
         """
         :return: The return code associated with running the task instance or
-        None if the task is not yet done.
+            None if the task is not yet done.
         :rtype: int
         """
         raise NotImplementedError()
