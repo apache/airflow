@@ -143,7 +143,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         if offset != next_offset or 'last_log_timestamp' not in metadata:
             metadata['last_log_timestamp'] = str(cur_ts)
 
-        message = '\n'.join([log.message for log in logs])
+        # If we hit the end of the log, remove the actual end_of_log message
+        # to prevent it from showing in the UI.
+        i = len(logs) if not metadata['end_of_log'] else len(logs) - 1
+        message = '\n'.join([log.message for log in logs[0:i]])
 
         return message, metadata
 
@@ -242,7 +245,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.handler.stream.write(self.end_of_log_mark)
+        self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
 
         if self.write_stdout:
             self.writer.close()
