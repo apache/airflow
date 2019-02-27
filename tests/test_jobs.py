@@ -2673,8 +2673,6 @@ class SchedulerJobTest(unittest.TestCase):
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
-            session.commit()
-            session.close()
         scheduler = SchedulerJob()
         dag.clear()
         dag.start_date = None
