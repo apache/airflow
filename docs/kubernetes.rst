@@ -15,6 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
+Kubernetes
+----------
+
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
@@ -128,6 +131,10 @@ Kubernetes Operator
 
 
 .. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
+    :noindex:
+
 
 .. autoclass:: airflow.contrib.kubernetes.secret.Secret
+    :noindex:
+
 

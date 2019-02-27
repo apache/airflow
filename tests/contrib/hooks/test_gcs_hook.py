@@ -207,7 +207,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'Either source/destination bucket or source/destination object '
             'must be different, not both the same: bucket=%s, object=%s' %
@@ -227,7 +227,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'source_bucket and source_object cannot be empty.'
         )
@@ -245,7 +245,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
                                destination_bucket=destination_bucket,
                                destination_object=destination_object)
 
-        self.assertEquals(
+        self.assertEqual(
             str(e.exception),
             'source_bucket and source_object cannot be empty.'
         )
@@ -341,6 +341,88 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
 
         self.assertFalse(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = 'test_object_composed'
+
+        method = (mock_service.return_value.objects.return_value.compose)
+
+        self.gcs_hook.compose(
+            bucket=test_bucket,
+            source_objects=test_source_objects,
+            destination_object=test_destination_object
+        )
+
+        body = {
+            'sourceObjects': [
+                {'name': 'test_object_1'},
+                {'name': 'test_object_2'},
+                {'name': 'test_object_3'}
+            ]
+        }
+
+        method.assert_called_once_with(
+            destinationBucket=test_bucket,
+            destinationObject=test_destination_object,
+            body=body
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_with_empty_source_objects(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = []
+        test_destination_object = 'test_object_composed'
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'source_objects cannot be empty.'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_without_bucket(self, mock_service):
+        test_bucket = None
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = 'test_object_composed'
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'bucket and destination_object cannot be empty.'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_without_destination_object(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = None
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'bucket and destination_object cannot be empty.'
+        )
 
 
 class TestGoogleCloudStorageHookUpload(unittest.TestCase):

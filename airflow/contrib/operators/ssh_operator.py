@@ -33,9 +33,9 @@ class SSHOperator(BaseOperator):
 
     :param ssh_hook: predefined ssh_hook to use for remote execution.
         Either `ssh_hook` or `ssh_conn_id` needs to be provided.
-    :type ssh_hook: :class:`SSHHook`
+    :type ssh_hook: airflow.contrib.hooks.ssh_hook.SSHHook
     :param ssh_conn_id: connection id from airflow Connections.
-        `ssh_conn_id` will be ingored if `ssh_hook` is provided.
+        `ssh_conn_id` will be ignored if `ssh_hook` is provided.
     :type ssh_conn_id: str
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
@@ -45,8 +45,6 @@ class SSHOperator(BaseOperator):
     :type command: str
     :param timeout: timeout (in seconds) for executing the command.
     :type timeout: int
-    :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
-    :type do_xcom_push: bool
     """
 
     template_fields = ('command', 'remote_host')
@@ -59,7 +57,6 @@ class SSHOperator(BaseOperator):
                  remote_host=None,
                  command=None,
                  timeout=10,
-                 do_xcom_push=False,
                  *args,
                  **kwargs):
         super(SSHOperator, self).__init__(*args, **kwargs)
@@ -68,7 +65,6 @@ class SSHOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.timeout = timeout
-        self.do_xcom_push = do_xcom_push
 
     def execute(self, context):
         try:
@@ -98,6 +94,8 @@ class SSHOperator(BaseOperator):
                 get_pty = False
                 if self.command.startswith('sudo'):
                     get_pty = True
+
+                self.log.info("Running command: %s", self.command)
 
                 # set timeout taken as params
                 stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
@@ -147,16 +145,14 @@ class SSHOperator(BaseOperator):
                 stderr.close()
 
                 exit_status = stdout.channel.recv_exit_status()
-                if exit_status is 0:
-                    # returning output if do_xcom_push is set
-                    if self.do_xcom_push:
-                        enable_pickling = configuration.conf.getboolean(
-                            'core', 'enable_xcom_pickling'
-                        )
-                        if enable_pickling:
-                            return agg_stdout
-                        else:
-                            return b64encode(agg_stdout).decode('utf-8')
+                if exit_status == 0:
+                    enable_pickling = configuration.conf.getboolean(
+                        'core', 'enable_xcom_pickling'
+                    )
+                    if enable_pickling:
+                        return agg_stdout
+                    else:
+                        return b64encode(agg_stdout).decode('utf-8')
 
                 else:
                     error_msg = agg_stderr.decode('utf-8')

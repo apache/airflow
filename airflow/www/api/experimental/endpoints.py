@@ -23,6 +23,7 @@ from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
+from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -134,6 +135,19 @@ def dag_runs(dag_id):
 @requires_authentication
 def test():
     return jsonify(status='OK')
+
+
+@api_experimental.route('/dags/<string:dag_id>/code', methods=['GET'])
+@requires_authentication
+def get_dag_code(dag_id):
+    """Return python code of a given dag_id."""
+    try:
+        return get_code(dag_id)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
 
 
 @api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])

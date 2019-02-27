@@ -31,7 +31,6 @@ from datetime import timedelta
 
 
 import markdown
-import nvd3
 import pendulum
 import sqlalchemy as sqla
 from flask import (
@@ -54,8 +53,12 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import XCom, DagRun, errors
+from airflow.models import DagRun, errors
 from airflow.models.connection import Connection
+from airflow.models.log import Log
+from airflow.models.slamiss import SlaMiss
+from airflow.models.taskfail import TaskFail
+from airflow.models.xcom import XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
@@ -63,6 +66,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
+from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
@@ -759,8 +763,8 @@ class Airflow(AirflowBaseView):
         ignore_task_deps = request.args.get('ignore_task_deps') == "true"
         ignore_ti_state = request.args.get('ignore_ti_state') == "true"
 
-        from airflow.executors import GetDefaultExecutor
-        executor = GetDefaultExecutor()
+        from airflow.executors import get_default_executor
+        executor = get_default_executor()
         valid_celery_config = False
         valid_kubernetes_config = False
 
@@ -1425,7 +1429,7 @@ class Airflow(AirflowBaseView):
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
-        TF = models.TaskFail
+        TF = TaskFail
         ti_fails = (
             session.query(TF)
                    .filter(TF.dag_id == dag.dag_id,
@@ -1675,10 +1679,10 @@ class Airflow(AirflowBaseView):
             session.merge(orm_dag)
         session.commit()
 
+        dag = dagbag.get_dag(dag_id)
         # sync dag permission
-        appbuilder.sm.sync_perm_for_dag(dag_id)
+        appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
 
-        dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
@@ -1688,7 +1692,8 @@ class Airflow(AirflowBaseView):
     def refresh_all(self):
         dagbag.collect_dags(only_if_updated=False)
         # sync permissions for all dags
-        appbuilder.sm.sync_perm_for_dag()
+        for dag_id, dag in dagbag.dags.items():
+            appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
         flash("All DAGs are now up to date")
         return redirect('/')
 
@@ -1719,7 +1724,7 @@ class Airflow(AirflowBaseView):
             ti for ti in dag.get_task_instances(session, dttm, dttm)
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
-        TF = models.TaskFail
+        TF = TaskFail
         ti_fails = list(itertools.chain(*[(
             session
             .query(TF)
@@ -1728,33 +1733,15 @@ class Airflow(AirflowBaseView):
                     TF.execution_date == ti.execution_date)
             .all()
         ) for ti in tis]))
-        TR = models.TaskReschedule
-        ti_reschedules = list(itertools.chain(*[(
-            session
-            .query(TR)
-            .filter(TR.dag_id == ti.dag_id,
-                    TR.task_id == ti.task_id,
-                    TR.execution_date == ti.execution_date)
-            .all()
-        ) for ti in tis]))
 
         # determine bars to show in the gantt chart
-        # all reschedules of one attempt are combinded into one bar
         gantt_bar_items = []
-        for task_id, items in itertools.groupby(
-                sorted(tis + ti_fails + ti_reschedules, key=lambda ti: ti.task_id),
-                key=lambda ti: ti.task_id):
-            start_date = None
-            for i in sorted(items, key=lambda ti: ti.start_date):
-                start_date = start_date or i.start_date
-                end_date = i.end_date or timezone.utcnow()
-                if type(i) == models.TaskInstance:
-                    gantt_bar_items.append((task_id, start_date, end_date, i.state))
-                    start_date = None
-                elif type(i) == TF and (len(gantt_bar_items) == 0 or
-                                        end_date != gantt_bar_items[-1][2]):
-                    gantt_bar_items.append((task_id, start_date, end_date, State.FAILED))
-                    start_date = None
+        for ti in tis:
+            end_date = ti.end_date or timezone.utcnow()
+            gantt_bar_items.append((ti.task_id, ti.start_date, end_date, ti.state))
+        for tf in ti_fails:
+            end_date = tf.end_date or timezone.utcnow()
+            gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED))
 
         tasks = []
         for gantt_bar_item in gantt_bar_items:
@@ -1902,7 +1889,7 @@ class AirflowModelView(ModelView):
 class SlaMissModelView(AirflowModelView):
     route_base = '/slamiss'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.SlaMiss)
+    datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)
 
     base_permissions = ['can_list']
 
@@ -1924,7 +1911,7 @@ class SlaMissModelView(AirflowModelView):
 class XComModelView(AirflowModelView):
     route_base = '/xcom'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.XCom)
+    datamodel = AirflowModelView.CustomSQLAInterface(XCom)
 
     base_permissions = ['can_add', 'can_list', 'can_edit', 'can_delete']
 
@@ -2293,7 +2280,7 @@ class DagRunModelView(AirflowModelView):
 class LogModelView(AirflowModelView):
     route_base = '/log'
 
-    datamodel = AirflowModelView.CustomSQLAInterface(models.Log)
+    datamodel = AirflowModelView.CustomSQLAInterface(Log)
 
     base_permissions = ['can_list']
 
@@ -2424,25 +2411,13 @@ class TaskInstanceModelView(AirflowModelView):
         self.update_redirect()
         return redirect(self.get_redirect())
 
-    def get_one(self, id):
-        """
-        As a workaround for AIRFLOW-252, this method overrides Flask-Admin's
-        ModelView.get_one().
-
-        TODO: this method should be removed once the below bug is fixed on
-        Flask-Admin side. https://github.com/flask-admin/flask-admin/issues/1226
-        """
-        task_id, dag_id, execution_date = iterdecode(id)  # noqa
-        execution_date = pendulum.parse(execution_date)
-        return self.session.query(self.model).get((task_id, dag_id, execution_date))
-
 
 class DagModelView(AirflowModelView):
     route_base = '/dagmodel'
 
     datamodel = AirflowModelView.CustomSQLAInterface(models.DagModel)
 
-    base_permissions = ['can_list', 'can_show']
+    base_permissions = ['can_list', 'can_show', 'can_edit']
 
     list_columns = ['dag_id', 'is_paused', 'last_scheduler_run',
                     'last_expired', 'scheduler_lock', 'fileloc', 'owners']

@@ -43,12 +43,12 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
     @mock_glue
     def test_conn_id(self):
         hook = AwsGlueCatalogHook(aws_conn_id='my_aws_conn_id', region_name="us-east-1")
-        self.assertEquals(hook.aws_conn_id, 'my_aws_conn_id')
+        self.assertEqual(hook.aws_conn_id, 'my_aws_conn_id')
 
     @mock_glue
     def test_region(self):
         hook = AwsGlueCatalogHook(region_name="us-west-2")
-        self.assertEquals(hook.region_name, 'us-west-2')
+        self.assertEqual(hook.region_name, 'us-west-2')
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'get_conn')
@@ -57,7 +57,7 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
         mock_get_conn.get_paginator.paginate.return_value = response
         hook = AwsGlueCatalogHook(region_name="us-east-1")
 
-        self.assertEquals(hook.get_partitions('db', 'tbl'), set())
+        self.assertEqual(hook.get_partitions('db', 'tbl'), set())
 
     @mock_glue
     @mock.patch.object(AwsGlueCatalogHook, 'get_conn')
@@ -79,7 +79,7 @@ class TestAwsGlueCatalogHook(unittest.TestCase):
                                      page_size=2,
                                      max_items=3)
 
-        self.assertEquals(result, set([('2015-01-01',)]))
+        self.assertEqual(result, set([('2015-01-01',)]))
         mock_conn.get_paginator.assert_called_once_with('get_partitions')
         mock_paginator.paginate.assert_called_once_with(DatabaseName='db',
                                                         TableName='tbl',

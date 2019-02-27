@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
@@ -49,8 +50,6 @@ class ReadyToRescheduleDep(BaseTIDep):
                 reason="The task instance is not in State_UP_FOR_RESCHEDULE or NONE state.")
             return
 
-        # Lazy import to avoid circular dependency
-        from airflow.models import TaskReschedule
         task_reschedules = TaskReschedule.find_for_task_instance(task_instance=ti)
         if not task_reschedules:
             yield self._passing_status(

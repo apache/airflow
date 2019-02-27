@@ -100,11 +100,11 @@ extras to build the full API reference.
 
 ## Development and Testing
 
-### Set up a development environment
+### Setting up a development environment
 
 There are three ways to setup an Apache Airflow development environment.
 
-1. Using tools and libraries installed directly on your system.
+1. Using tools and libraries installed directly on your system
 
   Install Python (2.7.x or 3.5.x), MySQL, and libxml by using system-level package
   managers like yum, apt-get for Linux, or Homebrew for Mac OS at first. Refer to the [base CI Dockerfile](https://github.com/apache/airflow-ci/blob/master/Dockerfile) for
@@ -151,9 +151,9 @@ There are three ways to setup an Apache Airflow development environment.
     OK
   ```
 
-  The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test is in the container.
+  The Airflow code is mounted inside of the Docker container, so if you change something using your favorite IDE, you can directly test it in the container.
 
-3. Using [Docker Compose](https://docs.docker.com/compose/) and Airflow's CI scripts.
+3. Using [Docker Compose](https://docs.docker.com/compose/) and Airflow's CI scripts
 
   Start a docker container through Compose for development to avoid installing the packages directly on your system. The following will give you a shell inside a container, run all required service containers (MySQL, PostgresSQL, krb5 and so on) and install all the dependencies:
 
@@ -199,13 +199,13 @@ To run the whole test suite with Docker Compose, do:
 docker-compose -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh
 ```
 
-Alternatively can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
+Alternatively, you can also set up [Travis CI](https://travis-ci.org/) on your repo to automate this.
 It is free for open source projects.
 
 Another great way of automating linting and testing is to use [Git Hooks](https://git-scm.com/book/uz/v2/Customizing-Git-Git-Hooks). For example you could create a `pre-commit` file based on the Travis CI Pipeline so that before each commit a local pipeline will be triggered and if this pipeline fails (returns an exit code other than `0`) the commit does not come through.
 This "in theory" has the advantage that you can not commit any code that fails that again reduces the errors in the Travis CI Pipelines.
 
-Since there are a lot of tests the script would last very long so you propably only should test your new feature locally.
+Since there are a lot of tests the script would last very long so you probably only should test your new feature locally.
 
 The following example of a `pre-commit` file allows you..
 - to lint your code via flake8
@@ -264,7 +264,7 @@ meets these guidelines:
 1. The pull request should include tests, either as doctests, unit tests, or both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/airflow) to run the tests and [codecov](https://codecov.io/gh/apache/airflow) to track coverage. You can set up both for free on your fork (see the "Testing on Travis CI" section below). It will help you making sure you do not break the build with your PR and that you help increase coverage.
 1. Please [rebase your fork](http://stackoverflow.com/a/7244456/1110993), squash commits, and resolve all conflicts.
 1. Every pull request should have an associated [JIRA](https://issues.apache.org/jira/browse/AIRFLOW/?selectedTab=com.atlassian.jira.jira-projects-plugin:summary-panel). The JIRA link should also be contained in the PR description.
-1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and Github PRs for more details about a particular change.
+1. Preface your commit's subject & PR's title with **[AIRFLOW-XXX]** where *XXX* is the JIRA number. We compose release notes (i.e. for Airflow releases) from all commit titles in a release. By placing the JIRA number in the commit title and hence in the release notes, Airflow users can look into JIRA and GitHub PRs for more details about a particular change.
 1. Add an [Apache License](http://www.apache.org/legal/src-headers.html) header to all new files
 1. If the pull request adds functionality, the docs should be updated as part of the same PR. Doc string are often sufficient.  Make sure to follow the Sphinx compatible standards.
 1. The pull request should work for Python 2.7 and 3.5. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).

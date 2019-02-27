@@ -194,7 +194,7 @@ class QuboleHook(BaseHook):
         """
         Get jobs associated with a Qubole commands
         :param ti: Task Instance of the dag, used to determine the Quboles command id
-        :return: Job informations assoiciated with command
+        :return: Job information associated with command
         """
         if self.cmd is None:
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
@@ -204,7 +204,7 @@ class QuboleHook(BaseHook):
         args = []
         cmd_type = self.kwargs['command_type']
         inplace_args = None
-        tags = set([self.dag_id, self.task_id, context['run_id']])
+        tags = {self.dag_id, self.task_id, context['run_id']}
         positional_args_list = flatten_list(POSITIONAL_ARGS.values())
 
         for k, v in self.kwargs.items():

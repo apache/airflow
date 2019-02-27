@@ -27,6 +27,8 @@ information.
 
 .. contents:: :local:
 
+.. _howto/operator:BashOperator:
+
 BashOperator
 ------------
 
@@ -71,6 +73,8 @@ template to it, which will fail.
         bash_command="/home/batcher/test.sh ",
         dag=dag)
 
+.. _howto/operator:PythonOperator:
+
 PythonOperator
 --------------
 
@@ -106,6 +110,8 @@ is evaluated as a :ref:`Jinja template <jinja-templating>`.
 Google Cloud Storage Operators
 ------------------------------
 
+.. _howto/operator:GoogleCloudStorageToBigQueryOperator:
+
 GoogleCloudStorageToBigQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -122,6 +128,8 @@ to execute a BigQuery load job.
 
 Google Compute Engine Operators
 -------------------------------
+
+.. _howto/operator:GceInstanceStartOperator:
 
 GceInstanceStartOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -174,9 +182,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for start
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_.
 
+.. _howto/operator:GceInstanceStopOperator:
 
 GceInstanceStopOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -228,9 +237,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for stop
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_.
 
+.. _howto/operator:GceSetMachineTypeOperator:
 
 GceSetMachineTypeOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -288,9 +298,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for setMachineType
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_.
 
+.. _howto/operator:GceInstanceTemplateCopyOperator:
 
 GceInstanceTemplateCopyOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -348,8 +359,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for instanceTemplates
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_.
+
+.. _howto/operator:GceInstanceGroupManagerUpdateTemplateOperator:
 
 GceInstanceGroupManagerUpdateTemplateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -415,14 +428,14 @@ the permissions that theService Account User role provides
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation
+See `Google Compute Engine API documentation for instanceGroupManagers
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.
 
 Google Cloud Bigtable Operators
 -------------------------------
 
 Arguments
-"""""""""
+^^^^^^^^^
 
 All examples below rely on the following variables, which can be passed via environment variables.
 
@@ -431,6 +444,7 @@ All examples below rely on the following variables, which can be passed via envi
     :start-after: [START howto_operator_gcp_bigtable_args]
     :end-before: [END howto_operator_gcp_bigtable_args]
 
+.. _howto/operator:BigtableInstanceCreateOperator:
 
 BigtableInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -453,6 +467,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :start-after: [START howto_operator_gcp_bigtable_instance_create]
     :end-before: [END howto_operator_gcp_bigtable_instance_create]
 
+.. _howto/operator:BigtableInstanceDeleteOperator:
+
 BigtableInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -471,6 +487,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :start-after: [START howto_operator_gcp_bigtable_instance_delete]
     :end-before: [END howto_operator_gcp_bigtable_instance_delete]
 
+.. _howto/operator:BigtableClusterUpdateOperator:
+
 BigtableClusterUpdateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -488,6 +506,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_cluster_update]
     :end-before: [END howto_operator_gcp_bigtable_cluster_update]
+
+.. _howto/operator:BigtableTableCreateOperator:
 
 BigtableTableCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -514,11 +534,12 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Advanced
 """"""""
 
-When creating a table, you can specify the optional ``initial_split_keys`` and ``column_familes``.
+When creating a table, you can specify the optional ``initial_split_keys`` and ``column_families``.
 Please refer to the Python Client for Google Cloud Bigtable documentation
 `for Table <https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html>`_ and `for Column
 Families <https://googleapis.github.io/google-cloud-python/latest/bigtable/column-family.html>`_.
 
+.. _howto/operator:BigtableTableDeleteOperator:
 
 BigtableTableDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -537,6 +558,8 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :dedent: 4
     :start-after: [START howto_operator_gcp_bigtable_table_delete]
     :end-before: [END howto_operator_gcp_bigtable_table_delete]
+
+.. _howto/operator:BigtableTableWaitForReplicationSensor:
 
 BigtableTableWaitForReplicationSensor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -563,6 +586,8 @@ Using the operator
 
 Google Cloud Functions Operators
 --------------------------------
+
+.. _howto/operator:GcfFunctionDeleteOperator:
 
 GcfFunctionDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -604,8 +629,10 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation
+See `Google Cloud Functions API documentation for delete
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
+
+.. _howto/operator:GcfFunctionDeployOperator:
 
 GcfFunctionDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -736,11 +763,13 @@ can be downloaded if necessary.
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation
+See `Google Cloud Functions API documentation for create
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
 Google Cloud Spanner Operators
 ------------------------------
+
+.. _howto/operator:CloudSpannerInstanceDatabaseDeleteOperator:
 
 CloudSpannerInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -788,6 +817,7 @@ More information
 See `Google Cloud Spanner API documentation for database drop call
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/dropDatabase>`_.
 
+.. _howto/operator:CloudSpannerInstanceDatabaseDeployOperator:
 
 CloudSpannerInstanceDatabaseDeployOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -836,6 +866,8 @@ More information
 
 See Google Cloud Spanner API documentation for `database create
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_
+
+.. _howto/operator:CloudSpannerInstanceDatabaseUpdateOperator:
 
 CloudSpannerInstanceDatabaseUpdateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -895,6 +927,8 @@ More information
 See Google Cloud Spanner API documentation for `database update_ddl
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/updateDdl>`_.
 
+.. _howto/operator:CloudSpannerInstanceDatabaseQueryOperator:
+
 CloudSpannerInstanceDatabaseQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -939,6 +973,8 @@ More information
 
 See Google Cloud Spanner API documentation for `the DML syntax
 <https://cloud.google.com/spanner/docs/dml-syntax>`_.
+
+.. _howto/operator:CloudSpannerInstanceDeleteOperator:
 
 CloudSpannerInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -988,6 +1024,8 @@ See `Google Cloud Spanner API documentation for instance delete
 
 Google Cloud Sql Operators
 --------------------------
+
+.. _howto/operator:CloudSqlInstanceDatabaseCreateOperator:
 
 CloudSqlInstanceDatabaseCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1041,6 +1079,8 @@ More information
 See `Google Cloud SQL API documentation for database insert
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert>`_.
 
+.. _howto/operator:CloudSqlInstanceDatabaseDeleteOperator:
+
 CloudSqlInstanceDatabaseDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1085,6 +1125,8 @@ More information
 
 See `Google Cloud SQL API documentation for database delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/delete>`_.
+
+.. _howto/operator:CloudSqlInstanceDatabasePatchOperator:
 
 CloudSqlInstanceDatabasePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1140,10 +1182,14 @@ More information
 See `Google Cloud SQL API documentation for database patch
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch>`_.
 
+.. _howto/operator:CloudSqlInstanceDeleteOperator:
+
 CloudSqlInstanceDeleteOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Deletes a Cloud SQL instance in Google Cloud Platform.
+
+It is also used for deleting read and failover replicas.
 
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator`.
@@ -1170,6 +1216,15 @@ it will be retrieved from the GCP connection used. Both variants are shown:
     :start-after: [START howto_operator_cloudsql_delete]
     :end-before: [END howto_operator_cloudsql_delete]
 
+Note: If the instance has read or failover replicas you need to delete them before you delete the primary instance.
+Replicas are deleted the same way as primary instances:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_replicas_delete]
+    :end-before: [END howto_operator_cloudsql_replicas_delete]
+
 Templating
 """"""""""
 
@@ -1185,7 +1240,7 @@ More information
 See `Google Cloud SQL API documentation for delete
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
-.. CloudSqlInstanceExportOperator:
+.. _howto/operator:CloudSqlInstanceExportOperator:
 
 CloudSqlInstanceExportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1193,8 +1248,9 @@ CloudSqlInstanceExportOperator
 Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
 or CSV file.
 
-Note: This operator is idempotent. If executed multiple times with the same
-export file URI, the export file in GCS will simply be overridden.
+.. note::
+    This operator is idempotent. If executed multiple times with the same
+    export file URI, the export file in GCS will simply be overridden.
 
 For parameter definition take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator`.
@@ -1268,7 +1324,7 @@ as shown in the example:
     :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
 
 
-.. CloudSqlInstanceImportOperator:
+.. _howto/operator:CloudSqlInstanceImportOperator:
 
 CloudSqlInstanceImportOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1363,12 +1419,14 @@ as shown in the example:
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
     :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
 
-.. _CloudSqlInstanceCreateOperator:
+.. _howto/operator:CloudSqlInstanceCreateOperator:
 
 CloudSqlInstanceCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Creates a new Cloud SQL instance in Google Cloud Platform.
+
+It is also used for creating read replicas.
 
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`.
@@ -1386,12 +1444,29 @@ Some arguments in the example DAG are taken from OS environment variables:
     :start-after: [START howto_operator_cloudsql_arguments]
     :end-before: [END howto_operator_cloudsql_arguments]
 
-Example body defining the instance:
+Some other arguments are created based on the arguments above:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_create_arguments]
+    :end-before: [END howto_operator_cloudsql_create_arguments]
+
+Example body defining the instance with failover replica:
 
 .. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_create_body]
     :end-before: [END howto_operator_cloudsql_create_body]
+
+Example body defining read replica for the instance above:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_sql.py
+    :language: python
+    :start-after: [START howto_operator_cloudsql_create_replica]
+    :end-before: [END howto_operator_cloudsql_create_replica]
+
+Note: Failover replicas are created together with the instance in a single task.
+Read replicas need to be created in separate tasks.
 
 Using the operator
 """"""""""""""""""
@@ -1420,7 +1495,7 @@ More information
 See `Google Cloud SQL API documentation for insert
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
 
-.. _CloudSqlInstancePatchOperator:
+.. _howto/operator:CloudSqlInstancePatchOperator:
 
 CloudSqlInstancePatchOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1478,6 +1553,7 @@ More information
 See `Google Cloud SQL API documentation for patch
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
+.. _howto/operator:CloudSqlQueryOperator:
 
 CloudSqlQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^
@@ -1572,6 +1648,8 @@ See `Google Cloud SQL Proxy documentation
 Google Cloud Storage Operators
 ------------------------------
 
+.. _howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator:
+
 GoogleCloudStorageBucketCreateAclEntryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1614,6 +1692,8 @@ More information
 See `Google Cloud Storage BucketAccessControls insert documentation
 <https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_.
 
+.. _howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator:
+
 GoogleCloudStorageObjectCreateAclEntryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1655,3 +1735,595 @@ More information
 
 See `Google Cloud Storage ObjectAccessControls insert documentation
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
+
+Google Cloud Vision Operators
+------------------------------
+
+.. _howto/operator:CloudVisionProductSetCreateOperator:
+
+CloudVisionProductSetCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates a new :code:`ProductSet` resource.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset_explicit_id]
+      :end-before: [END howto_operator_vision_productset_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+We are using the ``ProductSet`` and ``Retry`` objects from Google libraries:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset_import]
+      :end-before: [END howto_operator_vision_productset_import]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_retry_import]
+      :end-before: [END howto_operator_vision_retry_import]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset]
+      :end-before: [END howto_operator_vision_productset]
+
+The ``product_set_id`` argument can be omitted (it will be generated by the API):
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_create]
+      :end-before: [END howto_operator_vision_product_set_create]
+
+Or it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_create_2]
+      :end-before: [END howto_operator_vision_product_set_create_2]
+
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_productset_create_template_fields]
+    :end-before: [END vision_productset_create_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision ProductSet create documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.create_product_set>`_.
+
+.. _howto/operator:CloudVisionProductSetGetOperator:
+
+CloudVisionProductSetGetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Gets information associated with a :code:`ProductSet`.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset_explicit_id]
+      :end-before: [END howto_operator_vision_productset_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+If ``product_set_id`` was generated by the API it can be extracted from XCOM:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_get]
+      :end-before: [END howto_operator_vision_product_set_get]
+
+Otherwise it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_get_2]
+      :end-before: [END howto_operator_vision_product_set_get_2]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_productset_get_template_fields]
+    :end-before: [END vision_productset_get_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision ProductSet get documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.get_product_set>`_.
+
+.. _howto/operator:CloudVisionProductSetUpdateOperator:
+
+CloudVisionProductSetUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Makes changes to a :code:`ProductSet` resource. Only :code:`display_name` can be updated
+currently.
+
+.. note:: To locate the `ProductSet` resource, its `name` in the form
+  ``projects/PROJECT_ID/locations/LOC_ID/productSets/PRODUCT_SET_ID`` is necessary.
+
+You can provide the `name` directly as an attribute of the `product_set` object.
+However, you can leave it blank and provide `location` and `product_set_id` instead (and
+optionally `project_id` - if not present, the connection default will be used) and the
+`name` will be created by the operator itself.
+
+This mechanism exists for your convenience, to allow leaving the `project_id` empty and
+having Airflow use the connection default `project_id`.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset_explicit_id]
+      :end-before: [END howto_operator_vision_productset_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+We are using the ``ProductSet`` object from the Google Cloud Vision library:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset_import]
+      :end-before: [END howto_operator_vision_productset_import]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset]
+      :end-before: [END howto_operator_vision_productset]
+
+Initialization of the task:
+
+If ``product_set_id`` was generated by the API it can be extracted from XCOM:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_update]
+      :end-before: [END howto_operator_vision_product_set_update]
+
+Otherwise it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_update_2]
+      :end-before: [END howto_operator_vision_product_set_update_2]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_productset_update_template_fields]
+    :end-before: [END vision_productset_update_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision ProductSet update documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.update_product_set>`_.
+
+.. _howto/operator:CloudVisionProductSetDeleteOperator:
+
+CloudVisionProductSetDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Permanently deletes a :code:`ProductSet`. :code:`Products` and :code:`ReferenceImages` in
+the :code:`ProductSet` are not deleted. The actual image files are not deleted from
+Google Cloud Storage.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_productset_explicit_id]
+      :end-before: [END howto_operator_vision_productset_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+If ``product_set_id`` was generated by the API it can be extracted from XCOM:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_delete]
+      :end-before: [END howto_operator_vision_product_set_delete]
+
+Otherwise it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_set_delete_2]
+      :end-before: [END howto_operator_vision_product_set_delete_2]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_productset_delete_template_fields]
+    :end-before: [END vision_productset_delete_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision ProductSet delete documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.delete_product_set>`_.
+
+.. _howto/operator:CloudVisionProductCreateOperator:
+
+CloudVisionProductCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Creates and returns a new product resource.
+
+Possible errors regarding the :code:`Product` object provided:
+
+- Returns INVALID_ARGUMENT if `display_name` is missing or longer than 4096 characters.
+- Returns INVALID_ARGUMENT if `description` is longer than 4096 characters.
+- Returns INVALID_ARGUMENT if `product_category` is missing or invalid.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product_explicit_id]
+      :end-before: [END howto_operator_vision_product_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+We are using the ``Product`` and ``Retry`` objects from Google libraries:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product_import]
+      :end-before: [END howto_operator_vision_product_import]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_retry_import]
+      :end-before: [END howto_operator_vision_retry_import]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product]
+      :end-before: [END howto_operator_vision_product]
+
+The ``product_id`` argument can be omitted (it will be generated by the API):
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_create]
+      :end-before: [END howto_operator_vision_product_create]
+
+Or it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_create_2]
+      :end-before: [END howto_operator_vision_product_create_2]
+
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_product_create_template_fields]
+    :end-before: [END vision_product_create_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Product create documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.create_product>`_.
+
+.. _howto/operator:CloudVisionProductGetOperator:
+
+CloudVisionProductGetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Gets information associated with a :code:`Product`.
+
+Possible errors:
+
+- Returns NOT_FOUND if the `Product` does not exist.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product_explicit_id]
+      :end-before: [END howto_operator_vision_product_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+If ``product_id`` was generated by the API it can be extracted from XCOM:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_get]
+      :end-before: [END howto_operator_vision_product_get]
+
+Otherwise it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_get_2]
+      :end-before: [END howto_operator_vision_product_get_2]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_product_get_template_fields]
+    :end-before: [END vision_product_get_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Product get documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.get_product>`_.
+
+.. _howto/operator:CloudVisionProductUpdateOperator:
+
+CloudVisionProductUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Makes changes to a :code:`Product` resource. Only the :code:`display_name`,
+:code:`description`, and :code:`labels` fields can be updated right now.
+If labels are updated, the change will not be reflected in queries until the next index
+time.
+
+.. note:: To locate the `Product` resource, its `name` in the form
+  ``projects/PROJECT_ID/locations/LOC_ID/products/PRODUCT_ID`` is necessary.
+
+You can provide the `name` directly as an attribute of the `product` object. However, you
+can leave it blank and provide `location` and `product_id` instead (and optionally
+`project_id` - if not present, the connection default will be used) and the `name` will
+be created by the operator itself.
+
+This mechanism exists for your convenience, to allow leaving the `project_id` empty and
+having Airflow use the connection default `project_id`.
+
+Possible errors:
+
+- Returns NOT_FOUND if the `Product` does not exist.
+- Returns INVALID_ARGUMENT if `display_name` is present in `update_mask` but is missing
+  from the request or longer than 4096 characters.
+- Returns INVALID_ARGUMENT if `description` is present in `update_mask` but is longer than
+  4096 characters.
+- Returns INVALID_ARGUMENT if `product_category` is present in `update_mask`.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product_explicit_id]
+      :end-before: [END howto_operator_vision_product_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+We are using the ``Product`` object from the Google Cloud Vision library:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product_import]
+      :end-before: [END howto_operator_vision_product_import]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product]
+      :end-before: [END howto_operator_vision_product]
+
+If ``product_id`` was generated by the API it can be extracted from XCOM:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_update]
+      :end-before: [END howto_operator_vision_product_update]
+
+Otherwise it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_update_2]
+      :end-before: [END howto_operator_vision_product_update_2]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_product_update_template_fields]
+    :end-before: [END vision_product_update_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Product update documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.update_product>`_.
+
+.. _howto/operator:CloudVisionProductDeleteOperator:
+
+CloudVisionProductDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Permanently deletes a product and its reference images.
+
+Metadata of the product and all its images will be deleted right away, but search queries
+against :code:`ProductSets` containing the product may still work until all related
+caches are refreshed.
+
+Possible errors:
+
+- Returns NOT_FOUND if the product does not exist.
+
+For parameter definition, take a look at
+:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
+
+Arguments
+"""""""""
+
+Some arguments in the example DAG are taken from the OS environment variables:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_args_common]
+      :end-before: [END howto_operator_vision_args_common]
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :start-after: [START howto_operator_vision_product_explicit_id]
+      :end-before: [END howto_operator_vision_product_explicit_id]
+
+Using the operator
+""""""""""""""""""
+
+If ``product_id`` was generated by the API it can be extracted from XCOM:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_delete]
+      :end-before: [END howto_operator_vision_product_delete]
+
+Otherwise it can be specified explicitly:
+
+.. literalinclude:: ../../airflow/contrib/example_dags/example_gcp_vision.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_vision_product_delete_2]
+      :end-before: [END howto_operator_vision_product_delete_2]
+
+Templating
+""""""""""
+
+.. literalinclude:: ../../airflow/contrib/operators/gcp_vision_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START vision_product_delete_template_fields]
+    :end-before: [END vision_product_delete_template_fields]
+
+More information
+""""""""""""""""
+
+See `Google Cloud Vision Product delete documentation
+<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.delete_product>`_.
