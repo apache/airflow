@@ -49,10 +49,10 @@ class PythonOperator(BaseOperator):
     :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
-    :type op_kwargs: dict
+    :type op_kwargs: dict (templated)
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable
-    :type op_args: list
+    :type op_args: list (templated)
     :param provide_context: if set to true, Airflow will pass a set of
         keyword arguments that can be used in your function. This set of
         kwargs correspond exactly to what you can use in your jinja
@@ -68,7 +68,7 @@ class PythonOperator(BaseOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list[str]
     """
-    template_fields = ('templates_dict',)
+    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
     template_ext = tuple()
     ui_color = '#ffefeb'
 
