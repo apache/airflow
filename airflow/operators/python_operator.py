@@ -223,6 +223,12 @@ class PythonVirtualenvOperator(PythonOperator):
     :type op_kwargs: list
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :type op_kwargs: dict
+    :param provide_context: if set to true, Airflow will pass a set of
+        keyword arguments that can be used in your function. This set of
+        kwargs correspond exactly to what you can use in your jinja
+        templates. For this to work, you need to define `**kwargs` in your
+        function header.
+    :type provide_context: bool
     :param string_args: Strings that are present in the global var virtualenv_string_args,
         available to python_callable at runtime as a list[str]. Note that args are split
         by newline.
@@ -241,15 +247,16 @@ class PythonVirtualenvOperator(PythonOperator):
                  requirements=None,
                  python_version=None, use_dill=False,
                  system_site_packages=True,
-                 op_args=None, op_kwargs=None, string_args=None,
-                 templates_dict=None, templates_exts=None, *args, **kwargs):
+                 op_args=None, op_kwargs=None, provide_context=False,
+                 string_args=None, templates_dict=None, templates_exts=None,
+                 *args, **kwargs):
         super(PythonVirtualenvOperator, self).__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
             templates_dict=templates_dict,
             templates_exts=templates_exts,
-            provide_context=False,
+            provide_context=provide_context,
             *args,
             **kwargs)
         self.requirements = requirements or []
