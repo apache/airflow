@@ -122,6 +122,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
         Not applicable for external tables.
+    :param location: The geographic location of the job. See details at
+    https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :type cluster_fields: list[str]
     """
     template_fields = ('bucket', 'source_objects',
@@ -157,6 +159,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  time_partitioning=None,
                  cluster_fields=None,
                  autodetect=False,
+                 location=None,
                  *args, **kwargs):
 
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
@@ -196,10 +199,16 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.time_partitioning = time_partitioning
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
+        self.location = location
 
     def execute(self, context):
-        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+        bq_hook_params = {
+            'bigquery_conn_id': self.bigquery_conn_id,
+            'delegate_to': self.delegate_to
+        }
+        if self.location:
+            bq_hook_params['location'] = self.location
+        bq_hook = BigQueryHook(**bq_hook_params)
 
         if not self.schema_fields:
             if self.schema_object and self.source_format != 'DATASTORE_BACKUP':
