@@ -171,7 +171,7 @@ elasticsearch = [
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
 emr = ['boto3>=1.0.0, <1.8.0']
-gcp_api = [
+gcp = [
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
     'google-auth>=1.0.0, <2.0.0dev',
@@ -267,7 +267,7 @@ devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_azure = devel_minreq + azure_data_lake + azure_cosmos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api + grpc +
+             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
              atlas + azure_container_instances)
@@ -364,7 +364,8 @@ def do_setup():
             'druid': druid,
             'elasticsearch': elasticsearch,
             'emr': emr,
-            'gcp_api': gcp_api,
+            'gcp': gcp,
+            'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
             'github_enterprise': flask_oauth,
             'google_auth': flask_oauth,
             'grpc': grpc,
