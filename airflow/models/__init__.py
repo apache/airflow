@@ -1992,9 +1992,10 @@ class TaskReschedule(Base):
         Index('idx_task_reschedule_dag_task_date', dag_id, task_id, execution_date,
               unique=False),
         ForeignKeyConstraint([task_id, dag_id, execution_date],
-                             [TaskInstance.task_id, TaskInstance.dag_id,
-                              TaskInstance.execution_date],
-                             name='task_reschedule_dag_task_date_fkey')
+                             ['task_instance.task_id', 'task_instance.dag_id',
+                              'task_instance.execution_date'],
+                             name='task_reschedule_dag_task_date_fkey',
+                             ondelete='CASCADE')
     )
 
     def __init__(self, task, execution_date, try_number, start_date, end_date,
@@ -2016,7 +2017,7 @@ class TaskReschedule(Base):
         in ascending order.
 
         :param task_instance: the task instance to find task reschedules for
-        :type task_instance: TaskInstance
+        :type task_instance: airflow.models.TaskInstance
         """
         TR = TaskReschedule
         return (
