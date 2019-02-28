@@ -56,8 +56,8 @@ class WebHDFSHook(BaseHook):
             try:
                 self.log.debug('Trying namenode %s', nn.host)
                 connection_str = self.connection_url('http://',
-                    '{nn.host}'.format(nn=nn),
-                    '{nn.port}'.format(nn=nn))
+                                '{nn.host}'.format(nn=nn),
+                                '{nn.port}'.format(nn=nn))
                 self.log.debug("Connection to WebHDFS: %s", connection_str)
                 if _kerberos_security_mode:
                     client = KerberosClient(connection_str)
@@ -65,8 +65,10 @@ class WebHDFSHook(BaseHook):
                     proxy_user = self.proxy_user or nn.login
                     client = InsecureClient(connection_str, user=proxy_user)
                 client.status('/')
-                self.log.debug('Using namenode %s for hook',
-                                nn.host)
+                self.log.debug(
+                    'Using namenode %s for hook',
+                    nn.host
+                )
                 return client
             except HdfsError as e:
                 self.log.debug(
