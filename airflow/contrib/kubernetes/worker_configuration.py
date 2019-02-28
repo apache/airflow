@@ -37,6 +37,7 @@ class WorkerConfiguration(LoggingMixin):
 
         self.dags_volume_name = 'airflow-dags'
         self.dags_configmap_name = 'dags-configmap'
+        self.lib_configmap_name = 'lib-configmap'
         self.logs_volume_name = 'airflow-logs'
 
         super(WorkerConfiguration, self).__init__()
@@ -181,7 +182,9 @@ class WorkerConfiguration(LoggingMixin):
         if self.kube_config.logs_volume_subpath:
             volume_mounts[self.logs_volume_name]['subPath'] = self.kube_config.logs_volume_subpath
 
-        if self.kube_config.dags_in_image or self.kube_config.dags_configmap:
+        if (self.kube_config.dags_in_image or
+                self.kube_config.dags_configmap or
+                self.kube_config.lib_configmap):
             del volumes[self.dags_volume_name]
             del volume_mounts[self.dags_volume_name]
 
@@ -197,6 +200,21 @@ class WorkerConfiguration(LoggingMixin):
             volume_mounts[dags_configmap_name] = {
                 'name': dags_configmap_name,
                 'mountPath': dag_path,
+                'readOnly': True
+            }
+
+        if self.kube_config.lib_configmap:
+            lib_configmap_name = self.lib_configmap_name
+            lib_path = '{}/lib_mount'.format(self.worker_airflow_home)
+            volumes[lib_configmap_name] = {
+                'name': lib_configmap_name,
+                'configMap': {
+                    'name': self.kube_config.lib_configmap
+                }
+            }
+            volume_mounts[lib_configmap_name] = {
+                'name': lib_configmap_name,
+                'mountPath': lib_path,
                 'readOnly': True
             }
         # Mount the airflow.cfg file via a configmap the user has specified
