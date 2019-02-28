@@ -2964,7 +2964,9 @@ class DAG(BaseDag, LoggingMixin):
         new active DAG runs
     :type max_active_runs: int
     :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created
+        timing out / failing, so that new DagRuns can be created. The timeout
+        is only enforced for scheduled DagRuns, and only once the
+        # of active DagRuns == max_active_runs.
     :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
         timeouts.
@@ -3999,7 +4001,7 @@ class DAG(BaseDag, LoggingMixin):
         :param local: True to run the tasks using the LocalExecutor
         :type local: bool
         :param executor: The executor instance to run the tasks
-        :type executor: BaseExecutor
+        :type executor: airflow.executor.BaseExecutor
         :param donot_pickle: True to avoid pickling DAG object and send to workers
         :type donot_pickle: bool
         :param ignore_task_deps: True to skip upstream tasks

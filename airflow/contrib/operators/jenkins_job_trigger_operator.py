@@ -45,7 +45,7 @@ def jenkins_request_with_headers(jenkins_server, req):
     :param jenkins_server: The server to query
     :param req: The request to execute
     :return: Dict containing the response body (key body)
-    and the headers coming along (headers)
+        and the headers coming along (headers)
     """
     try:
         response = jenkins_server.jenkins_request(req)

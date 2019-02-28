@@ -121,7 +121,7 @@ example:
     remote_base_log_folder = gs://my-bucket/path/to/logs
     remote_log_conn_id = MyGCSConn
 
-#. Install the ``gcp_api`` package first, like so: ``pip install apache-airflow[gcp_api]``.
+#. Install the ``gcp`` package first, like so: ``pip install apache-airflow[gcp]``.
 #. Make sure a Google Cloud Platform connection hook has been defined in Airflow. The hook should have read and write access to the Google Cloud Storage bucket defined above in ``remote_base_log_folder``.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.

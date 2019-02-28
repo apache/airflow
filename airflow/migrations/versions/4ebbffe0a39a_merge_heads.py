@@ -16,18 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-python:
-    pip_install: true
-    extra_requirements:
-        - all_dbs
-        - databricks
-        - doc
-        - docker
-        - emr
-        - gcp
-        - s3
-        - salesforce
-        - sendgrid
-        - ssh
-        - slack
-        - qds
+"""Merge heads
+
+Revision ID: 4ebbffe0a39a
+Revises: dd4ecb8fbee3, cf5dc11e79ad, a56c9515abdc
+Create Date: 2019-02-04 20:19:50.628137
+
+"""
+
+# revision identifiers, used by Alembic.
+revision = '4ebbffe0a39a'
+down_revision = ('dd4ecb8fbee3', 'cf5dc11e79ad', 'a56c9515abdc')
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    pass
+
+
+def downgrade():
+    pass

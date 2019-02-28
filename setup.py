@@ -152,7 +152,7 @@ cgroups = [
 ]
 # major update coming soon, clamp to 0.x
 cloudant = ['cloudant>=0.5.9,<2.0']
-crypto = ['cryptography>=0.9.3']
+crypto = ['cryptography>=0.9.3,<2.6']
 dask = [
     'distributed>=1.17.1, <2'
 ]
@@ -171,7 +171,7 @@ elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
-gcp_api = [
+gcp = [
     'httplib2>=0.9.2',
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth>=1.0.0, <2.0.0dev',
@@ -259,7 +259,7 @@ if not PY3:
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + redis + gcp_api +
+             docker + ssh + kubernetes + celery + redis + gcp +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
              atlas + azure + aws)
@@ -302,7 +302,7 @@ def do_setup():
             'funcsigs==1.0.0',
             'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
-            'gunicorn>=19.4.0, <20.0',
+            'gunicorn>=19.5.0, <20.0',
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
             'jinja2>=2.7.3, <=2.10.0',
@@ -350,7 +350,8 @@ def do_setup():
             'docker': docker,
             'druid': druid,
             'elasticsearch': elasticsearch,
-            'gcp_api': gcp_api,
+            'gcp': gcp,
+            'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
             'github_enterprise': github_enterprise,
             'google_auth': google_auth,
             'hdfs': hdfs,
