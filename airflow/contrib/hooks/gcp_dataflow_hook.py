@@ -273,7 +273,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
         environment = {}
         for key in ['maxWorkers', 'zone', 'serviceAccountEmail', 'tempLocation',
-                    'bypassTempDirValidation', 'machineType']:
+                    'bypassTempDirValidation', 'machineType', 'network', 'subnetwork']:
             if key in variables:
                 environment.update({key: variables[key]})
         body = {"jobName": name,

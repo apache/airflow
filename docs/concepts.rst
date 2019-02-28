@@ -52,8 +52,10 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
-.. note:: When searching for DAGs, Airflow will only consider files where the string
-   "airflow" and "DAG" both appear in the contents of the ``.py`` file.
+.. note:: When searching for DAGs, Airflow only considers python files
+   that contain the strings "airflow" and "DAG" by default. To consider
+   all python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE``
+   configuration flag.
 
 Scope
 -----
@@ -129,33 +131,28 @@ described elsewhere in this document.
 
 Airflow provides operators for many common tasks, including:
 
-- :class:`airflow.operators.bash_operator.BashOperator` - executes a bash command
-- :class:`airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
-- :class:`airflow.operators.email_operator.EmailOperator` - sends an email
-- :class:`airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
-- :class:`airflow.operators.mysql_operator.MySqlOperator`,
-  :class:`airflow.operators.sqlite_operator.SqliteOperator`,
-  :class:`airflow.operators.postgres_operator.PostgresOperator`,
-  :class:`airflow.operators.mssql_operator.MsSqlOperator`,
-  :class:`airflow.operators.oracle_operator.OracleOperator`,
-  :class:`airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
+- :class:`~airflow.operators.bash_operator.BashOperator` - executes a bash command
+- :class:`~airflow.operators.python_operator.PythonOperator` - calls an arbitrary Python function
+- :class:`~airflow.operators.email_operator.EmailOperator` - sends an email
+- :class:`~airflow.operators.http_operator.SimpleHttpOperator` - sends an HTTP request
+- :class:`~airflow.operators.mysql_operator.MySqlOperator`,
+  :class:`~airflow.operators.sqlite_operator.SqliteOperator`,
+  :class:`~airflow.operators.postgres_operator.PostgresOperator`,
+  :class:`~airflow.operators.mssql_operator.MsSqlOperator`,
+  :class:`~airflow.operators.oracle_operator.OracleOperator`,
+  :class:`~airflow.operators.jdbc_operator.JdbcOperator`, etc. - executes a SQL command
 - ``Sensor`` - waits for a certain time, file, database row, S3 key, etc...
 
 In addition to these basic building blocks, there are many more specific
-operators: :class:`airflow.operators.docker_operator.DockerOperator`,
-:class:`airflow.operators.hive_operator.HiveOperator`, :class:`airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
-:class:`airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
-:class:`airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
-
-The ``airflow/contrib/`` directory contains yet more operators built by the
-community. These operators aren't always as complete or well-tested as those in
-the main distribution, but allow users to more easily add new functionality to
-the platform.
+operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
+:class:`~airflow.operators.hive_operator.HiveOperator`, :class:`~airflow.operators.s3_file_transform_operator.S3FileTransformOperator(`,
+:class:`~airflow.operators.presto_to_mysql.PrestoToMySqlTransfer`,
+:class:`~airflow.operators.slack_operator.SlackAPIOperator`... you get the idea!
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
 See :doc:`howto/operator` for how to use Airflow operators.
-
+ 
 DAG Assignment
 --------------
 
@@ -537,12 +534,6 @@ expects a ``python_callable`` that returns a task_id (or list of task_ids). The
 task_id returned is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to reference a task
 directly downstream from the BranchPythonOperator task.
-
-Note that using tasks with ``depends_on_past=True`` downstream from
-``BranchPythonOperator`` is logically unsound as ``skipped`` status
-will invariably lead to block tasks that depend on their past successes.
-``skipped`` states propagates where all directly upstream tasks are
-``skipped``.
 
 Note that when a path is a downstream task of the returned task (list), it will
 not be skipped:
