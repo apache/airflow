@@ -273,6 +273,8 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         d = {
             FIELD_TYPE.INT24: 'INTEGER',
             FIELD_TYPE.TINY: 'INTEGER',
+            FIELD_TYPE.BINARY: 'BINARY',
+            FIELD_TYPE.VARBINARY: 'BINARY',
             FIELD_TYPE.BIT: 'INTEGER',
             FIELD_TYPE.DATETIME: 'TIMESTAMP',
             FIELD_TYPE.DATE: 'TIMESTAMP',
@@ -283,6 +285,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             FIELD_TYPE.LONG: 'INTEGER',
             FIELD_TYPE.LONGLONG: 'INTEGER',
             FIELD_TYPE.SHORT: 'INTEGER',
+            FIELD_TYPE.TIME: 'TIME',
             FIELD_TYPE.TIMESTAMP: 'TIMESTAMP',
             FIELD_TYPE.YEAR: 'INTEGER',
         }
