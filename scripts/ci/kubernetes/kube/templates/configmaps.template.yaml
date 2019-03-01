@@ -206,6 +206,10 @@ data:
     # The worker pods will be scheduled to the nodes of the specified key-value pairs.
     # Should be supplied in the format: key = value
 
+    [kubernetes_annotations]
+    # The Key-value annotations pairs to be given to worker pods.
+    # Should be supplied in the format: key = value
+
     [kubernetes_secrets]
     SQL_ALCHEMY_CONN = airflow-secrets=sql_alchemy_conn
 
