@@ -2275,7 +2275,13 @@ class BackfillJob(BaseJob):
                                     cfg_path=cfg_path)
                                 ti_status.running[key] = ti
                                 ti_status.to_run.pop(key)
-                        session.commit()
+                        try:
+                            session.commit()
+                        except OperationalError as e:
+                            self.log.warning(
+                                'Rolling Back as sqlalchemy OperationalError was raised: {}'.format(e)
+                            )
+                            session.rollback()
                         continue
 
                     if ti.state == State.UPSTREAM_FAILED:
