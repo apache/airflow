@@ -2297,6 +2297,19 @@ class BaseOperator(LoggingMixin):
         self.__rshift__(other)
         return self
 
+    def __pos__(self):
+        """
+        Implements +Operator -> self.set_downstream(last_operator)
+
+        """
+        if self.dag.last_added_operator_with_unary_pos:
+            self.log.info("Adding upstream task %s of operator: %s", self)
+            self.set_upstream(self.dag.last_added_operator_with_unary_pos)
+        else:
+            self.log.info("Adding first task with unary + operator: %s", self)
+        self.dag.last_added_operator_with_unary_pos = self
+        return self
+
     # /Composing Operators ---------------------------------------------
 
     @property
@@ -2980,6 +2993,7 @@ class DAG(BaseDag, LoggingMixin):
             params=None,
             access_control=None):
 
+        self.last_added_operator_with_unary_pos = None
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         self.default_args = default_args or {}

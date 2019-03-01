@@ -186,10 +186,6 @@ with models.DAG(
     schedule_interval=None  # Override to match your needs
 ) as dag:
 
-    def next_dep(task, prev):
-        prev >> task
-        return task
-
     # ############################################## #
     # ### INSTANCES SET UP ######################### #
     # ############################################## #
@@ -212,8 +208,8 @@ with models.DAG(
     )
     # [END howto_operator_cloudsql_create]
 
-    prev_task = sql_instance_create_task
-    prev_task = next_dep(sql_instance_create_2_task, prev_task)
+    +sql_instance_create_task
+    +sql_instance_create_2_task
 
     sql_instance_read_replica_create = CloudSqlInstanceCreateOperator(
         project_id=GCP_PROJECT_ID,
@@ -221,7 +217,7 @@ with models.DAG(
         instance=INSTANCE_NAME2,
         task_id='sql_instance_read_replica_create'
     )
-    prev_task = next_dep(sql_instance_read_replica_create, prev_task)
+    +sql_instance_read_replica_create
 
     # ############################################## #
     # ### MODIFYING INSTANCE AND ITS DATABASE ###### #
@@ -234,6 +230,7 @@ with models.DAG(
         instance=INSTANCE_NAME,
         task_id='sql_instance_patch_task'
     )
+    +sql_instance_patch_task
 
     sql_instance_patch_task2 = CloudSqlInstancePatchOperator(
         body=patch_body,
@@ -241,8 +238,7 @@ with models.DAG(
         task_id='sql_instance_patch_task2'
     )
     # [END howto_operator_cloudsql_patch]
-    prev_task = next_dep(sql_instance_patch_task, prev_task)
-    prev_task = next_dep(sql_instance_patch_task2, prev_task)
+    +sql_instance_patch_task2
 
     # [START howto_operator_cloudsql_db_create]
     sql_db_create_task = CloudSqlInstanceDatabaseCreateOperator(
@@ -251,14 +247,15 @@ with models.DAG(
         instance=INSTANCE_NAME,
         task_id='sql_db_create_task'
     )
+
     sql_db_create_task2 = CloudSqlInstanceDatabaseCreateOperator(
         body=db_create_body,
         instance=INSTANCE_NAME,
         task_id='sql_db_create_task2'
     )
     # [END howto_operator_cloudsql_db_create]
-    prev_task = next_dep(sql_db_create_task, prev_task)
-    prev_task = next_dep(sql_db_create_task2, prev_task)
+    +sql_db_create_task
+    +sql_db_create_task2
 
     # [START howto_operator_cloudsql_db_patch]
     sql_db_patch_task = CloudSqlInstanceDatabasePatchOperator(
@@ -268,6 +265,7 @@ with models.DAG(
         database=DB_NAME,
         task_id='sql_db_patch_task'
     )
+
     sql_db_patch_task2 = CloudSqlInstanceDatabasePatchOperator(
         body=db_patch_body,
         instance=INSTANCE_NAME,
@@ -275,8 +273,8 @@ with models.DAG(
         task_id='sql_db_patch_task2'
     )
     # [END howto_operator_cloudsql_db_patch]
-    prev_task = next_dep(sql_db_patch_task, prev_task)
-    prev_task = next_dep(sql_db_patch_task2, prev_task)
+    +sql_db_patch_task
+    +sql_db_patch_task2
 
     # ############################################## #
     # ### EXPORTING SQL FROM INSTANCE 1 ############ #
@@ -295,7 +293,7 @@ with models.DAG(
         task_id='sql_gcp_add_bucket_permission_task'
     )
     # [END howto_operator_cloudsql_export_gcs_permissions]
-    prev_task = next_dep(sql_gcp_add_bucket_permission_task, prev_task)
+    +sql_gcp_add_bucket_permission_task
 
     # [START howto_operator_cloudsql_export]
     sql_export_task = CloudSqlInstanceExportOperator(
@@ -310,8 +308,8 @@ with models.DAG(
         task_id='sql_export_task2'
     )
     # [END howto_operator_cloudsql_export]
-    prev_task = next_dep(sql_export_task, prev_task)
-    prev_task = next_dep(sql_export_task2, prev_task)
+    +sql_export_task
+    +sql_export_task2
 
     # ############################################## #
     # ### IMPORTING SQL TO INSTANCE 2 ############## #
@@ -330,7 +328,6 @@ with models.DAG(
         object_name=import_url_split[2][1:],  # path (strip first '/')
         task_id='sql_gcp_add_object_permission_task',
     )
-    prev_task = next_dep(sql_gcp_add_object_permission_task, prev_task)
 
     # For import to work we also need to add the Cloud SQL instance's Service Account
     # write access to the whole bucket!.
@@ -343,7 +340,8 @@ with models.DAG(
         task_id='sql_gcp_add_bucket_permission_2_task',
     )
     # [END howto_operator_cloudsql_import_gcs_permissions]
-    prev_task = next_dep(sql_gcp_add_bucket_permission_2_task, prev_task)
+    +sql_gcp_add_object_permission_task
+    +sql_gcp_add_bucket_permission_2_task
 
     # [START howto_operator_cloudsql_import]
     sql_import_task = CloudSqlInstanceImportOperator(
@@ -358,8 +356,8 @@ with models.DAG(
         task_id='sql_import_task2'
     )
     # [END howto_operator_cloudsql_import]
-    prev_task = next_dep(sql_import_task, prev_task)
-    prev_task = next_dep(sql_import_task2, prev_task)
+    +sql_import_task
+    +sql_import_task2
 
     # ############################################## #
     # ### DELETING A DATABASE FROM AN INSTANCE ##### #
@@ -378,8 +376,8 @@ with models.DAG(
         task_id='sql_db_delete_task2'
     )
     # [END howto_operator_cloudsql_db_delete]
-    prev_task = next_dep(sql_db_delete_task, prev_task)
-    prev_task = next_dep(sql_db_delete_task2, prev_task)
+    +sql_db_delete_task
+    +sql_db_delete_task2
 
     # ############################################## #
     # ### INSTANCES TEAR DOWN ###################### #
@@ -399,8 +397,8 @@ with models.DAG(
     )
     # [END howto_operator_cloudsql_replicas_delete]
 
-    prev_task = next_dep(sql_instance_failover_replica_delete_task, prev_task)
-    prev_task = next_dep(sql_instance_read_replica_delete_task, prev_task)
+    +sql_instance_failover_replica_delete_task
+    +sql_instance_read_replica_delete_task
 
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSqlInstanceDeleteOperator(
@@ -413,11 +411,12 @@ with models.DAG(
         task_id='sql_instance_delete_task2'
     )
     # [END howto_operator_cloudsql_delete]
-    prev_task = next_dep(sql_instance_delete_task, prev_task)
+    +sql_instance_delete_task
+    +sql_instance_delete_task2
 
     sql_instance_delete_2_task = CloudSqlInstanceDeleteOperator(
         project_id=GCP_PROJECT_ID,
         instance=INSTANCE_NAME2,
         task_id='sql_instance_delete_2_task'
     )
-    prev_task = next_dep(sql_instance_delete_2_task, prev_task)
+    +sql_instance_delete_2_task

@@ -263,6 +263,36 @@ and equivalent to:
 
     op1.set_downstream([op2, op3])
 
+Building linear DAGs with unary + operator
+------------------------------------------
+Added in Airflow 10.1.3 (?)
+
+In simple, linear DAG case, operator relationships can be set with the unary + operator. The first time the
++ operator is used in DAG it adds no upstream dependency for the task. Every subsequent + operator adds
+upstream dependency to the previous '+' - added operator.
+
+Unlike with bitshift operators the operators have dag already assigned and they have to use the same DAG.
+Dag assignment does not carry through.
+
+.. code:: python
+
+    +op1
+    +op2
+    +op3
+
+this is equivalent to:
+
+.. code:: python
+
+    op1 >> op2 >> op3
+
+This is very useful for examples and during development where you can comment out or add single line to
+remove or inject task dependencies between two other tasks.
+
+Example use of such unary operator use can be found in
+`example_gcp_sql <https://github.com/apache/airflow/blob/master/airflow/contrib/example_dags/example_gcp_sql.py>`_
+
+
 Tasks
 =====
 

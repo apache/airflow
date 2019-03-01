@@ -2151,6 +2151,28 @@ class TaskInstanceTest(unittest.TestCase):
         dag >> op5
         self.assertIs(op5.dag, dag)
 
+    def test_unary_compose_pos_operator(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='test_op_1', owner='test')
+        op2 = DummyOperator(task_id='test_op_2', owner='test')
+        op3 = DummyOperator(task_id='test_op_3', owner='test')
+
+        # can't use unary operators without dags
+        with self.assertRaises(AirflowException):
+            +op2
+
+        # make sure DAG is set for all operators
+        op1.dag = dag
+        op2.dag = dag
+        op3.dag = dag
+
+        +op1
+        +op2
+        +op3
+
+        self.assertIn(op2, op1.downstream_list)
+        self.assertIn(op3, op2.downstream_list)
+
     @patch.object(DAG, 'concurrency_reached')
     def test_requeue_over_concurrency(self, mock_concurrency_reached):
         mock_concurrency_reached.return_value = True
