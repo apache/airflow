@@ -30,16 +30,16 @@ class PodGenerator:
         self.volume_mounts = []
         self.init_containers = []
 
-    def add_init_container(self,
-                           name,
-                           image,
-                           security_context,
-                           init_environment,
-                           volume_mounts
-                           ):
+    def _add_init_container(
+            self,
+            name,
+            image,
+            security_context,
+            init_environment,
+            volume_mounts,
+            cmds,
+            args):
         """
-
-        Adds an init container to the launched pod. useful for pre-
 
         Args:
             name (str):
@@ -47,18 +47,52 @@ class PodGenerator:
             security_context (dict):
             init_environment (dict):
             volume_mounts (dict):
+            cmds: (list[str]):
+            args: (list[str]):
 
         Returns:
 
         """
-        self.init_containers.append(
-            {
-                'name': name,
-                'image': image,
-                'securityContext': security_context,
-                'env': init_environment,
-                'volumeMounts': volume_mounts
-            }
+
+        _attached_mounts = []
+        for mount in volume_mounts:
+            _attached_mounts.append(
+                {
+                    'name': mount.name,
+                    'mountPath': mount.mount_path,
+                }
+            )
+
+        self.init_containers.append({
+            'name': name,
+            'image': image,
+            'securityContext': security_context,
+            'env': init_environment,
+            'volumeMounts': _attached_mounts,
+            'command': cmds,
+            'args': args
+        })
+
+    def add_init_container(self, init_container):
+        """
+
+        Adds an init container to the launched pod. useful for pre-
+
+        Args:
+            init_container (InitContainer):
+
+        Returns:
+
+        """
+
+        self._add_init_container(
+            name=init_container.name,
+            image=init_container.image,
+            security_context=init_container.security_context,
+            init_environment=init_container.init_environment,
+            volume_mounts=init_container.volume_mounts,
+            cmds=init_container.cmds,
+            args=init_container.args
         )
 
     def _get_init_containers(self):

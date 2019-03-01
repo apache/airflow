@@ -24,6 +24,7 @@ from airflow.utils.state import State
 from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
 from airflow.contrib.kubernetes.volume import Volume  # noqa
 from airflow.contrib.kubernetes.secret import Secret  # noqa
+from airflow.contrib.kubernetes.init_container import InitContainer  # noqa
 
 template_fields = ('templates_dict',)
 template_ext = tuple()
@@ -88,6 +89,8 @@ class KubernetesPodOperator(BaseOperator):
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list tolerations
+    :param init_containers: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
+    :type init_containers: list[airflow.contrib.kubernetes.init_container.InitContainer]
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -102,6 +105,8 @@ class KubernetesPodOperator(BaseOperator):
                 gen.add_mount(mount)
             for volume in self.volumes:
                 gen.add_volume(volume)
+            for init_container in self.init_containers:
+                gen.add_init_container(init_container)
 
             pod = gen.make_pod(
                 namespace=self.namespace,
@@ -172,6 +177,7 @@ class KubernetesPodOperator(BaseOperator):
                  is_delete_operator_pod=False,
                  hostnetwork=False,
                  tolerations=None,
+                 init_containers=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -201,3 +207,4 @@ class KubernetesPodOperator(BaseOperator):
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
         self.tolerations = tolerations or []
+        self.init_containers = init_containers or []
