@@ -865,8 +865,8 @@ class SchedulerJob(BaseJob):
                     dag.start_date, next_run_date
                 )
 
-            # don't ever schedule in the future
-            if next_run_date > timezone.utcnow():
+            # don't ever schedule in the future or if next_run_date is None
+            if not next_run_date or next_run_date > timezone.utcnow():
                 return
 
             # this structure is necessary to avoid a TypeError from concatenating

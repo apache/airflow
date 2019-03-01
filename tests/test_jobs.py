@@ -2665,6 +2665,20 @@ class SchedulerJobTest(unittest.TestCase):
 
         queue.put.assert_not_called()
 
+    def test_scheduler_do_not_schedule_without_tasks(self):
+        dag = DAG(
+            dag_id='test_scheduler_do_not_schedule_without_tasks',
+            start_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
+            scheduler = SchedulerJob()
+            dag.clear(session=session)
+            dag.start_date = None
+            dr = scheduler.create_dag_run(dag, session=session)
+            self.assertIsNone(dr)
+
     def test_scheduler_do_not_run_finished(self):
         dag = DAG(
             dag_id='test_scheduler_do_not_run_finished',
