@@ -201,6 +201,15 @@ The `do_xcom_push` flag (a switch to push the result of an operator to xcom or n
 
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
 
+### Changed behaviour of using default value when accessing variables
+It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
+```
+foo = Variable.get("foo", default_var=None)
+    if foo is None:
+        handle_missing_foo()
+```
+This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, simply don't pass the `default_var` parameter. 
+
 
 ## Airflow 1.10.2
 

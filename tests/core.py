@@ -711,6 +711,13 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
                                                      default_var=default_value))
 
+    def test_get_non_existing_var_should_raise_key_error(self):
+        with self.assertRaises(KeyError):
+            Variable.get("thisIdDoesNotExist")
+
+    def test_get_non_existing_var_with_none_default_should_return_none(self):
+        self.assertIsNone(Variable.get("thisIdDoesNotExist", default_var=None))
+
     def test_get_non_existing_var_should_not_deserialize_json_default(self):
         default_value = "}{ this is a non JSON default }{"
         self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
