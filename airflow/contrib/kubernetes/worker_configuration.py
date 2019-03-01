@@ -27,18 +27,18 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class WorkerConfiguration(LoggingMixin):
     """Contains Kubernetes Airflow Worker configuration logic"""
 
+    dags_volume_name = 'airflow-dags'
+    logs_volume_name = 'airflow-logs'
+    git_sync_ssh_secret_volume_name = 'git-sync-ssh-key'
+    git_ssh_key_secret_key = 'gitSshKey'
+    git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
+    git_ssh_known_hosts_configmap_key = 'known_hosts'
+
     def __init__(self, kube_config):
         self.kube_config = kube_config
         self.worker_airflow_home = self.kube_config.airflow_home
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
-
-        self.dags_volume_name = 'airflow-dags'
-        self.logs_volume_name = 'airflow-logs'
-        self.git_sync_ssh_secret_volume_name = 'git-sync-ssh-key'
-        self.git_ssh_key_secret_key = 'gitSshKey'
-        self.git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
-        self.git_ssh_known_hosts_configmap_key = 'known_hosts'
 
         super(WorkerConfiguration, self).__init__()
 
@@ -100,27 +100,27 @@ class WorkerConfiguration(LoggingMixin):
                     'name': 'GIT_SYNC_SSH',
                     'value': 'true'
                 }])
-            if self.kube_config.git_ssh_known_hosts_configmap_name:
-                volume_mounts.append({
-                    'name': self.git_sync_ssh_known_hosts_volume_name,
-                    'mountPath': '/etc/git-secret/known_hosts',
-                    'subPath': 'known_hosts'
-                })
-                init_environment.extend([
-                    {
-                        'name': 'GIT_KNOWN_HOSTS',
-                        'value': 'true'
-                    },
-                    {
-                        'name': 'GIT_SSH_KNOWN_HOSTS_FILE',
-                        'value': '/etc/git-secret/known_hosts'
-                    }
-                ])
-            else:
-                init_environment.append({
+        if self.kube_config.git_ssh_known_hosts_configmap_name:
+            volume_mounts.append({
+                'name': self.git_sync_ssh_known_hosts_volume_name,
+                'mountPath': '/etc/git-secret/known_hosts',
+                'subPath': 'known_hosts'
+            })
+            init_environment.extend([
+                {
                     'name': 'GIT_KNOWN_HOSTS',
-                    'value': 'false'
-                })
+                    'value': 'true'
+                },
+                {
+                    'name': 'GIT_SSH_KNOWN_HOSTS_FILE',
+                    'value': '/etc/git-secret/known_hosts'
+                }
+            ])
+        else:
+            init_environment.append({
+                'name': 'GIT_KNOWN_HOSTS',
+                'value': 'false'
+            })
 
         return [{
             'name': self.kube_config.git_sync_init_container_name,
@@ -176,7 +176,7 @@ class WorkerConfiguration(LoggingMixin):
         else:
             return None
 
-    def init_volumes_and_mounts(self):
+    def _get_volumes_and_mounts(self):
         def _construct_volume(name, claim, host):
             volume = {
                 'name': name
@@ -238,18 +238,19 @@ class WorkerConfiguration(LoggingMixin):
                     'items': [{
                         'key': self.git_ssh_key_secret_key,
                         'path': 'ssh',
-                        'mode': 288
+                        'mode': 0o440
                     }]
                 }
             }
-            if self.kube_config.git_ssh_known_hosts_configmap_name:
-                volumes[self.git_sync_ssh_known_hosts_volume_name] = {
-                    'name': self.git_sync_ssh_known_hosts_volume_name,
-                    'configMap': {
-                        'name': self.kube_config.git_ssh_known_hosts_configmap_name
-                    },
-                    'mode': 288
-                }
+
+        if self.kube_config.git_ssh_known_hosts_configmap_name:
+            volumes[self.git_sync_ssh_known_hosts_volume_name] = {
+                'name': self.git_sync_ssh_known_hosts_volume_name,
+                'configMap': {
+                    'name': self.kube_config.git_ssh_known_hosts_configmap_name
+                },
+                'mode': 0o440
+            }
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
@@ -280,7 +281,7 @@ class WorkerConfiguration(LoggingMixin):
 
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  try_number, airflow_command, kube_executor_config):
-        volumes_dict, volume_mounts_dict = self.init_volumes_and_mounts()
+        volumes_dict, volume_mounts_dict = self._get_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers()
         resources = Resources(
             request_memory=kube_executor_config.request_memory,
