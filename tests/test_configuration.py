@@ -185,6 +185,15 @@ key6 = value6
         self.assertEqual('cmd_result', cfg_dict['test']['key2'])
         self.assertNotIn('key2_cmd', cfg_dict['test'])
 
+    def test_command_from_env(self):
+        test_conf = AirflowConfigParser()
+        test_conf.as_command_stdout = test_conf.as_command_stdout | {
+            ('test', 'key'),
+        }
+        os.environ['AIRFLOW__TEST__KEY_CMD'] = 'printf correct_value'
+        self.assertEqual('correct_value', test_conf.get('test', 'key'))
+        os.environ.pop('AIRFLOW__TEST__KEY_CMD')
+
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
         TEST_CONFIG = """

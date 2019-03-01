@@ -36,7 +36,7 @@ import subprocess
 import sys
 import warnings
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError
+from backports.configparser import ConfigParser, _UNSET, NoOptionError, NoSectionError
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException
@@ -181,10 +181,8 @@ class AirflowConfigParser(ConfigParser):
         fallback_key = key + '_cmd'
         # if this is a valid command key...
         if (section, key) in self.as_command_stdout:
-            if super(AirflowConfigParser, self) \
-                    .has_option(section, fallback_key):
-                command = super(AirflowConfigParser, self) \
-                    .get(section, fallback_key)
+            if self.has_option(section, fallback_key):
+                command = self.get(section, fallback_key)
                 return run_command(command)
 
     def get(self, section, key, **kwargs):
@@ -276,6 +274,8 @@ class AirflowConfigParser(ConfigParser):
             # UNSET to avoid logging a warning about missing values
             self.get(section, option, fallback=_UNSET)
             return True
+        except NoSectionError:
+            return False
         except NoOptionError:
             return False
 
