@@ -15,11 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import copy
 import os
 import six
 
-from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
@@ -29,18 +27,22 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class WorkerConfiguration(LoggingMixin):
     """Contains Kubernetes Airflow Worker configuration logic"""
 
+    dags_volume_name = 'airflow-dags'
+    logs_volume_name = 'airflow-logs'
+    git_sync_ssh_secret_volume_name = 'git-sync-ssh-key'
+    git_ssh_key_secret_key = 'gitSshKey'
+    git_sync_ssh_known_hosts_volume_name = 'git-sync-known-hosts'
+    git_ssh_known_hosts_configmap_key = 'known_hosts'
+
     def __init__(self, kube_config):
         self.kube_config = kube_config
         self.worker_airflow_home = self.kube_config.airflow_home
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
 
-        self.dags_volume_name = 'airflow-dags'
-        self.logs_volume_name = 'airflow-logs'
-
         super(WorkerConfiguration, self).__init__()
 
-    def _get_init_containers(self, volume_mounts):
+    def _get_init_containers(self):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
         # If we're using volume claims to mount the dags, no init container is needed
         if self.kube_config.dags_volume_claim or \
@@ -78,19 +80,54 @@ class WorkerConfiguration(LoggingMixin):
                 'value': self.kube_config.git_password
             })
 
-        if self.dags_volume_name not in volume_mounts:
-            raise AirflowException(
-                "GitSync enabled but volume %s is not defined." % self.dags_volume_name)
-
-        volume_mounts[self.dags_volume_name]['mountPath'] = self.kube_config.git_sync_root
-        volume_mounts[self.dags_volume_name]['readOnly'] = False
+        volume_mounts = [{
+            'mountPath': self.kube_config.git_sync_root,
+            'name': self.dags_volume_name,
+            'readOnly': False
+        }]
+        if self.kube_config.git_ssh_key_secret_name:
+            volume_mounts.append({
+                'name': self.git_sync_ssh_secret_volume_name,
+                'mountPath': '/etc/git-secret/ssh',
+                'subPath': 'ssh'
+            })
+            init_environment.extend([
+                {
+                    'name': 'GIT_SSH_KEY_FILE',
+                    'value': '/etc/git-secret/ssh'
+                },
+                {
+                    'name': 'GIT_SYNC_SSH',
+                    'value': 'true'
+                }])
+        if self.kube_config.git_ssh_known_hosts_configmap_name:
+            volume_mounts.append({
+                'name': self.git_sync_ssh_known_hosts_volume_name,
+                'mountPath': '/etc/git-secret/known_hosts',
+                'subPath': 'known_hosts'
+            })
+            init_environment.extend([
+                {
+                    'name': 'GIT_KNOWN_HOSTS',
+                    'value': 'true'
+                },
+                {
+                    'name': 'GIT_SSH_KNOWN_HOSTS_FILE',
+                    'value': '/etc/git-secret/known_hosts'
+                }
+            ])
+        else:
+            init_environment.append({
+                'name': 'GIT_KNOWN_HOSTS',
+                'value': 'false'
+            })
 
         return [{
             'name': self.kube_config.git_sync_init_container_name,
             'image': self.kube_config.git_sync_container,
-            'securityContext': {'runAsUser': 0},
+            'securityContext': {'runAsUser': 65533},  # git-sync user
             'env': init_environment,
-            'volumeMounts': [value for value in volume_mounts.values()]
+            'volumeMounts': volume_mounts
         }]
 
     def _get_environment(self):
@@ -130,7 +167,16 @@ class WorkerConfiguration(LoggingMixin):
             return []
         return self.kube_config.image_pull_secrets.split(',')
 
-    def init_volumes_and_mounts(self):
+    def _get_security_context(self):
+        """Defines the security context"""
+        if self.kube_config.git_ssh_key_secret_name:
+            return {
+                'fsGroup': 65533  # to make SSH key readable
+            }
+        else:
+            return None
+
+    def _get_volumes_and_mounts(self):
         def _construct_volume(name, claim, host):
             volume = {
                 'name': name
@@ -183,6 +229,29 @@ class WorkerConfiguration(LoggingMixin):
             del volumes[self.dags_volume_name]
             del volume_mounts[self.dags_volume_name]
 
+        # Get the SSH key from secrets as a volume
+        if self.kube_config.git_ssh_key_secret_name:
+            volumes[self.git_sync_ssh_secret_volume_name] = {
+                'name': self.git_sync_ssh_secret_volume_name,
+                'secret': {
+                    'secretName': self.kube_config.git_ssh_key_secret_name,
+                    'items': [{
+                        'key': self.git_ssh_key_secret_key,
+                        'path': 'ssh',
+                        'mode': 0o440
+                    }]
+                }
+            }
+
+        if self.kube_config.git_ssh_known_hosts_configmap_name:
+            volumes[self.git_sync_ssh_known_hosts_volume_name] = {
+                'name': self.git_sync_ssh_known_hosts_volume_name,
+                'configMap': {
+                    'name': self.kube_config.git_ssh_known_hosts_configmap_name
+                },
+                'mode': 0o440
+            }
+
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
             config_volume_name = 'airflow-config'
@@ -212,9 +281,8 @@ class WorkerConfiguration(LoggingMixin):
 
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  try_number, airflow_command, kube_executor_config):
-        volumes_dict, volume_mounts_dict = self.init_volumes_and_mounts()
-        worker_init_container_spec = self._get_init_containers(
-            copy.deepcopy(volume_mounts_dict))
+        volumes_dict, volume_mounts_dict = self._get_volumes_and_mounts()
+        worker_init_container_spec = self._get_init_containers()
         resources = Resources(
             request_memory=kube_executor_config.request_memory,
             request_cpu=kube_executor_config.request_cpu,
@@ -258,5 +326,6 @@ class WorkerConfiguration(LoggingMixin):
             node_selectors=(kube_executor_config.node_selectors or
                             self.kube_config.kube_node_selectors),
             affinity=affinity,
-            tolerations=tolerations
+            tolerations=tolerations,
+            security_context=self._get_security_context(),
         )
