@@ -62,16 +62,16 @@ spec:
         self.extract_affinity(pod, req)
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
+        self.extract_security_context(pod, req)
         return req
 
 
 class ExtractXcomPodRequestFactory(KubernetesRequestFactory):
-
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     """
     Request generator for a pod with sidecar container.
     """
+    XCOM_MOUNT_PATH = '/airflow/xcom'
+    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     _yaml = """apiVersion: v1
 kind: Pod
 metadata:

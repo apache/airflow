@@ -46,9 +46,9 @@ class Pod:
     :param envs: A dict containing the environment variables
     :type envs: dict
     :param cmds: The command to be run on the pod
-    :type cmds: list str
+    :type cmds: list[str]
     :param secrets: Secrets to be launched to the pod
-    :type secrets: list Secret
+    :type secrets: list[airflow.contrib.kubernetes.secret.Secret]
     :param result: The result that will be returned to the operator after
                    successful execution of the pod
     :type result: any
@@ -64,6 +64,8 @@ class Pod:
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list
+    :param security_context: A dict containing the security context for the pod
+    :type security_context: dict
     """
     def __init__(
             self,
@@ -88,6 +90,7 @@ class Pod:
             affinity=None,
             hostnetwork=False,
             tolerations=None,
+            security_context=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -110,3 +113,4 @@ class Pod:
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
+        self.security_context = security_context

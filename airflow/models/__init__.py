@@ -24,7 +24,6 @@ from __future__ import unicode_literals
 
 import copy
 from collections import defaultdict, namedtuple, OrderedDict
-
 from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
@@ -58,13 +57,12 @@ import traceback
 import warnings
 import hashlib
 
-import uuid
 from datetime import datetime
 from urllib.parse import quote
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, Index, Integer, PickleType, String,
-    Text, UniqueConstraint, and_, func, or_, true as sqltrue
+    Text, UniqueConstraint, and_, func, or_
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
@@ -75,7 +73,7 @@ from croniter import (
 import six
 
 from airflow import settings, utils
-from airflow.executors import GetDefaultExecutor, LocalExecutor
+from airflow.executors import get_default_executor, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout,
@@ -84,6 +82,9 @@ from airflow.exceptions import (
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.dagpickle import DagPickle
+from airflow.models.kubernetes import KubeWorkerIdentifier, KubeResourceVersion  # noqa: F401
+from airflow.models.log import Log
+from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -149,7 +150,7 @@ def get_fernet():
     or because the Fernet key is invalid.
 
     :return: Fernet object
-    :raises: AirflowException if there's a problem trying to load Fernet
+    :raises: airflow.exceptions.AirflowException if there's a problem trying to load Fernet
     """
     global _fernet
     log = LoggingMixin().log
@@ -287,11 +288,12 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             executor=None,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
 
         # do not use default arg in signature, to fix import cycle on plugin load
         if executor is None:
-            executor = GetDefaultExecutor()
+            executor = get_default_executor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.log.info("Filling up the DagBag from %s", dag_folder)
         self.dag_folder = dag_folder
@@ -302,7 +304,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.import_errors = {}
         self.has_logged = False
 
-        self.collect_dags(dag_folder, include_examples)
+        self.collect_dags(
+            dag_folder=dag_folder,
+            include_examples=include_examples,
+            safe_mode=safe_mode)
 
     def size(self):
         """
@@ -474,9 +479,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         had a heartbeat for too long, in the current DagBag.
 
         :param zombies: zombie task instances to kill.
-        :type zombies: ``SimpleTaskInstance``
+        :type zombies: airflow.utils.dag_processing.SimpleTaskInstance
         :param session: DB session.
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         for zombie in zombies:
             if zombie.dag_id in self.dags:
@@ -537,7 +542,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             only_if_updated=True,
-            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES')):
+            include_examples=configuration.conf.getboolean('core', 'LOAD_EXAMPLES'),
+            safe_mode=configuration.conf.getboolean('core', 'DAG_DISCOVERY_SAFE_MODE')):
         """
         Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
@@ -557,11 +563,14 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        for filepath in list_py_file_paths(dag_folder, include_examples):
+
+        for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
+                                           include_examples=include_examples):
             try:
                 ts = timezone.utcnow()
                 found_dags = self.process_file(
-                    filepath, only_if_updated=only_if_updated)
+                    filepath, only_if_updated=only_if_updated,
+                    safe_mode=safe_mode)
 
                 td = timezone.utcnow() - ts
                 td = td.total_seconds() + (
@@ -1057,7 +1066,7 @@ class TaskInstance(Base, LoggingMixin):
             should be evaluated.
         :type dep_context: DepContext
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         :param verbose: whether log details on failed dependencies on
             info or debug log level
         :type verbose: bool
@@ -1716,10 +1725,12 @@ class TaskInstance(Base, LoggingMixin):
     def email_alert(self, exception):
         exception_html = str(exception).replace('\n', '<br>')
         jinja_context = self.get_template_context()
+        # This function is called after changing the state
+        # from State.RUNNING so need to subtract 1 from self.try_number.
         jinja_context.update(dict(
             exception=exception,
             exception_html=exception_html,
-            try_number=self.try_number,
+            try_number=self.try_number - 1,
             max_tries=self.max_tries))
 
         jinja_env = self.task.get_template_env()
@@ -1855,124 +1866,6 @@ class TaskInstance(Base, LoggingMixin):
         self._set_context(self)
 
 
-class TaskFail(Base):
-    """
-    TaskFail tracks the failed run durations of each task instance.
-    """
-
-    __tablename__ = "task_fail"
-
-    id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN), nullable=False)
-    dag_id = Column(String(ID_LEN), nullable=False)
-    execution_date = Column(UtcDateTime, nullable=False)
-    start_date = Column(UtcDateTime)
-    end_date = Column(UtcDateTime)
-    duration = Column(Integer)
-
-    __table_args__ = (
-        Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date,
-              unique=False),
-    )
-
-    def __init__(self, task, execution_date, start_date, end_date):
-        self.dag_id = task.dag_id
-        self.task_id = task.task_id
-        self.execution_date = execution_date
-        self.start_date = start_date
-        self.end_date = end_date
-        if self.end_date and self.start_date:
-            self.duration = (self.end_date - self.start_date).total_seconds()
-        else:
-            self.duration = None
-
-
-class Log(Base):
-    """
-    Used to actively log events to the database
-    """
-
-    __tablename__ = "log"
-
-    id = Column(Integer, primary_key=True)
-    dttm = Column(UtcDateTime)
-    dag_id = Column(String(ID_LEN))
-    task_id = Column(String(ID_LEN))
-    event = Column(String(30))
-    execution_date = Column(UtcDateTime)
-    owner = Column(String(500))
-    extra = Column(Text)
-
-    __table_args__ = (
-        Index('idx_log_dag', dag_id),
-    )
-
-    def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
-        self.dttm = timezone.utcnow()
-        self.event = event
-        self.extra = extra
-
-        task_owner = None
-
-        if task_instance:
-            self.dag_id = task_instance.dag_id
-            self.task_id = task_instance.task_id
-            self.execution_date = task_instance.execution_date
-            task_owner = task_instance.task.owner
-
-        if 'task_id' in kwargs:
-            self.task_id = kwargs['task_id']
-        if 'dag_id' in kwargs:
-            self.dag_id = kwargs['dag_id']
-        if 'execution_date' in kwargs:
-            if kwargs['execution_date']:
-                self.execution_date = kwargs['execution_date']
-
-        self.owner = owner or task_owner
-
-
-class SkipMixin(LoggingMixin):
-    @provide_session
-    def skip(self, dag_run, execution_date, tasks, session=None):
-        """
-        Sets tasks instances to skipped from the same dag run.
-
-        :param dag_run: the DagRun for which to set the tasks to skipped
-        :param execution_date: execution_date
-        :param tasks: tasks to skip (not task_ids)
-        :param session: db session to use
-        """
-        if not tasks:
-            return
-
-        task_ids = [d.task_id for d in tasks]
-        now = timezone.utcnow()
-
-        if dag_run:
-            session.query(TaskInstance).filter(
-                TaskInstance.dag_id == dag_run.dag_id,
-                TaskInstance.execution_date == dag_run.execution_date,
-                TaskInstance.task_id.in_(task_ids)
-            ).update({TaskInstance.state: State.SKIPPED,
-                      TaskInstance.start_date: now,
-                      TaskInstance.end_date: now},
-                     synchronize_session=False)
-            session.commit()
-        else:
-            assert execution_date is not None, "Execution date is None and no dag run"
-
-            self.log.warning("No DAG RUN present this should not happen")
-            # this is defensive against dag runs that are not complete
-            for task in tasks:
-                ti = TaskInstance(task, execution_date=execution_date)
-                ti.state = State.SKIPPED
-                ti.start_date = now
-                ti.end_date = now
-                session.merge(ti)
-
-            session.commit()
-
-
 @functools.total_ordering
 class BaseOperator(LoggingMixin):
     """
@@ -2002,13 +1895,13 @@ class BaseOperator(LoggingMixin):
         failing the task
     :type retries: int
     :param retry_delay: delay between retries
-    :type retry_delay: timedelta
+    :type retry_delay: datetime.timedelta
     :param retry_exponential_backoff: allow progressive longer waits between
         retries by using exponential backoff algorithm on retry delay (delay
         will be converted into seconds)
     :type retry_exponential_backoff: bool
     :param max_retry_delay: maximum delay interval between retries
-    :type max_retry_delay: timedelta
+    :type max_retry_delay: datetime.timedelta
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
@@ -2025,9 +1918,9 @@ class BaseOperator(LoggingMixin):
         ``TimeSensor`` and ``TimeDeltaSensor``. We advise against using
         dynamic ``start_date`` and recommend using fixed ones. Read the
         FAQ entry about start_date for more information.
-    :type start_date: datetime
+    :type start_date: datetime.datetime
     :param end_date: if specified, the scheduler won't go beyond this date
-    :type end_date: datetime
+    :type end_date: datetime.datetime
     :param depends_on_past: when set to true, task instances will run
         sequentially while relying on the previous task's schedule to
         succeed. The task instance for the start_date is allowed to run.
@@ -2044,7 +1937,7 @@ class BaseOperator(LoggingMixin):
         does support targeting specific queues.
     :type queue: str
     :param dag: a reference to the dag the task is attached to (if any)
-    :type dag: DAG
+    :type dag: airflow.models.DAG
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
@@ -2229,7 +2122,7 @@ class BaseOperator(LoggingMixin):
             raise AirflowException(
                 "The trigger_rule must be one of {all_triggers},"
                 "'{d}.{t}'; received '{tr}'."
-                .format(all_triggers=TriggerRule.all_triggers,
+                .format(all_triggers=TriggerRule.all_triggers(),
                         d=dag.dag_id if dag else "", t=task_id, tr=trigger_rule))
 
         self.trigger_rule = trigger_rule
@@ -2955,15 +2848,15 @@ class DagModel(Base):
         :param run_id: defines the the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: State
+        :type state: airflow.utils.state.State
         :param start_date: the date this dag run should be evaluated
-        :type start_date: datetime
+        :type start_date: datetime.datetime
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
 
         return self.get_dag().create_dagrun(run_id=run_id,
@@ -3008,7 +2901,7 @@ class DAG(BaseDag, LoggingMixin):
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
         default
-    :type template_searchpath: str or list of stings
+    :type template_searchpath: str or list[str]
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
@@ -3040,7 +2933,9 @@ class DAG(BaseDag, LoggingMixin):
         new active DAG runs
     :type max_active_runs: int
     :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created
+        timing out / failing, so that new DagRuns can be created. The timeout
+        is only enforced for scheduled DagRuns, and only once the
+        # of active DagRuns == max_active_runs.
     :type dagrun_timeout: datetime.timedelta
     :param sla_miss_callback: specify a function to call when reporting SLA
         timeouts.
@@ -3058,6 +2953,9 @@ class DAG(BaseDag, LoggingMixin):
     :param on_success_callback: Much like the ``on_failure_callback`` except
         that it is executed when the dag succeeds.
     :type on_success_callback: callable
+    :param access_control: Specify optional DAG-level permissions, e.g.,
+        "{'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}}"
+    :type access_control: dict
     """
 
     def __init__(
@@ -3079,7 +2977,8 @@ class DAG(BaseDag, LoggingMixin):
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
             on_success_callback=None, on_failure_callback=None,
-            params=None):
+            params=None,
+            access_control=None):
 
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
@@ -3156,6 +3055,7 @@ class DAG(BaseDag, LoggingMixin):
         self.on_failure_callback = on_failure_callback
 
         self._old_context_manager_dags = []
+        self._access_control = access_control
 
         self._comps = {
             'dag_id',
@@ -3376,6 +3276,14 @@ class DAG(BaseDag, LoggingMixin):
     @concurrency.setter
     def concurrency(self, value):
         self._concurrency = value
+
+    @property
+    def access_control(self):
+        return self._access_control
+
+    @access_control.setter
+    def access_control(self, value):
+        self._access_control = value
 
     @property
     def description(self):
@@ -3911,7 +3819,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def pickle_info(self, session=None):
-        d = {}
+        d = dict()
         d['is_picklable'] = True
         try:
             dttm = timezone.utcnow()
@@ -4018,20 +3926,21 @@ class DAG(BaseDag, LoggingMixin):
             verbose=False,
             conf=None,
             rerun_failed_tasks=False,
+            run_backwards=False,
     ):
         """
         Runs the DAG.
 
         :param start_date: the start date of the range to run
-        :type start_date: datetime
+        :type start_date: datetime.datetime
         :param end_date: the end date of the range to run
-        :type end_date: datetime
+        :type end_date: datetime.datetime
         :param mark_success: True to mark jobs as succeeded without running them
         :type mark_success: bool
         :param local: True to run the tasks using the LocalExecutor
         :type local: bool
         :param executor: The executor instance to run the tasks
-        :type executor: BaseExecutor
+        :type executor: airflow.executor.BaseExecutor
         :param donot_pickle: True to avoid pickling DAG object and send to workers
         :type donot_pickle: bool
         :param ignore_task_deps: True to skip upstream tasks
@@ -4048,12 +3957,17 @@ class DAG(BaseDag, LoggingMixin):
         :type verbose: bool
         :param conf: user defined dictionary passed from CLI
         :type conf: dict
+        :param rerun_failed_tasks:
+        :type: bool
+        :param run_backwards:
+        :type: bool
+
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
             executor = LocalExecutor()
         elif not executor:
-            executor = GetDefaultExecutor()
+            executor = get_default_executor()
         job = BackfillJob(
             self,
             start_date=start_date,
@@ -4068,6 +3982,7 @@ class DAG(BaseDag, LoggingMixin):
             verbose=verbose,
             conf=conf,
             rerun_failed_tasks=rerun_failed_tasks,
+            run_backwards=run_backwards,
         )
         job.run()
 
@@ -4096,15 +4011,15 @@ class DAG(BaseDag, LoggingMixin):
         :param run_id: defines the the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date of this dag run
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: State
+        :type state: airflow.utils.state.State
         :param start_date: the date this dag run should be evaluated
         :type start_date: datetime
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         run = DagRun(
             dag_id=self.dag_id,
@@ -4137,7 +4052,7 @@ class DAG(BaseDag, LoggingMixin):
         SubDagOperator.
 
         :param dag: the DAG object to save to the DB
-        :type dag: DAG
+        :type dag: airflow.models.DAG
         :param sync_time: The time that the DAG should be marked as sync'ed
         :type sync_time: datetime
         :return: None
@@ -4323,7 +4238,7 @@ class Variable(Base, LoggingMixin):
         for a key, and if it isn't there, stores the default value and returns it.
 
         :param key: Dict key for this Variable
-        :type key: String
+        :type key: str
         :param default: Default value to set and return if the variable
             isn't already in the DB
         :type default: Mixed
@@ -4464,16 +4379,16 @@ class DagRun(Base, LoggingMixin):
         :param run_id: defines the the run id for this dag run
         :type run_id: str
         :param execution_date: the execution date
-        :type execution_date: datetime
+        :type execution_date: datetime.datetime
         :param state: the state of the dag run
-        :type state: State
+        :type state: airflow.utils.state.State
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
         :param no_backfills: return no backfills (True), return all (False).
             Defaults to False
         :type no_backfills: bool
         :param session: database session
-        :type session: Session
+        :type session: sqlalchemy.orm.session.Session
         """
         DR = DagRun
 
@@ -4822,57 +4737,3 @@ class Pool(Base):
         used_slots = self.used_slots(session=session)
         queued_slots = self.queued_slots(session=session)
         return self.slots - used_slots - queued_slots
-
-
-class KubeResourceVersion(Base):
-    __tablename__ = "kube_resource_version"
-    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
-    resource_version = Column(String(255))
-
-    @staticmethod
-    @provide_session
-    def get_current_resource_version(session=None):
-        (resource_version,) = session.query(KubeResourceVersion.resource_version).one()
-        return resource_version
-
-    @staticmethod
-    @provide_session
-    def checkpoint_resource_version(resource_version, session=None):
-        if resource_version:
-            session.query(KubeResourceVersion).update({
-                KubeResourceVersion.resource_version: resource_version
-            })
-            session.commit()
-
-    @staticmethod
-    @provide_session
-    def reset_resource_version(session=None):
-        session.query(KubeResourceVersion).update({
-            KubeResourceVersion.resource_version: '0'
-        })
-        session.commit()
-        return '0'
-
-
-class KubeWorkerIdentifier(Base):
-    __tablename__ = "kube_worker_uuid"
-    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
-    worker_uuid = Column(String(255))
-
-    @staticmethod
-    @provide_session
-    def get_or_create_current_kube_worker_uuid(session=None):
-        (worker_uuid,) = session.query(KubeWorkerIdentifier.worker_uuid).one()
-        if worker_uuid == '':
-            worker_uuid = str(uuid.uuid4())
-            KubeWorkerIdentifier.checkpoint_kube_worker_uuid(worker_uuid, session)
-        return worker_uuid
-
-    @staticmethod
-    @provide_session
-    def checkpoint_kube_worker_uuid(worker_uuid, session=None):
-        if worker_uuid:
-            session.query(KubeWorkerIdentifier).update({
-                KubeWorkerIdentifier.worker_uuid: worker_uuid
-            })
-            session.commit()

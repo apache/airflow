@@ -133,6 +133,11 @@ class BaseJobTest(unittest.TestCase):
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
+        with create_session() as session:
+            session.query(models.DagRun).delete()
+            session.query(models.Pool).delete()
+            session.query(models.TaskInstance).delete()
+
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
 
@@ -622,6 +627,41 @@ class BackfillJobTest(unittest.TestCase):
         # task ran
         self.assertEqual(ti.state, State.SUCCESS)
         dag.clear()
+
+    def test_cli_backfill_depends_on_past_backwards(self):
+        """
+        Test that CLI respects -B argument and raises on interaction with depends_on_past
+        """
+        dag_id = 'test_depends_on_past'
+        start_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        end_date = start_date + datetime.timedelta(days=1)
+        args = [
+            'backfill',
+            dag_id,
+            '-l',
+            '-s',
+            start_date.isoformat(),
+            '-e',
+            end_date.isoformat(),
+            '-I'
+        ]
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+
+        cli.backfill(self.parser.parse_args(args + ['-I']))
+        ti = TI(dag.get_task('test_dop_task'), end_date)
+        ti.refresh_from_db()
+        # runs fine forwards
+        self.assertEqual(ti.state, State.SUCCESS)
+
+        # raises backwards
+        expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
+            'test_dop_task')
+        self.assertRaisesRegexp(
+            AirflowException,
+            expected_msg,
+            cli.backfill,
+            self.parser.parse_args(args + ['-B']))
 
     def test_cli_receives_delay_arg(self):
         """
@@ -1147,7 +1187,8 @@ class BackfillJobTest(unittest.TestCase):
             DummyOperator(
                 task_id='dummy',
                 dag=dag,
-                owner='airflow')
+                owner='airflow',
+            )
             return dag
 
         test_dag = get_test_dag_for_backfill()
@@ -1163,6 +1204,30 @@ class BackfillJobTest(unittest.TestCase):
                          test_dag.get_run_dates(
                              start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
                              end_date=DEFAULT_DATE,))
+
+    def test_backfill_run_backwards(self):
+        dag = self.dagbag.get_dag("test_start_date_scheduling")
+        dag.clear()
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            run_backwards=True
+        )
+        job.run()
+
+        session = settings.Session()
+        tis = session.query(TI).filter(
+            TI.dag_id == 'test_start_date_scheduling' and TI.task_id == 'dummy'
+        ).order_by(TI.execution_date).all()
+
+        queued_times = [ti.queued_dttm for ti in tis]
+        self.assertTrue(queued_times == sorted(queued_times, reverse=True))
+        self.assertTrue(all([ti.state == State.SUCCESS for ti in tis]))
+
+        dag.clear()
+        session.close()
 
 
 class LocalTaskJobTest(unittest.TestCase):
@@ -1327,11 +1392,32 @@ class LocalTaskJobTest(unittest.TestCase):
 class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
-        self.dagbag = DagBag()
         with create_session() as session:
             session.query(models.DagRun).delete()
+            session.query(models.TaskInstance).delete()
+            session.query(models.Pool).delete()
+            session.query(models.DagModel).delete()
+            session.query(SlaMiss).delete()
             session.query(errors.ImportError).delete()
             session.commit()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag()
+
+        def getboolean(section, key):
+            if section.lower() == 'core' and key.lower() == 'load_examples':
+                return False
+            else:
+                return configuration.conf.getboolean(section, key)
+
+        cls.patcher = mock.patch('airflow.jobs.conf.getboolean')
+        mock_getboolean = cls.patcher.start()
+        mock_getboolean.side_effect = getboolean
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patcher.stop()
 
     @staticmethod
     def run_single_scheduler_loop_with_no_dags(dags_folder):
@@ -2387,7 +2473,8 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertTrue(dag.start_date > datetime.datetime.utcnow())
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # zero tasks ran
@@ -2411,7 +2498,8 @@ class SchedulerJobTest(unittest.TestCase):
             session.commit()
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # still one task
@@ -2428,6 +2516,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
         scheduler = SchedulerJob(dag_id,
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
                                  num_runs=2)
         scheduler.run()
 
@@ -2450,7 +2539,8 @@ class SchedulerJobTest(unittest.TestCase):
             dag.clear()
 
         scheduler = SchedulerJob(dag_ids=dag_ids,
-                                 num_runs=2)
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
         scheduler.run()
 
         # zero tasks ran
@@ -2574,6 +2664,20 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_task_instances(dag, queue=queue)
 
         queue.put.assert_not_called()
+
+    def test_scheduler_do_not_schedule_without_tasks(self):
+        dag = DAG(
+            dag_id='test_scheduler_do_not_schedule_without_tasks',
+            start_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
+            scheduler = SchedulerJob()
+            dag.clear(session=session)
+            dag.start_date = None
+            dr = scheduler.create_dag_run(dag, session=session)
+            self.assertIsNone(dr)
 
     def test_scheduler_do_not_run_finished(self):
         dag = DAG(
@@ -3159,7 +3263,7 @@ class SchedulerJobTest(unittest.TestCase):
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.RUNNING)
+        self.assertIn(ti.state, [State.RUNNING, State.SUCCESS])
 
     @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
     def test_retry_handling_job(self):

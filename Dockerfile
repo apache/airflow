@@ -16,21 +16,37 @@
 
 FROM python:3.6-slim
 
-COPY . /opt/airflow/
-
-ARG AIRFLOW_HOME=/usr/local/airflow
+ENV AIRFLOW_HOME=/usr/local/airflow
 ARG AIRFLOW_DEPS="all"
 ARG PYTHON_DEPS=""
-ARG buildDeps="freetds-dev libkrb5-dev libsasl2-dev libssl-dev libffi-dev libpq-dev git"
-ARG APT_DEPS="$buildDeps libsasl2-dev freetds-bin build-essential default-libmysqlclient-dev apt-utils curl rsync netcat locales"
+ARG BUILD_DEPS="freetds-dev libkrb5-dev libssl-dev libffi-dev libpq-dev git"
+ARG APT_DEPS="libsasl2-dev freetds-bin build-essential default-libmysqlclient-dev apt-utils curl rsync netcat locales"
 
-WORKDIR /opt/airflow
-RUN set -x \
+ENV PATH="$HOME/.npm-packages/bin:$PATH"
+
+RUN set -euxo pipefail \
     && apt update \
     && if [ -n "${APT_DEPS}" ]; then apt install -y $APT_DEPS; fi \
+    && curl -sL https://deb.nodesource.com/setup_10.x | bash - \
+    && apt update \
+    && apt install -y nodejs \
+    && apt autoremove -yqq --purge \
+    && apt clean
+
+COPY . /opt/airflow/
+
+WORKDIR /opt/airflow/airflow/www
+RUN npm install \
+    && npm run prod
+
+WORKDIR /opt/airflow
+RUN set -euxo pipefail \
+    && apt update \
+    && if [ -n "${BUILD_DEPS}" ]; then apt install -y $BUILD_DEPS; fi \
     && if [ -n "${PYTHON_DEPS}" ]; then pip install --no-cache-dir ${PYTHON_DEPS}; fi \
+    && pip install --no-cache-dir --upgrade pip==19.0.1 \
     && pip install --no-cache-dir --no-use-pep517 -e .[$AIRFLOW_DEPS] \
-    && apt purge --auto-remove -yqq $buildDeps \
+    && apt purge --auto-remove -yqq $BUILD_DEPS \
     && apt autoremove -yqq --purge \
     && apt clean
 

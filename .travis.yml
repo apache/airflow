@@ -24,7 +24,6 @@ python:
 env:
   global:
     - DOCKER_COMPOSE_VERSION=1.20.0
-    - SLUGIFY_USES_TEXT_UNIDECODE=yes
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
     - TOX_ENV=py27-backend_mysql-env_docker
@@ -44,10 +43,16 @@ jobs:
   include:
     - name: Flake8
       stage: pre-test
-      script: pip install flake8 && flake8
+      install: pip install flake8
+      script: flake8
     - name: Check license header
       stage: pre-test
+      install: skip
       script: scripts/ci/6-check-license.sh
+    - name: Check docs
+      stage: pre-test
+      install: pip install -e .[doc]
+      script: docs/build.sh
 
 cache:
   directories:
@@ -65,8 +70,11 @@ install:
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
+  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet --parallel
 script:
-  - if [ -z "$KUBERNETES_VERSION" ]; then docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh; fi
+  - if [ -z "$KUBERNETES_VERSION" ]; then
+      docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
+    fi
   - if [ ! -z "$KUBERNETES_VERSION" ]; then
       ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
       ./scripts/ci/kubernetes/setup_kubernetes.sh &&

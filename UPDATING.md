@@ -24,7 +24,46 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-## Changes in Google Cloud Platform related operators
+### New `dag_discovery_safe_mode` config option
+
+If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
+they contain the strings "airflow" and "DAG". For backwards
+compatibility, this option is enabled by default.
+
+### Removed deprecated import mechanism
+
+The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
+
+For example: `from airflow.operators import BashOperator` 
+becomes `from airflow.operators.bash_operator import BashOperator`
+
+### Changes to sensor imports
+
+Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
+
+For example: `from airflow.operators.sensors import BaseSensorOperator` 
+becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
+
+### Renamed "extra" requirements for cloud providers
+
+Subpackages for specific services have been combined into one variant for
+each cloud provider. The name of the subpackage for the Google Cloud Platform
+has changed to follow style.
+
+If you want to install integration for Microsoft Azure, then instead of
+```
+pip install apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]
+```
+you should execute `pip install apache-airflow[azure]`
+
+If you want to install integration for Amazon Web Services, then instead of
+`pip install apache-airflow[s3,emr]`, you should execute `pip install apache-airflow[aws]`
+
+If you want to install integration for Google Cloud Platform, then instead of
+`pip install apache-airflow[gcp_api]`, you should execute `pip install apache-airflow[gcp]`.
+The old way will work until the release of Airflow 2.1.
+
+### Changes in Google Cloud Platform related operators
 
 Most GCP-related operators have now optional `PROJECT_ID` parameter. In case you do not specify it,
 the project id configured in
@@ -51,7 +90,7 @@ Operators involved:
 
 Other GCP operators are unaffected.
 
-## Changes in Google Cloud Platform related hooks
+### Changes in Google Cloud Platform related hooks
 
 The change in GCP operators implies that GCP Hooks for those operators require now keyword parameters rather
 than positional ones in all methods where `project_id` is used. The methods throw an explanatory exception
@@ -144,6 +183,12 @@ To remove a user from a role:
 airflow users --remove-role --username jondoe --role Public
 ```
 
+### Unification of `do_xcom_push` flag
+The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
+
+See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+
 ## Airflow 1.10.2
 
 ### DAG level Access Control for new RBAC UI
@@ -155,7 +200,7 @@ that he has permissions on. If a new role wants to access all the dags, the admi
 We also provide a new cli command(``sync_perm``) to allow admin to auto sync permissions.
 
 ### Modification to `ts_nodash` macro
-`ts_nodash` previously contained TimeZone information alongwith execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
+`ts_nodash` previously contained TimeZone information along with execution date. For Example: `20150101T000000+0000`. This is not user-friendly for file or folder names which was a popular use case for `ts_nodash`. Hence this behavior has been changed and using `ts_nodash` will no longer contain TimeZone information, restoring the pre-1.10 behavior of this macro. And a new macro `ts_nodash_with_tz` has been added which can be used to get a string with execution date and timezone info without dashes.
 
 Examples:
   * `ts_nodash`: `20150101T000000`

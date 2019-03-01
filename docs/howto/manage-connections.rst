@@ -70,10 +70,15 @@ When referencing the connection in the Airflow pipeline, the ``conn_id``
 should be the name of the variable without the prefix. For example, if the
 ``conn_id`` is named ``postgres_master`` the environment variable should be
 named ``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable
-must be all uppercase). Airflow assumes the value returned from the
-environment variable to be in a URI format (e.g.
-``postgres://user:password@localhost:5432/master`` or
-``s3://accesskey:secretkey@S3``).
+must be all uppercase).
+
+Airflow assumes the value returned from the environment variable to be in a URI
+format (e.g.``postgres://user:password@localhost:5432/master`` or
+``s3://accesskey:secretkey@S3``). The underscore character is not allowed
+in the scheme part of URI, so it must be changed to a hyphen character
+(e.g. `google-compute-platform` if `conn_type` is `google_compute_platform`).
+Query parameters are parsed to one-dimensional dict and then used to fill extra.
+
 
 .. _manage-connections-connection-types:
 
@@ -158,6 +163,28 @@ Scopes (comma separated)
         Scopes are ignored when using application default credentials. See
         issue `AIRFLOW-2522
         <https://issues.apache.org/jira/browse/AIRFLOW-2522>`_.
+
+    When specifying the connection in environment variable you should specify
+    it using URI syntax, with the following requirements:
+
+      * scheme part should be equals ``google-cloud-platform`` (Note: look for a
+        hyphen character)
+      * authority (username, password, host, port), path is ignored
+      * query parameters contains information specific to this type of
+        connection. The following keys are accepted:
+
+        * ``extra__google_cloud_platform__project`` - Project Id
+        * ``extra__google_cloud_platform__key_path`` - Keyfile Path
+        * ``extra__google_cloud_platform__key_dict`` - Keyfile JSON
+        * ``extra__google_cloud_platform__scope`` - Scopes
+
+    Note that all components of the URI should be URL-encoded.
+
+    For example:
+
+    .. code-block:: bash
+
+       google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow
 
 Amazon Web Services
 ~~~~~~~~~~~~~~~~~~~
@@ -346,6 +373,75 @@ Extra (optional)
     .. code-block:: bash
 
         postgresql://postgres_user:XXXXXXXXXXXX@1.1.1.1:5432/postgresdb?sslmode=verify-ca&sslcert=%2Ftmp%2Fclient-cert.pem&sslkey=%2Ftmp%2Fclient-key.pem&sslrootcert=%2Ftmp%2Fserver-ca.pem
+
+Oracle
+~~~~~~~~
+The Oracle connection type provides connection to a Oracle database.
+
+Configuring the Connection
+''''''''''''''''''''''''''
+Dsn (required)
+    The Data Source Name. The host address for the Oracle server.
+
+Sid (optional)
+    The Oracle System ID. The uniquely identify a particular database on a system.
+
+Service_name (optional)
+    The db_unique_name of the database.
+
+Port (optional)
+    The port for the Oracle server, Default 1521.
+
+Login (required)
+    Specify the user name to connect.
+
+Password (required)
+    Specify the password to connect.
+
+Extra (optional)
+    Specify the extra parameters (as json dictionary) that can be used in Oracle
+    connection. The following parameters are supported:
+
+    * **encoding** - The encoding to use for regular database strings. If not specified,
+      the environment variable `NLS_LANG` is used. If the environment variable `NLS_LANG`
+      is not set, `ASCII` is used.
+    * **nencoding** - The encoding to use for national character set database strings.
+      If not specified, the environment variable `NLS_NCHAR` is used. If the environment
+      variable `NLS_NCHAR` is not used, the environment variable `NLS_LANG` is used instead,
+      and if the environment variable `NLS_LANG` is not set, `ASCII` is used.
+    * **threaded** - Whether or not Oracle should wrap accesses to connections with a mutex.
+      Default value is False.
+    * **events** - Whether or not to initialize Oracle in events mode.
+    * **mode** - one of `sysdba`, `sysasm`, `sysoper`, `sysbkp`, `sysdgd`, `syskmt` or `sysrac`
+      which are defined at the module level, Default mode is connecting.
+    * **purity** - one of `new`, `self`, `default`. Specify the session acquired from the pool.
+      configuration parameter.
+
+    More details on all Oracle connect parameters supported can be found in
+    `cx_Oracle documentation <https://cx-oracle.readthedocs.io/en/latest/module.html#cx_Oracle.connect>`_.
+
+    Example "extras" field:
+
+    .. code-block:: json
+
+       {
+          "encoding": "UTF-8",
+          "nencoding": "UTF-8",
+          "threaded": false,
+          "events": false,
+          "mode": "sysdba",
+          "purity": "new"
+       }
+
+    When specifying the connection as URI (in AIRFLOW_CONN_* variable) you should specify it
+    following the standard syntax of DB connections, where extras are passed as parameters
+    of the URI (note that all components of the URI should be URL-encoded).
+
+    For example:
+
+    .. code-block:: bash
+
+        oracle://oracle_user:XXXXXXXXXXXX@1.1.1.1:1521?encoding=UTF-8&nencoding=UTF-8&threaded=False&events=False&mode=sysdba&purity=new
 
 Cloudsql
 ~~~~~~~~

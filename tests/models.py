@@ -32,14 +32,15 @@ import time
 import unittest
 import urllib
 import uuid
+import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
 import six
-from mock import ANY, Mock, mock_open, patch
-from parameterized import parameterized
-from freezegun import freeze_time
 from cryptography.fernet import Fernet
+from freezegun import freeze_time
+from mock import ANY, mock_open, patch
+from parameterized import parameterized
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -47,12 +48,11 @@ from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun
-from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
-from airflow.models import SkipMixin
 from airflow.models import State as ST
 from airflow.models import Variable
 from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
+from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.operators.bash_operator import BashOperator
@@ -1444,7 +1444,7 @@ class DagBagTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        os.rmdir(cls.empty_dir)
+        shutil.rmtree(cls.empty_dir)
 
     def test_get_existing_dag(self):
         """
@@ -1471,6 +1471,49 @@ class DagBagTest(unittest.TestCase):
 
         non_existing_dag_id = "non_existing_dag_id"
         self.assertIsNone(dagbag.get_dag(non_existing_dag_id))
+
+    def test_dont_load_example(self):
+        """
+        test that the example are not loaded
+        """
+        dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
+
+        self.assertEqual(dagbag.size(), 0)
+
+    def test_safe_mode_heuristic_match(self):
+        """With safe mode enabled, a file matching the discovery heuristics
+        should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            fp.write("# airflow".encode())
+            fp.write("# DAG".encode())
+            fp.flush()
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
+
+    def test_safe_mode_heuristic_mismatch(self):
+        """With safe mode enabled, a file not matching the discovery heuristics
+        should not be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py"):
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 0)
+
+    def test_safe_mode_disabled(self):
+        """With safe mode disabled, an empty python file should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=False)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
 
     def test_process_file_that_contains_multi_bytes_char(self):
         """
@@ -1945,7 +1988,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     def tearDown(self):
         with create_session() as session:
-            session.query(models.TaskFail).delete()
+            session.query(TaskFail).delete()
             session.query(TaskReschedule).delete()
             session.query(models.TaskInstance).delete()
 
@@ -2812,6 +2855,7 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(email, 'to')
         self.assertIn('test_email_alert', title)
         self.assertIn('test_email_alert', body)
+        self.assertIn('Try 1', body)
 
     @patch('airflow.models.send_email')
     def test_email_alert_with_config(self, mock_send_email):
@@ -3392,98 +3436,19 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.password, 'password with space')
         self.assertEqual(connection.port, 1234)
 
-
-class TestSkipMixin(unittest.TestCase):
-
-    @patch('airflow.models.timezone.utcnow')
-    def test_skip(self, mock_now):
-        session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
-            tasks = [DummyOperator(task_id='task')]
-        dag_run = dag.create_dagrun(
-            run_id='manual__' + now.isoformat(),
-            state=State.FAILED,
-        )
-        SkipMixin().skip(
-            dag_run=dag_run,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
-
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    @patch('airflow.models.timezone.utcnow')
-    def test_skip_none_dagrun(self, mock_now):
-        session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
-        mock_now.return_value = now
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-        )
-        with dag:
-            tasks = [DummyOperator(task_id='task')]
-        SkipMixin().skip(
-            dag_run=None,
-            execution_date=now,
-            tasks=tasks,
-            session=session)
-
-        session.query(TI).filter(
-            TI.dag_id == 'dag',
-            TI.task_id == 'task',
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    def test_skip_none_tasks(self):
-        session = Mock()
-        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
-        self.assertFalse(session.query.called)
-        self.assertFalse(session.commit.called)
-
-
-class TestKubeResourceVersion(unittest.TestCase):
-
-    def test_checkpoint_resource_version(self):
-        session = settings.Session()
-        KubeResourceVersion.checkpoint_resource_version('7', session)
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '7')
-
-    def test_reset_resource_version(self):
-        session = settings.Session()
-        version = KubeResourceVersion.reset_resource_version(session)
-        self.assertEqual(version, '0')
-        self.assertEqual(KubeResourceVersion.get_current_resource_version(session), '0')
-
-
-class TestKubeWorkerIdentifier(unittest.TestCase):
-
-    @patch('airflow.models.uuid.uuid4')
-    def test_get_or_create_not_exist(self, mock_uuid):
-        session = settings.Session()
-        session.query(KubeWorkerIdentifier).update({
-            KubeWorkerIdentifier.worker_uuid: ''
-        })
-        mock_uuid.return_value = 'abcde'
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'abcde')
-
-    def test_get_or_create_exist(self):
-        session = settings.Session()
-        KubeWorkerIdentifier.checkpoint_kube_worker_uuid('fghij', session)
-        worker_uuid = KubeWorkerIdentifier.get_or_create_current_kube_worker_uuid(session)
-        self.assertEqual(worker_uuid, 'fghij')
+    def test_connection_from_uri_with_underscore(self):
+        uri = 'google-cloud-platform://?extra__google_cloud_platform__key_' \
+              'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=' \
+              'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra' \
+              '__google_cloud_platform__project=airflow'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'google_cloud_platform')
+        self.assertEqual(connection.host, '')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.extra_dejson, dict(
+            extra__google_cloud_platform__key_path='/keys/key.json',
+            extra__google_cloud_platform__project='airflow',
+            extra__google_cloud_platform__scope='https://www.googleapis.com/'
+                                                'auth/cloud-platform'))

@@ -96,7 +96,7 @@ class BigQueryOperator(BaseOperator):
     :param cluster_fields: Request that the result of this query be stored sorted
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
-    :type cluster_fields: list of str
+    :type cluster_fields: list[str]
     :param location: The geographic location of the job. Required except for
         US and EU. See details at
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
@@ -435,7 +435,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
-                 src_fmt_configs={},
+                 src_fmt_configs=None,
                  labels=None,
                  *args, **kwargs):
 
@@ -462,7 +462,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
-        self.src_fmt_configs = src_fmt_configs
+        self.src_fmt_configs = src_fmt_configs if src_fmt_configs is not None else dict()
         self.labels = labels
 
     def execute(self, context):
