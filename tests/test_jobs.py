@@ -2673,11 +2673,11 @@ class SchedulerJobTest(unittest.TestCase):
         with create_session() as session:
             orm_dag = DagModel(dag_id=dag.dag_id)
             session.merge(orm_dag)
-        scheduler = SchedulerJob()
-        dag.clear()
-        dag.start_date = None
-        dr = scheduler.create_dag_run(dag)
-        self.assertIsNone(dr)
+            scheduler = SchedulerJob()
+            dag.clear(session=session)
+            dag.start_date = None
+            dr = scheduler.create_dag_run(dag, session=session)
+            self.assertIsNone(dr)
 
     def test_scheduler_do_not_run_finished(self):
         dag = DAG(
