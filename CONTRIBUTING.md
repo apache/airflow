@@ -160,9 +160,11 @@ There are three ways to setup an Apache Airflow development environment.
   ```bash
   docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
   # From the container
+  pip install wheel
   pip install -e .[devel]
   # Run all the tests with python and mysql through tox
   pip install tox
+  export PATH=$PATH:/home/airflow/.local/bin
   tox -e py35-backend_mysql
   ```
 
