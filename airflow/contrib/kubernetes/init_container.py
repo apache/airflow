@@ -44,8 +44,8 @@ class InitContainer:
         """
         self.name = name
         self.image = image
-        self.security_context = security_context or {}
-        self.init_environment = init_environment or {}
+        self.security_context = security_context
+        self.init_environment = init_environment or []
         self.volume_mounts = volume_mounts or []
         self.cmds = cmds
         self.args = args or []
