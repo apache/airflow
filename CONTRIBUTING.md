@@ -174,7 +174,7 @@ mkvirtualenv <ENV_NAME> --python=python<VERSION>
 ```
 
 Then you need to install python PIP requirements. Typically it can be done with:
-`pip install -e ".[devel]"`. Then you need to run `airflow initdb` to create sqlite database.
+`pip install -e ".[devel]"`. Then you need to run `airflow db init` to create sqlite database.
 
 Once initialization is done, you should select the virtualenv you initialized as the
 project's default virtualenv in your IDE and run tests efficiently.

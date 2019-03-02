@@ -46,4 +46,4 @@ instances locally.
 .. code-block:: bash
 
     # initialize the database
-    airflow initdb
+    airflow db init
