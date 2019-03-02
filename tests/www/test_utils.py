@@ -149,5 +149,27 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('deep/path/to/file.txt', args[0])
 
 
-if __name__ == '__main__':
-    unittest.main()
+class AttrRendererTest(unittest.TestCase):
+
+    def setUp(self):
+        self.attr_renderer = utils.get_attr_renderer()
+
+    def test_python_callable(self):
+        def example_callable(self):
+            print("example")
+        rendered = self.attr_renderer["python_callable"](example_callable)
+        self.assertIn('&quot;example&quot;', rendered)
+
+    def test_python_callable_none(self):
+        rendered = self.attr_renderer["python_callable"](None)
+        self.assertEqual("", rendered)
+
+    def test_markdown(self):
+        markdown = "* foo\n* bar"
+        rendered = self.attr_renderer["doc_md"](markdown)
+        self.assertIn("<li>foo</li>", rendered)
+        self.assertIn("<li>bar</li>", rendered)
+
+    def test_markdown_none(self):
+        rendered = self.attr_renderer["python_callable"](None)
+        self.assertEqual("", rendered)

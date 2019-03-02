@@ -337,11 +337,15 @@ def render(obj, lexer):
 
 
 def wrapped_markdown(s):
-    return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+    return (
+        '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+        if s is not None
+        else None
+    )
 
 
 def get_attr_renderer():
-    attr_renderer = {
+    return {
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
@@ -351,9 +355,8 @@ def get_attr_renderer():
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
         'python_callable': lambda x: render(
-            inspect.getsource(x), lexers.PythonLexer),
+            inspect.getsource(x) if x is not None else None, lexers.PythonLexer),
     }
-    return attr_renderer
 
 
 def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
