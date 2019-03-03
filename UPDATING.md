@@ -24,6 +24,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to SalesforceHook
+
+* renamed `sign_in` function to `get_conn` 
+
 ### HTTPHook verify default value changed from False to True.
 
 The HTTPHook is now secured by default: `verify=True`.
