@@ -47,8 +47,6 @@ from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 
-AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
-
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
     'secret',

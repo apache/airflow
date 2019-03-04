@@ -110,6 +110,9 @@ in both versions. With this change we've removed the older UI in favor of Flask 
 RBAC UI explicitly in the configuration now as this is the only default UI.
 Please note that that custom auth backends will need re-writing to target new FAB based UI.
 
+As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
+including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
+
 
 #### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
 
