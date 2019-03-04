@@ -304,7 +304,7 @@ def list_py_file_paths(directory, safe_mode=True,
                 with open(ignore_file, 'r') as f:
                     # If we have new patterns create a copy so we don't change
                     # the previous list (which would affect other subdirs)
-                    patterns = patterns + [p for p in f.read().split('\n') if p]
+                    patterns += [re.compile(p) for p in f.read().split('\n') if p]
 
             # If we can ignore any subdirs entirely we should - fewer paths
             # to walk is better. We have to modify the ``dirs`` array in
@@ -312,7 +312,7 @@ def list_py_file_paths(directory, safe_mode=True,
             dirs[:] = [
                 d
                 for d in dirs
-                if not any(re.search(p, os.path.join(root, d)) for p in patterns)
+                if not any(p.search(os.path.join(root, d)) for p in patterns)
             ]
 
             # We want patterns defined in a parent folder's .airflowignore to

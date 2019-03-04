@@ -209,6 +209,9 @@ def json_response(obj):
         mimetype="application/json")
 
 
+ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
+
+
 def open_maybe_zipped(f, mode='r'):
     """
     Opens the given file. If the path contains a folder with a .zip suffix, then
@@ -217,8 +220,7 @@ def open_maybe_zipped(f, mode='r'):
     :return: a file object, as in `open`, or as in `ZipFile.open`.
     """
 
-    _, archive, filename = re.search(
-        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    _, archive, filename = ZIP_REGEX.search(f).groups()
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
