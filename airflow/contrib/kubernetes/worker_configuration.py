@@ -134,9 +134,6 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary environment variables for the pod executor"""
         env = {}
 
-        if self.kube_config.mount_current_environment:
-            env = dict(os.environ)
-
         for env_var_name, env_var_val in six.iteritems(self.kube_config.kube_env_vars):
             env[env_var_name] = env_var_val
 

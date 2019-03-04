@@ -20,7 +20,6 @@
 
 import unittest
 import uuid
-import os
 import mock
 import re
 import string
@@ -149,7 +148,6 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.airflow_dags = 'logs'
         self.kube_config.dags_volume_subpath = None
         self.kube_config.logs_volume_subpath = None
-        self.kube_config.mount_current_environment = False
         self.kube_config.dags_in_image = False
         self.kube_config.dags_folder = None
         self.kube_config.git_dags_folder_mount_point = None
@@ -542,15 +540,27 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(0, len(dag_volume_mount))
         self.assertEqual(0, len(init_containers))
 
-    def test_mount_current_environment(self):
-        # Tests that the current environment gets inserted into the pod
-        self.kube_config.mount_current_environment = True
+    def test_kubernetes_environment_variables(self):
+        # Tests the kubernetes environment variables get copied into the worker pods
+        input_environment = {
+            'ENVIRONMENT': 'prod',
+            'LOG_LEVEL': 'warning'
+        }
+        self.kube_config.kube_env_vars = input_environment
         worker_config = WorkerConfiguration(self.kube_config)
-        key = 'TEST_K8S_MOUNT_ENV'
-        test_val = {key: 'any_string'}
-        with mock.patch.dict(os.environ, test_val):
-            env = worker_config._get_environment()
-            self.assertIn(key, set(env))
+        env = worker_config._get_environment()
+        for key in input_environment:
+            self.assertIn(key, env)
+            self.assertIn(input_environment[key], env.values())
+
+        core_executor = 'AIRFLOW__CORE__EXECUTOR'
+        input_environment = {
+            core_executor: 'NotLocalExecutor'
+        }
+        self.kube_config.kube_env_vars = input_environment
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+        self.assertEqual(env[core_executor], 'LocalExecutor')
 
 
 class TestKubernetesExecutor(unittest.TestCase):

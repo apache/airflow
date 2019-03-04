@@ -145,9 +145,6 @@ class KubeConfig:
             self.kubernetes_section, 'worker_service_account_name')
         self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
 
-        # Add all environment variables available to the scheduler to the worker pods.
-        self.mount_current_environment = conf.getboolean(self.kubernetes_section, 'mount_current_environment')
-
         # NOTE: user can build the dags into the docker image directly,
         # this will set to True if so
         self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
