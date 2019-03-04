@@ -119,18 +119,6 @@ alter the content and make it part of the ``PYTHONPATH`` and configure it as a b
     authenticate = True
     auth_backend = mypackage.auth
 
-Multi-tenancy
--------------
-
-You can filter the list of dags in webserver by owner name when authentication
-is turned on by setting ``webserver:filter_by_owner`` in your config. With this, a user will see
-only the dags which it is owner of, unless it is a superuser.
-
-.. code-block:: bash
-
-    [webserver]
-    filter_by_owner = True
-
 
 Kerberos
 --------

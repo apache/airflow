@@ -199,13 +199,15 @@ class OracleHook(DbApiHook):
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
         :type commit_every: int
         """
+        if not rows:
+            raise ValueError("parameter rows could not be None or empty iterable")
         conn = self.get_conn()
         cursor = conn.cursor()
-        values = ', '.join(':%s' % i for i in range(1, len(target_fields) + 1))
-        prepared_stm = 'insert into {tablename} ({columns}) values ({values})'.format(
+        values_base = target_fields if target_fields else rows[0]
+        prepared_stm = 'insert into {tablename} {columns} values ({values})'.format(
             tablename=table,
-            columns=', '.join(target_fields),
-            values=values,
+            columns='({})'.format(', '.join(target_fields)) if target_fields else '',
+            values=', '.join(':%s' % i for i in range(1, len(values_base) + 1)),
         )
         row_count = 0
         # Chunk the rows
