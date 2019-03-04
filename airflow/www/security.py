@@ -233,8 +233,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         perms_views = set()
         for role in self.get_user_roles():
-            perms_views = perms_views | {(perm_view.permission.name, perm_view.view_menu.name)
-                                         for perm_view in role.permissions}
+            perms_views.update({(perm_view.permission.name, perm_view.view_menu.name)
+                                for perm_view in role.permissions})
         return perms_views
 
     def get_accessible_dag_ids(self, username=None):
