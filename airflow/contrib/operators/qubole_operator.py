@@ -19,7 +19,8 @@
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.qubole_hook import QuboleHook
+from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_ARGS, \
+    flatten_list, POSITIONAL_ARGS
 
 
 class QuboleOperator(BaseOperator):
@@ -145,13 +146,16 @@ class QuboleOperator(BaseOperator):
     template_ext = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
+    qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
 
     @apply_defaults
     def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
-        super(QuboleOperator, self).__init__(*args, **kwargs)
+        self.hook = None
+        filtered_base_kwargs = self._get_filtered_args(kwargs)
+        super(QuboleOperator, self).__init__(*args, **filtered_base_kwargs)
 
         if self.on_failure_callback is None:
             self.on_failure_callback = QuboleHook.handle_failure_retry
@@ -159,11 +163,19 @@ class QuboleOperator(BaseOperator):
         if self.on_retry_callback is None:
             self.on_retry_callback = QuboleHook.handle_failure_retry
 
+    def _get_filtered_args(self, all_kwargs):
+        qubole_args = flatten_list(COMMAND_ARGS.values()) + HYPHEN_ARGS + \
+            flatten_list(POSITIONAL_ARGS.values()) + self.qubole_hook_allowed_args_list
+        return {key: value for key, value in all_kwargs.items() if key not in qubole_args}
+
     def execute(self, context):
         return self.get_hook().execute(context)
 
     def on_kill(self, ti=None):
-        self.get_hook().kill(ti)
+        if self.hook:
+            self.hook.kill(ti)
+        else:
+            self.get_hook().kill(ti)
 
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
         return self.get_hook().get_results(ti, fp, inline, delim, fetch)
