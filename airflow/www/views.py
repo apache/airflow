@@ -427,7 +427,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         dag_orm = DagModel.get_dagmodel(dag_id)
         # FIXME: items needed for this view should move to the database
-        dag = dag_orm.get_dag(dag_id)
+        dag = dag_orm.get_dag()
         title = "DAG details"
         root = request.args.get('root', '')
 
