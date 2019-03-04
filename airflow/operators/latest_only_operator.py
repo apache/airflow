@@ -47,6 +47,7 @@ class LatestOnlyOperator(BaseOperator, SkipMixin):
 
         if not left_window < now <= right_window:
             logging.info('Not latest execution, skipping downstream.')
+
             downstream_tasks = context['task'].get_flat_relatives(upstream=False)
             logging.debug("Downstream task_ids {}".format(downstream_tasks))
 

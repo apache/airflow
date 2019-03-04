@@ -1811,7 +1811,7 @@ class SkipMixin(object):
                 TaskInstance.dag_id == dag_run.dag_id,
                 TaskInstance.execution_date == dag_run.execution_date,
                 TaskInstance.task_id.in_(task_ids)
-            ).update({TaskInstance.state : State.SKIPPED,
+            ).update({TaskInstance.state: State.SKIPPED,
                       TaskInstance.start_date: now,
                       TaskInstance.end_date: now},
                      synchronize_session=False)
@@ -1830,6 +1830,14 @@ class SkipMixin(object):
 
             session.commit()
         session.close()
+
+    def find_all_downstream_tasks(self, task):
+        immediate_downstream = task.downstream_list
+        all_downstream = list(immediate_downstream)
+        for downstream_task in immediate_downstream:
+            all_downstream.extend(self.find_all_downstream_tasks(downstream_task))
+
+        return all_downstream
 
 
 @functools.total_ordering
