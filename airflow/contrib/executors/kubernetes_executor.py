@@ -583,6 +583,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         )
         return None
 
+
 class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def __init__(self):
         self.kube_config = KubeConfig()
