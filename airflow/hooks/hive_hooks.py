@@ -500,17 +500,19 @@ class HiveMetastoreHook(BaseHook):
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
 
-        valid_conn = self._find_valid_server()
+        ms = self._find_vaild_server()
 
-        if valid_conn is None:
+        if ms is None:
             raise AirflowException("Failed to locate the valid server.")
 
-        auth_mechanism = valid_conn.extra_dejson.get('authMechanism', 'NOSASL')
-        if configuration.conf.get('core', 'security') == 'kerberos':
-            auth_mechanism = valid_conn.extra_dejson.get('authMechanism', 'GSSAPI')
-            kerberos_service_name = valid_conn.extra_dejson.get('kerberos_service_name', 'hive')
+        auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
 
-        conn_socket = TSocket.TSocket(valid_conn.host, valid_conn.port)
+        if configuration.conf.get('core', 'security') == 'kerberos':
+            auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
+            kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
+
+        conn_socket = TSocket.TSocket(ms.host, ms.port)
+
         if configuration.conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
             try:
@@ -520,7 +522,7 @@ class HiveMetastoreHook(BaseHook):
 
             def sasl_factory():
                 sasl_client = sasl.Client()
-                sasl_client.setAttr("host", valid_conn.host)
+                sasl_client.setAttr("host", ms.host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
@@ -534,22 +536,17 @@ class HiveMetastoreHook(BaseHook):
 
         return hmsclient.HMSClient(iprot=protocol)
 
-    def _find_valid_server(self):
-        result = 1
+    def _find_vaild_server(self):
         conns = self.get_connections(self.conn_id)
         for conn in conns:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", conn.host, conn.port)
-            try:
-                result = host_socket.connect_ex((conn.host, conn.port))
-                host_socket.close()
-            except Exception:
-                pass
-            if result == 0:
+            if host_socket.connect_ex((conn.host, conn.port)) == 0:
                 self.log.info("Connected to %s:%s", conn.host, conn.port)
-                valid_conn = conn
-                break
-        return valid_conn
+                host_socket.close()
+                return conn
+            else:
+                self.log.info("Could not connect to %s:%s", conn.host, conn.port)
 
     def get_conn(self):
         return self.metastore
