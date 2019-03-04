@@ -125,31 +125,31 @@
       <div class="modal-content">
         <div class="modal-header">
           <h4 class="modal-title" id="myModalLabel">
-            <span id='task_id'></span>
-            <button id="btn_filter" type="button" class="btn btn-default" title="Filter on this task and upstream ">
+            <span id="task_id"></span>
+            <a id="btn_filter" class="btn btn-default" title="Filter on this task and upstream ">
               <span class="glyphicon glyphicon-filter" style="margin-left: 0px;" aria-hidden="true"></span>
-            </button>
+            </a>
               on
-            <span id='execution_date'></span>
+            <span id="execution_date"></span>
           </h4>
         </div>
         <div class="modal-body">
           <div id="div_btn_subdag">
-            <a id="btn_subdag" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.get_default_view()) }}">
+            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.get_default_view()) }}">
                 Zoom into Sub DAG
               </a>
               <hr/>
           </div>
-          <a id="btn_task" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.task') }}">
+          <a id="btn_task" class="btn btn-primary" data-base-url="{{ url_for('Airflow.task') }}">
             Task Instance Details
           </a>
-          <a id="btn_rendered" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.rendered') }}">
+          <a id="btn_rendered" class="btn btn-primary" data-base-url="{{ url_for('Airflow.rendered') }}">
             Rendered
           </a>
-          <a id="btn_ti" type="button" class="btn btn-primary" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
+          <a id="btn_ti" class="btn btn-primary" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
             Task Instances
           </a>
-          <a id="btn_log" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.log') }}">
+          <a id="btn_log" class="btn btn-primary" data-base-url="{{ url_for('Airflow.log') }}">
             View Log
           </a>
           <hr/>
@@ -159,7 +159,7 @@
             </ul>
           </div>
           <hr/>
-          <a id="btn_run" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.run') }}"
+          <a id="btn_run" class="btn btn-primary" data-base-url="{{ url_for('Airflow.run') }}"
             title="Runs a single task instance">
             Run
           </a>
@@ -181,7 +181,7 @@
             >Ignore Task Deps</button>
           </span>
           <hr/>
-          <a id="btn_clear" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.clear') }}"
+          <a id="btn_clear" class="btn btn-primary" data-base-url="{{ url_for('Airflow.clear') }}"
               title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
               >Clear
           </a>
@@ -210,7 +210,7 @@
             </button>
           </span>
           <hr/>
-          <a id="btn_failed" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.failed') }}">
+          <a id="btn_failed" class="btn btn-primary" data-base-url="{{ url_for('Airflow.failed') }}">
             Mark Failed
           </a>
           <span class="btn-group">
@@ -228,7 +228,7 @@
             </button>
           </span>
           <hr/>
-          <a id="btn_success" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.success') }}">
+          <a id="btn_success" class="btn btn-primary" data-base-url="{{ url_for('Airflow.success') }}">
             Mark Success
           </a>
           <span class="btn-group">
@@ -266,16 +266,16 @@
           </h4>
         </div>
         <div class="modal-body">
-          <a id="btn_edit_dagrun" type="button" class="btn btn-primary" href="{{ url_for('DagModelView.edit', pk=dag.dag_id) }}">
+          <a id="btn_edit_dagrun" class="btn btn-primary" href="{{ url_for('DagModelView.edit', pk=dag.dag_id) }}">
             Edit
           </a>
-          <a id="btn_dagrun_clear" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.dagrun_clear') }}">
+          <a id="btn_dagrun_clear" class="btn btn-primary" data-base-url="{{ url_for('Airflow.dagrun_clear') }}">
             Clear
           </a>
-          <a id="btn_dagrun_failed" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.dagrun_failed') }}">
+          <a id="btn_dagrun_failed" class="btn btn-primary" data-base-url="{{ url_for('Airflow.dagrun_failed') }}">
             Mark Failed
           </a>
-          <a id="btn_dagrun_success" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.dagrun_success') }}">
+          <a id="btn_dagrun_success" class="btn btn-primary" data-base-url="{{ url_for('Airflow.dagrun_success') }}">
             Mark Success
           </a>
         </div>
@@ -316,7 +316,7 @@ function updateQueryStringParameter(uri, key, value) {
     var exection_date = '';
     var subdag_id = '';
 
-    var buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce(function(obj, elm) {
+    var buttons = Array.from(document.querySelectorAll('a[id^="btn_"]')).reduce(function(obj, elm) {
       obj[elm.id.replace('btn_', '')] = elm;
       return obj;
     }, {});
@@ -428,12 +428,11 @@ function updateQueryStringParameter(uri, key, value) {
 
     function call_modal(t, d, try_numbers, sd) {
       task_id = t;
-      loc = String(window.location);
-      $("#btn_filter").on("click", function(){
-        window.location = updateQueryStringParameter(loc, "root", task_id);
-      });
       subdag_id = sd;
       execution_date = d;
+      buttons.filter.setAttribute(
+        'href',
+        updateQueryStringParameter(window.location.href, 'root', task_id));
       $('#task_id').html(t);
       $('#execution_date').html(d);
       $('#myModal').modal({});
