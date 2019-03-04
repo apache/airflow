@@ -31,7 +31,7 @@ configuring an Airflow environment.
     set-config
     initialize-database
     operator
-    manage-connections
+    connection/index
     secure-connections
     write-logs
     executor/use-celery
