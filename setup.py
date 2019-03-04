@@ -145,7 +145,8 @@ azure = [
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery>=4.1.1, <4.2.0',
-    'flower>=0.7.3, <1.0'
+    'flower>=0.7.3, <1.0',
+    'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
