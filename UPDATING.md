@@ -24,7 +24,15 @@ assists users migrating to a new version.
 
 ## Airflow 1.10.3
 
-#### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
+### RedisPy dependency updated to v3 series
+
+If you are using the Redis Sensor or Hook you may have to update your code. See
+[redis-py porting instructions] to check if your code might be affected (MSET,
+MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
+
+[redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
+
+### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
 
 It is no longer required to set one of the environment variables to avoid
 a GPL dependency. Airflow will now always use text-unidecode if unidecode
