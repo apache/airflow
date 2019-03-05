@@ -32,7 +32,7 @@ from airflow.utils.state import State
 from qds_sdk.qubole import Qubole
 from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, \
     PigCommand, ShellCommand, SparkCommand, DbTapQueryCommand, DbExportCommand, \
-    DbImportCommand
+    DbImportCommand, SqlCommand
 
 COMMAND_CLASSES = {
     "hivecmd": HiveCommand,
@@ -43,7 +43,8 @@ COMMAND_CLASSES = {
     "sparkcmd": SparkCommand,
     "dbtapquerycmd": DbTapQueryCommand,
     "dbexportcmd": DbExportCommand,
-    "dbimportcmd": DbImportCommand
+    "dbimportcmd": DbImportCommand,
+    "sqlcmd": SqlCommand
 }
 
 POSITIONAL_ARGS = {
@@ -100,6 +101,7 @@ class QuboleHook(BaseHook):
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
         self.cmd = None
+        self.task_instance = None
 
     @staticmethod
     def handle_failure_retry(context):
@@ -121,6 +123,7 @@ class QuboleHook(BaseHook):
     def execute(self, context):
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
+        self.task_instance = context['task_instance']
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
         self.log.info(
             "Qubole command created with Id: %s and Status: %s",
@@ -146,6 +149,10 @@ class QuboleHook(BaseHook):
         :return: response from Qubole
         """
         if self.cmd is None:
+            if not ti and not self.task_instance:
+                raise Exception("Unable to cancel Qubole Command, context is unavailable!")
+            elif not ti:
+                ti = self.task_instance
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
             self.cmd = self.cls.find(cmd_id)
         if self.cls and self.cmd:
