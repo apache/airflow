@@ -600,7 +600,7 @@ class Airflow(AirflowBaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag = dagbag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
 
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
@@ -617,8 +617,8 @@ class Airflow(AirflowBaseView):
         root = request.args.get('root', '')
         return self.render(
             'airflow/ti_log.html',
-            logs=logs, dag=dag, title="Log by attempts",
-            dag_id=dag.dag_id, task_id=task_id,
+            logs=logs, dag=dag_model, title="Log by attempts",
+            dag_id=dag_id, task_id=task_id,
             execution_date=execution_date, form=form,
             root=root)
 
