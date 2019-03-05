@@ -45,6 +45,8 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
+KEY_REGEX = re.compile(r'^[\w\-\.]+$')
+
 
 def validate_key(k, max_length=250):
     if not isinstance(k, basestring):
@@ -52,7 +54,7 @@ def validate_key(k, max_length=250):
     elif len(k) > max_length:
         raise AirflowException(
             "The key has to be less than {0} characters".format(max_length))
-    elif not re.match(r'^[A-Za-z0-9_\-\.]+$', k):
+    elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
             "dots and underscores exclusively".format(**locals()))

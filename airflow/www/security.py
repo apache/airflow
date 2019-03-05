@@ -185,11 +185,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         if len(role.permissions) == 0:
             self.log.info('Initializing permissions for role:%s in the database.', role_name)
-            role_pvms = []
+            role_pvms = set()
             for pvm in pvms:
                 if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
-                    role_pvms.append(pvm)
-            role.permissions = list(set(role_pvms))
+                    role_pvms.add(pvm)
+            role.permissions = list(role_pvms)
             self.get_session.merge(role)
             self.get_session.commit()
         else:
@@ -233,8 +233,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         perms_views = set()
         for role in self.get_user_roles():
-            for perm_view in role.permissions:
-                perms_views.add((perm_view.permission.name, perm_view.view_menu.name))
+            perms_views.update({(perm_view.permission.name, perm_view.view_menu.name)
+                                for perm_view in role.permissions})
         return perms_views
 
     def get_accessible_dag_ids(self, username=None):
