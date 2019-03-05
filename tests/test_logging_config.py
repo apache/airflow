@@ -253,14 +253,18 @@ class TestLoggingSettings(unittest.TestCase):
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
+        import logging
+        from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
+        from airflow.utils.log.wasb_task_handler import WasbTaskHandler
+
         conf.set('core', 'remote_logging', 'True')
         conf.set('core', 'remote_log_conn_id', 'some_wasb')
         conf.set('core', 'remote_base_log_folder', 'wasb://some-folder')
+
+        six.moves.reload_module(airflow_local_settings)
         configure_logging()
 
-        import logging
-        from airflow.utils.log.wasb_task_handler import WasbTaskHandler
         logger = logging.getLogger('airflow.task')
         self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
 
