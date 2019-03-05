@@ -24,6 +24,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to DatastoreHook
+
+* removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
+* renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
+
 #### Unify default conn_id for Google Cloud Platform
 
 Previously not all hooks and operators related to Google Cloud Platform use
