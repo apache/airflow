@@ -31,7 +31,7 @@ TODO: Review the workflow, change it accordingly to
 # from airflow import DAG
 # import airflow
 # from datetime import datetime, timedelta
-# from airflow.operators import BashOperator
+# from airflow.operators.bash_operator import BashOperator
 # from airflow.operators import ShortCircuitOperator
 # from airflow.operators.docker_operator import DockerOperator
 #

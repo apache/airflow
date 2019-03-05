@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
+
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from datetime import datetime, timedelta
-from airflow.operators.docker_operator import DockerOperator
+from airflow.contrib.operators.singularity_operator import SingularityOperator
 
 default_args = {
     'owner': 'airflow',
@@ -34,7 +34,7 @@ default_args = {
 }
 
 dag = DAG(
-    'docker_sample', default_args=default_args, schedule_interval=timedelta(minutes=10))
+    'singularity_sample', default_args=default_args, schedule_interval=timedelta(minutes=10))
 
 t1 = BashOperator(
     task_id='print_date',
@@ -47,22 +47,16 @@ t2 = BashOperator(
     retries=3,
     dag=dag)
 
-t3 = DockerOperator(api_version='1.19',
-    docker_url='tcp://localhost:2375', #Set your docker URL
-    command='/bin/sleep 30',
-    image='centos:latest',
-    network_mode='bridge',
-    task_id='docker_op_tester',
-    dag=dag)
-
+t3 = SingularityOperator(command='/bin/sleep 30',
+                         image='docker://busybox:1.30.1',
+                         task_id='singularity_op_tester',
+                         dag=dag)
 
 t4 = BashOperator(
     task_id='print_hello',
     bash_command='echo "hello world!!!"',
     dag=dag)
 
-
 t1.set_downstream(t2)
 t1.set_downstream(t3)
 t3.set_downstream(t4)
-"""
