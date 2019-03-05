@@ -53,7 +53,7 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import XCom, DagRun, errors
+from airflow.models import XCom, DagRun, errors, DagModel
 from airflow.models.connection import Connection
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
@@ -419,7 +419,9 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_details(self, session=None):
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
+        dag_orm = DagModel.get_dagmodel(dag_id)
+        # FIXME: items needed for this view should move to the database
+        dag = dag_orm.get_dag()
         title = "DAG details"
         root = request.args.get('root', '')
 
@@ -432,10 +434,9 @@ class Airflow(AirflowBaseView):
         )
 
         active_runs = models.DagRun.find(
-            dag_id=dag.dag_id,
+            dag_id=dag_id,
             state=State.RUNNING,
-            external_trigger=False,
-            session=session
+            external_trigger=False
         )
 
         return self.render(
