@@ -114,7 +114,7 @@ class BigQueryOperator(BaseOperator):
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  flatten_results=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  udf_config=None,
                  use_legacy_sql=True,
@@ -292,7 +292,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  schema_fields=None,
                  gcs_schema_object=None,
                  time_partitioning=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
@@ -432,7 +432,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  quote_character=None,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  src_fmt_configs=None,
@@ -528,7 +528,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     def __init__(self,
                  dataset_id,
                  project_id=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args, **kwargs):
         self.dataset_id = dataset_id
@@ -590,7 +590,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
                  dataset_id,
                  project_id=None,
                  dataset_reference=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args, **kwargs):
         self.dataset_id = dataset_id

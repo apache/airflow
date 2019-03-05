@@ -24,6 +24,15 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+#### Unify default conn_id for Google Cloud Platform
+
+Previously not all hooks and operators related to Google Cloud Platform use
+``google_cloud_default`` as a default conn_id. There is currently one default
+variant. Values like ``google_cloud_storage_default``, ``bigquery_default``,
+``google_cloud_datastore_default`` have been abandoned. The configuration of
+connections in the database have been preserved, but in every place where they
+were used, they should be indicated explicitly.
+
 ### RedisPy dependency updated to v3 series
 
 If you are using the Redis Sensor or Hook you may have to update your code. See
