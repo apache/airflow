@@ -24,6 +24,14 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### RedisPy dependency updated to v3 series
+
+If you are using the Redis Sensor or Hook you may have to update your code. See
+[redis-py porting instructions] to check if your code might be affected (MSET,
+MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
+
+[redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
+
 ### New `dag_discovery_safe_mode` config option
 
 If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
@@ -109,6 +117,9 @@ Previously we were using two versions of UI, which were hard to maintain as we n
 in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
 RBAC UI explicitly in the configuration now as this is the only default UI.
 Please note that that custom auth backends will need re-writing to target new FAB based UI.
+
+As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
+including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
 
 
 #### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required

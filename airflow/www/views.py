@@ -2117,7 +2117,9 @@ class VariableModelView(AirflowModelView):
             else:
                 d = json.loads(out)
         except Exception:
+            self.update_redirect()
             flash("Missing file or syntax error.", 'error')
+            return redirect(self.get_redirect())
         else:
             suc_count = fail_count = 0
             for k, v in d.items():
