@@ -129,10 +129,15 @@ DAG_VMS = {
     'all_dags'
 }
 
-DAG_PERMS = {
-    'can_dag_read',
+WRITE_DAG_PERMS = {
     'can_dag_edit',
 }
+
+READ_DAG_PERMS = {
+    'can_dag_read',
+}
+
+DAG_PERMS = WRITE_DAG_PERMS | READ_DAG_PERMS
 
 ###########################################################################
 #                     DEFAULT ROLE CONFIGURATIONS
@@ -141,7 +146,7 @@ DAG_PERMS = {
 ROLE_CONFIGS = [
     {
         'role': 'Viewer',
-        'perms': VIEWER_PERMS | DAG_PERMS,
+        'perms': VIEWER_PERMS | READ_DAG_PERMS,
         'vms': VIEWER_VMS | DAG_VMS
     },
     {
