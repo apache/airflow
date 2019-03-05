@@ -59,7 +59,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, clear_db_sla_miss, clear_db_errors
+from tests.test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, clear_db_sla_miss, clear_db_errors
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 
