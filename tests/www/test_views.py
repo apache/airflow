@@ -316,11 +316,8 @@ class TestAirflowBaseViews(TestBase):
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
         self.bash_dag = dagbag.dags['example_bash_operator']
-        self.bash_dag.sync_to_db()
         self.sub_dag = dagbag.dags['example_subdag_operator']
-        self.sub_dag.sync_to_db()
         self.xcom_dag = dagbag.dags['example_xcom']
-        self.xcom_dag.sync_to_db()
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_id=self.run_id,
