@@ -219,9 +219,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         else:
             schema_fields = get_templated_list(self.schema_fields)
 
-        source_objects = get_templated_list(self.source_objects)
+        self.source_objects = get_templated_list(self.source_objects)
         source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
-                       for source_object in source_objects]
+                       for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
