@@ -24,6 +24,7 @@ Create Date: 2019-01-24 15:30:35.834740
 """
 from alembic import op
 from sqlalchemy.dialects import mysql
+from sqlalchemy.engine.reflection import Inspector
 import sqlalchemy as sa
 
 
@@ -35,6 +36,18 @@ depends_on = None
 
 
 def upgrade():
+    # We previously had a KnownEvent's table, but we deleted the table without
+    # a down migration to remove it (so we didn't delete anyone's data if they
+    # were happing to use the feature.
+    #
+    # But before we can delete the users table we need to drop the FK
+
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+
+    if 'known_event' in inspector.get_table_names():
+        op.drop_constraint('known_event_user_id_fkey', 'known_event')
+
     op.drop_table("chart")
     op.drop_table("users")
 
