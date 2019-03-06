@@ -38,6 +38,7 @@ const config = {
     base: `${STATIC_DIR}/js/base.js`,
     graph: `${STATIC_DIR}/js/graph.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
+    index: `${STATIC_DIR}/js/index.js`,
     main: `${STATIC_DIR}/css/main.css`,
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
   },
@@ -45,6 +46,7 @@ const config = {
     path: BUILD_DIR,
     filename: '[name].[chunkhash].js',
     chunkFilename: '[name].[chunkhash].js',
+    library: 'AirflowUI',
   },
   resolve: {
     extensions: [

@@ -17,21 +17,48 @@
  * under the License.
  */
 
-import {defaultFormatWithTZ, moment} from './datetime-utils';
+import { defaultFormatWithTZ, formatDateStr, moment } from './datetime-utils';
+
+
+const getSelectedTimeZone = () => {
+  return $('#clock').data('selected-tz')
+};
+
+export const formatInSelectedTz = (dateString) => {
+  let tz = getSelectedTimeZone();
+  return formatDateStr(dateString, tz);
+};
 
 function displayTime() {
-  let utcTime = moment().utc().format(defaultFormatWithTZ);
-  $('#clock')
+  let $clock = $('#clock');
+  let tz = $clock.data('selected-tz');
+  $clock
     .attr("data-original-title", function() {
       return hostName
     })
-    .html(utcTime);
+    .text(moment().tz(tz).format(defaultFormatWithTZ));
 
   setTimeout(displayTime, 1000);
 }
 
 $(document).ready(function () {
-  displayTime();
+  $("#tz-picker li").click(function(e) {
+    let tz = $(this).text() == 'Local' ? moment.tz.guess() : 'UTC';
+    $('.tz-aware').each(function() {
+      $(this).trigger('tz-changed', tz);
+    })
+  });
+
+  $('#clock').on('tz-changed', function(event, tz) {
+    $(this).data('selected-tz', tz);
+    displayTime();
+  });
+
+  // Initialize default time zone and start clock
+  $('.tz-aware').each(function() {
+    $(this).trigger('tz-changed', 'UTC');
+  })
+
   $('span').tooltip();
   $.ajaxSetup({
     beforeSend: function(xhr, settings) {

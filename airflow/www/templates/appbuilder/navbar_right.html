@@ -45,7 +45,17 @@
 {% endmacro %}
 
 <!-- clock -->
-<li><a id="clock"></a></li>
+<li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+        <text id="clock" class="tz-aware"></text><b class="caret"></b>
+    </a>
+
+    <ul id="tz-picker" class="dropdown-menu">
+      <li>UTC</li>
+      <li>Local</li>
+    </ul>
+</li>
+
 
 {% if not current_user.is_anonymous %}
     <li class="dropdown">

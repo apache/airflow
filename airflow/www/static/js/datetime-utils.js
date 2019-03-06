@@ -52,15 +52,13 @@ export const generateTooltipDateTime = (startDate, endDate, dagTZ) => {
   return tooltipHTML
 };
 
-
-export const converAndFormatUTC = (datetime, tz) => {
-  let dateTimeObj = moment.utc(datetime);
-  if (tz) dateTimeObj = dateTimeObj.tz(tz);
+export const formatDateStr = (dateString, tz) => {
+  let dateTimeObj = moment(dateString).tz(tz);
   return dateTimeObj.format(defaultFormatWithTZ)
-}
+};
 
 export const secondsToString = (seconds) => {
-  let numdays    = Math.floor((seconds % 31536000) / 86400); 
+  let numdays    = Math.floor((seconds % 31536000) / 86400);
   let numhours   = Math.floor(((seconds % 31536000) % 86400) / 3600);
   let numminutes = Math.floor((((seconds % 31536000) % 86400) % 3600) / 60);
   let numseconds = Math.floor((((seconds % 31536000) % 86400) % 3600) % 60);
@@ -68,4 +66,4 @@ export const secondsToString = (seconds) => {
          (numhours > 0   ? numhours   + (numhours   === 1 ? " hour "   : " hours ")   : "") +
          (numminutes > 0 ? numminutes + (numminutes === 1 ? " minute " : " minutes ") : "") +
          (numseconds > 0 ? numseconds + (numseconds === 1 ? " second"  : " seconds")  : "");
-}
+};
