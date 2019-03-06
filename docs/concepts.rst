@@ -156,8 +156,8 @@ the platform.
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
-See :doc:`howto/operator` for how to use Airflow operators.
-
+See :doc:`howto/operator/index` for how to use Airflow operators.
+ 
 DAG Assignment
 --------------
 

@@ -38,7 +38,7 @@ class BashOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BashOperator`
+        :doc:`howto/operator/bash`
 
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed. (templated)
