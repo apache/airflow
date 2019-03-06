@@ -132,9 +132,12 @@ class WorkerConfiguration(LoggingMixin):
 
     def _get_environment(self):
         """Defines any necessary environment variables for the pod executor"""
-        env = {
-            "AIRFLOW__CORE__EXECUTOR": "LocalExecutor",
-        }
+        env = {}
+
+        for env_var_name, env_var_val in six.iteritems(self.kube_config.kube_env_vars):
+            env[env_var_name] = env_var_val
+
+        env["AIRFLOW__CORE__EXECUTOR"] = "LocalExecutor"
 
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
