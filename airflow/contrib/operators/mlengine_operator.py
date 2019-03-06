@@ -21,6 +21,7 @@ from airflow.contrib.hooks.gcp_mlengine_hook import MLEngineHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import get_templated_list
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -222,6 +223,8 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     def execute(self, context):
         job_id = _normalize_mlengine_job_id(self._job_id)
+
+        self._input_paths = get_templated_list(self._input_paths)
         prediction_request = {
             'jobId': job_id,
             'predictionInput': {

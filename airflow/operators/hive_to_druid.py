@@ -21,6 +21,7 @@ from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.druid_hook import DruidHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import get_templated_list
 
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
@@ -180,6 +181,8 @@ class HiveToDruidTransfer(BaseOperator):
         # Take all the columns, which are not the time dimension
         # or a metric, as the dimension columns
         dimensions = [c for c in columns if c not in metric_names and c != self.ts_dim]
+
+        self.intervals = get_templated_list(self.intervals)
 
         ingest_query_dict = {
             "type": "index_hadoop",

@@ -33,6 +33,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.version import version
 from googleapiclient.errors import HttpError
 from airflow.utils import timezone
+from airflow.utils.helpers import get_templated_list
 
 
 class DataprocClusterCreateOperator(BaseOperator):
@@ -782,6 +783,8 @@ class DataProcPigOperator(BaseOperator):
         else:
             job.add_query(self.query)
         job.add_variables(self.variables)
+
+        self.dataproc_jars = get_templated_list(self.dataproc_jars)
         job.add_jar_file_uris(self.dataproc_jars)
         job.set_job_name(self.job_name)
 
@@ -880,6 +883,8 @@ class DataProcHiveOperator(BaseOperator):
         else:
             job.add_query(self.query)
         job.add_variables(self.variables)
+
+        self.dataproc_jars = get_templated_list(self.dataproc_jars)
         job.add_jar_file_uris(self.dataproc_jars)
         job.set_job_name(self.job_name)
 
@@ -979,6 +984,8 @@ class DataProcSparkSqlOperator(BaseOperator):
         else:
             job.add_query(self.query)
         job.add_variables(self.variables)
+
+        self.dataproc_jars = get_templated_list(self.dataproc_jars)
         job.add_jar_file_uris(self.dataproc_jars)
         job.set_job_name(self.job_name)
 
@@ -1084,7 +1091,11 @@ class DataProcSparkOperator(BaseOperator):
                                        self.dataproc_properties)
 
         job.set_main(self.main_jar, self.main_class)
+
+        self.arguments = get_templated_list(self.arguments)
         job.add_args(self.arguments)
+
+        self.dataproc_jars = get_templated_list(self.dataproc_jars)
         job.add_jar_file_uris(self.dataproc_jars)
         job.add_archive_uris(self.archives)
         job.add_file_uris(self.files)
@@ -1192,7 +1203,11 @@ class DataProcHadoopOperator(BaseOperator):
                                        self.dataproc_properties)
 
         job.set_main(self.main_jar, self.main_class)
+
+        self.arguments = get_templated_list(self.arguments)
         job.add_args(self.arguments)
+
+        self.dataproc_jars = get_templated_list(self.dataproc_jars)
         job.add_jar_file_uris(self.dataproc_jars)
         job.add_archive_uris(self.archives)
         job.add_file_uris(self.files)
@@ -1339,7 +1354,10 @@ class DataProcPySparkOperator(BaseOperator):
             self.main = self._upload_file_temp(bucket, self.main)
         job.set_python_main(self.main)
 
+        self.arguments = get_templated_list(self.arguments)
         job.add_args(self.arguments)
+
+        self.dataproc_jars = get_templated_list(self.dataproc_jars)
         job.add_jar_file_uris(self.dataproc_jars)
         job.add_archive_uris(self.archives)
         job.add_file_uris(self.files)

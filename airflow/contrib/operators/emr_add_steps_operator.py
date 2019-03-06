@@ -16,10 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow.contrib.hooks.emr_hook import EmrHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.emr_hook import EmrHook
+from airflow.utils.helpers import get_templated_list
 
 
 class EmrAddStepsOperator(BaseOperator):
@@ -54,6 +55,8 @@ class EmrAddStepsOperator(BaseOperator):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
         self.log.info('Adding steps to %s', self.job_flow_id)
+
+        self.steps = get_templated_list(self.steps)
         response = emr.add_job_flow_steps(JobFlowId=self.job_flow_id, Steps=self.steps)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:

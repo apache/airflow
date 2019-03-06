@@ -24,6 +24,7 @@ from airflow.utils.state import State
 from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
 from airflow.contrib.kubernetes.volume import Volume  # noqa
 from airflow.contrib.kubernetes.secret import Secret  # noqa
+from airflow.utils.helpers import get_templated_list
 
 template_fields = ('templates_dict',)
 template_ext = tuple()
@@ -102,6 +103,9 @@ class KubernetesPodOperator(BaseOperator):
                 gen.add_mount(mount)
             for volume in self.volumes:
                 gen.add_volume(volume)
+
+            self.cmds = get_templated_list(self.cmds)
+            self.arguments = get_templated_list(self.arguments)
 
             pod = gen.make_pod(
                 namespace=self.namespace,

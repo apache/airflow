@@ -21,6 +21,7 @@ from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 from airflow.models import BaseOperator
 from airflow.settings import WEB_COLORS
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import get_templated_list
 
 
 class SparkSubmitOperator(BaseOperator):
@@ -148,6 +149,8 @@ class SparkSubmitOperator(BaseOperator):
         """
         Call the SparkSubmitHook to run the provided spark job
         """
+
+        self._application_args = get_templated_list(self._application_args)
         self._hook = SparkSubmitHook(
             conf=self._conf,
             conn_id=self._conn_id,

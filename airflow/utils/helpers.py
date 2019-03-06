@@ -333,6 +333,5 @@ def get_templated_list(elements):
                 elements_list = ast.literal_eval(elements)
             except (ValueError, SyntaxError):
                 elements_list = [elements]
-
         return elements_list
     return elements

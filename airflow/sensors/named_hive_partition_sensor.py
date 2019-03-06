@@ -21,6 +21,7 @@ from past.builtins import basestring
 
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import get_templated_list
 
 
 class NamedHivePartitionSensor(BaseSensorOperator):
@@ -96,7 +97,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             schema, table, partition)
 
     def poke(self, context):
-
+        self.partition_names = get_templated_list(self.partition_names)
         self.partition_names = [
             partition_name for partition_name in self.partition_names
             if not self.poke_partition(partition_name)

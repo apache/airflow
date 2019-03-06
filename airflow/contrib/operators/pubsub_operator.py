@@ -20,6 +20,7 @@
 from airflow.contrib.hooks.gcp_pubsub_hook import PubSubHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import get_templated_list
 
 
 class PubSubTopicCreateOperator(BaseOperator):
@@ -430,4 +431,6 @@ class PubSubPublishOperator(BaseOperator):
     def execute(self, context):
         hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
                           delegate_to=self.delegate_to)
+
+        self.messages = get_templated_list(self.messages)
         hook.publish(self.project, self.topic, self.messages)
