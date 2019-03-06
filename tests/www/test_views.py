@@ -316,8 +316,11 @@ class TestAirflowBaseViews(TestBase):
     def prepare_dagruns(self):
         dagbag = models.DagBag(include_examples=True)
         self.bash_dag = dagbag.dags['example_bash_operator']
+        self.bash_dag.sync_to_db()
         self.sub_dag = dagbag.dags['example_subdag_operator']
+        self.sub_dag.sync_to_db()
         self.xcom_dag = dagbag.dags['example_xcom']
+        self.xcom_dag.sync_to_db()
 
         self.bash_dagrun = self.bash_dag.create_dagrun(
             run_id=self.run_id,
@@ -1057,7 +1060,7 @@ class TestDagACLView(TestBase):
                 role=role_user,
                 password='test_user')
 
-        role_viewer = self.appbuilder.sm.find_role('User')
+        role_viewer = self.appbuilder.sm.find_role('Viewer')
         test_viewer = self.appbuilder.sm.find_user(username='test_viewer')
         if not test_viewer:
             self.appbuilder.sm.add_user(
@@ -1562,6 +1565,14 @@ class TestDagACLView(TestBase):
         url = 'tree?dag_id=example_bash_operator'
         resp = self.client.get(url, follow_redirects=True)
         self.check_content_in_response('runme_1', resp)
+
+    def test_refresh_failure_for_viewer(self):
+        # viewer role can't refresh
+        self.logout()
+        self.login(username='test_viewer',
+                   password='test_viewer')
+        resp = self.client.get('refresh?dag_id=example_bash_operator')
+        self.check_content_in_response('Redirecting', resp, resp_code=302)
 
 
 class TestTaskInstanceView(TestBase):

@@ -2809,6 +2809,11 @@ class DagModel(Base):
     def timezone(self):
         return settings.TIMEZONE
 
+    @staticmethod
+    @provide_session
+    def get_dagmodel(dag_id, session=None):
+        return session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+
     @classmethod
     @provide_session
     def get_current(cls, dag_id, session=None):
