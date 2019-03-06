@@ -31,7 +31,7 @@ from airflow.models import DagModel, DagBag
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
-from test_utils.db import clear_db_pools
+from tests.test_utils.db import clear_db_pools
 
 EXECDATE = timezone.utcnow()
 EXECDATE_NOFRACTIONS = EXECDATE.replace(microsecond=0)
