@@ -19,6 +19,9 @@
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
+import logging
+import re
+import sys
 import pendulum
 from elasticsearch_dsl import Search
 
@@ -26,6 +29,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.json_formatter import JSONFormatter
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -50,6 +54,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, filename_template,
                  log_id_template, end_of_log_mark,
+                 write_stdout, json_format, json_fields,
                  host='localhost:9200'):
         """
         :param base_log_folder: base folder to store logs locally
@@ -67,6 +72,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
+        self.write_stdout = write_stdout
+        self.json_format = json_format
+        self.json_fields = [label.strip() for label in json_fields.split(",")]
+
+        self.handler = None
 
     def _render_log_id(self, ti, try_number):
         if self.log_id_jinja_template:
@@ -74,11 +84,20 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             jinja_context['try_number'] = try_number
             return self.log_id_jinja_template.render(**jinja_context)
 
+        execution_date = self._clean_execution_date(ti.execution_date)
         return self.log_id_template.format(dag_id=ti.dag_id,
                                            task_id=ti.task_id,
-                                           execution_date=ti
-                                           .execution_date.isoformat(),
+                                           execution_date=execution_date,
                                            try_number=try_number)
+
+    def _clean_execution_date(self, execution_date):
+        """
+        Clean up an execution date so that it is safe to query in elasticsearch
+        by removing reserved characters.
+        # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
+        :param execution_date: execution date of the dag run.
+        """
+        return re.sub(r"[\+\-\:\.]", "", execution_date.isoformat())
 
     def _read(self, ti, try_number, metadata=None):
         """
@@ -101,7 +120,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         next_offset = offset if not logs else logs[-1].offset
 
-        metadata['offset'] = next_offset
+        # Ensure a string here. Large offset numbers will get JSON.parsed incorretly
+        # on the client. Sending as a string prevents this issue.
+        # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
+        metadata['offset'] = str(next_offset)
+
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
         metadata['end_of_log'] = False if not logs \
@@ -119,7 +142,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         if offset != next_offset or 'last_log_timestamp' not in metadata:
             metadata['last_log_timestamp'] = str(cur_ts)
 
-        message = '\n'.join([log.message for log in logs])
+        # If we hit the end of the log, remove the actual end_of_log message
+        # to prevent it from showing in the UI.
+        i = len(logs) if not metadata['end_of_log'] else len(logs) - 1
+        message = '\n'.join([log.message for log in logs[0:i]])
 
         return message, metadata
 
@@ -138,7 +164,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             .query('match', log_id=log_id) \
             .sort('offset')
 
-        s = s.filter('range', offset={'gt': offset})
+        s = s.filter('range', offset={'gt': int(offset)})
 
         logs = []
         if s.count() != 0:
@@ -152,8 +178,26 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         return logs
 
     def set_context(self, ti):
-        super(ElasticsearchTaskHandler, self).set_context(ti)
+        """
+        Provide task_instance context to airflow task handler.
+        :param ti: task instance object
+        """
         self.mark_end_on_close = not ti.raw
+
+        if self.write_stdout:
+            self.handler = logging.StreamHandler(stream=sys.__stdout__)
+            self.handler.setLevel(self.level)
+            if self.json_format and not ti.raw:
+                self.handler.setFormatter(
+                    JSONFormatter(self.formatter._fmt, json_fields=self.json_fields, extras={
+                        'dag_id': str(ti.dag_id),
+                        'task_id': str(ti.task_id),
+                        'execution_date': self._clean_execution_date(ti.execution_date),
+                        'try_number': str(ti.try_number)}))
+            else:
+                self.handler.setFormatter(self.formatter)
+        else:
+            super(ElasticsearchTaskHandler, self).set_context(ti)
 
     def close(self):
         # When application exit, system shuts down all handlers by
@@ -179,7 +223,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         # Mark the end of file using end of log mark,
         # so we know where to stop while auto-tailing.
-        self.handler.stream.write(self.end_of_log_mark)
+        self.handler.emit(logging.makeLogRecord({'msg': self.end_of_log_mark}))
 
         super(ElasticsearchTaskHandler, self).close()
 
