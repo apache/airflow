@@ -17,27 +17,24 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
+import ast
 import errno
-
-import psutil
-
-from builtins import input
-from past.builtins import basestring
-from datetime import datetime
-from functools import reduce
 import os
 import re
 import signal
+from builtins import input
+from datetime import datetime
+from functools import reduce
 
-from jinja2 import Template
-
+import psutil
 from airflow import configuration
 from airflow.exceptions import AirflowException
+from jinja2 import Template
+from past.builtins import basestring
+from six import string_types
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
@@ -321,3 +318,21 @@ def render_log_filename(ti, try_number, filename_template):
                                     task_id=ti.task_id,
                                     execution_date=ti.execution_date.isoformat(),
                                     try_number=try_number)
+
+
+def get_templated_list(elements):
+    if isinstance(elements, string_types):
+        if "," in elements:
+            elements_list = ast.literal_eval(elements)
+            elements_list = [
+                element.strip() if isinstance(element, string_types) else element
+                for element in elements_list
+            ]
+        else:
+            try:
+                elements_list = ast.literal_eval(elements)
+            except (ValueError, SyntaxError):
+                elements_list = [elements]
+
+        return elements_list
+    return elements

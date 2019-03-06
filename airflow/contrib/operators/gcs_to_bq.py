@@ -19,10 +19,11 @@
 
 import json
 
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
+from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import get_templated_list
 
 
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
@@ -216,10 +217,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 schema_fields = None
 
         else:
-            schema_fields = self.schema_fields
+            schema_fields = get_templated_list(self.schema_fields)
 
+        source_objects = get_templated_list(self.source_objects)
         source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
-                       for source_object in self.source_objects]
+                       for source_object in source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
