@@ -20,8 +20,9 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import os
 import contextlib
+import os
+import warnings
 from collections import OrderedDict
 
 import six
@@ -339,3 +340,40 @@ key3 = value3
             self.assertEqual(conf.getint('celery', 'result_backend'), 99)
             if tmp:
                 os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
+
+    def test_deprecated_values(self):
+        def make_config():
+            test_conf = AirflowConfigParser(default_config='')
+            # Guarantee we have a deprecated setting, so we test the deprecation
+            # lookup even if we remove this explicit fallback
+            test_conf.deprecated_values = {
+                'core': {
+                    'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+                },
+            }
+            test_conf.read_dict({
+                'core': {
+                    'executor': 'SequentialExecutor',
+                    'task_runner': 'BashTaskRunner',
+                    'sql_alchemy_conn': 'sqlite://',
+                },
+            })
+            return test_conf
+
+        with self.assertWarns(FutureWarning):
+            test_conf = make_config()
+            self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+
+        with self.assertWarns(FutureWarning):
+            with env_vars(AIRFLOW__CORE__TASK_RUNNER='BashTaskRunner'):
+                test_conf = make_config()
+
+                self.assertEqual(test_conf.get('core', 'task_runner'), 'StandardTaskRunner')
+
+        with warnings.catch_warnings(record=True) as w:
+            with env_vars(AIRFLOW__CORE__TASK_RUNNER='NotBashTaskRunner'):
+                test_conf = make_config()
+
+                self.assertEqual(test_conf.get('core', 'task_runner'), 'NotBashTaskRunner')
+
+                self.assertListEqual([], w)
