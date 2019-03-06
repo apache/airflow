@@ -24,9 +24,8 @@ from freezegun import freeze_time
 from mock import patch
 
 from airflow import AirflowException
-from airflow.api.client.local_client import Client
 from airflow import models
-from airflow import settings
+from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
 from airflow.models import DagModel, DagBag
 from airflow.utils import timezone
@@ -50,7 +49,6 @@ class TestLocalClient(unittest.TestCase):
         super(TestLocalClient, self).setUp()
         clear_db_pools()
         self.client = Client(api_base_url=None, auth=None)
-        self.session = settings.Session()
 
     def tearDown(self):
         clear_db_pools()
@@ -131,7 +129,8 @@ class TestLocalClient(unittest.TestCase):
     def test_create_pool(self):
         pool = self.client.create_pool(name='foo', slots=1, description='')
         self.assertEqual(pool, ('foo', 1, ''))
-        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        with create_session() as session:
+            self.assertEqual(session.query(models.Pool).count(), 1)
 
     def test_delete_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
