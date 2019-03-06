@@ -198,7 +198,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             self.get_session.merge(role)
             self.get_session.commit()
         else:
-            self.log.info('Existing permissions for the role:%s within the database will persist.', role_name)
+            self.log.debug('Existing permissions for the role:%s '
+                           'within the database will persist.', role_name)
 
     def delete_role(self, role_name):
         """Delete the given Role
@@ -326,7 +327,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         FAB leaves faulty permissions that need to be cleaned up
         """
-        self.log.info('Cleaning faulty perms')
+        self.log.debug('Cleaning faulty perms')
         sesh = self.get_session
         pvms = (
             sesh.query(sqla_models.PermissionView)
@@ -375,8 +376,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        # todo(Tao): should we put this function here or in scheduler loop?
-        self.log.info('Fetching a set of all permission, view_menu from FAB meta-table')
+        self.log.debug('Fetching a set of all permission, view_menu from FAB meta-table')
 
         def merge_pv(perm, view_menu):
             """Create permission view menu only if it doesn't exist"""
@@ -460,7 +460,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        self.log.info('Start syncing user roles.')
+        self.log.debug('Start syncing user roles.')
         # Create global all-dag VM
         self.create_perm_vm_for_all_dag()
 
