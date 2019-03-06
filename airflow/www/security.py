@@ -445,10 +445,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :return: None.
         """
         pvms = self.get_session.query(sqla_models.PermissionView).all()
-        pvms = [p for p in pvms if p.permission and p.view_menu]
+        pvms = {p for p in pvms
+                if p.permission and
+                p.view_menu and
+                not (p.permission.name in DAG_PERMS and p.view_menu.name != 'all_dags')}
 
         admin = self.find_role('Admin')
-        admin.permissions = list(set(admin.permissions) | set(pvms))
+        admin.permissions = list(set(admin.permissions) | pvms)
 
         self.get_session.commit()
 
