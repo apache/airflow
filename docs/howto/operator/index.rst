@@ -15,31 +15,19 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guides
-=============
+Using Operators
+===============
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+An operator represents a single, ideally idempotent, task. Operators
+determine what actually executes when your DAG runs.
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+See the :ref:`Operators Concepts <concepts-operators>` documentation and the
+:ref:`Operators API Reference <api-reference-operators>` for more
+information.
 
 .. toctree::
     :maxdepth: 2
 
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    connection/index
-    secure-connections
-    write-logs
-    executor/use-celery
-    executor/use-dask
-    executor/use-mesos
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-
+    python
+    bash
+    gcp/index
