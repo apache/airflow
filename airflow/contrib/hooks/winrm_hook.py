@@ -32,21 +32,18 @@ class WinRMHook(BaseHook):
 
     :seealso: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
 
-    :param ssh_conn_id: connection id from airflow Connections from where all
-        the required parameters can be fetched like username and password.
+    :param ssh_conn_id: connection id from airflow Connections from where
+        all the required parameters can be fetched like username and password.
         Thought the priority is given to the param passed during init
     :type ssh_conn_id: str
-    :param endpoint: When set to `None`, endpoint will be constructed like this:
+    :param endpoint: When not set, endpoint will be constructed like this:
         'http://{remote_host}:{remote_port}/wsman'
     :type endpoint: str
-    :param remote_host: Remote host to connect to.
-        Ignored if `endpoint` is not `None`.
+    :param remote_host: Remote host to connect to. Ignored if `endpoint` is set.
     :type remote_host: str
-    :param remote_port: Remote port to connect to.
-        Ignored if `endpoint` is not `None`.
+    :param remote_port: Remote port to connect to. Ignored if `endpoint` is set.
     :type remote_port: int
-    :param transport: transport type, one of 'plaintext' (default), 'kerberos', 'ssl',
-        'ntlm', 'credssp'
+    :param transport: transport type, one of 'plaintext' (default), 'kerberos', 'ssl', 'ntlm', 'credssp'
     :type transport: str
     :param username: username to connect to the remote_host
     :type username: str
@@ -63,32 +60,33 @@ class WinRMHook(BaseHook):
     :param cert_key_pem: client authentication certificate key file path in PEM format
     :type cert_key_pem: str
     :param server_cert_validation: whether server certificate should be validated on
-        Python versions that suppport it; one of 'validate' (default), 'ignore'
+        Python versions that support it; one of 'validate' (default), 'ignore'
     :type server_cert_validation: str
     :param kerberos_delegation: if True, TGT is sent to target server to
         allow multiple hops
     :type kerberos_delegation: bool
-    :param read_timeout_sec: maximum seconds to wait before an HTTP connect/read times out
-        (default 30). This value should be slightly higher than operation_timeout_sec,
+    :param read_timeout_sec: maximum seconds to wait before an HTTP connect/read times out (default 30).
+        This value should be slightly higher than operation_timeout_sec,
         as the server can block *at least* that long.
     :type read_timeout_sec: int
     :param operation_timeout_sec: maximum allowed time in seconds for any single wsman
         HTTP operation (default 20). Note that operation timeouts while receiving output
-        (the only wsman operation that should take any significant time, and where these
-        timeouts are expected) will be silently retried indefinitely.
+        (the only wsman operation that should take any significant time,
+        and where these timeouts are expected) will be silently retried indefinitely.
     :type operation_timeout_sec: int
     :param kerberos_hostname_override: the hostname to use for the kerberos exchange
         (defaults to the hostname in the endpoint URL)
     :type kerberos_hostname_override: str
-    :param message_encryption_enabled: Will encrypt the WinRM messages if set to True and
-        the transport auth supports message encryption (Default True).
-    :type message_encryption_enabled: bool
+    :param message_encryption: Will encrypt the WinRM messages if set
+        and the transport auth supports message encryption. (Default 'auto')
+    :type message_encryption: str
     :param credssp_disable_tlsv1_2: Whether to disable TLSv1.2 support and work with older
         protocols like TLSv1.0, default is False
     :type credssp_disable_tlsv1_2: bool
     :param send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
     :type send_cbt: bool
     """
+
     def __init__(self,
                  ssh_conn_id=None,
                  endpoint=None,
@@ -109,8 +107,7 @@ class WinRMHook(BaseHook):
                  kerberos_hostname_override=None,
                  message_encryption='auto',
                  credssp_disable_tlsv1_2=False,
-                 send_cbt=True,
-                 ):
+                 send_cbt=True):
         super(WinRMHook, self).__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
         self.endpoint = endpoint
@@ -171,19 +168,15 @@ class WinRMHook(BaseHook):
                 if "cert_key_pem" in extra_options:
                     self.cert_key_pem = str(extra_options["cert_key_pem"])
                 if "server_cert_validation" in extra_options:
-                    self.server_cert_validation = \
-                        str(extra_options["server_cert_validation"])
+                    self.server_cert_validation = str(extra_options["server_cert_validation"])
                 if "kerberos_delegation" in extra_options:
-                    self.kerberos_delegation = \
-                        str(extra_options["kerberos_delegation"]).lower() == 'true'
+                    self.kerberos_delegation = str(extra_options["kerberos_delegation"]).lower() == 'true'
                 if "read_timeout_sec" in extra_options:
                     self.read_timeout_sec = int(extra_options["read_timeout_sec"])
                 if "operation_timeout_sec" in extra_options:
-                    self.operation_timeout_sec = \
-                        int(extra_options["operation_timeout_sec"])
+                    self.operation_timeout_sec = int(extra_options["operation_timeout_sec"])
                 if "kerberos_hostname_override" in extra_options:
-                    self.kerberos_hostname_override = \
-                        str(extra_options["kerberos_hostname_override"])
+                    self.kerberos_hostname_override = str(extra_options["kerberos_hostname_override"])
                 if "message_encryption" in extra_options:
                     self.message_encryption = str(extra_options["message_encryption"])
                 if "credssp_disable_tlsv1_2" in extra_options:
@@ -206,10 +199,7 @@ class WinRMHook(BaseHook):
 
         # If endpoint is not set, then build a standard wsman endpoint from host and port.
         if not self.endpoint:
-            self.endpoint = 'http://{0}:{1}/wsman'.format(
-                self.remote_host,
-                self.remote_port
-            )
+            self.endpoint = 'http://{0}:{1}/wsman'.format(self.remote_host, self.remote_port)
 
         try:
             if self.password and self.password.strip():
@@ -233,17 +223,11 @@ class WinRMHook(BaseHook):
                     send_cbt=self.send_cbt
                 )
 
-            self.log.info(
-                "Establishing WinRM connection to host: %s",
-                self.remote_host
-            )
+            self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
             self.client = self.winrm_protocol.open_shell()
 
         except Exception as error:
-            error_msg = "Error connecting to host: {0}, error: {1}".format(
-                self.remote_host,
-                error
-            )
+            error_msg = "Error connecting to host: {0}, error: {1}".format(self.remote_host, error)
             self.log.error(error_msg)
             raise AirflowException(error_msg)
 
