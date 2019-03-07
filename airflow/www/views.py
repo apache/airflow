@@ -1165,10 +1165,10 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag_model = DagModel.get_dagmodel(dag_id)
-        dag = dag_model.get_dag()
-        if dag_id not in dagbag.dags:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+        if not dag_model:
+            flash('DAG "{0}" seems to be missing in database.'.format(dag_id), "error")
             return redirect('/')
+        dag = dag_model.get_dag()
 
         root = request.args.get('root')
         if root:
