@@ -53,7 +53,7 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import DagRun, errors, DagModel
+from airflow.models import DagRun, errors, DagModel, TaskInstance
 from airflow.models.connection import Connection
 from airflow.models.log import Log
 from airflow.models.slamiss import SlaMiss
@@ -1577,60 +1577,71 @@ class Airflow(AirflowBaseView):
         num_runs = int(num_runs) if num_runs else default_dag_run
 
         dag_model = DagModel.get_dagmodel(dag_id)
+
         if dag_model is None:
             flash("DAG {!r} seems to be missing.".format(dag_id), "error")
             return redirect("/")
-        dag = dag_model.get_dag()
 
         if base_date:
             base_date = pendulum.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or timezone.utcnow()
+            last_run = dag_model.get_last_dagrun()
+            base_date = last_run.execution_date if last_run else timezone.utcnow()
 
-        dates = dag.date_range(base_date, num=-abs(num_runs))
-        min_date = dates[0] if dates else timezone.utc_epoch()
+        dag_runs = (
+            session.query(DagRun)
+            .filter(DagRun.execution_date <= base_date)
+            .order_by(DagRun.execution_date.desc())
+            .limit(num_runs).all())
+        min_date = dag_runs[-1].execution_date
 
-        if root:
-            dag = dag.sub_dag(
-                task_regex=root,
-                include_upstream=True,
-                include_downstream=False)
+        task_instances = (
+            session.query(TaskInstance)
+            .filter(TaskInstance.dag_id == dag_id)
+            .filter(TaskInstance.execution_date >= min_date)
+            .filter(TaskInstance.execution_date <= base_date)
+            .order_by(TaskInstance.execution_date).all())
 
-        chart_height = wwwutils.get_chart_height(dag)
+        # TODO: Fix sub_dag call?
+        # if root:
+        #     dag = dag.sub_dag(
+        #         task_regex=root,
+        #         include_upstream=True,
+        #         include_downstream=False)
+
+        # TODO: Fix get_chart_height call.
+        chart_height = 600 #wwwutils.get_chart_height(dag)
         chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, height=chart_height, width="1200")
-        y = {}
-        x = {}
-        for task in dag.tasks:
-            y[task.task_id] = []
-            x[task.task_id] = []
-            for ti in task.get_task_instances(session, start_date=min_date,
-                                              end_date=base_date):
-                ts = ti.execution_date
-                if dag.schedule_interval and dag.following_schedule(ts):
-                    ts = dag.following_schedule(ts)
-                if ti.end_date:
-                    dttm = wwwutils.epoch(ti.execution_date)
-                    secs = (ti.end_date - ts).total_seconds()
-                    x[ti.task_id].append(dttm)
-                    y[ti.task_id].append(secs)
 
-        # determine the most relevant time unit for the set of landing times
-        # for the DAG
+        x = defaultdict(list)
+        y = defaultdict(list)
+
+        for ti in task_instances:
+            task_start = ti.execution_date
+            if dag_model.schedule_interval and dag_model.following_schedule(task_start):
+                task_start = dag_model.following_schedule(task_start)
+            if ti.end_date:
+                dttm = wwwutils.epoch(ti.execution_date)
+                secs = (ti.end_date - task_start).total_seconds()
+                x[ti.task_id].append(dttm)
+                y[ti.task_id].append(secs)
+
+        # Determine the most relevant time unit for the set of landing times
+        # for the DAG.
         y_unit = infer_time_unit([d for t in y.values() for d in t])
         # update the y Axis to have the correct time units
         chart.create_y_axis('yAxis', format='.02f', custom_format=False,
                             label='Landing Time ({})'.format(y_unit))
         chart.axislist['yAxis']['axisLabelDistance'] = '40'
-        for task in dag.tasks:
-            if x[task.task_id]:
-                chart.add_serie(name=task.task_id, x=x[task.task_id],
-                                y=scale_time_units(y[task.task_id], y_unit))
 
-        tis = dag.get_task_instances(
-            session, start_date=min_date, end_date=base_date)
-        dates = sorted(list({ti.execution_date for ti in tis}))
-        max_date = max([ti.execution_date for ti in tis]) if dates else None
+        for task_id in x.keys():
+            chart.add_serie(name=task_id,
+                            x=x[task_id],
+                            y=scale_time_units(y[task_id], y_unit))
+
+        dates = sorted(list({ti.execution_date for ti in task_instances}))
+        max_date = max(dates) if dates else None
 
         session.commit()
 
@@ -1639,7 +1650,7 @@ class Airflow(AirflowBaseView):
         chart.buildcontent()
         return self.render(
             'airflow/chart.html',
-            dag=dag,
+            dag=dag_model,
             chart=chart.htmlcontent,
             height=str(chart_height + 100) + "px",
             demo_mode=conf.getboolean('webserver', 'demo_mode'),

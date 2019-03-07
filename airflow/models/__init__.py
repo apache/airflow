@@ -112,6 +112,7 @@ install_aliases()
 
 XCOM_RETURN_KEY = 'return_value'
 
+utcnow = timezone.utcnow
 Stats = settings.Stats
 
 
@@ -239,7 +240,7 @@ def clear_task_instances(tis,
         ).all()
         for dr in drs:
             dr.state = State.RUNNING
-            dr.start_date = timezone.utcnow()
+            dr.start_date = utcnow()
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -511,7 +512,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         dag.test_cycle()  # throws if a task cycle is found
 
         dag.resolve_template_files()
-        dag.last_loaded = timezone.utcnow()
+        dag.last_loaded = utcnow()
 
         for task in dag.tasks:
             settings.policy(task)
@@ -556,7 +557,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         **Note**: The patterns in .airflowignore are treated as
         un-anchored regexes, not shell-like glob patterns.
         """
-        start_dttm = timezone.utcnow()
+        start_dttm = utcnow()
         dag_folder = dag_folder or self.dag_folder
 
         # Used to store stats around DagBag processing
@@ -567,12 +568,12 @@ class DagBag(BaseDagBag, LoggingMixin):
         for filepath in list_py_file_paths(dag_folder, safe_mode=safe_mode,
                                            include_examples=include_examples):
             try:
-                ts = timezone.utcnow()
+                ts = utcnow()
                 found_dags = self.process_file(
                     filepath, only_if_updated=only_if_updated,
                     safe_mode=safe_mode)
 
-                td = timezone.utcnow() - ts
+                td = utcnow() - ts
                 td = td.total_seconds() + (
                     float(td.microseconds) / 1000000)
                 stats.append(FileLoadStat(
@@ -585,7 +586,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             except Exception as e:
                 self.log.exception(e)
         Stats.gauge(
-            'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
+            'collect_dags', (utcnow() - start_dttm).total_seconds(), 1)
         Stats.gauge(
             'dagbag_size', len(self.dags), 1)
         Stats.gauge(
@@ -983,8 +984,8 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def set_state(self, state, session=None):
         self.state = state
-        self.start_date = timezone.utcnow()
-        self.end_date = timezone.utcnow()
+        self.start_date = utcnow()
+        self.end_date = utcnow()
         session.merge(self)
         session.commit()
 
@@ -1152,7 +1153,7 @@ class TaskInstance(Base, LoggingMixin):
         to be retried.
         """
         return (self.state == State.UP_FOR_RETRY and
-                self.next_retry_datetime() < timezone.utcnow())
+                self.next_retry_datetime() < utcnow())
 
     @provide_session
     def pool_full(self, session):
@@ -1263,7 +1264,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # Set the task start date. In case it was re-scheduled use the initial
         # start date that is recorded in task_reschedule table
-        self.start_date = timezone.utcnow()
+        self.start_date = utcnow()
         task_reschedules = TaskReschedule.find_for_task_instance(self, session)
         if task_reschedules:
             self.start_date = task_reschedules[0].start_date
@@ -1290,7 +1291,7 @@ class TaskInstance(Base, LoggingMixin):
                 total=self.max_tries + 1)
             self.log.warning(hr + msg + hr)
 
-            self.queued_dttm = timezone.utcnow()
+            self.queued_dttm = utcnow()
             self.log.info("Queuing into pool %s", self.pool)
             session.merge(self)
             session.commit()
@@ -1360,7 +1361,7 @@ class TaskInstance(Base, LoggingMixin):
         self.operator = task.__class__.__name__
 
         context = {}
-        actual_start_date = timezone.utcnow()
+        actual_start_date = utcnow()
         try:
             if not mark_success:
                 context = self.get_template_context()
@@ -1434,7 +1435,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.exception(e3)
 
         # Recording SUCCESS
-        self.end_date = timezone.utcnow()
+        self.end_date = utcnow()
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
@@ -1488,7 +1489,7 @@ class TaskInstance(Base, LoggingMixin):
         if test_mode:
             return
 
-        self.end_date = timezone.utcnow()
+        self.end_date = utcnow()
         self.set_duration()
 
         # Log reschedule request
@@ -1511,7 +1512,7 @@ class TaskInstance(Base, LoggingMixin):
     def handle_failure(self, error, test_mode=False, context=None, session=None):
         self.log.exception(error)
         task = self.task
-        self.end_date = timezone.utcnow()
+        self.end_date = utcnow()
         self.set_duration()
         Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
         Stats.incr('ti_failures')
@@ -2580,7 +2581,7 @@ class BaseOperator(LoggingMixin):
         range.
         """
         TI = TaskInstance
-        end_date = end_date or timezone.utcnow()
+        end_date = end_date or utcnow()
         return session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
@@ -2624,7 +2625,7 @@ class BaseOperator(LoggingMixin):
         Run a set of task instances for a date range.
         """
         start_date = start_date or self.start_date
-        end_date = end_date or self.end_date or timezone.utcnow()
+        end_date = end_date or self.end_date or utcnow()
 
         for dt in self.dag.date_range(start_date, end_date=end_date):
             TaskInstance(self, dt).run(
@@ -2806,6 +2807,18 @@ class DagModel(Base):
         return "<DAG: {self.dag_id}>".format(self=self)
 
     @property
+    def _schedule_interval(self):
+        """'Normalized' schedule interval, which is either a timedelta or a cron
+           interval (i.e. does not contain special intervals such as @once or @daily).
+        """
+        interval = self.schedule_interval
+        if isinstance(interval, Hashable) and interval in cron_presets:
+            return cron_presets.get(interval)
+        if interval == '@once':
+            return None
+        return interval
+
+    @property
     def timezone(self):
         return settings.TIMEZONE
 
@@ -2871,6 +2884,143 @@ class DagModel(Base):
                                             external_trigger=external_trigger,
                                             conf=conf,
                                             session=session)
+
+    def date_range(self, start_date, num=None, end_date=utcnow()):
+        if num:
+            end_date = None
+        return utils_date_range(
+            start_date=start_date, end_date=end_date,
+            num=num, delta=self._schedule_interval)
+
+    def is_fixed_time_schedule(self):
+        """
+        Figures out if the DAG schedule has a fixed time (e.g. 3 AM).
+
+        :return: True if the schedule has a fixed time, False if not.
+        """
+
+        # TODO: Fix behaviour on timedelta's.
+
+        now = datetime.now()
+        cron = croniter(self._schedule_interval, now)
+
+        start = cron.get_next(datetime)
+        cron_next = cron.get_next(datetime)
+
+        if cron_next.minute == start.minute and cron_next.hour == start.hour:
+            return True
+
+        return False
+
+    def following_schedule(self, dttm):
+        """
+        Calculates the following schedule for this dag in UTC.
+
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
+
+        schedule_interval = self._schedule_interval
+
+        if isinstance(schedule_interval, six.string_types):
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(schedule_interval, naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = cron.get_next(datetime) - naive
+                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_next(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                following = timezone.make_aware(naive, tz)
+            return timezone.convert_to_utc(following)
+        elif schedule_interval is not None:
+            return dttm + schedule_interval
+
+    def previous_schedule(self, dttm):
+        """
+        Calculates the previous schedule for this dag in UTC
+
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
+
+        schedule_interval = self._schedule_interval
+
+        if isinstance(schedule_interval, six.string_types):
+            # we don't want to rely on the transitions created by
+            # croniter as they are not always correct
+            dttm = pendulum.instance(dttm)
+            naive = timezone.make_naive(dttm, self.timezone)
+            cron = croniter(schedule_interval, naive)
+
+            # We assume that DST transitions happen on the minute/hour
+            if not self.is_fixed_time_schedule():
+                # relative offset (eg. every 5 minutes)
+                delta = naive - cron.get_prev(datetime)
+                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
+            else:
+                # absolute (e.g. 3 AM)
+                naive = cron.get_prev(datetime)
+                tz = pendulum.timezone(self.timezone.name)
+                previous = timezone.make_aware(naive, tz)
+            return timezone.convert_to_utc(previous)
+        elif schedule_interval is not None:
+            return dttm - schedule_interval
+
+    # def get_run_dates(self, start_date, end_date=None):
+    #     """
+    #     Returns a list of dates between the interval received as parameter using this
+    #     dag's schedule interval. Returned dates can be used for execution dates.
+
+    #     :param start_date: the start date of the interval
+    #     :type start_date: datetime
+    #     :param end_date: the end date of the interval, defaults to utcnow()
+    #     :type end_date: datetime
+    #     :return: a list of dates within the interval following the dag's schedule
+    #     :rtype: list
+    #     """
+    #     run_dates = []
+
+    #     using_start_date = start_date
+    #     using_end_date = end_date
+
+    #     # dates for dag runs
+    #     using_start_date = using_start_date or min([t.start_date for t in self.tasks])
+    #     using_end_date = using_end_date or utcnow()
+
+    #     # next run date for a subdag isn't relevant (schedule_interval for subdags
+    #     # is ignored) so we use the dag run's start date in the case of a subdag
+    #     next_run_date = (self.normalize_schedule(using_start_date)
+    #                      if not self.is_subdag else using_start_date)
+
+    #     while next_run_date and next_run_date <= using_end_date:
+    #         run_dates.append(next_run_date)
+    #         next_run_date = self.following_schedule(next_run_date)
+
+    #     return run_dates
+
+    def normalize_schedule(self, dttm):
+        """
+        Returns dttm + interval unless dttm is first interval then it returns dttm
+        """
+        following = self.following_schedule(dttm)
+
+        # in case of @once
+        if not following:
+            return dttm
+        if self.previous_schedule(following) != dttm:
+            return following
+
+        return dttm
+
+
 
 
 @functools.total_ordering
@@ -3045,7 +3195,7 @@ class DAG(BaseDag, LoggingMixin):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.parent_dag = None  # Gets set when DAGs are loaded
-        self.last_loaded = timezone.utcnow()
+        self.last_loaded = utcnow()
         self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
@@ -3061,6 +3211,8 @@ class DAG(BaseDag, LoggingMixin):
 
         self._old_context_manager_dags = []
         self._access_control = access_control
+
+        self._model = None
 
         self._comps = {
             'dag_id',
@@ -3120,6 +3272,17 @@ class DAG(BaseDag, LoggingMixin):
 
     # /Context Manager ----------------------------------------------
 
+    @property
+    def model(self):
+        if self._model is None:
+            dag_model = session.query(DagModel).filter(
+                DagModel.dag_id == self.dag_id).first()
+            if not orm_dag:
+                self.log.info("Creating ORM DAG model for %s", self.dag_id)
+                dag_model = DagModel(dag_id=self.dag_id)
+            self._model = dag_model
+        return dag_model
+
     def get_default_view(self):
         """This is only there for backward compatible jinja2 templates"""
         if self._default_view is None:
@@ -3127,12 +3290,8 @@ class DAG(BaseDag, LoggingMixin):
         else:
             return self._default_view
 
-    def date_range(self, start_date, num=None, end_date=timezone.utcnow()):
-        if num:
-            end_date = None
-        return utils_date_range(
-            start_date=start_date, end_date=end_date,
-            num=num, delta=self._schedule_interval)
+    def date_range(self, start_date, num=None, end_date=utcnow()):
+        return self.model.date_range(start_date, num=num, end_date=end_date)
 
     def is_fixed_time_schedule(self):
         """
@@ -3140,16 +3299,7 @@ class DAG(BaseDag, LoggingMixin):
 
         :return: True if the schedule has a fixed time, False if not.
         """
-        now = datetime.now()
-        cron = croniter(self._schedule_interval, now)
-
-        start = cron.get_next(datetime)
-        cron_next = cron.get_next(datetime)
-
-        if cron_next.minute == start.minute and cron_next.hour == start.hour:
-            return True
-
-        return False
+        return self.model.is_fixed_time_schedule()
 
     def following_schedule(self, dttm):
         """
@@ -3158,26 +3308,7 @@ class DAG(BaseDag, LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        if isinstance(self._schedule_interval, six.string_types):
-            # we don't want to rely on the transitions created by
-            # croniter as they are not always correct
-            dttm = pendulum.instance(dttm)
-            naive = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, naive)
-
-            # We assume that DST transitions happen on the minute/hour
-            if not self.is_fixed_time_schedule():
-                # relative offset (eg. every 5 minutes)
-                delta = cron.get_next(datetime) - naive
-                following = dttm.in_timezone(self.timezone).add_timedelta(delta)
-            else:
-                # absolute (e.g. 3 AM)
-                naive = cron.get_next(datetime)
-                tz = pendulum.timezone(self.timezone.name)
-                following = timezone.make_aware(naive, tz)
-            return timezone.convert_to_utc(following)
-        elif self._schedule_interval is not None:
-            return dttm + self._schedule_interval
+        return self.model.following_schedule(dttm)
 
     def previous_schedule(self, dttm):
         """
@@ -3186,26 +3317,7 @@ class DAG(BaseDag, LoggingMixin):
         :param dttm: utc datetime
         :return: utc datetime
         """
-        if isinstance(self._schedule_interval, six.string_types):
-            # we don't want to rely on the transitions created by
-            # croniter as they are not always correct
-            dttm = pendulum.instance(dttm)
-            naive = timezone.make_naive(dttm, self.timezone)
-            cron = croniter(self._schedule_interval, naive)
-
-            # We assume that DST transitions happen on the minute/hour
-            if not self.is_fixed_time_schedule():
-                # relative offset (eg. every 5 minutes)
-                delta = naive - cron.get_prev(datetime)
-                previous = dttm.in_timezone(self.timezone).subtract_timedelta(delta)
-            else:
-                # absolute (e.g. 3 AM)
-                naive = cron.get_prev(datetime)
-                tz = pendulum.timezone(self.timezone.name)
-                previous = timezone.make_aware(naive, tz)
-            return timezone.convert_to_utc(previous)
-        elif self._schedule_interval is not None:
-            return dttm - self._schedule_interval
+        return self.model.previous_schedule(dttm)
 
     def get_run_dates(self, start_date, end_date=None):
         """
@@ -3214,7 +3326,7 @@ class DAG(BaseDag, LoggingMixin):
 
         :param start_date: the start date of the interval
         :type start_date: datetime
-        :param end_date: the end date of the interval, defaults to timezone.utcnow()
+        :param end_date: the end date of the interval, defaults to utcnow()
         :type end_date: datetime
         :return: a list of dates within the interval following the dag's schedule
         :rtype: list
@@ -3226,7 +3338,7 @@ class DAG(BaseDag, LoggingMixin):
 
         # dates for dag runs
         using_start_date = using_start_date or min([t.start_date for t in self.tasks])
-        using_end_date = using_end_date or timezone.utcnow()
+        using_end_date = using_end_date or utcnow()
 
         # next run date for a subdag isn't relevant (schedule_interval for subdags
         # is ignored) so we use the dag run's start date in the case of a subdag
@@ -3511,10 +3623,10 @@ class DAG(BaseDag, LoggingMixin):
             self, session, start_date=None, end_date=None, state=None):
         TI = TaskInstance
         if not start_date:
-            start_date = (timezone.utcnow() - timedelta(30)).date()
+            start_date = (utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
-        end_date = end_date or timezone.utcnow()
+        end_date = end_date or utcnow()
         tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.execution_date >= start_date,
@@ -3827,10 +3939,10 @@ class DAG(BaseDag, LoggingMixin):
         d = dict()
         d['is_picklable'] = True
         try:
-            dttm = timezone.utcnow()
+            dttm = utcnow()
             pickled = pickle.dumps(self)
             d['pickle_len'] = len(pickled)
-            d['pickling_duration'] = "{}".format(timezone.utcnow() - dttm)
+            d['pickling_duration'] = "{}".format(utcnow() - dttm)
         except Exception as e:
             self.log.debug(e)
             d['is_picklable'] = False
@@ -3848,7 +3960,7 @@ class DAG(BaseDag, LoggingMixin):
         if not dp or dp.pickle != self:
             dp = DagPickle(dag=self)
             session.add(dp)
-            self.last_pickled = timezone.utcnow()
+            self.last_pickled = utcnow()
             session.commit()
             self.pickle_id = dp.id
 
@@ -4066,22 +4178,18 @@ class DAG(BaseDag, LoggingMixin):
         if owner is None:
             owner = self.owner
         if sync_time is None:
-            sync_time = timezone.utcnow()
+            sync_time = utcnow()
 
-        orm_dag = session.query(
-            DagModel).filter(DagModel.dag_id == self.dag_id).first()
-        if not orm_dag:
-            orm_dag = DagModel(dag_id=self.dag_id)
-            self.log.info("Creating ORM DAG for %s", self.dag_id)
-        orm_dag.fileloc = self.fileloc
-        orm_dag.is_subdag = self.is_subdag
-        orm_dag.owners = owner
-        orm_dag.is_active = True
-        orm_dag.last_scheduler_run = sync_time
-        orm_dag.default_view = self._default_view
-        orm_dag.description = self.description
-        orm_dag.schedule_interval = self.schedule_interval
-        session.merge(orm_dag)
+        self.model.fileloc = self.fileloc
+        self.model.is_subdag = self.is_subdag
+        self.model.owners = owner
+        self.model.is_active = True
+        self.model.last_scheduler_run = sync_time
+        self.model.default_view = self._default_view
+        self.model.description = self.description
+        self.model.schedule_interval = self.schedule_interval
+
+        session.merge(self.model)
         session.commit()
 
         for subdag in self.subdags:
@@ -4309,8 +4417,8 @@ class DagRun(Base, LoggingMixin):
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
-    execution_date = Column(UtcDateTime, default=timezone.utcnow)
-    start_date = Column(UtcDateTime, default=timezone.utcnow)
+    execution_date = Column(UtcDateTime, default=utcnow)
+    start_date = Column(UtcDateTime, default=utcnow)
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
@@ -4341,7 +4449,7 @@ class DagRun(Base, LoggingMixin):
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            self.end_date = timezone.utcnow() if self._state in State.finished() else None
+            self.end_date = utcnow() if self._state in State.finished() else None
 
     @declared_attr
     def state(self):
@@ -4522,7 +4630,7 @@ class DagRun(Base, LoggingMixin):
 
         # pre-calculate
         # db is faster
-        start_dttm = timezone.utcnow()
+        start_dttm = utcnow()
         unfinished_tasks = self.get_task_instances(
             state=State.unfinished(),
             session=session
@@ -4548,7 +4656,7 @@ class DagRun(Base, LoggingMixin):
                     no_dependencies_met = False
                     break
 
-        duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
+        duration = (utcnow() - start_dttm).total_seconds() * 1000
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
         # future: remove the check on adhoc tasks (=active_tasks)
