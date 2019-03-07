@@ -62,7 +62,7 @@ from airflow.models.xcom import XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
@@ -87,7 +87,7 @@ else:
     dagbag = models.DagBag
 
 
-def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
+def get_date_time_num_runs_dag_runs_form_data(request, dag):
     dttm = request.args.get('execution_date')
     if dttm:
         dttm = pendulum.parse(dttm)
@@ -106,16 +106,16 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     num_runs = request.args.get('num_runs')
     num_runs = int(num_runs) if num_runs else default_dag_run
 
-    DR = models.DagRun
-    drs = (
-        session.query(DR)
-        .filter(
-            DR.dag_id == dag.dag_id,
-            DR.execution_date <= base_date)
-        .order_by(desc(DR.execution_date))
-        .limit(num_runs)
-        .all()
-    )
+    with create_session() as session:
+        drs = (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == dag.dag_id,
+                DagRun.execution_date <= base_date)
+            .order_by(desc(DagRun.execution_date))
+            .limit(num_runs)
+            .all()
+        )
     dr_choices = []
     dr_state = None
     for dr in drs:
@@ -1294,7 +1294,8 @@ class Airflow(AirflowBaseView):
     def graph(self, session=None):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
-        dag = dagbag.get_dag(dag_id)
+        dag_model = DagModel.get_dagmodel(dag_id)
+        dag = dag_model.get_dag()
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect('/')
@@ -1335,7 +1336,7 @@ class Airflow(AirflowBaseView):
         for t in dag.roots:
             get_upstream(t)
 
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, dag)
         dt_nr_dr_data['arrange'] = arrange
         dttm = dt_nr_dr_data['dttm']
 
@@ -1715,7 +1716,7 @@ class Airflow(AirflowBaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, dag)
         dttm = dt_nr_dr_data['dttm']
 
         form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
