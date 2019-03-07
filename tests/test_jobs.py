@@ -2593,7 +2593,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNotNone(dr)
 
         with create_session() as session:
-            tis = dr.get_task_instances(session=session)
+            tis = dr.get_task_instances()
             for ti in tis:
                 ti.state = state
                 ti.start_date = start_date
@@ -2696,7 +2696,7 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
 
-        tis = dr.get_task_instances(session=session)
+        tis = dr.get_task_instances()
         for ti in tis:
             ti.state = State.SUCCESS
 
@@ -3625,7 +3625,7 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
 
         dr1 = scheduler.create_dag_run(dag, session=session)
-        ti = dr1.get_task_instances(session=session)[0]
+        ti = dr1.get_task_instances()[0]
         dr1.state = State.RUNNING
         ti.state = State.SCHEDULED
         dr1.external_trigger = True
@@ -3646,7 +3646,7 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
 
         dr1 = scheduler.create_dag_run(dag, session=session)
-        ti = dr1.get_task_instances(session=session)[0]
+        ti = dr1.get_task_instances()[0]
         ti.state = State.SCHEDULED
         dr1.state = State.RUNNING
         dr1.run_id = BackfillJob.ID_PREFIX + '_sdfsfdfsd'
@@ -3671,8 +3671,8 @@ class SchedulerJobTest(unittest.TestCase):
         dr2 = scheduler.create_dag_run(dag)
         dr1.state = State.SUCCESS
         dr2.state = State.RUNNING
-        ti1 = dr1.get_task_instances(session=session)[0]
-        ti2 = dr2.get_task_instances(session=session)[0]
+        ti1 = dr1.get_task_instances()[0]
+        ti2 = dr2.get_task_instances()[0]
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
 
@@ -3721,7 +3721,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr1 = scheduler.create_dag_run(dag)
         dr1.state = State.RUNNING
-        tis = dr1.get_task_instances(session=session)
+        tis = dr1.get_task_instances()
         tis[0].state = State.RUNNING
         session.merge(dr1)
         session.merge(tis[0])
@@ -3743,7 +3743,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr1 = scheduler.create_dag_run(dag)
         dr1.state = State.SUCCESS
-        tis = dr1.get_task_instances(session=session)
+        tis = dr1.get_task_instances()
         self.assertEqual(1, len(tis))
         tis[0].state = State.SCHEDULED
         session.merge(dr1)

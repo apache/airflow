@@ -95,7 +95,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
 from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import is_container, validate_key, pprinttable
@@ -2574,19 +2574,20 @@ class BaseOperator(LoggingMixin):
 
         return count
 
-    def get_task_instances(self, session, start_date=None, end_date=None):
+    def get_task_instances(self, start_date=None, end_date=None):
         """
         Get a set of task instance related to this task for a specific date
         range.
         """
-        TI = TaskInstance
         end_date = end_date or timezone.utcnow()
-        return session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.execution_date >= start_date,
-            TI.execution_date <= end_date,
-        ).order_by(TI.execution_date).all()
+        with create_session() as session:
+            results = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.execution_date >= start_date,
+                TaskInstance.execution_date <= end_date,
+                ).order_by(TaskInstance.execution_date).all()
+        return results
 
     def get_flat_relative_ids(self, upstream=False, found_descendants=None):
         """
@@ -3386,7 +3387,7 @@ class DAG(BaseDag, LoggingMixin):
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
             self.log.info('Executing dag callback function: {}'.format(callback))
-            tis = dagrun.get_task_instances(session=session)
+            tis = dagrun.get_task_instances()
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -3508,22 +3509,23 @@ class DAG(BaseDag, LoggingMixin):
             self.get_task(downstream_task_id))
 
     def get_task_instances(
-            self, session, start_date=None, end_date=None, state=None):
+            self, start_date=None, end_date=None, state=None):
         TI = TaskInstance
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
         end_date = end_date or timezone.utcnow()
-        tis = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.execution_date >= start_date,
-            TI.execution_date <= end_date,
-            TI.task_id.in_([t.task_id for t in self.tasks]),
-        )
-        if state:
-            tis = tis.filter(TI.state == state)
-        tis = tis.order_by(TI.execution_date).all()
+        with create_session() as session:
+            tis = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.execution_date >= start_date,
+                TaskInstance.execution_date <= end_date,
+                TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
+            )
+            if state:
+                tis = tis.filter(TI.state == state)
+            tis = tis.order_by(TI.execution_date).all()
         return tis
 
     @property
