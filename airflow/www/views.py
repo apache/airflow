@@ -523,71 +523,61 @@ class Airflow(AirflowBaseView):
     @action_logging
     @provide_session
     def get_logs_with_metadata(self, session=None):
-        dag_id = request.args.get('dag_id')
-        task_id = request.args.get('task_id')
-        execution_date = request.args.get('execution_date')
-        dttm = pendulum.parse(execution_date)
-        if request.args.get('try_number') is not None:
-            try_number = int(request.args.get('try_number'))
-        else:
-            try_number = None
-        metadata = request.args.get('metadata')
-        metadata = json.loads(metadata)
+        dag_id = request.args['dag_id']
+        task_id = request.args['task_id']
+        execution_date = pendulum.parse(request.args['execution_date'])
+
+        metadata = json.loads(request.args.get('metadata', '{}'))
         response_format = request.args.get('format', 'json')
 
-        # metadata may be null
-        if not metadata:
-            metadata = {}
-
-        # Convert string datetime into actual datetime
-        try:
-            execution_date = timezone.parse(execution_date)
-        except ValueError:
-            error_message = (
-                'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
-                    execution_date))
-            response = jsonify({'error': error_message})
-            response.status_code = 400
-
-            return response
-
-        logger = logging.getLogger('airflow.task')
-        task_log_reader = conf.get('core', 'task_log_reader')
-        handler = next((handler for handler in logger.handlers
-                        if handler.name == task_log_reader), None)
+        if 'try_number' in request.args:
+            try_number = int(request.args['try_number'])
+        else:
+            try_number = None
 
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,
-            models.TaskInstance.execution_date == dttm).first()
-        try:
-            if ti is None:
-                logs = ["*** Task instance did not exist in the DB\n"]
-                metadata['end_of_log'] = True
-            else:
-                dag = dagbag.get_dag(dag_id)
-                ti.task = dag.get_task(ti.task_id)
+            models.TaskInstance.execution_date == execution_date).first()
+
+        if ti is None:
+            logs = ["*** Task instance did not exist in the DB\n"]
+            metadata['end_of_log'] = True
+        else:
+            dag_model = DagModel.get_dagmodel(dag_id)
+            dag = dag_model.get_dag()
+
+            ti.task = dag.get_task(ti.task_id)
+
+            logger = logging.getLogger('airflow.task')
+            task_log_reader = conf.get('core', 'task_log_reader')
+            handler = next((handler for handler in logger.handlers
+                            if handler.name == task_log_reader), None)
+
+            try:
                 logs, metadatas = handler.read(ti, try_number, metadata=metadata)
                 metadata = metadatas[0]
-            for i, log in enumerate(logs):
-                if PY2 and not isinstance(log, unicode):
-                    logs[i] = log.decode('utf-8')
+            except AttributeError as e:
+                error_message = [
+                    "Task log handler {} does not support reading logs.\n{}\n"
+                    .format(task_log_reader, str(e))]
+                metadata['end_of_log'] = True
+                return jsonify(message=error_message, error=True, metadata=metadata)
 
-            if response_format == 'json':
-                message = logs[0] if try_number is not None else logs
-                return jsonify(message=message, metadata=metadata)
+        for i, log in enumerate(logs):
+            if PY2 and not isinstance(log, unicode):
+                logs[i] = log.decode('utf-8')
 
+        if response_format == 'json':
+            message = logs[0] if try_number is not None else logs
+            return jsonify(message=message, metadata=metadata)
+        else:
             file_obj = StringIO('\n'.join(logs))
             filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
             attachment_filename = render_log_filename(ti, try_number, filename_template)
             return send_file(file_obj, as_attachment=True,
                              attachment_filename=attachment_filename)
-        except AttributeError as e:
-            error_message = ["Task log handler {} does not support read logs.\n{}\n"
-                             .format(task_log_reader, str(e))]
-            metadata['end_of_log'] = True
-            return jsonify(message=error_message, error=True, metadata=metadata)
+
 
     @expose('/log')
     @has_dag_access(can_dag_read=True)
@@ -627,17 +617,18 @@ class Airflow(AirflowBaseView):
     @has_access
     @action_logging
     def task(self):
-        TI = models.TaskInstance
-
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
-        # Carrying execution_date through, even though it's irrelevant for
-        # this context
         execution_date = request.args.get('execution_date')
+        root = request.args.get('root', '')
+
+        # Carrying execution_date through, even though it's irrelevant for
+        # this context.
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        root = request.args.get('root', '')
-        dag = dagbag.get_dag(dag_id)
+
+        dag_model = DagModel.get_dagmodel(dag_id)
+        dag = dag_model.get_dag()
 
         if not dag or task_id not in dag.task_ids:
             flash(
@@ -645,9 +636,11 @@ class Airflow(AirflowBaseView):
                 " at the moment".format(dag_id, task_id),
                 "error")
             return redirect('/')
+
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
-        ti = TI(task=task, execution_date=dttm)
+
+        ti = models.TaskInstance(task=task, execution_date=dttm)
         ti.refresh_from_db()
 
         ti_attrs = []
@@ -665,7 +658,7 @@ class Airflow(AirflowBaseView):
                         attr_name not in wwwutils.get_attr_renderer():  # noqa
                     task_attrs.append((attr_name, str(attr)))
 
-        # Color coding the special attributes that are code
+        # Color coding special attributes that are code.
         special_attrs_rendered = {}
         for attr_name in wwwutils.get_attr_renderer():
             if hasattr(task, attr_name):
@@ -689,7 +682,6 @@ class Airflow(AirflowBaseView):
                               ti.get_failed_dep_statuses(
                                   dep_context=dep_context)]
 
-        title = "Task Instance Details"
         return self.render(
             'airflow/task.html',
             task_attrs=task_attrs,
@@ -700,7 +692,8 @@ class Airflow(AirflowBaseView):
             special_attrs_rendered=special_attrs_rendered,
             form=form,
             root=root,
-            dag=dag, title=title)
+            dag=dag,
+            title="Task Instance Details")
 
     @expose('/xcom')
     @has_dag_access(can_dag_read=True)
