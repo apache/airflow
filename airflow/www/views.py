@@ -1159,8 +1159,7 @@ class Airflow(AirflowBaseView):
     @has_access
     @gzipped
     @action_logging
-    @provide_session
-    def tree(self, session=None):
+    def tree(self):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
