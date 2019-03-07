@@ -1392,6 +1392,8 @@ class Airflow(AirflowBaseView):
     @action_logging
     @provide_session
     def duration(self, session=None):
+        """Endpoint for the DAGs task duration tab."""
+
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         base_date = request.args.get('base_date')
