@@ -18,9 +18,13 @@
 Security
 ========
 
-By default, all gates are opened. An easy way to restrict access
-to the web application is to do it at the network level, or by using
-SSH tunnels.
+By default, Airflow requires users to specify a password prior to login. You can use the
+following CLI commands to create an account:
+
+.. code-block:: bash
+
+    # create an admin user
+    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
