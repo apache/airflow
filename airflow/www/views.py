@@ -1394,14 +1394,17 @@ class Airflow(AirflowBaseView):
     def duration(self, session=None):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
 
-        if dag is None:
-            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+        dag_model = DagModel.get_dagmodel(dag_id)
+
+        if dag_model is None:
+            flash("DAG {!r} seems to be missing.".format(dag_id), "error")
             return redirect('/')
+
+        dag = dag_model.get_dag()
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1430,13 +1433,13 @@ class Airflow(AirflowBaseView):
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
-        TF = TaskFail
+
         ti_fails = (
-            session.query(TF)
-                   .filter(TF.dag_id == dag.dag_id,
-                           TF.execution_date >= min_date,
-                           TF.execution_date <= base_date,
-                           TF.task_id.in_([t.task_id for t in dag.tasks]))
+            session.query(TaskFail)
+                   .filter(TaskFail.dag_id == dag.dag_id,
+                           TaskFail.execution_date >= min_date,
+                           TaskFail.execution_date <= base_date,
+                           TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
                    .all()  # noqa
         )
 
