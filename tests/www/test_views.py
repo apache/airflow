@@ -624,6 +624,7 @@ class TestLogView(TestBase):
 
         from airflow.www.views import dagbag
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+        dag.sync_to_db()
         task = DummyOperator(task_id=self.TASK_ID, dag=dag)
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         with create_session() as session:
