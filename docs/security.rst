@@ -104,6 +104,10 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
     search_scope = LEVEL
 
+    # This option tells ldap3 to ignore schemas that are considered malformed. This sometimes comes up
+    # when using hosted ldap services.
+    ignore_malformed_schema = False
+
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
 Roll your own
