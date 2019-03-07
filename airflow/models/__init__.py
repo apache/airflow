@@ -3822,8 +3822,7 @@ class DAG(BaseDag, LoggingMixin):
             return self.task_dict[task_id]
         raise AirflowException("Task {task_id} not found".format(**locals()))
 
-    @provide_session
-    def pickle_info(self, session=None):
+    def pickle_info(self):
         d = dict()
         d['is_picklable'] = True
         try:

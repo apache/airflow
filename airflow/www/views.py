@@ -62,7 +62,7 @@ from airflow.models.xcom import XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
@@ -466,17 +466,36 @@ class Airflow(AirflowBaseView):
     @expose('/pickle_info')
     @has_access
     def pickle_info(self):
-        d = {}
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-        if not filter_dag_ids:
+        """Return pickle information for given DAG ids."""
+        allowed_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+        if not allowed_dag_ids:
             return wwwutils.json_response({})
+
         dag_id = request.args.get('dag_id')
-        dags = [dagbag.dags.get(dag_id)] if dag_id else dagbag.dags.values()
-        for dag in dags:
-            if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
-                if not dag.is_subdag:
-                    d[dag.dag_id] = dag.pickle_info()
-        return wwwutils.json_response(d)
+        # Check if dag_id is allowed to be accessed
+        if dag_id and allowed_dag_ids != {"all_dags"} and dag_id not in allowed_dag_ids:
+            flash("No access to {0}.".format(dag_id), "error")
+            return redirect("/")
+
+        # At this point we assume the user is allowed to see the selected DAG id
+        with create_session() as session:
+            query = session.query(DagModel).filter(DagModel.is_subdag.is_(False))
+
+            if allowed_dag_ids == {"all_dags"} and dag_id:
+                query = query.filter(DagModel.dag_id == dag_id)
+            elif allowed_dag_ids != {"all_dags"}:
+                if dag_id:
+                    query = query.filter(DagModel.dag_id == dag_id)
+                else:
+                    query = query.filter(DagModel.dag_id.in_(allowed_dag_ids))
+
+            dag_models = query.all()
+
+        result = dict()
+        for dag_model in dag_models:
+            result[dag_model.dag_id] = dag_model.get_dag().pickle_info()
+
+        return wwwutils.json_response(result)
 
     @expose('/rendered')
     @has_dag_access(can_dag_read=True)
