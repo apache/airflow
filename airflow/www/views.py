@@ -638,13 +638,15 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={'execution_date': dttm})
 
         dag_model = DagModel.get_dagmodel(dag_id)
-        dag = dag_model.get_dag()
 
-        if not dag or task_id not in dag.task_ids:
-            flash(
-                "Task [{}.{}] doesn't seem to exist"
-                " at the moment".format(dag_id, task_id),
-                "error")
+        if not dag_model:
+            flash("DAG {!r} seems to be missing in database.".format(dag_id), "error")
+            return redirect('/')
+
+        dag = dag_model.get_dag()
+        if task_id not in dag.task_ids:
+            flash("Task [{}.{}] seems to be missing in the database."
+                  .format(dag_id, task_id), "error")
             return redirect('/')
 
         task = copy.copy(dag.get_task(task_id))
