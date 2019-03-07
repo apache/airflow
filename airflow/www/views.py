@@ -486,17 +486,21 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
+        root = request.args.get('root', '')
+
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        root = request.args.get('root', '')
-        dag = dagbag.get_dag(dag_id)
+
+        dag_model = DagModel.get_dagmodel(dag_id)
+
+        if not dag_model:
+            flash("DAG {!r} seems to be missing in database.".format(dag_id), "error")
+            return redirect('/')
+
+        dag = dag_model.get_dag()
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
-        try:
-            ti.render_templates()
-        except Exception as e:
-            flash("Error rendering template: " + str(e), "error")
-        title = "Rendered Template"
+
         html_dict = {}
         for template_field in task.__class__.template_fields:
             content = getattr(task, template_field)
@@ -515,7 +519,7 @@ class Airflow(AirflowBaseView):
             execution_date=execution_date,
             form=form,
             root=root,
-            title=title)
+            title="Rendered Template")
 
     @expose('/get_logs_with_metadata')
     @has_dag_access(can_dag_read=True)
