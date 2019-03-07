@@ -752,17 +752,21 @@ class Airflow(AirflowBaseView):
     @has_access
     @action_logging
     def run(self):
+        """Trigger a run of a task, starting a task instance."""
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
-        dag = dagbag.get_dag(dag_id)
-        task = dag.get_task(task_id)
-
         execution_date = request.args.get('execution_date')
-        execution_date = pendulum.parse(execution_date)
         ignore_all_deps = request.args.get('ignore_all_deps') == "true"
         ignore_task_deps = request.args.get('ignore_task_deps') == "true"
         ignore_ti_state = request.args.get('ignore_ti_state') == "true"
+
+        dag_model = DagModel.get_dagmodel(dag_id)
+        if dag_model is None:
+            flash("DAG '{0}' not found.".format(dag_id), "error")
+            return redirect(url_for("Airflow.index"))
+        dag = dag_model.get_dag()
+        task = dag.get_task(task_id)
 
         from airflow.executors import get_default_executor
         executor = get_default_executor()
@@ -785,6 +789,7 @@ class Airflow(AirflowBaseView):
             flash("Only works with the Celery or Kubernetes executors, sorry", "error")
             return redirect(origin)
 
+        execution_date = pendulum.parse(execution_date)
         ti = models.TaskInstance(task=task, execution_date=execution_date)
         ti.refresh_from_db()
 
