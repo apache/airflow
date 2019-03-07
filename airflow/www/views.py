@@ -627,17 +627,18 @@ class Airflow(AirflowBaseView):
     @has_access
     @action_logging
     def task(self):
-        TI = models.TaskInstance
-
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
-        # Carrying execution_date through, even though it's irrelevant for
-        # this context
         execution_date = request.args.get('execution_date')
+        root = request.args.get('root', '')
+
+        # Carrying execution_date through, even though it's irrelevant for
+        # this context.
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        root = request.args.get('root', '')
-        dag = dagbag.get_dag(dag_id)
+
+        dag_model = DagModel.get_dagmodel(dag_id)
+        dag = dag_model.get_dag()
 
         if not dag or task_id not in dag.task_ids:
             flash(
@@ -645,9 +646,11 @@ class Airflow(AirflowBaseView):
                 " at the moment".format(dag_id, task_id),
                 "error")
             return redirect('/')
+
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
-        ti = TI(task=task, execution_date=dttm)
+
+        ti = models.TaskInstance(task=task, execution_date=dttm)
         ti.refresh_from_db()
 
         ti_attrs = []
@@ -665,7 +668,7 @@ class Airflow(AirflowBaseView):
                         attr_name not in wwwutils.get_attr_renderer():  # noqa
                     task_attrs.append((attr_name, str(attr)))
 
-        # Color coding the special attributes that are code
+        # Color coding special attributes that are code.
         special_attrs_rendered = {}
         for attr_name in wwwutils.get_attr_renderer():
             if hasattr(task, attr_name):
@@ -689,7 +692,6 @@ class Airflow(AirflowBaseView):
                               ti.get_failed_dep_statuses(
                                   dep_context=dep_context)]
 
-        title = "Task Instance Details"
         return self.render(
             'airflow/task.html',
             task_attrs=task_attrs,
@@ -700,7 +702,8 @@ class Airflow(AirflowBaseView):
             special_attrs_rendered=special_attrs_rendered,
             form=form,
             root=root,
-            dag=dag, title=title)
+            dag=dag,
+            title="Task Instance Details")
 
     @expose('/xcom')
     @has_dag_access(can_dag_read=True)
