@@ -1506,10 +1506,16 @@ class Airflow(AirflowBaseView):
     def tries(self, session=None):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
+        root = request.args.get('root')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
+
+        dag_model = DagModel.get_dagmodel(dag_id)
+        if dag_model is None:
+            flash("DAG {!r} seems to be missing.".format(dag_id), "error")
+            return redirect("/")
+        dag = dag_model.get_dag()
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1519,7 +1525,6 @@ class Airflow(AirflowBaseView):
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else timezone.utc_epoch()
 
-        root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
                 task_regex=root,
