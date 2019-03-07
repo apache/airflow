@@ -541,7 +541,7 @@ class Airflow(AirflowBaseView):
             models.TaskInstance.execution_date == execution_date).first()
 
         if ti is None:
-            logs = ["*** Task instance did not exist in the DB\n"]
+            logs = ["*** Task instance does not not exist in the database\n"]
             metadata['end_of_log'] = True
         else:
             dag_model = DagModel.get_dagmodel(dag_id)
