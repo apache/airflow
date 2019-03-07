@@ -2581,12 +2581,13 @@ class BaseOperator(LoggingMixin):
         """
         end_date = end_date or timezone.utcnow()
         with create_session() as session:
-            results = session.query(TaskInstance).filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.task_id == self.task_id,
-                TaskInstance.execution_date >= start_date,
-                TaskInstance.execution_date <= end_date,
-                ).order_by(TaskInstance.execution_date).all()
+            results = session.query(TaskInstance)\
+                .filter(TaskInstance.dag_id == self.dag_id)\
+                .filter(TaskInstance.task_id == self.task_id)\
+                .filter(TaskInstance.execution_date >= start_date)\
+                .filter(TaskInstance.execution_date <= end_date)\
+                .order_by(TaskInstance.execution_date)\
+                .all()
         return results
 
     def get_flat_relative_ids(self, upstream=False, found_descendants=None):
