@@ -2294,6 +2294,7 @@ class TaskInstanceTest(unittest.TestCase):
             email='to')
 
         ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.dag = dag
 
         try:
             ti._run_raw_task()
@@ -2316,8 +2317,8 @@ class TaskInstanceTest(unittest.TestCase):
             start_date=DEFAULT_DATE,
             email='to')
 
-        ti = TI(
-            task=task, execution_date=datetime.datetime.now())
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.dag = dag
 
         configuration.set('email', 'SUBJECT_TEMPLATE', '/subject/path')
         configuration.set('email', 'HTML_CONTENT_TEMPLATE', '/html_content/path')
