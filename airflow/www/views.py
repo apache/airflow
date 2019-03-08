@@ -2347,11 +2347,11 @@ class TaskInstanceModelView(AirflowModelView):
             dag_to_tis = {}
 
             for ti in tis:
-                dag = dagbag.get_dag(ti.dag_id)
-                tis = dag_to_tis.setdefault(dag, [])
+                tis = dag_to_tis.setdefault(ti.dag_id, [])
                 tis.append(ti)
 
-            for dag, tis in dag_to_tis.items():
+            for dag_id, tis in dag_to_tis.items():
+                dag = DagModel.get_dagmodel(dag_id).get_dag()
                 models.clear_task_instances(tis, session, dag=dag)
 
             session.commit()
