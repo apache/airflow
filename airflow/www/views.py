@@ -1640,22 +1640,16 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_edit=True)
     @has_access
     @action_logging
-    @provide_session
-    def paused(self, session=None):
+    def paused(self):
         DagModel = models.DagModel
         dag_id = request.args.get('dag_id')
-        orm_dag = (
-            session.query(DagModel)
-                   .filter(DagModel.dag_id == dag_id).first()
-        )
+        orm_dag = DagModel.get_dagmodel(dag_id)
         if request.args.get('is_paused') == 'false':
             orm_dag.is_paused = True
         else:
             orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
-
-        dagbag.get_dag(dag_id)
+        with create_session() as session:
+            session.merge(orm_dag)
         return "OK"
 
     @expose('/refresh')
