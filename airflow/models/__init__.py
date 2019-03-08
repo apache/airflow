@@ -23,8 +23,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import copy
-from collections import defaultdict, namedtuple, OrderedDict
 from builtins import ImportError as BuiltinImportError, bytes, object, str
+from collections import defaultdict, namedtuple, OrderedDict
+
 from future.standard_library import install_aliases
 
 from airflow.models.base import Base, ID_LEN
@@ -40,9 +41,6 @@ from datetime import timedelta
 import dill
 import functools
 import getpass
-import imp
-import importlib
-import zipfile
 import jinja2
 import json
 import logging
@@ -367,8 +365,8 @@ class DagBag(BaseDagBag, LoggingMixin):
             # race condition
             file_last_changed_on_disk = datetime.fromtimestamp(os.path.getmtime(filepath))
             if only_if_updated \
-                and filepath in self.file_last_changed \
-                and file_last_changed_on_disk == self.file_last_changed[filepath]:
+                    and filepath in self.file_last_changed \
+                    and file_last_changed_on_disk == self.file_last_changed[filepath]:
                 return found_dags
 
         except Exception as e:
