@@ -74,10 +74,10 @@ class SnowflakeHook(DbApiHook):
         leave the password empty.
         """
         private_key_file = conn.extra_dejson.get('private_key_file', None)
-        if private_key_file is not None:
+        if private_key_file:
             with open(private_key_file, "rb") as key:
                 passphrase = None
-                if conn.password is not None and conn.password.strip() != '':
+                if conn.password:
                     passphrase = conn.password.strip().encode()
 
                 p_key = serialization.load_pem_private_key(
