@@ -2285,7 +2285,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     @patch('airflow.models.send_email')
     def test_email_alert(self, mock_send_email):
-        dag = models.DAG(dag_id='test_failure_email')
+        dag = models.DAG(dag_id='test_failure_email', default_args={})
         task = BashOperator(
             task_id='test_email_alert',
             dag=dag,
@@ -2294,7 +2294,6 @@ class TaskInstanceTest(unittest.TestCase):
             email='to')
 
         ti = TI(task=task, execution_date=datetime.datetime.now())
-        ti.dag = dag
 
         try:
             ti._run_raw_task()
@@ -2309,7 +2308,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     @patch('airflow.models.send_email')
     def test_email_alert_with_config(self, mock_send_email):
-        dag = models.DAG(dag_id='test_failure_email')
+        dag = models.DAG(dag_id='test_failure_email', default_args={})
         task = BashOperator(
             task_id='test_email_alert_with_config',
             dag=dag,
