@@ -755,6 +755,7 @@ class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
         from airflow.www.views import dagbag
         from airflow.utils.state import State
         dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+        dag.sync_to_db()
         dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
         self.runs = []
         for rd in self.RUNS_DATA:
