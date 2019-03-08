@@ -20,6 +20,7 @@
 
 from time import sleep
 from datetime import timedelta
+from numbers import Number
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
     AirflowSkipException, AirflowRescheduleException
@@ -70,10 +71,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                  *args,
                  **kwargs):
         super(BaseSensorOperator, self).__init__(*args, **kwargs)
-        if not isinstance(poke_interval, int) or poke_interval < 0:
+        if not isinstance(poke_interval, Number) or poke_interval < 0:
             raise AirflowException(
                 "The poke_interval must be a non-negative integer")
-        if not isinstance(timeout, int) or timeout < 0:
+        if not isinstance(timeout, Number) or timeout < 0:
             raise AirflowException(
                 "The timeout must be a non-negative integer")
         self.poke_interval = poke_interval
