@@ -1397,5 +1397,6 @@ def process_dag_file(filepath, safe_mode=True):
             if isinstance(dag, airflow.DAG):
                 if not dag.is_subdag:
                     found_dags.append(dag)
-
+    for dag in found_dags:
+        dag.full_filepath = filepath
     return found_dags

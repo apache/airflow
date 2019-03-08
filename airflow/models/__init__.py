@@ -300,7 +300,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
-        self.has_logged = False
 
         self.collect_dags(
             dag_folder=dag_folder,
@@ -370,12 +369,14 @@ class DagBag(BaseDagBag, LoggingMixin):
                 return found_dags
 
         except Exception as e:
+            self.import_errors[filepath] = str(e)
             self.log.exception(e)
             return found_dags
 
         try:
             found_dags = process_dag_file(filepath, safe_mode=safe_mode)
         except Exception as e:
+            self.import_errors[filepath] = str(e)
             self.log.exception("Failed to dag file: %s, message: $s", filepath, e)
 
         for dag in found_dags:
