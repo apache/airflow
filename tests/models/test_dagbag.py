@@ -31,7 +31,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 
 from mock import ANY, patch
 
-from airflow import configuration, models, settings
+from airflow import configuration, models
 from airflow.models import DagBag
 from airflow.models import DagModel
 from airflow.models import TaskInstance as TI
@@ -43,6 +43,7 @@ from airflow.utils.state import State
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), '../dags')
+
 
 class DagBagTest(unittest.TestCase):
     @classmethod
@@ -144,8 +145,7 @@ class DagBagTest(unittest.TestCase):
             test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
             DagBag(dag_folder=test_zip_path, include_examples=False)
 
-            log_mock.debug.assert_any_call("File %s assumed to contain no DAGs. Skipping.",
-                                          test_zip_path)
+            log_mock.debug.assert_any_call("File %s assumed to contain no DAGs. Skipping.", test_zip_path)
 
     def test_zip(self):
         """
@@ -189,7 +189,6 @@ class DagBagTest(unittest.TestCase):
                 super(TestDagBag, self).process_file(filepath, only_if_updated, safe_mode)
 
         dagbag = TestDagBag(include_examples=True)
-        dagbag.process_file_calls
 
         # Should not call process_file again, since it's already loaded during init.
         self.assertEqual(1, dagbag.process_file_calls)
@@ -236,7 +235,6 @@ class DagBagTest(unittest.TestCase):
         # expected_dag_ids = list(map(lambda dag: dag.dag_id, expected_parent_dag.subdags))
         # expected_dag_ids.append(expected_parent_dag.dag_id)
 
-        actual_found_dag_ids = list(map(lambda dag: dag.dag_id, actual_found_dags))
         if should_be_found:
             assert len(actual_found_dags) == 1
             actual_dag = actual_found_dags[0]
