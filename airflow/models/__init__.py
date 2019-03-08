@@ -2574,21 +2574,20 @@ class BaseOperator(LoggingMixin):
 
         return count
 
-    def get_task_instances(self, start_date=None, end_date=None):
+    @provide_session
+    def get_task_instances(self, start_date=None, end_date=None, session=None):
         """
         Get a set of task instance related to this task for a specific date
         range.
         """
         end_date = end_date or timezone.utcnow()
-        with create_session() as session:
-            results = session.query(TaskInstance)\
-                .filter(TaskInstance.dag_id == self.dag_id)\
-                .filter(TaskInstance.task_id == self.task_id)\
-                .filter(TaskInstance.execution_date >= start_date)\
-                .filter(TaskInstance.execution_date <= end_date)\
-                .order_by(TaskInstance.execution_date)\
-                .all()
-        return results
+        return session.query(TaskInstance)\
+            .filter(TaskInstance.dag_id == self.dag_id)\
+            .filter(TaskInstance.task_id == self.task_id)\
+            .filter(TaskInstance.execution_date >= start_date)\
+            .filter(TaskInstance.execution_date <= end_date)\
+            .order_by(TaskInstance.execution_date)\
+            .all()
 
     def get_flat_relative_ids(self, upstream=False, found_descendants=None):
         """
@@ -3509,24 +3508,23 @@ class DAG(BaseDag, LoggingMixin):
         self.get_task(upstream_task_id).set_downstream(
             self.get_task(downstream_task_id))
 
+    @provide_session
     def get_task_instances(
-            self, start_date=None, end_date=None, state=None):
-        TI = TaskInstance
+            self, start_date=None, end_date=None, state=None, session=None):
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
         end_date = end_date or timezone.utcnow()
-        with create_session() as session:
-            tis = session.query(TaskInstance).filter(
-                TaskInstance.dag_id == self.dag_id,
-                TaskInstance.execution_date >= start_date,
-                TaskInstance.execution_date <= end_date,
-                TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
-            )
-            if state:
-                tis = tis.filter(TI.state == state)
-            tis = tis.order_by(TI.execution_date).all()
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.execution_date >= start_date,
+            TaskInstance.execution_date <= end_date,
+            TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
+        )
+        if state:
+            tis = tis.filter(TaskInstance.state == state)
+        tis = tis.order_by(TaskInstance.execution_date).all()
         return tis
 
     @property
@@ -4428,26 +4426,25 @@ class DagRun(Base, LoggingMixin):
         """
         Returns the task instances for this dag run
         """
-        TI = TaskInstance
-        tis = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.execution_date == self.execution_date,
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.execution_date == self.execution_date,
         )
         if state:
             if isinstance(state, six.string_types):
-                tis = tis.filter(TI.state == state)
+                tis = tis.filter(TaskInstance.state == state)
             else:
                 # this is required to deal with NULL values
                 if None in state:
                     tis = tis.filter(
-                        or_(TI.state.in_(state),
-                            TI.state.is_(None))
+                        or_(TaskInstance.state.in_(state),
+                            TaskInstance.state.is_(None))
                     )
                 else:
-                    tis = tis.filter(TI.state.in_(state))
+                    tis = tis.filter(TaskInstance.state.in_(state))
 
         if self.dag and self.dag.partial:
-            tis = tis.filter(TI.task_id.in_(self.dag.task_ids))
+            tis = tis.filter(TaskInstance.task_id.in_(self.dag.task_ids))
 
         return tis.all()
 
