@@ -377,7 +377,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             found_dags = process_dag_file(filepath, safe_mode=safe_mode)
         except Exception as e:
             self.import_errors[filepath] = str(e)
-            self.log.exception("Failed to dag file: %s, message: $s", filepath, e)
+            self.log.exception("Failed to process DAG file: %s, message: $s", filepath, e)
 
         for dag in found_dags:
             try:
