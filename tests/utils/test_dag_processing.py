@@ -25,14 +25,14 @@ from datetime import timedelta
 
 from mock import MagicMock
 
-from airflow import configuration as conf
+from airflow import configuration as conf, AirflowException
 from airflow.configuration import mkdir_p
 from airflow.jobs import DagFileProcessor
 from airflow.jobs import LocalTaskJob as LJ
 from airflow.models import DagBag, TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.dag_processing import (DagFileProcessorAgent, DagFileProcessorManager,
-                                          SimpleTaskInstance)
+                                          SimpleTaskInstance, process_dag_file)
 from airflow.utils.db import create_session
 from airflow.utils.state import State
 
@@ -326,3 +326,45 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         manager_process.join()
 
         self.assertTrue(os.path.isfile(log_file_loc))
+
+
+class TestParseDagFile(unittest.TestCase):
+    def test_parse_file(self):
+        dags = process_dag_file(os.path.join(TEST_DAG_FOLDER, "test_double_trigger.py"))
+        self.assertEqual(len(dags), 1)
+        self.assertEqual(dags[0].dag_id, "test_localtaskjob_double_trigger")
+
+    def test_parse_file_multiple_dags(self):
+        dags = process_dag_file(os.path.join(TEST_DAG_FOLDER, "test_scheduler_dags.py"))
+        self.assertEqual(len(dags), 2)
+        names = set([dag.dag_id for dag in dags])
+        self.assertEqual(names, {"test_task_start_date_scheduling", "test_start_date_scheduling"})
+
+    def test_parse_file_subdags(self):
+        dags = process_dag_file(os.path.join(TEST_DAG_FOLDER, "test_impersonation_subdag.py"))
+        self.assertEqual(len(dags), 1)
+        names = set([dag.dag_id for dag in dags])
+        self.assertEqual(names, {"impersonation_subdag"})
+
+    def test_parse_file_zip(self):
+        dags = process_dag_file(os.path.join(TEST_DAG_FOLDER, "test_zip.zip"))
+        self.assertEqual(len(dags), 1)
+        names = set([dag.dag_id for dag in dags])
+        self.assertEqual(names, {"test_zip_dag"})
+
+    def test_parse_currupt_file(self):
+        file = os.path.join(TEST_DAG_FOLDER, "corrupt_dag.py")
+        self.assertRaises(AirflowException, process_dag_file, file)
+
+    def test_parse_currupt_zip(self):
+        file = os.path.join(TEST_DAG_FOLDER, "corrupt.zip")
+        self.assertRaises(AirflowException, process_dag_file, file)
+
+    def test_parse_file_no_dags(self):
+        dags = process_dag_file(os.path.join(TEST_DAG_FOLDER, "no_dags.py"))
+        self.assertEqual(len(dags), 0)
+
+    def test_file_not_exists(self):
+        file = tempfile.mkstemp()[1]
+        os.remove(file)
+        self.assertRaises(FileNotFoundError, process_dag_file, file)
