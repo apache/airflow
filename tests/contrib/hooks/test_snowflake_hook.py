@@ -115,7 +115,7 @@ class TestSnowflakeHook(unittest.TestCase):
                                   'warehouse': 'af_wh',
                                   'region': 'af_region',
                                   'role': 'af_role',
-                                  'private_key_file': '/tmp/test_key.p8'}
+                                  'private_key_file': self.encryptedPrivateKey}
 
         params = self.db_hook._get_conn_params()
         self.assertTrue('private_key' in params)
@@ -126,7 +126,7 @@ class TestSnowflakeHook(unittest.TestCase):
                                   'warehouse': 'af_wh',
                                   'region': 'af_region',
                                   'role': 'af_role',
-                                  'private_key_file': '/tmp/test_key.pem'}
+                                  'private_key_file': self.nonEncryptedPrivateKey}
 
         self.conn.password = ''
         params = self.db_hook._get_conn_params()
