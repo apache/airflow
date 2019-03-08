@@ -28,63 +28,10 @@ Example Pipeline definition
 Here is an example of a basic pipeline definition. Do not worry if this looks
 complicated, a line by line explanation follows below.
 
-.. code:: python
-
-    """
-    Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
-    """
-    from airflow import DAG
-    from airflow.operators.bash_operator import BashOperator
-    from datetime import datetime, timedelta
-
-
-    default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        # 'queue': 'bash_queue',
-        # 'pool': 'backfill',
-        # 'priority_weight': 10,
-        # 'end_date': datetime(2016, 1, 1),
-    }
-
-    dag = DAG('tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
-
-    # t1, t2 and t3 are examples of tasks created by instantiating operators
-    t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
-        dag=dag)
-
-    t2 = BashOperator(
-        task_id='sleep',
-        bash_command='sleep 5',
-        retries=3,
-        dag=dag)
-
-    templated_command = """
-        {% for i in range(5) %}
-            echo "{{ ds }}"
-            echo "{{ macros.ds_add(ds, 7)}}"
-            echo "{{ params.my_param }}"
-        {% endfor %}
-    """
-
-    t3 = BashOperator(
-        task_id='templated',
-        bash_command=templated_command,
-        params={'my_param': 'Parameter I passed in'},
-        dag=dag)
-
-    t2.set_upstream(t1)
-    t3.set_upstream(t1)
-
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
 
 It's a DAG definition file
 --------------------------
@@ -111,13 +58,11 @@ Importing Modules
 An Airflow pipeline is just a Python script that happens to define an
 Airflow DAG object. Let's start by importing the libraries we will need.
 
-.. code:: python
+We'll need the DAG object to instantiate a DAG and BashOperator to operate!
 
-    # The DAG object; we'll need this to instantiate a DAG
-    from airflow import DAG
-
-    # Operators; we need this to operate!
-    from airflow.operators.bash_operator import BashOperator
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :lines: 29-30
 
 Default Arguments
 -----------------
@@ -126,27 +71,9 @@ explicitly pass a set of arguments to each task's constructor
 (which would become redundant), or (better!) we can define a dictionary
 of default parameters that we can use when creating tasks.
 
-.. code:: python
-
-    from datetime import datetime, timedelta
-
-    default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        # 'queue': 'bash_queue',
-        # 'pool': 'backfill',
-        # 'priority_weight': 10,
-        # 'end_date': datetime(2016, 1, 1),
-    }
-
-For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:`airflow.models.BaseOperator` documentation.
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :lines: 34-56
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have
@@ -161,10 +88,9 @@ that defines the ``dag_id``, which serves as a unique identifier for your DAG.
 We also pass the default argument dictionary that we just defined and
 define a ``schedule_interval`` of 1 day for the DAG.
 
-.. code:: python
-
-    dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :lines: 58-63
 
 Tasks
 -----
@@ -172,24 +98,18 @@ Tasks are generated when instantiating operator objects. An object
 instantiated from an operator is called a constructor. The first argument
 ``task_id`` acts as a unique identifier for the task.
 
-.. code:: python
-
-    t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
-        dag=dag)
-
-    t2 = BashOperator(
-        task_id='sleep',
-        bash_command='sleep 5',
-        retries=3,
-        dag=dag)
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :lines: 66-71, 82-89
 
 Notice how we pass a mix of operator specific arguments (``bash_command``) and
 an argument common to all operators (``retries``) inherited
 from BaseOperator to the operator's constructor. This is simpler than
 passing every argument for every constructor call. Also, notice that in
 the second task we override the ``retries`` parameter with ``3``.
+
+For more information about the BaseOperator's parameters and what they do,
+refer to the :py:class:`airflow.models.BaseOperator` documentation.
 
 The precedence rules for a task are as follows:
 
@@ -204,10 +124,9 @@ Templating with Jinja
 ---------------------
 Airflow leverages the power of
 `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_  and provides
-the pipeline author
-with a set of built-in parameters and macros. Airflow also provides
-hooks for the pipeline author to define their own parameters, macros and
-templates.
+the pipeline author with a set of built-in parameters and macros. 
+Airflow also provides hooks for the pipeline author to define their 
+own parameters, macros and templates.
 
 This tutorial barely scratches the surface of what you can do with
 templating in Airflow, but the goal of this section is to let you know
@@ -215,21 +134,9 @@ this feature exists, get you familiar with double curly brackets, and
 point to the most common template variable: ``{{ ds }}`` (today's "date
 stamp").
 
-.. code:: python
-
-    templated_command = """
-        {% for i in range(5) %}
-            echo "{{ ds }}"
-            echo "{{ macros.ds_add(ds, 7) }}"
-            echo "{{ params.my_param }}"
-        {% endfor %}
-    """
-
-    t3 = BashOperator(
-        task_id='templated',
-        bash_command=templated_command,
-        params={'my_param': 'Parameter I passed in'},
-        dag=dag)
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :lines: 90-105
 
 Notice that the ``templated_command`` contains code logic in ``{% %}`` blocks,
 references parameters like ``{{ ds }}``, calls a function as in
@@ -304,63 +211,10 @@ Recap
 Alright, so we have a pretty basic DAG. At this point your code should look
 something like this:
 
-.. code:: python
-
-    """
-    Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
-    """
-    from airflow import DAG
-    from airflow.operators.bash_operator import BashOperator
-    from datetime import datetime, timedelta
-
-
-    default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5),
-        # 'queue': 'bash_queue',
-        # 'pool': 'backfill',
-        # 'priority_weight': 10,
-        # 'end_date': datetime(2016, 1, 1),
-    }
-
-    dag = DAG(
-        'tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
-
-    # t1, t2 and t3 are examples of tasks created by instantiating operators
-    t1 = BashOperator(
-        task_id='print_date',
-        bash_command='date',
-        dag=dag)
-
-    t2 = BashOperator(
-        task_id='sleep',
-        bash_command='sleep 5',
-        retries=3,
-        dag=dag)
-
-    templated_command = """
-        {% for i in range(5) %}
-            echo "{{ ds }}"
-            echo "{{ macros.ds_add(ds, 7)}}"
-            echo "{{ params.my_param }}"
-        {% endfor %}
-    """
-
-    t3 = BashOperator(
-        task_id='templated',
-        bash_command=templated_command,
-        params={'my_param': 'Parameter I passed in'},
-        dag=dag)
-
-    t2.set_upstream(t1)
-    t3.set_upstream(t1)
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
 
 Testing
 --------
@@ -465,8 +319,8 @@ Here's a few things you might want to do next:
 * Take an in-depth tour of the UI - click all the things!
 * Keep reading the docs! Especially the sections on:
 
-    * Command line interface
-    * Operators
-    * Macros
+    * :ref:`command_line_interface`
+    * :ref:`api-reference-operators`
+    * :ref:`macros`
 
 * Write your first pipeline!

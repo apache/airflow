@@ -17,27 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[START latest_only_with_trigger]
-import datetime as dt
-
-import airflow
+# [START main_dag]
+from datetime import datetime, timedelta
 from airflow.models import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.latest_only_operator import LatestOnlyOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.operators.subdag_operator import SubDagOperator
+from dags.subdag import sub_dag
 
-dag = DAG(
-    dag_id='latest_only_with_trigger',
-    schedule_interval=dt.timedelta(hours=4),
-    start_date=airflow.utils.dates.days_ago(2),
+
+PARENT_DAG_NAME = 'parent_dag'
+CHILD_DAG_NAME = 'child_dag'
+
+main_dag = DAG(
+    dag_id=PARENT_DAG_NAME,
+    schedule_interval=timedelta(hours=1),
+    start_date=datetime(2016, 1, 1)
 )
 
-latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
-task1 = DummyOperator(task_id='task1', dag=dag)
-task2 = DummyOperator(task_id='task2', dag=dag)
-task3 = DummyOperator(task_id='task3', dag=dag)
-task4 = DummyOperator(task_id='task4', dag=dag, trigger_rule=TriggerRule.ALL_DONE)
-
-latest_only >> task1 >> [task3, task4]
-task2 >> [task3, task4]
-[END latest_only_with_trigger]
+sub_dag = SubDagOperator(
+    subdag=sub_dag(PARENT_DAG_NAME, CHILD_DAG_NAME, main_dag.start_date,
+                    main_dag.schedule_interval),
+    task_id=CHILD_DAG_NAME,
+    dag=main_dag,
+)
+# [END main_dag]

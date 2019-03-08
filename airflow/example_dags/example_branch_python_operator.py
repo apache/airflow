@@ -17,27 +17,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-[START latest_only_with_trigger]
-import datetime as dt
-
-import airflow
+# [START branch_python_operator]
 from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.latest_only_operator import LatestOnlyOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.operators.python_operator import BranchPythonOperator
 
-dag = DAG(
-    dag_id='latest_only_with_trigger',
-    schedule_interval=dt.timedelta(hours=4),
-    start_date=airflow.utils.dates.days_ago(2),
-)
 
-latest_only = LatestOnlyOperator(task_id='latest_only', dag=dag)
-task1 = DummyOperator(task_id='task1', dag=dag)
-task2 = DummyOperator(task_id='task2', dag=dag)
-task3 = DummyOperator(task_id='task3', dag=dag)
-task4 = DummyOperator(task_id='task4', dag=dag, trigger_rule=TriggerRule.ALL_DONE)
+def branch_func(**kwargs):
+    ti = kwargs['ti']
+    xcom_value = int(ti.xcom_pull(task_ids='start_task'))
+    if xcom_value >= 5:
+        return 'continue_task'
+    else:
+        return 'stop_task'
 
-latest_only >> task1 >> [task3, task4]
-task2 >> [task3, task4]
-[END latest_only_with_trigger]
+start_op = BashOperator(
+    task_id='start_task',
+    bash_command="echo 5",
+    xcom_push=True,
+    dag=dag)
+
+branch_op = BranchPythonOperator(
+    task_id='branch_task',
+    provide_context=True,
+    python_callable=branch_func,
+    dag=dag)
+
+continue_op = DummyOperator(task_id='continue_task', dag=dag)
+stop_op = DummyOperator(task_id='stop_task', dag=dag)
+
+start_op >> branch_op >> [continue_op, stop_op]
+# [END branch_python_operator]

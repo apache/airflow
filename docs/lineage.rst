@@ -26,42 +26,10 @@ audit trails and data governance, but also debugging of data flows.
 Airflow tracks data by means of inlets and outlets of the tasks. Let's work from an example and see how it
 works.
 
-.. code:: python
-
-    from airflow.operators.bash_operator import BashOperator
-    from airflow.operators.dummy_operator import DummyOperator
-    from airflow.lineage.datasets import File
-    from airflow.models import DAG
-    from datetime import timedelta
-    
-    FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
-    
-    args = {
-        'owner': 'airflow',
-        'start_date': airflow.utils.dates.days_ago(2)
-    }
-    
-    dag = DAG(
-        dag_id='example_lineage', default_args=args,
-        schedule_interval='0 0 * * *',
-        dagrun_timeout=timedelta(minutes=60))
-    
-    f_final = File("/tmp/final")
-    run_this_last = DummyOperator(task_id='run_this_last', dag=dag, 
-        inlets={"auto": True},
-        outlets={"datasets": [f_final,]})
-    
-    f_in = File("/tmp/whole_directory/")
-    outlets = []
-    for file in FILE_CATEGORIES:
-        f_out = File("/tmp/{}/{{{{ execution_date }}}}".format(file))
-        outlets.append(f_out)
-    run_this = BashOperator(    
-        task_id='run_me_first', bash_command='echo 1', dag=dag,
-        inlets={"datasets": [f_in,]},
-        outlets={"datasets": outlets}
-        )
-    run_this.set_downstream(run_this_last)
+.. literalinclude:: ../airflow/example_dags/example_lineage.py
+    :language: python
+    :start-after: [START lineage]
+    :end-before: [END lineage]
 
 
 Tasks take the parameters `inlets` and `outlets`.

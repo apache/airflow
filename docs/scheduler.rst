@@ -110,34 +110,9 @@ False``) or by default at the configuration file level with ``catchup_by_default
 will do, is to instruct the scheduler to only create a DAG Run for the most current instance of the DAG
 interval series.
 
-.. code:: python
-
-    """
-    Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/master/airflow/example_dags/tutorial.py
-    """
-    from airflow import DAG
-    from airflow.operators.bash_operator import BashOperator
-    from datetime import datetime, timedelta
-
-
-    default_args = {
-        'owner': 'airflow',
-        'depends_on_past': False,
-        'start_date': datetime(2015, 12, 1),
-        'email': ['airflow@example.com'],
-        'email_on_failure': False,
-        'email_on_retry': False,
-        'retries': 1,
-        'retry_delay': timedelta(minutes=5)
-    }
-
-    dag = DAG(
-        'tutorial',
-        default_args=default_args,
-        description='A simple tutorial DAG',
-        schedule_interval='@daily',
-        catchup=False)
+.. literalinclude:: ../airflow/example_dags/tutorial.py
+    :language: python
+    :lines: 34-64
 
 In the example above, if the DAG is picked up by the scheduler daemon on 2016-01-02 at 6 AM, (or from the
 command line), a single DAG Run will be created, with an ``execution_date`` of 2016-01-01, and the next

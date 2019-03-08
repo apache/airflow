@@ -552,32 +552,11 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching
 context to dynamically decide what branch to follow based on previous tasks.
 For example:
 
-.. code:: python
+.. literalinclude:: ../airflow/example_dags/example_branch_python_operator.py
+    :language: python
+    :start-after: [START branch_python_operator]
+    :end-before: [END branch_python_operator]
 
-  def branch_func(**kwargs):
-      ti = kwargs['ti']
-      xcom_value = int(ti.xcom_pull(task_ids='start_task'))
-      if xcom_value >= 5:
-          return 'continue_task'
-      else:
-          return 'stop_task'
-
-  start_op = BashOperator(
-      task_id='start_task',
-      bash_command="echo 5",
-      xcom_push=True,
-      dag=dag)
-
-  branch_op = BranchPythonOperator(
-      task_id='branch_task',
-      provide_context=True,
-      python_callable=branch_func,
-      dag=dag)
-
-  continue_op = DummyOperator(task_id='continue_task', dag=dag)
-  stop_op = DummyOperator(task_id='stop_task', dag=dag)
-
-  start_op >> branch_op >> [continue_op, stop_op]
 
 SubDAGs
 =======
@@ -603,54 +582,17 @@ Note that SubDAG operators should contain a factory method that returns a DAG
 object. This will prevent the SubDAG from being treated like a separate DAG in
 the main UI. For example:
 
-.. code:: python
-
-  #dags/subdag.py
-  from airflow.models import DAG
-  from airflow.operators.dummy_operator import DummyOperator
-
-
-  # Dag is returned by a factory method
-  def sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
-    dag = DAG(
-      '%s.%s' % (parent_dag_name, child_dag_name),
-      schedule_interval=schedule_interval,
-      start_date=start_date,
-    )
-
-    dummy_operator = DummyOperator(
-      task_id='dummy_task',
-      dag=dag,
-    )
-
-    return dag
+.. literalinclude:: ../airflow/example_dags/subdags/subdag.py
+    :language: python
+    :start-after: [START subdag]
+    :end-before: [END subdag]
 
 This SubDAG can then be referenced in your main DAG file:
 
-.. code:: python
-
-  # main_dag.py
-  from datetime import datetime, timedelta
-  from airflow.models import DAG
-  from airflow.operators.subdag_operator import SubDagOperator
-  from dags.subdag import sub_dag
-
-
-  PARENT_DAG_NAME = 'parent_dag'
-  CHILD_DAG_NAME = 'child_dag'
-
-  main_dag = DAG(
-    dag_id=PARENT_DAG_NAME,
-    schedule_interval=timedelta(hours=1),
-    start_date=datetime(2016, 1, 1)
-  )
-
-  sub_dag = SubDagOperator(
-    subdag=sub_dag(PARENT_DAG_NAME, CHILD_DAG_NAME, main_dag.start_date,
-                   main_dag.schedule_interval),
-    task_id=CHILD_DAG_NAME,
-    dag=main_dag,
-  )
+.. literalinclude:: ../airflow/example_dags/subdags/main_dag.py
+    :language: python
+    :start-after: [START main_dag]
+    :end-before: [END main_dag]
 
 You can zoom into a SubDagOperator from the graph view of the main DAG to show
 the tasks contained within the SubDAG:
@@ -826,6 +768,7 @@ right now is not between its ``execution_time`` and the next scheduled
 
 For example, consider the following DAG:
 
+<<<<<<< HEAD
 .. code:: python
 
   #dags/latest_only_with_trigger.py
@@ -856,6 +799,12 @@ For example, consider the following DAG:
   task4 = DummyOperator(task_id='task4', dag=dag,
                         trigger_rule=TriggerRule.ALL_DONE)
   task4.set_upstream([task1, task2])
+=======
+.. literalinclude:: ../airflow/example_dags/example_latest_only_with_trigger.py
+    :language: python
+    :start-after: [START latest_only_with_trigger]
+    :end-before: [END latest_only_with_trigger]
+>>>>>>> Extract example DAGs to separate files in doc
 
 In the case of this DAG, the ``latest_only`` task will show up as skipped
 for all runs except the latest run. ``task1`` is directly downstream of
