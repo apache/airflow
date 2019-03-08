@@ -58,8 +58,13 @@ JIRA_BASE = "https://issues.apache.org/jira/browse"
 JIRA_API_BASE = "https://issues.apache.org/jira"
 
 GIT_COMMIT_FIELDS = ['id', 'author_name', 'author_email', 'date', 'subject', 'body']
-GIT_LOG_FORMAT = ['%H', '%an', '%ae', '%ad', '%s', '%b']
-GIT_LOG_FORMAT = '%x1f'.join(GIT_LOG_FORMAT) + '%x1e'
+GIT_LOG_FORMAT = '%x1f'.join(['%h', '%an', '%ae', '%ad', '%s', '%b']) + '%x1e'
+
+STATUS_COLUR_MAP = {
+    'Resolved': 'green',
+    'Open': 'red',
+    'Closed': 'yellow'
+}
 
 
 def get_jiras_for_version(version):
@@ -69,7 +74,7 @@ def get_jiras_for_version(version):
     page_size = 50
     while True:
         results = asf_jira.search_issues(
-            'PROJECT={} and fixVersion={}'.format(PROJECT, version),
+            'PROJECT={} and fixVersion={} order by updated desc'.format(PROJECT, version),
             maxResults=page_size,
             startAt=start_at,
         )
@@ -83,24 +88,31 @@ def get_jiras_for_version(version):
         start_at += page_size
 
 
-def get_merged_issues(version):
-    repo = git.Repo(".", search_parent_directories=True)
-    log = repo.git.log('--format={}'.format(GIT_LOG_FORMAT))
+issue_re = re.compile(r".*? (AIRFLOW-[0-9]{1,6}) (?: \]|\s|: )", flags=re.X)
+pr_re = re.compile(r"(.*)Closes (#[0-9]{1,6})", flags=re.DOTALL)
+pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
+
+
+def get_merged_issues(repo, version, previous_version=None):
+    log_args = ['--format={}'.format(GIT_LOG_FORMAT)]
+    if previous_version:
+        log_args.append(previous_version + "..")
+    log = repo.git.log(*log_args)
+
     log = log.strip('\n\x1e').split("\x1e")
     log = [row.strip().split("\x1f") for row in log]
     log = [dict(zip(GIT_COMMIT_FIELDS, row)) for row in log]
-
-    issue_re = re.compile(".*(AIRFLOW-[0-9]{1,6})(\]|\s|:)")
-    pr_re = re.compile("(.*)Closes (#[0-9]{1,6})", flags=re.DOTALL)
 
     merges = {}
     for log_item in log:
         issue_id = None
 
-        match = issue_re.match(log_item['subject'])
+        issue_ids = issue_re.findall(log_item['subject'])
+
+        match = pr_title_re.match(log_item['subject'])
         if match:
-            issue_id = match.group(1)
-        if 'body' in log_item:
+            log_item['pull_request'] = match.group(1)
+        elif 'body' in log_item:
             match = pr_re.match(log_item['body'])
             if match:
                 log_item['pull_request'] = match.group(2)
@@ -109,10 +121,32 @@ def get_merged_issues(version):
         else:
             log_item['pull_request'] = '#na'
 
-        if issue_id:
+        for issue_id in issue_ids:
             merges[issue_id] = log_item
 
     return merges
+
+
+def get_commits_from_master(repo, issue):
+    log = repo.git.log(
+        '--format=%h%x1f%s',
+        '-1',
+        '--grep',
+        r'.*{issue}\(\]\|:\|\s\)'.format(issue=issue.key),
+        'origin/master')
+    if not log:
+        return None
+    commit, subject = log.split('\x1f')
+
+    merge = {'id': commit}
+    match = pr_title_re.match(subject)
+
+    if match:
+        merge['pull_request'] = match.group(1)
+    else:
+        merge['pull_request'] = '-'
+
+    return merge
 
 
 @click.group()
@@ -127,22 +161,25 @@ def cli():
 
 @cli.command(short_help='Compare a jira target version against git merges')
 @click.argument('target_version', default=None)
-def compare(target_version):
-    merges = get_merged_issues(target_version)
+@click.argument('previous_version', default="")
+@click.option('--unmerged', 'unmerged_only', help="Show unmerged issues only", is_flag=True)
+def compare(target_version, previous_version=None, unmerged_only=False):
+    repo = git.Repo(".", search_parent_directories=True)
+    merges = get_merged_issues(repo, target_version, previous_version)
     issues = get_jiras_for_version(target_version)
 
     # :<18 says left align, pad to 18
     # :<50.50 truncates after 50 chars
     # !s forces as string - some of the Jira objects have a string method, but
     #    Py3 doesn't call by default
-    formatstr = "{id:<18}|{typ!s:<12}||{priority!s:<10}||{status!s:<10}|" \
-                "{description:<50.50}|{merged:<6}|{pr:<6}|{commit:<40}"
+    formatstr = "{id:<18}|{typ!s:<12}||{priority!s:<10}||{status!s}|" \
+                "{description:<83.83}|{merged:<6}|{pr:<6}|{commit:<7}"
 
     print(formatstr.format(
         id="ISSUE ID",
         typ="TYPE",
         priority="PRIORITY",
-        status="STATUS",
+        status="STATUS".ljust(10),
         description="DESCRIPTION",
         merged="MERGED",
         pr="PR",
@@ -150,15 +187,31 @@ def compare(target_version):
 
     for issue in issues:
         is_merged = issue.key in merges
+
+        if unmerged_only and is_merged:
+            continue
+
+        # Put colour on the status field. Since it will have non-printable
+        # characters we can't us string format to limit the length
+        status = issue.fields.status.name
+        if status in STATUS_COLUR_MAP:
+            status = click.style(status[:10].ljust(10), STATUS_COLUR_MAP[status])
+        else:
+            status = status[:10].ljust(10)
+
+        merge = merges.get(issue.key)
+        if not merge and issue.fields.status.name in {'Resolved', 'Closed'}:
+            merge = get_commits_from_master(repo, issue)
+
         print(formatstr.format(
             id=issue.key,
             typ=issue.fields.issuetype,
             priority=issue.fields.priority,
-            status=issue.fields.status,
+            status=status,
             description=issue.fields.summary,
             merged=is_merged,
-            pr=merges[issue.key]['pull_request'] if is_merged else "-",
-            commit=merges[issue.key]['id'] if is_merged else "-"))
+            pr=merge['pull_request'] if merge else "-",
+            commit=merge['id'] if merge else "-"))
 
 
 if __name__ == "__main__":
@@ -168,5 +221,5 @@ if __name__ == "__main__":
         exit(-1)
     try:
         cli()
-    except:
+    except Exception:
         raise
