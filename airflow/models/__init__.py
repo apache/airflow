@@ -44,6 +44,10 @@ import imp
 import importlib
 import zipfile
 import jinja2
+try:
+    from jinja2.nativetypes import NativeEnvironment as Environment
+except ImportError:
+    from jinja2 import Environment
 import json
 import logging
 import os
@@ -2482,7 +2486,7 @@ class BaseOperator(LoggingMixin):
     def get_template_env(self):
         return self.dag.get_template_env() \
             if hasattr(self, 'dag') \
-            else jinja2.Environment(cache_size=0)
+            else Environment(cache_size=0)
 
     def prepare_template(self):
         """
@@ -3483,7 +3487,7 @@ class DAG(BaseDag, LoggingMixin):
         if self.template_searchpath:
             searchpath += self.template_searchpath
 
-        env = jinja2.Environment(
+        env = Environment(
             loader=jinja2.FileSystemLoader(searchpath),
             extensions=["jinja2.ext.do"],
             cache_size=0)

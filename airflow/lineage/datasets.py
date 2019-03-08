@@ -18,7 +18,10 @@
 # under the License.
 import six
 
-from jinja2 import Environment
+try:
+    from jinja2.nativetypes import NativeEnvironment as Environment
+except ImportError:
+    from jinja2 import Environment
 
 
 def _inherited(cls):
