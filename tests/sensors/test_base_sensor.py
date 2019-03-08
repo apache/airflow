@@ -474,9 +474,9 @@ class BaseSensorTest(unittest.TestCase):
                 poke_interval=negative_poke_interval,
                 timeout=25)
         sensor = self._make_sensor(
-                return_value=None,
-                poke_interval=positive_poke_interval,
-                timeout=25)
+            return_value=None,
+            poke_interval=positive_poke_interval,
+            timeout=25)
         self.assertEqual(sensor.poke_interval, positive_poke_interval)
 
     def test_sensor_with_negetive_timeout(self):
@@ -488,7 +488,7 @@ class BaseSensorTest(unittest.TestCase):
                 poke_interval=10,
                 timeout=negative_timeout)
         sensor = self._make_sensor(
-                return_value=None,
-                poke_interval=10,
-                timeout=positive_timeout)
+            return_value=None,
+            poke_interval=10,
+            timeout=positive_timeout)
         self.assertEqual(sensor.timeout, positive_timeout)

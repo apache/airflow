@@ -72,12 +72,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         super(BaseSensorOperator, self).__init__(*args, **kwargs)
         if poke_interval < 0:
             raise AirflowException(
-                "The poke_interval must be a non-negative number"
-                )
+                "The poke_interval must be a non-negative number")
         if timeout < 0:
             raise AirflowException(
-                "The timeout must be a non-negative number"
-                )
+                "The timeout must be a non-negative number")
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         self.timeout = timeout
