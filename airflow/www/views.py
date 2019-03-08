@@ -62,7 +62,7 @@ from airflow.models.xcom import XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
@@ -1646,22 +1646,16 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_edit=True)
     @has_access
     @action_logging
-    @provide_session
-    def paused(self, session=None):
+    def paused(self):
         DagModel = models.DagModel
         dag_id = request.args.get('dag_id')
-        orm_dag = (
-            session.query(DagModel)
-                   .filter(DagModel.dag_id == dag_id).first()
-        )
+        orm_dag = DagModel.get_dagmodel(dag_id)
         if request.args.get('is_paused') == 'false':
             orm_dag.is_paused = True
         else:
             orm_dag.is_paused = False
-        session.merge(orm_dag)
-        session.commit()
-
-        dagbag.get_dag(dag_id)
+        with create_session() as session:
+            session.merge(orm_dag)
         return "OK"
 
     @expose('/refresh')
