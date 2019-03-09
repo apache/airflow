@@ -80,9 +80,13 @@ class BigQueryOperator(BaseOperator):
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :type schema_update_options: tuple
-    :param query_params: a dictionary containing query parameter types and
-        values, passed to BigQuery.
-    :type query_params: dict
+    :param query_params: a list of dictionary containing query parameter types and
+        values, passed to BigQuery. The structure of dictionary should look like
+        'queryParameters' in Google BigQuery Jobs API:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
+        For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
+        'parameterValue': { 'value': 'romeoandjuliet' } }].
+    :type query_params: list
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict
