@@ -89,7 +89,16 @@ spec:
           mountPath: {xcomMountPath}
     - name: {sidecarContainerName}
       image: python:3.5-alpine
-      command: ["python", "-m", "http.server"]
+      command:
+        - python
+        - -c
+        - |
+            import time
+            while True:
+                try:
+                    time.sleep(3600)
+                except KeyboardInterrupt:
+                    exit(0)
       volumeMounts:
         - name: xcom
           mountPath: {xcomMountPath}

@@ -25,7 +25,7 @@ _MY_SCRIPT="${BASH_SOURCE[0]}"
 _MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
 # Avoids 1.7.x because of https://github.com/kubernetes/minikube/issues/2240
 _KUBERNETES_VERSION="${KUBERNETES_VERSION}"
-_MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.28.2}"
+_MINIKUBE_VERSION="${MINIKUBE_VERSION:-v0.34.1}"
 
 echo "setting up kubernetes ${_KUBERNETES_VERSION}, using minikube ${_MINIKUBE_VERSION}"
 
@@ -105,9 +105,12 @@ echo "your path is ${PATH}"
 
 _MINIKUBE="sudo -E PATH=$PATH minikube"
 
-$_MINIKUBE config set bootstrapper localkube
 $_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION} --vm-driver=${_VM_DRIVER}
 $_MINIKUBE update-context
+
+if [[ "${TRAVIS}" == true ]]; then
+  sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
+fi
 
 # Wait for Kubernetes to be up and ready.
 k8s_single_node_ready
