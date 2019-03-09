@@ -1332,7 +1332,7 @@ def process_dag_file(filepath, safe_mode=True):
     found_dags = []
 
     if filepath is None or not os.path.isfile(filepath):
-        raise FileNotFoundError
+        raise IOError("File ot found: " + filepath)
 
     mods = []
     is_zipfile = zipfile.is_zipfile(filepath)

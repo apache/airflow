@@ -369,4 +369,4 @@ class TestParseDagFile(unittest.TestCase):
     def test_file_not_exists(self):
         file = tempfile.mkstemp()[1]
         os.remove(file)
-        self.assertRaises(FileNotFoundError, process_dag_file, file)
+        self.assertRaises(IOError, process_dag_file, file)
