@@ -22,7 +22,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagRun
 
 
-def get_dag_runs(dag_id, state=None):
+def get_dag_runs(dag_id, state=None, run_url_route='Airflow.graph'):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :param dag_id: String identifier of a DAG
@@ -48,7 +48,7 @@ def get_dag_runs(dag_id, state=None):
             'execution_date': run.execution_date.isoformat(),
             'start_date': ((run.start_date or '') and
                            run.start_date.isoformat()),
-            'dag_run_url': url_for('Airflow.graph', dag_id=run.dag_id,
+            'dag_run_url': url_for(run_url_route, dag_id=run.dag_id,
                                    execution_date=run.execution_date)
         })
 
