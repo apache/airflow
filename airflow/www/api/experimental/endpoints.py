@@ -24,6 +24,7 @@ import airflow.api
 from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
+from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
@@ -104,6 +105,28 @@ def delete_dag(dag_id):
         response.status_code = err.status_code
         return response
     return jsonify(message="Removed {} record(s)".format(count), count=count)
+
+
+@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
+@requires_authentication
+def dag_runs(dag_id):
+    """
+    Returns a list of Dag Runs for a specific DAG ID.
+    :query param state: a query string parameter '?state=queued|running|success...'
+    :param dag_id: String identifier of a DAG
+    :return: List of DAG runs of a DAG with requested state,
+    or all runs if the state is not specified
+    """
+    try:
+        state = request.args.get('state')
+        dagruns = get_dag_runs(dag_id, state, run_url_route='airflow.graph')
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = 400
+        return response
+
+    return jsonify(dagruns)
 
 
 @api_experimental.route('/test', methods=['GET'])
