@@ -480,11 +480,10 @@ class BaseSensorTest(unittest.TestCase):
                 poke_interval=non_number_poke_interval,
                 timeout=25)
 
-        sensor = self._make_sensor(
+        self._make_sensor(
             return_value=None,
             poke_interval=positive_poke_interval,
             timeout=25)
-        del sensor
 
     def test_sensor_with_invalid_timeout(self):
         negative_timeout = -25
@@ -501,8 +500,7 @@ class BaseSensorTest(unittest.TestCase):
                 poke_interval=10,
                 timeout=non_number_timeout)
 
-        sensor = self._make_sensor(
+        self._make_sensor(
             return_value=None,
             poke_interval=10,
             timeout=positive_timeout)
-        del sensor
