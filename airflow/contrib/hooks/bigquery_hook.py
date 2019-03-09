@@ -347,9 +347,9 @@ class BigQueryBaseCursor(LoggingMixin):
         for more details about these parameters.
 
         :param external_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery
+            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
             table name to create external table.
-            If <project> is not included, project will be the
+            If ``<project>`` is not included, project will be the
             project defined in the connection json.
         :type external_project_dataset_table: str
         :param schema_fields: The schema field list as defined here:
@@ -654,7 +654,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param sql: The BigQuery SQL to execute.
         :type sql: str
-        :param destination_dataset_table: The dotted <dataset>.<table>
+        :param destination_dataset_table: The dotted ``<dataset>.<table>``
             BigQuery table to save the query results.
         :type destination_dataset_table: str
         :param write_disposition: What to do if the table already exists in
@@ -863,7 +863,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         For more details about these parameters.
 
-        :param source_project_dataset_table: The dotted <dataset>.<table>
+        :param source_project_dataset_table: The dotted ``<dataset>.<table>``
             BigQuery table to use as the source data.
         :type source_project_dataset_table: str
         :param destination_cloud_storage_uris: The destination Google Cloud
@@ -932,7 +932,7 @@ class BigQueryBaseCursor(LoggingMixin):
             ``(project:|project.)<dataset>.<table>``
             BigQuery tables to use as the source data. Use a list if there are
             multiple source tables.
-            If <project> is not included, project will be the project defined
+            If ``<project>`` is not included, project will be the project defined
             in the connection json.
         :type source_project_dataset_tables: list|string
         :param destination_project_dataset_table: The destination BigQuery
@@ -1015,8 +1015,8 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery
-            table to load data into. If <project> is not included, project will be the
+            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
+            table to load data into. If ``<project>`` is not included, project will be the
             project defined in the connection json. If a partition is specified the
             operator will automatically append the data, create a new partition or create
             a new DAY partitioned table.

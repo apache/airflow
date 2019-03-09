@@ -32,7 +32,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
 
     :param source_project_dataset_table: The dotted
         ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to use as the
-        source data. If <project> is not included, project will be the project
+        source data. If ``<project>`` is not included, project will be the project
         defined in the connection json. (templated)
     :type source_project_dataset_table: str
     :param destination_cloud_storage_uris: The destination Google Cloud

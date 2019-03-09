@@ -34,7 +34,7 @@ class BigQueryOperator(BaseOperator):
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'.
     :param destination_dataset_table: A dotted
-        (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
+        ``(<project>.|<project>:)<dataset>.<table>`` that, if set, will store the results
         of the query. (templated)
     :type destination_dataset_table: str
     :param write_disposition: Specifies the action that occurs if the destination table
@@ -361,8 +361,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         table to. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list
-    :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
-        BigQuery table to load data into (templated). If <project> is not included,
+    :param destination_project_dataset_table: The dotted ``(<project>.)<dataset>.<table>``
+        BigQuery table to load data into (templated). If ``<project>`` is not included,
         project will be the project defined in the connection json.
     :type destination_project_dataset_table: str
     :param schema_fields: If set, the schema field list as defined here:
