@@ -38,10 +38,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :type bucket: str
     :param source_objects: List of Google cloud storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
-    :type source_objects: list of str
-    :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
-        BigQuery table to load data into. If <project> is not included,
-        project will be the project defined in the connection json. (templated)
+    :type source_objects: list[str]
+    :param destination_project_dataset_table: The dotted
+        ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to load data into.
+        If ``<project>`` is not included, project will be the project defined in
+        the connection json. (templated)
     :type destination_project_dataset_table: str
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
