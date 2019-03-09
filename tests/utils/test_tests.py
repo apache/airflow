@@ -19,17 +19,9 @@
 
 import unittest
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-from contextlib import contextmanager
 
 
 class UtilsTestsTest(unittest.TestCase):
-
-    @contextmanager
-    def assertNotRaises(self, error_type):
-        try:
-            yield None
-        except error_type:
-            raise self.failureException('{} raised'.format(error_type.__name__))
 
     def test_assertEqualIgnoreMultipleSpaces_raises(self):
         str1 = 'w oo f'
@@ -44,5 +36,4 @@ class UtilsTestsTest(unittest.TestCase):
             oo    f
         """
 
-        with self.assertNotRaises(AssertionError):
-            assertEqualIgnoreMultipleSpaces(self, str1, str2)
+        assertEqualIgnoreMultipleSpaces(self, str1, str2)
