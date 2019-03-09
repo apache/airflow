@@ -17,23 +17,32 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
 import unittest
+from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+from contextlib import contextmanager
 
 
-def skipUnlessImported(module, obj):
-    import importlib
-    try:
-        m = importlib.import_module(module)
-    except ImportError:
-        m = None
-    return unittest.skipUnless(
-        obj in dir(m),
-        "Skipping test because {} could not be imported from {}".format(
-            obj, module))
+class UtilsTestsTest(unittest.TestCase):
 
+    @contextmanager
+    def assertNotRaises(self, error_type):
+        try:
+            yield None
+        except error_type:
+            raise self.failureException('{} raised'.format(error_type.__name__))
 
-def assertEqualIgnoreMultipleSpaces(case, first, second, msg=None):
-    def _trim(s):
-        return re.sub(r"\s+", " ", s.strip())
-    return case.assertEqual(_trim(first), _trim(second), msg)
+    def test_assertEqualIgnoreMultipleSpaces_raises(self):
+        str1 = 'w oo f'
+        str2 = 'meow'
+
+        self.assertRaises(AssertionError, lambda: assertEqualIgnoreMultipleSpaces(self, str1, str2))
+
+    def test_assertEqualIgnoreMultipleSpaces_passes(self):
+        str1 = 'w oo f'
+        str2 = """
+            w
+            oo    f
+        """
+
+        with self.assertNotRaises(AssertionError):
+            assertEqualIgnoreMultipleSpaces(self, str1, str2)
