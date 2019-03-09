@@ -38,6 +38,8 @@ from airflow.utils.state import State
 
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
+CORRUPT_DAG_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), os.pardir, 'corrupt_dags')
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -353,11 +355,11 @@ class TestParseDagFile(unittest.TestCase):
         self.assertEqual(names, {"test_zip_dag"})
 
     def test_parse_currupt_file(self):
-        file = os.path.join(TEST_DAG_FOLDER, "corrupt_dag.py")
+        file = os.path.join(CORRUPT_DAG_FOLDER, "corrupt_dag.py")
         self.assertRaises(AirflowException, process_dag_file, file)
 
     def test_parse_currupt_zip(self):
-        file = os.path.join(TEST_DAG_FOLDER, "corrupt.zip")
+        file = os.path.join(CORRUPT_DAG_FOLDER, "corrupt.zip")
         self.assertRaises(AirflowException, process_dag_file, file)
 
     def test_parse_file_no_dags(self):
