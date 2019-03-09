@@ -475,6 +475,7 @@ class BaseSensorTest(unittest.TestCase):
                 poke_interval=negative_poke_interval,
                 timeout=25)
 
+        with self.assertRaises(AirflowException):
             self._make_sensor(
                 return_value=None,
                 poke_interval=non_number_poke_interval,
@@ -495,6 +496,7 @@ class BaseSensorTest(unittest.TestCase):
                 poke_interval=10,
                 timeout=negative_timeout)
 
+        with self.assertRaises(AirflowException):
             self._make_sensor(
                 return_value=None,
                 poke_interval=10,
