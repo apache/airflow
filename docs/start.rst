@@ -33,13 +33,17 @@ The installation is quick and straightforward.
     # initialize the database
     airflow initdb
 
+    # if you build with master
+    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
+
     # start the web server, default port is 8080
     airflow webserver -p 8080
 
     # start the scheduler
     airflow scheduler
 
-    # visit localhost:8080 in the browser and enable the example dag in the home page
+    # visit localhost:8080 in the browser and use the admin account you just
+    # created to login. Enable the example dag in the home page
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and lay an "airflow.cfg" file with defaults that get you going fast. You can
