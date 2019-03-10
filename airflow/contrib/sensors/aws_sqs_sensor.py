@@ -65,7 +65,7 @@ class SQSSensor(BaseSensorOperator):
             self.log.debug("reveived message %s", str(messages))
 
             if 'Messages' not in messages:
-                self.log.debug('No message received ' + str(messages))
+                self.log.debug('No message received %s', str(messages))
                 return False
 
             if (len(messages['Messages']) > 0):
