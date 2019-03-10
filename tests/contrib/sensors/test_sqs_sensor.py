@@ -74,7 +74,7 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
-    def test_poke_failed(self):
+    def test_poke_no_messsage_failed(self):
         message = {
             'ResponseMetadata': {'RequestId': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
                                  'HTTPStatusCode': 200,
@@ -83,6 +83,24 @@ class TestSQSSensor(unittest.TestCase):
                                      'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
                                      'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
                                  'RetryAttempts': 0}}
+        self.mock_sqs_hook().get_conn().receive_message.return_value = message
+
+        result = self.sensor.poke(self.mock_context)
+        self.assertFalse(result)
+
+        context_calls = []
+
+        self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
+
+    def test_poke_messsage_array_empty_failed(self):
+        message = {'Messages': [],
+                   'ResponseMetadata': {'RequestId': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
+                                        'HTTPStatusCode': 200,
+                                        'HTTPHeaders': {
+                                            'x-amzn-requestid': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
+                                            'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
+                                            'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
+                                        'RetryAttempts': 0}}
         self.mock_sqs_hook().get_conn().receive_message.return_value = message
 
         result = self.sensor.poke(self.mock_context)
@@ -112,6 +130,13 @@ class TestSQSSensor(unittest.TestCase):
             self.sensor.poke(self.mock_context)
 
         self.assertTrue('Delete SQS Messages failed' in context.exception.args[0])
+
+    def test_poke_receive_raise_exception(self):
+        self.mock_sqs_hook().get_conn().receive_message.return_value = Exception('test exception')
+
+        result = self.sensor.poke(self.mock_context)
+
+        self.assertFalse(result)
 
 
 if __name__ == '__main__':

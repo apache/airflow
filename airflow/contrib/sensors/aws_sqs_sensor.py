@@ -82,7 +82,7 @@ class SQSSensor(BaseSensorOperator):
                     raise AirflowException(
                         'Delete SQS Messages failed ' + str(result) + ' for messages ' + str(messages))
 
-            return True
+            return False
 
         except AirflowException as ae:
             self.log.error('AirflowException %s', str(ae))
