@@ -193,10 +193,7 @@ class Airflow(AirflowBaseView):
 
     @expose('/home')
     @has_access
-    @provide_session
-    def index(self, session=None):
-        DM = models.DagModel
-
+    def index(self):
         hide_paused_dags_by_default = conf.getboolean('webserver',
                                                       'hide_paused_dags_by_default')
         show_paused_arg = request.args.get('showPaused', 'None')
@@ -224,19 +221,32 @@ class Airflow(AirflowBaseView):
         else:
             hide_paused = hide_paused_dags_by_default
 
-        # read orm_dags from the db
-        query = session.query(DM).filter(
-            ~DM.is_subdag, DM.is_active
-        )
+        start = current_page * dags_per_page
+        end = start + dags_per_page
 
-        # optionally filter out "paused" dags
-        if hide_paused:
-            query = query.filter(~DM.is_paused)
+        # Get all the dag id the user could access
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
-        if arg_search_query:
-            query = query.filter(sqla.func.lower(DM.dag_id) == arg_search_query.lower())
+        with create_session() as session:
+            # read orm_dags from the db
+            dags_query = session.query(DagModel).filter(
+                ~DagModel.is_subdag, DagModel.is_active
+            )
 
-        import_errors = session.query(errors.ImportError).all()
+            # optionally filter out "paused" dags
+            if hide_paused:
+                dags_query = dags_query.filter(~DagModel.is_paused)
+
+            if arg_search_query:
+                dags_query = dags_query.filter(sqla.func.lower(DagModel.dag_id) == arg_search_query.lower())
+
+            if 'all_dags' not in filter_dag_ids:
+                dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+
+            dags = dags_query.order_by(DagModel.dag_id).offset(start).limit(dags_per_page).all()
+
+            import_errors = session.query(errors.ImportError).all()
+
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
@@ -250,24 +260,11 @@ class Airflow(AirflowBaseView):
                     filename=filename),
                 "error")
 
-        # Get all the dag id the user could access
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-
-        if 'all_dags' not in filter_dag_ids:
-            query = query.filter(DM.dag_id.in_(filter_dag_ids))
-
-        query = query.order_by(DM.dag_id)
-
-        start = current_page * dags_per_page
-        end = start + dags_per_page
-
-        dags = query.offset(start).limit(dags_per_page).all()
-
-        num_of_all_dags = query.count()
+        num_of_all_dags = dags_query.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
         auto_complete_data = set()
-        for row in query.with_entities(DM.dag_id, DM.owners):
+        for row in dags_query.with_entities(DagModel.dag_id, DagModel.owners):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
 
