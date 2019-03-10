@@ -74,9 +74,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.soft_fail = soft_fail
         self.timeout = timeout
         self.mode = mode
-        self._validate_inputs()
+        self.validate_inputs()
 
-    def _validate_inputs(self):
+    def validate_inputs(self):
         if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
             raise AirflowException(
                 "The poke_interval must be a non-negative number")
