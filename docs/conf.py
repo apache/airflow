@@ -50,6 +50,7 @@ autodoc_mock_imports = [
     'cassandra',
     'celery',
     'cloudant',
+    'cryptography',
     'cx_Oracle',
     'datadog',
     'distributed',
