@@ -90,6 +90,7 @@ from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
+from airflow.stats import Stats
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -114,8 +115,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 install_aliases()
 
 XCOM_RETURN_KEY = 'return_value'
-
-Stats = settings.Stats
 
 
 class InvalidFernetToken(Exception):
