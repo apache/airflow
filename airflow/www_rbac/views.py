@@ -66,7 +66,7 @@ from airflow.settings import STORE_SERIALIZED_DAGS
 from airflow.ti_deps.dep_context import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS, DepContext
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.state import State
 from airflow._vendor import nvd3
@@ -215,10 +215,7 @@ class Airflow(AirflowBaseView):
 
     @expose('/home')
     @has_access
-    @provide_session
-    def index(self, session=None):
-        DM = models.DagModel
-
+    def index(self):
         hide_paused_dags_by_default = conf.getboolean('webserver',
                                                       'hide_paused_dags_by_default')
         show_paused_arg = request.args.get('showPaused', 'None')
@@ -257,22 +254,45 @@ class Airflow(AirflowBaseView):
         else:
             hide_paused = hide_paused_dags_by_default
 
-        # read orm_dags from the db
-        query = session.query(DM).filter(
-            ~DM.is_subdag, DM.is_active
-        )
+        start = current_page * dags_per_page
+        end = start + dags_per_page
 
-        # optionally filter out "paused" dags
-        if hide_paused:
-            query = query.filter(~DM.is_paused)
+        # Get all the dag id the user could access
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
 
-        if arg_search_query:
-            query = query.filter(
-                DagModel.dag_id.ilike('%' + arg_search_query + '%') |
-                DagModel.owners.ilike('%' + arg_search_query + '%')
+        with create_session() as session:
+            # read orm_dags from the db
+            dags_query = session.query(DagModel).filter(
+                ~DagModel.is_subdag, DagModel.is_active
             )
 
-        import_errors = session.query(errors.ImportError).all()
+            # optionally filter out "paused" dags
+            if hide_paused:
+                dags_query = dags_query.filter(~DagModel.is_paused)
+
+            if arg_search_query:
+                dags_query = dags_query.filter(
+                    DagModel.dag_id.ilike('%' + arg_search_query + '%') |
+                    DagModel.owners.ilike('%' + arg_search_query + '%')
+                )
+
+            if arg_tags_filter:
+                dags_query = dags_query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
+
+            if 'all_dags' not in filter_dag_ids:
+                dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+
+            dags = dags_query.order_by(DagModel.dag_id).options(
+                joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
+
+            dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
+            tags = [
+                {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
+                for name, in dagtags
+            ]
+
+            import_errors = session.query(errors.ImportError).all()
+
         for ie in import_errors:
             flash(
                 "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
@@ -286,29 +306,7 @@ class Airflow(AirflowBaseView):
                     filename=filename),
                 "error")
 
-        # Get all the dag id the user could access
-        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
-
-        if arg_tags_filter:
-            query = query.filter(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
-
-        if 'all_dags' not in filter_dag_ids:
-            query = query.filter(DM.dag_id.in_(filter_dag_ids))
-
-        start = current_page * dags_per_page
-        end = start + dags_per_page
-
-        dags = query.order_by(DagModel.dag_id).options(
-            joinedload(DagModel.tags)).offset(start).limit(dags_per_page).all()
-        tags = []
-
-        dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
-        tags = [
-            {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
-            for name, in dagtags
-        ]
-
-        num_of_all_dags = query.count()
+        num_of_all_dags = dags_query.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
         return self.render_template(
