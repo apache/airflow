@@ -256,12 +256,11 @@ class DbApiHook(BaseHook):
                     if commit_every and i % commit_every == 0:
                         conn.commit()
                         self.log.info(
-                            "Loaded {i} into {table} rows so far".format(**locals())
+                            "Loaded %s into %s rows so far", i, table
                         )
 
             conn.commit()
-        self.log.info(
-            "Done loading. Loaded a total of {i} rows".format(**locals()))
+        self.log.info("Done loading. Loaded a total of %s rows", i)
 
     @staticmethod
     def _serialize_cell(cell, conn=None):

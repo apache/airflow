@@ -66,8 +66,8 @@ class WebHDFSHook(BaseHook):
                 return client
             except HdfsError as e:
                 self.log.debug(
-                    "Read operation on namenode {nn.host} "
-                    "failed with error: {e}".format(nn=nn, e=e)
+                    "Read operation on namenode %s "
+                    "failed with error: %s", nn.host, e
                 )
         nn_hosts = [c.host for c in nn_connections]
         no_nn_error = "Read operations failed " \

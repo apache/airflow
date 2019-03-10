@@ -816,7 +816,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
                 if param_name == 'schemaUpdateOptions' and param:
                     self.log.info("Adding experimental 'schemaUpdateOptions': "
-                                  "{0}".format(schema_update_options))
+                                  "%s", schema_update_options)
 
                 if param_name == 'destinationTable':
                     for key in ['projectId', 'datasetId', 'tableId']:
@@ -1157,8 +1157,9 @@ class BigQueryBaseCursor(LoggingMixin):
                                  "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
             else:
                 self.log.info(
-                    "Adding experimental "
-                    "'schemaUpdateOptions': {0}".format(schema_update_options))
+                    "Adding experimental 'schemaUpdateOptions': %s",
+                    schema_update_options
+                )
                 configuration['load'][
                     'schemaUpdateOptions'] = schema_update_options
 
@@ -1559,9 +1560,10 @@ class BigQueryBaseCursor(LoggingMixin):
             param, param_name, param_default = param_tuple
             if param_name not in dataset_reference['datasetReference']:
                 if param_default and not param:
-                    self.log.info("{} was not specified. Will be used default "
-                                  "value {}.".format(param_name,
-                                                     param_default))
+                    self.log.info(
+                        "%s was not specified. Will be used default value %s.",
+                        param_name, param_default
+                    )
                     param = param_default
                 dataset_reference['datasetReference'].update(
                     {param_name: param})
@@ -1639,7 +1641,7 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             dataset_resource = self.service.datasets().get(
                 datasetId=dataset_id, projectId=dataset_project_id).execute()
-            self.log.info("Dataset Resource: {}".format(dataset_resource))
+            self.log.info("Dataset Resource: %s", dataset_resource)
         except HttpError as err:
             raise AirflowException(
                 'BigQuery job failed. Error was: {}'.format(err.content))
@@ -1686,7 +1688,7 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             datasets_list = self.service.datasets().list(
                 projectId=dataset_project_id).execute()['datasets']
-            self.log.info("Datasets List: {}".format(datasets_list))
+            self.log.info("Datasets List: %s", datasets_list)
 
         except HttpError as err:
             raise AirflowException(
@@ -1741,9 +1743,10 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         try:
-            self.log.info('Inserting {} row(s) into Table {}:{}.{}'.format(
-                len(rows), dataset_project_id,
-                dataset_id, table_id))
+            self.log.info(
+                'Inserting %s row(s) into Table %s:%s.%s',
+                len(rows), dataset_project_id, dataset_id, table_id
+            )
 
             resp = self.service.tabledata().insertAll(
                 projectId=dataset_project_id, datasetId=dataset_id,
@@ -1751,8 +1754,10 @@ class BigQueryBaseCursor(LoggingMixin):
             ).execute()
 
             if 'insertErrors' not in resp:
-                self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
-                    dataset_project_id, dataset_id, table_id))
+                self.log.info(
+                    'All row(s) inserted successfully: %s:%s.%s',
+                    dataset_project_id, dataset_id, table_id
+                )
             else:
                 error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
                     len(resp['insertErrors']),
@@ -2034,11 +2039,10 @@ def _split_tablename(table_input, default_project_id, var_name=None):
     if project_id is None:
         if var_name is not None:
             log = LoggingMixin().log
-            log.info('Project not included in {var}: {input}; '
-                     'using project "{project}"'.format(
-                         var=var_name,
-                         input=table_input,
-                         project=default_project_id))
+            log.info(
+                'Project not included in %s: %s; using project "%s"',
+                var_name, table_input, default_project_id
+            )
         project_id = default_project_id
 
     return project_id, dataset_id, table_id

@@ -211,7 +211,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                       .filter(sqla_models.Role.name == role_name)\
                       .first()
         if role:
-            self.log.info("Deleting role '{}'".format(role_name))
+            self.log.info("Deleting role '%s'", role_name)
             session.delete(role)
             session.commit()
         else:
@@ -339,7 +339,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         deleted_count = pvms.delete()
         sesh.commit()
         if deleted_count:
-            self.log.info('Deleted {} faulty permissions'.format(deleted_count))
+            self.log.info('Deleted %s faulty permissions', deleted_count)
 
     def _merge_perm(self, permission_name, view_menu_name):
         """
@@ -510,10 +510,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         def _get_or_create_dag_permission(perm_name):
             dag_perm = self.find_permission_view_menu(perm_name, dag_id)
             if not dag_perm:
-                self.log.info("Creating new permission '{}' on view '{}'".format(
-                    perm_name,
-                    dag_id
-                ))
+                self.log.info(
+                    "Creating new permission '%s' on view '%s'",
+                    perm_name, dag_id
+                )
                 dag_perm = self.add_permission_view_menu(perm_name, dag_id)
 
             return dag_perm
@@ -526,11 +526,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 for role in non_admin_roles:
                     target_perms_for_role = access_control.get(role.name, {})
                     if perm.permission.name not in target_perms_for_role:
-                        self.log.info("Revoking '{}' on DAG '{}' for role '{}'".format(
-                            perm.permission,
-                            dag_id,
-                            role.name
-                        ))
+                        self.log.info(
+                            "Revoking '%s' on DAG '%s' for role '%s'",
+                            perm.permission, dag_id, role.name
+                        )
                         self.del_permission_role(role, perm)
 
         dag_view = self.find_view_menu(dag_id)

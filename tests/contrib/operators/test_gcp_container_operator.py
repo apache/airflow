@@ -285,7 +285,7 @@ class GKEPodOperatorTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_container_operator.GKEPodOperator.log')
     def test_get_field_fail(self, log_mock):
         log_mock.info = mock.Mock()
-        LOG_STR = 'Field {} not found in extras.'
+        LOG_STR = 'Field %s not found in extras.'
         FIELD_NAME = 'test_field'
         FIELD_VALUE = 'test_field_value'
 
@@ -294,4 +294,4 @@ class GKEPodOperatorTest(unittest.TestCase):
         ret_val = self.gke_op._get_field(extras, FIELD_NAME, default=FIELD_VALUE)
         # Assert default is returned upon failure
         self.assertEqual(FIELD_VALUE, ret_val)
-        log_mock.info.assert_called_with(LOG_STR.format(FIELD_NAME))
+        log_mock.info.assert_called_with(LOG_STR, FIELD_NAME)

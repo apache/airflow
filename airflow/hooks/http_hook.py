@@ -75,8 +75,7 @@ class HttpHook(BaseHook):
             try:
                 session.headers.update(conn.extra_dejson)
             except TypeError:
-                self.log.warn('Connection to {} has invalid extra field.'.format(
-                    conn.host))
+                self.log.warn('Connection to %s has invalid extra field.', conn.host)
         if headers:
             session.headers.update(headers)
 

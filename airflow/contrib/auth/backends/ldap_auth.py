@@ -235,7 +235,7 @@ class LdapUser(models.User):
             Unable to parse LDAP structure. If you're using Active Directory
             and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
             %s
-            """ % traceback.format_exc())
+            """, traceback.format_exc())
             raise LdapException(
                 "Could not parse LDAP structure. "
                 "Try setting search_scope in airflow.cfg, or check logs"

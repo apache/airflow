@@ -73,8 +73,7 @@ class S3PrefixSensor(BaseSensorOperator):
         self.verify = verify
 
     def poke(self, context):
-        self.log.info('Poking for prefix : {self.prefix}\n'
-                      'in bucket s3://{self.bucket_name}'.format(**locals()))
+        self.log.info('Poking for prefix : %s in bucket s3://%s', self.prefix, self.bucket_name)
         from airflow.hooks.S3_hook import S3Hook
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         return hook.check_for_prefix(

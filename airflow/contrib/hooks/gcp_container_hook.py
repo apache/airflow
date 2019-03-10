@@ -80,7 +80,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
         :type project_id: str
         :return: A new, updated operation fetched from Google Cloud
         """
-        self.log.info("Waiting for OPERATION_NAME %s" % operation.name)
+        self.log.info("Waiting for OPERATION_NAME %s", operation.name)
         time.sleep(OPERATIONAL_POLL_INTERVAL)
         while operation.status != Operation.Status.DONE:
             if operation.status == Operation.Status.RUNNING or operation.status == \
@@ -151,8 +151,9 @@ class GKEClusterHook(GoogleCloudBaseHook):
         :return: The full url to the delete operation if successful, else None
         """
 
-        self.log.info("Deleting (project_id={}, zone={}, cluster_id={})".format(
-            self.project_id, self.location, name))
+        self.log.info(
+            "Deleting (project_id=%s, zone=%s, cluster_id=%s)", self.project_id, self.location, name
+        )
 
         try:
             op = self.get_client().delete_cluster(project_id=project_id or self.project_id,
@@ -164,7 +165,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
             # Returns server-defined url for the resource
             return op.self_link
         except NotFound as error:
-            self.log.info('Assuming Success: ' + error.message)
+            self.log.info('Assuming Success: %s', error.message)
 
     def create_cluster(self, cluster, project_id=None, retry=DEFAULT, timeout=DEFAULT):
         """
@@ -200,10 +201,10 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
         self._append_label(cluster, 'airflow-version', 'v' + version.version)
 
-        self.log.info("Creating (project_id={}, zone={}, cluster_name={})".format(
-            self.project_id,
-            self.location,
-            cluster.name))
+        self.log.info(
+            "Creating (project_id=%s, zone=%s, cluster_name=%s)",
+            self.project_id, self.location, cluster.name
+        )
         try:
             op = self.get_client().create_cluster(project_id=project_id or self.project_id,
                                                   zone=self.location,
@@ -214,7 +215,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
 
             return op.target_link
         except AlreadyExists as error:
-            self.log.info('Assuming Success: ' + error.message)
+            self.log.info('Assuming Success: %s', error.message)
             return self.get_cluster(name=cluster.name).self_link
 
     def get_cluster(self, name, project_id=None, retry=DEFAULT, timeout=DEFAULT):
@@ -234,10 +235,10 @@ class GKEClusterHook(GoogleCloudBaseHook):
         :type timeout: float
         :return: google.cloud.container_v1.types.Cluster
         """
-        self.log.info("Fetching cluster (project_id={}, zone={}, cluster_name={})".format(
-            project_id or self.project_id,
-            self.location,
-            name))
+        self.log.info(
+            "Fetching cluster (project_id=%s, zone=%s, cluster_name=%s)",
+            project_id or self.project_id, self.location, name
+        )
 
         return self.get_client().get_cluster(project_id=project_id or self.project_id,
                                              zone=self.location,

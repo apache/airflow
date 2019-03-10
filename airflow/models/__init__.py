@@ -527,7 +527,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
 
             self.dags[dag.dag_id] = dag
-            self.log.debug('Loaded DAG {dag}'.format(**locals()))
+            self.log.debug('Loaded DAG %s', dag)
         except AirflowDagCycleException as cycle_exception:
             # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception('Exception bagging dag: {dag.dag_id}'.format(**locals()))
@@ -1253,15 +1253,11 @@ class TaskInstance(Base, LoggingMixin):
             return False
 
         # TODO: Logging needs cleanup, not clear what is being printed
-        hr = "\n" + ("-" * 80) + "\n"  # Line break
+        hr = "\n" + ("-" * 80)  # Line break
 
         # For reporting purposes, we report based on 1-indexed,
         # not 0-indexed lists (i.e. Attempt 1 instead of
         # Attempt 0 for the first attempt).
-        msg = "Starting attempt {attempt} of {total}".format(
-            attempt=self.try_number,
-            total=self.max_tries + 1)
-
         # Set the task start date. In case it was re-scheduled use the initial
         # start date that is recorded in task_reschedule table
         self.start_date = timezone.utcnow()
@@ -1285,11 +1281,12 @@ class TaskInstance(Base, LoggingMixin):
             # have been running prematurely. This should be handled in the
             # scheduling mechanism.
             self.state = State.NONE
-            msg = ("FIXME: Rescheduling due to concurrency limits reached at task "
-                   "runtime. Attempt {attempt} of {total}. State set to NONE.").format(
-                attempt=self.try_number,
-                total=self.max_tries + 1)
-            self.log.warning(hr + msg + hr)
+            self.log.warning(hr)
+            self.log.warning(
+                "FIXME: Rescheduling due to concurrency limits reached at task runtime. Attempt %s of "
+                "%s. State set to NONE.", self.try_number, self.max_tries + 1
+            )
+            self.log.warning(hr)
 
             self.queued_dttm = timezone.utcnow()
             self.log.info("Queuing into pool %s", self.pool)
@@ -1300,13 +1297,14 @@ class TaskInstance(Base, LoggingMixin):
         # Another worker might have started running this task instance while
         # the current worker process was blocked on refresh_from_db
         if self.state == State.RUNNING:
-            msg = "Task Instance already running {}".format(self)
-            self.log.warning(msg)
+            self.log.warning("Task Instance already running %s", self)
             session.commit()
             return False
 
         # print status message
-        self.log.info(hr + msg + hr)
+        self.log.info(hr)
+        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
+        self.log.info(hr)
         self._try_number += 1
 
         if not test_mode:
@@ -1323,12 +1321,9 @@ class TaskInstance(Base, LoggingMixin):
         settings.engine.dispose()
         if verbose:
             if mark_success:
-                msg = "Marking success for {} on {}".format(self.task,
-                                                            self.execution_date)
-                self.log.info(msg)
+                self.log.info("Marking success for %s on %s", self.task, self.execution_date)
             else:
-                msg = "Executing {} on {}".format(self.task, self.execution_date)
-                self.log.info(msg)
+                self.log.info("Executing %s on %s", self.task, self.execution_date)
         return True
 
     @provide_session
