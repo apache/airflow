@@ -16,14 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-sudo: true
 dist: xenial
 language: python
 python:
   - "3.6"
 env:
   global:
-    - DOCKER_COMPOSE_VERSION=1.20.0
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
     - TOX_ENV=py27-backend_mysql-env_docker
@@ -64,11 +62,6 @@ before_install:
   # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
   - if [ ! -z "$KUBERNETES_VERSION" ]; then sudo mount --make-shared / && sudo service docker restart; fi
 install:
-  # Use recent docker-compose version
-  - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-  - chmod +x docker-compose
-  - sudo mv docker-compose /usr/local/bin
   - pip install --upgrade pip
   - docker-compose -f scripts/ci/docker-compose.yml pull --quiet --parallel
 script:
