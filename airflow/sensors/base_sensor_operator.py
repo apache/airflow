@@ -77,17 +77,17 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self._validate_inputs()
 
     def _validate_inputs(self):
-            if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
-                raise AirflowException(
-                    "The poke_interval must be a non-negative number")
-            if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
-                raise AirflowException(
-                    "The timeout must be a non-negative number")
-            if self.mode not in self.valid_modes:
-                raise AirflowException(
-                    "The mode must be one of {valid_modes},"
-                    "'{d}.{t}'; received '{m}'."
-                    .format(valid_modes=self.valid_modes,
+        if not isinstance(self.poke_interval, (int, float)) or self.poke_interval < 0:
+            raise AirflowException(
+                "The poke_interval must be a non-negative number")
+        if not isinstance(self.timeout, (int, float)) or self.timeout < 0:
+            raise AirflowException(
+                "The timeout must be a non-negative number")
+        if self.mode not in self.valid_modes:
+            raise AirflowException(
+                "The mode must be one of {valid_modes},"
+                "'{d}.{t}'; received '{m}'."
+                .format(valid_modes=self.valid_modes,
                         d=self.dag.dag_id if self.dag else "",
                         t=self.task_id, m=self.mode))
 
