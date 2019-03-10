@@ -192,7 +192,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             self.get_session.merge(role)
             self.get_session.commit()
         else:
-            self.log.info('Existing permissions for the role:%s within the database will persist.', role_name)
+            self.log.debug('Existing permissions for the role:%s '
+                           'within the database will persist.', role_name)
 
     def get_user_roles(self, user=None):
         """
@@ -311,7 +312,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         deleted_count = pvms.delete()
         sesh.commit()
         if deleted_count:
-            self.log.info('Deleted {} faulty permissions'.format(deleted_count))
+            self.log.info('Deleted %s faulty permissions', deleted_count)
 
     def _merge_perm(self, permission_name, view_menu_name):
         """
