@@ -37,7 +37,7 @@ def register_pre_exec_callback(action_logger):
     :param action_logger: An action logger function
     :return: None
     """
-    logging.debug("Adding {} to pre execution callback".format(action_logger))
+    logging.debug("Adding %s to pre execution callback", action_logger)
     __pre_exec_callbacks.append(action_logger)
 
 
@@ -50,7 +50,7 @@ def register_post_exec_callback(action_logger):
     :param action_logger: An action logger function
     :return: None
     """
-    logging.debug("Adding {} to post execution callback".format(action_logger))
+    logging.debug("Adding %s to post execution callback", action_logger)
     __post_exec_callbacks.append(action_logger)
 
 
@@ -61,12 +61,12 @@ def on_pre_execution(**kwargs):
     :param kwargs:
     :return: None
     """
-    logging.debug("Calling callbacks: {}".format(__pre_exec_callbacks))
+    logging.debug("Calling callbacks: %s", __pre_exec_callbacks)
     for cb in __pre_exec_callbacks:
         try:
             cb(**kwargs)
         except Exception:
-            logging.exception('Failed on pre-execution callback using {}'.format(cb))
+            logging.exception('Failed on pre-execution callback using %s', cb)
 
 
 def on_post_execution(**kwargs):
@@ -78,12 +78,12 @@ def on_post_execution(**kwargs):
     :param kwargs:
     :return: None
     """
-    logging.debug("Calling callbacks: {}".format(__post_exec_callbacks))
+    logging.debug("Calling callbacks: %s", __post_exec_callbacks)
     for cb in __post_exec_callbacks:
         try:
             cb(**kwargs)
         except Exception:
-            logging.exception('Failed on post-execution callback using {}'.format(cb))
+            logging.exception('Failed on post-execution callback using %s', cb)
 
 
 def default_action_log(log, **_):
