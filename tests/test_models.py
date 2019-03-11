@@ -46,7 +46,7 @@ from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI, DagBag
 from airflow.models import DagModel, DagRun
 from airflow.models import State as ST
 from airflow.models import Variable
@@ -1963,25 +1963,23 @@ class DagBagTest(unittest.TestCase):
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
+        dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        session = settings.Session
-        session.add(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
-        session.commit()
+        model_before = DagModel(dag_id=dag_id, is_active=True)
+        with create_session() as session:
+            session.merge(model_before)
 
         models.DAG.deactivate_unknown_dags(expected_active_dags)
 
-        for dag in session.query(DagModel).all():
-            if dag.dag_id in expected_active_dags:
-                self.assertTrue(dag.is_active)
-            else:
-                self.assertEqual(dag.dag_id, 'test_deactivate_unknown_dags')
-                self.assertFalse(dag.is_active)
+        after_model = DagModel.get_dagmodel(dag_id)
+        self.assertTrue(model_before.is_active)
+        self.assertFalse(after_model.is_active)
 
         # clean up
-        session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
-        session.commit()
+        with create_session() as session:
+            session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
 
 class TaskInstanceTest(unittest.TestCase):
