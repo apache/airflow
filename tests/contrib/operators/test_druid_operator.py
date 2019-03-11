@@ -26,6 +26,11 @@ from airflow.contrib.operators.druid_operator import DruidOperator
 from airflow.utils import timezone
 from airflow.models import TaskInstance
 
+try:
+    from jinja2.nativetypes import NativeEnvironment
+except ImportError:
+    NativeEnvironment = None
+
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
@@ -79,19 +84,35 @@ class TestDruidOperator(unittest.TestCase):
             ti.render_templates()
 
             m.assert_called_once_with('index_spec.json')
-            expected = '''{
-    "datasource": "datasource_prd",
-    "spec": {
-        "dataSchema": {
-            "granularitySpec": {
-                "intervals": [
-                    "2017-01-01/2017-01-02"
-                ]
+            if NativeEnvironment:
+                expected = {
+                    "datasource": "datasource_prd",
+                    "spec": {
+                        "dataSchema": {
+                            "granularitySpec": {
+                                "intervals": [
+                                    "2017-01-01/2017-01-02"
+                                ]
+                            }
+                        }
+                    },
+                    "type": "index_hadoop"
+                }
+            else:
+                expected = '''{
+        "datasource": "datasource_prd",
+        "spec": {
+            "dataSchema": {
+                "granularitySpec": {
+                    "intervals": [
+                        "2017-01-01/2017-01-02"
+                    ]
+                }
             }
-        }
-    },
-    "type": "index_hadoop"
-}'''
+        },
+        "type": "index_hadoop"
+    }'''
+
             self.assertEqual(expected, getattr(operator, 'index_spec_str'))
 
 

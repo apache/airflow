@@ -85,6 +85,11 @@ except ImportError:
     # Python 3
     import pickle
 
+try:
+    from jinja2.nativetypes import NativeEnvironment
+except ImportError:
+    NativeEnvironment = None
+
 
 class OperatorSubclass(BaseOperator):
     """
@@ -615,8 +620,16 @@ class CoreTest(unittest.TestCase):
         Variable.set("a_variable", val['test_value'], serialize_json=True)
 
         def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field,
-                             u'{"foo": "bar"}')
+            if NativeEnvironment:
+                self.assertEqual(
+                    context['ti'].task.some_templated_field,
+                    {"foo": "bar"}
+                )
+            else:
+                self.assertEqual(
+                    context['ti'].task.some_templated_field,
+                    u'{"foo": "bar"}'
+                )
 
         t = OperatorSubclass(
             task_id='test_complex_template',

@@ -31,6 +31,11 @@ except ImportError:
     except ImportError:
         mock = None
 
+try:
+    from jinja2.nativetypes import NativeEnvironment
+except ImportError:
+    NativeEnvironment = None
+
 
 class ValueCheckOperatorTest(unittest.TestCase):
 
@@ -65,7 +70,10 @@ class ValueCheckOperatorTest(unittest.TestCase):
         result = operator.render_template('pass_value', operator.pass_value, {})
 
         self.assertEqual(operator.task_id, self.task_id)
-        self.assertEqual(result, str(pass_value_float))
+        if NativeEnvironment:
+            self.assertEqual(result, pass_value_float)
+        else:
+            self.assertEqual(result, str(pass_value_float))
 
     @mock.patch.object(ValueCheckOperator, 'get_db_hook')
     def test_execute_pass(self, mock_get_db_hook):

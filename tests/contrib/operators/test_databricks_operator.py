@@ -173,6 +173,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
         op.json = op.render_template('json', op.json, {'ds': DATE})
+        op.json = databricks_operator._deep_string_coerce(op.json)
         expected = databricks_operator._deep_string_coerce({
             'new_cluster': NEW_CLUSTER,
             'notebook_task': RENDERED_TEMPLATED_NOTEBOOK_TASK,
@@ -340,6 +341,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
         op.json = op.render_template('json', op.json, {'ds': DATE})
+        op.json = databricks_operator._deep_string_coerce(op.json)
         expected = databricks_operator._deep_string_coerce({
             'notebook_params': NOTEBOOK_PARAMS,
             'jar_params': RENDERED_TEMPLATED_JAR_PARAMS,
