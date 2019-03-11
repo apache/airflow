@@ -278,6 +278,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.vertica_to_mysql.VerticaToMySqlTransfer
 .. autoclass:: airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator
 .. autoclass:: airflow.contrib.operators.winrm_operator.WinRMOperator
+.. autoclass:: airflow.contrib.operators.telegram_operator.TelegramAPIOperator
 
 Sensors
 ^^^^^^^
@@ -536,6 +537,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.vertica_hook.VerticaHook
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 .. autoclass:: airflow.contrib.hooks.winrm_hook.WinRMHook
+.. autoclass:: airflow.contrib.hooks.telegram_hook.TelegramHook
 
 Executors
 ---------

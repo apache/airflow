@@ -1,19 +1,46 @@
 import telegram
-from time import sleep
+import time
+from functools import wraps
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
 
-def telegram_retry(func, *args, **kwargs):
-    max_retries = kwargs.pop("max_retries", 5)
-    retry_sleep = kwargs.pop("retry_sleep", 0)
-    # perform request with retry
-    for retry in range(max_retries):
-        try:
-            return func(*args, **kwargs)
-        except (telegram.error.TimedOut,) as e:
-            if retry_sleep:
-                sleep(retry_sleep)
+def retry(exceptions, tries=4, delay=3, backoff=2, logger=None):
+    """
+    Retry calling the decorated function using an exponential backoff.
+    (с) Eliot aka saltycrane, https://www.saltycrane.com/blog/2009/11/trying-out-retry-decorator-python/
+
+    Args:
+        exceptions: The exception to check. may be a tuple of
+            exceptions to check.
+        tries: Number of times to try (not retry) before giving up.
+        delay: Initial delay between retries in seconds.
+        backoff: Backoff multiplier (e.g. value of 2 will double the delay
+            each retry).
+        logger: Logger to use. If None, print.
+    """
+
+    def deco_retry(f):
+        @wraps(f)
+        def f_retry(*args, **kwargs):
+            mtries, mdelay = tries, delay
+            while mtries > 1:
+                try:
+                    return f(*args, **kwargs)
+                except exceptions as e:
+                    msg = "{}, Retrying in {} seconds...".format(e, mdelay)
+                    if logger:
+                        logger.warning(msg)
+                    else:
+                        print(msg)
+                    time.sleep(mdelay)
+                    mtries -= 1
+                    mdelay *= backoff
+            return f(*args, **kwargs)
+
+        return f_retry  # true decorator
+
+    return deco_retry
 
 
 class TelegramHook(BaseHook):
@@ -21,13 +48,11 @@ class TelegramHook(BaseHook):
        Interact with Telegram, using python-telegram-bot library.
     """
 
-    def __init__(self, token=None, telegram_conn_id=None, chat_id=None):
+    def __init__(self, telegram_conn_id=None, chat_id=None):
         """
         Takes both telegram bot API token directly and connection that has telegram bot API token.
         If both supplied, telegram API token will be used.
         
-        :param token: telegram API token
-        :type token: str
         :param telegram_conn_id: connection that has telegram API token in the password field
         :type telegram_conn_id: str
         :param chat_id: Telegram public or private channel id (optional).
@@ -35,13 +60,15 @@ class TelegramHook(BaseHook):
         channel
         :type chat_id: str
         """
-        self.token = self.__get_token(token, telegram_conn_id)
+        self.token = self.__get_token(telegram_conn_id)
         self.chat_id = self.__get_chat_id(chat_id, telegram_conn_id)
+        self.connection = self.get_conn()
 
-    def __get_token(self, token, telegram_conn_id):
-        if token is not None:
-            return token
-        elif telegram_conn_id is not None:
+    def get_conn(self):
+        return telegram.Bot(token=self.token)
+
+    def __get_token(self, telegram_conn_id):
+        if telegram_conn_id is not None:
             conn = self.get_connection(telegram_conn_id)
 
             if not conn.password:
@@ -49,8 +76,7 @@ class TelegramHook(BaseHook):
             return conn.password
         else:
             raise AirflowException(
-                "Cannot get token: "
-                "No valid Telegram token nor telegram_conn_id supplied."
+                "Cannot get token: " "No valid Telegram connection supplied."
             )
 
     def __get_chat_id(self, chat_id, telegram_conn_id):
@@ -67,17 +93,16 @@ class TelegramHook(BaseHook):
                 "Cannot get chat_id: " "No valid chat_id nor telegram_conn_id supplied."
             )
 
+    @retry(exceptions=telegram.error.TelegramError, tries=5, delay=0)
     def call(self, method, api_params):
         """
         Send a message to a telegram channel
 
         :param method: not used
         :type method: str
-        :param method: params for telegram_instance.send_message. You can use
-        it also to override chat_id
-        :type method: dict
+        :param api_params: params for telegram_instance.send_message. You can use it also to override chat_id
+        :type api_params: dict
         """
-        bot_instance = telegram.Bot(token=self.token)
 
         params = {
             "chat_id": self.chat_id,
@@ -86,4 +111,7 @@ class TelegramHook(BaseHook):
         }
         params.update(api_params)
 
-        self.log.info(telegram_retry(bot_instance.send_message, **params))
+        self.log.info(self.connection.send_message(**params))
+
+
+__all__ = [TelegramHook]

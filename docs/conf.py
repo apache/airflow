@@ -88,6 +88,7 @@ autodoc_mock_imports = [
     'vertica_python',
     'winrm',
     'zdesk',
+    'telegram',
 ]
 
 # Hack to allow changing for piece of the code to behave differently while
