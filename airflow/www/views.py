@@ -1485,8 +1485,15 @@ class Airflow(BaseView):
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
+        def set_duration(tid):
+                if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
+                            tid["start_date"] is not None):
+                    d = timezone.utcnow() - pendulum.parse(tid["start_date"])
+                    tid["duration"] = d.total_seconds()
+                return tid
+
         task_instances = {
-            ti.task_id: alchemy_to_dict(ti)
+            ti.task_id: set_duration(alchemy_to_dict(ti))
             for ti in dag.get_task_instances(session, dttm, dttm)}
         tasks = {
             t.task_id: {
@@ -1891,8 +1898,15 @@ class Airflow(BaseView):
         else:
             return ("Error: Invalid execution_date")
 
+        def set_duration(tid):
+            if (isinstance(tid, dict) and tid.get("state") == State.RUNNING and
+                        tid["start_date"] is not None):
+                d = timezone.utcnow() - pendulum.parse(tid["start_date"])
+                tid["duration"] = d.total_seconds()
+            return tid
+
         task_instances = {
-            ti.task_id: alchemy_to_dict(ti)
+            ti.task_id: set_duration(alchemy_to_dict(ti))
             for ti in dag.get_task_instances(session, dttm, dttm)}
 
         return json.dumps(task_instances)
