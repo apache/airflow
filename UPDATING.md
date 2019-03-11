@@ -26,7 +26,7 @@ assists users migrating to a new version.
 
 ### HTTPHook verify default value changed from False to True.
 
-The HTTPHook is now secured by default: verify=True.
+The HTTPHook is now secured by default: `verify=True`.
 This can be overwriten by using the extra_options param as `{'verify': False}`.
 
 ### Viewer won't have edit permissions on DAG view.
