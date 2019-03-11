@@ -53,6 +53,7 @@ import pickle
 import re
 import signal
 import sys
+import time
 import textwrap
 import traceback
 import warnings
@@ -1373,6 +1374,8 @@ class TaskInstance(Base, LoggingMixin):
                 # Don't clear Xcom until the task is certain to execute
                 self.clear_xcom_data()
 
+                start_time = time.time()
+
                 self.render_templates()
                 task_copy.pre_execute(context=context)
 
@@ -1395,6 +1398,14 @@ class TaskInstance(Base, LoggingMixin):
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                 task_copy.post_execute(context=context, result=result)
+
+                end_time = time.time()
+                duration = end_time - start_time
+                Stats.timing(
+                    'dag.{dag_id}.{task_id}.duration'.format(
+                        dag_id=task_copy.dag_id,
+                        task_id=task_copy.task_id),
+                    duration)
 
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
