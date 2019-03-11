@@ -464,3 +464,45 @@ class BaseSensorTest(unittest.TestCase):
                 self.assertEqual(len(task_reschedules), 0)
             if ti.task_id == DUMMY_OP:
                 self.assertEqual(ti.state, State.NONE)
+
+    def test_sensor_with_invalid_poke_interval(self):
+        negative_poke_interval = -10
+        non_number_poke_interval = "abcd"
+        positive_poke_interval = 10
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=negative_poke_interval,
+                timeout=25)
+
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=non_number_poke_interval,
+                timeout=25)
+
+        self._make_sensor(
+            return_value=None,
+            poke_interval=positive_poke_interval,
+            timeout=25)
+
+    def test_sensor_with_invalid_timeout(self):
+        negative_timeout = -25
+        non_number_timeout = "abcd"
+        positive_timeout = 25
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=10,
+                timeout=negative_timeout)
+
+        with self.assertRaises(AirflowException):
+            self._make_sensor(
+                return_value=None,
+                poke_interval=10,
+                timeout=non_number_timeout)
+
+        self._make_sensor(
+            return_value=None,
+            poke_interval=10,
+            timeout=positive_timeout)
