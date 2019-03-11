@@ -25,6 +25,7 @@ class TelegramHook(BaseHook):
         """
         Takes both telegram bot API token directly and connection that has telegram bot API token.
         If both supplied, telegram API token will be used.
+        
         :param token: telegram API token
         :type token: str
         :param telegram_conn_id: connection that has telegram API token in the password field
