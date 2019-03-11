@@ -2193,13 +2193,6 @@ class ConnectionTest(unittest.TestCase):
         assert conns[0].password == 'password'
         assert conns[0].port == 5432
 
-    def test_get_connections_db(self):
-        conns = BaseHook.get_connections(conn_id='airflow_db')
-        assert len(conns) == 1
-        assert conns[0].host == 'localhost'
-        assert conns[0].schema == 'airflow'
-        assert conns[0].login == 'root'
-
 
 class WebHDFSHookTest(unittest.TestCase):
     def setUp(self):
