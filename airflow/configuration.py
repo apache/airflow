@@ -267,12 +267,12 @@ class AirflowConfigParser(ConfigParser):
 
         else:
             log.warning(
-                "section/key [{section}/{key}] not found in config".format(**locals())
+                "section/key [%s/%s] not found in config", section, key
             )
 
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
-                "in config".format(**locals()))
+                "in config".format(section=section, key=key))
 
     def getboolean(self, section, key, **kwargs):
         val = str(self.get(section, key, **kwargs)).lower().strip()

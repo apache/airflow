@@ -100,7 +100,7 @@ class PythonOperator(BaseOperator):
     def execute(self, context):
         # Export context to make it available for callables to use.
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        self.log.info("Exporting the following env vars:\n" +
+        self.log.info("Exporting the following env vars:\n%s",
                       '\n'.join(["{}={}".format(k, v)
                                  for k, v in airflow_context_vars.items()]))
         os.environ.update(airflow_context_vars)
@@ -320,14 +320,14 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def _execute_in_subprocess(self, cmd):
         try:
-            self.log.info("Executing cmd\n{}".format(cmd))
+            self.log.info("Executing cmd\n%s", cmd)
             output = subprocess.check_output(cmd,
                                              stderr=subprocess.STDOUT,
                                              close_fds=True)
             if output:
-                self.log.info("Got output\n{}".format(output))
+                self.log.info("Got output\n%s", output)
         except subprocess.CalledProcessError as e:
-            self.log.info("Got error output\n{}".format(e.output))
+            self.log.info("Got error output\n%s", e.output)
             raise
 
     def _write_string_args(self, filename):

@@ -66,4 +66,5 @@ Timers
 Name                              Description
 ================================= =======================================
 dagrun.dependency-check.<dag_id>  Seconds taken to check DAG dependencies
+dag.<dag_id>.<task_id>.duration   Seconds taken to finish a task
 ================================= =======================================
