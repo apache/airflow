@@ -1261,8 +1261,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     time.sleep(5)
                 else:
                     raise Exception(
-                        'BigQuery job status check failed. Final error was: %s',
-                        err.resp.status)
+                        'BigQuery job status check failed. Final error was: {}'.
+                        format(err.resp.status))
 
         return self.running_job_id
 
