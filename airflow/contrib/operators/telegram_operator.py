@@ -53,4 +53,4 @@ class TelegramAPIOperator(BaseOperator):
             telegram_client = TelegramHook(telegram_conn_id=self.telegram_conn_id)
             telegram_client.call("POST", {"text": self.text})
         except Exception as e:
-            self.log.error("Cannot send a message to telegram, exception was '{}'".format(e))
+            self.log.error("Cannot send a message to telegram, exception was %s", e)
