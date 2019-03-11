@@ -44,7 +44,7 @@ class TelegramHook(BaseHook):
         elif telegram_conn_id is not None:
             conn = self.get_connection(telegram_conn_id)
 
-            if not getattr(conn, "password", None):
+            if not conn.password:
                 raise AirflowException("Missing token(password) in Telegram connection")
             return conn.password
         else:
