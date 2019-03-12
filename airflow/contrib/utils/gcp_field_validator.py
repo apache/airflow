@@ -133,7 +133,7 @@ Here are the guidelines that you should follow to make validation forward-compat
 
 import re
 
-from typing import Callable
+# from typing import Callable
 from airflow import LoggingMixin, AirflowException
 
 COMPOSITE_FIELD_TYPES = ['union', 'dict', 'list']

@@ -4647,7 +4647,7 @@ class DagRun(Base, LoggingMixin):
         """
         qry = session.query(DagRun).filter(
             DagRun.dag_id == dag_id,
-            DagRun.external_trigger == False, # noqa
+            DagRun.external_trigger == False,  # noqa
             DagRun.execution_date == execution_date,
         )
         return qry.first()

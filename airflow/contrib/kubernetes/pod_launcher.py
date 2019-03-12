@@ -20,7 +20,7 @@ import time
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from datetime import datetime as dt
-from airflow.contrib.kubernetes.pod import Pod
+# from airflow.contrib.kubernetes.pod import Pod
 from airflow.contrib.kubernetes.kubernetes_request_factory import \
     pod_request_factory as pod_factory
 from kubernetes import watch, client

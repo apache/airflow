@@ -32,7 +32,7 @@ except ImportError:
 from mock import patch
 
 patch('airflow.utils.cli.action_logging', lambda x: x).start()
-from airflow.bin import cli # noqa
+from airflow.bin import cli  # noqa
 mock_args = Namespace(queues=1, concurrency=1)
 
 

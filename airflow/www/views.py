@@ -1872,7 +1872,7 @@ class ConfigurationView(AirflowBaseView):
 ######################################################################################
 
 class DagFilter(BaseFilter):
-    def apply(self, query, func): # noqa
+    def apply(self, query, func):  # noqa
         if appbuilder.sm.has_all_dags_access():
             return query
         filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()

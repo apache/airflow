@@ -18,14 +18,11 @@
 # under the License.
 
 import unittest
-import logging
 
 try:
     from airflow.contrib.operators.singularity_operator import SingularityOperator
 except ImportError:
     pass
-
-from airflow.exceptions import AirflowException
 
 try:
     from unittest import mock
@@ -52,8 +49,8 @@ class SingularityOperatorTestCase(unittest.TestCase):
             command="awesome-command"
         )
         task.execute({})
-        client_mock.execute.assert_called_once_with(mock.ANY, 
-                                                    "awesome-command", 
+        client_mock.execute.assert_called_once_with(mock.ANY,
+                                                    "awesome-command",
                                                     return_result=True)
 
 

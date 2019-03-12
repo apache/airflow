@@ -86,7 +86,7 @@ class CassandraHookTest(unittest.TestCase):
                                    DCAwareRoundRobinPolicy)
 
         # test WhiteListRoundRobinPolicy with args
-        fake_addr_info = [['family', 'sockettype', 'proto', 'canonname', ('2606:2800:220:1:248:1893:25c8:1946', 80, 0, 0)]] # noqa
+        fake_addr_info = [['family', 'sockettype', 'proto', 'canonname', ('2606:2800:220:1:248:1893:25c8:1946', 80, 0, 0)]]  # noqa
         with patch('socket.getaddrinfo', return_value=fake_addr_info):
             self._assert_get_lb_policy('WhiteListRoundRobinPolicy',
                                        {'hosts': ['host1', 'host2']},
