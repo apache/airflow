@@ -164,7 +164,7 @@ class PodLauncher(LoggingMixin):
 
     def _exec_pod_command(self, resp, command):
         if resp.is_open():
-            self.log.info('Running command... %s\n' % command)
+            self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
             while resp.is_open():
                 resp.update(timeout=1)

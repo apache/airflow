@@ -129,10 +129,15 @@ DAG_VMS = {
     'all_dags'
 }
 
-DAG_PERMS = {
-    'can_dag_read',
+WRITE_DAG_PERMS = {
     'can_dag_edit',
 }
+
+READ_DAG_PERMS = {
+    'can_dag_read',
+}
+
+DAG_PERMS = WRITE_DAG_PERMS | READ_DAG_PERMS
 
 ###########################################################################
 #                     DEFAULT ROLE CONFIGURATIONS
@@ -141,7 +146,7 @@ DAG_PERMS = {
 ROLE_CONFIGS = [
     {
         'role': 'Viewer',
-        'perms': VIEWER_PERMS | DAG_PERMS,
+        'perms': VIEWER_PERMS | READ_DAG_PERMS,
         'vms': VIEWER_VMS | DAG_VMS
     },
     {
@@ -185,15 +190,16 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         if len(role.permissions) == 0:
             self.log.info('Initializing permissions for role:%s in the database.', role_name)
-            role_pvms = []
+            role_pvms = set()
             for pvm in pvms:
                 if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
-                    role_pvms.append(pvm)
-            role.permissions = list(set(role_pvms))
+                    role_pvms.add(pvm)
+            role.permissions = list(role_pvms)
             self.get_session.merge(role)
             self.get_session.commit()
         else:
-            self.log.info('Existing permissions for the role:%s within the database will persist.', role_name)
+            self.log.debug('Existing permissions for the role:%s '
+                           'within the database will persist.', role_name)
 
     def delete_role(self, role_name):
         """Delete the given Role
@@ -205,7 +211,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                       .filter(sqla_models.Role.name == role_name)\
                       .first()
         if role:
-            self.log.info("Deleting role '{}'".format(role_name))
+            self.log.info("Deleting role '%s'", role_name)
             session.delete(role)
             session.commit()
         else:
@@ -233,8 +239,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         perms_views = set()
         for role in self.get_user_roles():
-            for perm_view in role.permissions:
-                perms_views.add((perm_view.permission.name, perm_view.view_menu.name))
+            perms_views.update({(perm_view.permission.name, perm_view.view_menu.name)
+                                for perm_view in role.permissions})
         return perms_views
 
     def get_accessible_dag_ids(self, username=None):
@@ -321,7 +327,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         FAB leaves faulty permissions that need to be cleaned up
         """
-        self.log.info('Cleaning faulty perms')
+        self.log.debug('Cleaning faulty perms')
         sesh = self.get_session
         pvms = (
             sesh.query(sqla_models.PermissionView)
@@ -333,7 +339,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         deleted_count = pvms.delete()
         sesh.commit()
         if deleted_count:
-            self.log.info('Deleted {} faulty permissions'.format(deleted_count))
+            self.log.info('Deleted %s faulty permissions', deleted_count)
 
     def _merge_perm(self, permission_name, view_menu_name):
         """
@@ -370,8 +376,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        # todo(Tao): should we put this function here or in scheduler loop?
-        self.log.info('Fetching a set of all permission, view_menu from FAB meta-table')
+        self.log.debug('Fetching a set of all permission, view_menu from FAB meta-table')
 
         def merge_pv(perm, view_menu):
             """Create permission view menu only if it doesn't exist"""
@@ -455,7 +460,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
         :return: None.
         """
-        self.log.info('Start syncing user roles.')
+        self.log.debug('Start syncing user roles.')
         # Create global all-dag VM
         self.create_perm_vm_for_all_dag()
 
@@ -505,10 +510,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         def _get_or_create_dag_permission(perm_name):
             dag_perm = self.find_permission_view_menu(perm_name, dag_id)
             if not dag_perm:
-                self.log.info("Creating new permission '{}' on view '{}'".format(
-                    perm_name,
-                    dag_id
-                ))
+                self.log.info(
+                    "Creating new permission '%s' on view '%s'",
+                    perm_name, dag_id
+                )
                 dag_perm = self.add_permission_view_menu(perm_name, dag_id)
 
             return dag_perm
@@ -521,11 +526,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 for role in non_admin_roles:
                     target_perms_for_role = access_control.get(role.name, {})
                     if perm.permission.name not in target_perms_for_role:
-                        self.log.info("Revoking '{}' on DAG '{}' for role '{}'".format(
-                            perm.permission,
-                            dag_id,
-                            role.name
-                        ))
+                        self.log.info(
+                            "Revoking '%s' on DAG '%s' for role '%s'",
+                            perm.permission, dag_id, role.name
+                        )
                         self.del_permission_role(role, perm)
 
         dag_view = self.find_view_menu(dag_id)

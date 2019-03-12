@@ -83,9 +83,9 @@ class DruidCheckOperator(CheckOperator):
             return cur.fetchone()
 
     def execute(self, context=None):
-        self.log.info('Executing SQL check: {}'.format(self.sql))
+        self.log.info('Executing SQL check: %s', self.sql)
         record = self.get_first(self.sql)
-        self.log.info("Record: {}".format(str(record)))
+        self.log.info("Record: %s", str(record))
         if not record:
             raise AirflowException("The query returned None")
         self.log.info("Success.")

@@ -111,10 +111,9 @@ class ExternalTaskSensor(BaseSensorOperator):
             [datetime.isoformat() for datetime in dttm_filter])
 
         self.log.info(
-            'Poking for '
-            '{self.external_dag_id}.'
-            '{self.external_task_id} on '
-            '{} ... '.format(serialized_dttm_filter, **locals()))
+            'Poking for %s.%s on %s ... ',
+            self.external_dag_id, self.external_task_id, serialized_dttm_filter
+        )
 
         DM = DagModel
         TI = TaskInstance

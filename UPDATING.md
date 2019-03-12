@@ -24,6 +24,8 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Viewer won't have edit permissions on DAG view.
+
 ### RedisPy dependency updated to v3 series
 
 If you are using the Redis Sensor or Hook you may have to update your code. See

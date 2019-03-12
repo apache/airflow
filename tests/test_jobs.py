@@ -59,6 +59,8 @@ from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests.test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, \
+    clear_db_sla_miss, clear_db_errors
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 
@@ -133,10 +135,8 @@ class BaseJobTest(unittest.TestCase):
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
-        with create_session() as session:
-            session.query(models.DagRun).delete()
-            session.query(models.Pool).delete()
-            session.query(models.TaskInstance).delete()
+        clear_db_runs()
+        clear_db_pools()
 
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
@@ -1232,7 +1232,7 @@ class BackfillJobTest(unittest.TestCase):
 
 class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
-        pass
+        clear_db_runs()
 
     def test_localtaskjob_essential_attr(self):
         """
@@ -1392,14 +1392,11 @@ class LocalTaskJobTest(unittest.TestCase):
 class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
-        with create_session() as session:
-            session.query(models.DagRun).delete()
-            session.query(models.TaskInstance).delete()
-            session.query(models.Pool).delete()
-            session.query(models.DagModel).delete()
-            session.query(SlaMiss).delete()
-            session.query(errors.ImportError).delete()
-            session.commit()
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
 
     @classmethod
     def setUpClass(cls):

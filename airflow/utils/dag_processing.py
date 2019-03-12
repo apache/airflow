@@ -510,8 +510,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                              self._stat_queue,
                                              self._result_queue,
                                              self._async_mode)
-        self.log.info("Launched DagFileProcessorManager with pid: {}"
-                      .format(self._process.pid))
+        self.log.info("Launched DagFileProcessorManager with pid: %s", self._process.pid)
 
     def heartbeat(self):
         """
@@ -649,13 +648,11 @@ class DagFileProcessorAgent(LoggingMixin):
         # First try SIGTERM
         if manager_process.is_running() \
                 and manager_process.pid in [x.pid for x in this_process.children()]:
-            self.log.info(
-                "Terminating manager process: {}".format(manager_process.pid))
+            self.log.info("Terminating manager process: %s", manager_process.pid)
             manager_process.terminate()
             # TODO: Remove magic number
             timeout = 5
-            self.log.info("Waiting up to {}s for manager process to exit..."
-                          .format(timeout))
+            self.log.info("Waiting up to %ss for manager process to exit...", timeout)
             try:
                 psutil.wait_procs({manager_process}, timeout)
             except psutil.TimeoutExpired:
@@ -665,7 +662,7 @@ class DagFileProcessorAgent(LoggingMixin):
         # Then SIGKILL
         if manager_process.is_running() \
                 and manager_process.pid in [x.pid for x in this_process.children()]:
-            self.log.info("Killing manager process: {}".format(manager_process.pid))
+            self.log.info("Killing manager process: %s", manager_process.pid)
             manager_process.kill()
             manager_process.wait()
 
@@ -771,7 +768,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Helper method to clean up DAG file processors to avoid leaving orphan processes.
         """
-        self.log.info("Exiting gracefully upon receiving signal {}".format(signum))
+        self.log.info("Exiting gracefully upon receiving signal %s", signum)
         self.terminate()
         self.end()
         self.log.debug("Finished terminating DAG processors.")
@@ -785,12 +782,11 @@ class DagFileProcessorManager(LoggingMixin):
         user code.
         """
 
-        self.log.info("Processing files using up to {} processes at a time "
-                      .format(self._parallelism))
-        self.log.info("Process each file at most once every {} seconds"
-                      .format(self._file_process_interval))
-        self.log.info("Checking for new files in {} every {} seconds"
-                      .format(self._dag_directory, self.dag_dir_list_interval))
+        self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
+        self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
+        self.log.info(
+            "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
+        )
 
         if self._async_mode:
             self.log.debug("Starting DagFileProcessorManager in async mode")
@@ -842,8 +838,7 @@ class DagFileProcessorManager(LoggingMixin):
             loop_duration = time.time() - loop_start_time
             if loop_duration < 1:
                 sleep_length = 1 - loop_duration
-                self.log.debug("Sleeping for {0:.2f} seconds "
-                               "to prevent excessive logging".format(sleep_length))
+                self.log.debug("Sleeping for %.2f seconds to prevent excessive logging", sleep_length)
                 time.sleep(sleep_length)
 
     def start_in_sync(self):
@@ -898,13 +893,10 @@ class DagFileProcessorManager(LoggingMixin):
                                       self.last_dag_dir_refresh_time).total_seconds()
         if elapsed_time_since_refresh > self.dag_dir_list_interval:
             # Build up a list of Python files that could contain DAGs
-            self.log.info(
-                "Searching for files in {}".format(self._dag_directory))
+            self.log.info("Searching for files in %s", self._dag_directory)
             self._file_paths = list_py_file_paths(self._dag_directory)
             self.last_dag_dir_refresh_time = timezone.utcnow()
-            self.log.info("There are {} files in {}"
-                          .format(len(self._file_paths),
-                                  self._dag_directory))
+            self.log.info("There are %s files in %s", len(self._file_paths), self._dag_directory)
             self.set_file_paths(self._file_paths)
 
             try:
@@ -1238,8 +1230,7 @@ class DagFileProcessorManager(LoggingMixin):
             TI = airflow.models.TaskInstance
             limit_dttm = timezone.utcnow() - timedelta(
                 seconds=self._zombie_threshold_secs)
-            self.log.info(
-                "Failing jobs without heartbeat after {}".format(limit_dttm))
+            self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
             tis = (
                 session.query(TI)
@@ -1294,12 +1285,11 @@ class DagFileProcessorManager(LoggingMixin):
             child_processes = [x for x in this_process.children(recursive=True)
                                if x.is_running() and x.pid in pids_to_kill]
             for child in child_processes:
-                self.log.info("Terminating child PID: {}".format(child.pid))
+                self.log.info("Terminating child PID: %s", child.pid)
                 child.terminate()
             # TODO: Remove magic number
             timeout = 5
-            self.log.info(
-                "Waiting up to %s seconds for processes to exit...", timeout)
+            self.log.info("Waiting up to %s seconds for processes to exit...", timeout)
             try:
                 psutil.wait_procs(
                     child_processes, timeout=timeout,
@@ -1313,6 +1303,6 @@ class DagFileProcessorManager(LoggingMixin):
             if len(child_processes) > 0:
                 self.log.info("SIGKILL processes that did not terminate gracefully")
                 for child in child_processes:
-                    self.log.info("Killing child PID: {}".format(child.pid))
+                    self.log.info("Killing child PID: %s", child.pid)
                     child.kill()
                     child.wait()
