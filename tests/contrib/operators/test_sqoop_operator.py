@@ -64,7 +64,8 @@ class TestSqoopOperator(unittest.TestCase):
         },
         'extra_export_options': {
             'update-key': 'id',
-            'update-mode': 'allowinsert'
+            'update-mode': 'allowinsert',
+            'fetch-size': 1
         }
     }
 
@@ -154,7 +155,9 @@ class TestSqoopOperator(unittest.TestCase):
             extra_import_options={
                 'hcatalog-storage-stanza': "\"stored as orcfile\"",
                 'hive-partition-key': 'day',
-                'hive-partition-value': '2017-10-18'},
+                'hive-partition-value': '2017-10-18',
+                'fetch-size': 1
+            },
             dag=self.dag
         )
 
