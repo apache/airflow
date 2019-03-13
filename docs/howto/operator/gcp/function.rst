@@ -64,7 +64,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation for delete
+See Google Cloud Functions API documentation to `delete a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/delete>`_.
 
 .. _howto/operator:GcfFunctionDeployOperator:
@@ -198,5 +198,5 @@ can be downloaded if necessary.
 More information
 """"""""""""""""
 
-See `Google Cloud Functions API documentation for create
+See Google Cloud API documentation `to create a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.

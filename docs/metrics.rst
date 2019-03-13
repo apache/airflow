@@ -18,9 +18,11 @@
 Metrics
 =======
 
+Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__:
+
 Configuration
 -------------
-Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__:
+Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: bash
 

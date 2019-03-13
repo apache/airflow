@@ -34,7 +34,7 @@ happen. (The pendulum and pytz documentation discusses these issues in greater d
 for a simple DAG, but it’s a problem if you are in, for example, financial services where you have end of day
 deadlines to meet.
 
-The time zone is set in `airflow.cfg`. By default it is set to utc, but you change it to use the system’s settings or
+The time zone is set in ``airflow.cfg``. By default it is set to utc, but you change it to use the system’s settings or
 an arbitrary IANA time zone, e.g. `Europe/Amsterdam`. It is dependent on `pendulum`, which is more accurate than `pytz`.
 Pendulum is installed when you install Airflow.
 
