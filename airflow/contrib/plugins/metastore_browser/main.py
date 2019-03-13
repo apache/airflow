@@ -21,14 +21,14 @@ from datetime import datetime
 import json
 
 from flask import Blueprint, request
-from flask_admin import BaseView, expose
+from flask_appbuilder import BaseView, expose
 import pandas as pd
 
 from airflow.hooks.hive_hooks import HiveMetastoreHook, HiveCliHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.plugins_manager import AirflowPlugin
-from airflow.www import utils as wwwutils
+from airflow.www.decorators import gzipped
 
 METASTORE_CONN_ID = 'metastore_default'
 METASTORE_MYSQL_CONN_ID = 'metastore_mysql'
@@ -43,8 +43,10 @@ TABLE_SELECTOR_LIMIT = 2000
 pd.set_option('display.max_colwidth', -1)
 
 
-# Creating a flask admin BaseView
-class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
+# Creating a Flask-AppBuilder BaseView
+class MetastoreBrowserView(BaseView):
+
+    default_view = 'index'
 
     @expose('/')
     def index(self):
@@ -59,14 +61,14 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         h = MySqlHook(METASTORE_MYSQL_CONN_ID)
         df = h.get_pandas_df(sql)
         df.db = (
-            '<a href="/admin/metastorebrowserview/db/?db=' +
+            '<a href="/metastorebrowserview/db/?db=' +
             df.db + '">' + df.db + '</a>')
         table = df.to_html(
             classes="table table-striped table-bordered table-hover",
             index=False,
             escape=False,
             na_rep='',)
-        return self.render(
+        return self.render_template(
             "metastore_browser/dbs.html", table=table)
 
     @expose('/table/')
@@ -74,7 +76,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         table_name = request.args.get("table")
         m = HiveMetastoreHook(METASTORE_CONN_ID)
         table = m.get_table(table_name)
-        return self.render(
+        return self.render_template(
             "metastore_browser/table.html",
             table=table, table_name=table_name, datetime=datetime, int=int)
 
@@ -83,10 +85,10 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         db = request.args.get("db")
         m = HiveMetastoreHook(METASTORE_CONN_ID)
         tables = sorted(m.get_tables(db=db), key=lambda x: x.tableName)
-        return self.render(
+        return self.render_template(
             "metastore_browser/db.html", tables=tables, db=db)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/partitions/')
     def partitions(self):
         schema, table = request.args.get("table").split('.')
@@ -114,7 +116,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
             index=False,
             na_rep='',)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/objects/')
     def objects(self):
         where_clause = ''
@@ -142,7 +144,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
             for row in h.get_records(sql)]
         return json.dumps(d)
 
-    @wwwutils.gzipped
+    @gzipped
     @expose('/data/')
     def data(self):
         table = request.args.get("table")
@@ -162,9 +164,7 @@ class MetastoreBrowserView(BaseView, wwwutils.DataProfilingMixin):
         return h.run_cli(sql)
 
 
-v = MetastoreBrowserView(category="Plugins", name="Hive Metadata Browser")
-
-# Creating a flask blueprint to intergrate the templates and static folder
+# Creating a flask blueprint to integrate the templates and static folder
 bp = Blueprint(
     "metastore_browser", __name__,
     template_folder='templates',
@@ -176,4 +176,6 @@ bp = Blueprint(
 class MetastoreBrowserPlugin(AirflowPlugin):
     name = "metastore_browser"
     flask_blueprints = [bp]
-    admin_views = [v]
+    appbuilder_views = [{"name": "Hive Metadata Browser",
+                         "category": "Plugins",
+                         "view": MetastoreBrowserView()}]

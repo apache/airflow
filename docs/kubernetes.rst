@@ -15,15 +15,28 @@
     specific language governing permissions and limitations
     under the License.
 
+Kubernetes
+----------
+
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
 The kubernetes executor is introduced in Apache Airflow 1.10.0. The Kubernetes executor will create a new pod for every task instance.
 
-Example helm charts are available at `scripts/ci/kubernetes/kube/{airflow,volumes,postgres}.yaml` in the source distribution. The volumes are optional and depend on your configuration. There are two volumes available:
+Example helm charts are available at ``scripts/ci/kubernetes/kube/{airflow,volumes,postgres}.yaml`` in the source distribution.
+The volumes are optional and depend on your configuration. There are two volumes available:
 
-- Dags: by storing all the dags onto the persistent disks, all the workers can read the dags from there. Another option is using git-sync, before starting the container, a git pull of the dags repository will be performed and used throughout the lifecycle of the pod.
-- Logs: by storing the logs onto a persistent disk, all the logs will be available for all the workers and the webserver itself. If you don't configure this, the logs will be lost after the worker pods shuts down. Another option is to use S3/GCS/etc to store the logs.
+- **Dags**:
+
+  - By storing dags onto persistent disk, it will be made available to all workers
+
+  - Another option is to use ``git-sync``. Before starting the container, a git pull of the dags repository will be performed and used throughout the lifecycle of the pod
+
+- **Logs**:
+
+  - By storing logs onto a persistent disk, the files are accessible by workers and the webserver. If you don't configure this, the logs will be lost after the worker pods shuts down
+
+  - Another option is to use S3/GCS/etc to store logs
 
 
 Kubernetes Operator
@@ -34,6 +47,9 @@ Kubernetes Operator
     from airflow.contrib.operators import KubernetesOperator
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
     from airflow.contrib.kubernetes.secret import Secret
+    from airflow.contrib.kubernetes.volume import Volume
+    from airflow.contrib.kubernetes.volume_mount import VolumeMount
+
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
     secret_env  = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
@@ -56,11 +72,11 @@ Kubernetes Operator
             {
               "weight": 1,
               "preference": {
-                "matchExpressions": [
+                "matchExpressions": {
                   "key": "disktype",
                   "operator": "In",
                   "values": ["ssd"]
-                ]
+                }
               }
             }
           ]
@@ -125,6 +141,10 @@ Kubernetes Operator
 
 
 .. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
+    :noindex:
+
 
 .. autoclass:: airflow.contrib.kubernetes.secret.Secret
+    :noindex:
+
 

@@ -19,32 +19,43 @@
 
 
 import unittest
-from mock import patch
-
 from airflow import configuration
 from airflow.contrib.hooks.redis_hook import RedisHook
 
 
 class TestRedisHook(unittest.TestCase):
+
     def setUp(self):
         configuration.load_test_config()
 
     def test_get_conn(self):
         hook = RedisHook(redis_conn_id='redis_default')
-        self.assertEqual(hook.client, None)
-        self.assertEqual(
-            repr(hook.get_conn()),
-            (
-                'StrictRedis<ConnectionPool'
-                '<Connection<host=localhost,port=6379,db=0>>>'
-            )
-        )
+        self.assertEqual(hook.redis, None)
 
-    @patch("airflow.contrib.hooks.redis_hook.RedisHook.get_conn")
-    def test_first_conn_instantiation(self, get_conn):
+        self.assertEqual(hook.host, None, 'host initialised as None.')
+        self.assertEqual(hook.port, None, 'port initialised as None.')
+        self.assertEqual(hook.password, None, 'password initialised as None.')
+        self.assertEqual(hook.db, None, 'db initialised as None.')
+        self.assertIs(hook.get_conn(), hook.get_conn(), 'Connection initialized only if None.')
+
+    def test_get_conn_password_stays_none(self):
         hook = RedisHook(redis_conn_id='redis_default')
-        hook.key_exists('test_key')
-        self.assertTrue(get_conn.called_once())
+        hook.get_conn()
+        self.assertEqual(hook.password, None)
+
+    def test_real_ping(self):
+        hook = RedisHook(redis_conn_id='redis_default')
+        redis = hook.get_conn()
+
+        self.assertTrue(redis.ping(), 'Connection to Redis with PING works.')
+
+    def test_real_get_and_set(self):
+        hook = RedisHook(redis_conn_id='redis_default')
+        redis = hook.get_conn()
+
+        self.assertTrue(redis.set('test_key', 'test_value'), 'Connection to Redis with SET works.')
+        self.assertEqual(redis.get('test_key'), b'test_value', 'Connection to Redis with GET works.')
+        self.assertEqual(redis.delete('test_key'), 1, 'Connection to Redis with DELETE works.')
 
 
 if __name__ == '__main__':

@@ -78,7 +78,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
 
         deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
-        self.log.info("Deleted: {}".format(deleted_keys))
+        self.log.info("Deleted: %s", deleted_keys)
 
         if "Errors" in response:
             errors_keys = [x['Key'] for x in response.get("Errors", [])]

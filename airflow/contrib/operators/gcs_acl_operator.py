@@ -26,17 +26,15 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     """
     Creates a new ACL entry on the specified bucket.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageBucketCreateAclEntryOperator`
+
     :param bucket: Name of a bucket.
     :type bucket: str
     :param entity: The entity holding the permission, in one of the following forms:
-        - user-userId
-        - user-email
-        - group-groupId
-        - group-email
-        - domain-domain
-        - project-team-projectId
-        - allUsers
-        - allAuthenticatedUsers
+        user-userId, user-email, group-groupId, group-email, domain-domain,
+        project-team-projectId, allUsers, allAuthenticatedUsers
     :type entity: str
     :param role: The access permission for the entity.
         Acceptable values are: "OWNER", "READER", "WRITER".
@@ -75,6 +73,10 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
     """
     Creates a new ACL entry on the specified object.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator`
+
     :param bucket: Name of a bucket.
     :type bucket: str
     :param object_name: Name of the object. For information about how to URL encode object
@@ -82,14 +84,8 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         https://cloud.google.com/storage/docs/json_api/#encoding
     :type object_name: str
     :param entity: The entity holding the permission, in one of the following forms:
-        - user-userId
-        - user-email
-        - group-groupId
-        - group-email
-        - domain-domain
-        - project-team-projectId
-        - allUsers
-        - allAuthenticatedUsers
+        user-userId, user-email, group-groupId, group-email, domain-domain,
+        project-team-projectId, allUsers, allAuthenticatedUsers
     :type entity: str
     :param role: The access permission for the entity.
         Acceptable values are: "OWNER", "READER".

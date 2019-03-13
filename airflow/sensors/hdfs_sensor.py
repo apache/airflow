@@ -80,14 +80,18 @@ class HdfsSensor(BaseSensorOperator):
         """
         Will filter if instructed to do so the result to remove matching criteria
 
-        :param result: (list) of dicts returned by Snakebite ls
-        :param ignored_ext: (list) of ignored extensions
-        :param ignore_copying: (bool) shall we ignore ?
-        :return: (list) of dicts which were not removed
+        :param result: list of dicts returned by Snakebite ls
+        :type result: list[dict]
+        :param ignored_ext: list of ignored extensions
+        :type ignored_ext: list
+        :param ignore_copying: shall we ignore ?
+        :type ignore_copying: bool
+        :return: list of dicts which were not removed
+        :rtype: list[dict]
         """
         if ignore_copying:
             log = LoggingMixin().log
-            regex_builder = "^.*\.(%s$)$" % '$|'.join(ignored_ext)
+            regex_builder = r"^.*\.(%s$)$" % '$|'.join(ignored_ext)
             ignored_extensions_regex = re.compile(regex_builder)
             log.debug(
                 'Filtering result for ignored extensions: %s in files %s',
@@ -99,7 +103,7 @@ class HdfsSensor(BaseSensorOperator):
 
     def poke(self, context):
         sb = self.hook(self.hdfs_conn_id).get_conn()
-        self.log.info('Poking for file {self.filepath}'.format(**locals()))
+        self.log.info('Poking for file %s', self.filepath)
         try:
             # IMOO it's not right here, as there no raise of any kind.
             # if the filepath is let's say '/data/mydirectory',

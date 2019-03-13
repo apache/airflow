@@ -214,10 +214,10 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     mkdirs(directory, 0o755)
 
 if REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
 elif REMOTE_LOGGING and ELASTICSEARCH_HOST:
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])

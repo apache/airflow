@@ -21,9 +21,7 @@
 from airflow.plugins_manager import AirflowPlugin
 
 from flask import Blueprint
-from flask_admin import BaseView, expose
-from flask_admin.base import MenuLink
-from flask_appbuilder import BaseView as AppBuilderBaseView
+from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
@@ -57,20 +55,8 @@ def plugin_macro():
     pass
 
 
-# Creating a flask admin BaseView
-class TestView(BaseView):
-    @expose('/')
-    def test(self):
-        # in this example, put your test_plugin/test.html
-        # template at airflow/plugins/templates/test_plugin/test.html
-        return self.render("test_plugin/test.html", content="Hello galaxy!")
-
-
-v = TestView(category="Test Plugin", name="Test View")
-
-
 # Creating a flask appbuilder BaseView
-class TestAppBuilderBaseView(AppBuilderBaseView):
+class PluginTestAppBuilderBaseView(AppBuilderBaseView):
     default_view = "test"
 
     @expose("/")
@@ -78,7 +64,7 @@ class TestAppBuilderBaseView(AppBuilderBaseView):
         return self.render("test_plugin/test.html", content="Hello galaxy!")
 
 
-v_appbuilder_view = TestAppBuilderBaseView()
+v_appbuilder_view = PluginTestAppBuilderBaseView()
 v_appbuilder_package = {"name": "Test View",
                         "category": "Test Plugin",
                         "view": v_appbuilder_view}
@@ -98,12 +84,6 @@ bp = Blueprint(
     static_url_path='/static/test_plugin')
 
 
-ml = MenuLink(
-    category='Test Plugin',
-    name="Test Menu Link",
-    url="https://airflow.incubator.apache.org/")
-
-
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -112,8 +92,18 @@ class AirflowTestPlugin(AirflowPlugin):
     hooks = [PluginHook]
     executors = [PluginExecutor]
     macros = [plugin_macro]
-    admin_views = [v]
     flask_blueprints = [bp]
-    menu_links = [ml]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
+
+
+class MockPluginA(AirflowPlugin):
+    name = 'plugin-a'
+
+
+class MockPluginB(AirflowPlugin):
+    name = 'plugin-b'
+
+
+class MockPluginC(AirflowPlugin):
+    name = 'plugin-c'

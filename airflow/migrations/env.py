@@ -36,7 +36,7 @@ fileConfig(config.config_file_name, disable_existing_loggers=False)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = models.Base.metadata
+target_metadata = models.base.Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -78,6 +78,7 @@ def run_migrations_online():
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
+            transaction_per_migration=True,
             target_metadata=target_metadata,
             compare_type=COMPARE_TYPE,
         )

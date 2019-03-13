@@ -153,19 +153,6 @@ class TestCLI(unittest.TestCase):
         p.terminate()
         p.wait()
 
-    def test_cli_rbac_webserver_debug(self):
-        env = os.environ.copy()
-        env['AIRFLOW__WEBSERVER__RBAC'] = 'True'
-        p = psutil.Popen(["airflow", "webserver", "-d"], env=env)
-        sleep(3)  # wait for webserver to start
-        return_code = p.poll()
-        self.assertEqual(
-            None,
-            return_code,
-            "webserver terminated with return code {} in debug mode".format(return_code))
-        p.terminate()
-        p.wait()
-
     def test_local_run(self):
         args = create_mock_args(
             task_id='print_the_context',
@@ -202,10 +189,8 @@ class TestCLI(unittest.TestCase):
 
             output = out.getvalue()
             # Check that prints, and log messages, are shown
-            self.assertIn('Done. Returned value was: Whatever you return gets printed in the logs',
-                          output)
-            self.assertIn("'example_python_operator__print_the_context__20180101'",
-                          output)
+            self.assertIn('END_DATE', output)
+            self.assertIn("'example_python_operator__print_the_context__20180101'", output)
         finally:
             sys.stdout = saved_stdout
 

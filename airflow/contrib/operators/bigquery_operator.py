@@ -34,7 +34,7 @@ class BigQueryOperator(BaseOperator):
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'.
     :param destination_dataset_table: A dotted
-        (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
+        ``(<project>.|<project>:)<dataset>.<table>`` that, if set, will store the results
         of the query. (templated)
     :type destination_dataset_table: str
     :param write_disposition: Specifies the action that occurs if the destination table
@@ -80,9 +80,13 @@ class BigQueryOperator(BaseOperator):
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :type schema_update_options: tuple
-    :param query_params: a dictionary containing query parameter types and
-        values, passed to BigQuery.
-    :type query_params: dict
+    :param query_params: a list of dictionary containing query parameter types and
+        values, passed to BigQuery. The structure of dictionary should look like
+        'queryParameters' in Google BigQuery Jobs API:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
+        For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
+        'parameterValue': { 'value': 'romeoandjuliet' } }].
+    :type query_params: list
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict
@@ -96,7 +100,11 @@ class BigQueryOperator(BaseOperator):
     :param cluster_fields: Request that the result of this query be stored sorted
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
-    :type cluster_fields: list of str
+    :type cluster_fields: list[str]
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('sql', 'destination_dataset_table', 'labels')
@@ -105,14 +113,14 @@ class BigQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sql=None,
-                 destination_dataset_table=False,
+                 sql,
+                 destination_dataset_table=None,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 udf_config=False,
+                 udf_config=None,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
                  maximum_bytes_billed=None,
@@ -124,6 +132,7 @@ class BigQueryOperator(BaseOperator):
                  time_partitioning=None,
                  api_resource_configs=None,
                  cluster_fields=None,
+                 location=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -144,15 +153,10 @@ class BigQueryOperator(BaseOperator):
         self.labels = labels
         self.bq_cursor = None
         self.priority = priority
-        if time_partitioning is None:
-            self.time_partitioning = {}
-        if api_resource_configs is None:
-            self.api_resource_configs = {}
+        self.time_partitioning = time_partitioning
+        self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
-
-        if self.sql is None:
-            raise TypeError('{} missing 1 required positional '
-                            'argument: `sql`'.format(self.task_id))
+        self.location = location
 
     def execute(self, context):
         if self.bq_cursor is None:
@@ -160,11 +164,13 @@ class BigQueryOperator(BaseOperator):
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
-                delegate_to=self.delegate_to)
+                delegate_to=self.delegate_to,
+                location=self.location,
+            )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.sql,
+            sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,
@@ -355,8 +361,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         table to. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type source_objects: list
-    :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
-        BigQuery table to load data into (templated). If <project> is not included,
+    :param destination_project_dataset_table: The dotted ``(<project>.)<dataset>.<table>``
+        BigQuery table to load data into (templated). If ``<project>`` is not included,
         project will be the project defined in the connection json.
     :type destination_project_dataset_table: str
     :param schema_fields: If set, the schema field list as defined here:
@@ -433,7 +439,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
-                 src_fmt_configs={},
+                 src_fmt_configs=None,
                  labels=None,
                  *args, **kwargs):
 
@@ -460,7 +466,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
-        self.src_fmt_configs = src_fmt_configs
+        self.src_fmt_configs = src_fmt_configs if src_fmt_configs is not None else dict()
         self.labels = labels
 
     def execute(self, context):
