@@ -77,7 +77,8 @@ if [ -z "$nose_args" ]; then
   --with-ignore-docstrings \
   --rednose \
   --with-timer \
-  -v"
+  -v \
+  --logging-level=INFO"
 fi
 
 if [ -z "$KUBERNETES_VERSION" ]; then
