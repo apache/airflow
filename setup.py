@@ -235,10 +235,10 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
     + cassandra + mongo
 
 devel = [
+    'beautifulsoup4~=4.7.1',
     'click==6.7',
     'freezegun',
     'jira',
-    'lxml>=4.0.0',
     'mock',
     'mongomock',
     'moto==1.3.5',

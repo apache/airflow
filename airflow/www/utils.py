@@ -23,7 +23,6 @@ standard_library.install_aliases()  # noqa
 import inspect
 import json
 import time
-import wtforms
 import markdown
 import re
 import zipfile
@@ -39,6 +38,8 @@ from flask import request, Response, Markup, url_for
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
+from six.moves.urllib.parse import urlencode
+
 from airflow import configuration
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
@@ -68,17 +69,11 @@ def should_hide_value_for_key(key_name):
 
 
 def get_params(**kwargs):
-    params = []
-    for k, v in kwargs.items():
-        if k == 'showPaused':
-            # True is default or None
-            if v or v is None:
-                continue
-            params.append('{}={}'.format(k, v))
-        elif v:
-            params.append('{}={}'.format(k, v))
-    params = sorted(params, key=lambda x: x.split('=')[0])
-    return '&'.join(params)
+    if 'showPaused' in kwargs:
+        v = kwargs['showPaused']
+        if v or v is None:
+            kwargs.pop('showPaused')
+    return urlencode({d: v if v is not None else '' for d, v in kwargs.items()})
 
 
 def generate_pages(current_page, num_of_pages,
@@ -109,27 +104,27 @@ def generate_pages(current_page, num_of_pages,
     """
 
     void_link = 'javascript:void(0)'
-    first_node = """<li class="paginate_button {disabled}" id="dags_first">
+    first_node = Markup("""<li class="paginate_button {disabled}" id="dags_first">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&laquo;</a>
-</li>"""
+</li>""")
 
-    previous_node = """<li class="paginate_button previous {disabled}" id="dags_previous">
+    previous_node = Markup("""<li class="paginate_button previous {disabled}" id="dags_previous">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="0" tabindex="0">&lt;</a>
-</li>"""
+</li>""")
 
-    next_node = """<li class="paginate_button next {disabled}" id="dags_next">
+    next_node = Markup("""<li class="paginate_button next {disabled}" id="dags_next">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&gt;</a>
-</li>"""
+</li>""")
 
-    last_node = """<li class="paginate_button {disabled}" id="dags_last">
+    last_node = Markup("""<li class="paginate_button {disabled}" id="dags_last">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="3" tabindex="0">&raquo;</a>
-</li>"""
+</li>""")
 
-    page_node = """<li class="paginate_button {is_active}">
+    page_node = Markup("""<li class="paginate_button {is_active}">
     <a href="{href_link}" aria-controls="dags" data-dt-idx="2" tabindex="0">{page_num}</a>
-</li>"""
+</li>""")
 
-    output = ['<ul class="pagination" style="margin-top:0px;">']
+    output = [Markup('<ul class="pagination" style="margin-top:0px;">')]
 
     is_disabled = 'disabled' if current_page <= 0 else ''
     output.append(first_node.format(href_link="?{}"
@@ -185,9 +180,9 @@ def generate_pages(current_page, num_of_pages,
                                                       showPaused=showPaused)),
                                    disabled=is_disabled))
 
-    output.append('</ul>')
+    output.append(Markup('</ul>'))
 
-    return wtforms.widgets.core.HTMLString('\n'.join(output))
+    return Markup('\n'.join(output))
 
 
 def epoch(dttm):
