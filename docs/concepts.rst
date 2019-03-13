@@ -503,10 +503,14 @@ accessible and modifiable through the UI.
     from airflow.models import Variable
     foo = Variable.get("foo")
     bar = Variable.get("bar", deserialize_json=True)
+    baz = Variable.get("baz", default_var=None)
 
 The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
-as such.
+as such. The third call uses the ``default_var`` parameter with the value
+``None``, which either returns an existing value or ``None`` if the variable
+isn't defined. The get function will throw a ``KeyError`` if the variable
+doesn't exist and no default is provided.
 
 You can use a variable from a jinja template with the syntax :
 
