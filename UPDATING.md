@@ -203,12 +203,16 @@ See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if
 
 ### Changed behaviour of using default value when accessing variables
 It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
-```
+
+```python
 foo = Variable.get("foo", default_var=None)
-    if foo is None:
-        handle_missing_foo()
+if foo is None:
+    handle_missing_foo()
 ```
-This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, simply don't pass the `default_var` parameter. 
+
+(Note: there is already `Variable.setdefault()` which me be helpful in some cases.)
+
+This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument. 
 
 
 ## Airflow 1.10.2
