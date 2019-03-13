@@ -77,7 +77,6 @@ if [ -z "$nose_args" ]; then
   --with-ignore-docstrings \
   --rednose \
   --with-timer \
-  -v \
   --logging-level=DEBUG"
 fi
 
