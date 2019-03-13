@@ -276,7 +276,7 @@ class TestMountPoint(unittest.TestCase):
         application.app = None
         application.appbuilder = None
         conf.load_test_config()
-        conf.set("webserver", "base_url", "http://localhost:8080/test")
+        conf.set("webserver", "base_url", "http://localhost/test")
         app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
         cls.client = Client(app, BaseResponse)
 
@@ -294,6 +294,11 @@ class TestMountPoint(unittest.TestCase):
     def test_not_found(self):
         resp = self.client.get('/', follow_redirects=True)
         self.assertEqual(resp.status_code, 404)
+
+    def test_index(self):
+        resp = self.client.get('/test/')
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.headers['Location'], 'http://localhost/test/home')
 
 
 class TestAirflowBaseViews(TestBase):
