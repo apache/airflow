@@ -30,21 +30,32 @@ You can still enable encryption for passwords within connections by following be
 #. Install crypto package ``pip install 'apache-airflow[crypto]'``
 #. Generate fernet_key, using this code snippet below. ``fernet_key`` must be a base64-encoded 32-byte key:
 
-.. code:: python
+    .. code:: python
 
-    from cryptography.fernet import Fernet
-    fernet_key= Fernet.generate_key()
-    print(fernet_key.decode()) # your fernet_key, keep it in secured place!
+      from cryptography.fernet import Fernet
+      fernet_key= Fernet.generate_key()
+      print(fernet_key.decode()) # your fernet_key, keep it in secured place!
 
-3. Replace ``airflow.cfg`` fernet_key value with the one from step 2.
-   Alternatively, you can store your fernet_key in OS environment variable. You
-   do not need to change ``airflow.cfg`` in this case as Airflow will use environment
-   variable over the value in ``airflow.cfg``:
+#. Replace ``airflow.cfg`` fernet_key value with the one from `Step 2`. *Alternatively,* you can store your fernet_key in OS environment variable - You do not need to change ``airflow.cfg`` in this case as Airflow will use environment variable over the value in ``airflow.cfg``:
 
-   .. code-block:: bash
+    .. code-block:: bash
 
-     # Note the double underscores
-     export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
+      # Note the double underscores
+      export AIRFLOW__CORE__FERNET_KEY=your_fernet_key
 
-4. Restart Airflow webserver.
-5. For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it.
+#. Restart the webserver
+#. For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save the change
+
+Rotating encryption keys
+========================
+
+Once connection credentials and variables have been encrypted using a fernet
+key, changing the key will cause decryption of existing credentials to fail. To
+rotate the fernet key without invalidating existing encrypted values, prepend
+the new key to the ``fernet_key`` setting, run
+``airflow rotate_fernet_key``, and then drop the original key from
+``fernet_keys``:
+
+#. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
+#. Run ``airflow rotate_fernet_key`` to re-encrypt existing credentials with the new fernet key
+#. Set ``fernet_key`` to ``new_fernet_key``

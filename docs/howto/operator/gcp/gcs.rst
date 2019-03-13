@@ -79,7 +79,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Storage BucketAccessControls insert documentation
+See Google Cloud Storage Documentation to `create a new ACL entry for a bucket
 <https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert>`_.
 
 .. _howto/operator:GoogleCloudStorageObjectCreateAclEntryOperator:
@@ -123,5 +123,5 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Storage ObjectAccessControls insert documentation
+See Google Cloud Storage insert documentation to `create a ACL entry for ObjectAccess
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
