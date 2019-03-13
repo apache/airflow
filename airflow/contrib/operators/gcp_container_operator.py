@@ -119,7 +119,7 @@ class GKEClusterCreateOperator(BaseOperator):
 
     .. seealso::
         For more detail on about creating clusters have a look at the reference:
-        https://google-cloud-python.readthedocs.io/en/latest/container/gapic/v1/types.html#google.cloud.container_v1.types.Cluster
+        :class:`google.cloud.container_v1.types.Cluster`
 
     :param project_id: The Google Developers Console [project ID or project number]
     :type project_id: str
@@ -318,5 +318,5 @@ class GKEPodOperator(KubernetesPodOperator):
         if long_f in extras:
             return extras[long_f]
         else:
-            self.log.info('Field {} not found in extras.'.format(field))
+            self.log.info('Field %s not found in extras.', field)
             return default

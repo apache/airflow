@@ -21,7 +21,8 @@ import unittest
 from datetime import timedelta
 from mock import Mock, patch
 
-from airflow.models import TaskInstance, DAG, TaskReschedule
+from airflow.models import TaskInstance, DAG
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.state import State
@@ -44,7 +45,7 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
         return tr
 
     def test_should_pass_if_ignore_in_reschedule_period_is_set(self):
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         dep_context = DepContext(ignore_in_reschedule_period=True)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context))
 
@@ -52,43 +53,43 @@ class NotInReschedulePeriodDepTest(unittest.TestCase):
         ti = self._get_task_instance(State.UP_FOR_RETRY)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
-    @patch('airflow.models.TaskReschedule.find_for_task_instance', return_value=[])
+    @patch('airflow.models.taskreschedule.TaskReschedule.find_for_task_instance', return_value=[])
     def test_should_pass_if_no_reschedule_record_exists(self, find_for_task_instance):
         ti = self._get_task_instance(State.NONE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
-    @patch('airflow.models.TaskReschedule.find_for_task_instance')
+    @patch('airflow.models.taskreschedule.TaskReschedule.find_for_task_instance')
     def test_should_pass_after_reschedule_date_one(self, find_for_task_instance):
         find_for_task_instance.return_value = [
             self._get_task_reschedule(utcnow() - timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
-    @patch('airflow.models.TaskReschedule.find_for_task_instance')
+    @patch('airflow.models.taskreschedule.TaskReschedule.find_for_task_instance')
     def test_should_pass_after_reschedule_date_multiple(self, find_for_task_instance):
         find_for_task_instance.return_value = [
             self._get_task_reschedule(utcnow() - timedelta(minutes=21)),
             self._get_task_reschedule(utcnow() - timedelta(minutes=11)),
             self._get_task_reschedule(utcnow() - timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertTrue(ReadyToRescheduleDep().is_met(ti=ti))
 
-    @patch('airflow.models.TaskReschedule.find_for_task_instance')
+    @patch('airflow.models.taskreschedule.TaskReschedule.find_for_task_instance')
     def test_should_fail_before_reschedule_date_one(self, find_for_task_instance):
         find_for_task_instance.return_value = [
             self._get_task_reschedule(utcnow() + timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertFalse(ReadyToRescheduleDep().is_met(ti=ti))
 
-    @patch('airflow.models.TaskReschedule.find_for_task_instance')
+    @patch('airflow.models.taskreschedule.TaskReschedule.find_for_task_instance')
     def test_should_fail_before_reschedule_date_multiple(self, find_for_task_instance):
         find_for_task_instance.return_value = [
             self._get_task_reschedule(utcnow() - timedelta(minutes=19)),
             self._get_task_reschedule(utcnow() - timedelta(minutes=9)),
             self._get_task_reschedule(utcnow() + timedelta(minutes=1)),
         ]
-        ti = self._get_task_instance(State.NONE)
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         self.assertFalse(ReadyToRescheduleDep().is_met(ti=ti))

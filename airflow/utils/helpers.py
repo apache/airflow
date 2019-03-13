@@ -22,6 +22,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import errno
+
 import psutil
 
 from builtins import input
@@ -43,6 +45,8 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
+KEY_REGEX = re.compile(r'^[\w\-\.]+$')
+
 
 def validate_key(k, max_length=250):
     if not isinstance(k, basestring):
@@ -50,7 +54,7 @@ def validate_key(k, max_length=250):
     elif len(k) > max_length:
         raise AirflowException(
             "The key has to be less than {0} characters".format(max_length))
-    elif not re.match(r'^[A-Za-z0-9_\-\.]+$', k):
+    elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
             "dots and underscores exclusively".format(**locals()))
@@ -74,8 +78,8 @@ def alchemy_to_dict(obj):
 
 
 def ask_yesno(question):
-    yes = set(['yes', 'y'])
-    no = set(['no', 'n'])
+    yes = {'yes', 'y'}
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -167,6 +171,37 @@ def chain(*tasks):
         up_task.set_downstream(down_task)
 
 
+def cross_downstream(from_tasks, to_tasks):
+    r"""
+    Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
+    E.g.: cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
+    Is equivalent to:
+
+    t1 --> t4
+       \ /
+    t2 -X> t5
+       / \
+    t3 --> t6
+
+    t1.set_downstream(t4)
+    t1.set_downstream(t5)
+    t1.set_downstream(t6)
+    t2.set_downstream(t4)
+    t2.set_downstream(t5)
+    t2.set_downstream(t6)
+    t3.set_downstream(t4)
+    t3.set_downstream(t5)
+    t3.set_downstream(t6)
+
+    :param from_tasks: List of tasks to start from.
+    :type from_tasks: List[airflow.models.BaseOperator]
+    :param to_tasks: List of tasks to set as downstream dependencies.
+    :type to_tasks: List[airflow.models.BaseOperator]
+    """
+    for task in from_tasks:
+        task.set_downstream(to_tasks)
+
+
 def pprinttable(rows):
     """Returns a pretty ascii table from tuples
 
@@ -234,7 +269,15 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
     children = parent.children(recursive=True)
     children.append(parent)
 
-    log.info("Sending %s to GPID %s", sig, os.getpgid(pid))
+    try:
+        pg = os.getpgid(pid)
+    except OSError as err:
+        # Skip if not such process - we experience a race and it just terminated
+        if err.errno == errno.ESRCH:
+            return
+        raise
+
+    log.info("Sending %s to GPID %s", sig, pg)
     os.killpg(os.getpgid(pid), sig)
 
     gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
@@ -256,3 +299,25 @@ def parse_template_string(template_string):
         return None, Template(template_string)
     else:
         return template_string, None
+
+
+def render_log_filename(ti, try_number, filename_template):
+    """
+    Given task instance, try_number, filename_template, return the rendered log
+    filename
+
+    :param ti: task instance
+    :param try_number: try_number of the task
+    :param filename_template: filename template, which can be jinja template or
+        python string template
+    """
+    filename_template, filename_jinja_template = parse_template_string(filename_template)
+    if filename_jinja_template:
+        jinja_context = ti.get_template_context()
+        jinja_context['try_number'] = try_number
+        return filename_jinja_template.render(**jinja_context)
+
+    return filename_template.format(dag_id=ti.dag_id,
+                                    task_id=ti.task_id,
+                                    execution_date=ti.execution_date.isoformat(),
+                                    try_number=try_number)

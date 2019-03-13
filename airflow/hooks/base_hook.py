@@ -25,7 +25,7 @@ from __future__ import unicode_literals
 import os
 import random
 
-from airflow.models import Connection
+from airflow.models.connection import Connection
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin

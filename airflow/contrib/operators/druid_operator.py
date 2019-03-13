@@ -21,6 +21,7 @@ import json
 
 from airflow.hooks.druid_hook import DruidHook
 from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class DruidOperator(BaseOperator):
@@ -36,6 +37,7 @@ class DruidOperator(BaseOperator):
     template_fields = ('index_spec_str',)
     template_ext = ('.json',)
 
+    @apply_defaults
     def __init__(self, json_index_file,
                  druid_ingest_conn_id='druid_ingest_default',
                  max_ingestion_time=None,
@@ -58,5 +60,5 @@ class DruidOperator(BaseOperator):
             druid_ingest_conn_id=self.conn_id,
             max_ingestion_time=self.max_ingestion_time
         )
-        self.log.info("Sumitting %s", self.index_spec_str)
+        self.log.info("Submitting %s", self.index_spec_str)
         hook.submit_indexing_job(self.index_spec_str)

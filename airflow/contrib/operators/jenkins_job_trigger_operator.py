@@ -26,7 +26,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 import jenkins
 from jenkins import JenkinsException
-from six.moves.urllib.request import Request, urlopen
+from requests import Request
 from six.moves.urllib.error import HTTPError, URLError
 
 try:
@@ -35,27 +35,22 @@ except NameError:
     basestring = str  # For python3 compatibility
 
 
-# TODO Use jenkins_urlopen instead when it will be available
-# in the stable python-jenkins version (> 0.4.15)
-def jenkins_request_with_headers(jenkins_server, req, add_crumb=True):
+def jenkins_request_with_headers(jenkins_server, req):
     """
     We need to get the headers in addition to the body answer
     to get the location from them
-    This function is just a copy of the one present in python-jenkins library
+    This function uses jenkins_request method from python-jenkins library
     with just the return call changed
+
     :param jenkins_server: The server to query
     :param req: The request to execute
-    :param add_crumb: Boolean to indicate if it should add crumb to the request
-    :return:
+    :return: Dict containing the response body (key body)
+        and the headers coming along (headers)
     """
     try:
-        if jenkins_server.auth:
-            req.add_header('Authorization', jenkins_server.auth)
-        if add_crumb:
-            jenkins_server.maybe_add_crumb(req)
-        response = urlopen(req, timeout=jenkins_server.timeout)
-        response_body = response.read()
-        response_headers = response.info()
+        response = jenkins_server.jenkins_request(req)
+        response_body = response.content
+        response_headers = response.headers
         if response_body is None:
             raise jenkins.EmptyResponseException(
                 "Error communicating with server[%s]: "
@@ -94,6 +89,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     This operator depend on python-jenkins library,
     version >= 0.4.15 to communicate with jenkins server.
     You'll also need to configure a Jenkins connection in the connections screen.
+
     :param jenkins_connection_id: The jenkins connection to use for this job
     :type jenkins_connection_id: str
     :param job_name: The name of the job to trigger
@@ -101,7 +97,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param parameters: The parameters block to provide to jenkins. (templated)
     :type parameters: str
     :param sleep_time: How long will the operator sleep between each status
-    request for the job (min 1, default 10)
+        request for the job (min 1, default 10)
     :type sleep_time: int
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
@@ -135,9 +131,10 @@ class JenkinsJobTriggerOperator(BaseOperator):
         It returned a dict with 2 keys : body and headers.
         headers contains also a dict-like object which can be queried to get
         the location to poll in the queue.
+
         :param jenkins_server: The jenkins server where the job should be triggered
         :return: Dict containing the response body (key body)
-        and the headers coming along (headers)
+            and the headers coming along (headers)
         """
         # Warning if the parameter is too long, the URL can be longer than
         # the maximum allowed size
@@ -150,7 +147,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             self.parameters = None
 
         request = Request(jenkins_server.build_job_url(self.job_name,
-                                                       self.parameters, None), b'')
+                                                       self.parameters, None))
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location, jenkins_server):
@@ -163,6 +160,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         returned by the build_job call and poll this file.
         When a 'executable' block appears in the json, it means the job execution started
         and the field 'number' then contains the build number.
+
         :param location: Location to poll, returned in the header of the build_job call
         :param jenkins_server: The jenkins server to poll
         :return: The build_number corresponding to the triggered job

@@ -54,8 +54,7 @@ SPARK_TEST_STEPS = [
 ]
 
 JOB_FLOW_OVERRIDES = {
-    'Name': 'PiCalc',
-    'KeepJobFlowAliveWhenNoSteps': True
+    'Name': 'PiCalc'
 }
 
 dag = DAG(

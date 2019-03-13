@@ -96,7 +96,7 @@ class DataSet(object):
             if cls.type_name == name:
                 return cls
 
-        raise NotImplemented("No known mapping for {}".format(name))
+        raise NotImplementedError("No known mapping for {}".format(name))
 
 
 class DataBase(DataSet):

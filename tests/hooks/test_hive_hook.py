@@ -22,6 +22,7 @@ import datetime
 import itertools
 import os
 import random
+import sys
 import unittest
 from collections import OrderedDict
 
@@ -39,10 +40,10 @@ from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 configuration.load_test_config()
 
-
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
+NOT_ASSERTLOGS_VERSION = sys.version_info.major + sys.version_info.minor / 10
 
 
 class HiveEnvironmentTest(unittest.TestCase):
@@ -138,7 +139,7 @@ class TestHiveCliHook(unittest.TestCase):
 
         query = (
             "LOAD DATA LOCAL INPATH '{filepath}' "
-            "OVERWRITE INTO TABLE {table} \n"
+            "OVERWRITE INTO TABLE {table} ;\n"
             .format(filepath=filepath, table=table)
         )
         mock_run_cli.assert_called_with(query)
@@ -403,6 +404,27 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = HiveServer2Hook()
         hook.get_conn()
 
+    @mock.patch('pyhive.hive.connect')
+    def test_get_conn_with_password(self, mock_connect):
+        from airflow.hooks.base_hook import CONN_ENV_PREFIX
+        conn_id = "conn_with_password"
+        conn_env = CONN_ENV_PREFIX + conn_id.upper()
+        conn_value = os.environ.get(conn_env)
+        os.environ[conn_env] = "jdbc+hive2://conn_id:conn_pass@localhost:10000/default?authMechanism=LDAP"
+
+        HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+        mock_connect.assert_called_with(
+            host='localhost',
+            port=10000,
+            auth='LDAP',
+            kerberos_service_name=None,
+            username='conn_id',
+            password='conn_pass',
+            database='default')
+
+        if conn_value:
+            os.environ[conn_env] = conn_value
+
     def test_get_records(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
@@ -430,7 +452,23 @@ class TestHiveServer2Hook(unittest.TestCase):
         results = hook.get_results(query, schema=self.database)
         self.assertListEqual(results['data'], [(1, 1), (2, 2)])
 
-    def test_to_csv(self):
+    @unittest.skipIf(NOT_ASSERTLOGS_VERSION < 3.4, 'assertLogs not support before python 3.4')
+    def test_to_csv_assertlogs(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        csv_filepath = 'query_results.csv'
+        with self.assertLogs() as cm:
+            hook.to_csv(query, csv_filepath, schema=self.database,
+                        delimiter=',', lineterminator='\n', output_header=True, fetch_size=2)
+            df = pd.read_csv(csv_filepath, sep=',')
+            self.assertListEqual(df.columns.tolist(), self.columns)
+            self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
+            self.assertEqual(len(df), 2)
+            self.assertIn('INFO:airflow.hooks.hive_hooks.HiveServer2Hook:'
+                          'Written 2 rows so far.', cm.output)
+
+    @unittest.skipIf(NOT_ASSERTLOGS_VERSION >= 3.4, 'test could cover by test_to_csv_assertLogs')
+    def test_to_csv_without_assertlogs(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
         csv_filepath = 'query_results.csv'

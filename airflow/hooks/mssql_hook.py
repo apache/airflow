@@ -50,3 +50,6 @@ class MsSqlHook(DbApiHook):
 
     def set_autocommit(self, conn, autocommit):
         conn.autocommit(autocommit)
+
+    def get_autocommit(self, conn):
+        return conn.autocommit_state

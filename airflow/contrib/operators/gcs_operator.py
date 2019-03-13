@@ -34,6 +34,10 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
 
     :param bucket_name: The name of the bucket. (templated)
     :type bucket_name: str
+    :param resource: An optional dict with parameters for creating the bucket.
+            For information on available parameters, see Cloud Storage API doc:
+            https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
+    :type resource: dict
     :param storage_class: This defines how objects in the bucket are stored
             and determines the SLA and the cost of storage (templated). Values include
 
@@ -42,6 +46,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             - ``STANDARD``
             - ``NEARLINE``
             - ``COLDLINE``.
+
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
     :type storage_class: str
@@ -49,8 +54,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         Object data for objects in the bucket resides in physical storage
         within this region. Defaults to US.
 
-        .. seealso::
-            https://developers.google.com/storage/docs/bucket-locations
+        .. seealso:: https://developers.google.com/storage/docs/bucket-locations
 
     :type location: str
     :param project_id: The ID of the GCP Project. (templated)
@@ -65,18 +69,18 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         have domain-wide delegation enabled.
     :type delegate_to: str
 
-    **Example**:
-        The following Operator would create a new bucket ``test-bucket``
-        with ``MULTI_REGIONAL`` storage class in ``EU`` region ::
+    :Example::
+    The following Operator would create a new bucket ``test-bucket``
+    with ``MULTI_REGIONAL`` storage class in ``EU`` region ::
 
-            CreateBucket = GoogleCloudStorageCreateBucketOperator(
-                task_id='CreateNewBucket',
-                bucket_name='test-bucket',
-                storage_class='MULTI_REGIONAL',
-                location='EU',
-                labels={'env': 'dev', 'team': 'airflow'},
-                google_cloud_storage_conn_id='airflow-service-account'
-            )
+        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+            task_id='CreateNewBucket',
+            bucket_name='test-bucket',
+            storage_class='MULTI_REGIONAL',
+            location='EU',
+            labels={'env': 'dev', 'team': 'airflow'},
+            google_cloud_storage_conn_id='airflow-service-account'
+        )
     """
 
     template_fields = ('bucket_name', 'storage_class',
@@ -86,6 +90,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  bucket_name,
+                 resource=None,
                  storage_class='MULTI_REGIONAL',
                  location='US',
                  project_id=None,
@@ -96,6 +101,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
                  **kwargs):
         super(GoogleCloudStorageCreateBucketOperator, self).__init__(*args, **kwargs)
         self.bucket_name = bucket_name
+        self.resource = resource
         self.storage_class = storage_class
         self.location = location
         self.project_id = project_id
@@ -116,6 +122,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
         )
 
         hook.create_bucket(bucket_name=self.bucket_name,
+                           resource=self.resource,
                            storage_class=self.storage_class,
                            location=self.location,
                            project_id=self.project_id,
