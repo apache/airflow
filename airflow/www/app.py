@@ -54,6 +54,9 @@ def create_app(config=None, testing=False):
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
 
+    if config:
+        app.config.from_mapping(config)
+
     csrf.init_app(app)
 
     app.config['TESTING'] = testing
@@ -173,7 +176,7 @@ app = None
 
 
 def root_app(env, resp):
-    resp(b'404 Not Found', [('Content-Type', 'text/plain')])
+    resp('404 Not Found', [('Content-Type', 'text/plain')])
     return [b'Apache Airflow is not at this location']
 
 
