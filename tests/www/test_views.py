@@ -36,6 +36,7 @@ from flask import url_for
 from flask._compat import PY2
 from parameterized import parameterized
 from werkzeug.test import Client
+from werkzeug.wrappers import BaseResponse
 
 from airflow import configuration as conf
 from airflow import models, settings
@@ -270,24 +271,29 @@ class TestPoolModelView(TestBase):
 
 
 class TestMountPoint(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         application.app = None
-        super(TestMountPoint, self).setUp()
+        application.appbuilder = None
         conf.load_test_config()
         conf.set("webserver", "base_url", "http://localhost:8080/test")
-        config = dict()
-        config['WTF_CSRF_METHODS'] = []
-        app = application.cached_app(config=config, testing=True)
-        self.client = Client(app)
+        app = application.cached_app(config={'WTF_CSRF_ENABLED': False}, session=Session, testing=True)
+        cls.client = Client(app, BaseResponse)
+
+    @classmethod
+    def tearDownClass(cls):
+        application.app = None
+        application.appbuilder = None
 
     def test_mount(self):
-        resp, _, _ = self.client.get('/', follow_redirects=True)
-        txt = b''.join(resp)
-        self.assertEqual(b"Apache Airflow is not at this location", txt)
+        # Test an endpoint that doesn't need auth!
+        resp = self.client.get('/test/health')
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"healthy", resp.data)
 
-        resp, _, _ = self.client.get('/test/home', follow_redirects=True)
-        resp_html = b''.join(resp)
-        self.assertIn(b"DAGs", resp_html)
+    def test_not_found(self):
+        resp = self.client.get('/', follow_redirects=True)
+        self.assertEqual(resp.status_code, 404)
 
 
 class TestAirflowBaseViews(TestBase):

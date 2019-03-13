@@ -59,6 +59,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
 
+    if config:
+        app.config.from_mapping(config)
+
     csrf.init_app(app)
 
     db = SQLA(app)
