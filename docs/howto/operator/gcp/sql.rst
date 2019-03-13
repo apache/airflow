@@ -640,5 +640,5 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL documentation for more information
-<https://cloud.google.com/sql/docs/postgres/sql-proxy>`_.
+See Google Cloud SQL documentation for `MySQL <https://cloud.google.com/sql/docs/mysql/sql-proxy>`_ and
+`PostgreSQL <https://cloud.google.com/sql/docs/postgres/sql-proxy>`_ related proxies.

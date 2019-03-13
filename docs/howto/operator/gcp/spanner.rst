@@ -272,5 +272,5 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Spanner API documentation to delete an instance
+See Google Cloud Spanner API documentation to `delete an instance
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.
