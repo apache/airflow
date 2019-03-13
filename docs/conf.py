@@ -57,6 +57,7 @@ autodoc_mock_imports = [
     'google',
     'google_auth_httplib2',
     'googleapiclient',
+    'grpc',
     'hdfs',
     'httplib2',
     'jaydebeapi',

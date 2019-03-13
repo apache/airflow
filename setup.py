@@ -186,6 +186,7 @@ gcp_api = [
     'pandas-gbq',
     'PyOpenSSL',
 ]
+grpc = ['grpcio>=1.15.0']
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
     'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
@@ -261,7 +262,7 @@ devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_azure = devel_minreq + azure_data_lake + azure_cosmos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
+             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake + azure_cosmos +
              atlas + azure_container_instances)
@@ -361,6 +362,7 @@ def do_setup():
             'gcp_api': gcp_api,
             'github_enterprise': flask_oauth,
             'google_auth': flask_oauth,
+            'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,
