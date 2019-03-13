@@ -24,7 +24,6 @@ import inspect
 import json
 import time
 import wtforms
-import bleach
 import markdown
 import re
 import zipfile
@@ -235,8 +234,8 @@ def make_cache_key(*args, **kwargs):
 
 
 def task_instance_link(attr):
-    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
-    task_id = bleach.clean(attr.get('task_id')) if attr.get('task_id') else None
+    dag_id = attr.get('dag_id')
+    task_id = attr.get('task_id')
     execution_date = attr.get('execution_date')
     url = url_for(
         'Airflow.task',
@@ -257,14 +256,14 @@ def task_instance_link(attr):
             aria-hidden="true"></span>
         </a>
         </span>
-        """.format(**locals()))
+        """).format(**locals())
 
 
 def state_token(state):
     color = State.color(state)
     return Markup(
         '<span class="label" style="background-color:{color};">'
-        '{state}</span>'.format(**locals()))
+        '{state}</span>').format(**locals())
 
 
 def state_f(attr):
@@ -275,7 +274,7 @@ def state_f(attr):
 def nobr_f(attr_name):
     def nobr(attr):
         f = attr.get(attr_name)
-        return Markup("<nobr>{}</nobr>".format(f))
+        return Markup("<nobr>{}</nobr>").format(f)
     return nobr
 
 
@@ -285,24 +284,24 @@ def datetime_f(attr_name):
         f = f.isoformat() if f else ''
         if timezone.utcnow().isoformat()[:4] == f[:4]:
             f = f[5:]
-        return Markup("<nobr>{}</nobr>".format(f))
+        return Markup("<nobr>{}</nobr>").format(f)
     return dt
 
 
 def dag_link(attr):
-    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
+    dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
     url = url_for(
         'Airflow.graph',
         dag_id=dag_id,
         execution_date=execution_date)
     return Markup(
-        '<a href="{}">{}</a>'.format(url, dag_id))
+        '<a href="{}">{}</a>').format(url, dag_id)
 
 
 def dag_run_link(attr):
-    dag_id = bleach.clean(attr.get('dag_id')) if attr.get('dag_id') else None
-    run_id = bleach.clean(attr.get('run_id')) if attr.get('run_id') else None
+    dag_id = attr.get('dag_id')
+    run_id = attr.get('run_id')
     execution_date = attr.get('execution_date')
     url = url_for(
         'Airflow.graph',
@@ -310,7 +309,7 @@ def dag_run_link(attr):
         run_id=run_id,
         execution_date=execution_date)
     return Markup(
-        '<a href="{url}">{run_id}</a>'.format(**locals()))
+        '<a href="{url}">{run_id}</a>').format(**locals())
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):

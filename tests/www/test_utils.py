@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
 import unittest
 import mock
 from xml.dom import minidom
@@ -25,10 +26,6 @@ from airflow.www import utils
 
 
 class UtilsTest(unittest.TestCase):
-
-    def setUp(self):
-        super(UtilsTest, self).setUp()
-
     def test_empty_variable_should_not_be_hidden(self):
         self.assertFalse(utils.should_hide_value_for_key(""))
         self.assertFalse(utils.should_hide_value_for_key(None))
@@ -147,6 +144,60 @@ class UtilsTest(unittest.TestCase):
         instance.open.assert_called_once()
         (args, kwargs) = instance.open.call_args_list[0]
         self.assertEqual('deep/path/to/file.txt', args[0])
+
+    def test_state_token(self):
+        # It's shouldn't possible to set these odd values anymore, but lets
+        # ensure they are escaped!
+        html = str(utils.state_token('<script>alert(1)</script>'))
+
+        self.assertIn(
+            '&lt;script&gt;alert(1)&lt;/script&gt;',
+            html,
+        )
+        self.assertNotIn(
+            '<script>alert(1)</script>',
+            html,
+        )
+
+    def test_task_instance_link(self):
+
+        from airflow.www.app import cached_appbuilder
+        with cached_appbuilder(testing=True).app.test_request_context():
+            html = str(utils.task_instance_link({
+                'dag_id': '<a&1>',
+                'task_id': '<b2>',
+                'execution_date': datetime.now()
+            }))
+
+        self.assertIn('%3Ca%261%3E', html)
+        self.assertIn('%3Cb2%3E', html)
+        self.assertNotIn('<a&1>', html)
+        self.assertNotIn('<b2>', html)
+
+    def test_dag_link(self):
+        from airflow.www.app import cached_appbuilder
+        with cached_appbuilder(testing=True).app.test_request_context():
+            html = str(utils.dag_link({
+                'dag_id': '<a&1>',
+                'execution_date': datetime.now()
+            }))
+
+        self.assertIn('%3Ca%261%3E', html)
+        self.assertNotIn('<a&1>', html)
+
+    def test_dag_run_link(self):
+        from airflow.www.app import cached_appbuilder
+        with cached_appbuilder(testing=True).app.test_request_context():
+            html = str(utils.dag_run_link({
+                'dag_id': '<a&1>',
+                'run_id': '<b2>',
+                'execution_date': datetime.now()
+            }))
+
+        self.assertIn('%3Ca%261%3E', html)
+        self.assertIn('%3Cb2%3E', html)
+        self.assertNotIn('<a&1>', html)
+        self.assertNotIn('<b2>', html)
 
 
 class AttrRendererTest(unittest.TestCase):
