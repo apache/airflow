@@ -186,6 +186,7 @@ gcp = [
     'pandas-gbq'
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
+grpc = ['grpcio>=1.15.0']
 google_auth = ['Flask-OAuthlib>=0.9.1']
 hdfs = ['snakebite>=2.7.8']
 hive = [
@@ -260,7 +261,7 @@ if not PY3:
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + redis + gcp +
+             docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
              atlas + azure + aws)
@@ -355,6 +356,7 @@ def do_setup():
             'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
             'github_enterprise': github_enterprise,
             'google_auth': google_auth,
+            'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,
