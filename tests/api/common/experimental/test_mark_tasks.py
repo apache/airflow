@@ -30,6 +30,7 @@ from airflow.utils.db import create_session, provide_session
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 from airflow.models import DagRun
+from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"
 
@@ -38,13 +39,17 @@ configuration.load_test_config()
 
 class TestMarkTasks(unittest.TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        dagbag = models.DagBag(include_examples=True)
+        cls.dag1 = dagbag.dags['example_bash_operator']
+        cls.dag1.sync_to_db()
+        cls.dag2 = dagbag.dags['example_subdag_operator']
+        cls.dag2.sync_to_db()
+        cls.execution_dates = [days_ago(2), days_ago(1)]
+
     def setUp(self):
-        self.dagbag = models.DagBag(include_examples=True)
-        self.dag1 = self.dagbag.dags['example_bash_operator']
-        self.dag2 = self.dagbag.dags['example_subdag_operator']
-
-        self.execution_dates = [days_ago(2), days_ago(1)]
-
+        clear_db_runs()
         drs = _create_dagruns(self.dag1, self.execution_dates,
                               state=State.RUNNING,
                               run_id_template="scheduled__{}")
@@ -62,13 +67,7 @@ class TestMarkTasks(unittest.TestCase):
             dr.verify_integrity()
 
     def tearDown(self):
-        self.dag1.clear()
-        self.dag2.clear()
-
-        # just to make sure we are fully cleaned up
-        with create_session() as session:
-            session.query(models.DagRun).delete()
-            session.query(models.TaskInstance).delete()
+        clear_db_runs()
 
     @staticmethod
     def snapshot_state(dag, execution_dates):
@@ -216,11 +215,18 @@ class TestMarkTasks(unittest.TestCase):
 
 
 class TestMarkDAGRun(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        dagbag = models.DagBag(include_examples=True)
+        cls.dag1 = dagbag.dags['example_bash_operator']
+        cls.dag1.sync_to_db()
+        cls.dag2 = dagbag.dags['example_subdag_operator']
+        cls.dag2.sync_to_db()
+        cls.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
+
     def setUp(self):
-        self.dagbag = models.DagBag(include_examples=True)
-        self.dag1 = self.dagbag.dags['example_bash_operator']
-        self.dag2 = self.dagbag.dags['example_subdag_operator']
-        self.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
+        clear_db_runs()
 
     def _set_default_task_instance_states(self, dr):
         # success task

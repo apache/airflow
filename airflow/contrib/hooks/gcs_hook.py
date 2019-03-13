@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
@@ -478,6 +479,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     def create_bucket(self,
                       bucket_name,
+                      resource=None,
                       storage_class='MULTI_REGIONAL',
                       location='US',
                       project_id=None,
@@ -493,6 +495,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         :param bucket_name: The name of the bucket.
         :type bucket_name: str
+        :param resource: An optional dict with parameters for creating the bucket.
+            For information on available parameters, see Cloud Storage API doc:
+            https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
+        :type resource: dict
         :param storage_class: This defines how objects in the bucket are stored
             and determines the SLA and the cost of storage. Values include
 
@@ -543,11 +549,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             raise ValueError('Bucket names must end with a number or letter.')
 
         service = self.get_conn()
-        bucket_resource = {
+        bucket_resource = resource or {}
+        bucket_resource.update({
             'name': bucket_name,
             'location': location,
             'storageClass': storage_class
-        }
+        })
 
         self.log.info('The Default Project ID is %s', self.project_id)
 

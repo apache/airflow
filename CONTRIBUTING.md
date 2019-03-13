@@ -160,18 +160,17 @@ There are three ways to setup an Apache Airflow development environment.
   ```bash
   docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
   # From the container
-  pip install -e .[devel]
-  # Run all the tests with python and mysql through tox
-  pip install tox
-  tox -e py35-backend_mysql
+  export TOX_ENV=py27-backend_mysql-env_docker
+  /app/scripts/ci/run-ci.sh
   ```
 
   If you wish to run individual tests inside of Docker environment you can do as follows:
 
   ```bash
-    # From the container (with your desired environment) with druid hook
-    tox -e py35-backend_mysql -- tests/hooks/test_druid_hook.py
- ```
+  # From the container (with your desired environment) with druid hook
+  export TOX_ENV=py27-backend_mysql-env_docker
+  /app/scripts/ci/run-ci.sh -- tests/hooks/test_druid_hook.py
+  ```
 
 
 ### Running unit tests

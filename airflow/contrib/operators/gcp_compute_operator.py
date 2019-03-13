@@ -359,8 +359,11 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
             # Group Manager. We assume success if the template is simply present
             existing_template = self._hook.get_instance_template(
                 resource_id=self.body_patch['name'], project_id=self.project_id)
-            self.log.info("The {} template already existed. It was likely "
-                          "created by previous run of the operator. Assuming success.")
+            self.log.info(
+                "The %s template already existed. It was likely created by previous run of the operator. "
+                "Assuming success.",
+                existing_template
+            )
             return existing_template
         except HttpError as e:
             # We actually expect to get 404 / Not Found here as the template should
@@ -372,8 +375,7 @@ class GceInstanceTemplateCopyOperator(GceBaseOperator):
         new_body = deepcopy(old_body)
         self._field_sanitizer.sanitize(new_body)
         new_body = merge(new_body, self.body_patch)
-        self.log.info("Calling insert instance template with updated body: {}".
-                      format(new_body))
+        self.log.info("Calling insert instance template with updated body: %s", new_body)
         self._hook.insert_instance_template(body=new_body,
                                             request_id=self.request_id,
                                             project_id=self.project_id)

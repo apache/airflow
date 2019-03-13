@@ -47,8 +47,6 @@ from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 
-AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
-
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
     'secret',
@@ -209,6 +207,9 @@ def json_response(obj):
         mimetype="application/json")
 
 
+ZIP_REGEX = re.compile(r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)))
+
+
 def open_maybe_zipped(f, mode='r'):
     """
     Opens the given file. If the path contains a folder with a .zip suffix, then
@@ -217,8 +218,7 @@ def open_maybe_zipped(f, mode='r'):
     :return: a file object, as in `open`, or as in `ZipFile.open`.
     """
 
-    _, archive, filename = re.search(
-        r'((.*\.zip){})?(.*)'.format(re.escape(os.sep)), f).groups()
+    _, archive, filename = ZIP_REGEX.search(f).groups()
     if archive and zipfile.is_zipfile(archive):
         return zipfile.ZipFile(archive, mode=mode).open(filename)
     else:
@@ -337,11 +337,15 @@ def render(obj, lexer):
 
 
 def wrapped_markdown(s):
-    return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+    return (
+        '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+        if s is not None
+        else None
+    )
 
 
 def get_attr_renderer():
-    attr_renderer = {
+    return {
         'bash_command': lambda x: render(x, lexers.BashLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
         'sql': lambda x: render(x, lexers.SqlLexer),
@@ -351,9 +355,8 @@ def get_attr_renderer():
         'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'doc_md': wrapped_markdown,
         'python_callable': lambda x: render(
-            inspect.getsource(x), lexers.PythonLexer),
+            inspect.getsource(x) if x is not None else None, lexers.PythonLexer),
     }
-    return attr_renderer
 
 
 def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):

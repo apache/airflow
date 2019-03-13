@@ -327,8 +327,10 @@ Sensors
 
 Macros
 ------
-Here's a list of variables and macros that can be used in templates
+Variables and macros can be used in templates (see the :ref:`jinja-templating` section)
 
+The following come for free out of the box with Airflow. 
+Additional custom macros can be added globally through :ref:`plugins`, or at a DAG level through the ``DAG.user_defined_macros`` argument.
 
 Default Variables
 '''''''''''''''''
@@ -508,6 +510,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
 .. autoclass:: airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+.. autoclass:: airflow.contrib.hooks.grpc_hook.GrpcHook
 .. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook

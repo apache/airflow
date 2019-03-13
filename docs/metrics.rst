@@ -18,9 +18,11 @@
 Metrics
 =======
 
+Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__:
+
 Configuration
 -------------
-Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__:
+Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: bash
 
@@ -66,4 +68,5 @@ Timers
 Name                              Description
 ================================= =======================================
 dagrun.dependency-check.<dag_id>  Seconds taken to check DAG dependencies
+dag.<dag_id>.<task_id>.duration   Seconds taken to finish a task
 ================================= =======================================

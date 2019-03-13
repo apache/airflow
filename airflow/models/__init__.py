@@ -23,8 +23,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import copy
-from collections import defaultdict, namedtuple, OrderedDict
 from builtins import ImportError as BuiltinImportError, bytes, object, str
+from collections import defaultdict, namedtuple, OrderedDict
+
 from future.standard_library import install_aliases
 
 from airflow.models.base import Base, ID_LEN
@@ -52,6 +53,7 @@ import pickle
 import re
 import signal
 import sys
+import time
 import textwrap
 import traceback
 import warnings
@@ -526,7 +528,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
 
             self.dags[dag.dag_id] = dag
-            self.log.debug('Loaded DAG {dag}'.format(**locals()))
+            self.log.debug('Loaded DAG %s', dag)
         except AirflowDagCycleException as cycle_exception:
             # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception('Exception bagging dag: {dag.dag_id}'.format(**locals()))
@@ -1252,15 +1254,11 @@ class TaskInstance(Base, LoggingMixin):
             return False
 
         # TODO: Logging needs cleanup, not clear what is being printed
-        hr = "\n" + ("-" * 80) + "\n"  # Line break
+        hr = "\n" + ("-" * 80)  # Line break
 
         # For reporting purposes, we report based on 1-indexed,
         # not 0-indexed lists (i.e. Attempt 1 instead of
         # Attempt 0 for the first attempt).
-        msg = "Starting attempt {attempt} of {total}".format(
-            attempt=self.try_number,
-            total=self.max_tries + 1)
-
         # Set the task start date. In case it was re-scheduled use the initial
         # start date that is recorded in task_reschedule table
         self.start_date = timezone.utcnow()
@@ -1284,11 +1282,12 @@ class TaskInstance(Base, LoggingMixin):
             # have been running prematurely. This should be handled in the
             # scheduling mechanism.
             self.state = State.NONE
-            msg = ("FIXME: Rescheduling due to concurrency limits reached at task "
-                   "runtime. Attempt {attempt} of {total}. State set to NONE.").format(
-                attempt=self.try_number,
-                total=self.max_tries + 1)
-            self.log.warning(hr + msg + hr)
+            self.log.warning(hr)
+            self.log.warning(
+                "FIXME: Rescheduling due to concurrency limits reached at task runtime. Attempt %s of "
+                "%s. State set to NONE.", self.try_number, self.max_tries + 1
+            )
+            self.log.warning(hr)
 
             self.queued_dttm = timezone.utcnow()
             self.log.info("Queuing into pool %s", self.pool)
@@ -1299,13 +1298,14 @@ class TaskInstance(Base, LoggingMixin):
         # Another worker might have started running this task instance while
         # the current worker process was blocked on refresh_from_db
         if self.state == State.RUNNING:
-            msg = "Task Instance already running {}".format(self)
-            self.log.warning(msg)
+            self.log.warning("Task Instance already running %s", self)
             session.commit()
             return False
 
         # print status message
-        self.log.info(hr + msg + hr)
+        self.log.info(hr)
+        self.log.info("Starting attempt %s of %s", self.try_number, self.max_tries + 1)
+        self.log.info(hr)
         self._try_number += 1
 
         if not test_mode:
@@ -1322,12 +1322,9 @@ class TaskInstance(Base, LoggingMixin):
         settings.engine.dispose()
         if verbose:
             if mark_success:
-                msg = "Marking success for {} on {}".format(self.task,
-                                                            self.execution_date)
-                self.log.info(msg)
+                self.log.info("Marking success for %s on %s", self.task, self.execution_date)
             else:
-                msg = "Executing {} on {}".format(self.task, self.execution_date)
-                self.log.info(msg)
+                self.log.info("Executing %s on %s", self.task, self.execution_date)
         return True
 
     @provide_session
@@ -1377,6 +1374,8 @@ class TaskInstance(Base, LoggingMixin):
                 # Don't clear Xcom until the task is certain to execute
                 self.clear_xcom_data()
 
+                start_time = time.time()
+
                 self.render_templates()
                 task_copy.pre_execute(context=context)
 
@@ -1399,6 +1398,14 @@ class TaskInstance(Base, LoggingMixin):
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                 task_copy.post_execute(context=context, result=result)
+
+                end_time = time.time()
+                duration = end_time - start_time
+                Stats.timing(
+                    'dag.{dag_id}.{task_id}.duration'.format(
+                        dag_id=task_copy.dag_id,
+                        task_id=task_copy.task_id),
+                    duration)
 
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
@@ -2574,19 +2581,20 @@ class BaseOperator(LoggingMixin):
 
         return count
 
-    def get_task_instances(self, session, start_date=None, end_date=None):
+    @provide_session
+    def get_task_instances(self, start_date=None, end_date=None, session=None):
         """
         Get a set of task instance related to this task for a specific date
         range.
         """
-        TI = TaskInstance
         end_date = end_date or timezone.utcnow()
-        return session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.execution_date >= start_date,
-            TI.execution_date <= end_date,
-        ).order_by(TI.execution_date).all()
+        return session.query(TaskInstance)\
+            .filter(TaskInstance.dag_id == self.dag_id)\
+            .filter(TaskInstance.task_id == self.task_id)\
+            .filter(TaskInstance.execution_date >= start_date)\
+            .filter(TaskInstance.execution_date <= end_date)\
+            .order_by(TaskInstance.execution_date)\
+            .all()
 
     def get_flat_relative_ids(self, upstream=False, found_descendants=None):
         """
@@ -2808,6 +2816,11 @@ class DagModel(Base):
     @property
     def timezone(self):
         return settings.TIMEZONE
+
+    @staticmethod
+    @provide_session
+    def get_dagmodel(dag_id, session=None):
+        return session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
 
     @classmethod
     @provide_session
@@ -3381,7 +3394,7 @@ class DAG(BaseDag, LoggingMixin):
         callback = self.on_success_callback if success else self.on_failure_callback
         if callback:
             self.log.info('Executing dag callback function: {}'.format(callback))
-            tis = dagrun.get_task_instances(session=session)
+            tis = dagrun.get_task_instances()
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
@@ -3502,23 +3515,23 @@ class DAG(BaseDag, LoggingMixin):
         self.get_task(upstream_task_id).set_downstream(
             self.get_task(downstream_task_id))
 
+    @provide_session
     def get_task_instances(
-            self, session, start_date=None, end_date=None, state=None):
-        TI = TaskInstance
+            self, start_date=None, end_date=None, state=None, session=None):
         if not start_date:
             start_date = (timezone.utcnow() - timedelta(30)).date()
             start_date = timezone.make_aware(
                 datetime.combine(start_date, datetime.min.time()))
         end_date = end_date or timezone.utcnow()
-        tis = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.execution_date >= start_date,
-            TI.execution_date <= end_date,
-            TI.task_id.in_([t.task_id for t in self.tasks]),
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.execution_date >= start_date,
+            TaskInstance.execution_date <= end_date,
+            TaskInstance.task_id.in_([t.task_id for t in self.tasks]),
         )
         if state:
-            tis = tis.filter(TI.state == state)
-        tis = tis.order_by(TI.execution_date).all()
+            tis = tis.filter(TaskInstance.state == state)
+        tis = tis.order_by(TaskInstance.execution_date).all()
         return tis
 
     @property
@@ -4420,26 +4433,25 @@ class DagRun(Base, LoggingMixin):
         """
         Returns the task instances for this dag run
         """
-        TI = TaskInstance
-        tis = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.execution_date == self.execution_date,
+        tis = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id,
+            TaskInstance.execution_date == self.execution_date,
         )
         if state:
             if isinstance(state, six.string_types):
-                tis = tis.filter(TI.state == state)
+                tis = tis.filter(TaskInstance.state == state)
             else:
                 # this is required to deal with NULL values
                 if None in state:
                     tis = tis.filter(
-                        or_(TI.state.in_(state),
-                            TI.state.is_(None))
+                        or_(TaskInstance.state.in_(state),
+                            TaskInstance.state.is_(None))
                     )
                 else:
-                    tis = tis.filter(TI.state.in_(state))
+                    tis = tis.filter(TaskInstance.state.in_(state))
 
         if self.dag and self.dag.partial:
-            tis = tis.filter(TI.task_id.in_(self.dag.task_ids))
+            tis = tis.filter(TaskInstance.task_id.in_(self.dag.task_ids))
 
         return tis.all()
 

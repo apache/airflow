@@ -152,6 +152,19 @@ class AirflowConfigParser(ConfigParser):
         'setting has been used, but please update your config.'
     )
 
+    # A mapping of old default values that we want to change and warn the user
+    # about. Mapping of section -> setting -> { old, replace, by_version }
+    deprecated_values = {
+        'core': {
+            'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+        },
+    }
+    deprecation_value_format_string = (
+        'The {name} setting in [{section}] has the old default value of {old!r}. This '
+        'value has been changed to {new!r} in the running config, but please '
+        'update your config before Apache Airflow {version}.'
+    )
+
     def __init__(self, default_config=None, *args, **kwargs):
         super(AirflowConfigParser, self).__init__(*args, **kwargs)
 
@@ -169,29 +182,30 @@ class AirflowConfigParser(ConfigParser):
                 "error: cannot use sqlite with the {}".format(
                     self.get('core', 'executor')))
 
-        elif (
-            self.getboolean("webserver", "authenticate") and
-            self.get("webserver", "owner_mode") not in ['user', 'ldapgroup']
-        ):
-            raise AirflowConfigException(
-                "error: owner_mode option should be either "
-                "'user' or 'ldapgroup' when filtering by owner is set")
+        for section, replacement in self.deprecated_values.items():
+            for name, info in replacement.items():
+                old, new, version = info
+                if self.get(section, name, fallback=None) == old:
+                    # Make sure the env var option is removed, otherwise it
+                    # would be read and used instead of the value we set
+                    env_var = self._env_var_name(section, name)
+                    os.environ.pop(env_var, None)
 
-        elif (
-            self.getboolean("webserver", "authenticate") and
-            self.get("webserver", "owner_mode").lower() == 'ldapgroup' and
-            self.get("webserver", "auth_backend") != (
-                'airflow.contrib.auth.backends.ldap_auth')
-        ):
-            raise AirflowConfigException(
-                "error: attempt at using ldapgroup "
-                "filtering without using the Ldap backend")
+                    self.set(section, name, new)
+                    warnings.warn(
+                        self.deprecation_value_format_string.format(**locals()),
+                        FutureWarning,
+                    )
 
         self.is_validated = True
 
+    @staticmethod
+    def _env_var_name(section, key):
+        return 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
+
     def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
-        env_var = 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
+        env_var = self._env_var_name(section, key)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
 
@@ -253,12 +267,12 @@ class AirflowConfigParser(ConfigParser):
 
         else:
             log.warning(
-                "section/key [{section}/{key}] not found in config".format(**locals())
+                "section/key [%s/%s] not found in config", section, key
             )
 
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
-                "in config".format(**locals()))
+                "in config".format(section=section, key=key))
 
     def getboolean(self, section, key, **kwargs):
         val = str(self.get(section, key, **kwargs)).lower().strip()
