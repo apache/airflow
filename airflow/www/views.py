@@ -33,7 +33,6 @@ from datetime import timedelta
 from functools import wraps
 from textwrap import dedent
 
-import bleach
 import markdown
 import pendulum
 import sqlalchemy as sqla
@@ -108,13 +107,12 @@ def dag_link(v, c, m, p):
     if m.dag_id is None:
         return Markup()
 
-    dag_id = bleach.clean(m.dag_id)
     url = url_for(
         'airflow.graph',
-        dag_id=dag_id,
+        dag_id=m.dag_id,
         execution_date=m.execution_date)
     return Markup(
-        '<a href="{}">{}</a>'.format(url, dag_id))
+        '<a href="{}">{}</a>').format(url, m.dag_id)
 
 
 def log_url_formatter(v, c, m, p):
@@ -125,46 +123,43 @@ def log_url_formatter(v, c, m, p):
 
 
 def dag_run_link(v, c, m, p):
-    dag_id = bleach.clean(m.dag_id)
     url = url_for(
         'airflow.graph',
         dag_id=m.dag_id,
         run_id=m.run_id,
         execution_date=m.execution_date)
-    title = escape(m.run_id)
-    return Markup('<a href="{url}">{title}</a>'.format(**locals()))
+    title = m.run_id
+    return Markup('<a href="{url}">{title}</a>').format(**locals())
 
 
 def task_instance_link(v, c, m, p):
-    dag_id = bleach.clean(m.dag_id)
-    task_id = bleach.clean(m.task_id)
     url = url_for(
         'airflow.task',
-        dag_id=dag_id,
-        task_id=task_id,
+        dag_id=m.dag_id,
+        task_id=m.task_id,
         execution_date=m.execution_date.isoformat())
     url_root = url_for(
         'airflow.graph',
-        dag_id=dag_id,
-        root=task_id,
+        dag_id=m.dag_id,
+        root=m.task_id,
         execution_date=m.execution_date.isoformat())
     return Markup(
         """
         <span style="white-space: nowrap;">
-        <a href="{url}">{task_id}</a>
+        <a href="{url}">{m.task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
         <span class="glyphicon glyphicon-filter" style="margin-left: 0px;"
             aria-hidden="true"></span>
         </a>
         </span>
-        """.format(**locals()))
+        """).format(**locals())
 
 
 def state_token(state):
     color = State.color(state)
     return Markup(
         '<span class="label" style="background-color:{color};">'
-        '{state}</span>'.format(**locals()))
+        '{state}</span>').format(**locals())
 
 
 def parse_datetime_f(value):
@@ -188,11 +183,11 @@ def datetime_f(v, c, m, p):
     dttm = attr.isoformat() if attr else ''
     if timezone.utcnow().isoformat()[:4] == dttm[:4]:
         dttm = dttm[5:]
-    return Markup("<nobr>{}</nobr>".format(dttm))
+    return Markup("<nobr>{}</nobr>").format(dttm)
 
 
 def nobr_f(v, c, m, p):
-    return Markup("<nobr>{}</nobr>".format(getattr(m, p)))
+    return Markup("<nobr>{}</nobr>").format(getattr(m, p))
 
 
 def label_link(v, c, m, p):
@@ -203,15 +198,15 @@ def label_link(v, c, m, p):
     url = url_for(
         'airflow.chart', chart_id=m.id, iteration_no=m.iteration_no,
         **default_params)
-    title = escape(m.label)
-    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
+    title = m.label
+    return Markup("<a href='{url}'>{title}</a>").format(**locals())
 
 
 def pool_link(v, c, m, p):
-    title = escape(m.pool)
+    title = m.pool
 
     url = url_for('airflow.task', flt1_pool_equals=m.pool)
-    return Markup("<a href='{url}'>{title}</a>".format(**locals()))
+    return Markup("<a href='{url}'>{title}</a>").format(**locals())
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):
@@ -279,7 +274,7 @@ def fused_slots(v, c, m, p):
         flt1_pool_equals=m.pool,
         flt2_state_equals='running',
     )
-    return Markup("<a href='{0}'>{1}</a>".format(url, m.used_slots()))
+    return Markup("<a href='{0}'>{1}</a>").format(url, m.used_slots())
 
 
 def fqueued_slots(v, c, m, p):
@@ -290,7 +285,7 @@ def fqueued_slots(v, c, m, p):
         sort='1',
         desc='1'
     )
-    return Markup("<a href='{0}'>{1}</a>".format(url, m.queued_slots()))
+    return Markup("<a href='{0}'>{1}</a>").format(url, m.queued_slots())
 
 
 def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):

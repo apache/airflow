@@ -22,7 +22,6 @@ from __future__ import print_function
 import json
 import unittest
 
-import bleach
 import doctest
 import mock
 import multiprocessing
@@ -1824,7 +1823,7 @@ class SecurityTests(unittest.TestCase):
             # exception is expected here since dag doesnt exist
             pass
         response = self.app.get("/admin/log", follow_redirects=True)
-        self.assertIn(bleach.clean("<script>alert(123456)</script>"), response.data.decode('UTF-8'))
+        self.assertNotIn("<script>alert(123456)</script>", response.data.decode('UTF-8'))
 
     def test_chart_data_template(self):
         """Protect chart_data from being able to do RCE."""
