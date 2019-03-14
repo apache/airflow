@@ -19,6 +19,7 @@
 # under the License.
 
 from __future__ import print_function
+import importlib
 import logging
 
 import os
@@ -686,10 +687,20 @@ def test(args, dag=None):
         task.params.update(passed_in_params)
     ti = TaskInstance(task, args.execution_date)
 
-    if args.dry_run:
-        ti.dry_run()
-    else:
-        ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+    try:
+        if args.dry_run:
+            ti.dry_run()
+        else:
+            ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+    except Exception:
+        if args.post_mortem:
+            try:
+                debugger = importlib.import_module("ipdb")
+            except ImportError:
+                debugger = importlib.import_module("pdb")
+            debugger.post_mortem()
+        else:
+            raise
 
 
 @cli_utils.action_logging
@@ -2032,6 +2043,11 @@ class CLIFactory(object):
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
+        'post_mortem': Arg(
+            ("-pm", "--post_mortem"),
+            action="store_true",
+            help="Open debugger on uncaught exception",
+        ),
         # connections
         'list_connections': Arg(
             ('-l', '--list'),
@@ -2290,7 +2306,7 @@ class CLIFactory(object):
                 "dependencies or recording its state in the database."),
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
-                'task_params'),
+                'task_params', 'post_mortem'),
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
