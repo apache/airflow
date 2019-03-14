@@ -161,4 +161,7 @@ class BaseTaskRunner(LoggingMixin):
         A callback that should be called when this is done running.
         """
         if self._cfg_path and os.path.isfile(self._cfg_path):
-            subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+            if self.run_as_user:
+                subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)
+            else:
+                os.remove(self._cfg_path)
