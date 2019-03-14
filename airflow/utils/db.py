@@ -22,10 +22,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from functools import wraps
-
-import os
 import contextlib
+import os
+import re
+from functools import wraps
 
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -56,6 +56,7 @@ def provide_session(func):
     database transaction, you pass it to the function, if not this wrapper
     will create one and close it for you.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         arg_session = 'session'
@@ -83,16 +84,42 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
+def parse_alchemy_str(conn_str):
+    """
+    Parse Alchemy url to connection detail single parameter, including dialect
+    username password host port and database.
+    :param conn_str: alchemy url
+    :type conn_str: str
+    :return: (tuple) (dialect, user, password, host, port, db)
+    """
+    pattern = re.compile('(.*)://(.*):(.*)@(.*):(.*)/(.*)')
+    result = pattern.search(conn_str)
+    if not result:
+        raise ValueError('Can not parse alchemy conn {}'.format(conn_str))
+    dialect, user, password, host, port, db = result.groups()
+    if dialect.startswith('postgresql'):
+        return 'postgres', user, password, host, int(port), db
+    else:
+        return dialect.split('+')[0], user, password, host, int(port), db
+
+
 def initdb():
     from airflow import models
     from airflow.models.connection import Connection
     upgradedb()
 
+    airflow_db_url = settings.SQL_ALCHEMY_CONN
+    try:
+        airflow_conn_type, airflow_login, airflow_password, airflow_host, airflow_port, \
+            airflow_schema = parse_alchemy_str(airflow_db_url)
+    except ValueError:
+        airflow_conn_type, airflow_login, airflow_password, airflow_host, airflow_port, \
+            airflow_schema = ('mysql', 'root', 'password', 'host', 3306, 'airflow')
     merge_conn(
         Connection(
-            conn_id='airflow_db', conn_type='mysql',
-            host='mysql', login='root', password='',
-            schema='airflow'))
+            conn_id='airflow_db', conn_type=airflow_conn_type,
+            host=airflow_host, port=airflow_port, login=airflow_login,
+            password=airflow_password, schema=airflow_schema))
     merge_conn(
         Connection(
             conn_id='beeline_default', conn_type='beeline', port=10000,
@@ -115,11 +142,11 @@ def initdb():
     merge_conn(
         Connection(
             conn_id='google_cloud_default', conn_type='google_cloud_platform',
-            schema='default',))
+            schema='default'))
     merge_conn(
         Connection(
             conn_id='hive_cli_default', conn_type='hive_cli',
-            schema='default',))
+            schema='default'))
     merge_conn(
         Connection(
             conn_id='hiveserver2_default', conn_type='hiveserver2',

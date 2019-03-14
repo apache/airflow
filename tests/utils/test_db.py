@@ -19,12 +19,13 @@
 
 import unittest
 
-from airflow.models import Base as airflow_base
-
-from airflow.settings import engine
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
+
+from airflow.models import Base as airflow_base
+from airflow.settings import engine
+from airflow.utils.db import parse_alchemy_str
 
 
 class DbTest(unittest.TestCase):
@@ -97,3 +98,22 @@ class DbTest(unittest.TestCase):
             diff,
             'Database schema and SQLAlchemy model are not in sync: ' + str(diff)
         )
+
+    def test_parse_alchemy_str_with_driver(self):
+        alchemy_url = 'dialect+driver://username:password@host:3306/database'
+        self.assertEqual(
+            ('dialect', 'username', 'password', 'host', 3306, 'database'),
+            parse_alchemy_str(alchemy_url)
+        )
+
+    def test_parse_alchemy_str_without_driver(self):
+        alchemy_url = 'dialect://username:password@host:3306/database'
+        self.assertEqual(
+            ('dialect', 'username', 'password', 'host', 3306, 'database'),
+            parse_alchemy_str(alchemy_url)
+        )
+
+    def test_parse_alchemy_str_raise(self):
+        alchemy_url = 'sqlite:///AIRFLOW_HOME/airflow.db'
+        with self.assertRaises(ValueError):
+            parse_alchemy_str(alchemy_url)
