@@ -1,0 +1,23 @@
+version: 4
+container:
+  build_context_path: ../../scripts/docker
+  dockerfile_path: ../py27/Dockerfile
+
+steps:
+  - type: run
+    name: Setup CI
+    command: ./_infra/scripts/setup_ci.sh > /dev/null
+
+  - type: run
+    name: Install local airflow and ci pip dep
+    command: pip install -q file:///jorb/repo/#egg=apache-airflow
+
+  - type: run
+    name: Run tests
+    command: ./_infra/scripts/run_tests.sh
+    env:
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: "mysql://root@localhost/airflow"
+
+  - type: run
+    name: Kill all processes to exit container
+    command: (killall -u postgres || killall -u mysql || killall -u root) || true

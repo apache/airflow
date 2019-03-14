@@ -1,0 +1,38 @@
+FROM ubuntu:18.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends curl ca-certificates software-properties-common sudo
+
+RUN apt-get --yes update && apt install -y python2.7 python-pip python-dev build-essential libssl-dev libffi-dev libxml2-dev \
+    libxslt1-dev zlib1g-dev libkrb5-dev unzip openjdk-8-jdk slapd ldap-utils libsasl2-dev gcc wget openssh-server \
+    python-virtualenv virtualenvwrapper redis-server mysql-server libmysqlclient-dev tmux \
+    postgresql postgresql-contrib
+
+RUN pip install --upgrade pip==9.0.1 && pip install --upgrade setuptools==33.1.1
+
+ENV SLUGIFY_USES_TEXT_UNIDECODE yes
+ENV TRAVIS_CACHE "/tmp"
+ENV TRAVIS true
+ENV HADOOP_DISTRO cdh
+ENV HADOOP_HOME "/tmp/hadoop-cdh"
+ENV HADOOP_OPTS "-D/tmp/krb5.conf"
+ENV MINICLUSTER_HOME "/tmp/minicluster-1.1-SNAPSHOT"
+ENV HIVE_HOME "/tmp/hive"
+ENV PATH "${PATH}:/tmp/hive/bin"
+ENV JAVA_HOME "/usr/lib/jvm/java-7-openjdk-amd64"
+USER root
+ENV USER root
+
+COPY ./_infra/scripts/docker/download_mini_cluster.sh /tmp/
+RUN /tmp/download_mini_cluster.sh
+
+WORKDIR /airflow/
+
+### airflow base image ###
+
+COPY . /airflow/
+RUN cd /airflow && AIRFLOW_GPL_UNIDECODE=yes pip install -e ".[all]"
+RUN pip install --upgrade six==1.12.0
+

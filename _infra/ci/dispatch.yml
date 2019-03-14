@@ -1,0 +1,12 @@
+# Version of the dispatch file format
+# See https://git.musta.ch/airbnb/jorb_dispatcher_buildkite to know the latest
+# version
+version: 3
+jobs:
+    # The name of the job that you want to be displayed in CI
+  - name: PY2.7-MySQL
+    # The path to the job, relative to the project root
+    path: _infra/ci/jobs/py27.yml
+    options:
+        parallelism: 3
+
