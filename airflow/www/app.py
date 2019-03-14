@@ -228,5 +228,5 @@ def cached_app(config=None, session=None, testing=False):
 
 def cached_appbuilder(config=None, testing=False):
     global appbuilder
-    cached_app(config, testing)
+    cached_app(config=config, testing=testing)
     return appbuilder
