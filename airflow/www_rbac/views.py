@@ -637,7 +637,7 @@ class Airflow(AirflowBaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
         ti = TI(task=task, execution_date=dttm)
@@ -713,7 +713,7 @@ class Airflow(AirflowBaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         xcomlist = session.query(XCom).filter(
             XCom.dag_id == dag_id, XCom.task_id == task_id,
@@ -810,7 +810,7 @@ class Airflow(AirflowBaseView):
         from airflow.exceptions import DagNotFound, DagFileExists
 
         dag_id = request.args.get('dag_id')
-        origin = request.args.get('origin') or "/"
+        origin = request.args.get('origin') or url_for('Airflow.index')
 
         try:
             delete_dag.delete_dag(dag_id)
@@ -1153,7 +1153,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
         if root:
@@ -1283,7 +1283,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
         if root:
@@ -1387,7 +1387,7 @@ class Airflow(AirflowBaseView):
 
         if dag is None:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1683,7 +1683,7 @@ class Airflow(AirflowBaseView):
         # sync permissions for all dags
         appbuilder.sm.sync_perm_for_dag()
         flash("All DAGs are now up to date")
-        return redirect('/')
+        return redirect(url_for('Airflow.index'))
 
     @expose('/gantt')
     @has_dag_access(can_dag_read=True)
@@ -2210,7 +2210,7 @@ class DagRunModelView(AirflowModelView):
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
     @action('set_failed', "Set state to 'failed'",
             "All running task instances would also be marked as failed, are you sure?",
@@ -2238,7 +2238,7 @@ class DagRunModelView(AirflowModelView):
                 "were set to failed".format(**locals()))
         except Exception:
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
     @action('set_success', "Set state to 'success'",
             "All task instances would also be marked as success, are you sure?",
@@ -2266,7 +2266,7 @@ class DagRunModelView(AirflowModelView):
                 "were set to success".format(**locals()))
         except Exception:
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
 
 class LogModelView(AirflowModelView):
