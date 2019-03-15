@@ -59,7 +59,7 @@ class S3DeleteObjectsOperator(BaseOperator):
     """
 
     template_fields = ('keys', 'bucket')
-    
+
     @apply_defaults
     def __init__(
             self,
