@@ -95,11 +95,6 @@ def initdb():
             schema='airflow'))
     merge_conn(
         Connection(
-            conn_id='beeline_default', conn_type='beeline', port=10000,
-            host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
-            schema='default'))
-    merge_conn(
-        Connection(
             conn_id='bigquery_default', conn_type='google_cloud_platform',
             schema='default'))
     merge_conn(
@@ -118,7 +113,8 @@ def initdb():
             schema='default',))
     merge_conn(
         Connection(
-            conn_id='hive_cli_default', conn_type='hive_cli',
+            conn_id='hive_cli_default', conn_type='hive_cli', port=10000,
+            host='localhost', extra='{"use_beeline": true, "auth": ""}',
             schema='default',))
     merge_conn(
         Connection(
