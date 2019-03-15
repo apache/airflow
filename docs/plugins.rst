@@ -86,13 +86,8 @@ looks like:
         executors = []
         # A list of references to inject into the macros namespace
         macros = []
-        # A list of objects created from a class derived
-        # from flask_admin.BaseView
-        admin_views = []
-        # A list of Blueprint object created from flask.Blueprint. For use with the flask_admin based GUI
+        # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
         flask_blueprints = []
-        # A list of menu links (flask_admin.base.MenuLink). For use with the flask_admin based GUI
-        menu_links = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_views = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
@@ -142,9 +137,7 @@ definitions in Airflow.
     from airflow.plugins_manager import AirflowPlugin
 
     from flask import Blueprint
-    from flask_admin import BaseView, expose
-    from flask_admin.base import MenuLink
-    from flask_appbuilder import BaseView as AppBuilderBaseView
+    from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
@@ -172,25 +165,12 @@ definitions in Airflow.
     def plugin_macro():
         pass
 
-    # Creating a flask admin BaseView
-    class TestView(BaseView):
-        @expose('/')
-        def test(self):
-            # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
-            return self.render("test_plugin/test.html", content="Hello galaxy!")
-    v = TestView(category="Test Plugin", name="Test View")
-
     # Creating a flask blueprint to integrate the templates and static folder
     bp = Blueprint(
         "test_plugin", __name__,
         template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
         static_folder='static',
         static_url_path='/static/test_plugin')
-
-    ml = MenuLink(
-        category='Test Plugin',
-        name='Test Menu Link',
-        url='https://airflow.apache.org/')
 
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):
@@ -199,6 +179,7 @@ definitions in Airflow.
         @expose("/")
         def test(self):
             return self.render("test_plugin/test.html", content="Hello galaxy!")
+
     v_appbuilder_view = TestAppBuilderBaseView()
     v_appbuilder_package = {"name": "Test View",
                             "category": "Test Plugin",
@@ -218,9 +199,7 @@ definitions in Airflow.
         hooks = [PluginHook]
         executors = [PluginExecutor]
         macros = [plugin_macro]
-        admin_views = [v]
         flask_blueprints = [bp]
-        menu_links = [ml]
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
 

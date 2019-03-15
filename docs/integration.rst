@@ -284,7 +284,7 @@ Airflow has extensive support for the Google Cloud Platform. But note that most 
 Operators are in the contrib section. Meaning that they have a *beta* status, meaning that
 they can have breaking changes between minor releases.
 
-See the :ref:`GCP connection type <connection-type-GCP>` documentation to
+See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
 
 Logging
@@ -591,6 +591,41 @@ Transfer Service
 
 
 They also use :class:`airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook` to communicate with Google Cloud Platform.
+
+
+Cloud Vision
+''''''''''''
+
+Cloud Vision Product Search Operators
+"""""""""""""""""""""""""""""""""""""
+
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
+    Creates a new ProductSet resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
+    Gets information associated with a ProductSet.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
+    Makes changes to a ProductSet resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
+    Permanently deletes a ProductSet.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
+    Creates a new Product resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
+    Gets information associated with a Product.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
+    Makes changes to a Product resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
+    Permanently deletes a product and its reference images.
+
+They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
+
+Cloud Translate
+'''''''''''''''
+
+Cloud Translate Text Operators
+""""""""""""""""""""""""""""""
+
+:class:`airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator`
+    Translate a string or list of strings.
 
 
 Google Kubernetes Engine

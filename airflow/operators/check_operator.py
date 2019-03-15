@@ -19,6 +19,7 @@
 
 from builtins import zip
 from builtins import str
+from typing import Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -62,8 +63,8 @@ class CheckOperator(BaseOperator):
     :type sql: str
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('sql',)  # type: Iterable[str]
+    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#fff7e6'
 
     @apply_defaults
@@ -120,8 +121,8 @@ class ValueCheckOperator(BaseOperator):
     __mapper_args__ = {
         'polymorphic_identity': 'ValueCheckOperator'
     }
-    template_fields = ('sql', 'pass_value',)
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('sql', 'pass_value',)  # type: Iterable[str]
+    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#fff7e6'
 
     @apply_defaults
@@ -196,8 +197,8 @@ class IntervalCheckOperator(BaseOperator):
     __mapper_args__ = {
         'polymorphic_identity': 'IntervalCheckOperator'
     }
-    template_fields = ('sql1', 'sql2')
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('sql1', 'sql2')  # type: Iterable[str]
+    template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#fff7e6'
 
     @apply_defaults
@@ -233,29 +234,25 @@ class IntervalCheckOperator(BaseOperator):
         reference = dict(zip(self.metrics_sorted, row2))
         ratios = {}
         test_results = {}
-        rlog = "Ratio for {0}: {1} \n Ratio threshold : {2}"
-        fstr = "'{k}' check failed. {r} is above {tr}"
-        estr = "The following tests have failed:\n {0}"
-        countstr = "The following {j} tests out of {n} failed:"
         for m in self.metrics_sorted:
             if current[m] == 0 or reference[m] == 0:
                 ratio = None
             else:
                 ratio = float(max(current[m], reference[m])) / \
                     min(current[m], reference[m])
-            self.log.info(rlog.format(m, ratio, self.metrics_thresholds[m]))
+            self.log.info("Ratio for %s: %s \n Ratio threshold : %s", m, ratio, self.metrics_thresholds[m])
             ratios[m] = ratio
             test_results[m] = ratio < self.metrics_thresholds[m]
         if not all(test_results.values()):
             failed_tests = [it[0] for it in test_results.items() if not it[1]]
             j = len(failed_tests)
             n = len(self.metrics_sorted)
-            self.log.warning(countstr.format(**locals()))
+            self.log.warning("The following %s tests out of %s failed:", j, n)
             for k in failed_tests:
                 self.log.warning(
-                    fstr.format(k=k, r=ratios[k], tr=self.metrics_thresholds[k])
+                    "'%s' check failed. %s is above %s", k, ratios[k], self.metrics_thresholds[k]
                 )
-            raise AirflowException(estr.format(", ".join(failed_tests)))
+            raise AirflowException("The following tests have failed:\n {0}".format(", ".join(failed_tests)))
         self.log.info("All tests have passed")
 
     def get_db_hook(self):

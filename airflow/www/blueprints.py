@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from flask import Blueprint, redirect
+from flask import Blueprint, redirect, url_for
 
 routes = Blueprint('routes', __name__)
 
 
 @routes.route('/')
 def index():
-    return redirect('/home')
+    return redirect(url_for('Airflow.index'))

@@ -266,7 +266,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         """
         Converts a tuple to RECORD that contains n fields, each will be converted
         to its corresponding data type in bq and will be named 'field_<index>', where
-        index is determined by the order of the tuple elments defined in cassandra.
+        index is determined by the order of the tuple elements defined in cassandra.
         """
         names = ['field_' + str(i) for i in range(len(value))]
         values = [cls.convert_value(name, value) for name, value in zip(names, value)]
@@ -276,7 +276,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     def convert_map_type(cls, name, value):
         """
         Converts a map to a repeated RECORD that contains two fields: 'key' and 'value',
-        each will be converted to its corresopnding data type in BQ.
+        each will be converted to its corresponding data type in BQ.
         """
         converted_map = []
         for k, v in zip(value.keys(), value.values()):

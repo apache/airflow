@@ -32,6 +32,7 @@ import time
 import unittest
 import urllib
 import uuid
+import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
@@ -45,7 +46,7 @@ from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI, DagBag
 from airflow.models import DagModel, DagRun
 from airflow.models import State as ST
 from airflow.models import Variable
@@ -1443,7 +1444,7 @@ class DagBagTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        os.rmdir(cls.empty_dir)
+        shutil.rmtree(cls.empty_dir)
 
     def test_get_existing_dag(self):
         """
@@ -1478,6 +1479,41 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual(dagbag.size(), 0)
+
+    def test_safe_mode_heuristic_match(self):
+        """With safe mode enabled, a file matching the discovery heuristics
+        should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            fp.write("# airflow".encode())
+            fp.write("# DAG".encode())
+            fp.flush()
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
+
+    def test_safe_mode_heuristic_mismatch(self):
+        """With safe mode enabled, a file not matching the discovery heuristics
+        should not be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py"):
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 0)
+
+    def test_safe_mode_disabled(self):
+        """With safe mode disabled, an empty python file should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=False)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
 
     def test_process_file_that_contains_multi_bytes_char(self):
         """
@@ -1927,25 +1963,23 @@ class DagBagTest(unittest.TestCase):
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
+        dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        session = settings.Session
-        session.add(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
-        session.commit()
+        model_before = DagModel(dag_id=dag_id, is_active=True)
+        with create_session() as session:
+            session.merge(model_before)
 
         models.DAG.deactivate_unknown_dags(expected_active_dags)
 
-        for dag in session.query(DagModel).all():
-            if dag.dag_id in expected_active_dags:
-                self.assertTrue(dag.is_active)
-            else:
-                self.assertEqual(dag.dag_id, 'test_deactivate_unknown_dags')
-                self.assertFalse(dag.is_active)
+        after_model = DagModel.get_dagmodel(dag_id)
+        self.assertTrue(model_before.is_active)
+        self.assertFalse(after_model.is_active)
 
         # clean up
-        session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
-        session.commit()
+        with create_session() as session:
+            session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
 
 class TaskInstanceTest(unittest.TestCase):
@@ -2819,6 +2853,7 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(email, 'to')
         self.assertIn('test_email_alert', title)
         self.assertIn('test_email_alert', body)
+        self.assertIn('Try 1', body)
 
     @patch('airflow.models.send_email')
     def test_email_alert_with_config(self, mock_send_email):
@@ -3398,3 +3433,20 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password with space')
         self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_underscore(self):
+        uri = 'google-cloud-platform://?extra__google_cloud_platform__key_' \
+              'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=' \
+              'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra' \
+              '__google_cloud_platform__project=airflow'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'google_cloud_platform')
+        self.assertEqual(connection.host, '')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.extra_dejson, dict(
+            extra__google_cloud_platform__key_path='/keys/key.json',
+            extra__google_cloud_platform__project='airflow',
+            extra__google_cloud_platform__scope='https://www.googleapis.com/'
+                                                'auth/cloud-platform'))

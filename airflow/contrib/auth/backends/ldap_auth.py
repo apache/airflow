@@ -24,7 +24,7 @@ from flask import flash
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE
+from ldap3 import Server, Connection, Tls, set_config_parameter, LEVEL, SUBTREE
 import ssl
 
 from flask import url_for, redirect
@@ -59,6 +59,14 @@ def get_ldap_connection(dn=None, password=None):
         cacert = configuration.conf.get("ldap", "cacert")
     except AirflowConfigException:
         pass
+
+    try:
+        ignore_malformed_schema = configuration.conf.get("ldap", "ignore_malformed_schema")
+    except AirflowConfigException:
+        pass
+
+    if ignore_malformed_schema:
+        set_config_parameter('IGNORE_MALFORMED_SCHEMA', ignore_malformed_schema)
 
     tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
                             ca_certs_file=cacert)
@@ -227,7 +235,7 @@ class LdapUser(models.User):
             Unable to parse LDAP structure. If you're using Active Directory
             and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
             %s
-            """ % traceback.format_exc())
+            """, traceback.format_exc())
             raise LdapException(
                 "Could not parse LDAP structure. "
                 "Try setting search_scope in airflow.cfg, or check logs"

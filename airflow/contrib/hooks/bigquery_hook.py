@@ -347,9 +347,9 @@ class BigQueryBaseCursor(LoggingMixin):
         for more details about these parameters.
 
         :param external_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery
+            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
             table name to create external table.
-            If <project> is not included, project will be the
+            If ``<project>`` is not included, project will be the
             project defined in the connection json.
         :type external_project_dataset_table: str
         :param schema_fields: The schema field list as defined here:
@@ -654,7 +654,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param sql: The BigQuery SQL to execute.
         :type sql: str
-        :param destination_dataset_table: The dotted <dataset>.<table>
+        :param destination_dataset_table: The dotted ``<dataset>.<table>``
             BigQuery table to save the query results.
         :type destination_dataset_table: str
         :param write_disposition: What to do if the table already exists in
@@ -816,7 +816,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
                 if param_name == 'schemaUpdateOptions' and param:
                     self.log.info("Adding experimental 'schemaUpdateOptions': "
-                                  "{0}".format(schema_update_options))
+                                  "%s", schema_update_options)
 
                 if param_name == 'destinationTable':
                     for key in ['projectId', 'datasetId', 'tableId']:
@@ -863,7 +863,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         For more details about these parameters.
 
-        :param source_project_dataset_table: The dotted <dataset>.<table>
+        :param source_project_dataset_table: The dotted ``<dataset>.<table>``
             BigQuery table to use as the source data.
         :type source_project_dataset_table: str
         :param destination_cloud_storage_uris: The destination Google Cloud
@@ -932,7 +932,7 @@ class BigQueryBaseCursor(LoggingMixin):
             ``(project:|project.)<dataset>.<table>``
             BigQuery tables to use as the source data. Use a list if there are
             multiple source tables.
-            If <project> is not included, project will be the project defined
+            If ``<project>`` is not included, project will be the project defined
             in the connection json.
         :type source_project_dataset_tables: list|string
         :param destination_project_dataset_table: The destination BigQuery
@@ -1015,8 +1015,8 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery
-            table to load data into. If <project> is not included, project will be the
+            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
+            table to load data into. If ``<project>`` is not included, project will be the
             project defined in the connection json. If a partition is specified the
             operator will automatically append the data, create a new partition or create
             a new DAY partitioned table.
@@ -1157,8 +1157,9 @@ class BigQueryBaseCursor(LoggingMixin):
                                  "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
             else:
                 self.log.info(
-                    "Adding experimental "
-                    "'schemaUpdateOptions': {0}".format(schema_update_options))
+                    "Adding experimental 'schemaUpdateOptions': %s",
+                    schema_update_options
+                )
                 configuration['load'][
                     'schemaUpdateOptions'] = schema_update_options
 
@@ -1260,8 +1261,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     time.sleep(5)
                 else:
                     raise Exception(
-                        'BigQuery job status check failed. Final error was: %s',
-                        err.resp.status)
+                        'BigQuery job status check failed. Final error was: {}'.
+                        format(err.resp.status))
 
         return self.running_job_id
 
@@ -1284,8 +1285,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     err.resp.status, job_id)
             else:
                 raise Exception(
-                    'BigQuery job status check failed. Final error was: %s',
-                    err.resp.status)
+                    'BigQuery job status check failed. Final error was: {}'.
+                    format(err.resp.status))
         return False
 
     def cancel_query(self):
@@ -1559,9 +1560,10 @@ class BigQueryBaseCursor(LoggingMixin):
             param, param_name, param_default = param_tuple
             if param_name not in dataset_reference['datasetReference']:
                 if param_default and not param:
-                    self.log.info("{} was not specified. Will be used default "
-                                  "value {}.".format(param_name,
-                                                     param_default))
+                    self.log.info(
+                        "%s was not specified. Will be used default value %s.",
+                        param_name, param_default
+                    )
                     param = param_default
                 dataset_reference['datasetReference'].update(
                     {param_name: param})
@@ -1639,7 +1641,7 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             dataset_resource = self.service.datasets().get(
                 datasetId=dataset_id, projectId=dataset_project_id).execute()
-            self.log.info("Dataset Resource: {}".format(dataset_resource))
+            self.log.info("Dataset Resource: %s", dataset_resource)
         except HttpError as err:
             raise AirflowException(
                 'BigQuery job failed. Error was: {}'.format(err.content))
@@ -1686,7 +1688,7 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             datasets_list = self.service.datasets().list(
                 projectId=dataset_project_id).execute()['datasets']
-            self.log.info("Datasets List: {}".format(datasets_list))
+            self.log.info("Datasets List: %s", datasets_list)
 
         except HttpError as err:
             raise AirflowException(
@@ -1741,9 +1743,10 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         try:
-            self.log.info('Inserting {} row(s) into Table {}:{}.{}'.format(
-                len(rows), dataset_project_id,
-                dataset_id, table_id))
+            self.log.info(
+                'Inserting %s row(s) into Table %s:%s.%s',
+                len(rows), dataset_project_id, dataset_id, table_id
+            )
 
             resp = self.service.tabledata().insertAll(
                 projectId=dataset_project_id, datasetId=dataset_id,
@@ -1751,8 +1754,10 @@ class BigQueryBaseCursor(LoggingMixin):
             ).execute()
 
             if 'insertErrors' not in resp:
-                self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
-                    dataset_project_id, dataset_id, table_id))
+                self.log.info(
+                    'All row(s) inserted successfully: %s:%s.%s',
+                    dataset_project_id, dataset_id, table_id
+                )
             else:
                 error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
                     len(resp['insertErrors']),
@@ -2034,11 +2039,10 @@ def _split_tablename(table_input, default_project_id, var_name=None):
     if project_id is None:
         if var_name is not None:
             log = LoggingMixin().log
-            log.info('Project not included in {var}: {input}; '
-                     'using project "{project}"'.format(
-                         var=var_name,
-                         input=table_input,
-                         project=default_project_id))
+            log.info(
+                'Project not included in %s: %s; using project "%s"',
+                var_name, table_input, default_project_id
+            )
         project_id = default_project_id
 
     return project_id, dataset_id, table_id
