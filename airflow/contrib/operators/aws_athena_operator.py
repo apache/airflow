@@ -47,7 +47,8 @@ class AWSAthenaOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, query, database, output_location, aws_conn_id='aws_default', client_request_token=None,
-                 query_execution_context=None, result_configuration=None, sleep_time=30, *args, **kwargs):
+                 query_execution_context=None, result_configuration=None, sleep_time=30, max_tries=None,
+                 *args, **kwargs):
         super(AWSAthenaOperator, self).__init__(*args, **kwargs)
         self.query = query
         self.database = database
@@ -57,6 +58,7 @@ class AWSAthenaOperator(BaseOperator):
         self.query_execution_context = query_execution_context or {}
         self.result_configuration = result_configuration or {}
         self.sleep_time = sleep_time
+        self.max_tries = max_tries
         self.query_execution_id = None
         self.hook = None
 
@@ -74,7 +76,16 @@ class AWSAthenaOperator(BaseOperator):
         self.result_configuration['OutputLocation'] = self.output_location
         self.query_execution_id = self.hook.run_query(self.query, self.query_execution_context,
                                                       self.result_configuration, self.client_request_token)
-        self.hook.poll_query_status(self.query_execution_id)
+        query_status = self.hook.poll_query_status(self.query_execution_id, self.max_tries)
+
+        if not query_status or query_status in AWSAthenaHook.FAILURE_STATES:
+            raise Exception(
+                'Athena job failed. Final state is {}, query_execution_id is {}.'
+                .format(query_status, self.query_execution_id))
+        elif query_status in AWSAthenaHook.INTERMEDIATE_STATES:
+            raise Exception(
+                'Athena job failed. Max tries of poll status exceeded, query_execution_id is {}.'
+                .format(query_status, self.query_execution_id))
 
     def on_kill(self):
         """
