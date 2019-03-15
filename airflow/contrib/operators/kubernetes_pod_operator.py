@@ -24,6 +24,7 @@ from airflow.utils.state import State
 from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
 from airflow.contrib.kubernetes.volume import Volume  # noqa
 from airflow.contrib.kubernetes.secret import Secret  # noqa
+from collections import namedtuple
 
 
 class KubernetesPodOperator(BaseOperator):
@@ -144,10 +145,10 @@ class KubernetesPodOperator(BaseOperator):
 
     def _set_resources(self, resources):
         inputResource = Resources()
-        if resources is not None:
+        try:
             for item in resources.keys():
                 setattr(inputResource, item, resources[item])
-        else:
+        except:
             pass
         return inputResource
 
