@@ -48,4 +48,9 @@ def _load_kube_config(in_cluster, cluster_context, config_file):
 def get_kube_client(in_cluster=conf.getboolean('kubernetes', 'in_cluster'),
                     cluster_context=None,
                     config_file=None):
+    if not in_cluster:
+        if cluster_context is None:
+            cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+        if config_file is None:
+            config_file = conf.get('kubernetes', 'config_file', fallback=None)
     return _load_kube_config(in_cluster, cluster_context, config_file)
