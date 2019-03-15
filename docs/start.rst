@@ -26,7 +26,7 @@ The installation is quick and straightforward.
     # but you can lay foundation somewhere else if you prefer
     # (optional)
     export AIRFLOW_HOME=~/airflow
-
+    
     # install from pypi using pip
     pip install apache-airflow
 
@@ -36,6 +36,10 @@ The installation is quick and straightforward.
     # if you build with master
     airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
+    # If you do not have a dags folder created.
+    # (optional)
+    mkdir ~/airflow/dags
+    
     # start the web server, default port is 8080
     airflow webserver -p 8080
 
