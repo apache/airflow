@@ -57,6 +57,9 @@ The `docker image` will be `apache` or `internal.1.10.0` so basically after
 After you are in the docker, it is better to create tmux sessions to run
 `airflow` commands
 
+**For dev:**
+Username: `admin`
+Password: `changeisgood`
 
 ## FAQ:
 

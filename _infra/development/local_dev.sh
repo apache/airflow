@@ -38,7 +38,10 @@ remote_airflow_dev="/mnt/airlab/repos/airflow_remote_dev/${REPO}"
 mysql_cmd="mysql -e \"CREATE USER 'airflow'@'localhost' IDENTIFIED BY 'airflow';\" && mysql -e \"GRANT ALL PRIVILEGES ON *.\"*\" TO 'airflow'@'localhost' WITH GRANT OPTION;\""
 
 docker_cmd="sudo echo '[mysqld]' >> /etc/mysql/my.cnf; sudo echo 'explicit_defaults_for_timestamp = 1' >> /etc/mysql/my.cnf; sudo service mysql start; "
-docker_cmd="$docker_cmd export C_FORCE_ROOT=true; export AIRFLOW_HOME=/root/airflow; ./_infra/scripts/setup_ci.sh > /dev/null; $mysql_cmd && pip install --no-deps -q -e file:///airflow/#egg=apache-airflow && airflow initdb && bash"
+docker_cmd="$docker_cmd export C_FORCE_ROOT=true; export AIRFLOW_HOME=/root/airflow; ./_infra/scripts/setup_ci.sh > /dev/null; $mysql_cmd && pip install --no-deps -q -e file:///airflow/#egg=apache-airflow && airflow initdb"
+
+airflow_create_admin="airflow users -c --username admin --firstname Workflow --lastname Orc --role Admin --email spiderman@airbnb.com --password changeisgood"
+docker_cmd="$docker_cmd && $airflow_create_admin ; bash"
 
 echo "xxxxxxxxxxxxxxxxx docker cmd xxxxxxxxxxxxxxxxxxxxxx"
 echo $docker_cmd
