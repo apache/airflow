@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
 import google.api_core.exceptions
 
 from airflow import AirflowException
@@ -33,7 +34,7 @@ class BigtableValidationMixin(object):
     Common class for Cloud Bigtable operators for validating required fields.
     """
 
-    REQUIRED_ATTRIBUTES = []
+    REQUIRED_ATTRIBUTES = []  # type: Iterable[str]
 
     def _validate_inputs(self):
         for attr_name in self.REQUIRED_ATTRIBUTES:

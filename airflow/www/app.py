@@ -19,8 +19,9 @@
 #
 import logging
 import socket
-import six
+from typing import Any
 
+import six
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
@@ -34,7 +35,7 @@ from airflow import configuration as conf
 from airflow.logging_config import configure_logging
 from airflow.www.static_config import configure_manifest_files
 
-app = None
+app = None  # type: Any
 appbuilder = None
 csrf = CSRFProtect()
 

@@ -29,6 +29,7 @@ import os
 import re
 import sys
 import pkg_resources
+from typing import List, Any
 
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -43,17 +44,17 @@ class AirflowPluginException(Exception):
 
 
 class AirflowPlugin(object):
-    name = None
-    operators = []
-    sensors = []
-    hooks = []
-    executors = []
-    macros = []
-    admin_views = []
-    flask_blueprints = []
-    menu_links = []
-    appbuilder_views = []
-    appbuilder_menu_items = []
+    name = None  # type: str
+    operators = []  # type: List[Any]
+    sensors = []  # type: List[Any]
+    hooks = []  # type: List[Any]
+    executors = []  # type: List[Any]
+    macros = []  # type: List[Any]
+    admin_views = []  # type: List[Any]
+    flask_blueprints = []  # type: List[Any]
+    menu_links = []  # type: List[Any]
+    appbuilder_views = []  # type: List[Any]
+    appbuilder_menu_items = []  # type: List[Any]
 
     @classmethod
     def validate(cls):
@@ -122,7 +123,7 @@ plugins_folder = os.path.expanduser(plugins_folder)
 if plugins_folder not in sys.path:
     sys.path.append(plugins_folder)
 
-plugins = []
+plugins = []  # type: List[AirflowPlugin]
 
 norm_pattern = re.compile(r'[/|.]')
 
@@ -176,11 +177,11 @@ executors_modules = []
 macros_modules = []
 
 # Plugin components to integrate directly
-admin_views = []
-flask_blueprints = []
-menu_links = []
-flask_appbuilder_views = []
-flask_appbuilder_menu_links = []
+admin_views = []  # type: List[Any]
+flask_blueprints = []  # type: List[Any]
+menu_links = []  # type: List[Any]
+flask_appbuilder_views = []  # type: List[Any]
+flask_appbuilder_menu_links = []  # type: List[Any]
 
 for p in plugins:
     operators_modules.append(

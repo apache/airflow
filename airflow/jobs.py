@@ -32,6 +32,7 @@ import threading
 import time
 from collections import defaultdict, OrderedDict
 from time import sleep
+from typing import Any
 
 import six
 from past.builtins import basestring
@@ -63,7 +64,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
-Base = models.base.Base
+Base = models.base.Base  # type: Any
 ID_LEN = models.base.ID_LEN
 
 

@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
+
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_ARGS, \
@@ -141,9 +143,9 @@ class QuboleOperator(BaseOperator):
                        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
                        'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
                        'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments', 'cluster_label')
+                       'arguments', 'user_program_arguments', 'cluster_label')  # type: Iterable[str]
 
-    template_ext = ('.txt',)
+    template_ext = ('.txt',)  # type: Iterable[str]
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']

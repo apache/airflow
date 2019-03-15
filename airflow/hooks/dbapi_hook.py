@@ -22,6 +22,7 @@ from past.builtins import basestring
 from datetime import datetime
 from contextlib import closing
 import sys
+from typing import Optional
 
 from sqlalchemy import create_engine
 
@@ -34,7 +35,7 @@ class DbApiHook(BaseHook):
     Abstract base class for sql hooks.
     """
     # Override to provide the connection name.
-    conn_name_attr = None
+    conn_name_attr = None  # type: Optional[str]
     # Override to have a default connection id for a particular dbHook
     default_conn_name = 'default_conn_id'
     # Override if this db supports autocommit.

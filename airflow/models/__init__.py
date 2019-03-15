@@ -22,9 +22,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import copy
 from builtins import ImportError as BuiltinImportError, bytes, object, str
 from collections import defaultdict, namedtuple, OrderedDict
+import copy
+from typing import Iterable
 
 from future.standard_library import install_aliases
 
@@ -316,6 +317,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         :return: the amount of dags contained in this dagbag
         """
         return len(self.dags)
+
+    @property
+    def dag_ids(self):
+        return self.dags.keys()
 
     def get_dag(self, dag_id):
         """
@@ -1023,11 +1028,8 @@ class TaskInstance(Base, LoggingMixin):
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
 
-    @property
     @provide_session
-    def previous_ti(self, session=None):
-        """ The task instance for the task that ran before this task instance """
-
+    def _get_previous_ti(self, session=None):
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
@@ -1052,6 +1054,11 @@ class TaskInstance(Base, LoggingMixin):
                 return last_dagrun.get_task_instance(self.task_id, session=session)
 
         return None
+
+    @property
+    def previous_ti(self):
+        """The task instance for the task that ran before this task instance."""
+        return self._get_previous_ti()
 
     @provide_session
     def are_dependencies_met(
@@ -2040,9 +2047,9 @@ class BaseOperator(LoggingMixin):
     """
 
     # For derived classes to define which fields will get jinjaified
-    template_fields = []
+    template_fields = []  # type: Iterable[str]
     # Defines which files extensions to look for in the templated fields
-    template_ext = []
+    template_ext = []  # type: Iterable[str]
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
@@ -2054,7 +2061,7 @@ class BaseOperator(LoggingMixin):
                                          '_log',)
 
     # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs = ()
+    shallow_copy_attrs = ()  # type: Iterable[str]
 
     @apply_defaults
     def __init__(
@@ -2990,6 +2997,7 @@ class DAG(BaseDag, LoggingMixin):
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
             on_success_callback=None, on_failure_callback=None,
+            doc_md=None,
             params=None,
             access_control=None):
 
@@ -3066,6 +3074,7 @@ class DAG(BaseDag, LoggingMixin):
         self.partial = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
+        self.doc_md = doc_md
 
         self._old_context_manager_dags = []
         self._access_control = access_control
@@ -3351,13 +3360,8 @@ class DAG(BaseDag, LoggingMixin):
     def owner(self):
         return ", ".join(list(set([t.owner for t in self.tasks])))
 
-    @property
     @provide_session
-    def concurrency_reached(self, session=None):
-        """
-        Returns a boolean indicating whether the concurrency limit for this DAG
-        has been reached
-        """
+    def _get_concurrency_reached(self, session=None):
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
@@ -3366,14 +3370,25 @@ class DAG(BaseDag, LoggingMixin):
         return qry.scalar() >= self.concurrency
 
     @property
+    def concurrency_reached(self):
+        """
+        Returns a boolean indicating whether the concurrency limit for this DAG
+        has been reached
+        """
+        return self._get_concurrency_reached()
+
     @provide_session
-    def is_paused(self, session=None):
-        """
-        Returns a boolean indicating whether this DAG is paused
-        """
+    def _get_is_paused(self, session=None):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
+
+    @property
+    def is_paused(self):
+        """
+        Returns a boolean indicating whether this DAG is paused
+        """
+        return self._get_is_paused()
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=None):
@@ -3456,16 +3471,18 @@ class DAG(BaseDag, LoggingMixin):
 
         return dagrun
 
-    @property
     @provide_session
-    def latest_execution_date(self, session=None):
+    def _get_latest_execution_date(self, session=None):
+        return session.query(func.max(DagRun.execution_date)).filter(
+            DagRun.dag_id == self.dag_id
+        ).scalar()
+
+    @property
+    def latest_execution_date(self):
         """
         Returns the latest date for which at least one dag run exists
         """
-        execution_date = session.query(func.max(DagRun.execution_date)).filter(
-            DagRun.dag_id == self.dag_id
-        ).scalar()
-        return execution_date
+        return self._get_latest_execution_date()
 
     @property
     def subdags(self):

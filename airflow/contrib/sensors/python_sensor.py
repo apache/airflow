@@ -52,7 +52,6 @@ class PythonSensor(BaseSensorOperator):
     """
 
     template_fields = ('templates_dict',)
-    template_ext = tuple()
 
     @apply_defaults
     def __init__(

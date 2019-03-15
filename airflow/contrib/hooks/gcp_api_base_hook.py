@@ -159,6 +159,7 @@ class GoogleCloudBaseHook(BaseHook):
     def project_id(self):
         return self._get_field('project')
 
+    @staticmethod
     def fallback_to_default_project_id(func):
         """
         Decorator that provides fallback for Google Cloud Platform project id. If
@@ -185,8 +186,6 @@ class GoogleCloudBaseHook(BaseHook):
                                        "in GCP connection definition. Both are not set!")
             return func(self, *args, **kwargs)
         return inner_wrapper
-
-    fallback_to_default_project_id = staticmethod(fallback_to_default_project_id)
 
     def _get_project_id(self, project_id):
         """

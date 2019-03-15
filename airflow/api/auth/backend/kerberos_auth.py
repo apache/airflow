@@ -34,7 +34,7 @@ import os
 from airflow import configuration as conf
 
 from flask import Response
-from flask import _request_ctx_stack as stack
+from flask import _request_ctx_stack as stack  # type: ignore
 from flask import make_response
 from flask import request
 from flask import g

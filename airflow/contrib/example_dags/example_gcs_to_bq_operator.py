@@ -17,13 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any
+
 import airflow
+from airflow import models
+from airflow.operators import bash_operator
+
+gcs_to_bq = None  # type: Any
 try:
     from airflow.contrib.operators import gcs_to_bq
 except ImportError:
-    gcs_to_bq = None
-from airflow import models
-from airflow.operators import bash_operator
+    pass
 
 
 if gcs_to_bq is not None:
