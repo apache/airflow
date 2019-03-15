@@ -424,21 +424,21 @@ class CustomSQLAInterface(SQLAInterface):
     def __init__(self, obj):
         super(CustomSQLAInterface, self).__init__(obj)
 
-        def clean_column_names():
-            if self.list_properties:
-                self.list_properties = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_properties.items())
-            if self.list_columns:
-                self.list_columns = dict(
-                    (k.lstrip('_'), v) for k, v in self.list_columns.items())
+        if self.list_properties:
+            self.list_properties = dict(
+                (k.lstrip('_'), v) for k, v in self.list_properties.items())
 
-        clean_column_names()
+        if self.list_columns:
+            self.list_columns = dict(
+                (k.lstrip('_'), v) for k, v in self.list_columns.items())
 
     def is_utcdatetime(self, col_name):
         from airflow.utils.sqlalchemy import UtcDateTime
-        obj = self.list_columns[col_name].type
-        return isinstance(obj, UtcDateTime) or \
-            isinstance(obj, sqla.types.TypeDecorator) and \
-            isinstance(obj.impl, UtcDateTime)
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return isinstance(obj, UtcDateTime) or \
+                isinstance(obj, sqla.types.TypeDecorator) and \
+                isinstance(obj.impl, UtcDateTime)
+        return False
 
     filter_converter_class = UtcAwareFilterConverter

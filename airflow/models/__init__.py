@@ -58,10 +58,10 @@ from urllib.parse import quote
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, Index, Integer, PickleType, String,
-    Text, UniqueConstraint, and_, func, or_
+    Text, UniqueConstraint, and_, func, or_, ForeignKey
 )
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import reconstructor, synonym
+from sqlalchemy.orm import reconstructor, synonym, relationship
 
 from croniter import (
     croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
@@ -633,7 +633,9 @@ class TaskInstance(Base, LoggingMixin):
     __tablename__ = "task_instance"
 
     task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    dag_id = Column(String(ID_LEN),
+                    ForeignKey('dag.dag_id', ondelete="CASCADE"),
+                    primary_key=True)
     execution_date = Column(UtcDateTime, primary_key=True)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -651,6 +653,9 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+
+    # Relationships with other entities.
+    dag_model = relationship("DagModel", back_populates="task_instances")
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -2810,6 +2815,10 @@ class DagModel(Base):
     # Schedule interval
     schedule_interval = Column(Interval)
 
+    # Relationships with other entities.
+    task_instances = relationship("TaskInstance", back_populates="dag_model")
+    dag_runs = relationship("DagRun", back_populates="dag_model")
+
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
 
@@ -4343,7 +4352,7 @@ class DagRun(Base, LoggingMixin):
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN))
+    dag_id = Column(String(ID_LEN), ForeignKey("dag.dag_id", ondelete="CASCADE"))
     execution_date = Column(UtcDateTime, default=timezone.utcnow)
     start_date = Column(UtcDateTime, default=timezone.utcnow)
     end_date = Column(UtcDateTime)
@@ -4354,10 +4363,13 @@ class DagRun(Base, LoggingMixin):
 
     dag = None
 
+    # Relationships with other entities.
+    dag_model = relationship("DagModel", back_populates="dag_runs")
+
     __table_args__ = (
         Index('dag_id_state', dag_id, _state),
         UniqueConstraint('dag_id', 'execution_date'),
-        UniqueConstraint('dag_id', 'run_id'),
+        UniqueConstraint('dag_id', 'run_id')
     )
 
     def __repr__(self):
