@@ -33,7 +33,6 @@ import getpass
 import reprlib
 import argparse
 from builtins import input
-from collections import namedtuple
 
 from airflow.utils.timezone import parse as parsedate
 import json
@@ -49,6 +48,7 @@ import time
 import psutil
 import re
 from urllib.parse import urlunparse
+from typing import Any
 
 import airflow
 from airflow import api
@@ -73,7 +73,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import exc
 
 api.load_auth()
-api_module = import_module(conf.get('cli', 'api_client'))
+api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.api_auth.client_auth)
 
@@ -1469,9 +1469,17 @@ def sync_perm(args): # noqa
         print('The sync_perm command only works for rbac UI.')
 
 
-Arg = namedtuple(
-    'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
-Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
+class Arg(object):
+    def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
+                 type=None, choices=None, metavar=None):
+        self.flags = flags
+        self.help = help
+        self.action = action
+        self.default = default
+        self.nargs = nargs
+        self.type = type
+        self.choices = choices
+        self.metavar = metavar
 
 
 class CLIFactory(object):
@@ -2124,8 +2132,8 @@ class CLIFactory(object):
                     continue
                 arg = cls.args[arg]
                 kwargs = {
-                    f: getattr(arg, f)
-                    for f in arg._fields if f != 'flags' and getattr(arg, f)}
+                    f: v
+                    for f, v in vars(arg).items() if f != 'flags' and v}
                 sp.add_argument(*arg.flags, **kwargs)
             sp.set_defaults(func=sub['func'])
         return parser

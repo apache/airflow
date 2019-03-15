@@ -43,6 +43,10 @@ jobs:
       stage: pre-test
       install: pip install flake8
       script: flake8
+    - name: mypy
+      stage: pre-test
+      install: pip install mypy
+      script: mypy airflow
     - name: Check license header
       stage: pre-test
       install: skip

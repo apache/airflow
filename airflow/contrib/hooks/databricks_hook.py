@@ -25,11 +25,7 @@ from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 from time import sleep
-
-try:
-    from urllib import parse as urlparse
-except ImportError:
-    import urlparse
+from six.moves.urllib import parse as urlparse
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")

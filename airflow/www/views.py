@@ -2408,7 +2408,7 @@ class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
         model.last_modified = timezone.utcnow()
 
 
-chart_mapping = (
+chart_mapping = dict((
     ('line', 'lineChart'),
     ('spline', 'lineChart'),
     ('bar', 'multiBarChart'),
@@ -2417,8 +2417,7 @@ chart_mapping = (
     ('stacked_area', 'stackedAreaChart'),
     ('percent_area', 'stackedAreaChart'),
     ('datatable', 'datatable'),
-)
-chart_mapping = dict(chart_mapping)
+))
 
 
 class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):

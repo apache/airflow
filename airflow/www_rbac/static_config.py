@@ -18,12 +18,13 @@
 # under the License.
 from __future__ import print_function
 
-import json
 import os
+import json
+from typing import Dict
 
 from flask import url_for
 
-manifest = dict()
+manifest = dict()  # type: Dict[str, str]
 
 
 def configure_manifest_files(app):

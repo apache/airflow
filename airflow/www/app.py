@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import six
+from typing import Any
 
+import six
 from flask import Flask
 from flask_admin import Admin, base
 from flask_caching import Cache
@@ -173,7 +174,7 @@ def create_app(config=None, testing=False):
         return app
 
 
-app = None
+app = None  # type: Any
 
 
 def root_app(env, resp):

@@ -27,6 +27,7 @@ import logging
 import os
 import pendulum
 import sys
+from typing import Any
 
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -70,7 +71,7 @@ class DummyStatsLogger(object):
         pass
 
 
-Stats = DummyStatsLogger
+Stats = DummyStatsLogger  # type: Any
 
 if conf.getboolean('scheduler', 'statsd_on'):
     from statsd import StatsClient
