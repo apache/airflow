@@ -67,7 +67,7 @@ class S3CopyObjectOperator(BaseOperator):
 
     template_fields = ('source_bucket_key', 'dest_bucket_key',
                        'source_bucket_name', 'dest_bucket_name')
-    
+
     @apply_defaults
     def __init__(
             self,
