@@ -24,16 +24,14 @@ from airflow.exceptions import AirflowException
 
 
 class SQSSensor(BaseSensorOperator):
-    """
-    Get messages from an SQS queue and passes them through XCom.
-
-    """
 
     template_fields = ['sqs_queue', 'max_messages']
 
     @apply_defaults
     def __init__(self, aws_conn_id, sqs_queue, max_messages=5, *args, **kwargs):
         """
+        Get messages from an SQS queue and passes them through XCom.
+
         :param aws_conn_id: AWS connection id
         :type aws_conn_id: str
         :param sqs_queue: The SQS queue

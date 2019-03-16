@@ -21,14 +21,12 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 
 class SQSHook(AwsHook):
-    """
-    Hook to connect to AWS SQS using the boto3 library.
-    """
 
     def get_conn(self):
         """
         Get the SQS client using boto3 library
         :return: SQS client
+        :rtype: botocore.client.SQS
         """
 
         return self.get_client_type('sqs')
