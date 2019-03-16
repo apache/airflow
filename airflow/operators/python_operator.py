@@ -25,6 +25,7 @@ import sys
 import types
 from builtins import str
 from textwrap import dedent
+from typing import Optional, Iterable, Dict, Callable
 
 import dill
 import six
@@ -77,14 +78,16 @@ class PythonOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self,
-            python_callable,
-            op_args=None,
-            op_kwargs=None,
-            provide_context=False,
-            templates_dict=None,
-            templates_exts=None,
-            *args, **kwargs):
+        self,
+        python_callable,  # type: Callable
+        op_args=None,  # type: Optional[Iterable]
+        op_kwargs=None,  # type: Optional[Dict]
+        provide_context=False,  # type: bool
+        templates_dict=None,  # type: Optional[Dict]
+        templates_exts=None,  # type: Optional[Iterable[str]]
+        *args,
+        **kwargs
+    ):
         super(PythonOperator, self).__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
@@ -242,13 +245,22 @@ class PythonVirtualenvOperator(PythonOperator):
     :type templates_exts: list[str]
     """
     @apply_defaults
-    def __init__(self, python_callable,
-                 requirements=None,
-                 python_version=None, use_dill=False,
-                 system_site_packages=True,
-                 op_args=None, op_kwargs=None, provide_context=False,
-                 string_args=None, templates_dict=None, templates_exts=None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        python_callable,  # type: Callable
+        requirements=None,  # type: Optional[Iterable[str]]
+        python_version=None,  # type: Optional[str]
+        use_dill=False,  # type: bool
+        system_site_packages=True,  # type: bool
+        op_args=None,  # type: Iterable
+        op_kwargs=None,  # type: Dict
+        provide_context=False,  # type: bool
+        string_args=None,  # type: Optional[Iterable[str]]
+        templates_dict=None,  # type: Optional[Dict]
+        templates_exts=None,  # type: Optional[Iterable[str]]
+        *args,
+        **kwargs
+    ):
         super(PythonVirtualenvOperator, self).__init__(
             python_callable=python_callable,
             op_args=op_args,
