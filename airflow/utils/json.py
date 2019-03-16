@@ -29,15 +29,6 @@ import numpy as np
 
 # Dates and JSON encoding/decoding
 
-def json_ser(obj):
-    """json serializer that deals with dates.
-
-    usage: json.dumps(object, default=utils.json.json_ser)
-    """
-    if isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-
-
 class AirflowJsonEncoder(json.JSONEncoder):
 
     def default(self, obj):

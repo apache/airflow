@@ -80,7 +80,7 @@
 <script>
 $('span.status_square').tooltip({html: true});
 
-var data = {{ data|safe }};
+var data = {{ data|tojson|safe }};
 var barHeight = 20;
 var axisHeight = 40;
 var square_x = 500;
