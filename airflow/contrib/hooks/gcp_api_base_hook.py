@@ -29,7 +29,6 @@ import tempfile
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
@@ -39,7 +38,7 @@ _DEFAULT_SCOPES = ('https://www.googleapis.com/auth/cloud-platform',)
 _G_APP_CRED_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS"
 
 
-class GoogleCloudBaseHook(BaseHook, LoggingMixin):
+class GoogleCloudBaseHook(BaseHook):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
@@ -160,6 +159,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     def project_id(self):
         return self._get_field('project')
 
+    @staticmethod
     def fallback_to_default_project_id(func):
         """
         Decorator that provides fallback for Google Cloud Platform project id. If
@@ -186,8 +186,6 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                                        "in GCP connection definition. Both are not set!")
             return func(self, *args, **kwargs)
         return inner_wrapper
-
-    fallback_to_default_project_id = staticmethod(fallback_to_default_project_id)
 
     def _get_project_id(self, project_id):
         """

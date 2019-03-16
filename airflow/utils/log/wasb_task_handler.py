@@ -20,7 +20,6 @@ import os
 import shutil
 
 from airflow import configuration
-from airflow.contrib.hooks.wasb_hook import WasbHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from azure.common import AzureHttpError
@@ -47,6 +46,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     def _build_hook(self):
         remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
         try:
+            from airflow.contrib.hooks.wasb_hook import WasbHook
             return WasbHook(remote_conn_id)
         except AzureHttpError:
             self.log.error(

@@ -18,7 +18,7 @@
 Scaling Out with Dask
 =====================
 
-``DaskExecutor`` allows you to run Airflow tasks in a Dask Distributed cluster.
+:class:`airflow.executors.dask_executor.DaskExecutor` allows you to run Airflow tasks in a Dask Distributed cluster.
 
 Dask clusters can be run on a single machine or on remote networks. For complete
 details, consult the `Distributed documentation <https://distributed.readthedocs.io/>`_.
@@ -39,7 +39,7 @@ Next start at least one Worker on any machine that can connect to the host:
 
     dask-worker $DASK_HOST:$DASK_PORT
 
-Edit your ``airflow.cfg`` to set your executor to ``DaskExecutor`` and provide
+Edit your ``airflow.cfg`` to set your executor to :class:`airflow.executors.dask_executor.DaskExecutor` and provide
 the Dask Scheduler address in the ``[dask]`` section.
 
 Please note:

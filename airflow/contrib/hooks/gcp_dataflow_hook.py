@@ -167,7 +167,7 @@ class _Dataflow(LoggingMixin):
             if self._proc.poll() is not None:
                 # Mark process completion but allows its outputs to be consumed.
                 process_ends = True
-        if self._proc.returncode is not 0:
+        if self._proc.returncode != 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
         return job_id
@@ -273,7 +273,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
         environment = {}
         for key in ['maxWorkers', 'zone', 'serviceAccountEmail', 'tempLocation',
-                    'bypassTempDirValidation', 'machineType']:
+                    'bypassTempDirValidation', 'machineType', 'network', 'subnetwork']:
             if key in variables:
                 environment.update({key: variables[key]})
         body = {"jobName": name,

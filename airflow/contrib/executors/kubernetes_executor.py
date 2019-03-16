@@ -30,7 +30,8 @@ from airflow.contrib.kubernetes.kube_client import get_kube_client
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors import Executors
-from airflow.models import TaskInstance, KubeResourceVersion, KubeWorkerIdentifier
+from airflow.models import TaskInstance
+from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
 from airflow import configuration
@@ -121,6 +122,7 @@ class KubeConfig:
         configuration_dict = configuration.as_dict(display_sensitive=True)
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
+        self.kube_env_vars = configuration_dict.get('kubernetes_environment_variables', {})
         self.airflow_home = configuration.get(self.core_section, 'airflow_home')
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
@@ -134,6 +136,7 @@ class KubeConfig:
             self.kubernetes_section, "worker_container_image_pull_policy"
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
+        self.kube_annotations = configuration_dict.get('kubernetes_annotations', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
         self.worker_pods_creation_batch_size = conf.getint(
@@ -162,10 +165,13 @@ class KubeConfig:
         self.git_dags_folder_mount_point = conf.get(self.kubernetes_section,
                                                     'git_dags_folder_mount_point')
 
-        # Optionally a user may supply a `git_user` and `git_password` for private
-        # repositories
+        # Optionally a user may supply a (`git_user` AND `git_password`) OR
+        # (`git_ssh_key_secret_name` AND `git_ssh_key_secret_key`) for private repositories
         self.git_user = conf.get(self.kubernetes_section, 'git_user')
         self.git_password = conf.get(self.kubernetes_section, 'git_password')
+        self.git_ssh_key_secret_name = conf.get(self.kubernetes_section, 'git_ssh_key_secret_name')
+        self.git_ssh_known_hosts_configmap_name = conf.get(self.kubernetes_section,
+                                                           'git_ssh_known_hosts_configmap_name')
 
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
@@ -250,6 +256,15 @@ class KubeConfig:
                 'or `dags_volume_host` '
                 'or `dags_in_image` '
                 'or `git_repo and git_branch and git_dags_folder_mount_point`')
+        if self.git_repo \
+           and (self.git_user or self.git_password) \
+           and self.git_ssh_key_secret_name:
+            raise AirflowConfigException(
+                'In kubernetes mode, using `git_repo` to pull the DAGs: '
+                'for private repositories, either `git_user` and `git_password` '
+                'must be set for authentication through user credentials; '
+                'or `git_ssh_key_secret_name` must be set for authentication '
+                'through ssh key, but not both')
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):

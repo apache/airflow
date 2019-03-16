@@ -84,8 +84,6 @@ def merge_conn(conn, session=None):
 
 
 def initdb():
-    session = settings.Session()
-
     from airflow import models
     from airflow.models.connection import Connection
     upgradedb()
@@ -97,7 +95,7 @@ def initdb():
             schema='airflow'))
     merge_conn(
         Connection(
-            conn_id='beeline_default', conn_type='beeline', port="10000",
+            conn_id='beeline_default', conn_type='beeline', port=10000,
             host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
             schema='default'))
     merge_conn(
@@ -295,24 +293,6 @@ def initdb():
         dag.sync_to_db()
     # Deactivate the unknown ones
     models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
-
-    Chart = models.Chart
-    chart_label = "Airflow task instance by type"
-    chart = session.query(Chart).filter(Chart.label == chart_label).first()
-    if not chart:
-        chart = Chart(
-            label=chart_label,
-            conn_id='airflow_db',
-            chart_type='bar',
-            x_is_date=False,
-            sql=(
-                "SELECT state, COUNT(1) as number "
-                "FROM task_instance "
-                "WHERE dag_id LIKE 'example%' "
-                "GROUP BY state"),
-        )
-        session.add(chart)
-        session.commit()
 
     from flask_appbuilder.models.sqla import Base
     Base.metadata.create_all(settings.engine)

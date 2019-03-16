@@ -342,6 +342,154 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
 
         self.assertFalse(response)
 
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_create_bucket(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_project = 'test-project'
+        test_location = 'EU',
+        test_labels = {'env': 'prod'}
+        test_storage_class = 'MULTI_REGIONAL'
+        test_response_id = "{}/0123456789012345".format(test_bucket)
+
+        (mock_service.return_value.buckets.return_value
+         .insert.return_value.execute.return_value) = {"id": test_response_id}
+
+        response = self.gcs_hook.create_bucket(
+            bucket_name=test_bucket,
+            storage_class=test_storage_class,
+            location=test_location,
+            labels=test_labels,
+            project_id=test_project
+        )
+
+        self.assertEqual(response, test_response_id)
+        mock_service.return_value.buckets.return_value.insert.assert_called_with(
+            project=test_project,
+            body={
+                'name': test_bucket,
+                'location': test_location,
+                'storageClass': test_storage_class,
+                'labels': test_labels
+            }
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_create_bucket_with_resource(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_project = 'test-project'
+        test_location = 'EU',
+        test_labels = {'env': 'prod'}
+        test_storage_class = 'MULTI_REGIONAL'
+        test_response_id = "{}/0123456789012345".format(test_bucket)
+        test_lifecycle = {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}
+
+        (mock_service.return_value.buckets.return_value
+         .insert.return_value.execute.return_value) = {"id": test_response_id}
+
+        # Assert for resource other than None.
+        response = self.gcs_hook.create_bucket(
+            bucket_name=test_bucket,
+            resource={"lifecycle": {"rule": [{"action": {"type": "Delete"}, "condition": {"age": 7}}]}},
+            storage_class=test_storage_class,
+            location=test_location,
+            labels=test_labels,
+            project_id=test_project
+        )
+
+        self.assertEqual(response, test_response_id)
+        mock_service.return_value.buckets.return_value.insert.assert_called_with(
+            project=test_project,
+            body={
+                "lifecycle": test_lifecycle,
+                'name': test_bucket,
+                'location': test_location,
+                'storageClass': test_storage_class,
+                'labels': test_labels
+            }
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = 'test_object_composed'
+
+        method = (mock_service.return_value.objects.return_value.compose)
+
+        self.gcs_hook.compose(
+            bucket=test_bucket,
+            source_objects=test_source_objects,
+            destination_object=test_destination_object
+        )
+
+        body = {
+            'sourceObjects': [
+                {'name': 'test_object_1'},
+                {'name': 'test_object_2'},
+                {'name': 'test_object_3'}
+            ]
+        }
+
+        method.assert_called_once_with(
+            destinationBucket=test_bucket,
+            destinationObject=test_destination_object,
+            body=body
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_with_empty_source_objects(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = []
+        test_destination_object = 'test_object_composed'
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'source_objects cannot be empty.'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_without_bucket(self, mock_service):
+        test_bucket = None
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = 'test_object_composed'
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'bucket and destination_object cannot be empty.'
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_without_destination_object(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = None
+
+        with self.assertRaises(ValueError) as e:
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
+
+        self.assertEqual(
+            str(e.exception),
+            'bucket and destination_object cannot be empty.'
+        )
+
 
 class TestGoogleCloudStorageHookUpload(unittest.TestCase):
     def setUp(self):

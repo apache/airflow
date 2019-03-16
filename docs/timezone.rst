@@ -34,7 +34,7 @@ happen. (The pendulum and pytz documentation discusses these issues in greater d
 for a simple DAG, but it’s a problem if you are in, for example, financial services where you have end of day
 deadlines to meet.
 
-The time zone is set in `airflow.cfg`. By default it is set to utc, but you change it to use the system’s settings or
+The time zone is set in ``airflow.cfg``. By default it is set to utc, but you change it to use the system’s settings or
 an arbitrary IANA time zone, e.g. `Europe/Amsterdam`. It is dependent on `pendulum`, which is more accurate than `pytz`.
 Pendulum is installed when you install Airflow.
 
@@ -49,7 +49,7 @@ Python’s datetime.datetime objects have a tzinfo attribute that can be used to
 represented as an instance of a subclass of datetime.tzinfo. When this attribute is set and describes an offset,
 a datetime object is aware. Otherwise, it’s naive.
 
-You can use timezone.is_aware() and timezone.is_naive() to determine whether datetimes are aware or naive.
+You can use timezone.is_localized() and timezone.is_naive() to determine whether datetimes are aware or naive.
 
 Because Airflow uses time-zone-aware datetime objects. If your code creates datetime objects they need to be aware too.
 

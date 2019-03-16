@@ -407,13 +407,13 @@ class CloudSqlProxyRunner(LoggingMixin):
         :param instance_specification: Specification of the instance to connect the
             proxy to. It should be specified in the form that is described in
             https://cloud.google.com/sql/docs/mysql/sql-proxy#multiple-instances in
-            -instances parameter (typically in the form of <project>:<region>:<instance>
+            -instances parameter (typically in the form of ``<project>:<region>:<instance>``
             for UNIX socket connections and in the form of
-            <project>:<region>:<instance>=tcp:<port> for TCP connections.
+            ``<project>:<region>:<instance>=tcp:<port>`` for TCP connections.
         :type instance_specification: str
         :param gcp_conn_id: Id of Google Cloud Platform connection to use for
             authentication
-        :type: str
+        :type gcp_conn_id: str
         :param project_id: Optional id of the GCP project to connect to - it overwrites
             default project id taken from the GCP connection.
         :type project_id: str

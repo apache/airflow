@@ -50,12 +50,15 @@ autodoc_mock_imports = [
     'cassandra',
     'celery',
     'cloudant',
+    'cryptography',
     'cx_Oracle',
     'datadog',
+    'distributed',
     'docker',
     'google',
     'google_auth_httplib2',
     'googleapiclient',
+    'grpc',
     'hdfs',
     'httplib2',
     'jaydebeapi',
@@ -185,7 +188,14 @@ pygments_style = 'sphinx'
 
 
 intersphinx_mapping = {
-    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest', None),
+    'boto3': ('https://boto3.amazonaws.com/v1/documentation/api/latest/', None),
+    'google-cloud-python': (
+        'https://googleapis.github.io/google-cloud-python/latest/', None),
+    'mongodb': ('https://api.mongodb.com/python/current/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'python': ('https://docs.python.org/3/', None),
+    'requests': ('http://docs.python-requests.org/en/master/', None),
+    'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
 }
 
 # -- Options for HTML output ----------------------------------------------
@@ -224,7 +234,7 @@ html_short_title = ""
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
