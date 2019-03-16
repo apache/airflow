@@ -30,15 +30,14 @@ class SubDagOperator(BaseOperator):
     should be prefixed by its parent and a dot. As in `parent.child`.
 
     :param subdag: the DAG object to run as a subdag of the current DAG.
-    :type subdag: airflow.DAG.
+    :type subdag: airflow.models.DAG
     :param dag: the parent DAG for the subdag.
-    :type dag: airflow.DAG.
+    :type dag: airflow.models.DAG
     :param executor: the executor for this subdag. Default to use SequentialExecutor.
         Please find AIRFLOW-74 for more details.
-    :type executor: airflow.executors.
+    :type executor: airflow.executors.base_executor.BaseExecutor
     """
 
-    template_fields = tuple()
     ui_color = '#555'
     ui_fgcolor = '#fff'
 

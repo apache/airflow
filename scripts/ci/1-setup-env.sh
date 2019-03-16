@@ -26,7 +26,7 @@ java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster > /de
 # Set up ssh keys
 echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
+ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
 chmod 600 ~/.ssh/*
 
 # SSH Service

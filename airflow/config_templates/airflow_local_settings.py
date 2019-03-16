@@ -18,6 +18,7 @@
 # under the License.
 
 import os
+from typing import Dict, Any
 
 from airflow import configuration as conf
 from airflow.utils.file import mkdirs
@@ -107,7 +108,7 @@ DEFAULT_LOGGING_CONFIG = {
         'handlers': ['console'],
         'level': LOG_LEVEL,
     }
-}
+}  # type: Dict[str, Any]
 
 DEFAULT_DAG_PARSING_LOGGING_CONFIG = {
     'handlers': {
@@ -214,10 +215,10 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
     mkdirs(directory, 0o755)
 
 if REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
 elif REMOTE_LOGGING and ELASTICSEARCH_HOST:
-        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])
+    DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])

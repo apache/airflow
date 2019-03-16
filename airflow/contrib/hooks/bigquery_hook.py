@@ -44,7 +44,7 @@ from pandas_gbq.gbq import \
 from pandas_gbq.gbq import GbqConnector
 
 
-class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
+class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     """
     Interact with BigQuery. This hook uses the Google Cloud Platform
     connection.
@@ -228,8 +228,10 @@ class BigQueryBaseCursor(LoggingMixin):
                            table_id,
                            schema_fields=None,
                            time_partitioning=None,
+                           cluster_fields=None,
                            labels=None,
-                           view=None):
+                           view=None,
+                           num_retries=5):
         """
         Creates a new, empty table in the dataset.
         To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
@@ -255,8 +257,13 @@ class BigQueryBaseCursor(LoggingMixin):
             partition by field, type and expiration as per API specifications.
 
             .. seealso::
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
+                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
         :type time_partitioning: dict
+        :param cluster_fields: [Optional] The fields used for clustering.
+            Must be specified with time_partitioning, data in the table will be first
+            partitioned and subsequently clustered.
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
+        :type cluster_fields: list
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will create a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
@@ -269,7 +276,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 "useLegacySql": False
             }
 
-        :return:
+        :return: None
         """
 
         project_id = project_id if project_id is not None else self.project_id
@@ -286,6 +293,11 @@ class BigQueryBaseCursor(LoggingMixin):
         if time_partitioning:
             table_resource['timePartitioning'] = time_partitioning
 
+        if cluster_fields:
+            table_resource['clustering'] = {
+                'fields': cluster_fields
+            }
+
         if labels:
             table_resource['labels'] = labels
 
@@ -299,7 +311,7 @@ class BigQueryBaseCursor(LoggingMixin):
             self.service.tables().insert(
                 projectId=project_id,
                 datasetId=dataset_id,
-                body=table_resource).execute()
+                body=table_resource).execute(num_retries=num_retries)
 
             self.log.info('Table created successfully: %s:%s.%s',
                           project_id, dataset_id, table_id)
@@ -335,9 +347,9 @@ class BigQueryBaseCursor(LoggingMixin):
         for more details about these parameters.
 
         :param external_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery
+            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
             table name to create external table.
-            If <project> is not included, project will be the
+            If ``<project>`` is not included, project will be the
             project defined in the connection json.
         :type external_project_dataset_table: str
         :param schema_fields: The schema field list as defined here:
@@ -356,7 +368,7 @@ class BigQueryBaseCursor(LoggingMixin):
             Possible values include GZIP and NONE.
             The default value is NONE.
             This setting is ignored for Google Cloud Bigtable,
-                Google Cloud Datastore backups and Avro formats.
+            Google Cloud Datastore backups and Avro formats.
         :type compression: str
         :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
             extra values that are not represented in the table schema.
@@ -546,28 +558,26 @@ class BigQueryBaseCursor(LoggingMixin):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
             The supported schema modifications and unsupported schema modification are listed here:
             https://cloud.google.com/bigquery/docs/managing-table-schemas
+            **Example**: ::
+
+                schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                               {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+
         :type schema: list
-
-        **Example**: ::
-
-            schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
-
         :param time_partitioning: [Optional] A dictionary containing time-based partitioning
              definition for the table.
         :type time_partitioning: dict
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will patch a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#view
+            **Example**: ::
+
+                view = {
+                    "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
+                    "useLegacySql": False
+                }
+
         :type view: dict
-
-        **Example**: ::
-
-            view = {
-                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
-                "useLegacySql": False
-            }
-
         :param require_partition_filter: [Optional] If true, queries over the this table require a
             partition filter. If false, queries over the table
         :type require_partition_filter: bool
@@ -644,7 +654,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         :param sql: The BigQuery SQL to execute.
         :type sql: str
-        :param destination_dataset_table: The dotted <dataset>.<table>
+        :param destination_dataset_table: The dotted ``<dataset>.<table>``
             BigQuery table to save the query results.
         :type destination_dataset_table: str
         :param write_disposition: What to do if the table already exists in
@@ -681,10 +691,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :param create_disposition: Specifies whether the job is allowed to
             create new tables.
         :type create_disposition: str
-        :param query_params a dictionary containing query parameter types and
+        :param query_params: a list of dictionary containing query parameter types and
             values, passed to BigQuery
-        :type query_params: dict
-        :param labels a dictionary containing labels for the job/query,
+        :type query_params: list
+        :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
         :param schema_update_options: Allows the schema of the destination
@@ -700,7 +710,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param cluster_fields: Request that the result of this query be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list of str
+        :type cluster_fields: list[str]
         :param location: The geographic location of the job. Required except for
             US and EU. See details at
             https://cloud.google.com/bigquery/docs/locations#specifying_your_location
@@ -771,7 +781,7 @@ class BigQueryBaseCursor(LoggingMixin):
             (sql, 'query', None, six.string_types),
             (priority, 'priority', 'INTERACTIVE', six.string_types),
             (use_legacy_sql, 'useLegacySql', self.use_legacy_sql, bool),
-            (query_params, 'queryParameters', None, dict),
+            (query_params, 'queryParameters', None, list),
             (udf_config, 'userDefinedFunctionResources', None, list),
             (maximum_billing_tier, 'maximumBillingTier', None, int),
             (maximum_bytes_billed, 'maximumBytesBilled', None, float),
@@ -806,7 +816,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
                 if param_name == 'schemaUpdateOptions' and param:
                     self.log.info("Adding experimental 'schemaUpdateOptions': "
-                                  "{0}".format(schema_update_options))
+                                  "%s", schema_update_options)
 
                 if param_name == 'destinationTable':
                     for key in ['projectId', 'datasetId', 'tableId']:
@@ -824,7 +834,7 @@ class BigQueryBaseCursor(LoggingMixin):
                         'createDisposition': create_disposition,
                     })
 
-        if 'useLegacySql' in configuration['query'] and \
+        if 'useLegacySql' in configuration['query'] and configuration['query']['useLegacySql'] and\
                 'queryParameters' in configuration['query']:
             raise ValueError("Query parameters are not allowed "
                              "when using legacy SQL")
@@ -853,7 +863,7 @@ class BigQueryBaseCursor(LoggingMixin):
 
         For more details about these parameters.
 
-        :param source_project_dataset_table: The dotted <dataset>.<table>
+        :param source_project_dataset_table: The dotted ``<dataset>.<table>``
             BigQuery table to use as the source data.
         :type source_project_dataset_table: str
         :param destination_cloud_storage_uris: The destination Google Cloud
@@ -919,20 +929,20 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param source_project_dataset_tables: One or more dotted
-            (project:|project.)<dataset>.<table>
+            ``(project:|project.)<dataset>.<table>``
             BigQuery tables to use as the source data. Use a list if there are
             multiple source tables.
-            If <project> is not included, project will be the project defined
+            If ``<project>`` is not included, project will be the project defined
             in the connection json.
         :type source_project_dataset_tables: list|string
         :param destination_project_dataset_table: The destination BigQuery
-            table. Format is: (project:|project.)<dataset>.<table>
+            table. Format is: ``(project:|project.)<dataset>.<table>``
         :type destination_project_dataset_table: str
         :param write_disposition: The write disposition if the table already exists.
         :type write_disposition: str
         :param create_disposition: The create disposition if the table doesn't exist.
         :type create_disposition: str
-        :param labels a dictionary containing labels for the job/query,
+        :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :type labels: dict
         """
@@ -1005,8 +1015,8 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery
-            table to load data into. If <project> is not included, project will be the
+            The dotted ``(<project>.|<project>:)<dataset>.<table>($<partition>)`` BigQuery
+            table to load data into. If ``<project>`` is not included, project will be the
             project defined in the connection json. If a partition is specified the
             operator will automatically append the data, create a new partition or create
             a new DAY partitioned table.
@@ -1064,7 +1074,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param cluster_fields: Request that the result of this load be stored sorted
             by one or more columns. This is only available in combination with
             time_partitioning. The order of columns given determines the sort order.
-        :type cluster_fields: list of str
+        :type cluster_fields: list[str]
         """
 
         # bigquery only allows certain source formats
@@ -1147,8 +1157,9 @@ class BigQueryBaseCursor(LoggingMixin):
                                  "'WRITE_APPEND' or 'WRITE_TRUNCATE'.")
             else:
                 self.log.info(
-                    "Adding experimental "
-                    "'schemaUpdateOptions': {0}".format(schema_update_options))
+                    "Adding experimental 'schemaUpdateOptions': %s",
+                    schema_update_options
+                )
                 configuration['load'][
                     'schemaUpdateOptions'] = schema_update_options
 
@@ -1212,16 +1223,20 @@ class BigQueryBaseCursor(LoggingMixin):
             .insert(projectId=self.project_id, body=job_data) \
             .execute()
         self.running_job_id = query_reply['jobReference']['jobId']
+        if 'location' in query_reply['jobReference']:
+            location = query_reply['jobReference']['location']
+        else:
+            location = self.location
 
         # Wait for query to finish.
         keep_polling_job = True
         while keep_polling_job:
             try:
-                if self.location:
+                if location:
                     job = jobs.get(
                         projectId=self.project_id,
                         jobId=self.running_job_id,
-                        location=self.location).execute()
+                        location=location).execute()
                 else:
                     job = jobs.get(
                         projectId=self.project_id,
@@ -1246,8 +1261,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     time.sleep(5)
                 else:
                     raise Exception(
-                        'BigQuery job status check failed. Final error was: %s',
-                        err.resp.status)
+                        'BigQuery job status check failed. Final error was: {}'.
+                        format(err.resp.status))
 
         return self.running_job_id
 
@@ -1270,8 +1285,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     err.resp.status, job_id)
             else:
                 raise Exception(
-                    'BigQuery job status check failed. Final error was: %s',
-                    err.resp.status)
+                    'BigQuery job status check failed. Final error was: {}'.
+                    format(err.resp.status))
         return False
 
     def cancel_query(self):
@@ -1371,11 +1386,11 @@ class BigQueryBaseCursor(LoggingMixin):
         is set to True.
 
         :param deletion_dataset_table: A dotted
-        (<project>.|<project>:)<dataset>.<table> that indicates which table
-        will be deleted.
+            ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
+            will be deleted.
         :type deletion_dataset_table: str
         :param ignore_if_missing: if True, then return success even if the
-        requested table does not exist.
+            requested table does not exist.
         :type ignore_if_missing: bool
         :return:
         """
@@ -1410,7 +1425,7 @@ class BigQueryBaseCursor(LoggingMixin):
             https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
         :type table_resource: dict
         :param project_id: the project to upsert the table into.  If None,
-        project will be self.project_id.
+            project will be self.project_id.
         :return:
         """
         # check to see if the table exists
@@ -1464,10 +1479,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :param view_table: the table of the view
         :type view_table: str
         :param source_project: the project of the source dataset. If None,
-        self.project_id will be used.
+            self.project_id will be used.
         :type source_project: str
         :param view_project: the project that the view is in. If None,
-        self.project_id will be used.
+            self.project_id will be used.
         :type view_project: str
         :return: the datasets resource of the source dataset.
         """
@@ -1545,9 +1560,10 @@ class BigQueryBaseCursor(LoggingMixin):
             param, param_name, param_default = param_tuple
             if param_name not in dataset_reference['datasetReference']:
                 if param_default and not param:
-                    self.log.info("{} was not specified. Will be used default "
-                                  "value {}.".format(param_name,
-                                                     param_default))
+                    self.log.info(
+                        "%s was not specified. Will be used default value %s.",
+                        param_name, param_default
+                    )
                     param = param_default
                 dataset_reference['datasetReference'].update(
                     {param_name: param})
@@ -1625,7 +1641,7 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             dataset_resource = self.service.datasets().get(
                 datasetId=dataset_id, projectId=dataset_project_id).execute()
-            self.log.info("Dataset Resource: {}".format(dataset_resource))
+            self.log.info("Dataset Resource: %s", dataset_resource)
         except HttpError as err:
             raise AirflowException(
                 'BigQuery job failed. Error was: {}'.format(err.content))
@@ -1672,7 +1688,7 @@ class BigQueryBaseCursor(LoggingMixin):
         try:
             datasets_list = self.service.datasets().list(
                 projectId=dataset_project_id).execute()['datasets']
-            self.log.info("Datasets List: {}".format(datasets_list))
+            self.log.info("Datasets List: %s", datasets_list)
 
         except HttpError as err:
             raise AirflowException(
@@ -1727,9 +1743,10 @@ class BigQueryBaseCursor(LoggingMixin):
         }
 
         try:
-            self.log.info('Inserting {} row(s) into Table {}:{}.{}'.format(
-                len(rows), dataset_project_id,
-                dataset_id, table_id))
+            self.log.info(
+                'Inserting %s row(s) into Table %s:%s.%s',
+                len(rows), dataset_project_id, dataset_id, table_id
+            )
 
             resp = self.service.tabledata().insertAll(
                 projectId=dataset_project_id, datasetId=dataset_id,
@@ -1737,8 +1754,10 @@ class BigQueryBaseCursor(LoggingMixin):
             ).execute()
 
             if 'insertErrors' not in resp:
-                self.log.info('All row(s) inserted successfully: {}:{}.{}'.format(
-                    dataset_project_id, dataset_id, table_id))
+                self.log.info(
+                    'All row(s) inserted successfully: %s:%s.%s',
+                    dataset_project_id, dataset_id, table_id
+                )
             else:
                 error_msg = '{} insert error(s) occurred: {}:{}.{}. Details: {}'.format(
                     len(resp['insertErrors']),
@@ -2020,11 +2039,10 @@ def _split_tablename(table_input, default_project_id, var_name=None):
     if project_id is None:
         if var_name is not None:
             log = LoggingMixin().log
-            log.info('Project not included in {var}: {input}; '
-                     'using project "{project}"'.format(
-                         var=var_name,
-                         input=table_input,
-                         project=default_project_id))
+            log.info(
+                'Project not included in %s: %s; using project "%s"',
+                var_name, table_input, default_project_id
+            )
         project_id = default_project_id
 
     return project_id, dataset_id, table_id
