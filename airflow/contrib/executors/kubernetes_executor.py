@@ -142,6 +142,7 @@ class KubeConfig:
         )
         self.kube_node_selectors = configuration_dict.get('kubernetes_node_selectors', {})
         self.kube_annotations = configuration_dict.get('kubernetes_annotations', {})
+        self.kube_labels = configuration_dict.get('kubernetes_labels', {})
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
         self.worker_pods_creation_batch_size = conf.getint(
@@ -470,7 +471,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     @staticmethod
     def _make_safe_pod_id(safe_dag_id, safe_task_id, safe_uuid):
-        r"""
+        """
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
         "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
