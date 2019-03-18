@@ -239,6 +239,32 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(dag_volume_mount_path,
                          self.kube_config.git_dags_folder_mount_point)
 
+    def test_worker_environment_fernet_key(self):
+        self.kube_config.airflow_configmap = ''
+        self.kube_config.kube_secrets = {}
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+
+        self.assertEqual(conf.get("core", "fernet_key"), env['AIRFLOW__CORE__FERNET_KEY'])
+
+    def test_worker_environment_fernet_key_config_map_set(self):
+        self.kube_config.airflow_configmap = 'airflow-configmap'
+        self.kube_config.kube_secrets = {}
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+
+        self.assertNotIn('AIRFLOW__CORE__FERNET_KEY', env)
+
+    def test_worker_environment_fernet_key_set_in_secrets(self):
+        self.kube_config.airflow_configmap = ''
+        self.kube_config.kube_secrets = {
+            'AIRFLOW__CORE__FERNET_KEY': 'airflow-secret:fernet-key'
+        }
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+
+        self.assertNotIn('AIRFLOW__CORE__FERNET_KEY', env)
+
     def test_worker_environment_no_dags_folder(self):
         self.kube_config.airflow_configmap = ''
         self.kube_config.git_dags_folder_mount_point = ''

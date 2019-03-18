@@ -145,6 +145,9 @@ class WorkerConfiguration(LoggingMixin):
         if (not self.kube_config.airflow_configmap and
                 'AIRFLOW__CORE__SQL_ALCHEMY_CONN' not in self.kube_config.kube_secrets):
             env['AIRFLOW__CORE__SQL_ALCHEMY_CONN'] = conf.get("core", "SQL_ALCHEMY_CONN")
+        if (not self.kube_config.airflow_configmap and
+                'AIRFLOW__CORE__FERNET_KEY' not in self.kube_config.kube_secrets):
+            env['AIRFLOW__CORE__FERNET_KEY'] = conf.get("core", "FERNET_KEY")
         if self.kube_config.git_dags_folder_mount_point:
             # /root/airflow/dags/repo/dags
             dag_volume_mount_path = os.path.join(
