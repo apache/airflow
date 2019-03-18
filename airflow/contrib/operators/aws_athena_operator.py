@@ -39,6 +39,8 @@ class AWSAthenaOperator(BaseOperator):
     :type aws_conn_id: str
     :param sleep_time: Time to wait between two consecutive call to check query status on athena
     :type sleep_time: int
+    :param max_tries: Number of times to poll for query state before function exits
+    :type max_triex: int
     """
 
     ui_color = '#44b5e2'
