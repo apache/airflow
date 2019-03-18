@@ -34,7 +34,7 @@ fi
 echo "Airflow directory $AIRFLOW_ROOT"
 echo "Airflow Docker directory $DIRNAME"
 
-if [[ ${PYTHON_VERSION} == '3' ]]; then
+if [[ ${PYTHON_VERSION} == 3* ]]; then
   PYTHON_DOCKER_IMAGE=python:3.6-slim
 else
   PYTHON_DOCKER_IMAGE=python:2.7-slim

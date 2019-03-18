@@ -24,6 +24,7 @@ echo "For development, start minikube yourself (ie: minikube start) then run thi
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
 # Fix file permissions
+# TODO: check this - it should be travis independent
 if [[ "${TRAVIS}" == true ]]; then
   sudo chown -R travis.travis .
 fi

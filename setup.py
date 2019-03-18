@@ -18,7 +18,6 @@
 # under the License.
 
 from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
 
 import imp
 import io
@@ -35,27 +34,16 @@ version = imp.load_source(
 
 PY3 = sys.version_info[0] == 3
 
-with io.open('README.md', encoding='utf-8') as f:
-    long_description = f.read()
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 
-
-class Tox(TestCommand):
-    user_options = [('tox-args=', None, "Arguments to pass to tox")]
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-        self.tox_args = ''
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import tox
-        errno = tox.cmdline(args=self.tox_args.split())
-        sys.exit(errno)
+try:
+    with io.open('README.md', encoding='utf-8') as f:
+        long_description = f.read()
+except FileNotFoundError:
+    long_description = ''
 
 
 class CleanCommand(Command):
@@ -70,6 +58,31 @@ class CleanCommand(Command):
 
     def run(self):
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
+
+
+class RunTests(Command):
+    """Run tests using docker image"""
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        # TODO: Review me! It might be a good idea to run tests in docker but maybe it's not
+        python_version = "python:{major}.{minor}-slim".format(major=sys.version_info.major,
+                                                              minor=sys.version_info.minor)
+        os.system('docker build . '
+                  '--build-arg PIP_CACHE_DIRECTIVE="" '
+                  '--build-arg PYTHON_BASE_IMAGE="{python_major_minor}" '
+                  '-t local-test-image'.
+                  format(python_major_minor=python_version))
+        os.system('docker run --entrypoint "" '
+                  ' -e BACKEND="sqlite" '
+                  ' -e ENV="docker" '
+                  'local-test-image /bin/bash -c /opt/airflow/scripts/ci/in_container/run_ci.sh')
 
 
 class CompileAssets(Command):
@@ -153,6 +166,7 @@ cgroups = [
 ]
 # major update coming soon, clamp to 0.x
 cloudant = ['cloudant>=0.5.9,<2.0']
+codecov = ['codecov']
 crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
@@ -269,9 +283,9 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
     devel_ci = [package for package in devel_all if package not in
-                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
+                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']] + codecov
 else:
-    devel_ci = devel_all
+    devel_ci = (devel_all + codecov)
 
 
 def do_setup():
@@ -293,6 +307,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
+            'dumb-init>=1.2.2',
             'enum34~=1.1.6;python_version<"3.4"',
             'flask>=1.0, <2.0',
             'flask-appbuilder==1.12.3',
@@ -342,6 +357,7 @@ def do_setup():
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,
+            'codecov': codecov,
             'crypto': crypto,
             'dask': dask,
             'databricks': databricks,
@@ -403,7 +419,7 @@ def do_setup():
         download_url=(
             'https://dist.apache.org/repos/dist/release/airflow/' + version),
         cmdclass={
-            'test': Tox,
+            'test': RunTests,
             'extra_clean': CleanCommand,
             'compile_assets': CompileAssets
         },

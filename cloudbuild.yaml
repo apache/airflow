@@ -1,0 +1,66 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+steps:
+#  - name: 'gcr.io/cloud-builders/docker'
+#    id: 'Build local images for Airflow CI - Python 2.7'
+#    entrypoint: '/bin/bash'
+#    waitFor: ['-']
+#    env:
+#      - "CI=true"
+#      - "PYTHON_VERSION=2.7"
+#      - "DOCKERHUB_USER=${_DOCKERHUB_USER}"
+#      - "BUILD_ID=${BUILD_ID}"
+#      - "BRANCH_NAME=${BRANCH_NAME}"
+#    args: ['-c', './hooks/build']
+#  - name: 'gcr.io/cloud-builders/docker'
+#    waitFor: ['-']
+#    id: 'Build local images for Airflow CI - Python 3.5'
+#    entrypoint: '/bin/bash'
+#    env:
+#      - "CI=true"
+#      - "PYTHON_VERSION=3.5"
+#      - "DOCKERHUB_USER=${_DOCKERHUB_USER}"
+#      - "BUILD_ID=${BUILD_ID}"
+#      - "BRANCH_NAME=${BRANCH_NAME}"
+#    args: ['-c', './hooks/build']
+  - name: 'gcr.io/cloud-builders/docker'
+    waitFor: ['-']
+    id: 'Build local images for Airflow CI - Python 3.6'
+    entrypoint: '/bin/bash'
+    env:
+      - "CI=true"
+      - "PYTHON_VERSION=3.6"
+      - "DOCKERHUB_USER=${_DOCKERHUB_USER}"
+      - "BUILD_ID=${BUILD_ID}"
+      - "BRANCH_NAME=${BRANCH_NAME}"
+    args: ['-c', './hooks/build']
+    volumes:
+    - name: 'dist-3.6'
+      path: '/workspace/dist'
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['-m', 'cp', '-r', '.', 'gs://travis-ci-results/']
+    dir: 'dist'
+    volumes:
+      - name: 'dist-3.6'
+        path: '/workspace/dist'
+substitutions:
+  _DOCKERHUB_USER: 'potiuk' # TODO: change back to 'airflow'
+options:
+  machineType: 'N1_HIGHCPU_8'
+timeout: 4800s

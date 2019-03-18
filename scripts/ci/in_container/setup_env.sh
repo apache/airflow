@@ -18,16 +18,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -exuo pipefail
+set -euo pipefail
+
+if [[ ${AIRFLOW_CI_VERBOSE:="false"} == "true" ]]; then
+    set -x
+fi
 
 # Start MiniCluster
-java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster > /dev/null &
+java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster >/dev/null 2>&1 &
 
 # Set up ssh keys
-echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
+echo 'yes' | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa >/dev/null 2>&1
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 ln -s -f ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
 chmod 600 ~/.ssh/*
 
 # SSH Service
-sudo service ssh restart
+sudo service ssh restart >/dev/null 2>&1

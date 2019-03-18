@@ -26,6 +26,7 @@ if [[ ! -x /usr/local/bin/minikube ]]; then
 fi
 
 # Fix file permissions
+# TODO: Check this - this should be travis-independent
 if [[ "${TRAVIS}" == true ]]; then
   sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
 fi

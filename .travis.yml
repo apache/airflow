@@ -16,73 +16,55 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+sudo: true
 dist: xenial
 language: python
-python:
-  - "3.6"
 env:
   global:
-    - TRAVIS_CACHE=$HOME/.travis_cache/
+  - BUILD_ID=${TRAVIS_BUILD_ID}
+  - BRANCH_NAME=${TRAVIS_BRANCH}
   matrix:
-    - TOX_ENV=py27-backend_mysql-env_docker
-    - TOX_ENV=py27-backend_sqlite-env_docker
-    - TOX_ENV=py27-backend_postgres-env_docker
-    - TOX_ENV=py35-backend_mysql-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_sqlite-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py35-backend_postgres-env_docker PYTHON_VERSION=3
-    - TOX_ENV=py27-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.9.0
-    - TOX_ENV=py35-backend_postgres-env_kubernetes KUBERNETES_VERSION=v1.13.0 PYTHON_VERSION=3
-
+  - BACKEND=mysql ENV=docker
+  - BACKEND=postgres ENV=docker
+  - BACKEND=sqlite ENV=docker
+  - BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.9.0
+  - BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0
+python:
+- '3.6'
+- '3.5'
+- '2.7'
+matrix:
+  exclude:
+  - python: '2.7'
+    env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.13.0
+  - python: '3.5'
+    env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.9.0
+  - python: '3.6'
+    env: BACKEND=postgres ENV=kubernetes KUBERNETES_VERSION=v1.9.0
 stages:
-  - pre-test
-  - test
-
+- pre-test
+- test
 jobs:
   include:
-    - name: Flake8
-      stage: pre-test
-      install: pip install flake8
-      script: flake8
-    - name: mypy
-      stage: pre-test
-      install: pip install mypy
-      script: mypy airflow
-    - name: Check license header
-      stage: pre-test
-      install: skip
-      script: scripts/ci/6-check-license.sh
-    - name: Check docs
-      stage: pre-test
-      install: pip install -e .[doc]
-      script: docs/build.sh
-
-cache:
-  directories:
-    - $HOME/.wheelhouse/
-    - $HOME/.cache/pip
-    - $HOME/.travis_cache/
-before_install:
-  # Required for K8s v1.10.x. See
-  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then sudo mount --make-shared / && sudo service docker restart; fi
+  - name: Flake8
+    stage: pre-test
+    install: pip install flake8
+    script: flake8
+  - name: mypy
+    stage: pre-test
+    install: pip install mypy
+    script: mypy airflow
+  - name: Check license header
+    stage: pre-test
+    install: skip
+    script: scripts/ci/ci_check_license.sh
+  - name: Check docs
+    stage: pre-test
+    install: pip install -e .[doc]
+    script: docs/build.sh
+services:
+- docker
+before_install: "./scripts/ci/ci_before_install.sh"
 install:
-  - pip install --upgrade pip
-  - docker-compose -f scripts/ci/docker-compose.yml pull --quiet --parallel
-script:
-  - if [ -z "$KUBERNETES_VERSION" ]; then
-      docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d persistent_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-  - if [ ! -z "$KUBERNETES_VERSION" ]; then
-      ./scripts/ci/kubernetes/minikube/stop_minikube.sh &&
-      ./scripts/ci/kubernetes/setup_kubernetes.sh &&
-      ./scripts/ci/kubernetes/kube/deploy.sh -d git_mode &&
-      MINIKUBE_IP=$(minikube ip) docker-compose --log-level ERROR -f scripts/ci/docker-compose.yml -f scripts/ci/docker-compose-kubernetes.yml run airflow-testing /app/scripts/ci/run-ci.sh;
-    fi
-before_cache:
-  - sudo chown -R travis:travis $HOME/.cache/pip $HOME/.wheelhouse/
+- "./hooks/build"
+script: "./scripts/ci/ci_run_airflow_testing.sh"

@@ -74,6 +74,7 @@ fi
 export PATH="${_MY_DIR}/bin:$PATH"
 
 if [[ "${USE_MINIKUBE_DRIVER_NONE:-}" = "true" ]]; then
+  # TODO: Check travis-independent way of running the tests
   # Run minikube with none driver.
   # See https://blog.travis-ci.com/2017-10-26-running-kubernetes-on-travis-ci-with-minikube
   _VM_DRIVER=none
@@ -108,6 +109,7 @@ _MINIKUBE="sudo -E PATH=$PATH minikube"
 $_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION} --vm-driver=${_VM_DRIVER}
 $_MINIKUBE update-context
 
+# TODO: Check This - it should be travis-independent
 if [[ "${TRAVIS}" == true ]]; then
   sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
 fi

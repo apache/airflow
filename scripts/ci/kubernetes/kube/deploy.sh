@@ -137,6 +137,7 @@ cat ${BUILD_DIRNAME}/airflow.yaml
 cat ${BUILD_DIRNAME}/configmaps.yaml
 
 # Fix file permissions
+# TODO: Check this - this should be TRAVIS-independent
 if [[ "${TRAVIS}" == true ]]; then
   sudo chown -R travis.travis $HOME/.kube $HOME/.minikube
 fi

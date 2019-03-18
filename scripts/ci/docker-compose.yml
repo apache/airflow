@@ -24,7 +24,6 @@ services:
       - MYSQL_ROOT_HOST=%
     volumes:
       - ./mysql/conf.d:/etc/mysql/conf.d
-
   postgres:
     image: postgres:9.6
     restart: always
@@ -32,7 +31,6 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
-
   mongo:
     image: mongo:3
     restart: always
@@ -59,20 +57,28 @@ services:
       - LDAP_CONFIG_PASSWORD=insecure
     volumes:
       - ./openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
-
   krb5-kdc-server:
     image: godatadriven/krb5-kdc-server
     hostname: krb5-kdc-server
     domainname: example.com
 
   airflow-testing:
-    image: airflowci/incubator-airflow-ci:latest
+    image: ${DOCKERHUB_USER}/airflow:latest-${PYTHON_VERSION}-ci-v${AIRFLOW_VERSION}
     init: true
+    entrypoint: [ "/usr/local/bin/dumb-init", "--", "/bin/bash", "-c" ]
     environment:
       - USER=airflow
       - ADDITIONAL_PATH=~/.local/bin
-      - TOX_ENV
-      - PYTHON_VERSION
+      - HADOOP_DISTRO=cdh
+      - HADOOP_HOME=/tmp/hadoop-cdh
+      - HADOOP_OPTS=-D/tmp/krb5.conf
+      - HIVE_HOME=/tmp/hive
+      - MINICLUSTER_HOME=/tmp/minicluster-1.1-SNAPSHOT
+      - KRB5_CONFIG=/etc/krb5.conf
+      - KRB5_KTNAME=/etc/airflow.keytab
+      - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
+      - ENV
+      - BACKEND
       - CI
       - TRAVIS
       - TRAVIS_BRANCH
@@ -84,6 +90,8 @@ services:
       - TRAVIS_REPO_SLUG
       - TRAVIS_OS_NAME
       - TRAVIS_TAG
+      - RUN_TESTS
+      - AIRFLOW_CI_VERBOSE
     depends_on:
       - postgres
       - mysql
@@ -93,8 +101,3 @@ services:
       - redis
       - openldap
       - krb5-kdc-server
-    volumes:
-      - ../../:/app
-      - ~/.cache/pip:/home/airflow/.cache/pip
-      - ~/.wheelhouse/:/home/airflow/.wheelhouse/
-    working_dir: /app

@@ -20,7 +20,7 @@ set -exuo pipefail
 
 MYSQL_HOST=mysql
 
-retries=3
+retries=10
 for ((i=0; i<retries; i++)); do
     mysql -h ${MYSQL_HOST} -u root -e 'drop database if exists airflow; create database airflow' && exit 0
     echo "mysql db creation did not succeed, waiting 5 seconds to retry"

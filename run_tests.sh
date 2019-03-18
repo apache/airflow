@@ -18,28 +18,39 @@
 # specific language governing permissions and limitations
 # under the License.
 
+set -o verbose
+set -euo pipefail
 set -x
 
-# environment
-export AIRFLOW_HOME=${AIRFLOW_HOME:=~}
-export AIRFLOW__CORE__UNIT_TEST_MODE=True
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+pwd
+
+AIRFLOW_ROOT="$(cd ${MY_DIR}; pwd)"
+export AIRFLOW__CORE__DAGS_FOLDER="S{AIRFLOW_ROOT}/tests/dags"
 
 # add test/contrib to PYTHONPATH
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export PYTHONPATH=$PYTHONPATH:${DIR}/tests/test_utils
+export PYTHONPATH=${PYTHONPATH:-${AIRFLOW_ROOT}/tests/test_utils}
+
+# environment
+export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
+
+echo Airflow home: ${AIRFLOW_HOME}
+
+export AIRFLOW__CORE__UNIT_TEST_MODE=True
+
+# add test/test_utils to PYTHONPATH TODO: Do we need that ??? Looks fishy.
+export PYTHONPATH=${PYTHONPATH}:${MY_DIR}/tests/test_utils
 
 # any argument received is overriding the default nose execution arguments:
-nose_args=$@
-
-# Generate the `airflow` executable if needed
-which airflow > /dev/null || python setup.py develop
+NOSE_ARGS=$@
 
 echo "Initializing the DB"
-yes | airflow initdb
-yes | airflow resetdb
+yes | airflow initdb || true
+yes | airflow resetdb || true
 
-if [ -z "$nose_args" ]; then
-  nose_args="--with-coverage \
+if [[ -z "${NOSE_ARGS}" ]]; then
+  NOSE_ARGS="--with-coverage \
   --cover-erase \
   --cover-html \
   --cover-package=airflow \
@@ -48,24 +59,20 @@ if [ -z "$nose_args" ]; then
   --rednose \
   --with-timer \
   -v \
-  --logging-level=DEBUG "
+  --logging-level=DEBUG"
 fi
 
 # For impersonation tests running on SQLite on Travis, make the database world readable so other
 # users can update it
-AIRFLOW_DB="$HOME/airflow.db"
+AIRFLOW_DB="${HOME}/airflow.db"
 
-if [ -f "${AIRFLOW_DB}" ]; then
+if [[ -f "${AIRFLOW_DB}" ]]; then
   chmod a+rw "${AIRFLOW_DB}"
   chmod g+rwx "${AIRFLOW_HOME}"
 fi
 
-# For impersonation tests on Travis, make airflow accessible to other users via the global PATH
-# (which contains /usr/local/bin)
-sudo ln -sf "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
-
-echo "Starting the unit tests with the following nose arguments: "$nose_args
-nosetests $nose_args
+echo "Starting the tests with the following nose arguments: ${NOSE_ARGS}"
+nosetests ${NOSE_ARGS}
 
 # To run individual tests:
 # nosetests tests.core:CoreTest.test_scheduler_job
