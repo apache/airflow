@@ -18,9 +18,16 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -e
+#
+# Executes tests locally
+#
+set -euo pipefail
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo Starting Apache Airflow with command:
-echo airflow "$@"
+export RUN_TESTS="true"
+export MOUNT_LOCAL_SOURCES="true"
+export PYTHON_VERSION=${PYTHON_VERSION:="3.6"}
+export VERBOSE=${VERBOSE:="false"}
 
-exec airflow "$@"
+# shellcheck source=./ci_run_airflow_testing.sh
+exec "${MY_DIR}/ci_run_airflow_testing.sh"

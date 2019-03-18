@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 #
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -18,9 +17,19 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -e
+# This is hook build used by DockerHub. We are also using it
+# on Travis CI to potentially rebuild (and refresh layers that
+# are not cached) Docker images that are used to run CI jobs
 
-echo Starting Apache Airflow with command:
-echo airflow "$@"
+# We do not push in the push step because we are building multiple images in the build step
+# and it is difficult to pass list of the built images from the build to push phase
+set -euo pipefail
 
-exec airflow "$@"
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+echo "My dir: ${MY_DIR}"
+
+
+echo
+echo "Skip pushing the image. All images were built and pushed in the build hook already!"
+echo

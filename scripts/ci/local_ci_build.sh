@@ -18,9 +18,19 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -e
+#
+# Builds full CI docker image - the image that can be used for running full tests of Airflow
+#
+set -euo pipefail
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo Starting Apache Airflow with command:
-echo airflow "$@"
+# shellcheck source=./_utils.sh
+. "${MY_DIR}/_utils.sh"
 
-exec airflow "$@"
+basic_sanity_checks
+
+script_start
+
+rebuild_image_if_needed_for_tests
+
+script_end

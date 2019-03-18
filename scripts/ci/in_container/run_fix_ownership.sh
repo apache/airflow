@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 #
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
@@ -18,9 +17,17 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -e
+# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+set -euo pipefail
+MY_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
 
-echo Starting Apache Airflow with command:
-echo airflow "$@"
+# shellcheck source=./_in_container_utils.sh
+. "${MY_DIR}/_in_container_utils.sh"
 
-exec airflow "$@"
+in_container_basic_sanity_check
+
+in_container_script_start
+
+in_container_fix_ownership
+
+in_container_script_end

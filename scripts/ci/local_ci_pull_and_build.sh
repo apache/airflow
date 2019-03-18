@@ -18,9 +18,21 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -e
+#
+# Pulls and rebuilds the full CI image used for testing
+#
+set -euo pipefail
+MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo Starting Apache Airflow with command:
-echo airflow "$@"
+# shellcheck source=./_utils.sh
+. "${MY_DIR}/_utils.sh"
 
-exec airflow "$@"
+basic_sanity_checks
+
+script_start
+
+export AIRFLOW_CONTAINER_FORCE_PULL_IMAGES="true"
+
+rebuild_image_if_needed_for_tests
+
+script_end

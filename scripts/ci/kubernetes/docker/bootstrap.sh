@@ -19,12 +19,12 @@
 
 # launch the appropriate process
 
-if [ "$1" = "webserver" ]
+if [[ "$1" = "webserver" ]]
 then
 	exec airflow webserver
 fi
 
-if [ "$1" = "scheduler" ]
+if [[ "$1" = "scheduler" ]]
 then
 	exec airflow scheduler
 fi

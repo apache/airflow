@@ -16,65 +16,67 @@
 
 version: "2.2"
 services:
+
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
   mysql:
     image: mysql:5.6
-    restart: always
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
       - MYSQL_DATABASE=airflow
     volumes:
-      - ./mysql/conf.d:/etc/mysql/conf.d
-
-  postgres:
-    image: postgres:9.6
-    restart: always
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
+      - ./mysql/conf.d:/etc/mysql/conf.d:ro
 
   mongo:
     image: mongo:3
-    restart: always
 
   cassandra:
     image: cassandra:3.0
-    restart: always
 
   rabbitmq:
     image: rabbitmq:3.7
-    restart: always
 
   redis:
     image: redis:5.0.1
-    restart: always
 
   openldap:
     image: osixia/openldap:1.2.0
-    restart: always
     command: --copy-service
     environment:
       - LDAP_DOMAIN=example.com
       - LDAP_ADMIN_PASSWORD=insecure
       - LDAP_CONFIG_PASSWORD=insecure
     volumes:
-      - ./openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
-
+      - ./openldap/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
   krb5-kdc-server:
     image: godatadriven/krb5-kdc-server
     hostname: krb5-kdc-server
     domainname: example.com
 
   airflow-testing:
-    image: airflowci/incubator-airflow-ci:latest
+    image: ${AIRFLOW_CONTAINER_DOCKER_IMAGE}
     init: true
+    entrypoint: [ "/bin/bash", "-c" ]
     environment:
-      - USER=airflow
-      - INSIDE_DOCKER_CONTAINER=true
+      - USER=root
       - ADDITIONAL_PATH=~/.local/bin
-      - TOX_ENV
+      - HADOOP_DISTRO=cdh
+      - HADOOP_HOME=/tmp/hadoop-cdh
+      - HADOOP_OPTS=-D/tmp/krb5.conf
+      - HIVE_HOME=/tmp/hive
+      - MINICLUSTER_HOME=/tmp/minicluster-1.1-SNAPSHOT
+      - KRB5_CONFIG=/etc/krb5.conf
+      - KRB5_KTNAME=/etc/airflow.keytab
+      - CELERY_BROKER_URLS=amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0
+      - ENV
+      - BACKEND
       - CI
+      - SOURCE_BRANCH
       - TRAVIS
       - TRAVIS_BRANCH
       - TRAVIS_BUILD_DIR
@@ -85,6 +87,8 @@ services:
       - TRAVIS_REPO_SLUG
       - TRAVIS_OS_NAME
       - TRAVIS_TAG
+      - RUN_TESTS
+      - AIRFLOW_CI_VERBOSE
     depends_on:
       - postgres
       - mysql
@@ -94,8 +98,3 @@ services:
       - redis
       - openldap
       - krb5-kdc-server
-    volumes:
-      - ../../:/app
-      - ~/.cache/pip:/home/airflow/.cache/pip
-      - ~/.wheelhouse/:/home/airflow/.wheelhouse/
-    working_dir: /app

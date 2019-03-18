@@ -18,9 +18,14 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
-set -e
+set -xeuo pipefail
 
-echo Starting Apache Airflow with command:
-echo airflow "$@"
-
-exec airflow "$@"
+KUBERNETES_VERSION=${KUBERNETES_VERSION:=""}
+# Required for K8s v1.10.x. See
+# https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
+if [[ "${KUBERNETES_VERSION}" == "" ]]; then
+    sudo mount --make-shared /
+    sudo service docker restart
+fi
+# Cleanup docker installation. It should be empty in CI but let's not risk
+docker system prune --all --force

@@ -1297,8 +1297,7 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_scheduler_task_start_date(self):
         """
-        Test that the scheduler respects task start dates that are different
-        from DAG start dates
+        Test that the scheduler respects task start dates that are different from DAG start dates
         """
 
         dag_id = 'test_task_start_date_scheduling'
