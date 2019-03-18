@@ -76,7 +76,7 @@ class TelegramHook(BaseHook):
             "disable_web_page_preview": True,
         }
         params.update(api_params)
-        self.log.info(self.connection.send_message(**params))
+        self.log.debug(self.connection.send_message(**params))
 
 
 __all__ = [TelegramHook]
