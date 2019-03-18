@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,26 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-set -uo pipefail
-
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-export PYTHON_VERSION=3.5
-export AIRFLOW_CI_SILENT=${AIRFLOW_CI_SILENT:="true"}
-export ASSUME_QUIT_TO_ALL_QUESTIONS=${ASSUME_QUIT_TO_ALL_QUESTIONS:="true"}
-
-# shellcheck source=scripts/ci/_utils.sh
-. "${MY_DIR}/_utils.sh"
-
-basic_sanity_checks
-
-force_python_3_5
-
-script_start
-
-rebuild_checklicence_image_if_needed
-
-run_check_license
-
-script_end
+for BCFILE in "${HOME}"/.bash_completion.d/* ; do
+  # shellcheck disable=SC1090
+  . "${BCFILE}"
+done

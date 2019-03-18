@@ -188,6 +188,17 @@ After creating the virtualenv, run this command to create the Airflow sqlite dat
 airflow db init
 ```
 
+This can be automated if you do it within a virtualenv.
+The [./breeze](./breeze) script has a flag
+(-e or --initialize-local-virtualenv) that automatically installs dependencies
+in the virtualenv you are logged in and resets the sqlite database as described below.
+
+After the virtualenv is created, you must initialize it. Simply enter the environment
+(using `workon`) and once you are in it run:
+```
+./breeze --initialize-local-virtualenv
+````
+
 Once initialization is done, you should select the virtualenv you initialized as the
 project's default virtualenv in your IDE and run tests efficiently.
 
@@ -319,18 +330,31 @@ If you are on Linux:
 
 ## Using the Docker Compose environment
 
-### Entering bash shell in Docker Compose environment
+Airflow has a super-easy-to-use integration test environment managed via
+[Docker Compose](https://docs.docker.com/compose/) and used by Airflow's CI Travis tests.
 
-Default environment settings (python 3.6, sqlite backend, docker environment)
-```bash
- ./scripts/ci/local_ci_enter_environment.sh
-```
+It's called **Airflow Breeze** as in "_It's a breeze to develop Airflow_"
 
-Overriding default environment settings:
+All details about using and running Airflow Breeze can be found in [BREEZE.rst](BREEZE.rst)
 
-```bash
-PYTHON_VERSION=3.5 BACKEND=postgres ENV=docker ./scripts/ci/local_ci_enter_environment.sh
-```
+The advantage of the Airflow Breeze Integration Tests environment is that it is a full environment
+including external components - mysql database, hadoop, mongo, cassandra, redis etc. Some of the tests in
+Airflow require those external components. Integration test environment provides preconfigured environment
+where all those services are running and can be used by tests automatically.
+
+Another advantage is that the Airflow Breeze environment is pretty much the same
+as used in [Travis CI](https://travis-ci.com/) automated builds, and if the tests run in
+your local environment they will most likely work on Travis as well.
+
+The disadvantage of Airflow Breeze is that it is fairly complex and requires time to setup. However it is all
+automated and easy to setup. Another disadvantage is that it takes a lot of space in your local Docker cache.
+There is a separate environment for different python versions and airflow versions and each of the images take
+around 3GB in total. Building and preparing the environment by default uses pre-built images from DockerHub
+(requires time to download and extract those GB of images) and less than 10 minutes per python version
+to build.
+
+Note that those images are not supposed to be used in production environments. They are optimised
+for repeatability of tests, maintainability and speed of building rather than performance
 
 ### Running individual tests within the container
 

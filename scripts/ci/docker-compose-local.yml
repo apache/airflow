@@ -17,6 +17,12 @@
 ---
 version: "2.2"
 services:
+  mysql:
+    ports:
+      - "${MYSQL_HOST_PORT}:3306"
+  postgres:
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"
   airflow-testing:
     # We need to mount files an directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host

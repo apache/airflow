@@ -196,7 +196,7 @@ echo
 
 if [[ ! ${LONG_PYTHON_VERSION} =~ python[2-3]\.[0-9]+ ]]; then
     echo >&2
-    echo >&2 "ERROR! Python version extracted from IMAGE_NAME does not match the pythonX.Y format"
+    echo >&2 "ERROR:  Python version extracted from IMAGE_NAME does not match the pythonX.Y format"
     echo >&2
     echo >&2 "The IMAGE_NAME format should be '<BRANCH>-pythonX.Y'"
     echo >&2
@@ -211,7 +211,7 @@ echo
 
 if [[ ! ${LOCAL_BASE_IMAGE_NAME} == ${DOCKERHUB_USER}/${DOCKERHUB_REPO}* ]]; then
     echo >&2
-    echo >&2 "ERROR! The ${LOCAL_BASE_IMAGE_NAME} does not start with ${DOCKERHUB_USER}/${DOCKERHUB_REPO}"
+    echo >&2 "ERROR:  The ${LOCAL_BASE_IMAGE_NAME} does not start with ${DOCKERHUB_USER}/${DOCKERHUB_REPO}"
     echo >&2
     exit 1
 fi

@@ -362,6 +362,32 @@ RUN if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
 
 COPY --chown=airflow:airflow ./scripts/docker/entrypoint.sh /entrypoint.sh
 
+ARG APT_DEPS_IMAGE="airflow-apt-deps-ci-slim"
+ENV APT_DEPS_IMAGE=${APT_DEPS_IMAGE}
+
+# Generate list of all tests to aid auto-complete of run-test command
+RUN \
+    if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
+        gosu "${AIRFLOW_USER}" nosetests --collect-only --with-xunit \
+        --xunit-file="${HOME}/all_tests.xml" && \
+        gosu "${AIRFLOW_USER}" python "${AIRFLOW_SOURCES}/tests/test_utils/get_all_tests.py" \
+            "${HOME}/all_tests.xml" >"${HOME}/all_tests.txt"; \
+    fi
+
+COPY .bash_completion run-tests-complete run-tests ${HOME}/
+
+RUN \
+    if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
+        echo ". ${HOME}/.bash_completion" >> "${HOME}/.bashrc"; \
+    fi
+
+RUN \
+    if [[ "${APT_DEPS_IMAGE}" == "airflow-apt-deps-ci" ]]; then \
+        chmod +x "${HOME}/run-tests-complete" "${HOME}/run-tests" && \
+        chown "${AIRFLOW_USER}.${AIRFLOW_USER}" "${HOME}/.bashrc" \
+              "${HOME}/run-tests-complete" "${HOME}/run-tests"; \
+    fi
+
 USER ${AIRFLOW_USER}
 
 WORKDIR ${AIRFLOW_SOURCES}
