@@ -29,7 +29,7 @@ class TelegramAPIOperator(BaseOperator):
         "Here is a cat video instead\n"
         "https://www.youtube.com/watch?v=J---aiyznGQ",
         chat_id=None,
-        telegram_conn_id=None,
+        telegram_conn_id='telegram_default',
         *args,
         **kwargs
     ):
