@@ -58,6 +58,10 @@ jobs:
     stage: pre-test
     install: skip
     script: scripts/ci/ci_check_license.sh
+  - name: Lint Dockerfile
+    stage: pre-test
+    install: skip
+    script: scripts/ci/ci_lint_dockerfile.sh
   - name: Check docs
     stage: pre-test
     install: pip install -e .[doc]

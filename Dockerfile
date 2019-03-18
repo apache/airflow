@@ -40,8 +40,7 @@ ARG FORCE_REINSTALL_ALL_DEPENDENCIES="1"
 ############################################################################################################
 FROM ${PYTHON_BASE_IMAGE} as airflow-apt-deps
 
-# Print RUN commands by default
-SHELL ["/bin/bash", "-xc"]
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_VERSION
@@ -77,14 +76,14 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
            libsasl2-dev freetds-bin build-essential \
            default-libmysqlclient-dev apt-utils curl rsync netcat locales  \
            freetds-dev libkrb5-dev libssl-dev libffi-dev libpq-dev git \
-           nodejs sudo \
+           nodejs gosu sudo \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN adduser airflow && \
-    echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow && \
-    chmod 0440 /etc/sudoers.d/airflow
+RUN adduser airflow \
+    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
+    && chmod 0440 /etc/sudoers.d/airflow
 
 ############################################################################################################
 # This is an image with all APT dependencies needed by CI. It is built on top of the airlfow APT image
@@ -93,7 +92,7 @@ RUN adduser airflow && \
 ############################################################################################################
 FROM airflow-apt-deps as airflow-ci-apt-deps
 
-SHELL ["/bin/bash", "-xc"]
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
 ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
 
@@ -115,7 +114,6 @@ RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
           dirmngr \
           openjdk-8-jdk \
           vim \
-          wget \
           tmux \
           less \
           unzip \
@@ -128,77 +126,93 @@ RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
           python-selinux \
           sasl2-bin \
         && apt-get autoremove -yqq --purge \
-        && apt-get clean && rm -rf /var/lib/apt/lists/* \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* \
         ;\
     fi
 
 RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
-        # gpg: key 5072E1F5: public key "MySQL Release Engineering <mysql-build@oss.oracle.com>" imported
-        key='A4A9406876FCBD3C456770C88C718D3B5072E1F5' \
-        && export GNUPGHOME="$(mktemp -d)" \
-        && for keyserver in $(shuf -e \
+        KEY="A4A9406876FCBD3C456770C88C718D3B5072E1F5" \
+        && GNUPGHOME="$(mktemp -d)" \
+        && export GNUPGHOME \
+        && for KEYSERVER in $(shuf -e \
                 ha.pool.sks-keyservers.net \
                 hkp://p80.pool.sks-keyservers.net:80 \
                 keyserver.ubuntu.com \
                 hkp://keyserver.ubuntu.com:80 \
                 pgp.mit.edu) ; do \
-              gpg --keyserver $keyserver --recv-keys "$key" && break || true ; \
+              gpg --keyserver "${KEYSERVER}" --recv-keys "${KEY}" && break || true ; \
            done \
-        && gpg --export "$key" > /etc/apt/trusted.gpg.d/mysql.gpg \
+        && gpg --export "${KEY}" > /etc/apt/trusted.gpg.d/mysql.gpg \
         && gpgconf --kill all \
-        rm -rf "$GNUPGHOME"; \
+        rm -rf "${GNUPGHOME}"; \
         apt-key list > /dev/null \
-        && echo "deb http://repo.mysql.com/apt/ubuntu/ trusty mysql-5.7" | tee -a /etc/apt/sources.list.d/mysql.list \
+        && echo "deb http://repo.mysql.com/apt/ubuntu/ trusty mysql-5.7" | \
+            tee -a /etc/apt/sources.list.d/mysql.list \
         && apt-get update \
         && MYSQL_PASS="secret" \
-        && debconf-set-selections <<< "mysql-community-server mysql-community-server/data-dir select ''" \
-        && debconf-set-selections <<< "mysql-community-server mysql-community-server/root-pass password $MYSQL_PASS" \
-        && debconf-set-selections <<< "mysql-community-server mysql-community-server/re-root-pass password $MYSQL_PASS" \
+        && debconf-set-selections <<< \
+            "mysql-community-server mysql-community-server/data-dir select ''" \
+        && debconf-set-selections <<< \
+            "mysql-community-server mysql-community-server/root-pass password ${MYSQL_PASS}" \
+        && debconf-set-selections <<< \
+            "mysql-community-server mysql-community-server/re-root-pass password ${MYSQL_PASS}" \
         && apt-get install --no-install-recommends -y mysql-client libmysqlclient-dev \
         && apt-get autoremove -yqq --purge \
-        && apt-get clean && rm -rf /var/lib/apt/lists/* \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* \
         ;\
     fi
 
-ENV HADOOP_DISTRO=cdh
-ENV HADOOP_VERSION=2.6.0 HADOOP_HOME=/tmp/hadoop-${HADOOP_DISTRO} HIVE_HOME=/tmp/hive
+ENV HADOOP_DISTRO=cdh HADOOP_MAJOR=5 HADOOP_DISTRO_VERSION=5.11.0 HADOOP_VERSION=2.6.0 HIVE_VERSION=1.1.0
+ENV HADOOP_URL=https://archive.cloudera.com/${HADOOP_DISTRO}${HADOOP_MAJOR}/${HADOOP_DISTRO}/${HADOOP_MAJOR}/
+ENV HADOOP_HOME=/tmp/hadoop-cdh HIVE_HOME=/tmp/hive
 
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
-        mkdir -pv ${HADOOP_HOME} && \
-        mkdir -pv ${HIVE_HOME}  && \
-        mkdir /tmp/minicluster  && \
-        mkdir -pv /user/hive/warehouse && \
-        chmod -R 777 ${HIVE_HOME} && \
-        chmod -R 777 /user/ \
-        ;\
-    fi
+RUN \
+if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
+    mkdir -pv ${HADOOP_HOME} \
+    && mkdir -pv ${HIVE_HOME} \
+    && mkdir /tmp/minicluster \
+    && mkdir -pv /user/hive/warehouse \
+    && chmod -R 777 ${HIVE_HOME} \
+    && chmod -R 777 /user/ \
+    ;\
+fi
 # Install Hadoop
 # --absolute-names is a work around to avoid this issue https://github.com/docker/hub-feedback/issues/727
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
-        cd /tmp && \
-        wget -q https://archive.cloudera.com/cdh5/cdh/5/hadoop-${HADOOP_VERSION}-cdh5.11.0.tar.gz && \
-        tar xzf hadoop-${HADOOP_VERSION}-cdh5.11.0.tar.gz --absolute-names --strip-components 1 -C ${HADOOP_HOME} && \
-        rm hadoop-${HADOOP_VERSION}-cdh5.11.0.tar.gz \
-        ;\
-    fi
+RUN \
+if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
+    HADOOP_URL=${HADOOP_URL}hadoop-${HADOOP_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz \
+    && HADOOP_TMP_FILE=/tmp/hadoop.tar.gz \
+    && curl -sL ${HADOOP_URL} > ${HADOOP_TMP_FILE} \
+    && tar xzf ${HADOOP_TMP_FILE} --absolute-names --strip-components 1 -C ${HADOOP_HOME} \
+    && rm ${HADOOP_TMP_FILE} \
+    ;\
+fi
 
 # Install Hive
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
-        cd /tmp && \
-        wget -q https://archive.cloudera.com/cdh5/cdh/5/hive-1.1.0-cdh5.11.0.tar.gz && \
-        tar xzf hive-1.1.0-cdh5.11.0.tar.gz --strip-components 1 -C $HIVE_HOME && \
-        rm hive-1.1.0-cdh5.11.0.tar.gz \
-        ;\
-    fi
+RUN \
+if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
+    HIVE_URL=${HADOOP_URL}hive-${HIVE_VERSION}-${HADOOP_DISTRO}${HADOOP_DISTRO_VERSION}.tar.gz \
+    && HIVE_TMP_FILE=/tmp/hive.tar.gz \
+    && curl -sL ${HIVE_URL} > ${HIVE_TMP_FILE} \
+    && tar xzf ${HIVE_TMP_FILE} --strip-components 1 -C ${HIVE_HOME} \
+    && rm ${HIVE_TMP_FILE} \
+    ;\
+fi
 
-# Install MiniCluster
-RUN if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
-        cd /tmp && \
-        wget -q https://github.com/bolkedebruin/minicluster/releases/download/1.1/minicluster-1.1-SNAPSHOT-bin.zip && \
-        unzip minicluster-1.1-SNAPSHOT-bin.zip -d /tmp && \
-        rm minicluster-1.1-SNAPSHOT-bin.zip \
-        ;\
-    fi
+ENV MINICLUSTER_URL=https://github.com/bolkedebruin/minicluster/releases/download/
+ENV MINICLUSTER_VER=1.1
+# Install MiniCluster TODO: install it differently. Installing to /tmp is probably a bad idea
+RUN \
+if [[ "${APT_DEPS_IMAGE}" == "airflow-ci-apt-deps" ]]; then \
+    MINICLUSTER_URL=${MINICLUSTER_URL}${MINICLUSTER_VER}/minicluster-${MINICLUSTER_VER}-SNAPSHOT-bin.zip \
+    && MINICLUSTER_TMP_FILE=/tmp/minicluster.zip \
+    && curl -sL ${MINICLUSTER_URL} > ${MINICLUSTER_TMP_FILE} \
+    && unzip ${MINICLUSTER_TMP_FILE} -d /tmp \
+    && rm ${MINICLUSTER_TMP_FILE} \
+    ;\
+fi
 
 ENV PATH "$PATH:/tmp/hive/bin:$ADDITIONAL_PATH"
 
@@ -211,6 +225,8 @@ ENV PATH "$PATH:/tmp/hive/bin:$ADDITIONAL_PATH"
 ############################################################################################################
 FROM ${APT_DEPS_IMAGE} as main
 
+SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
+
 WORKDIR /opt/airflow
 
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
@@ -218,10 +234,8 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 ARG AIRFLOW_HOME=/opt/airflow
 ENV AIRFLOW_HOME=${AIRFLOW_HOME}
 
-USER airflow
-
-RUN sudo -E mkdir -pv ${AIRFLOW_HOME} && \
-    sudo -E chown -R airflow.airflow ${AIRFLOW_HOME}
+RUN mkdir -pv ${AIRFLOW_HOME} \
+    && chown -R airflow.airflow ${AIRFLOW_HOME}
 
 # Increase the value here to force reinstalling Apache Airflow pip dependencies
 ENV FORCE_REINSTALL_ALL_PIP_DEPENDENCIES=1
@@ -258,8 +272,8 @@ RUN echo "Pip version: ${PIP_VERSION}"
 # First install only dependencies but no Apache Airflow itself
 # This way regular changes in sources of Airflow will not trigger reinstallation of all dependencies
 # And this Docker layer will be reused between builds.
-RUN sudo -E pip install ${PIP_CACHE_DIRECTIVE} --upgrade pip==${PIP_VERSION} && \
-    sudo -E pip install ${PIP_CACHE_DIRECTIVE} --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
+RUN pip install ${PIP_CACHE_DIRECTIVE} --upgrade pip==${PIP_VERSION} \
+    && pip install ${PIP_CACHE_DIRECTIVE} --no-use-pep517 -e ".[${AIRFLOW_EXTRAS}]"
 
 COPY --chown=airflow:airflow airflow/www/package.json /opt/airflow/airflow/www/package.json
 COPY --chown=airflow:airflow airflow/www/package-lock.json /opt/airflow/airflow/www/package-lock.json
@@ -267,12 +281,12 @@ COPY --chown=airflow:airflow airflow/www/package-lock.json /opt/airflow/airflow/
 WORKDIR /opt/airflow/airflow/www
 
 # Install necessary NPM dependencies (triggered by changes in package-lock.json)
-RUN npm ci
+RUN gosu airflow npm ci
 
 COPY --chown=airflow:airflow airflow/www/ /opt/airflow/airflow/www/
 
 # Package NPM for production
-RUN npm run prod
+RUN gosu airflow npm run prod
 
 WORKDIR /opt/airflow
 
@@ -282,16 +296,19 @@ COPY --chown=airflow:airflow . /opt/airflow/
 
 # Always add-get update/upgrade here to get latest dependencies before
 # we redo pip install
-RUN sudo -E apt-get update \
-    && sudo -E apt-get upgrade -y --no-install-recommends \
-    && sudo -E apt-get clean && sudo rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Additional python dependencies
 ARG ADDITIONAL_PYTHON_DEPS
 
 RUN if [ -n "${ADDITIONAL_PYTHON_DEPS}" ]; then \
-        sudo -E pip install ${PIP_CACHE_DIRECTIVE} ${ADDITIONAL_PYTHON_DEPS}; \
+        pip install ${PIP_CACHE_DIRECTIVE} ${ADDITIONAL_PYTHON_DEPS}; \
     fi
+
+USER airflow
 
 WORKDIR ${AIRFLOW_HOME}
 
