@@ -84,7 +84,8 @@ class AWSAthenaOperator(BaseOperator):
                 .format(query_status, self.query_execution_id))
         elif query_status in AWSAthenaHook.INTERMEDIATE_STATES:
             raise Exception(
-                'Athena job failed. Max tries of poll status exceeded, query_execution_id is {}.'
+                'Athena job failed. Final state is {}.\
+                 Max tries of poll status exceeded, query_execution_id is {}.'
                 .format(query_status, self.query_execution_id))
 
     def on_kill(self):
