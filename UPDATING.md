@@ -24,6 +24,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Deprecation chain function after Airflow 1.10.2
+
+Bit operation like `>>` or `<<` are suggested to set dependency, which visual and easier to explain.
+`airflow.utlis.helpers.chain` is deprecation after Airflow 1.10.2
+
 ### Viewer won't have edit permissions on DAG view.
 
 ### RedisPy dependency updated to v3 series
