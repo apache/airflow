@@ -18,6 +18,8 @@
 from abc import ABCMeta, abstractmethod
 import six
 
+from airflow.contrib.kubernetes.pod import Pod
+
 
 class KubernetesRequestFactory:
     """
