@@ -132,11 +132,12 @@ class TestSQSSensor(unittest.TestCase):
         self.assertTrue('Delete SQS Messages failed' in context.exception.args[0])
 
     def test_poke_receive_raise_exception(self):
-        self.mock_sqs_hook().get_conn().receive_message.return_value = Exception('test exception')
+        self.mock_sqs_hook().get_conn().receive_message.side_effect = Exception('test exception')
 
-        result = self.sensor.poke(self.mock_context)
+        with self.assertRaises(Exception) as context:
+            self.sensor.poke(self.mock_context)
 
-        self.assertFalse(result)
+        self.assertTrue('test exception' in context.exception.args[0])
 
 
 if __name__ == '__main__':

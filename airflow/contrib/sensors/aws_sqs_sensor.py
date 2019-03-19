@@ -24,21 +24,21 @@ from airflow.exceptions import AirflowException
 
 
 class SQSSensor(BaseSensorOperator):
+    """
+    Get messages from an SQS queue and passes them through XCom.
+
+    :param aws_conn_id: AWS connection id
+    :type aws_conn_id: str
+    :param sqs_queue: The SQS queue
+    :type sqs_queue: str
+    :param max_messages: The maximum number of messages to retrieve for each poke
+    :type max_messages: int
+    """
 
     template_fields = ['sqs_queue', 'max_messages']
 
     @apply_defaults
     def __init__(self, aws_conn_id, sqs_queue, max_messages=5, *args, **kwargs):
-        """
-        Get messages from an SQS queue and passes them through XCom.
-
-        :param aws_conn_id: AWS connection id
-        :type aws_conn_id: str
-        :param sqs_queue: The SQS queue
-        :type sqs_queue: str
-        :param max_messages: The maximum number of messages to retrieve for each poke
-        :type max_messages: int
-        """
         super(SQSSensor, self).__init__(*args, **kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
@@ -54,16 +54,16 @@ class SQSSensor(BaseSensorOperator):
         :return: ``True`` if message is available or ``False``
         """
 
-        self.log.debug('SQSSensor checking for message on queue: %s', self.sqs_queue)
+        self.log.info('SQSSensor checking for message on queue: %s', self.sqs_queue)
 
         try:
             messages = self.sqs_hook.get_conn().receive_message(QueueUrl=self.sqs_queue,
                                                                 MaxNumberOfMessages=self.max_messages)
 
-            self.log.debug("reveived message %s", str(messages))
+            self.log.info("reveived message %s", str(messages))
 
             if 'Messages' not in messages:
-                self.log.debug('No message received %s', str(messages))
+                self.log.info('No message received %s', str(messages))
                 return False
 
             if (len(messages['Messages']) > 0):
@@ -71,6 +71,7 @@ class SQSSensor(BaseSensorOperator):
 
                 entries = [{'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
                            for message in messages['Messages']]
+
                 result = self.sqs_hook.get_conn().delete_message_batch(QueueUrl=self.sqs_queue,
                                                                        Entries=entries)
 
@@ -82,10 +83,6 @@ class SQSSensor(BaseSensorOperator):
 
             return False
 
-        except AirflowException as ae:
-            self.log.error('AirflowException %s', str(ae))
-            raise ae
         except Exception as e:
-            self.log.error('exception %s', str(e))
-
-        return False
+            self.log.error('exception %s', str(e.args))
+            raise e
