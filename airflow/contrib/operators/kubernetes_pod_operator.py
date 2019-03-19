@@ -80,6 +80,10 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :type do_xcom_push: bool
+    :param is_delete_operator_pod: If True, delete the pod after it's reached
+        a final state (independent of pod success), or the task instance gets 
+        killed. 
+    :type is_delete_operator_pod: bool
     :param hostnetwork: If True enable host networking on the pod
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
