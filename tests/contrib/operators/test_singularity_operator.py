@@ -17,13 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-
 from parameterized import parameterized
-import six
 from spython.instance import Instance
-
 from airflow import AirflowException
+
+import unittest
+import six
 
 try:
     from airflow.contrib.operators.singularity_operator import SingularityOperator
@@ -37,8 +36,6 @@ except ImportError:
         import mock
     except ImportError:
         mock = None
-
-TEST_INSTANCE = {}
 
 
 class SingularityOperatorTestCase(unittest.TestCase):
@@ -60,11 +57,15 @@ class SingularityOperatorTestCase(unittest.TestCase):
         )
         task.execute({})
 
-        client_mock.instance.assert_called_once_with("awesome-image", options=[], args=None, start=False)
+        client_mock.instance.assert_called_once_with("awesome-image", 
+                                                      options=[], 
+                                                      args=None,
+                                                      start=False)
 
         client_mock.execute.assert_called_once_with(mock.ANY,
                                                     "awesome-command",
                                                     return_result=True)
+
         execute_args, _ = client_mock.execute.call_args
         self.assertIs(execute_args[0], instance)
 
