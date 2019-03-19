@@ -132,11 +132,7 @@ class AwsGlueCatalogHook(AwsHook):
         >>> r['Name'] = 'table_foo'
         """
 
-        try:
-            result = self.get_conn().get_table(
-                DatabaseName=database_name, Name=table_name)
-        except Exception as e:
-            raise e
+        result = self.get_conn().get_table(DatabaseName=database_name, Name=table_name)
 
         return result['Table']
 
