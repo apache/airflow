@@ -4607,11 +4607,23 @@ class DagRun(Base, LoggingMixin):
             else:
                 self.set_state(State.RUNNING)
 
+        self._emit_duration_stats_for_finished_state()
+
         # todo: determine we want to use with_for_update to make sure to lock the run
         session.merge(self)
         session.commit()
 
         return self.state
+
+    def _emit_duration_stats_for_finished_state(self):
+        if self.state == State.RUNNING:
+            return
+
+        duration = (self.end_date - self.start_date)
+        if self.state is State.SUCCESS:
+            Stats.timing('dagrun.duration.success.{}'.format(self.dag_id), duration)
+        elif self.state == State.FAILED:
+            Stats.timing('dagrun.duration.failed.{}'.format(self.dag_id), duration)
 
     @provide_session
     def verify_integrity(self, session=None):
