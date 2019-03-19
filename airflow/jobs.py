@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 from collections import defaultdict, OrderedDict
+from datetime import timedelta
 from time import sleep
 from typing import Any
 
@@ -648,7 +649,7 @@ class SchedulerJob(BaseJob):
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
-            if task.sla:
+            if isinstance(task.sla, timedelta):
                 dttm = dag.following_schedule(dttm)
                 while dttm < timezone.utcnow():
                     following_schedule = dag.following_schedule(dttm)
