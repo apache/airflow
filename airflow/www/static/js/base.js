@@ -30,6 +30,14 @@ function displayTime() {
   setTimeout(displayTime, 1000);
 }
 
+export function escapeHtml(text) {
+  var entityMap = { '"': '&quot;', "'": '&#27;', '/': '&#x2F;', '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+  return (""+ text).replace(/[\"'\/&<>]/g, function (a) {
+    return entityMap[a];
+  });
+}
+window.escapeHtml = escapeHtml;
+
 $(document).ready(function () {
   displayTime();
   $('span').tooltip();
