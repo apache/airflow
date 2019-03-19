@@ -2686,7 +2686,7 @@ class BaseOperator(LoggingMixin):
 
     def add_only_new(self, item_set, item):
         if item in item_set:
-            raise AirflowException(
+            self.log.warning(
                 'Dependency {self}, {item} already registered'
                 ''.format(**locals()))
         else:
