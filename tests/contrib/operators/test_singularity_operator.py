@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import unittest
+import six
+
 from parameterized import parameterized
 from spython.instance import Instance
 from airflow import AirflowException
-
-import unittest
-import six
 
 try:
     from airflow.contrib.operators.singularity_operator import SingularityOperator
