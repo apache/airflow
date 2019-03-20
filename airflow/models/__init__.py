@@ -5339,3 +5339,7 @@ class KubeWorkerIdentifier(Base):
                 KubeWorkerIdentifier.worker_uuid: worker_uuid
             })
             session.commit()
+
+
+# To avoid circular import on Python2.7 we need to define this at the _bottom_
+from airflow.models.connection import Connection  # noqa: E402,F401
