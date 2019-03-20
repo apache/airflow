@@ -57,10 +57,10 @@ class SingularityOperatorTestCase(unittest.TestCase):
         )
         task.execute({})
 
-        client_mock.instance.assert_called_once_with("awesome-image", 
-                                                      options=[], 
-                                                      args=None,
-                                                      start=False)
+        client_mock.instance.assert_called_once_with("awesome-image",
+                                                     options=[],
+                                                     args=None,
+                                                     start=False)
 
         client_mock.execute.assert_called_once_with(mock.ANY,
                                                     "awesome-command",
