@@ -66,6 +66,16 @@ class Pod:
     :type tolerations: list
     :param security_context: A dict containing the security context for the pod
     :type security_context: dict
+    :param security_context: A dict containing the security context for the pod
+    :type security_context: dict
+    :param env_from_configmap_ref: Any configMapRef for the pod to envFrom.
+                                   If more than one configMapRef is required, provide a
+                                   comma separated list: configmap_a,configmap_b
+    :type env_from_configmap_ref: str
+    :param env_from_secret_ref: Any secretRef for the pod to envFrom.
+                                If more than one secretRef is required, provide a
+                                comma separated list: secret_a,secret_b
+    :type env_from_secret_ref: str
     """
     def __init__(
             self,
@@ -91,6 +101,8 @@ class Pod:
             hostnetwork=False,
             tolerations=None,
             security_context=None,
+            env_from_configmap_ref=None,
+            env_from_secret_ref=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -114,3 +126,5 @@ class Pod:
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
         self.security_context = security_context
+        self.env_from_configmap_ref = env_from_configmap_ref
+        self.env_from_secret_ref = env_from_secret_ref

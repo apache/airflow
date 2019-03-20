@@ -196,3 +196,18 @@ class KubernetesRequestFactory:
     def extract_security_context(pod, req):
         if pod.security_context:
             req['spec']['securityContext'] = pod.security_context
+
+    @staticmethod
+    def extract_env_from(pod, req):
+        if pod.env_from_configmap_ref or pod.env_from_secret_ref:
+            configmap_refs = [{
+                'configMapRef': {
+                    'name': configmap_ref
+                }
+            } for configmap_ref in pod.env_from_configmap_ref.split(',')]
+            secret_refs = [{
+                'secretRef': {
+                    'name': secret_ref
+                }
+            } for secret_ref in pod.env_from_secret_ref.split(',')]
+            req['spec']['containers'][0]['envFrom'] = configmap_refs + secret_refs

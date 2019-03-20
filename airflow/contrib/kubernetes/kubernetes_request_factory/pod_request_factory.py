@@ -63,6 +63,7 @@ spec:
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
         self.extract_security_context(pod, req)
+        self.extract_env_from(pod, req)
         return req
 
 
@@ -130,4 +131,5 @@ spec:
         self.extract_affinity(pod, req)
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
+        self.extract_env_from(pod, req)
         return req

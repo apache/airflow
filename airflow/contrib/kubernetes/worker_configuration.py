@@ -331,4 +331,6 @@ class WorkerConfiguration(LoggingMixin):
             affinity=affinity,
             tolerations=tolerations,
             security_context=self._get_security_context(),
+            env_from_configmap_ref=self.kube_config.env_from_configmap_ref,
+            env_from_secret_ref=self.kube_config.env_from_secret_ref
         )
