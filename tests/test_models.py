@@ -33,6 +33,7 @@ import unittest
 import urllib
 import uuid
 import shutil
+from collections import namedtuple
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
@@ -3303,6 +3304,9 @@ class VariableTest(unittest.TestCase):
         self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
 
 
+ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
+
+
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
         models._fernet = None
@@ -3450,3 +3454,100 @@ class ConnectionTest(unittest.TestCase):
             extra__google_cloud_platform__project='airflow',
             extra__google_cloud_platform__scope='https://www.googleapis.com/'
                                                 'auth/cloud-platform'))
+
+    def test_connection_from_uri_without_authinfo(self):
+        uri = 'scheme://host:1234'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_path(self):
+        uri = 'scheme://%2FTmP%2F:1234'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, '/TmP/')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.port, 1234)
+
+    @parameterized.expand(
+        [
+            (
+                "http://:password@host:80/database",
+                ConnectionParts(
+                    conn_type="http", login='', password="password", host="host", port=80, schema="database"
+                ),
+            ),
+            (
+                "http://user:@host:80/database",
+                ConnectionParts(
+                    conn_type="http", login="user", password=None, host="host", port=80, schema="database"
+                ),
+            ),
+            (
+                "http://user:password@/database",
+                ConnectionParts(
+                    conn_type="http", login="user", password="password", host="", port=None, schema="database"
+                ),
+            ),
+            (
+                "http://user:password@host:80/",
+                ConnectionParts(
+                    conn_type="http", login="user", password="password", host="host", port=80, schema=""
+                ),
+            ),
+            (
+                "http://user:password@/",
+                ConnectionParts(
+                    conn_type="http", login="user", password="password", host="", port=None, schema=""
+                ),
+            ),
+            (
+                "postgresql://user:password@%2Ftmp%2Fz6rqdzqh%2Fexample%3Awest1%3Atestdb/testdb",
+                ConnectionParts(
+                    conn_type="postgres",
+                    login="user",
+                    password="password",
+                    host="/tmp/z6rqdzqh/example:west1:testdb",
+                    port=None,
+                    schema="testdb",
+                ),
+            ),
+            (
+                "postgresql://user@%2Ftmp%2Fz6rqdzqh%2Fexample%3Aeurope-west1%3Atestdb/testdb",
+                ConnectionParts(
+                    conn_type="postgres",
+                    login="user",
+                    password=None,
+                    host="/tmp/z6rqdzqh/example:europe-west1:testdb",
+                    port=None,
+                    schema="testdb",
+                ),
+            ),
+            (
+                "postgresql://%2Ftmp%2Fz6rqdzqh%2Fexample%3Aeurope-west1%3Atestdb",
+                ConnectionParts(
+                    conn_type="postgres",
+                    login=None,
+                    password=None,
+                    host="/tmp/z6rqdzqh/example:europe-west1:testdb",
+                    port=None,
+                    schema="",
+                ),
+            ),
+        ]
+    )
+    def test_connection_from_with_auth_info(self, uri, uri_parts):
+        connection = Connection(uri=uri)
+
+        self.assertEqual(connection.conn_type, uri_parts.conn_type)
+        self.assertEqual(connection.login, uri_parts.login)
+        self.assertEqual(connection.password, uri_parts.password)
+        self.assertEqual(connection.host, uri_parts.host)
+        self.assertEqual(connection.port, uri_parts.port)
+        self.assertEqual(connection.schema, uri_parts.schema)

@@ -41,8 +41,8 @@ cond_false = ShortCircuitOperator(
     dag=dag,
 )
 
-ds_true = [DummyOperator(task_id='true_' + str(i), dag=dag) for i in [1, 2]]
-ds_false = [DummyOperator(task_id='false_' + str(i), dag=dag) for i in [1, 2]]
+true_1, true_2 = [DummyOperator(task_id='true_' + str(i), dag=dag) for i in [1, 2]]
+false_1, false_2 = [DummyOperator(task_id='false_' + str(i), dag=dag) for i in [1, 2]]
 
-airflow.utils.helpers.chain(cond_true, *ds_true)
-airflow.utils.helpers.chain(cond_false, *ds_false)
+cond_true >> true_1 >> true_2
+cond_false >> false_1 >> false_2

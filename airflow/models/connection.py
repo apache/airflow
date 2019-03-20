@@ -30,6 +30,20 @@ from airflow.models import get_fernet
 from airflow.models.base import Base, ID_LEN
 
 
+# Python automatically converts all letters to lowercase in hostname
+# See: https://issues.apache.org/jira/browse/AIRFLOW-3615
+def parse_netloc_to_hostname(uri_parts):
+    hostname = unquote(uri_parts.hostname or '')
+    if '/' in hostname:
+        hostname = uri_parts.netloc
+        if "@" in hostname:
+            hostname = hostname.rsplit("@", 1)[1]
+        if ":" in hostname:
+            hostname = hostname.split(":", 1)[0]
+        hostname = unquote(hostname)
+    return hostname
+
+
 class Connection(Base, LoggingMixin):
     """
     Placeholder to store information about different database instances
@@ -112,14 +126,13 @@ class Connection(Base, LoggingMixin):
 
     def parse_from_uri(self, uri):
         uri_parts = urlparse(uri)
-        hostname = uri_parts.hostname or ''
         conn_type = uri_parts.scheme
         if conn_type == 'postgresql':
             conn_type = 'postgres'
         elif '-' in conn_type:
             conn_type = conn_type.replace('-', '_')
         self.conn_type = conn_type
-        self.host = unquote(hostname) if hostname else hostname
+        self.host = parse_netloc_to_hostname(uri_parts)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
         self.login = unquote(uri_parts.username) \
