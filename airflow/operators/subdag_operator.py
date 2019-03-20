@@ -38,7 +38,6 @@ class SubDagOperator(BaseOperator):
     :type executor: airflow.executors.base_executor.BaseExecutor
     """
 
-    template_fields = tuple()
     ui_color = '#555'
     ui_fgcolor = '#fff'
 

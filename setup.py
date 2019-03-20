@@ -235,10 +235,10 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
     + cassandra + mongo
 
 devel = [
+    'beautifulsoup4~=4.7.1',
     'click==6.7',
     'freezegun',
     'jira',
-    'lxml>=4.0.0',
     'mock',
     'mongomock',
     'moto==1.3.5',
@@ -253,7 +253,6 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
-    'typing',
 ]
 
 if not PY3:
@@ -321,6 +320,7 @@ def do_setup():
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'text-unidecode==1.2',
+            'typing;python_version<"3.5"',
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'unicodecsv>=0.14.1',

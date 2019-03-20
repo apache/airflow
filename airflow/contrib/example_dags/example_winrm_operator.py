@@ -31,7 +31,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import DAG
 from datetime import timedelta
 
-from airflow.contrib.hooks import WinRMHook
+from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.contrib.operators.winrm_operator import WinRMOperator
 
 

@@ -25,10 +25,6 @@ from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
 from airflow.contrib.kubernetes.volume import Volume  # noqa
 from airflow.contrib.kubernetes.secret import Secret  # noqa
 
-template_fields = ('templates_dict',)
-template_ext = tuple()
-ui_color = '#ffefeb'
-
 
 class KubernetesPodOperator(BaseOperator):
     """

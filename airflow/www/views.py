@@ -64,7 +64,6 @@ from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
-from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
@@ -84,7 +83,7 @@ PAGE_SIZE = conf.getint('webserver', 'page_size')
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER)
 else:
-    dagbag = models.DagBag
+    dagbag = models.DagBag(os.devnull, include_examples=False)
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -641,7 +640,7 @@ class Airflow(AirflowBaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
         ti = TI(task=task, execution_date=dttm)
@@ -723,7 +722,7 @@ class Airflow(AirflowBaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         xcomlist = session.query(XCom).filter(
             XCom.dag_id == dag_id, XCom.task_id == task_id,
@@ -821,7 +820,7 @@ class Airflow(AirflowBaseView):
         from airflow.exceptions import DagNotFound, DagFileExists
 
         dag_id = request.args.get('dag_id')
-        origin = request.args.get('origin') or "/"
+        origin = request.args.get('origin') or url_for('Airflow.index')
 
         try:
             delete_dag.delete_dag(dag_id)
@@ -847,7 +846,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def trigger(self, session=None):
         dag_id = request.args.get('dag_id')
-        origin = request.args.get('origin') or "/"
+        origin = request.args.get('origin') or url_for('Airflow.index')
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
             flash("Cannot find dag {}".format(dag_id))
@@ -1163,7 +1162,7 @@ class Airflow(AirflowBaseView):
         dag_model = DagModel.get_dagmodel(dag_id)
         if not dag_model:
             flash('DAG "{0}" seems to be missing in database.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
         dag = dag_model.get_dag()
 
         root = request.args.get('root')
@@ -1265,8 +1264,6 @@ class Airflow(AirflowBaseView):
                 for d in dates],
         }
 
-        # minimize whitespace as this can be huge for bigger dags
-        data = json.dumps(data, default=json_ser, separators=(',', ':'))
         session.commit()
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
@@ -1293,7 +1290,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
         if root:
@@ -1377,10 +1374,10 @@ class Airflow(AirflowBaseView):
             ),
             blur=blur,
             root=root or '',
-            task_instances=json.dumps(task_instances, indent=2),
-            tasks=json.dumps(tasks, indent=2),
-            nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2), )
+            task_instances=task_instances,
+            tasks=tasks,
+            nodes=nodes,
+            edges=edges)
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
@@ -1397,7 +1394,7 @@ class Airflow(AirflowBaseView):
 
         if dag is None:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1681,7 +1678,7 @@ class Airflow(AirflowBaseView):
         for dag_id, dag in dagbag.dags.items():
             appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
         flash("All DAGs are now up to date")
-        return redirect('/')
+        return redirect(url_for('Airflow.index'))
 
     @expose('/gantt')
     @has_dag_access(can_dag_read=True)
@@ -1760,7 +1757,7 @@ class Airflow(AirflowBaseView):
             dag=dag,
             execution_date=dttm.isoformat(),
             form=form,
-            data=json.dumps(data, indent=2),
+            data=data,
             base_date='',
             demo_mode=demo_mode,
             root=root,
@@ -2210,7 +2207,7 @@ class DagRunModelView(AirflowModelView):
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
     @action('set_failed', "Set state to 'failed'",
             "All running task instances would also be marked as failed, are you sure?",
@@ -2237,7 +2234,7 @@ class DagRunModelView(AirflowModelView):
                 "were set to failed".format(**locals()))
         except Exception:
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
     @action('set_success', "Set state to 'success'",
             "All task instances would also be marked as success, are you sure?",
@@ -2264,7 +2261,7 @@ class DagRunModelView(AirflowModelView):
                 "were set to success".format(**locals()))
         except Exception:
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
 
 class LogModelView(AirflowModelView):

@@ -870,17 +870,6 @@ class CoreTest(unittest.TestCase):
         arr4 = scale_time_units([200000, 100000], 'days')
         assert_array_almost_equal(arr4, [2.315, 1.157], decimal=3)
 
-    def test_duplicate_dependencies(self):
-
-        regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
-                 "already registered"
-
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.runme_0.set_downstream(self.run_after_loop)
-
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.run_after_loop.set_upstream(self.runme_0)
-
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
             DummyOperator(

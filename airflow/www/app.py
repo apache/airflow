@@ -19,8 +19,9 @@
 #
 import logging
 import socket
-import six
+from typing import Any
 
+import six
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
@@ -33,8 +34,9 @@ from airflow import settings
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
 from airflow.www.static_config import configure_manifest_files
+from airflow.utils.json import AirflowJsonEncoder
 
-app = None
+app = None  # type: Any
 appbuilder = None
 csrf = CSRFProtect()
 
@@ -61,6 +63,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
     if config:
         app.config.from_mapping(config)
+
+    # Configure the JSON encoder used by `|tojson` filter from Flask
+    app.json_encoder = AirflowJsonEncoder
 
     csrf.init_app(app)
 
