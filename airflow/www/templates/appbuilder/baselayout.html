@@ -21,12 +21,12 @@
 {% block head_css %}
   {{ super() }}
 
-  <link href="{{ url_for_asset('main.css') }}" rel="stylesheet">
 
   {% if not appbuilder.app_theme %}
     {# airflowDefaultTheme.css file contains the styles from local bootstrap-theme.css #}
     <link href="{{ url_for_asset('airflowDefaultTheme.css') }}" rel="stylesheet">
   {% endif %}
+  <link href="{{ url_for_asset('main.css') }}" rel="stylesheet">
 
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_30.png') }}">
 {% endblock %}
