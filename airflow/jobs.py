@@ -649,6 +649,7 @@ class SchedulerJob(BaseJob):
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
+            # test
             if isinstance(task.sla, timedelta):
                 dttm = dag.following_schedule(dttm)
                 while dttm < timezone.utcnow():
