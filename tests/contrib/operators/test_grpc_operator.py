@@ -16,13 +16,7 @@ import unittest
 from airflow import configuration
 from airflow.contrib.operators.grpc_operator import GrpcOperator
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class StubClass(object):
@@ -42,28 +36,26 @@ class TestGrpcOperator(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.grpc_operator.GrpcHook')
     def test_with_interceptors(self, mock_hook):
-        mocked_hook = mock.Mock()
-        mock_hook.return_value = mocked_hook
-        GrpcOperator(
+        operator = GrpcOperator(
             stub_class=StubClass,
             call_func="stream_call",
             interceptors=[],
             task_id="test_grpc",
         )
 
+        operator.execute({})
         mock_hook.assert_called_once_with("grpc_default", interceptors=[], custom_connection_func=None)
 
     @mock.patch('airflow.contrib.operators.grpc_operator.GrpcHook')
     def test_with_custom_connection_func(self, mock_hook):
-        mocked_hook = mock.Mock()
-        mock_hook.return_value = mocked_hook
-        GrpcOperator(
+        operator = GrpcOperator(
             stub_class=StubClass,
             call_func="stream_call",
             custom_connection_func=self.custom_conn_func,
             task_id="test_grpc",
         )
 
+        operator.execute({})
         mock_hook.assert_called_once_with(
             "grpc_default", interceptors=None, custom_connection_func=self.custom_conn_func)
 
