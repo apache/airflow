@@ -38,12 +38,11 @@ class SQSSensor(BaseSensorOperator):
     template_fields = ['sqs_queue', 'max_messages']
 
     @apply_defaults
-    def __init__(self, aws_conn_id, sqs_queue, max_messages=5, *args, **kwargs):
+    def __init__(self, sqs_queue, aws_conn_id='aws_default', max_messages=5, *args, **kwargs):
         super(SQSSensor, self).__init__(*args, **kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
-        self.sqs_hook = SQSHook(aws_conn_id=self.aws_conn_id)
 
     def poke(self, context):
         """
@@ -54,11 +53,12 @@ class SQSSensor(BaseSensorOperator):
         :return: ``True`` if message is available or ``False``
         """
 
+        sqs_hook = SQSHook(aws_conn_id=self.aws_conn_id)
         self.log.info('SQSSensor checking for message on queue: %s', self.sqs_queue)
 
         try:
-            messages = self.sqs_hook.get_conn().receive_message(QueueUrl=self.sqs_queue,
-                                                                MaxNumberOfMessages=self.max_messages)
+            messages = sqs_hook.get_conn().receive_message(QueueUrl=self.sqs_queue,
+                                                           MaxNumberOfMessages=self.max_messages)
 
             self.log.info("reveived message %s", str(messages))
 
@@ -72,8 +72,8 @@ class SQSSensor(BaseSensorOperator):
                 entries = [{'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
                            for message in messages['Messages']]
 
-                result = self.sqs_hook.get_conn().delete_message_batch(QueueUrl=self.sqs_queue,
-                                                                       Entries=entries)
+                result = sqs_hook.get_conn().delete_message_batch(QueueUrl=self.sqs_queue,
+                                                                  Entries=entries)
 
                 if ('Successful' in result):
                     return True

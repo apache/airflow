@@ -30,8 +30,7 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 class TestSQSSensor(unittest.TestCase):
 
-    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
-    def setUp(self, mock_sqs_hook):
+    def setUp(self):
         configuration.load_test_config()
 
         args = {
@@ -40,7 +39,6 @@ class TestSQSSensor(unittest.TestCase):
         }
 
         self.dag = DAG('test_dag_id', default_args=args)
-        self.mock_sqs_hook = mock_sqs_hook
         self.sensor = SQSSensor(
             task_id='test_task',
             dag=self.dag,
@@ -50,7 +48,9 @@ class TestSQSSensor(unittest.TestCase):
 
         self.mock_context = MagicMock()
 
-    def test_poke_success(self):
+    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
+    def test_poke_success(self, mock_sqs_hook):
+        mock_sqs_hook = mock_sqs_hook
         message = {'Messages': [{'MessageId': 'c585e508-2ea0-44c7-bf3e-d1ba0cb87834',
                                  'ReceiptHandle': 'mockHandle',
                                  'MD5OfBody': 'e5a9d8684a8edfed460b8d42fd28842f',
@@ -63,9 +63,9 @@ class TestSQSSensor(unittest.TestCase):
                                             'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
                                         'RetryAttempts': 0}}
 
-        self.mock_sqs_hook().get_conn().delete_message_batch.return_value = \
+        mock_sqs_hook().get_conn().delete_message_batch.return_value = \
             {'Successful': [{'Id': '22f67273-4dbc-4c19-83b5-aee71bfeb832'}]}
-        self.mock_sqs_hook().get_conn().receive_message.return_value = message
+        mock_sqs_hook().get_conn().receive_message.return_value = message
 
         result = self.sensor.poke(self.mock_context)
         self.assertTrue(result)
@@ -74,7 +74,8 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
-    def test_poke_no_messsage_failed(self):
+    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
+    def test_poke_no_messsage_failed(self, mock_sqs_hook):
         message = {
             'ResponseMetadata': {'RequestId': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
                                  'HTTPStatusCode': 200,
@@ -83,7 +84,7 @@ class TestSQSSensor(unittest.TestCase):
                                      'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
                                      'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
                                  'RetryAttempts': 0}}
-        self.mock_sqs_hook().get_conn().receive_message.return_value = message
+        mock_sqs_hook().get_conn().receive_message.return_value = message
 
         result = self.sensor.poke(self.mock_context)
         self.assertFalse(result)
@@ -92,7 +93,8 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
-    def test_poke_messsage_array_empty_failed(self):
+    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
+    def test_poke_messsage_array_empty_failed(self, mock_sqs_hook):
         message = {'Messages': [],
                    'ResponseMetadata': {'RequestId': '56cbf4aa-f4ef-5518-9574-a04e0a5f1411',
                                         'HTTPStatusCode': 200,
@@ -101,7 +103,7 @@ class TestSQSSensor(unittest.TestCase):
                                             'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
                                             'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
                                         'RetryAttempts': 0}}
-        self.mock_sqs_hook().get_conn().receive_message.return_value = message
+        mock_sqs_hook().get_conn().receive_message.return_value = message
 
         result = self.sensor.poke(self.mock_context)
         self.assertFalse(result)
@@ -110,7 +112,8 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context call  should be same")
 
-    def test_poke_delete_raise_airflow_exception(self):
+    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
+    def test_poke_delete_raise_airflow_exception(self, mock_sqs_hook):
         message = {'Messages': [{'MessageId': 'c585e508-2ea0-44c7-bf3e-d1ba0cb87834',
                                  'ReceiptHandle': 'mockHandle',
                                  'MD5OfBody': 'e5a9d8684a8edfed460b8d42fd28842f',
@@ -122,8 +125,8 @@ class TestSQSSensor(unittest.TestCase):
                                             'date': 'Mon, 18 Feb 2019 18:41:52 GMT',
                                             'content-type': 'text/xml', 'mock_sqs_hook-length': '830'},
                                         'RetryAttempts': 0}}
-        self.mock_sqs_hook().get_conn().receive_message.return_value = message
-        self.mock_sqs_hook().get_conn().delete_message_batch.return_value = \
+        mock_sqs_hook().get_conn().receive_message.return_value = message
+        mock_sqs_hook().get_conn().delete_message_batch.return_value = \
             {'Failed': [{'Id': '22f67273-4dbc-4c19-83b5-aee71bfeb832'}]}
 
         with self.assertRaises(AirflowException) as context:
@@ -131,8 +134,9 @@ class TestSQSSensor(unittest.TestCase):
 
         self.assertTrue('Delete SQS Messages failed' in context.exception.args[0])
 
-    def test_poke_receive_raise_exception(self):
-        self.mock_sqs_hook().get_conn().receive_message.side_effect = Exception('test exception')
+    @patch('airflow.contrib.sensors.aws_sqs_sensor.SQSHook')
+    def test_poke_receive_raise_exception(self, mock_sqs_hook):
+        mock_sqs_hook().get_conn().receive_message.side_effect = Exception('test exception')
 
         with self.assertRaises(Exception) as context:
             self.sensor.poke(self.mock_context)
