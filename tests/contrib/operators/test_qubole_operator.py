@@ -19,9 +19,11 @@
 #
 
 import unittest
-from datetime import datetime
+from airflow.utils.timezone import datetime
 
-from airflow.models import Connection, DAG, TaskInstance
+from airflow import settings
+from airflow.models import Connection, DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import db
 
 from airflow.contrib.hooks.qubole_hook import QuboleHook
@@ -31,6 +33,7 @@ DAG_ID = "qubole_test_dag"
 TASK_ID = "test_task"
 DEFAULT_CONN = "qubole_default"
 TEMPLATE_CONN = "my_conn_id"
+TEST_CONN = "qubole_test_conn"
 DEFAULT_DATE = datetime(2017, 1, 1)
 
 
@@ -38,6 +41,16 @@ class QuboleOperatorTest(unittest.TestCase):
     def setUp(self):
         db.merge_conn(
             Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
+        db.merge_conn(
+            Connection(conn_id=TEST_CONN, conn_type='HTTP',
+                       host='http://localhost/api'))
+
+    def tearDown(self):
+        session = settings.Session()
+        session.query(Connection).filter(
+            Connection.conn_id == TEST_CONN).delete()
+        session.commit()
+        session.close()
 
     def test_init_with_default_connection(self):
         op = QuboleOperator(task_id=TASK_ID)
@@ -112,3 +125,24 @@ class QuboleOperatorTest(unittest.TestCase):
                          "--dest")
         self.assertEqual(task.get_hook().create_cmd_args({'run_id': 'dummy'})[5],
                          "s3n://airflow/destination_hadoopcmd")
+
+    def test_get_redirect_url(self):
+        dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+
+        with dag:
+            task = QuboleOperator(task_id=TASK_ID,
+                                  qubole_conn_id=TEST_CONN,
+                                  command_type='shellcmd',
+                                  parameters="param1 param2",
+                                  dag=dag)
+
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.xcom_push('qbol_cmd_id', 12345)
+
+        # check for positive case
+        url = task.get_extra_links(DEFAULT_DATE, 'Go to QDS')
+        self.assertEqual(url, 'http://localhost/v2/analyze?command_id=12345')
+
+        # check for negative case
+        url2 = task.get_extra_links(datetime(2017, 1, 2), 'Go to QDS')
+        self.assertEqual(url2, '')
