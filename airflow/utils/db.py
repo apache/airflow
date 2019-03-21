@@ -95,7 +95,7 @@ def initdb():
             schema='airflow'))
     merge_conn(
         Connection(
-            conn_id='beeline_default', conn_type='beeline', port="10000",
+            conn_id='beeline_default', conn_type='beeline', port=10000,
             host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
             schema='default'))
     merge_conn(

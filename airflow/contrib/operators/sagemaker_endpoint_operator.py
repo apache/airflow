@@ -128,7 +128,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         else:
             raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
 
-        self.log.info('{} SageMaker endpoint {}.'.format(log_str, endpoint_info['EndpointName']))
+        self.log.info('%s SageMaker endpoint %s.', log_str, endpoint_info['EndpointName'])
 
         response = sagemaker_operation(
             endpoint_info,

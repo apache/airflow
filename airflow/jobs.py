@@ -32,6 +32,7 @@ import threading
 import time
 from collections import defaultdict, OrderedDict
 from time import sleep
+from typing import Any
 
 import six
 from past.builtins import basestring
@@ -63,7 +64,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
 
-Base = models.base.Base
+Base = models.base.Base  # type: Any
 ID_LEN = models.base.ID_LEN
 
 
@@ -126,7 +127,7 @@ class BaseJob(Base, LoggingMixin):
         try:
             self.on_kill()
         except Exception as e:
-            self.log.error('on_kill() method failed: {}'.format(e))
+            self.log.error('on_kill() method failed: %s', str(e))
         session.merge(job)
         session.commit()
         raise AirflowException("Job shut down externally.")
@@ -604,7 +605,7 @@ class SchedulerJob(BaseJob):
         """
         Helper method to clean up processor_agent to avoid leaving orphan processes.
         """
-        self.log.info("Exiting gracefully upon receiving signal {}".format(signum))
+        self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
@@ -619,10 +620,7 @@ class SchedulerJob(BaseJob):
         tasks that should have succeeded in the past hour.
         """
         if not any([ti.sla for ti in dag.tasks]):
-            self.log.info(
-                "Skipping SLA check for %s because no tasks in DAG have SLAs",
-                dag
-            )
+            self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
         TI = models.TaskInstance
@@ -1098,9 +1096,10 @@ class SchedulerJob(BaseJob):
         # Put one task instance on each line
         task_instance_str = "\n\t".join(
             ["{}".format(x) for x in task_instances_to_examine])
-        self.log.info("{} tasks up for execution:\n\t{}"
-                      .format(len(task_instances_to_examine),
-                              task_instance_str))
+        self.log.info(
+            "%s tasks up for execution:\n\t%s", len(task_instances_to_examine),
+            task_instance_str
+        )
 
         # Get the pool settings
         pools = {p.pool: p for p in session.query(models.Pool).all()}
@@ -1116,11 +1115,13 @@ class SchedulerJob(BaseJob):
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
         for pool, task_instances in pool_to_task_instances.items():
+            pool_name = pool
             if not pool:
                 # Arbitrary:
                 # If queued outside of a pool, trigger no more than
                 # non_pooled_task_slot_count per run
                 open_slots = conf.getint('core', 'non_pooled_task_slot_count')
+                pool_name = 'not_pooled'
             else:
                 if pool not in pools:
                     self.log.warning(
@@ -1133,10 +1134,9 @@ class SchedulerJob(BaseJob):
 
             num_queued = len(task_instances)
             self.log.info(
-                "Figuring out tasks to run in Pool(name={pool}) with {open_slots} "
-                "open slots and {num_queued} task instances in queue".format(
-                    **locals()
-                )
+                "Figuring out tasks to run in Pool(name=%s) with %s open slots "
+                "and %s task instances in queue",
+                pool, open_slots, num_queued
             )
 
             priority_sorted_task_instances = sorted(
@@ -1145,13 +1145,16 @@ class SchedulerJob(BaseJob):
             # DAG IDs with running tasks that equal the concurrency limit of the dag
             dag_id_to_possibly_running_task_count = {}
 
-            for task_instance in priority_sorted_task_instances:
+            # Number of tasks that cannot be scheduled because of no open slot in pool
+            num_starving_tasks = 0
+            for current_index, task_instance in enumerate(priority_sorted_task_instances):
                 if open_slots <= 0:
                     self.log.info(
                         "Not scheduling since there are %s open slots in pool %s",
                         open_slots, pool
                     )
                     # Can't schedule any more since there are no more open slots.
+                    num_starving_tasks = len(priority_sorted_task_instances) - current_index
                     break
 
                 # Check to make sure that the task concurrency of the DAG hasn't been
@@ -1205,6 +1208,9 @@ class SchedulerJob(BaseJob):
                 executable_tis.append(task_instance)
                 open_slots -= 1
                 dag_id_to_possibly_running_task_count[dag_id] += 1
+
+            Stats.gauge('pool.starving_tasks.{pool_name}'.format(pool_name=pool_name),
+                        num_starving_tasks)
 
         task_instance_str = "\n\t".join(
             ["{}".format(x) for x in executable_tis])
@@ -1283,8 +1289,8 @@ class SchedulerJob(BaseJob):
             ["{}".format(x) for x in tis_to_set_to_queued])
 
         session.commit()
-        self.log.info("Setting the following {} tasks to queued state:\n\t{}"
-                      .format(len(tis_to_set_to_queued), task_instance_str))
+        self.log.info("Setting the following %s tasks to queued state:\n\t%s",
+                      len(tis_to_set_to_queued), task_instance_str)
         return simple_task_instances
 
     def _enqueue_task_instances_with_queued_state(self, simple_dag_bag,
@@ -2105,27 +2111,13 @@ class BackfillJob(BaseJob):
         return tasks_to_run
 
     def _log_progress(self, ti_status):
-        msg = ' | '.join([
-            "[backfill progress]",
-            "finished run {0} of {1}",
-            "tasks waiting: {2}",
-            "succeeded: {3}",
-            "running: {4}",
-            "failed: {5}",
-            "skipped: {6}",
-            "deadlocked: {7}",
-            "not ready: {8}"
-        ]).format(
-            ti_status.finished_runs,
-            ti_status.total_runs,
-            len(ti_status.to_run),
-            len(ti_status.succeeded),
-            len(ti_status.running),
-            len(ti_status.failed),
-            len(ti_status.skipped),
-            len(ti_status.deadlocked),
-            len(ti_status.not_ready))
-        self.log.info(msg)
+        self.log.info(
+            '[backfill progress] | finished run %s of %s | tasks waiting: %s | succeeded: %s | '
+            'running: %s | failed: %s | skipped: %s | deadlocked: %s | not ready: %s',
+            ti_status.finished_runs, ti_status.total_runs, len(ti_status.to_run), len(ti_status.succeeded),
+            len(ti_status.running), len(ti_status.failed), len(ti_status.skipped), len(ti_status.deadlocked),
+            len(ti_status.not_ready)
+        )
 
         self.log.debug(
             "Finished dag run loop iteration. Remaining tasks %s",

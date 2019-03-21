@@ -208,6 +208,9 @@ Operators
 .. autoclass:: airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator
 .. autoclass:: airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator
+.. autoclass:: airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator
+.. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator
+.. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator
 .. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator
 .. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator
 .. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator
@@ -216,6 +219,8 @@ Operators
 .. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator
 .. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator
 .. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator
+.. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator
+.. autoclass:: airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator
 .. autoclass:: airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
@@ -327,8 +332,10 @@ Sensors
 
 Macros
 ------
-Here's a list of variables and macros that can be used in templates
+Variables and macros can be used in templates (see the :ref:`jinja-templating` section)
 
+The following come for free out of the box with Airflow. 
+Additional custom macros can be added globally through :ref:`plugins`, or at a DAG level through the ``DAG.user_defined_macros`` argument.
 
 Default Variables
 '''''''''''''''''
@@ -507,7 +514,9 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcp_function_hook.GcfHook
 .. autoclass:: airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook
 .. autoclass:: airflow.contrib.hooks.gcp_kms_hook.GoogleCloudKMSHook
+.. autoclass:: airflow.contrib.hooks.gcp_translate_hook.CloudTranslateHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+.. autoclass:: airflow.contrib.hooks.grpc_hook.GrpcHook
 .. autoclass:: airflow.contrib.hooks.imap_hook.ImapHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook

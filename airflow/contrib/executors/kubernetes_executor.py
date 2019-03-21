@@ -122,6 +122,7 @@ class KubeConfig:
         configuration_dict = configuration.as_dict(display_sensitive=True)
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
+        self.kube_env_vars = configuration_dict.get('kubernetes_environment_variables', {})
         self.airflow_home = configuration.get(self.core_section, 'airflow_home')
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
@@ -659,7 +660,12 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             key, state, pod_id, resource_version = results
             last_resource_version = resource_version
             self.log.info('Changing state of %s to %s', results, state)
-            self._change_state(key, state, pod_id)
+            try:
+                self._change_state(key, state, pod_id)
+            except Exception as e:
+                self.log.exception('Exception: %s when attempting ' +
+                                   'to change state of %s to %s, re-queueing.', e, results, state)
+                self.result_queue.put(results)
 
         KubeResourceVersion.checkpoint_resource_version(last_resource_version)
 

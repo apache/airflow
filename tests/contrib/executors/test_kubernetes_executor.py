@@ -20,7 +20,6 @@
 
 import unittest
 import uuid
-
 import mock
 import re
 import string
@@ -540,6 +539,28 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.assertEqual(0, len(dag_volume))
         self.assertEqual(0, len(dag_volume_mount))
         self.assertEqual(0, len(init_containers))
+
+    def test_kubernetes_environment_variables(self):
+        # Tests the kubernetes environment variables get copied into the worker pods
+        input_environment = {
+            'ENVIRONMENT': 'prod',
+            'LOG_LEVEL': 'warning'
+        }
+        self.kube_config.kube_env_vars = input_environment
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+        for key in input_environment:
+            self.assertIn(key, env)
+            self.assertIn(input_environment[key], env.values())
+
+        core_executor = 'AIRFLOW__CORE__EXECUTOR'
+        input_environment = {
+            core_executor: 'NotLocalExecutor'
+        }
+        self.kube_config.kube_env_vars = input_environment
+        worker_config = WorkerConfiguration(self.kube_config)
+        env = worker_config._get_environment()
+        self.assertEqual(env[core_executor], 'LocalExecutor')
 
 
 class TestKubernetesExecutor(unittest.TestCase):
