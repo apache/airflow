@@ -24,10 +24,10 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-### Deprecation chain function
+### The chain function is removed
 
 Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
-The `airflow.utlis.helpers.chain` function will be deprecated.
+The `airflow.utlis.helpers.chain` function is removed.
 
 ### Viewer won't have edit permissions on DAG view.
 
