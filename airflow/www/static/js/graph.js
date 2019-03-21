@@ -18,6 +18,7 @@
  */
 
 import { generateTooltipDateTime, converAndFormatUTC, secondsToString } from './datetime-utils';
+import { escapeHtml } from './base';
 
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
@@ -32,14 +33,17 @@ function update_nodes_states(task_instances) {
       .attr("data-original-title", function (d) {
         // Tooltip
         const task = tasks[task_id];
-        let tt = "Task_id: " + ti.task_id + "<br>";
-        tt += "Run: " + converAndFormatUTC(ti.execution_date) + "<br>";
-        if (ti.run_id != undefined) {
-          tt += "run_id: <nobr>" + ti.run_id + "</nobr><br>";
+        let tt = "";
+        if(ti.task_id != undefined) {
+          tt +=  "Task_id: " + escapeHtml(task.task_id) + "<br>";
         }
-        tt += "Operator: " + task.task_type + "<br>";
-        tt += "Duration: " + secondsToString(ti.duration) + "<br>";
-        tt += "State: " + ti.state + "<br>";
+        tt += "Run: " + converAndFormatUTC(task.execution_date) + "<br>";
+        if(ti.run_id != undefined) {
+          tt += "run_id: <nobr>" + escapeHtml(task.run_id) + "</nobr><br>";
+        }
+        tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
+        tt += "Duration: " + escapeHtml(task.duration) + "<br>";
+        tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
         tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
         return tt;
       });
