@@ -53,13 +53,13 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
 
     # [START vision_productset_create_template_fields]
-    template_fields = ('location', 'project_id', 'product_set_id', 'gcp_conn_id')
+    template_fields = ("location", "project_id", "product_set_id", "gcp_conn_id")
     # [END vision_productset_create_template_fields]
 
     @apply_defaults
@@ -72,7 +72,7 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
         retry=None,
         timeout=None,
         metadata=None,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id="google_cloud_default",
         *args,
         **kwargs
     ):
@@ -100,7 +100,7 @@ class CloudVisionProductSetCreateOperator(BaseOperator):
             )
         except AlreadyExists:
             self.log.info(
-                'Product set with id %s already exists. Exiting from the create operation.',
+                "Product set with id %s already exists. Exiting from the create operation.",
                 self.product_set_id,
             )
             return self.product_set_id
@@ -130,8 +130,8 @@ class CloudVisionProductSetGetOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
 
@@ -216,8 +216,8 @@ class CloudVisionProductSetUpdateOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
 
     """
@@ -292,8 +292,8 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
 
     """
@@ -326,7 +326,7 @@ class CloudVisionProductSetDeleteOperator(BaseOperator):
         self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        return self._hook.delete_product_set(
+        self._hook.delete_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
             project_id=self.project_id,
@@ -342,9 +342,9 @@ class CloudVisionProductCreateOperator(BaseOperator):
 
     Possible errors regarding the `Product` object provided:
 
-    - Returns INVALID_ARGUMENT if `display_name` is missing or longer than 4096 characters.
-    - Returns INVALID_ARGUMENT if `description` is longer than 4096 characters.
-    - Returns INVALID_ARGUMENT if `product_category` is missing or invalid.
+    - Returns `INVALID_ARGUMENT` if `display_name` is missing or longer than 4096 characters.
+    - Returns `INVALID_ARGUMENT` if `description` is longer than 4096 characters.
+    - Returns `INVALID_ARGUMENT` if `product_category` is missing or invalid.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -372,8 +372,8 @@ class CloudVisionProductCreateOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
 
     """
@@ -431,7 +431,7 @@ class CloudVisionProductGetOperator(BaseOperator):
 
     Possible errors:
 
-    - Returns NOT_FOUND if the `Product` does not exist.
+    - Returns `NOT_FOUND` if the `Product` does not exist.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -453,8 +453,8 @@ class CloudVisionProductGetOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
 
     """
@@ -472,7 +472,7 @@ class CloudVisionProductGetOperator(BaseOperator):
         retry=None,
         timeout=None,
         metadata=None,
-        gcp_conn_id='google_cloud_default',
+        gcp_conn_id="google_cloud_default",
         *args,
         **kwargs
     ):
@@ -516,11 +516,12 @@ class CloudVisionProductUpdateOperator(BaseOperator):
 
     Possible errors related to the provided `Product`:
 
-    - Returns NOT_FOUND if the Product does not exist.
-    - Returns INVALID_ARGUMENT if display_name is present in update_mask but is missing from the request or
-        longer than 4096 characters.
-    - Returns INVALID_ARGUMENT if description is present in update_mask but is longer than 4096 characters.
-    - Returns INVALID_ARGUMENT if product_category is present in update_mask.
+    - Returns `NOT_FOUND` if the Product does not exist.
+    - Returns `INVALID_ARGUMENT` if `display_name` is present in update_mask but is missing from the request
+        or longer than 4096 characters.
+    - Returns `INVALID_ARGUMENT` if `description` is present in update_mask but is longer than 4096
+        characters.
+    - Returns `INVALID_ARGUMENT` if `product_category` is present in update_mask.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -550,8 +551,8 @@ class CloudVisionProductUpdateOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
 
@@ -608,7 +609,7 @@ class CloudVisionProductDeleteOperator(BaseOperator):
 
     Possible errors:
 
-    - Returns NOT_FOUND if the product does not exist.
+    - Returns `NOT_FOUND` if the product does not exist.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -630,8 +631,8 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         attempt.
     :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
     :type gcp_conn_id: str
     """
 
@@ -663,9 +664,298 @@ class CloudVisionProductDeleteOperator(BaseOperator):
         self._hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
 
     def execute(self, context):
-        return self._hook.delete_product(
+        self._hook.delete_product(
             location=self.location,
             product_id=self.product_id,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+
+class CloudVisionAnnotateImageOperator(BaseOperator):
+    """
+    Run image detection and annotation for an image.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionAnnotateImageOperator`
+
+    :param request: (Required) Individual file annotation requests.
+        If a dict is provided, it must be of the same form as the protobuf
+        message class:`google.cloud.vision_v1.types.AnnotateImageRequest`
+    :type request: dict or google.cloud.vision_v1.types.AnnotateImageRequest
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: (Optional) The amount of time, in seconds, to wait for the request to
+        complete. Note that if retry is specified, the timeout applies to each individual
+        attempt.
+    :type timeout: float
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    # [START vision_annotate_image_template_fields]
+    template_fields = ('request', 'gcp_conn_id')
+    # [END vision_annotate_image_template_fields]
+
+    @apply_defaults
+    def __init__(
+        self, request, retry=None, timeout=None, gcp_conn_id='google_cloud_default', *args, **kwargs
+    ):
+        super(CloudVisionAnnotateImageOperator, self).__init__(*args, **kwargs)
+        self.request = request
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.annotate_image(request=self.request, retry=self.retry, timeout=self.timeout)
+
+
+class CloudVisionReferenceImageCreateOperator(BaseOperator):
+    """
+    Creates and returns a new ReferenceImage ID resource.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionReferenceImageCreateOperator`
+
+    :param location: (Required) The region where the Product is located. Valid regions (as of 2019-02-05) are:
+        us-east1, us-west1, europe-west1, asia-east1
+    :type location: str
+    :param reference_image: (Required) The reference image to create. If an image ID is specified, it is
+        ignored.
+        If a dict is provided, it must be of the same form as the protobuf message
+        :class:`google.cloud.vision_v1.types.ReferenceImage`
+    :type reference_image: dict or google.cloud.vision_v1.types.ReferenceImage
+    :param reference_image_id: (Optional) A user-supplied resource id for the ReferenceImage to be added.
+        If set, the server will attempt to use this value as the resource id. If it is already in use, an
+        error is returned with code ALREADY_EXISTS. Must be at most 128 characters long. It cannot contain
+        the character `/`.
+    :type reference_image_id: str
+    :param product_id: (Optional) The resource id of this Product.
+    :type product_id: str
+    :param project_id: (Optional) The project in which the Product is located. If set to None or
+        missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: (Optional) The amount of time, in seconds, to wait for the request to
+        complete. Note that if retry is specified, the timeout applies to each individual
+        attempt.
+    :type timeout: float
+    :param metadata: (Optional) Additional metadata that is provided to the method.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    # [START vision_reference_image_create_template_fields]
+    template_fields = (
+        "location",
+        "reference_image",
+        "product_id",
+        "reference_image_id",
+        "project_id",
+        "gcp_conn_id",
+    )
+    # [END vision_reference_image_create_template_fields]
+
+    @apply_defaults
+    def __init__(
+        self,
+        location,
+        reference_image,
+        product_id,
+        reference_image_id=None,
+        project_id=None,
+        retry=None,
+        timeout=None,
+        metadata=None,
+        gcp_conn_id='google_cloud_default',
+        *args,
+        **kwargs
+    ):
+        super(CloudVisionReferenceImageCreateOperator, self).__init__(*args, **kwargs)
+        self.location = location
+        self.product_id = product_id
+        self.reference_image = reference_image
+        self.reference_image_id = reference_image_id
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context):
+        try:
+            hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+            return hook.create_reference_image(
+                location=self.location,
+                product_id=self.product_id,
+                reference_image=self.reference_image,
+                reference_image_id=self.reference_image_id,
+                project_id=self.project_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            self.log.info(
+                "ReferenceImage with id %s already exists. Exiting from the create operation.",
+                self.product_id,
+            )
+            return self.reference_image_id
+
+
+class CloudVisionAddProductToProductSetOperator(BaseOperator):
+    """
+    Adds a Product to the specified ProductSet. If the Product is already present, no change is made.
+
+    One Product can be added to at most 100 ProductSets.
+
+    Possible errors:
+
+    - Returns `NOT_FOUND` if the Product or the ProductSet doesn’t exist.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionAddProductToProductSetOperator`
+
+    :param product_set_id: (Required) The resource id for the ProductSet to modify.
+    :type product_set_id: str
+    :param product_id: (Required) The resource id of this Product.
+    :type product_id: str
+    :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
+        are: us-east1, us-west1, europe-west1, asia-east1
+    :type: str
+    :param project_id: (Optional) The project in which the Product is located. If set to None or
+        missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: (Optional) The amount of time, in seconds, to wait for the request to
+        complete. Note that if retry is specified, the timeout applies to each individual
+        attempt.
+    :type timeout: float
+    :param metadata: (Optional) Additional metadata that is provided to the method.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    # [START vision_add_product_to_product_set_template_fields]
+    template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id")
+    # [END vision_add_product_to_product_set_template_fields]
+
+    @apply_defaults
+    def __init__(
+        self,
+        product_set_id,
+        product_id,
+        location,
+        project_id=None,
+        retry=None,
+        timeout=None,
+        metadata=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super(CloudVisionAddProductToProductSetOperator, self).__init__(*args, **kwargs)
+        self.product_set_id = product_set_id
+        self.product_id = product_id
+        self.location = location
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.add_product_to_product_set(
+            product_set_id=self.product_set_id,
+            product_id=self.product_id,
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+
+
+class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
+    """
+    Removes a Product from the specified ProductSet.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionRemoveProductFromProductSetOperator`
+
+    :param product_set_id: (Required) The resource id for the ProductSet to modify.
+    :type product_set_id: str
+    :param product_id: (Required) The resource id of this Product.
+    :type product_id: str
+    :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
+        are: us-east1, us-west1, europe-west1, asia-east1
+    :type: str
+    :param project_id: (Optional) The project in which the Product is located. If set to None or
+        missing, the default project_id from the GCP connection is used.
+    :type project_id: str
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: (Optional) The amount of time, in seconds, to wait for the request to
+        complete. Note that if retry is specified, the timeout applies to each individual
+        attempt.
+    :type timeout: float
+    :param metadata: (Optional) Additional metadata that is provided to the method.
+    :type metadata: sequence[tuple[str, str]]
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud Platform.
+    :type gcp_conn_id: str
+    """
+
+    # [START vision_remove_product_from_product_set_template_fields]
+    template_fields = ("location", "product_set_id", "product_id", "project_id", "gcp_conn_id")
+    # [END vision_remove_product_from_product_set_template_fields]
+
+    @apply_defaults
+    def __init__(
+        self,
+        product_set_id,
+        product_id,
+        location,
+        project_id=None,
+        retry=None,
+        timeout=None,
+        metadata=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super(CloudVisionRemoveProductFromProductSetOperator, self).__init__(*args, **kwargs)
+        self.product_set_id = product_set_id
+        self.product_id = product_id
+        self.location = location
+        self.project_id = project_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.remove_product_from_product_set(
+            product_set_id=self.product_set_id,
+            product_id=self.product_id,
+            location=self.location,
             project_id=self.project_id,
             retry=self.retry,
             timeout=self.timeout,
