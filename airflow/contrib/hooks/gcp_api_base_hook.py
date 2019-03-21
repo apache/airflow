@@ -27,6 +27,8 @@ import google.oauth2.service_account
 import os
 import tempfile
 
+from google.api_core.exceptions import GoogleAPICallError, AlreadyExists, RetryError
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -160,6 +162,28 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     def project_id(self):
         return self._get_field('project')
 
+    @staticmethod
+    def catch_http_exception(func):
+        @functools.wraps(func)
+        def wrapper_decorator(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except GoogleAPICallError as e:
+                if isinstance(e, AlreadyExists):
+                    raise e
+                else:
+                    self.log.error('The request failed:\n%s', str(e))
+                    raise AirflowException(e)
+            except RetryError as e:
+                self.log.error('The request failed due to a retryable error and retry attempts failed.')
+                raise AirflowException(e)
+            except ValueError as e:
+                self.log.error('The request failed, the parameters are invalid.')
+                raise AirflowException(e)
+
+        return wrapper_decorator
+
+    @staticmethod
     def fallback_to_default_project_id(func):
         """
         Decorator that provides fallback for Google Cloud Platform project id. If
@@ -186,8 +210,6 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                                        "in GCP connection definition. Both are not set!")
             return func(self, *args, **kwargs)
         return inner_wrapper
-
-    fallback_to_default_project_id = staticmethod(fallback_to_default_project_id)
 
     def _get_project_id(self, project_id):
         """
