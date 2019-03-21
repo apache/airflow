@@ -45,6 +45,13 @@
         }
       }
     });
+
+var el = document.createElement("span");
+
+function escapeHtml(text) {
+  el.textContent = text;
+  return el.innerHTML;
+}
 </script>
 {% endblock %}
 
