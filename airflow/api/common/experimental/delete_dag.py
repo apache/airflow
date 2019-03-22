@@ -58,7 +58,7 @@ def delete_dag(dag_id, keep_records_in_log=True, session=None):
 
     if dag.is_subdag:
         p, c = dag_id.rsplit(".", 1)
-        for m in models.DagRun, TaskFail, models.TaskInstance:
+        for m in TaskFail, models.TaskInstance:
             count += session.query(m).filter(m.dag_id == p, m.task_id == c).delete()
 
     return count
