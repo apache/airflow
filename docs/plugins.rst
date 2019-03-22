@@ -92,6 +92,12 @@ looks like:
         appbuilder_views = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_menu_items = []
+        # A function that validate the statsd stat name, apply changes to the stat name if necessary and
+        # return the transformed stat name.
+        #
+        # The function should have the following signature:
+        # def func_name(stat_name: str) -> str:
+        stat_name_handler = None
         # A callback to perform actions when airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
@@ -191,6 +197,10 @@ definitions in Airflow.
                         "category_icon": "fa-th",
                         "href": "https://www.google.com"}
 
+    # Validate the statsd stat name
+    def stat_name_dummy_handler(stat_name):
+        return stat_name
+
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
@@ -202,6 +212,7 @@ definitions in Airflow.
         flask_blueprints = [bp]
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
+        stat_name_handler = stat_name_dummy_handler
 
 
 Note on role based views
