@@ -26,6 +26,7 @@ import mock
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.views import ModelView, BaseView
 
 from sqlalchemy import Column, Integer, String, Date, Float
@@ -260,6 +261,15 @@ class TestSecurity(unittest.TestCase):
             perms=['can_dag_edit'],
             dag_id='access_control_test',
         )
+
+    def test_no_additional_dag_permission_views_created(self):
+        ab_perm_view_role = sqla_models.assoc_permissionview_role
+
+        self.security_manager.sync_roles()
+        num_pv_before = self.db.session().query(ab_perm_view_role).count()
+        self.security_manager.sync_roles()
+        num_pv_after = self.db.session().query(ab_perm_view_role).count()
+        self.assertEqual(num_pv_before, num_pv_after)
 
     def expect_user_is_in_role(self, user, rolename):
         self.security_manager.init_role(rolename, [], [])

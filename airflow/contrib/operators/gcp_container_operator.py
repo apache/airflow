@@ -318,5 +318,5 @@ class GKEPodOperator(KubernetesPodOperator):
         if long_f in extras:
             return extras[long_f]
         else:
-            self.log.info('Field {} not found in extras.'.format(field))
+            self.log.info('Field %s not found in extras.', field)
             return default

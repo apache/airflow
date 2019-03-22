@@ -59,6 +59,8 @@ from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests.test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, \
+    clear_db_sla_miss, clear_db_errors
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
 
@@ -133,10 +135,8 @@ class BaseJobTest(unittest.TestCase):
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
-        with create_session() as session:
-            session.query(models.DagRun).delete()
-            session.query(models.Pool).delete()
-            session.query(models.TaskInstance).delete()
+        clear_db_runs()
+        clear_db_pools()
 
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
@@ -1232,7 +1232,7 @@ class BackfillJobTest(unittest.TestCase):
 
 class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
-        pass
+        clear_db_runs()
 
     def test_localtaskjob_essential_attr(self):
         """
@@ -1392,14 +1392,11 @@ class LocalTaskJobTest(unittest.TestCase):
 class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
-        with create_session() as session:
-            session.query(models.DagRun).delete()
-            session.query(models.TaskInstance).delete()
-            session.query(models.Pool).delete()
-            session.query(models.DagModel).delete()
-            session.query(SlaMiss).delete()
-            session.query(errors.ImportError).delete()
-            session.commit()
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
 
     @classmethod
     def setUpClass(cls):
@@ -2664,6 +2661,20 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_task_instances(dag, queue=queue)
 
         queue.put.assert_not_called()
+
+    def test_scheduler_do_not_schedule_without_tasks(self):
+        dag = DAG(
+            dag_id='test_scheduler_do_not_schedule_without_tasks',
+            start_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
+            scheduler = SchedulerJob()
+            dag.clear(session=session)
+            dag.start_date = None
+            dr = scheduler.create_dag_run(dag, session=session)
+            self.assertIsNone(dr)
 
     def test_scheduler_do_not_run_finished(self):
         dag = DAG(

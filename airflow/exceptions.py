@@ -58,6 +58,10 @@ class AirflowRescheduleException(AirflowException):
         self.reschedule_date = reschedule_date
 
 
+class InvalidStatsNameException(AirflowException):
+    pass
+
+
 class AirflowTaskTimeout(AirflowException):
     pass
 

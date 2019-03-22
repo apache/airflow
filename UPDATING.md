@@ -24,6 +24,21 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### The chain function is removed
+
+Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
+The `airflow.utlis.helpers.chain` function is removed.
+
+### Viewer won't have edit permissions on DAG view.
+
+### RedisPy dependency updated to v3 series
+
+If you are using the Redis Sensor or Hook you may have to update your code. See
+[redis-py porting instructions] to check if your code might be affected (MSET,
+MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
+
+[redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
+
 ### New `dag_discovery_safe_mode` config option
 
 If `dag_discovery_safe_mode` is enabled, only check files for DAGs if
@@ -47,7 +62,8 @@ becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
 ### Renamed "extra" requirements for cloud providers
 
 Subpackages for specific services have been combined into one variant for
-each cloud provider.
+each cloud provider. The name of the subpackage for the Google Cloud Platform
+has changed to follow style.
 
 If you want to install integration for Microsoft Azure, then instead of
 ```
@@ -58,7 +74,9 @@ you should execute `pip install apache-airflow[azure]`
 If you want to install integration for Amazon Web Services, then instead of
 `pip install apache-airflow[s3,emr]`, you should execute `pip install apache-airflow[aws]`
 
-The integration with GCP is unchanged.
+If you want to install integration for Google Cloud Platform, then instead of
+`pip install apache-airflow[gcp_api]`, you should execute `pip install apache-airflow[gcp]`.
+The old way will work until the release of Airflow 2.1.
 
 ### Changes in Google Cloud Platform related operators
 
@@ -106,6 +124,9 @@ Previously we were using two versions of UI, which were hard to maintain as we n
 in both versions. With this change we've removed the older UI in favor of Flask App Builder RBAC UI. No need to set the
 RBAC UI explicitly in the configuration now as this is the only default UI.
 Please note that that custom auth backends will need re-writing to target new FAB based UI.
+
+As part of this change, a few configuration items in `[webserver]` section are removed and no longer applicable,
+including `authenticate`, `filter_by_owner`, `owner_mode`, and `rbac`.
 
 
 #### SLUGIFY_USES_TEXT_UNIDECODE or AIRFLOW_GPL_UNIDECODE no longer required
@@ -184,6 +205,19 @@ airflow users --remove-role --username jondoe --role Public
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+### Changed behaviour of using default value when accessing variables
+It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
+
+```python
+foo = Variable.get("foo", default_var=None)
+if foo is None:
+    handle_missing_foo()
+```
+
+(Note: there is already `Variable.setdefault()` which me be helpful in some cases.)
+
+This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument. 
 
 
 ## Airflow 1.10.2

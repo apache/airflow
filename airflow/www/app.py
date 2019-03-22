@@ -19,8 +19,9 @@
 #
 import logging
 import socket
-import six
+from typing import Any
 
+import six
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
@@ -34,8 +35,9 @@ from airflow import configuration as conf
 from airflow.logging_config import configure_logging
 from airflow.www.static_config import configure_manifest_files
 import warnings
+from airflow.utils.json import AirflowJsonEncoder
 
-app = None
+app = None  # type: Any
 appbuilder = None
 csrf = CSRFProtect()
 
@@ -59,6 +61,12 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = conf.getboolean('webserver', 'COOKIE_SECURE')
     app.config['SESSION_COOKIE_SAMESITE'] = conf.get('webserver', 'COOKIE_SAMESITE')
+
+    if config:
+        app.config.from_mapping(config)
+
+    # Configure the JSON encoder used by `|tojson` filter from Flask
+    app.json_encoder = AirflowJsonEncoder
 
     csrf.init_app(app)
 
@@ -229,5 +237,5 @@ def cached_app(config=None, session=None, testing=False):
 
 def cached_appbuilder(config=None, testing=False):
     global appbuilder
-    cached_app(config, testing)
+    cached_app(config=config, testing=testing)
     return appbuilder

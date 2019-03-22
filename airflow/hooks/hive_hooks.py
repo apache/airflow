@@ -233,7 +233,7 @@ class HiveCliHook(BaseHook):
                 hive_cmd.extend(['-f', f.name])
 
                 if verbose:
-                    self.log.info(" ".join(hive_cmd))
+                    self.log.info("%s", " ".join(hive_cmd))
                 sp = subprocess.Popen(
                     hive_cmd,
                     stdout=subprocess.PIPE,
@@ -908,7 +908,7 @@ class HiveServer2Hook(BaseHook):
                     self.log.debug('Cursor description is %s', header)
                     writer.writerow([c[0] for c in header])
 
-                for i, row in enumerate(results_iter):
+                for i, row in enumerate(results_iter, 1):
                     writer.writerow(row)
                     if i % fetch_size == 0:
                         self.log.info("Written %s rows so far.", i)

@@ -64,6 +64,8 @@ class Pod:
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list
+    :param security_context: A dict containing the security context for the pod
+    :type security_context: dict
     """
     def __init__(
             self,
@@ -88,6 +90,7 @@ class Pod:
             affinity=None,
             hostnetwork=False,
             tolerations=None,
+            security_context=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -110,3 +113,4 @@ class Pod:
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
+        self.security_context = security_context

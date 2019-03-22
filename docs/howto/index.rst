@@ -30,8 +30,8 @@ configuring an Airflow environment.
     add-new-role
     set-config
     initialize-database
-    operator
-    manage-connections
+    operator/index
+    connection/index
     secure-connections
     write-logs
     executor/use-celery

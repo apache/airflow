@@ -19,6 +19,7 @@
 # under the License.
 
 from __future__ import print_function
+import importlib
 import logging
 
 import os
@@ -33,7 +34,6 @@ import reprlib
 import argparse
 from argparse import RawTextHelpFormatter
 from builtins import input
-from collections import namedtuple
 
 from airflow.utils.timezone import parse as parsedate
 import json
@@ -49,13 +49,14 @@ import time
 import psutil
 import re
 from urllib.parse import urlunparse
+from typing import Any
 
 import airflow
 from airflow import api
 from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
-from airflow.executors import GetDefaultExecutor
+from airflow.executors import get_default_executor
 from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
 from airflow.models.connection import Connection
 from airflow.models.dagpickle import DagPickle
@@ -69,7 +70,7 @@ from airflow.www.app import cached_app, create_app, cached_appbuilder
 from sqlalchemy.orm import exc
 
 api.load_auth()
-api_module = import_module(conf.get('cli', 'api_client'))
+api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.api_auth.client_auth)
 
@@ -458,7 +459,7 @@ def _run(args, dag, ti):
                 print(e)
                 raise e
 
-        executor = GetDefaultExecutor()
+        executor = get_default_executor()
         executor.start()
         print("Sending to executor.")
         executor.queue_task_instance(
@@ -502,7 +503,7 @@ def run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         with db.create_session() as session:
-            log.info('Loading pickle id {args.pickle}'.format(args=args))
+            log.info('Loading pickle id %s', args.pickle)
             dag_pickle = session.query(DagPickle).filter(DagPickle.id == args.pickle).first()
             if not dag_pickle:
                 raise AirflowException("Who hid the pickle!? [missing pickle]")
@@ -686,10 +687,20 @@ def test(args, dag=None):
         task.params.update(passed_in_params)
     ti = TaskInstance(task, args.execution_date)
 
-    if args.dry_run:
-        ti.dry_run()
-    else:
-        ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+    try:
+        if args.dry_run:
+            ti.dry_run()
+        else:
+            ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+    except Exception:
+        if args.post_mortem:
+            try:
+                debugger = importlib.import_module("ipdb")
+            except ImportError:
+                debugger = importlib.import_module("pdb")
+            debugger.post_mortem()
+        else:
+            raise
 
 
 @cli_utils.action_logging
@@ -884,13 +895,13 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app, _ = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app, _ = create_app(None, testing=conf.get('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app(conf)
+        app = cached_app(None)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         os.environ.pop('SKIP_DAGS_PARSING')
@@ -1045,10 +1056,8 @@ def serve_logs(args):
             mimetype="application/json",
             as_attachment=False)
 
-    WORKER_LOG_SERVER_PORT = \
-        int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
-    flask_app.run(
-        host='0.0.0.0', port=WORKER_LOG_SERVER_PORT)
+    worker_log_server_port = int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
+    flask_app.run(host='0.0.0.0', port=worker_log_server_port)
 
 
 @cli_utils.action_logging
@@ -1666,9 +1675,17 @@ def sync_perm(args):
             dag.access_control)
 
 
-Arg = namedtuple(
-    'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
-Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
+class Arg(object):
+    def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
+                 type=None, choices=None, metavar=None):
+        self.flags = flags
+        self.help = help
+        self.action = action
+        self.default = default
+        self.nargs = nargs
+        self.type = type
+        self.choices = choices
+        self.metavar = metavar
 
 
 class CLIFactory(object):
@@ -2034,6 +2051,11 @@ class CLIFactory(object):
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
+        'post_mortem': Arg(
+            ("-pm", "--post_mortem"),
+            action="store_true",
+            help="Open debugger on uncaught exception",
+        ),
         # connections
         'list_connections': Arg(
             ('-l', '--list'),
@@ -2292,7 +2314,7 @@ class CLIFactory(object):
                 "dependencies or recording its state in the database."),
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
-                'task_params'),
+                'task_params', 'post_mortem'),
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
@@ -2382,8 +2404,8 @@ class CLIFactory(object):
                     continue
                 arg = cls.args[arg]
                 kwargs = {
-                    f: getattr(arg, f)
-                    for f in arg._fields if f != 'flags' and getattr(arg, f)}
+                    f: v
+                    for f, v in vars(arg).items() if f != 'flags' and v}
                 sp.add_argument(*arg.flags, **kwargs)
             sp.set_defaults(func=sub['func'])
         return parser

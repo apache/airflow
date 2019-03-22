@@ -32,6 +32,8 @@ import time
 import unittest
 import urllib
 import uuid
+import shutil
+from collections import namedtuple
 from tempfile import NamedTemporaryFile, mkdtemp
 
 import pendulum
@@ -45,7 +47,7 @@ from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI, DagBag
 from airflow.models import DagModel, DagRun
 from airflow.models import State as ST
 from airflow.models import Variable
@@ -1443,7 +1445,7 @@ class DagBagTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        os.rmdir(cls.empty_dir)
+        shutil.rmtree(cls.empty_dir)
 
     def test_get_existing_dag(self):
         """
@@ -1478,6 +1480,41 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(dag_folder=self.empty_dir, include_examples=False)
 
         self.assertEqual(dagbag.size(), 0)
+
+    def test_safe_mode_heuristic_match(self):
+        """With safe mode enabled, a file matching the discovery heuristics
+        should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            fp.write("# airflow".encode())
+            fp.write("# DAG".encode())
+            fp.flush()
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
+
+    def test_safe_mode_heuristic_mismatch(self):
+        """With safe mode enabled, a file not matching the discovery heuristics
+        should not be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py"):
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=True)
+            self.assertEqual(len(dagbag.dagbag_stats), 0)
+
+    def test_safe_mode_disabled(self):
+        """With safe mode disabled, an empty python file should be discovered.
+        """
+        with NamedTemporaryFile(dir=self.empty_dir, suffix=".py") as fp:
+            dagbag = models.DagBag(
+                dag_folder=self.empty_dir, include_examples=False, safe_mode=False)
+            self.assertEqual(len(dagbag.dagbag_stats), 1)
+            self.assertEqual(
+                dagbag.dagbag_stats[0].file,
+                "/{}".format(os.path.basename(fp.name)))
 
     def test_process_file_that_contains_multi_bytes_char(self):
         """
@@ -1927,25 +1964,23 @@ class DagBagTest(unittest.TestCase):
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
+        dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        session = settings.Session
-        session.add(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
-        session.commit()
+        model_before = DagModel(dag_id=dag_id, is_active=True)
+        with create_session() as session:
+            session.merge(model_before)
 
         models.DAG.deactivate_unknown_dags(expected_active_dags)
 
-        for dag in session.query(DagModel).all():
-            if dag.dag_id in expected_active_dags:
-                self.assertTrue(dag.is_active)
-            else:
-                self.assertEqual(dag.dag_id, 'test_deactivate_unknown_dags')
-                self.assertFalse(dag.is_active)
+        after_model = DagModel.get_dagmodel(dag_id)
+        self.assertTrue(model_before.is_active)
+        self.assertFalse(after_model.is_active)
 
         # clean up
-        session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
-        session.commit()
+        with create_session() as session:
+            session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
 
 class TaskInstanceTest(unittest.TestCase):
@@ -3269,6 +3304,9 @@ class VariableTest(unittest.TestCase):
         self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
 
 
+ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
+
+
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
         models._fernet = None
@@ -3416,3 +3454,100 @@ class ConnectionTest(unittest.TestCase):
             extra__google_cloud_platform__project='airflow',
             extra__google_cloud_platform__scope='https://www.googleapis.com/'
                                                 'auth/cloud-platform'))
+
+    def test_connection_from_uri_without_authinfo(self):
+        uri = 'scheme://host:1234'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_path(self):
+        uri = 'scheme://%2FTmP%2F:1234'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, '/TmP/')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.port, 1234)
+
+    @parameterized.expand(
+        [
+            (
+                "http://:password@host:80/database",
+                ConnectionParts(
+                    conn_type="http", login='', password="password", host="host", port=80, schema="database"
+                ),
+            ),
+            (
+                "http://user:@host:80/database",
+                ConnectionParts(
+                    conn_type="http", login="user", password=None, host="host", port=80, schema="database"
+                ),
+            ),
+            (
+                "http://user:password@/database",
+                ConnectionParts(
+                    conn_type="http", login="user", password="password", host="", port=None, schema="database"
+                ),
+            ),
+            (
+                "http://user:password@host:80/",
+                ConnectionParts(
+                    conn_type="http", login="user", password="password", host="host", port=80, schema=""
+                ),
+            ),
+            (
+                "http://user:password@/",
+                ConnectionParts(
+                    conn_type="http", login="user", password="password", host="", port=None, schema=""
+                ),
+            ),
+            (
+                "postgresql://user:password@%2Ftmp%2Fz6rqdzqh%2Fexample%3Awest1%3Atestdb/testdb",
+                ConnectionParts(
+                    conn_type="postgres",
+                    login="user",
+                    password="password",
+                    host="/tmp/z6rqdzqh/example:west1:testdb",
+                    port=None,
+                    schema="testdb",
+                ),
+            ),
+            (
+                "postgresql://user@%2Ftmp%2Fz6rqdzqh%2Fexample%3Aeurope-west1%3Atestdb/testdb",
+                ConnectionParts(
+                    conn_type="postgres",
+                    login="user",
+                    password=None,
+                    host="/tmp/z6rqdzqh/example:europe-west1:testdb",
+                    port=None,
+                    schema="testdb",
+                ),
+            ),
+            (
+                "postgresql://%2Ftmp%2Fz6rqdzqh%2Fexample%3Aeurope-west1%3Atestdb",
+                ConnectionParts(
+                    conn_type="postgres",
+                    login=None,
+                    password=None,
+                    host="/tmp/z6rqdzqh/example:europe-west1:testdb",
+                    port=None,
+                    schema="",
+                ),
+            ),
+        ]
+    )
+    def test_connection_from_with_auth_info(self, uri, uri_parts):
+        connection = Connection(uri=uri)
+
+        self.assertEqual(connection.conn_type, uri_parts.conn_type)
+        self.assertEqual(connection.login, uri_parts.login)
+        self.assertEqual(connection.password, uri_parts.password)
+        self.assertEqual(connection.host, uri_parts.host)
+        self.assertEqual(connection.port, uri_parts.port)
+        self.assertEqual(connection.schema, uri_parts.schema)
