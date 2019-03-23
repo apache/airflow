@@ -1188,7 +1188,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'DATASTORE_BACKUP': ['projectionFields'],
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
             'PARQUET': ['autodetect', 'ignoreUnknownValues'],
-            'AVRO': [],
+            'AVRO': ['useAvroLogicalTypes'],
         }
         valid_configs = src_fmt_to_configs_mapping[source_format]
         src_fmt_configs = {
