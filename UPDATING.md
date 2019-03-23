@@ -29,7 +29,7 @@ assists users migrating to a new version.
 Previously not all hooks and operators related to Google Cloud Platform use
 ``google_cloud_default`` as a default conn_id. There is currently one default
 variant. Values like ``google_cloud_storage_default``, ``bigquery_default``,
-``google_cloud_datastore_default`` have been abandoned. The configuration of
+``google_cloud_datastore_default`` have been deprecated. The configuration of
 connections in the database have been preserved, but in every place where they
 were used, they should be indicated explicitly.
 
