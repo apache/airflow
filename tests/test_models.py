@@ -42,6 +42,7 @@ from cryptography.fernet import Fernet
 from freezegun import freeze_time
 from mock import ANY, mock_open, patch
 from parameterized import parameterized
+import jinja2
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
@@ -409,6 +410,31 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', '{{ foo }}', dict(foo='bar'))
         self.assertEqual(result, 'bar')
+
+    def test_render_template_field_undefined(self):
+        """Tests if render_template from a field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', '{{ foo }}', {})
+        self.assertEqual(result, '')
+
+    def test_render_template_field_undefined_strict(self):
+        """Tests if render_template from a field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE,
+                  template_undefined=jinja2.StrictUndefined)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        with self.assertRaises(jinja2.UndefinedError):
+            task.render_template('', '{{ foo }}', {})
 
     def test_render_template_list_field(self):
         """Tests if render_template from a list field works"""

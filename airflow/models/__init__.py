@@ -2921,6 +2921,8 @@ class DAG(BaseDag, LoggingMixin):
         Note that jinja/airflow includes the path of your DAG file by
         default
     :type template_searchpath: str or list[str]
+    :param template_undefined: Template undefined type.
+    :type template_undefined: jinja2.Undefined
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
@@ -2984,6 +2986,7 @@ class DAG(BaseDag, LoggingMixin):
             start_date=None, end_date=None,
             full_filepath=None,
             template_searchpath=None,
+            template_undefined=jinja2.Undefined,
             user_defined_macros=None,
             user_defined_filters=None,
             default_args=None,
@@ -3059,6 +3062,7 @@ class DAG(BaseDag, LoggingMixin):
         if isinstance(template_searchpath, six.string_types):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
+        self.template_undefined = template_undefined
         self.parent_dag = None  # Gets set when DAGs are loaded
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace('.', '__dot__')
@@ -3514,6 +3518,7 @@ class DAG(BaseDag, LoggingMixin):
 
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(searchpath),
+            undefined=self.template_undefined,
             extensions=["jinja2.ext.do"],
             cache_size=0)
         if self.user_defined_macros:
