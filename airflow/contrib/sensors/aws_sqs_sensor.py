@@ -35,7 +35,7 @@ class SQSSensor(BaseSensorOperator):
     :type max_messages: int
     """
 
-    template_fields = ['sqs_queue', 'max_messages']
+    template_fields = ('sqs_queue', 'max_messages')
 
     @apply_defaults
     def __init__(self, sqs_queue, aws_conn_id='aws_default', max_messages=5, *args, **kwargs):
@@ -66,7 +66,7 @@ class SQSSensor(BaseSensorOperator):
                 self.log.info('No message received %s', str(messages))
                 return False
 
-            if (len(messages['Messages']) > 0):
+            if len(messages['Messages']) > 0:
                 context['ti'].xcom_push(key='messages', value=messages)
 
                 entries = [{'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
@@ -75,7 +75,7 @@ class SQSSensor(BaseSensorOperator):
                 result = sqs_hook.get_conn().delete_message_batch(QueueUrl=self.sqs_queue,
                                                                   Entries=entries)
 
-                if ('Successful' in result):
+                if 'Successful' in result:
                     return True
                 else:
                     raise AirflowException(
