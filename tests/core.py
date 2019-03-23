@@ -1424,7 +1424,7 @@ class CliTests(unittest.TestCase):
         # Assert that some of the connections are present in the output as
         # expected:
         self.assertIn(['aws_default', 'aws'], conns)
-        self.assertIn(['beeline_default', 'beeline'], conns)
+        self.assertIn(['hive_cli_default', 'hive_cli'], conns)
         self.assertIn(['emr_default', 'emr'], conns)
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)
