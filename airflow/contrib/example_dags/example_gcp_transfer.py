@@ -161,7 +161,6 @@ with models.DAG(
         poke_interval=WAIT_FOR_OPERATION_POKE_INTERVAL,
     )
 
-
     # [START howto_operator_gcp_transfer_pause_operation]
     pause_operation = GcpTransferServiceOperationPauseOperator(
         task_id="pause_operation",
@@ -249,6 +248,6 @@ with models.DAG(
     )
 
     create_transfer_job_from_aws >> wait_for_operation_to_start >> pause_operation >> \
-    list_operations >> get_operation >> resume_operation >> wait_for_operation_to_end >> \
-    create_transfer_job_from_gcp >> wait_for_second_operation_to_start >> cancel_operation >> \
-    delete_transfer_from_aws_job >> delete_transfer_from_gcp_job
+        list_operations >> get_operation >> resume_operation >> wait_for_operation_to_end >> \
+        create_transfer_job_from_gcp >> wait_for_second_operation_to_start >> cancel_operation >> \
+        delete_transfer_from_aws_job >> delete_transfer_from_gcp_job

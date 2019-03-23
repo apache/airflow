@@ -28,7 +28,6 @@ from google.cloud.exceptions import MovedPermanently
 from airflow import AirflowException, LoggingMixin
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException
 from airflow.contrib.hooks import gcp_api_base_hook as hook
 
 import google.auth
