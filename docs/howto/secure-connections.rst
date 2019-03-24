@@ -27,7 +27,7 @@ If ``crypto`` package was not installed initially, it means that your Fernet key
 
 You can still enable encryption for passwords within connections by following below steps:
 
-#. Install crypto package ``pip install 'apache-airflow[crypto]'``
+#. Install crypto package ``pip install apache-airflow[crypto]``
 #. Generate fernet_key, using this code snippet below. ``fernet_key`` must be a base64-encoded 32-byte key:
 
     .. code:: python
