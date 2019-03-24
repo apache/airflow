@@ -1,10 +1,7 @@
-import json
-import telegram
-
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
-from hooks.telegram_hook import TelegramHook
+from airflow.contrib.hooks.telegram_hook import TelegramHook
 
 
 class TelegramAPIOperator(BaseOperator):
@@ -29,7 +26,7 @@ class TelegramAPIOperator(BaseOperator):
         "Here is a cat video instead\n"
         "https://www.youtube.com/watch?v=J---aiyznGQ",
         chat_id=None,
-        telegram_conn_id='telegram_default',
+        telegram_conn_id="telegram_default",
         *args,
         **kwargs
     ):

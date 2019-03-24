@@ -1,3 +1,22 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
 import telegram
 import tenacity
 
@@ -14,7 +33,7 @@ class TelegramHook(BaseHook):
         """
         Takes both telegram bot API token directly and connection that has telegram bot API token.
         If both supplied, telegram API token will be used.
-        
+
         :param telegram_conn_id: connection that has telegram API token in the password field
         :type telegram_conn_id: str
         :param chat_id: Telegram public or private channel id (optional).
@@ -79,4 +98,4 @@ class TelegramHook(BaseHook):
         self.log.debug(self.connection.send_message(**params))
 
 
-__all__ = [TelegramHook]
+__all__ = ["TelegramHook"]
