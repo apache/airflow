@@ -68,8 +68,8 @@ class SQSSensor(BaseSensorOperator):
             entries = [{'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
                        for message in messages['Messages']]
 
-            result = sqs_hook.get_conn().delete_message_batch(QueueUrl=self.sqs_queue,
-                                                              Entries=entries)
+            result = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue,
+                                                   Entries=entries)
 
             if 'Successful' in result:
                 context['ti'].xcom_push(key='messages', value=messages)
