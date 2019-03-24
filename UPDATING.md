@@ -24,6 +24,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### The chain function is removed
+
+Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
+The `airflow.utlis.helpers.chain` function is removed.
+
 ### Viewer won't have edit permissions on DAG view.
 
 ### RedisPy dependency updated to v3 series
@@ -33,6 +38,68 @@ If you are using the Redis Sensor or Hook you may have to update your code. See
 MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
 
 [redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
+
+### Change of two methods signatures in `GCPTransferServiceHook`
+
+The signature of the `create_transfer_job` method in `GCPTransferServiceHook`
+class has changed. The change does not change the behavior of the method.
+
+Old signature:
+```python
+def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
+```
+New signature:
+```python
+def create_transfer_job(self, body):
+```
+
+It is necessary to rewrite calls to method. The new call looks like this:
+```python
+body = {
+  'status': 'ENABLED',
+  'projectId': project_id,
+  'description': description,
+  'transferSpec': transfer_spec,
+  'schedule': schedule,
+}
+gct_hook.create_transfer_job(body)
+```
+The change results from the unification of all hooks and adjust to
+[the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
+for the Google Cloud Platform.
+
+The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
+
+Old signature:
+```python
+def wait_for_transfer_job(self, job):
+```
+New signature:
+```python
+def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS, )):
+```
+
+The behavior of `wait_for_transfer_job` has changed:
+
+Old behavior:
+
+`wait_for_transfer_job` would wait for the SUCCESS status in specified jobs operations.
+
+New behavior:
+
+You can now specify an array of expected statuses. `wait_for_transfer_job` now waits for any of them.
+
+The default value of `expected_statuses` is SUCCESS so that change is backwards compatible.
+
+### Moved two classes to different modules
+
+The class `GoogleCloudStorageToGoogleCloudStorageTransferOperator` has been moved from
+`airflow.contrib.operators.gcs_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+the class `S3ToGoogleCloudStorageTransferOperator` has been moved from  
+`airflow.contrib.operators.s3_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+The change was made to keep all the operators related to GCS Transfer Services in one file.
 
 ### New `dag_discovery_safe_mode` config option
 
@@ -200,6 +267,19 @@ airflow users --remove-role --username jondoe --role Public
 The `do_xcom_push` flag (a switch to push the result of an operator to xcom or not) was appearing in different incarnations in different operators. It's function has been unified under a common name (`do_xcom_push`) on `BaseOperator`. This way it is also easy to globally disable pushing results to xcom.
 
 See [AIRFLOW-3249](https://jira.apache.org/jira/browse/AIRFLOW-3249) to check if your operator was affected.
+
+### Changed behaviour of using default value when accessing variables
+It's now possible to use `None` as a default value with the `default_var` parameter when getting a variable, e.g.
+
+```python
+foo = Variable.get("foo", default_var=None)
+if foo is None:
+    handle_missing_foo()
+```
+
+(Note: there is already `Variable.setdefault()` which me be helpful in some cases.)
+
+This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument. 
 
 
 ## Airflow 1.10.2

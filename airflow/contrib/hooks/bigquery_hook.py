@@ -1188,7 +1188,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'DATASTORE_BACKUP': ['projectionFields'],
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
             'PARQUET': ['autodetect', 'ignoreUnknownValues'],
-            'AVRO': [],
+            'AVRO': ['useAvroLogicalTypes'],
         }
         valid_configs = src_fmt_to_configs_mapping[source_format]
         src_fmt_configs = {
@@ -1261,8 +1261,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     time.sleep(5)
                 else:
                     raise Exception(
-                        'BigQuery job status check failed. Final error was: %s',
-                        err.resp.status)
+                        'BigQuery job status check failed. Final error was: {}'.
+                        format(err.resp.status))
 
         return self.running_job_id
 
@@ -1285,8 +1285,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     err.resp.status, job_id)
             else:
                 raise Exception(
-                    'BigQuery job status check failed. Final error was: %s',
-                    err.resp.status)
+                    'BigQuery job status check failed. Final error was: {}'.
+                    format(err.resp.status))
         return False
 
     def cancel_query(self):

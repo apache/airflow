@@ -75,13 +75,17 @@ appbuilder_mitem = {"name": "Google",
                     "category_icon": "fa-th",
                     "href": "https://www.google.com"}
 
-
 # Creating a flask blueprint to intergrate the templates and static folder
 bp = Blueprint(
     "test_plugin", __name__,
     template_folder='templates',  # registers airflow/plugins/templates as a Jinja template folder
     static_folder='static',
     static_url_path='/static/test_plugin')
+
+
+# Create a handler to validate statsd stat name
+def stat_name_dummy_handler(stat_name):
+    return stat_name
 
 
 # Defining the plugin class
@@ -95,6 +99,7 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
+    stat_name_handler = stat_name_dummy_handler
 
 
 class MockPluginA(AirflowPlugin):

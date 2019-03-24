@@ -73,7 +73,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database insert
+See Google Cloud SQL API documentation for `to create a new database inside the instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert>`_.
 
 .. _howto/operator:CloudSqlInstanceDatabaseDeleteOperator:
@@ -120,7 +120,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database delete
+See Google Cloud SQL API documentation to `delete a database
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/delete>`_.
 
 .. _howto/operator:CloudSqlInstanceDatabasePatchOperator:
@@ -176,7 +176,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for database patch
+See Google Cloud SQL API documentation to `update a database
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch>`_.
 
 .. _howto/operator:CloudSqlInstanceDeleteOperator:
@@ -234,7 +234,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for delete
+See Google Cloud SQL API documentation to `delete a SQL instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/delete>`_.
 
 .. _howto/operator:CloudSqlInstanceExportOperator:
@@ -298,8 +298,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for export <https://cloud.google
-.com/sql/docs/mysql/admin-api/v1beta4/instances/export>`_.
+See Google Cloud SQL API documentation to `export data
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export>`_.
 
 Troubleshooting
 """""""""""""""
@@ -395,7 +395,8 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for import <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import>`_.
+See Google Cloud SQL API documentation to `import data
+<https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import>`_.
 
 Troubleshooting
 """""""""""""""
@@ -489,7 +490,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for insert
+See Google Cloud SQL API documentation to `create an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert>`_.
 
 .. _howto/operator:CloudSqlInstancePatchOperator:
@@ -547,7 +548,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL API documentation for patch
+See Google Cloud SQL API documentation to `patch an instance
 <https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch>`_.
 
 .. _howto/operator:CloudSqlQueryOperator:
@@ -639,5 +640,5 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud SQL Proxy documentation
-<https://cloud.google.com/sql/docs/postgres/sql-proxy>`_.
+See Google Cloud SQL documentation for `MySQL <https://cloud.google.com/sql/docs/mysql/sql-proxy>`_ and
+`PostgreSQL <https://cloud.google.com/sql/docs/postgres/sql-proxy>`_ related proxies.

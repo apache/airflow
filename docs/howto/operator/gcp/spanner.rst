@@ -67,7 +67,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Spanner API documentation for database drop call
+See `Google Cloud Spanner API documentation to drop an instance of a database
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/dropDatabase>`_.
 
 .. _howto/operator:CloudSpannerInstanceDatabaseDeployOperator:
@@ -117,8 +117,8 @@ Templating
 More information
 """"""""""""""""
 
-See Google Cloud Spanner API documentation for `database create
-<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_
+See Google Cloud Spanner API documentation `to create a new database
+<https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances.databases/create>`_.
 
 .. _howto/operator:CloudSpannerInstanceDatabaseUpdateOperator:
 
@@ -224,7 +224,7 @@ Templating
 More information
 """"""""""""""""
 
-See Google Cloud Spanner API documentation for `the DML syntax
+See Google Cloud Spanner API documentation for more information about `DML syntax
 <https://cloud.google.com/spanner/docs/dml-syntax>`_.
 
 .. _howto/operator:CloudSpannerInstanceDeleteOperator:
@@ -272,5 +272,5 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Cloud Spanner API documentation for instance delete
+See Google Cloud Spanner API documentation to `delete an instance
 <https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instances/delete>`_.

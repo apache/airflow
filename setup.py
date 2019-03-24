@@ -180,12 +180,14 @@ gcp = [
     'google-cloud-container>=0.1.1',
     'google-cloud-bigtable==0.31.0',
     'google-cloud-spanner>=1.7.1',
+    'google-cloud-translate>=1.3.3',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
+grpc = ['grpcio>=1.15.0']
 google_auth = ['Flask-OAuthlib>=0.9.1']
 hdfs = ['snakebite>=2.7.8']
 hive = [
@@ -233,10 +235,10 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
     + cassandra + mongo
 
 devel = [
+    'beautifulsoup4~=4.7.1',
     'click==6.7',
     'freezegun',
     'jira',
-    'lxml>=4.0.0',
     'mock',
     'mongomock',
     'moto==1.3.5',
@@ -251,7 +253,6 @@ devel = [
     'rednose',
     'requests_mock',
     'flake8>=3.6.0',
-    'typing',
 ]
 
 if not PY3:
@@ -260,7 +261,7 @@ if not PY3:
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + redis + gcp +
+             docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
              atlas + azure + aws)
@@ -289,13 +290,12 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=0.9, <1.0',
-            'bleach~=2.1.3',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'enum34~=1.1.6;python_version<"3.4"',
             'flask>=1.0, <2.0',
-            'flask-appbuilder==1.12.3',
+            'flask-appbuilder>=1.12.5, <2.0.0',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login>=0.3, <0.5',
             'flask-swagger==0.2.13',
@@ -320,6 +320,7 @@ def do_setup():
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'text-unidecode==1.2',
+            'typing;python_version<"3.5"',
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'unicodecsv>=0.14.1',
@@ -355,6 +356,7 @@ def do_setup():
             'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
             'github_enterprise': github_enterprise,
             'google_auth': google_auth,
+            'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,

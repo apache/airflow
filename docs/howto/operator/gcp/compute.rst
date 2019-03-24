@@ -75,7 +75,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for start
+See Google Compute Engine API documentation to `start an instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/start>`_.
 
 .. _howto/operator:GceInstanceStopOperator:
@@ -130,7 +130,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for stop
+See Google Compute Engine API documentation to `stop an instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/stop>`_.
 
 .. _howto/operator:GceSetMachineTypeOperator:
@@ -191,7 +191,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for setMachineType
+See Google Compute Engine API documentation to `set the machine type
 <https://cloud.google.com/compute/docs/reference/rest/v1/instances/setMachineType>`_.
 
 .. _howto/operator:GceInstanceTemplateCopyOperator:
@@ -252,7 +252,7 @@ Templating
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for instanceTemplates
+See Google Compute Engine API documentation to `create a new instance with an existing template
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates>`_.
 
 .. _howto/operator:GceInstanceGroupManagerUpdateTemplateOperator:
@@ -260,7 +260,7 @@ See `Google Compute Engine API documentation for instanceTemplates
 GceInstanceGroupManagerUpdateTemplateOperator
 ---------------------------------------------
 
-Use the operator to update template in Google Compute Engine Instance Group Manager.
+Use the operator to update a template in Google Compute Engine Instance Group Manager.
 
 For parameter definition, take a look at
 :class:`~airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator`.
@@ -321,5 +321,5 @@ the permissions that theService Account User role provides
 More information
 """"""""""""""""
 
-See `Google Compute Engine API documentation for instanceGroupManagers
+See Google Compute Engine API documentation to `manage a group instance
 <https://cloud.google.com/compute/docs/reference/rest/v1/instanceGroupManagers>`_.

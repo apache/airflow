@@ -35,6 +35,7 @@ from collections import defaultdict
 from collections import namedtuple
 from datetime import timedelta
 from importlib import import_module
+import enum
 
 import psutil
 from six.moves import range, reload_module
@@ -47,7 +48,8 @@ from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
-from airflow.settings import logging_class_path, Stats
+from airflow.settings import logging_class_path
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -436,10 +438,11 @@ DagParsingStat = namedtuple('DagParsingStat',
                              'all_files_processed', 'result_count'])
 
 
-DagParsingSignal = namedtuple(
-    'DagParsingSignal',
-    ['AGENT_HEARTBEAT', 'MANAGER_DONE', 'TERMINATE_MANAGER', 'END_MANAGER'])(
-    'agent_heartbeat', 'manager_done', 'terminate_manager', 'end_manager')
+class DagParsingSignal(enum.Enum):
+    AGENT_HEARTBEAT = 'agent_heartbeat'
+    MANAGER_DONE = 'manager_done'
+    TERMINATE_MANAGER = 'terminate_manager'
+    END_MANAGER = 'end_manager'
 
 
 class DagFileProcessorAgent(LoggingMixin):

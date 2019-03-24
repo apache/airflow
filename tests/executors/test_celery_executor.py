@@ -78,7 +78,7 @@ class CeleryExecutorTest(unittest.TestCase):
             executor = celery_executor.CeleryExecutor()
             executor.start()
 
-            with start_worker(app=app, logfile=sys.stdout, loglevel='debug'):
+            with start_worker(app=app, logfile=sys.stdout, loglevel='info'):
                 success_command = ['true', 'some_parameter']
                 fail_command = ['false', 'some_parameter']
 

@@ -22,9 +22,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import copy
 from builtins import ImportError as BuiltinImportError, bytes, object, str
 from collections import defaultdict, namedtuple, OrderedDict
+import copy
+from typing import Iterable
 
 from future.standard_library import install_aliases
 
@@ -53,6 +54,7 @@ import pickle
 import re
 import signal
 import sys
+import time
 import textwrap
 import traceback
 import warnings
@@ -88,6 +90,7 @@ from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
+from airflow.stats import Stats
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -112,8 +115,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 install_aliases()
 
 XCOM_RETURN_KEY = 'return_value'
-
-Stats = settings.Stats
 
 
 class InvalidFernetToken(Exception):
@@ -315,6 +316,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         :return: the amount of dags contained in this dagbag
         """
         return len(self.dags)
+
+    @property
+    def dag_ids(self):
+        return self.dags.keys()
 
     def get_dag(self, dag_id):
         """
@@ -1022,11 +1027,8 @@ class TaskInstance(Base, LoggingMixin):
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
 
-    @property
     @provide_session
-    def previous_ti(self, session=None):
-        """ The task instance for the task that ran before this task instance """
-
+    def _get_previous_ti(self, session=None):
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
@@ -1051,6 +1053,11 @@ class TaskInstance(Base, LoggingMixin):
                 return last_dagrun.get_task_instance(self.task_id, session=session)
 
         return None
+
+    @property
+    def previous_ti(self):
+        """The task instance for the task that ran before this task instance."""
+        return self._get_previous_ti()
 
     @provide_session
     def are_dependencies_met(
@@ -1373,6 +1380,8 @@ class TaskInstance(Base, LoggingMixin):
                 # Don't clear Xcom until the task is certain to execute
                 self.clear_xcom_data()
 
+                start_time = time.time()
+
                 self.render_templates()
                 task_copy.pre_execute(context=context)
 
@@ -1395,6 +1404,14 @@ class TaskInstance(Base, LoggingMixin):
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                 task_copy.post_execute(context=context, result=result)
+
+                end_time = time.time()
+                duration = end_time - start_time
+                Stats.timing(
+                    'dag.{dag_id}.{task_id}.duration'.format(
+                        dag_id=task_copy.dag_id,
+                        task_id=task_copy.task_id),
+                    duration)
 
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
@@ -2029,9 +2046,9 @@ class BaseOperator(LoggingMixin):
     """
 
     # For derived classes to define which fields will get jinjaified
-    template_fields = []
+    template_fields = []  # type: Iterable[str]
     # Defines which files extensions to look for in the templated fields
-    template_ext = []
+    template_ext = []  # type: Iterable[str]
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
@@ -2043,7 +2060,7 @@ class BaseOperator(LoggingMixin):
                                          '_log',)
 
     # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs = ()
+    shallow_copy_attrs = ()  # type: Iterable[str]
 
     @apply_defaults
     def __init__(
@@ -2668,7 +2685,7 @@ class BaseOperator(LoggingMixin):
 
     def add_only_new(self, item_set, item):
         if item in item_set:
-            raise AirflowException(
+            self.log.warning(
                 'Dependency {self}, {item} already registered'
                 ''.format(**locals()))
         else:
@@ -2904,6 +2921,8 @@ class DAG(BaseDag, LoggingMixin):
         Note that jinja/airflow includes the path of your DAG file by
         default
     :type template_searchpath: str or list[str]
+    :param template_undefined: Template undefined type.
+    :type template_undefined: jinja2.Undefined
     :param user_defined_macros: a dictionary of macros that will be exposed
         in your jinja templates. For example, passing ``dict(foo='bar')``
         to this argument allows you to ``{{ foo }}`` in all jinja
@@ -2967,6 +2986,7 @@ class DAG(BaseDag, LoggingMixin):
             start_date=None, end_date=None,
             full_filepath=None,
             template_searchpath=None,
+            template_undefined=jinja2.Undefined,
             user_defined_macros=None,
             user_defined_filters=None,
             default_args=None,
@@ -2979,6 +2999,7 @@ class DAG(BaseDag, LoggingMixin):
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
             on_success_callback=None, on_failure_callback=None,
+            doc_md=None,
             params=None,
             access_control=None):
 
@@ -3041,6 +3062,7 @@ class DAG(BaseDag, LoggingMixin):
         if isinstance(template_searchpath, six.string_types):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
+        self.template_undefined = template_undefined
         self.parent_dag = None  # Gets set when DAGs are loaded
         self.last_loaded = timezone.utcnow()
         self.safe_dag_id = dag_id.replace('.', '__dot__')
@@ -3055,6 +3077,7 @@ class DAG(BaseDag, LoggingMixin):
         self.partial = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
+        self.doc_md = doc_md
 
         self._old_context_manager_dags = []
         self._access_control = access_control
@@ -3340,13 +3363,8 @@ class DAG(BaseDag, LoggingMixin):
     def owner(self):
         return ", ".join(list(set([t.owner for t in self.tasks])))
 
-    @property
     @provide_session
-    def concurrency_reached(self, session=None):
-        """
-        Returns a boolean indicating whether the concurrency limit for this DAG
-        has been reached
-        """
+    def _get_concurrency_reached(self, session=None):
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
@@ -3355,14 +3373,25 @@ class DAG(BaseDag, LoggingMixin):
         return qry.scalar() >= self.concurrency
 
     @property
+    def concurrency_reached(self):
+        """
+        Returns a boolean indicating whether the concurrency limit for this DAG
+        has been reached
+        """
+        return self._get_concurrency_reached()
+
     @provide_session
-    def is_paused(self, session=None):
-        """
-        Returns a boolean indicating whether this DAG is paused
-        """
+    def _get_is_paused(self, session=None):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
+
+    @property
+    def is_paused(self):
+        """
+        Returns a boolean indicating whether this DAG is paused
+        """
+        return self._get_is_paused()
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=None):
@@ -3445,16 +3474,18 @@ class DAG(BaseDag, LoggingMixin):
 
         return dagrun
 
-    @property
     @provide_session
-    def latest_execution_date(self, session=None):
+    def _get_latest_execution_date(self, session=None):
+        return session.query(func.max(DagRun.execution_date)).filter(
+            DagRun.dag_id == self.dag_id
+        ).scalar()
+
+    @property
+    def latest_execution_date(self):
         """
         Returns the latest date for which at least one dag run exists
         """
-        execution_date = session.query(func.max(DagRun.execution_date)).filter(
-            DagRun.dag_id == self.dag_id
-        ).scalar()
-        return execution_date
+        return self._get_latest_execution_date()
 
     @property
     def subdags(self):
@@ -3487,6 +3518,7 @@ class DAG(BaseDag, LoggingMixin):
 
         env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(searchpath),
+            undefined=self.template_undefined,
             extensions=["jinja2.ext.do"],
             cache_size=0)
         if self.user_defined_macros:
@@ -4195,6 +4227,7 @@ class DAG(BaseDag, LoggingMixin):
 
 class Variable(Base, LoggingMixin):
     __tablename__ = "variable"
+    __NO_DEFAULT_SENTINEL = object()
 
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
@@ -4248,10 +4281,9 @@ class Variable(Base, LoggingMixin):
             and un-encode it when retrieving a value
         :return: Mixed
         """
-        default_sentinel = object()
-        obj = Variable.get(key, default_var=default_sentinel,
+        obj = Variable.get(key, default_var=None,
                            deserialize_json=deserialize_json)
-        if obj is default_sentinel:
+        if obj is None:
             if default is not None:
                 Variable.set(key, default, serialize_json=deserialize_json)
                 return default
@@ -4262,10 +4294,10 @@ class Variable(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get(cls, key, default_var=None, deserialize_json=False, session=None):
+    def get(cls, key, default_var=__NO_DEFAULT_SENTINEL, deserialize_json=False, session=None):
         obj = session.query(cls).filter(cls.key == key).first()
         if obj is None:
-            if default_var is not None:
+            if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
             else:
                 raise KeyError('Variable {} does not exist'.format(key))
@@ -4579,11 +4611,23 @@ class DagRun(Base, LoggingMixin):
             else:
                 self.set_state(State.RUNNING)
 
+        self._emit_duration_stats_for_finished_state()
+
         # todo: determine we want to use with_for_update to make sure to lock the run
         session.merge(self)
         session.commit()
 
         return self.state
+
+    def _emit_duration_stats_for_finished_state(self):
+        if self.state == State.RUNNING:
+            return
+
+        duration = (self.end_date - self.start_date)
+        if self.state is State.SUCCESS:
+            Stats.timing('dagrun.duration.success.{}'.format(self.dag_id), duration)
+        elif self.state == State.FAILED:
+            Stats.timing('dagrun.duration.failed.{}'.format(self.dag_id), duration)
 
     @provide_session
     def verify_integrity(self, session=None):

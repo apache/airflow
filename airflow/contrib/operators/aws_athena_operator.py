@@ -43,6 +43,7 @@ class AWSAthenaOperator(BaseOperator):
 
     ui_color = '#44b5e2'
     template_fields = ('query', 'database', 'output_location')
+    template_ext = ('.sql', )
 
     @apply_defaults
     def __init__(self, query, database, output_location, aws_conn_id='aws_default', client_request_token=None,
