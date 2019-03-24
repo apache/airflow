@@ -951,10 +951,6 @@ class SchedulerJob(BaseJob):
                 # fixme: ti.task is transient but needs to be set
                 ti.task = task
 
-                # future: remove adhoc
-                if task.adhoc:
-                    continue
-
                 if ti.are_dependencies_met(
                         dep_context=DepContext(flag_upstream_failed=True),
                         session=session):

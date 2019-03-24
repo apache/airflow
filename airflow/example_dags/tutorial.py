@@ -45,7 +45,6 @@ default_args = {
     # 'end_date': datetime(2016, 1, 1),
     # 'wait_for_downstream': False,
     # 'dag': dag,
-    # 'adhoc':False,
     # 'sla': timedelta(hours=2),
     # 'execution_timeout': timedelta(seconds=300),
     # 'on_failure_callback': some_function,

@@ -2425,6 +2425,24 @@ class SchedulerJobTest(unittest.TestCase):
         dr_state = dr.update_state()
         self.assertEqual(dr_state, State.RUNNING)
 
+    def test_dagrun_root_after_dagrun_unfinished(self):
+        """
+        DagRuns with one successful and one future root task -> SUCCESS
+        """
+        dag_id = 'test_dagrun_states_root_future'
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+        scheduler = SchedulerJob(dag_id, num_runs=2)
+        # we can't use dag.run or evaluate_dagrun because it uses BackfillJob
+        # instead of SchedulerJob and BackfillJobs are allowed to not respect start dates
+        scheduler.run()
+
+        first_run = DagRun.find(dag_id=dag_id, execution_date=DEFAULT_DATE)[0]
+        ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
+
+        self.assertEqual(ti_ids, [('current', State.SUCCESS)])
+        self.assertEqual(first_run.state, State.SUCCESS)
+
     def test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date(self):
         """
         DagRun is marked a success if ignore_first_depends_on_past=True

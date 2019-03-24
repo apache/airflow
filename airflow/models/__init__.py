@@ -2082,7 +2082,6 @@ class BaseOperator(LoggingMixin):
             dag=None,
             params=None,
             default_args=None,
-            adhoc=False,
             priority_weight=1,
             weight_rule=WeightRule.DOWNSTREAM,
             queue=configuration.conf.get('celery', 'default_queue'),
@@ -2168,7 +2167,6 @@ class BaseOperator(LoggingMixin):
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
         self.params = params or {}  # Available in templates!
-        self.adhoc = adhoc
         self.priority_weight = priority_weight
         if not WeightRule.is_valid(weight_rule):
             raise AirflowException(
@@ -2229,7 +2227,6 @@ class BaseOperator(LoggingMixin):
             'schedule_interval',
             'depends_on_past',
             'wait_for_downstream',
-            'adhoc',
             'priority_weight',
             'sla',
             'execution_timeout',
@@ -3334,14 +3331,6 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def task_ids(self):
         return list(self.task_dict.keys())
-
-    @property
-    def active_task_ids(self):
-        return list(k for k, v in self.task_dict.items() if not v.adhoc)
-
-    @property
-    def active_tasks(self):
-        return [t for t in self.tasks if not t.adhoc]
 
     @property
     def filepath(self):
@@ -4538,7 +4527,6 @@ class DagRun(Base, LoggingMixin):
         dag = self.get_dag()
 
         tis = self.get_task_instances(session=session)
-
         self.log.debug("Updating state for %s considering %s task(s)", self, len(tis))
 
         for ti in list(tis):
@@ -4579,37 +4567,35 @@ class DagRun(Base, LoggingMixin):
         duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
         Stats.timing("dagrun.dependency-check.{}".format(self.dag_id), duration)
 
-        # future: remove the check on adhoc tasks (=active_tasks)
-        if len(tis) == len(dag.active_tasks):
-            root_ids = [t.task_id for t in dag.roots]
-            roots = [t for t in tis if t.task_id in root_ids]
+        root_ids = [t.task_id for t in dag.roots]
+        roots = [t for t in tis if t.task_id in root_ids]
 
-            # if all roots finished and at least one failed, the run failed
-            if (not unfinished_tasks and
-                    any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
-                self.log.info('Marking run %s failed', self)
-                self.set_state(State.FAILED)
-                dag.handle_callback(self, success=False, reason='task_failure',
-                                    session=session)
+        # if all roots finished and at least one failed, the run failed
+        if (not unfinished_tasks and
+                any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
+            self.log.info('Marking run %s failed', self)
+            self.set_state(State.FAILED)
+            dag.handle_callback(self, success=False, reason='task_failure',
+                                session=session)
 
-            # if all roots succeeded and no unfinished tasks, the run succeeded
-            elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
-                                              for r in roots):
-                self.log.info('Marking run %s successful', self)
-                self.set_state(State.SUCCESS)
-                dag.handle_callback(self, success=True, reason='success', session=session)
+        # if all roots succeeded and no unfinished tasks, the run succeeded
+        elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
+                                          for r in roots):
+            self.log.info('Marking run %s successful', self)
+            self.set_state(State.SUCCESS)
+            dag.handle_callback(self, success=True, reason='success', session=session)
 
-            # if *all tasks* are deadlocked, the run failed
-            elif (unfinished_tasks and none_depends_on_past and
-                  none_task_concurrency and no_dependencies_met):
-                self.log.info('Deadlock; marking run %s failed', self)
-                self.set_state(State.FAILED)
-                dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
-                                    session=session)
+        # if *all tasks* are deadlocked, the run failed
+        elif (unfinished_tasks and none_depends_on_past and
+              none_task_concurrency and no_dependencies_met):
+            self.log.info('Deadlock; marking run %s failed', self)
+            self.set_state(State.FAILED)
+            dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
+                                session=session)
 
-            # finally, if the roots aren't done, the dag is still running
-            else:
-                self.set_state(State.RUNNING)
+        # finally, if the roots aren't done, the dag is still running
+        else:
+            self.set_state(State.RUNNING)
 
         self._emit_duration_stats_for_finished_state()
 
@@ -4665,8 +4651,6 @@ class DagRun(Base, LoggingMixin):
 
         # check for missing tasks
         for task in six.itervalues(dag.task_dict):
-            if task.adhoc:
-                continue
             if task.start_date > self.execution_date and not self.is_backfill:
                 continue
 
