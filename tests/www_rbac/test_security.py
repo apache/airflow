@@ -33,7 +33,7 @@ from sqlalchemy import Column, Integer, String, Float, Date
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
 from airflow.exceptions import AirflowException
-from airflow.www_rbac.security import AirflowSecurityManager, DAG_PERMS
+from airflow.www_rbac.security import AirflowSecurityManager
 
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
@@ -85,6 +85,33 @@ class TestSecurity(unittest.TestCase):
         self.user = self.appbuilder.sm.add_user('admin', 'admin', 'user', 'admin@fab.org',
                                                 role_admin, 'general')
         log.debug("Complete setup!")
+
+    def expect_user_is_in_role(self, user, rolename):
+        self.security_manager.init_role(rolename, [], [])
+        role = self.security_manager.find_role(rolename)
+        if not role:
+            self.security_manager.add_role(rolename)
+            role = self.security_manager.find_role(rolename)
+        user.roles = [role]
+        self.security_manager.update_user(user)
+
+    def assert_user_has_dag_perms(self, perms, dag_id):
+        for perm in perms:
+            self.assertTrue(
+                self._has_dag_perm(perm, dag_id),
+                "User should have '{}' on DAG '{}'".format(perm, dag_id))
+
+    def assert_user_does_not_have_dag_perms(self, dag_id, perms):
+        for perm in perms:
+            self.assertFalse(
+                self._has_dag_perm(perm, dag_id),
+                "User should not have '{}' on DAG '{}'".format(perm, dag_id))
+
+    def _has_dag_perm(self, perm, dag_id):
+        return self.security_manager.has_access(
+            perm,
+            dag_id,
+            self.user)
 
     def tearDown(self):
         self.appbuilder = None
@@ -179,7 +206,7 @@ class TestSecurity(unittest.TestCase):
     def test_sync_perm_for_dag_creates_permissions_on_view_menus(self):
         test_dag_id = 'TEST_DAG'
         self.security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
-        for dag_perm in DAG_PERMS:
+        for dag_perm in self.security_manager.DAG_PERMS:
             self.assertIsNotNone(self.security_manager.
                                  find_permission_view_menu(dag_perm, test_dag_id))
 
@@ -262,33 +289,6 @@ class TestSecurity(unittest.TestCase):
             perms=['can_dag_edit'],
             dag_id='access_control_test',
         )
-
-    def expect_user_is_in_role(self, user, rolename):
-        self.security_manager.init_role(rolename, [], [])
-        role = self.security_manager.find_role(rolename)
-        if not role:
-            self.security_manager.add_role(rolename)
-            role = self.security_manager.find_role(rolename)
-        user.roles = [role]
-        self.security_manager.update_user(user)
-
-    def assert_user_has_dag_perms(self, perms, dag_id):
-        for perm in perms:
-            self.assertTrue(
-                self._has_dag_perm(perm, dag_id),
-                "User should have '{}' on DAG '{}'".format(perm, dag_id))
-
-    def assert_user_does_not_have_dag_perms(self, dag_id, perms):
-        for perm in perms:
-            self.assertFalse(
-                self._has_dag_perm(perm, dag_id),
-                "User should not have '{}' on DAG '{}'".format(perm, dag_id))
-
-    def _has_dag_perm(self, perm, dag_id):
-        return self.security_manager.has_access(
-            perm,
-            dag_id,
-            self.user)
 
     def test_no_additional_dag_permission_views_created(self):
         ab_perm_view_role = sqla_models.assoc_permissionview_role
