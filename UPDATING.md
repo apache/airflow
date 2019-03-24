@@ -30,8 +30,10 @@ Previously not all hooks and operators related to Google Cloud Platform use
 ``google_cloud_default`` as a default conn_id. There is currently one default
 variant. Values like ``google_cloud_storage_default``, ``bigquery_default``,
 ``google_cloud_datastore_default`` have been deprecated. The configuration of
-connections in the database have been preserved, but in every place where they
-were used, they should be indicated explicitly.
+existing relevant connections in the database have been preserved. To use those
+deprecated GCP conn_id, you need to explicitly pass their conn_id into
+operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_id
+by default.
 
 ### The chain function is removed
 
