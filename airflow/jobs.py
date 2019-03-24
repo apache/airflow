@@ -42,7 +42,7 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import configuration as conf
 from airflow import executors, models, settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, NoAvailablePoolSlot, PoolNotFound
 from airflow.models import DAG, DagRun, errors
 from airflow.models.dagpickle import DagPickle
 from airflow.models.slamiss import SlaMiss
@@ -1901,8 +1901,8 @@ class BackfillJob(BaseJob):
         :type ignore_first_depends_on_past: bool
         :param ignore_task_deps: whether to ignore the task dependency
         :type ignore_task_deps: bool
-        :param pool:
-        :type pool: list
+        :param pool: pool to backfill
+        :type pool: str
         :param delay_on_limit_secs:
         :param verbose:
         :type verbose: flag to whether display verbose message to backfill console
@@ -2158,9 +2158,6 @@ class BackfillJob(BaseJob):
             # waiting for their upstream to finish
             @provide_session
             def _per_task_process(task, key, ti, session=None):
-                if task.task_id != ti.task_id:
-                    return
-
                 ti.refresh_from_db()
 
                 task = self.dag.get_task(ti.task_id)
@@ -2296,9 +2293,35 @@ class BackfillJob(BaseJob):
                 self.log.debug('Adding %s to not_ready', ti)
                 ti_status.not_ready.add(key)
 
-            for task in self.dag.topological_sort():
-                for key, ti in list(ti_status.to_run.items()):
-                    _per_task_process(task, key, ti)
+            non_pool_slots = conf.getint('core', 'non_pooled_backfill_task_slot_count')
+
+            try:
+                for task in self.dag.topological_sort():
+                    for key, ti in list(ti_status.to_run.items()):
+                        if task.task_id != ti.task_id:
+                            continue
+                        if task.pool:
+                            pool = session.query(models.Pool) \
+                                .filter(models.Pool.pool == task.pool) \
+                                .first()
+                            if not pool:
+                                raise PoolNotFound('Unknown pool: {}'.format(task.pool))
+
+                            open_slots = pool.open_slots(session=session)
+                            if open_slots <= 0:
+                                raise NoAvailablePoolSlot(
+                                    "Not scheduling since there are "
+                                    "%s open slots in pool %s".format(
+                                        open_slots, task.pool))
+                        else:
+                            if non_pool_slots <= 0:
+                                raise NoAvailablePoolSlot(
+                                    "Not scheduling since there are no "
+                                    "non_pooled_backfill_task_slot_count.")
+                            non_pool_slots -= 1
+                        _per_task_process(task, key, ti)
+            except NoAvailablePoolSlot as e:
+                self.log.debug(e)
 
             # execute the tasks in the queue
             self.heartbeat()

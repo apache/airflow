@@ -111,3 +111,8 @@ class TaskInstanceNotFound(AirflowNotFoundException):
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system"""
     pass
+
+
+class NoAvailablePoolSlot(AirflowException):
+    """Raise when there is not enough slots in pool"""
+    pass
