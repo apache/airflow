@@ -56,6 +56,13 @@ class AirflowPlugin(object):
     appbuilder_views = []  # type: List[Any]
     appbuilder_menu_items = []  # type: List[Any]
 
+    # A function that validate the statsd stat name, apply changes
+    # to the stat name if necessary and return the transformed stat name.
+    #
+    # The function should have the following signature:
+    # def func_name(stat_name: str) -> str:
+    stat_name_handler = None  # type:Any
+
     @classmethod
     def validate(cls):
         if not cls.name:
@@ -182,7 +189,9 @@ flask_blueprints = []  # type: List[Any]
 menu_links = []  # type: List[Any]
 flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
+stat_name_handler = None  # type: Any
 
+stat_name_handlers = []
 for p in plugins:
     operators_modules.append(
         make_module('airflow.operators.' + p.name, p.operators + p.sensors))
@@ -202,3 +211,12 @@ for p in plugins:
         'name': p.name,
         'blueprint': bp
     } for bp in p.flask_blueprints])
+    if p.stat_name_handler:
+        stat_name_handlers.append(p.stat_name_handler)
+
+if len(stat_name_handlers) > 1:
+    raise AirflowPluginException(
+        'Specified more than one stat_name_handler ({}) '
+        'is not allowed.'.format(stat_name_handlers))
+
+stat_name_handler = stat_name_handlers[0] if len(stat_name_handlers) == 1 else None

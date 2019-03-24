@@ -16,6 +16,8 @@
 # under the License.
 
 import base64
+import hashlib
+import re
 import json
 import multiprocessing
 from queue import Queue
@@ -400,7 +402,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         pod = self.worker_configuration.make_pod(
             namespace=self.namespace, worker_uuid=self.worker_uuid,
             pod_id=self._create_pod_id(dag_id, task_id),
-            dag_id=dag_id, task_id=task_id, try_number=try_number,
+            dag_id=self._make_safe_label_value(dag_id),
+            task_id=self._make_safe_label_value(task_id),
+            try_number=try_number,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
         )
@@ -478,6 +482,27 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return safe_pod_id
 
     @staticmethod
+    def _make_safe_label_value(string):
+        """
+        Valid label values must be 63 characters or less and must be empty or begin and
+        end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
+        dots (.), and alphanumerics between.
+
+        If the label value is then greater than 63 chars once made safe, or differs in any
+        way from the original value sent to this function, then we need to truncate to
+        53chars, and append it with a unique hash.
+        """
+        MAX_LABEL_LEN = 63
+
+        safe_label = re.sub(r'^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$', '', string)
+
+        if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
+            safe_hash = hashlib.md5(string.encode()).hexdigest()[:9]
+            safe_label = safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
+
+        return safe_label
+
+    @staticmethod
     def _create_pod_id(dag_id, task_id):
         safe_dag_id = AirflowKubernetesScheduler._strip_unsafe_kubernetes_special_chars(
             dag_id)
@@ -519,17 +544,44 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.log.warn("could not get try_number as an int: %s", labels.get('try_number', '1'))
 
         try:
-            return (
-                labels['dag_id'], labels['task_id'],
-                self._label_safe_datestring_to_datetime(labels['execution_date']),
-                try_num,
-            )
+            dag_id = labels['dag_id']
+            task_id = labels['task_id']
+            ex_time = self._label_safe_datestring_to_datetime(labels['execution_date'])
         except Exception as e:
             self.log.warn(
-                'Error while converting labels to key; labels: %s; exception: %s',
+                'Error while retrieving labels; labels: %s; exception: %s',
                 labels, e
             )
             return None
+
+        with create_session() as session:
+            tasks = (
+                session
+                .query(TaskInstance)
+                .filter_by(execution_date=ex_time).all()
+            )
+            self.log.info(
+                'Checking %s task instances.',
+                len(tasks)
+            )
+            for task in tasks:
+                if (
+                    self._make_safe_label_value(task.dag_id) == dag_id and
+                    self._make_safe_label_value(task.task_id) == task_id and
+                    task.execution_date == ex_time
+                ):
+                    self.log.info(
+                        'Found matching task %s-%s (%s) with current state of %s',
+                        task.dag_id, task.task_id, task.execution_date, task.state
+                    )
+                    dag_id = task.dag_id
+                    task_id = task.task_id
+                    return (dag_id, task_id, ex_time, try_num)
+        self.log.warn(
+            'Failed to find and match task details to a pod; labels: %s',
+            labels
+        )
+        return None
 
 
 class KubernetesExecutor(BaseExecutor, LoggingMixin):
@@ -568,10 +620,16 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         )
 
         for task in queued_tasks:
-            dict_string = "dag_id={},task_id={},execution_date={},airflow-worker={}" \
-                .format(task.dag_id, task.task_id,
-                        AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
-                            task.execution_date), self.worker_uuid)
+            dict_string = (
+                "dag_id={},task_id={},execution_date={},airflow-worker={}".format(
+                    AirflowKubernetesScheduler._make_safe_label_value(task.dag_id),
+                    AirflowKubernetesScheduler._make_safe_label_value(task.task_id),
+                    AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+                        task.execution_date
+                    ),
+                    self.worker_uuid
+                )
+            )
             kwargs = dict(label_selector=dict_string)
             pod_list = self.kube_client.list_namespaced_pod(
                 self.kube_config.kube_namespace, **kwargs)

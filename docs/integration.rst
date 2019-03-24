@@ -586,8 +586,31 @@ They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to 
 Transfer Service
 ''''''''''''''''
 
-:class:`airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator`
-    Copies objects from a bucket to another using Google Transfer service.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator`
+    Deletes a transfer job.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator`
+    Creates a transfer job.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator`
+    Updates a transfer job.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationCancelOperator`
+    Cancels a transfer operation.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationGetOperator`
+    Gets a transfer operation.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationPauseOperator`
+    Pauses a transfer operation
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationResumeOperator`
+    Resumes a transfer operation.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationsListOperator`
+    Gets a list of transfer operations.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator`
+    Copies objects from a Google Cloud Storage bucket to another bucket.
+:class:`airflow.contrib.operators.gcp_transfer_operator.S3ToGoogleCloudStorageTransferOperator`
+    Synchronizes an S3 bucket with a Google Cloud Storage bucket.
+
+
+:class:`airflow.contrib.sensors.gcp_transfer_operator.GCPTransferServiceWaitForJobStatusSensor`
+    Waits for at least one operation belonging to the job to have the
+    expected status.
 
 
 They also use :class:`airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook` to communicate with Google Cloud Platform.

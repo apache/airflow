@@ -46,7 +46,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, errors
 from airflow.models.dagpickle import DagPickle
 from airflow.models.slamiss import SlaMiss
-from airflow.settings import Stats
+from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import asciiart, helpers, timezone

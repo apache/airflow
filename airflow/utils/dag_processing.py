@@ -48,7 +48,8 @@ from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
 from airflow.models import errors
-from airflow.settings import logging_class_path, Stats
+from airflow.settings import logging_class_path
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
