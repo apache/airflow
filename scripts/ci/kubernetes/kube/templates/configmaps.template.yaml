@@ -21,7 +21,6 @@ metadata:
 data:
   airflow.cfg: |
     [core]
-    airflow_home = /root/airflow
     dags_folder = {{CONFIGMAP_DAGS_FOLDER}}
     base_log_folder = /root/airflow/logs
     logging_level = INFO
