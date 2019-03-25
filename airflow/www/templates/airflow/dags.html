@@ -28,6 +28,17 @@
 {% block content %}
   <h2>DAGs</h2>
 
+{% if not is_user_logged_in %}
+<div class="alert alert-warning" role="alert">
+  Note: Some DAGs may not be visible until you <a href="/login/">log in</a>.
+</div>
+{% elif is_public_user %}
+<div class="alert alert-warning" role="alert">
+  Note: Some DAGs may not be visible because you do not have sufficient privileges.
+</div>
+{% endif %}
+
+
   <div id="main_content">
     <div class="row">
       <div class="col-sm-2">

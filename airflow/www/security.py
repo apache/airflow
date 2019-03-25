@@ -25,7 +25,6 @@ from sqlalchemy import or_
 
 from airflow import models
 from airflow.exceptions import AirflowException
-from airflow.www.app import appbuilder
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -156,6 +155,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     ROLE_CONFIGS = [
         {
+            'role': 'Public',
+            'perms': {'can_index'},
+            'vms': {'Airflow'}
+        },
+        {
             'role': 'Viewer',
             'perms': VIEWER_PERMS | READ_DAG_PERMS,
             'vms': VIEWER_VMS | DAG_VMS
@@ -218,6 +222,26 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             raise AirflowException("Role named '{}' does not exist".format(
                 role_name))
 
+    def is_user_logged_in(self, user=None):
+        """Check if the user has authenticated"""
+        if user is None:
+            user = g.user
+
+        return user is not None and user.is_authenticated
+
+    def is_public_user(self, user=None):
+        """Check if the user's only role is Public
+
+        Returns False if this user belongs to any role other than the
+        public auth role.
+        """
+        if user is None:
+            user = g.user
+
+        user_role_names = [r.name for r in self.get_user_roles(user)]
+        non_public_roles = set(user_role_names) - {self.auth_role_public}
+        return len(non_public_roles) == 0
+
     def get_user_roles(self, user=None):
         """
         Get all the roles associated with the user.
@@ -227,11 +251,10 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         """
         if user is None:
             user = g.user
-        if user.is_anonymous:
-            public_role = appbuilder.config.get('AUTH_ROLE_PUBLIC')
-            return [appbuilder.security_manager.find_role(public_role)] \
-                if public_role else []
-        return user.roles
+        if not user.is_anonymous:
+            return user.roles
+        else:
+            return []
 
     def get_all_permissions_views(self):
         """

@@ -267,8 +267,13 @@ class Airflow(AirflowBaseView):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
 
+        is_user_logged_in = appbuilder.sm.is_user_logged_in()
+        is_public_user = appbuilder.sm.is_public_user()
+
         return self.render(
             'airflow/dags.html',
+            is_user_logged_in=is_user_logged_in,
+            is_public_user=is_public_user,
             dags=dags,
             hide_paused=hide_paused,
             current_page=current_page,

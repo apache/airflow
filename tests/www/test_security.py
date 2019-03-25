@@ -308,3 +308,26 @@ class TestSecurity(unittest.TestCase):
         test_security_manager = TestSecurityManager(appbuilder=self.appbuilder)
         self.assertEqual(len(test_security_manager.VIEWER_VMS), 1)
         self.assertEqual(test_security_manager.VIEWER_VMS, {'Airflow'})
+
+    def test_is_user_logged_in_returns_false_if_not_authenticated(self):
+        user = mock.MagicMock()
+        user.is_authenticated = False
+        self.assertFalse(self.security_manager.is_user_logged_in(user))
+
+    def test_is_user_logged_in_returns_true_if_authenticated(self):
+        user = mock.MagicMock()
+        user.is_authenticated = True
+        self.assertTrue(self.security_manager.is_user_logged_in(user))
+
+    def test_unauthenticated_user_is_public(self):
+        user = mock.MagicMock()
+        user.is_authenticated = False
+        self.assertTrue(self.security_manager.is_public_user(user))
+
+    def test_user_in_public_role_only_is_public(self):
+        self.expect_user_is_in_role(self.user, rolename='Public')
+        self.assertTrue(self.security_manager.is_public_user(self.user))
+
+    def test_user_with_any_non_public_role_is_not_public(self):
+        self.expect_user_is_in_role(self.user, rolename='team-a')
+        self.assertFalse(self.security_manager.is_public_user(self.user))
