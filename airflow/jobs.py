@@ -620,7 +620,7 @@ class SchedulerJob(BaseJob):
         Where assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
-        if not any([ti.sla for ti in dag.tasks]):
+        if not any([isinstance(ti.sla, timedelta) for ti in dag.tasks]):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
