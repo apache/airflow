@@ -64,7 +64,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  destination_project_dataset_table,
                  write_disposition='WRITE_EMPTY',
                  create_disposition='CREATE_IF_NEEDED',
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
                  *args,

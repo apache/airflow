@@ -67,7 +67,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
                  bucket,
                  prefix=None,
                  delimiter=None,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  dest_aws_conn_id=None,
                  dest_s3_key=None,

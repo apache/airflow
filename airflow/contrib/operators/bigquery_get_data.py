@@ -76,7 +76,7 @@ class BigQueryGetDataOperator(BaseOperator):
                  table_id,
                  max_results='100',
                  selected_fields=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):

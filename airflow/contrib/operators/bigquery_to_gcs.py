@@ -71,7 +71,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
                  export_format='CSV',
                  field_delimiter=',',
                  print_header=True,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
                  *args,
