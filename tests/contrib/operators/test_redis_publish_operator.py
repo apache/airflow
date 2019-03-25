@@ -21,6 +21,7 @@
 import unittest
 from airflow import DAG, configuration
 from airflow.contrib.operators.redis_publish_operator import RedisPublishOperator
+from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.utils import timezone
 from mock import MagicMock
 
@@ -40,20 +41,30 @@ class TestRedisPublishOperator(unittest.TestCase):
         self.dag = DAG('test_redis_dag_id', default_args=args)
 
         self.mock_context = MagicMock()
+        self.channel = 'test'
 
     def test_execute_hello(self):
         operator = RedisPublishOperator(
             task_id='test_task',
             dag=self.dag,
-            message='{{message}}',
-            channel='test',
+            message='hello',
+            channel=self.channel,
             redis_conn_id='redis_default'
         )
+
+        hook = RedisHook(redis_conn_id='redis_default')
+        pubsub = hook.get_conn().pubsub()
+        pubsub.subscribe(self.channel)
 
         operator.execute(self.mock_context)
         context_calls = []
         self.assertTrue(self.mock_context['ti'].method_calls == context_calls, "context calls should be same")
 
+        message = pubsub.get_message()
+        self.assertEquals(message['type'], 'subscribe')
 
-if __name__ == '__main__':
-    unittest.main()
+        message = pubsub.get_message()
+        self.assertEquals(message['type'], 'message')
+        self.assertEquals(message['data'], b'hello')
+
+        pubsub.unsubscribe(self.channel)
