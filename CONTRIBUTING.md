@@ -84,7 +84,7 @@ you need to have set up an Airflow development environment (see below). Also
 install the `doc` extra.
 
 ```
-pip install -e .[doc]
+pip install -e '.[doc]'
 ```
 
 Generate and serve the documentation by running:
@@ -116,7 +116,7 @@ There are three ways to setup an Apache Airflow development environment.
   cd $AIRFLOW_HOME
   virtualenv env
   source env/bin/activate
-  pip install -e .[devel]
+  pip install -e '.[devel]'
   ```
 
 2. Using a Docker container
@@ -129,7 +129,7 @@ There are three ways to setup an Apache Airflow development environment.
 
   # Install Airflow with all the required dependencies,
   # including the devel which will provide the development tools
-  pip install -e ".[hdfs,hive,druid,devel]"
+  pip install -e '.[hdfs,hive,druid,devel]'
 
   # Init the database
   airflow initdb

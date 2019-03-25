@@ -140,15 +140,15 @@ has changed to follow style.
 
 If you want to install integration for Microsoft Azure, then instead of
 ```
-pip install apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]
+pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
-you should execute `pip install apache-airflow[azure]`
+you should execute `pip install 'apache-airflow[azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
-`pip install apache-airflow[s3,emr]`, you should execute `pip install apache-airflow[aws]`
+`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
 If you want to install integration for Google Cloud Platform, then instead of
-`pip install apache-airflow[gcp_api]`, you should execute `pip install apache-airflow[gcp]`.
+`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
 The old way will work until the release of Airflow 2.1.
 
 ### Changes in Google Cloud Platform related operators
