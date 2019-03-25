@@ -21,7 +21,7 @@ import errno
 import logging
 import os
 
-from airflow import configuration as conf
+from airflow import settings
 from airflow.utils.helpers import parse_template_string
 from datetime import datetime
 
@@ -41,7 +41,7 @@ class FileProcessorHandler(logging.Handler):
         super(FileProcessorHandler, self).__init__()
         self.handler = None
         self.base_log_folder = base_log_folder
-        self.dag_dir = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+        self.dag_dir = os.path.expanduser(settings.DAGS_FOLDER)
         self.filename_template, self.filename_jinja_template = \
             parse_template_string(filename_template)
 

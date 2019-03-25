@@ -292,6 +292,19 @@ if foo is None:
 
 This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument. 
 
+### Removal of `airflow_home` config setting
+
+There were previously two ways of specifying the Airflow "home" directory
+(`~/airflow` by default): the `AIRFLOW_HOME` environment variable, and the
+`airflow_home` config setting in the `[core]` section.
+
+If they had two different values different parts of the code base would end up
+with different values. The config setting has been deprecated, and you should
+remove the value from the config file and set `AIRFLOW_HOME` environment
+variable if you need to use a non default value for this.
+
+(Since this setting is used to calculate what config file to load, it is not
+possible to keep just the config option)
 
 ## Airflow 1.10.2
 

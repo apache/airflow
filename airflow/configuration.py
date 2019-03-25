@@ -544,12 +544,31 @@ conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
 
 conf.read(AIRFLOW_CONFIG)
 
-DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
+if conf.has_option('core', 'AIRFLOW_HOME'):
+    msg = (
+        'Specifying both AIRFLOW_HOME environment variable and airflow_home '
+        'in the config file is deprecated. Please use only the AIRFLOW_HOME '
+        'environment variable and remove the config file entry.'
+    )
+    if 'AIRFLOW_HOME' in os.environ:
+        warnings.warn(msg, category=DeprecationWarning)
+    elif conf.get('core', 'airflow_home') == AIRFLOW_HOME:
+        warnings.warn(
+            'Specifying airflow_home in the config file is deprecated. As you '
+            'have left it at the default value you should remove the setting '
+            'from your airflow.cfg and suffer no change in behaviour.',
+            category=DeprecationWarning,
+        )
+    else:
+        AIRFLOW_HOME = conf.get('core', 'airflow_home')
+        warnings.warn(msg, category=DeprecationWarning)
+
 
 WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
+    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
     with open(WEBSERVER_CONFIG, 'w') as f:
         f.write(DEFAULT_WEBSERVER_CONFIG)
 
