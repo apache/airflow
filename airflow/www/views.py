@@ -2654,7 +2654,7 @@ class DagRunModelView(ModelViewOnly):
     verbose_name = "dag run"
     column_default_sort = ('execution_date', True)
     form_choices = {
-        'state': [
+        '_state': [
             ('success', 'success'),
             ('running', 'running'),
             ('failed', 'failed'),
