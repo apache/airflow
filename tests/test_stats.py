@@ -19,34 +19,28 @@
 
 import unittest
 
-from airflow.exceptions import InvalidStatsNameException
-from airflow.stats import stat_name_default_handler
+from airflow.stats import SafeStatsdLogger
+from mock import Mock
 
 
 class TestStats(unittest.TestCase):
 
-    def test_stat_name_default_handler_success(self):
-        stat_name = 'task_run'
-        stat_name_ = stat_name_default_handler(stat_name)
-        self.assertEqual(stat_name, stat_name_)
+    def setUp(self):
+        self.statsd_client = Mock()
+        self.stats = SafeStatsdLogger(self.statsd_client)
 
-    def test_stat_name_default_handler_not_string(self):
-        try:
-            stat_name_default_handler(list())
-        except InvalidStatsNameException:
-            return
-        self.fail()
+    def test_increment_counter_with_valid_name(self):
+        self.stats.incr('test_stats_run')
+        self.statsd_client.incr.assert_called_once_with('test_stats_run', 1, 1)
 
-    def test_stat_name_default_handler_exceed_max_length(self):
-        try:
-            stat_name_default_handler('123456', 3)
-        except InvalidStatsNameException:
-            return
-        self.fail()
+    def test_stat_name_must_be_a_string(self):
+        self.stats.incr(list())
+        self.statsd_client.assert_not_called()
 
-    def test_stat_name_default_handler_invalid_character(self):
-        try:
-            stat_name_default_handler(':123456')
-        except InvalidStatsNameException:
-            return
-        self.fail()
+    def test_stat_name_must_not_exceed_max_length(self):
+        self.stats.incr('X' * 300)
+        self.statsd_client.assert_not_called()
+
+    def test_stat_name_must_only_include_whitelisted_characters(self):
+        self.stats.incr('test/$tats')
+        self.statsd_client.assert_not_called()
