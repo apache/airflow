@@ -53,7 +53,7 @@ class TestWorkerPrecheck(unittest.TestCase):
             cli.worker(mock_args)
         self.assertEqual(cm.exception.code, 1)
 
-    @mock.patch('airflow.configuration.getboolean')
+    @mock.patch('airflow.configuration.conf.getboolean')
     def test_worker_precheck_exception(self, mock_getboolean):
         """
         Test to check the behaviour of validate_session method
@@ -65,7 +65,7 @@ class TestWorkerPrecheck(unittest.TestCase):
         mock_getboolean.assert_called_once_with('core', 'worker_precheck', fallback=False)
 
     @mock.patch('sqlalchemy.orm.session.Session.execute')
-    @mock.patch('airflow.configuration.getboolean')
+    @mock.patch('airflow.configuration.conf.getboolean')
     def test_validate_session_dbapi_exception(self, mock_getboolean, mock_session):
         """
         Test to validate connection failure scenario on SELECT 1 query

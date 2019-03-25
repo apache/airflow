@@ -134,6 +134,21 @@ class BaseJobTest(unittest.TestCase):
 
 class BackfillJobTest(unittest.TestCase):
 
+    def _get_dummy_dag(self, dag_id, pool=None):
+        dag = DAG(
+            dag_id=dag_id,
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
+
+        with dag:
+            DummyOperator(
+                task_id='op',
+                pool=pool,
+                dag=dag)
+
+        dag.clear()
+        return dag
+
     def setUp(self):
         clear_db_runs()
         clear_db_pools()
@@ -240,17 +255,7 @@ class BackfillJobTest(unittest.TestCase):
             job.run()
 
     def test_backfill_conf(self):
-        dag = DAG(
-            dag_id='test_backfill_conf',
-            start_date=DEFAULT_DATE,
-            schedule_interval='@daily')
-
-        with dag:
-            DummyOperator(
-                task_id='op',
-                dag=dag)
-
-        dag.clear()
+        dag = self._get_dummy_dag('test_backfill_conf')
 
         executor = TestExecutor(do_update=True)
 
@@ -265,6 +270,113 @@ class BackfillJobTest(unittest.TestCase):
         dr = DagRun.find(dag_id='test_backfill_conf')
 
         self.assertEqual(conf, dr[0].conf)
+
+    @patch('airflow.jobs.conf.getint')
+    def test_backfill_with_no_pool_limit(self, mock_getint):
+        non_pooled_backfill_task_slot_count = 2
+
+        def getint(section, key):
+            if section.lower() == 'core' and \
+                    'non_pooled_backfill_task_slot_count' == key.lower():
+                return non_pooled_backfill_task_slot_count
+            else:
+                return configuration.conf.getint(section, key)
+
+        mock_getint.side_effect = getint
+
+        dag = self._get_dummy_dag('test_backfill_with_no_pool_limit')
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        non_pooled_task_slot_count_reached_at_least_once = False
+
+        running_tis_total = 0
+
+        # if no pool is specified, the number of tasks running in
+        # parallel per backfill should be less than
+        # non_pooled_backfill_task_slot_count at any point of time.
+        for running_tis in executor.history:
+            self.assertLessEqual(len(running_tis), non_pooled_backfill_task_slot_count)
+            running_tis_total += len(running_tis)
+            if len(running_tis) == non_pooled_backfill_task_slot_count:
+                non_pooled_task_slot_count_reached_at_least_once = True
+
+        self.assertEquals(8, running_tis_total)
+        self.assertTrue(non_pooled_task_slot_count_reached_at_least_once)
+
+    def test_backfill_pool_not_found(self):
+        dag = self._get_dummy_dag(
+            dag_id='test_backfill_pool_not_found',
+            pool='king_pool',
+        )
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        try:
+            job.run()
+        except AirflowException:
+            return
+
+        self.fail()
+
+    def test_backfill_respect_pool_limit(self):
+        session = settings.Session()
+
+        slots = 2
+        pool = Pool(
+            pool='pool_with_two_slots',
+            slots=slots,
+        )
+        session.add(pool)
+        session.commit()
+
+        dag = self._get_dummy_dag(
+            dag_id='test_backfill_respect_pool_limit',
+            pool=pool.pool,
+        )
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        pool_was_full_at_least_once = False
+        running_tis_total = 0
+
+        for running_tis in executor.history:
+            self.assertLessEqual(len(running_tis), slots)
+            running_tis_total += len(running_tis)
+            if len(running_tis) == slots:
+                pool_was_full_at_least_once = True
+
+        self.assertEquals(8, running_tis_total)
+        self.assertTrue(pool_was_full_at_least_once)
 
     def test_backfill_run_rescheduled(self):
         dag = DAG(
@@ -2424,6 +2536,26 @@ class SchedulerJobTest(unittest.TestCase):
             session.commit()
         dr_state = dr.update_state()
         self.assertEqual(dr_state, State.RUNNING)
+
+    def test_dagrun_root_after_dagrun_unfinished(self):
+        """
+        DagRuns with one successful and one future root task -> SUCCESS
+
+        Noted: the DagRun state could be still in running state during CI.
+        """
+        dag_id = 'test_dagrun_states_root_future'
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+        scheduler = SchedulerJob(dag_id, num_runs=2)
+        # we can't use dag.run or evaluate_dagrun because it uses BackfillJob
+        # instead of SchedulerJob and BackfillJobs are allowed to not respect start dates
+        scheduler.run()
+
+        first_run = DagRun.find(dag_id=dag_id, execution_date=DEFAULT_DATE)[0]
+        ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
+
+        self.assertEqual(ti_ids, [('current', State.SUCCESS)])
+        self.assertIn(first_run.state, [State.SUCCESS, State.RUNNING])
 
     def test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date(self):
         """

@@ -18,9 +18,13 @@
 Security
 ========
 
-By default, all gates are opened. An easy way to restrict access
-to the web application is to do it at the network level, or by using
-SSH tunnels.
+By default, Airflow requires users to specify a password prior to login. You can use the
+following CLI commands to create an account:
+
+.. code-block:: bash
+
+    # create an admin user
+    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
@@ -103,6 +107,10 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     # Set search_scope to one of them:  BASE, LEVEL , SUBTREE
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
     search_scope = LEVEL
+
+    # This option tells ldap3 to ignore schemas that are considered malformed. This sometimes comes up
+    # when using hosted ldap services.
+    ignore_malformed_schema = False
 
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
@@ -233,7 +241,7 @@ To use kerberos authentication, you must install Airflow with the `kerberos` ext
 
 .. code-block:: bash
 
-   pip install apache-airflow[kerberos]
+   pip install 'apache-airflow[kerberos]'
 
 OAuth Authentication
 --------------------
@@ -266,7 +274,7 @@ To use GHE authentication, you must install Airflow with the `github_enterprise`
 
 .. code-block:: bash
 
-   pip install apache-airflow[github_enterprise]
+   pip install 'apache-airflow[github_enterprise]'
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -314,7 +322,7 @@ To use Google authentication, you must install Airflow with the `google_auth` ex
 
 .. code-block:: bash
 
-   pip install apache-airflow[google_auth]
+   pip install 'apache-airflow[google_auth]'
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -50,7 +50,7 @@ class BigQueryTableSensor(BaseSensorOperator):
                  project_id,
                  dataset_id,
                  table_id,
-                 bigquery_conn_id='bigquery_default_conn',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args, **kwargs):
 

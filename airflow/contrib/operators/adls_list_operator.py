@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
+
 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -46,7 +48,7 @@ class AzureDataLakeStorageListOperator(BaseOperator):
                 azure_data_lake_conn_id='azure_data_lake_default'
             )
     """
-    template_fields = ('path',)
+    template_fields = ('path',)  # type: Iterable[str]
     ui_color = '#901dd2'
 
     @apply_defaults
