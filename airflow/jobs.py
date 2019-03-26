@@ -293,7 +293,7 @@ class BaseJob(Base, LoggingMixin):
                                              self.max_tis_per_query)
 
         task_instance_str = '\n\t'.join(
-            ["{}".format(x) for x in reset_tis])
+            [repr(x) for x in reset_tis])
         session.commit()
 
         self.log.info(
@@ -1091,7 +1091,7 @@ class SchedulerJob(BaseJob):
 
         # Put one task instance on each line
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in task_instances_to_examine])
+            [repr(x) for x in task_instances_to_examine])
         self.log.info(
             "%s tasks up for execution:\n\t%s", len(task_instances_to_examine),
             task_instance_str
@@ -1209,7 +1209,7 @@ class SchedulerJob(BaseJob):
                         num_starving_tasks)
 
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in executable_tis])
+            [repr(x) for x in executable_tis])
         self.log.info(
             "Setting the following tasks to queued state:\n\t%s", task_instance_str)
         # so these dont expire on commit
@@ -1282,7 +1282,7 @@ class SchedulerJob(BaseJob):
                                  tis_to_set_to_queued]
 
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in tis_to_set_to_queued])
+            [repr(x) for x in tis_to_set_to_queued])
 
         session.commit()
         self.log.info("Setting the following %s tasks to queued state:\n\t%s",
@@ -1403,11 +1403,10 @@ class SchedulerJob(BaseJob):
                 task_instance.state = State.SCHEDULED
 
             task_instance_str = "\n\t".join(
-                ["{}".format(x) for x in tis_to_set_to_scheduled])
+                [repr(x) for x in tis_to_set_to_scheduled])
 
             session.commit()
-            self.log.info("Set the following tasks to scheduled state:\n\t{}"
-                          .format(task_instance_str))
+            self.log.info("Set the following tasks to scheduled state:\n\t%s", task_instance_str)
 
     def _process_dags(self, dagbag, dags, tis_out):
         """
