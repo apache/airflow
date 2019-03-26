@@ -37,6 +37,7 @@ class DepContext(object):
 
     For example there could be a SomeRunContext that subclasses this class which has
     dependencies for:
+
     - Making sure there are slots available on the infrastructure to run the task instance
     - A task-instance's task-specific dependencies are met (e.g. the previous task
       instance completed successfully)

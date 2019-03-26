@@ -52,7 +52,6 @@ class PythonSensor(BaseSensorOperator):
     """
 
     template_fields = ('templates_dict',)
-    template_ext = tuple()
 
     @apply_defaults
     def __init__(
@@ -76,6 +75,6 @@ class PythonSensor(BaseSensorOperator):
             context['templates_dict'] = self.templates_dict
             self.op_kwargs = context
 
-        self.log.info("Poking callable: " + str(self.python_callable))
+        self.log.info("Poking callable: %s", str(self.python_callable))
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
         return bool(return_value)

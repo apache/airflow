@@ -64,10 +64,19 @@ works.
     run_this.set_downstream(run_this_last)
 
 
-Tasks take the parameters `inlets` and `outlets`. Inlets can be manually defined by a list of dataset `{"datasets":
-[dataset1, dataset2]}` or can be configured to look for outlets from upstream tasks `{"task_ids": ["task_id1", "task_id2"]}`
-or can be configured to pick up outlets from direct upstream tasks `{"auto": True}` or a combination of them. Outlets 
-are defined as list of dataset `{"datasets": [dataset1, dataset2]}`. Any fields for the dataset are templated with 
+Tasks take the parameters `inlets` and `outlets`.
+
+Inlets can be manually defined by the following options:
+
+- by a list of dataset ``{"datasets": [dataset1, dataset2]}``
+
+- can be configured to look for outlets from upstream tasks ``{"task_ids": ["task_id1", "task_id2"]}``
+
+- can be configured to pick up outlets from direct upstream tasks ``{"auto": True}``
+
+- a combination of them
+
+Outlets are defined as list of dataset ``{"datasets": [dataset1, dataset2]}``. Any fields for the dataset are templated with
 the context when the task is being executed. 
 
 .. note:: Operators can add inlets and outlets automatically if the operator supports it.
@@ -85,7 +94,7 @@ Apache Atlas
 ------------
 
 Airflow can send its lineage metadata to Apache Atlas. You need to enable the `atlas` backend and configure it 
-properly, e.g. in your `airflow.cfg`:
+properly, e.g. in your ``airflow.cfg``:
 
 .. code:: python
 

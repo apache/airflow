@@ -18,9 +18,13 @@
 Security
 ========
 
-By default, all gates are opened. An easy way to restrict access
-to the web application is to do it at the network level, or by using
-SSH tunnels.
+By default, Airflow requires users to specify a password prior to login. You can use the
+following CLI commands to create an account:
+
+.. code-block:: bash
+
+    # create an admin user
+    airflow users -c --username admin --firstname Peter --lastname Parker --role Admin --email spiderman@superhero.org
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
@@ -104,6 +108,10 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
     search_scope = LEVEL
 
+    # This option tells ldap3 to ignore schemas that are considered malformed. This sometimes comes up
+    # when using hosted ldap services.
+    ignore_malformed_schema = False
+
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
 Roll your own
@@ -118,18 +126,6 @@ alter the content and make it part of the ``PYTHONPATH`` and configure it as a b
     [webserver]
     authenticate = True
     auth_backend = mypackage.auth
-
-Multi-tenancy
--------------
-
-You can filter the list of dags in webserver by owner name when authentication
-is turned on by setting ``webserver:filter_by_owner`` in your config. With this, a user will see
-only the dags which it is owner of, unless it is a superuser.
-
-.. code-block:: bash
-
-    [webserver]
-    filter_by_owner = True
 
 
 Kerberos
@@ -245,7 +241,7 @@ To use kerberos authentication, you must install Airflow with the `kerberos` ext
 
 .. code-block:: bash
 
-   pip install apache-airflow[kerberos]
+   pip install 'apache-airflow[kerberos]'
 
 OAuth Authentication
 --------------------
@@ -278,7 +274,7 @@ To use GHE authentication, you must install Airflow with the `github_enterprise`
 
 .. code-block:: bash
 
-   pip install apache-airflow[github_enterprise]
+   pip install 'apache-airflow[github_enterprise]'
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -326,7 +322,7 @@ To use Google authentication, you must install Airflow with the `google_auth` ex
 
 .. code-block:: bash
 
-   pip install apache-airflow[google_auth]
+   pip install 'apache-airflow[google_auth]'
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -502,7 +498,7 @@ on limited web views
         'LogModelView',
         'Docs',
         'Documentation',
-        'Github',
+        'GitHub',
         'About',
         'Version',
         'VersionView',

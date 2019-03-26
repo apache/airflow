@@ -30,6 +30,15 @@ function displayTime() {
   setTimeout(displayTime, 1000);
 }
 
+var el = document.createElement("span");
+
+export function escapeHtml(text) {
+  el.textContent = text;
+  return el.innerHTML;
+}
+
+window.escapeHtml = escapeHtml;
+
 $(document).ready(function () {
   displayTime();
   $('span').tooltip();

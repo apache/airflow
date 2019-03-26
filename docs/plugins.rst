@@ -86,17 +86,18 @@ looks like:
         executors = []
         # A list of references to inject into the macros namespace
         macros = []
-        # A list of objects created from a class derived
-        # from flask_admin.BaseView
-        admin_views = []
-        # A list of Blueprint object created from flask.Blueprint. For use with the flask_admin based GUI
+        # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
         flask_blueprints = []
-        # A list of menu links (flask_admin.base.MenuLink). For use with the flask_admin based GUI
-        menu_links = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_views = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_menu_items = []
+        # A function that validate the statsd stat name, apply changes to the stat name if necessary and
+        # return the transformed stat name.
+        #
+        # The function should have the following signature:
+        # def func_name(stat_name: str) -> str:
+        stat_name_handler = None
         # A callback to perform actions when airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
@@ -142,9 +143,7 @@ definitions in Airflow.
     from airflow.plugins_manager import AirflowPlugin
 
     from flask import Blueprint
-    from flask_admin import BaseView, expose
-    from flask_admin.base import MenuLink
-    from flask_appbuilder import BaseView as AppBuilderBaseView
+    from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
@@ -169,16 +168,9 @@ definitions in Airflow.
         pass
 
     # Will show up under airflow.macros.test_plugin.plugin_macro
+    # and in templates through {{ macros.test_plugin.plugin_macro }}
     def plugin_macro():
         pass
-
-    # Creating a flask admin BaseView
-    class TestView(BaseView):
-        @expose('/')
-        def test(self):
-            # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
-            return self.render("test_plugin/test.html", content="Hello galaxy!")
-    v = TestView(category="Test Plugin", name="Test View")
 
     # Creating a flask blueprint to integrate the templates and static folder
     bp = Blueprint(
@@ -187,11 +179,6 @@ definitions in Airflow.
         static_folder='static',
         static_url_path='/static/test_plugin')
 
-    ml = MenuLink(
-        category='Test Plugin',
-        name='Test Menu Link',
-        url='https://airflow.apache.org/')
-
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):
         default_view = "test"
@@ -199,6 +186,7 @@ definitions in Airflow.
         @expose("/")
         def test(self):
             return self.render("test_plugin/test.html", content="Hello galaxy!")
+
     v_appbuilder_view = TestAppBuilderBaseView()
     v_appbuilder_package = {"name": "Test View",
                             "category": "Test Plugin",
@@ -210,6 +198,10 @@ definitions in Airflow.
                         "category_icon": "fa-th",
                         "href": "https://www.google.com"}
 
+    # Validate the statsd stat name
+    def stat_name_dummy_handler(stat_name):
+        return stat_name
+
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
@@ -218,11 +210,10 @@ definitions in Airflow.
         hooks = [PluginHook]
         executors = [PluginExecutor]
         macros = [plugin_macro]
-        admin_views = [v]
         flask_blueprints = [bp]
-        menu_links = [ml]
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
+        stat_name_handler = staticmethod(stat_name_dummy_handler)
 
 
 Note on role based views
