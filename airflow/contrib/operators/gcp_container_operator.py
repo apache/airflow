@@ -277,7 +277,7 @@ class GKEPodOperator(KubernetesPodOperator):
 
             # Tell `KubernetesPodOperator` where the config file is located
             self.config_file = os.environ[KUBE_CONFIG_ENV_VAR]
-            super(GKEPodOperator, self).execute(context)
+            return super(GKEPodOperator, self).execute(context)
 
     def _set_env_from_extras(self, extras):
         """
