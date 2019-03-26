@@ -160,11 +160,12 @@ dask = [
 databricks = ['requests>=2.20.0, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
-    'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
+    'sphinx-autoapi>=0.7.1',
+    'Sphinx-PyPI-upload>=0.2.1',
     'sphinx-rtd-theme>=0.1.6',
+    'sphinx>=1.2.3',
     'sphinxcontrib-httpdomain>=1.7.0',
-    'Sphinx-PyPI-upload>=0.2.1'
 ]
 docker = ['docker~=3.0']
 druid = ['pydruid>=0.4.1']

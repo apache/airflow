@@ -37,7 +37,7 @@ class BashOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :doc:`howto/operator/bash`
+        :ref:`howto/operator:BashOperator`
 
     If BaseOperator.do_xcom_push is True, the last line written to stdout
     will also be pushed to an XCom when the bash command completes
