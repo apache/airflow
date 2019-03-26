@@ -95,7 +95,7 @@
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=request.base_url ) }}"
+        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.tree', dag_id=dag.dag_id)) }}"
           onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
           <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
           Trigger DAG
