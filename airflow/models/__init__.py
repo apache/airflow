@@ -4305,9 +4305,14 @@ class Variable(Base, LoggingMixin):
         else:
             stored_value = str(value)
 
-        session.query(cls).filter(cls.key == key).delete()
+        Variable.delete(key)
         session.add(Variable(key=key, val=stored_value))
         session.flush()
+
+    @classmethod
+    @provide_session
+    def delete(cls, key, session=None):
+        session.query(cls).filter(cls.key == key).delete()
 
     def rotate_fernet_key(self):
         fernet = get_fernet()
