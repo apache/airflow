@@ -141,9 +141,4 @@ Kubernetes Operator
                               )
 
 
-.. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
-    :noindex:
-
-
-.. autoclass:: airflow.contrib.kubernetes.secret.Secret
-    :noindex:
+See :class:`airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator`
