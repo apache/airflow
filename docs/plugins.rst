@@ -168,6 +168,7 @@ definitions in Airflow.
         pass
 
     # Will show up under airflow.macros.test_plugin.plugin_macro
+    # and in templates through {{ macros.test_plugin.plugin_macro }}
     def plugin_macro():
         pass
 
