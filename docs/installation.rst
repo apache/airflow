@@ -100,6 +100,8 @@ Here's the list of the subpackages and what they enable:
 |                     |                                                     | example, ``mysqlclient`` 1.3.12 can only be                          |
 |                     |                                                     | used with MySQL server 5.6.4 through 5.7.                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
+| oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                                           |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                    |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 | postgres            | ``pip install 'apache-airflow[postgres]'``          | PostgreSQL operators and hook, support as an                         |
