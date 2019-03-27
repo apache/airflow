@@ -66,6 +66,9 @@ class Pod:
     :type tolerations: list
     :param security_context: A dict containing the security context for the pod
     :type security_context: dict
+    :param configmaps: A list containing names of configmaps object
+        mounting env variables to the pod
+    :type configmaps: list[str]
     """
     def __init__(
             self,
@@ -91,6 +94,7 @@ class Pod:
             hostnetwork=False,
             tolerations=None,
             security_context=None,
+            configmaps=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -114,3 +118,4 @@ class Pod:
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
         self.security_context = security_context
+        self.configmaps = configmaps or []
