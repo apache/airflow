@@ -100,8 +100,10 @@ class ECSOperator(BaseOperator):
             'overrides': self.overrides,
             'startedBy': self.owner,
             'launchType': self.launch_type,
-            'platformVersion': self.platform_version,
         }
+
+        if self.launch_type == 'FARGATE':
+            run_opts['platformVersion'] = self.platform_version
         if self.group is not None:
             run_opts['group'] = self.group
         if self.placement_constraints is not None:
