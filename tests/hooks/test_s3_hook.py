@@ -211,7 +211,7 @@ class TestS3Hook(unittest.TestCase):
     @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
     def test_select_key(self, mock_get_client_type):
         mock_get_client_type.return_value.select_object_content.return_value = \
-            {'Payload': [{'Records': {'Payload': u'Contént'}}]}
+            {'Payload': [{'Records': {'Payload': b'Cont\xC3\xA9nt'}}]}
         hook = S3Hook(aws_conn_id=None)
         self.assertEqual(hook.select_key('my_key', 'mybucket'), u'Contént')
 
