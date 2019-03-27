@@ -85,6 +85,9 @@ class KubernetesPodOperator(BaseOperator):
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list tolerations
+    :param configmaps: A list of configmap names objects that we
+        want mount as env variables
+    :type configmaps: list[str]
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
@@ -120,6 +123,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.node_selectors = self.node_selectors
             pod.hostnetwork = self.hostnetwork
             pod.tolerations = self.tolerations
+            pod.configmaps = self.configmaps
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
@@ -169,6 +173,7 @@ class KubernetesPodOperator(BaseOperator):
                  is_delete_operator_pod=False,
                  hostnetwork=False,
                  tolerations=None,
+                 configmaps=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -201,3 +206,4 @@ class KubernetesPodOperator(BaseOperator):
         self.is_delete_operator_pod = is_delete_operator_pod
         self.hostnetwork = hostnetwork
         self.tolerations = tolerations or []
+        self.configmaps = configmaps or []
