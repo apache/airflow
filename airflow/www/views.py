@@ -420,8 +420,8 @@ class Airflow(BaseView):
         payload['label'] = label
 
         pd.set_option('display.max_colwidth', 100)
-        hook = db.get_hook()
         try:
+            hook = db.get_hook()
             df = hook.get_pandas_df(
                 wwwutils.limit_sql(sql, CHART_LIMIT, conn_type=db.conn_type))
             df = df.fillna(0)
@@ -2197,8 +2197,13 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
     def query(self, session=None):
         dbs = session.query(Connection).order_by(Connection.conn_id).all()
         session.expunge_all()
-        db_choices = list(
-            ((db.conn_id, db.conn_id) for db in dbs if db.get_hook()))
+        db_choices = []
+        for db in dbs:
+            try:
+                if db.get_hook():
+                    db_choices.append((db.conn_id, db.conn_id))
+            except Exception:
+                pass
         conn_id_str = request.form.get('conn_id')
         csv = request.form.get('csv') == "true"
         sql = request.form.get('sql')
@@ -2216,8 +2221,8 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
         error = False
         if conn_id_str and request.method == 'POST':
             db = [db for db in dbs if db.conn_id == conn_id_str][0]
-            hook = db.get_hook()
             try:
+                hook = db.get_hook()
                 df = hook.get_pandas_df(wwwutils.limit_sql(sql, QUERY_LIMIT, conn_type=db.conn_type))
                 # df = hook.get_pandas_df(sql)
                 has_data = len(df) > 0
