@@ -50,7 +50,7 @@ class LocalExecutorTest(unittest.TestCase):
         executor.running['fail'] = True
 
         if parallelism == 0:
-            with timeout(seconds=5):
+            with timeout(seconds=10):
                 executor.end()
         else:
             executor.end()
