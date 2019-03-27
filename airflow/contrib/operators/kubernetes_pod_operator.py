@@ -91,7 +91,7 @@ class KubernetesPodOperator(BaseOperator):
     :type tolerations: list tolerations
     :param pod_runtime_info_envs: environment variables about
                                   pod runtime information (ip, namespace, nodeName, podName)
-    :type pod_runtime_info_envs: list of PodRuntimeEnv
+    :type pod_runtime_info_envs: list[PodRuntimeEnv]
     """
     template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
