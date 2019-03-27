@@ -183,6 +183,19 @@ def configure_orm(disable_connection_pool=False):
     # For Python2 we get back a newstr and need a str
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
+    # Sane timeouts for connections and statements
+    try:
+        connect_timeout_seconds = conf.getint('core', 'SQL_ALCHEMY_CONNECT_TIMEOUT_SECONDS')
+    except conf.AirflowConfigException:
+        connect_timeout_seconds = 30
+    engine_args['connect_timeout'] = connect_timeout_seconds
+
+    try:
+        statement_timeout_seconds = conf.getint('core', 'SQL_ALCHEMY_STATEMENT_TIMEOUT_SECONDS')
+    except conf.AirflowConfigException:
+        statement_timeout_seconds = 30
+    engine_args['statement_timeout'] = statement_timeout_seconds
+
     engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
     reconnect_timeout = conf.getint('core', 'SQL_ALCHEMY_RECONNECT_TIMEOUT')
     setup_event_handlers(engine, reconnect_timeout)

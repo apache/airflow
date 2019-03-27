@@ -26,7 +26,9 @@ from functools import wraps
 
 import os
 import contextlib
+import time
 
+from airflow import configuration as conf
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -65,12 +67,29 @@ def provide_session(func):
             func_params.index(arg_session) < len(args)
         session_in_kwargs = arg_session in kwargs
 
-        if session_in_kwargs or session_in_args:
-            return func(*args, **kwargs)
-        else:
-            with create_session() as session:
-                kwargs[arg_session] = session
-                return func(*args, **kwargs)
+        try:
+            max_tries = conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRIES')
+        except conf.AirflowConfigException:
+            max_tries = 10
+
+        try:
+            max_retry_time_seconds = conf.getint('core', 'SQL_ALCHEMY_STATEMENT_MAX_RETRY_SECONDS')
+        except conf.AirflowConfigException:
+            max_retry_time_seconds = 30
+
+        try_number = 1
+        while try_number <= max_tries:
+            try:
+                if session_in_kwargs or session_in_args:
+                    return func(*args, **kwargs)
+                else:
+                    with create_session() as session:
+                        kwargs[arg_session] = session
+                        return func(*args, **kwargs)
+            except Exception as e:
+                log.warn(f'Try {try_number}/{max_tries} failed to perform db action.', e)
+                time.sleep(min(float(max_retry_time_seconds), .01 * (1 << try_number)))
+        raise Exception(f'Failed to perform db action after {max_tries} attempts.')
 
     return wrapper
 
