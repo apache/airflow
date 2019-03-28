@@ -240,7 +240,7 @@ devel = [
     'click==6.7',
     'freezegun',
     'jira',
-    'mock',
+    'mock;python_version<"3.3"',
     'mongomock',
     'moto==1.3.5',
     'nose',

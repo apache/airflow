@@ -16,10 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+try:
+    from unittest import mock  # noqa: F401
+except ImportError:
+    import mock  # type: ignore  # noqa: F401
 
-# flake8: noqa
-
-from __future__ import absolute_import
-
-from .api import *  # type: ignore
-from .core import *  # type: ignore
+patch = mock.patch
+Mock = mock.Mock
+MagicMock = mock.MagicMock
+PropertyMock = mock.PropertyMock

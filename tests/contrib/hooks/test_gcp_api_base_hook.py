@@ -34,18 +34,12 @@ import google.auth
 from google.auth.exceptions import GoogleAuthError
 
 from airflow.hooks.base_hook import BaseHook
+from tests.compat import mock
 
 try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 
 default_creds_available = True

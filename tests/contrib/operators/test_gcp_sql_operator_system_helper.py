@@ -33,15 +33,6 @@ from tests.contrib.utils.base_gcp_system_test_case import RetrieveVariables
 from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_CLOUDSQL_KEY
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
 retrieve_variables = RetrieveVariables()
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')

@@ -31,14 +31,7 @@ from airflow.contrib.operators.bigquery_operator import \
     BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator, \
     BigQueryOperator
 from airflow.settings import Session
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'

@@ -18,8 +18,6 @@
 # under the License.
 
 import unittest
-import mock
-from mock import patch
 
 from airflow import configuration
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
@@ -29,6 +27,7 @@ from cassandra.policies import (
 )
 from airflow.models.connection import Connection
 from airflow.utils import db
+from tests.compat import mock, patch
 
 
 class CassandraHookTest(unittest.TestCase):
@@ -65,7 +64,7 @@ class CassandraHookTest(unittest.TestCase):
             mock_connect.return_value = 'session'
             hook = CassandraHook(cassandra_conn_id='cassandra_test')
             hook.get_conn()
-            mock_getaddrinfo.assert_called()
+            assert mock_getaddrinfo.called
             mock_connect.assert_called_once_with('test_keyspace')
 
             cluster = hook.get_cluster()
