@@ -39,14 +39,11 @@ class TestSimplePodRequestFactory(unittest.TestCase):
             name='myapp-pod',
             cmds=['sh', '-c', 'echo Hello Kubernetes!'],
             labels={'app': 'myapp'},
-            env_from_configmap_ref='env_from_configmap',
-            env_from_secret_ref='env_from_secret_a,env_from_secret_b',
-            image_pull_secrets='pull_secret_a,pull_secret_b'
+            image_pull_secrets='pull_secret_a,pull_secret_b',
+            configmaps=['configmap_a', 'configmap_b'],
         )
         self.maxDiff = None
-
-    def test_simple_pod_request_factory_create(self):
-        expected_result = {
+        self.expected_result = {
             'apiVersion': 'v1',
             'kind': 'Pod',
             'metadata': {
@@ -71,15 +68,11 @@ class TestSimplePodRequestFactory(unittest.TestCase):
                     }],
                     'envFrom': [{
                         'configMapRef': {
-                            'name': 'env_from_configmap'
+                            'name': 'configmap_a'
                         }
                     }, {
-                        'secretRef': {
-                            'name': 'env_from_secret_a'
-                        }
-                    }, {
-                        'secretRef': {
-                            'name': 'env_from_secret_b'
+                        'configMapRef': {
+                            'name': 'configmap_b'
                         }
                     }]
                 }],
@@ -93,62 +86,29 @@ class TestSimplePodRequestFactory(unittest.TestCase):
                 'affinity': {}
             }
         }
+
+    def test_simple_pod_request_factory_create(self):
         result = self.simple_pod_request_factory.create(self.pod)
-        self.assertDictEqual(result, expected_result)
+        self.assertDictEqual(result, self.expected_result)
 
     def test_xcom_pod_request_factory_create(self):
         result = self.xcom_pod_request_factory.create(self.pod)
-        expected_result = {
-            'apiVersion': 'v1',
-            'kind': 'Pod',
-            'metadata': {
-                'name': 'myapp-pod',
-                'labels': {'app': 'myapp'},
-                'annotations': {}
-            }, 'spec': {
-                'volumes': [{'name': 'xcom', 'emptyDir': {}}],
-                'containers': [{
-                    'name': 'base',
-                    'image': 'busybox',
-                    'command': [
-                        'sh', '-c', 'echo Hello Kubernetes!'
-                    ],
-                    'volumeMounts': [{
-                        'name': 'xcom',
-                        'mountPath': '/airflow/xcom'
-                    }],
-                    'imagePullPolicy': 'IfNotPresent',
-                    'args': [],
-                    'env': [
-                        {'name': 'ENVIRONMENT', 'value': 'prod'},
-                        {'name': 'LOG_LEVEL', 'value': 'warning'}
-                    ], 'envFrom': [{
-                        'configMapRef': {
-                            'name': 'env_from_configmap'
-                        }
-                    }, {
-                        'secretRef': {
-                            'name': 'env_from_secret_a'
-                        }
-                    }, {
-                        'secretRef': {
-                            'name': 'env_from_secret_b'
-                        }
-                    }]
-                }, {
-                    'name': 'airflow-xcom-sidecar',
-                    'image': 'python:3.5-alpine',
-                    'command': ['python', '-c', ANY],
-                    'volumeMounts': [{
-                        'name': 'xcom', 'mountPath': '/airflow/xcom'
-                    }]
-                }],
-                'restartPolicy': 'Never',
-                'nodeSelector': {},
-                'imagePullSecrets': [
-                    {'name': 'pull_secret_a'},
-                    {'name': 'pull_secret_b'}],
-                'affinity': {}
-            }
+        container_two = {
+            'name': 'airflow-xcom-sidecar',
+            'image': 'python:3.5-alpine',
+            'command': ['python', '-c', ANY],
+            'volumeMounts': [{
+                'name': 'xcom', 'mountPath': '/airflow/xcom'
+                }]
         }
+        volume_mount = [{
+            'name': 'xcom',
+            'mountPath': '/airflow/xcom'
+        }]
+        expected_result = self.expected_result.copy()
+        expected_result['spec']['containers'].append(container_two)
+        expected_result['spec']['containers'][0]['volumeMounts'] = volume_mount
+        expected_result['spec']['volumes'] = [
+            {'name': 'xcom', 'emptyDir': {}}
+        ]
         self.assertDictEqual(result, expected_result)

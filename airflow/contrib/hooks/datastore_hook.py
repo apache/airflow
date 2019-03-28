@@ -33,7 +33,7 @@ class DatastoreHook(GoogleCloudBaseHook):
     """
 
     def __init__(self,
-                 datastore_conn_id='google_cloud_datastore_default',
+                 datastore_conn_id='google_cloud_default',
                  delegate_to=None):
         super(DatastoreHook, self).__init__(datastore_conn_id, delegate_to)
         self.connection = self.get_conn()

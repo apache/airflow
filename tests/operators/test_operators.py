@@ -391,7 +391,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive',
             recreate=True,
@@ -406,7 +406,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive_part',
             partition={'ds': DEFAULT_DATE_DS},
@@ -423,7 +423,7 @@ class TransferTests(unittest.TestCase):
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
             task_id='test_m2h',
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             sql=sql,
             hive_table='test_mysql_to_hive',
             recreate=True,
@@ -458,7 +458,7 @@ class TransferTests(unittest.TestCase):
             from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
             t = MySqlToHiveTransfer(
                 task_id='test_m2h',
-                hive_cli_conn_id='beeline_default',
+                hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
                 hive_table='test_mysql_to_hive',
                 dag=self.dag)
@@ -525,7 +525,7 @@ class TransferTests(unittest.TestCase):
             from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
             t = MySqlToHiveTransfer(
                 task_id='test_m2h',
-                hive_cli_conn_id='beeline_default',
+                hive_cli_conn_id='hive_cli_default',
                 sql="SELECT * FROM {}".format(mysql_table),
                 hive_table=hive_table,
                 recreate=True,

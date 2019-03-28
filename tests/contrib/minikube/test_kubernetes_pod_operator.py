@@ -19,6 +19,7 @@ import unittest
 import os
 import shutil
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.contrib.kubernetes.secret import Secret
 from airflow import AirflowException
 from kubernetes.client.rest import ApiException
 from subprocess import check_call
@@ -325,6 +326,50 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             do_xcom_push=True
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
+
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_envs_from_configmaps(self, client_mock, launcher_mock):
+        # GIVEN
+        from airflow.utils.state import State
+        configmaps = ['test-configmap']
+        # WHEN
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            configmaps=configmaps
+        )
+        # THEN
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        self.assertEqual(launcher_mock.call_args[0][0].configmaps, configmaps)
+
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_envs_from_secrets(self, client_mock, launcher_mock):
+        # GIVEN
+        from airflow.utils.state import State
+        secrets = [Secret('env', None, "secret_name")]
+        # WHEN
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            secrets=secrets,
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+        )
+        # THEN
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        self.assertEqual(launcher_mock.call_args[0][0].secrets, secrets)
 
 
 if __name__ == '__main__':

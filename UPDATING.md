@@ -24,10 +24,21 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
-### Deprecation chain function
+#### Unify default conn_id for Google Cloud Platform
+
+Previously not all hooks and operators related to Google Cloud Platform use
+``google_cloud_default`` as a default conn_id. There is currently one default
+variant. Values like ``google_cloud_storage_default``, ``bigquery_default``,
+``google_cloud_datastore_default`` have been deprecated. The configuration of
+existing relevant connections in the database have been preserved. To use those
+deprecated GCP conn_id, you need to explicitly pass their conn_id into
+operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_id
+by default.
+
+### The chain function is removed
 
 Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
-The `airflow.utlis.helpers.chain` function will be deprecated.
+The `airflow.utlis.helpers.chain` function is removed.
 
 ### Viewer won't have edit permissions on DAG view.
 
@@ -38,6 +49,68 @@ If you are using the Redis Sensor or Hook you may have to update your code. See
 MSETNX, ZADD, and ZINCRBY all were, but read the full doc).
 
 [redis-py porting instructions]: https://github.com/andymccurdy/redis-py/tree/3.2.0#upgrading-from-redis-py-2x-to-30
+
+### Change of two methods signatures in `GCPTransferServiceHook`
+
+The signature of the `create_transfer_job` method in `GCPTransferServiceHook`
+class has changed. The change does not change the behavior of the method.
+
+Old signature:
+```python
+def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
+```
+New signature:
+```python
+def create_transfer_job(self, body):
+```
+
+It is necessary to rewrite calls to method. The new call looks like this:
+```python
+body = {
+  'status': 'ENABLED',
+  'projectId': project_id,
+  'description': description,
+  'transferSpec': transfer_spec,
+  'schedule': schedule,
+}
+gct_hook.create_transfer_job(body)
+```
+The change results from the unification of all hooks and adjust to
+[the official recommendations](https://lists.apache.org/thread.html/e8534d82be611ae7bcb21ba371546a4278aad117d5e50361fd8f14fe@%3Cdev.airflow.apache.org%3E)
+for the Google Cloud Platform.
+
+The signature of `wait_for_transfer_job` method in `GCPTransferServiceHook` has changed.
+
+Old signature:
+```python
+def wait_for_transfer_job(self, job):
+```
+New signature:
+```python
+def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS, )):
+```
+
+The behavior of `wait_for_transfer_job` has changed:
+
+Old behavior:
+
+`wait_for_transfer_job` would wait for the SUCCESS status in specified jobs operations.
+
+New behavior:
+
+You can now specify an array of expected statuses. `wait_for_transfer_job` now waits for any of them.
+
+The default value of `expected_statuses` is SUCCESS so that change is backwards compatible.
+
+### Moved two classes to different modules
+
+The class `GoogleCloudStorageToGoogleCloudStorageTransferOperator` has been moved from
+`airflow.contrib.operators.gcs_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+the class `S3ToGoogleCloudStorageTransferOperator` has been moved from  
+`airflow.contrib.operators.s3_to_gcs_transfer_operator` to `airflow.contrib.operators.gcp_transfer_operator`
+
+The change was made to keep all the operators related to GCS Transfer Services in one file.
 
 ### New `dag_discovery_safe_mode` config option
 
@@ -67,15 +140,15 @@ has changed to follow style.
 
 If you want to install integration for Microsoft Azure, then instead of
 ```
-pip install apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]
+pip install 'apache-airflow[azure_blob_storage,azure_data_lake,azure_cosmos,azure_container_instances]'
 ```
-you should execute `pip install apache-airflow[azure]`
+you should execute `pip install 'apache-airflow[azure]'`
 
 If you want to install integration for Amazon Web Services, then instead of
-`pip install apache-airflow[s3,emr]`, you should execute `pip install apache-airflow[aws]`
+`pip install 'apache-airflow[s3,emr]'`, you should execute `pip install 'apache-airflow[aws]'`
 
 If you want to install integration for Google Cloud Platform, then instead of
-`pip install apache-airflow[gcp_api]`, you should execute `pip install apache-airflow[gcp]`.
+`pip install 'apache-airflow[gcp_api]'`, you should execute `pip install 'apache-airflow[gcp]'`.
 The old way will work until the release of Airflow 2.1.
 
 ### Changes in Google Cloud Platform related operators
@@ -219,6 +292,19 @@ if foo is None:
 
 This changes the behaviour if you previously explicitly provided `None` as a default value. If your code expects a `KeyError` to be thrown, then don't pass the `default_var` argument. 
 
+### Removal of `airflow_home` config setting
+
+There were previously two ways of specifying the Airflow "home" directory
+(`~/airflow` by default): the `AIRFLOW_HOME` environment variable, and the
+`airflow_home` config setting in the `[core]` section.
+
+If they had two different values different parts of the code base would end up
+with different values. The config setting has been deprecated, and you should
+remove the value from the config file and set `AIRFLOW_HOME` environment
+variable if you need to use a non default value for this.
+
+(Since this setting is used to calculate what config file to load, it is not
+possible to keep just the config option)
 
 ## Airflow 1.10.2
 

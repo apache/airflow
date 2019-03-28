@@ -37,14 +37,19 @@ try:
     from airflow.contrib.executors.kubernetes_executor import KubernetesExecutorConfig
     from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.exceptions import AirflowConfigException
+    from airflow.contrib.kubernetes.secret import Secret
 except ImportError:
     AirflowKubernetesScheduler = None
 
 
 class TestAirflowKubernetesScheduler(unittest.TestCase):
     @staticmethod
-    def _gen_random_string(str_len):
-        return ''.join([random.choice(string.printable) for _ in range(str_len)])
+    def _gen_random_string(seed, str_len):
+        char_list = []
+        for char_seed in range(str_len):
+            random.seed(str(seed) * char_seed)
+            char_list.append(random.choice(string.printable))
+        return ''.join(char_list)
 
     def _cases(self):
         cases = [
@@ -56,26 +61,50 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         ]
 
         cases.extend([
-            (self._gen_random_string(200), self._gen_random_string(200))
-            for _ in range(100)
+            (self._gen_random_string(seed, 200), self._gen_random_string(seed, 200))
+            for seed in range(100)
         ])
 
         return cases
 
     @staticmethod
-    def _is_valid_name(name):
+    def _is_valid_pod_id(name):
         regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
         return (
             len(name) <= 253 and
             all(ch.lower() == ch for ch in name) and
             re.match(regex, name))
 
+    @staticmethod
+    def _is_safe_label_value(value):
+        regex = r'^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$'
+        return (
+            len(value) <= 63 and
+            re.match(regex, value))
+
     @unittest.skipIf(AirflowKubernetesScheduler is None,
                      'kubernetes python package is not installed')
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
             pod_name = AirflowKubernetesScheduler._create_pod_id(dag_id, task_id)
-            self.assertTrue(self._is_valid_name(pod_name))
+            self.assertTrue(self._is_valid_pod_id(pod_name))
+
+    def test_make_safe_label_value(self):
+        for dag_id, task_id in self._cases():
+            safe_dag_id = AirflowKubernetesScheduler._make_safe_label_value(dag_id)
+            self.assertTrue(self._is_safe_label_value(safe_dag_id))
+            safe_task_id = AirflowKubernetesScheduler._make_safe_label_value(task_id)
+            self.assertTrue(self._is_safe_label_value(safe_task_id))
+            id = "my_dag_id"
+            self.assertEqual(
+                id,
+                AirflowKubernetesScheduler._make_safe_label_value(id)
+            )
+            id = "my_dag_id_" + "a" * 64
+            self.assertEqual(
+                "my_dag_id_" + "a" * 43 + "-0ce114c45",
+                AirflowKubernetesScheduler._make_safe_label_value(id)
+            )
 
     @unittest.skipIf(AirflowKubernetesScheduler is None,
                      "kubernetes python package is not installed")
@@ -561,6 +590,43 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         worker_config = WorkerConfiguration(self.kube_config)
         env = worker_config._get_environment()
         self.assertEqual(env[core_executor], 'LocalExecutor')
+
+    def test_get_secrets(self):
+        # Test when secretRef is None and kube_secrets is not empty
+        self.kube_config.kube_config.kube_secrets = {
+            'POSTGRES_PASSWORD': 'airflow-secret=postgres_credentials',
+            'AWS_SECRET_KEY': 'airflow-secret=aws_secret_key'
+        }
+        self.kube_config.env_from_secret_ref = None
+        worker_config = WorkerConfiguration(self.kube_config)
+        secrets = worker_config._get_secrets()
+        self.assertListEqual([
+            Secret('env', 'POSTGRES_PASSWORD', 'airflow-secret', 'postgres_credentials'),
+            Secret('env', 'AWS_SECRET_KEY', 'airflow-secret', 'aws_secret_key')
+        ], secrets)
+
+        # Test when secret is not empty and kube_secrets is empty dict
+        self.kube_config.kube_config.kube_secrets = {}
+        self.kube_config.env_from_secret_ref = 'secret_a,secret_b'
+        worker_config = WorkerConfiguration(self.kube_config)
+        secrets = worker_config._get_secrets()
+        self.assertListEqual([
+            Secret('env', None, 'secret_a'),
+            Secret('env', None, 'secret_b')
+        ], secrets)
+
+    def test_get_configmaps(self):
+        # Test when configmap is empty
+        self.kube_config.env_from_configmap_ref = ''
+        worker_config = WorkerConfiguration(self.kube_config)
+        configmaps = worker_config._get_configmaps()
+        self.assertListEqual([], configmaps)
+
+        # test when configmap is not empty
+        self.kube_config.env_from_configmap_ref = 'configmap_a,configmap_b'
+        worker_config = WorkerConfiguration(self.kube_config)
+        configmaps = worker_config._get_configmaps()
+        self.assertListEqual(['configmap_a', 'configmap_b'], configmaps)
 
 
 class TestKubernetesExecutor(unittest.TestCase):

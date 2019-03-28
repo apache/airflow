@@ -42,11 +42,11 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import configuration as conf
 from airflow import executors, models, settings
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, NoAvailablePoolSlot, PoolNotFound
 from airflow.models import DAG, DagRun, errors
 from airflow.models.dagpickle import DagPickle
 from airflow.models.slamiss import SlaMiss
-from airflow.settings import Stats
+from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import asciiart, helpers, timezone
@@ -293,7 +293,7 @@ class BaseJob(Base, LoggingMixin):
                                              self.max_tis_per_query)
 
         task_instance_str = '\n\t'.join(
-            ["{}".format(x) for x in reset_tis])
+            [repr(x) for x in reset_tis])
         session.commit()
 
         self.log.info(
@@ -951,10 +951,6 @@ class SchedulerJob(BaseJob):
                 # fixme: ti.task is transient but needs to be set
                 ti.task = task
 
-                # future: remove adhoc
-                if task.adhoc:
-                    continue
-
                 if ti.are_dependencies_met(
                         dep_context=DepContext(flag_upstream_failed=True),
                         session=session):
@@ -1095,7 +1091,7 @@ class SchedulerJob(BaseJob):
 
         # Put one task instance on each line
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in task_instances_to_examine])
+            [repr(x) for x in task_instances_to_examine])
         self.log.info(
             "%s tasks up for execution:\n\t%s", len(task_instances_to_examine),
             task_instance_str
@@ -1213,7 +1209,7 @@ class SchedulerJob(BaseJob):
                         num_starving_tasks)
 
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in executable_tis])
+            [repr(x) for x in executable_tis])
         self.log.info(
             "Setting the following tasks to queued state:\n\t%s", task_instance_str)
         # so these dont expire on commit
@@ -1286,7 +1282,7 @@ class SchedulerJob(BaseJob):
                                  tis_to_set_to_queued]
 
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in tis_to_set_to_queued])
+            [repr(x) for x in tis_to_set_to_queued])
 
         session.commit()
         self.log.info("Setting the following %s tasks to queued state:\n\t%s",
@@ -1407,11 +1403,10 @@ class SchedulerJob(BaseJob):
                 task_instance.state = State.SCHEDULED
 
             task_instance_str = "\n\t".join(
-                ["{}".format(x) for x in tis_to_set_to_scheduled])
+                [repr(x) for x in tis_to_set_to_scheduled])
 
             session.commit()
-            self.log.info("Set the following tasks to scheduled state:\n\t{}"
-                          .format(task_instance_str))
+            self.log.info("Set the following tasks to scheduled state:\n\t%s", task_instance_str)
 
     def _process_dags(self, dagbag, dags, tis_out):
         """
@@ -1905,8 +1900,8 @@ class BackfillJob(BaseJob):
         :type ignore_first_depends_on_past: bool
         :param ignore_task_deps: whether to ignore the task dependency
         :type ignore_task_deps: bool
-        :param pool:
-        :type pool: list
+        :param pool: pool to backfill
+        :type pool: str
         :param delay_on_limit_secs:
         :param verbose:
         :type verbose: flag to whether display verbose message to backfill console
@@ -2162,9 +2157,6 @@ class BackfillJob(BaseJob):
             # waiting for their upstream to finish
             @provide_session
             def _per_task_process(task, key, ti, session=None):
-                if task.task_id != ti.task_id:
-                    return
-
                 ti.refresh_from_db()
 
                 task = self.dag.get_task(ti.task_id)
@@ -2300,9 +2292,35 @@ class BackfillJob(BaseJob):
                 self.log.debug('Adding %s to not_ready', ti)
                 ti_status.not_ready.add(key)
 
-            for task in self.dag.topological_sort():
-                for key, ti in list(ti_status.to_run.items()):
-                    _per_task_process(task, key, ti)
+            non_pool_slots = conf.getint('core', 'non_pooled_backfill_task_slot_count')
+
+            try:
+                for task in self.dag.topological_sort():
+                    for key, ti in list(ti_status.to_run.items()):
+                        if task.task_id != ti.task_id:
+                            continue
+                        if task.pool:
+                            pool = session.query(models.Pool) \
+                                .filter(models.Pool.pool == task.pool) \
+                                .first()
+                            if not pool:
+                                raise PoolNotFound('Unknown pool: {}'.format(task.pool))
+
+                            open_slots = pool.open_slots(session=session)
+                            if open_slots <= 0:
+                                raise NoAvailablePoolSlot(
+                                    "Not scheduling since there are "
+                                    "%s open slots in pool %s".format(
+                                        open_slots, task.pool))
+                        else:
+                            if non_pool_slots <= 0:
+                                raise NoAvailablePoolSlot(
+                                    "Not scheduling since there are no "
+                                    "non_pooled_backfill_task_slot_count.")
+                            non_pool_slots -= 1
+                        _per_task_process(task, key, ti)
+            except NoAvailablePoolSlot as e:
+                self.log.debug(e)
 
             # execute the tasks in the queue
             self.heartbeat()
