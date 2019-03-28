@@ -1725,13 +1725,12 @@ class SchedulerJob(BaseJob):
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
-            dag = dagbag.get_dag(dag_id)
-            pickle_id = None
-            if pickle_dags:
-                pickle_id = dag.pickle(session).id
-
             # Only return DAGs that are not paused
             if dag_id not in paused_dag_ids:
+                dag = dagbag.get_dag(dag_id)
+                pickle_id = None
+                if pickle_dags:
+                    pickle_id = dag.pickle(session).id
                 simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
 
         if len(self.dag_ids) > 0:
