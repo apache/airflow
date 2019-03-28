@@ -64,7 +64,8 @@ def execute_command(command):
         )
         logging.info(output)
     except subprocess.CalledProcessError as e:
-        logging.error(e)
+        logging.exception('execute_command encountered a CalledProcessError')
+        logging.error(e.output)
         raise AirflowException('Celery command failed')
 
 
