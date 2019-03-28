@@ -238,10 +238,10 @@ class AWSAthenaHelpers(AWSAthenaHook):
                 self.s3_hook.delete_objects(dst_bucket, key)
 
         elif mode == 'error' and len(dst_keys) > 0:
-                raise AirflowException('The location of destination table is not empty.')
+            raise AirflowException('The location of destination table is not empty.')
 
         elif mode == 'ignore' and len(dst_keys) > 0:
-                self.log.info('The location of the destination table is not empty.')
+            self.log.info('The location of the destination table is not empty.')
 
         for key in src_keys:
             suffix = re.sub(src_prefix + '/', '', key)
