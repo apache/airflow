@@ -66,7 +66,6 @@ than a database structure would be. Airflow workflows are expected to look
 similar from a run to the next, this allows for clarity around
 unit of work and continuity.
 
-
 Content
 -------
 .. toctree::
@@ -92,5 +91,6 @@ Content
     lineage
     changelog
     faq
+    contributing
     macros
     _api/index
