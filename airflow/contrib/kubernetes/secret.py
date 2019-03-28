@@ -37,18 +37,23 @@ class Secret:
         :type key: str or None
         """
         self.deploy_type = deploy_type
+        self.deploy_target = deploy_target
 
-        if deploy_target:
+        if deploy_target is not None and deploy_type == 'env':
+            # if deploying to env, capitalize the deploy target
             self.deploy_target = deploy_target.upper()
 
-        if deploy_type == 'volume':
-            self.deploy_target = deploy_target
-
-        if not deploy_type == 'env' and key is None:
+        if key is not None and deploy_target is None:
             raise AirflowConfigException(
-                'If deploy_type is not `env` parameter `key` is mandatory'
+                'If `key` is set, `deploy_target` should not be None'
             )
 
         self.secret = secret
-        if key:
-            self.key = key
+        self.key = key
+
+    def __eq__(self, other):
+        return \
+            self.deploy_type == other.deploy_type and \
+            self.deploy_target == other.deploy_target and \
+            self.secret == other.secret and \
+            self.key == other.key

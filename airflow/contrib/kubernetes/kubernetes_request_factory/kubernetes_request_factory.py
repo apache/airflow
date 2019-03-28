@@ -132,7 +132,7 @@ class KubernetesRequestFactory:
     @staticmethod
     def extract_env_and_secrets(pod, req):
         envs_from_key_secrets = [
-            env for env in pod.secrets if env.deploy_type == 'env' and hasattr(env, 'key')
+            env for env in pod.secrets if env.deploy_type == 'env' and env.key is not None
         ]
 
         if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0:
@@ -206,7 +206,7 @@ class KubernetesRequestFactory:
     @staticmethod
     def _apply_env_from(pod, req):
         envs_from_secrets = [
-            env for env in pod.secrets if env.deploy_type == 'env' and not hasattr(env, 'key')
+            env for env in pod.secrets if env.deploy_type == 'env' and env.key is None
         ]
 
         if pod.configmaps or envs_from_secrets:

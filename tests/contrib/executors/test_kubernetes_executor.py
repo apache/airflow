@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -163,11 +161,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.resources = mock.patch(
             'airflow.contrib.kubernetes.worker_configuration.Resources'
         )
-        self.secret = mock.patch(
-            'airflow.contrib.kubernetes.worker_configuration.Secret'
-        )
 
-        for patcher in [self.resources, self.secret]:
+        for patcher in [self.resources]:
             self.mock_foo = patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -593,20 +588,20 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
 
     def test_get_secrets(self):
         # Test when secretRef is None and kube_secrets is not empty
-        self.kube_config.kube_config.kube_secrets = {
+        self.kube_config.kube_secrets = {
             'POSTGRES_PASSWORD': 'airflow-secret=postgres_credentials',
             'AWS_SECRET_KEY': 'airflow-secret=aws_secret_key'
         }
         self.kube_config.env_from_secret_ref = None
         worker_config = WorkerConfiguration(self.kube_config)
         secrets = worker_config._get_secrets()
-        self.assertListEqual([
+        self.assertEqual([
             Secret('env', 'POSTGRES_PASSWORD', 'airflow-secret', 'postgres_credentials'),
             Secret('env', 'AWS_SECRET_KEY', 'airflow-secret', 'aws_secret_key')
         ], secrets)
 
         # Test when secret is not empty and kube_secrets is empty dict
-        self.kube_config.kube_config.kube_secrets = {}
+        self.kube_config.kube_secrets = {}
         self.kube_config.env_from_secret_ref = 'secret_a,secret_b'
         worker_config = WorkerConfiguration(self.kube_config)
         secrets = worker_config._get_secrets()

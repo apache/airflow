@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -21,6 +19,8 @@ from airflow.contrib.kubernetes.kubernetes_request_factory.\
     pod_request_factory import SimplePodRequestFactory, \
     ExtractXcomPodRequestFactory
 from airflow.contrib.kubernetes.pod import Pod
+from airflow.contrib.kubernetes.secret import Secret
+from airflow.exceptions import AirflowConfigException
 from mock import ANY
 import unittest
 
@@ -41,6 +41,14 @@ class TestSimplePodRequestFactory(unittest.TestCase):
             labels={'app': 'myapp'},
             image_pull_secrets='pull_secret_a,pull_secret_b',
             configmaps=['configmap_a', 'configmap_b'],
+            secrets=[
+                # This should be a secretRef
+                Secret('env', None, 'secret_a'),
+                # This should be a single secret mounted in volumeMounts
+                Secret('volume', '/etc/foo', 'secret_b'),
+                # This should produce a single secret mounted in env
+                Secret('env', 'TARGET', 'secret_b', 'source_b'),
+            ]
         )
         self.maxDiff = None
         self.expected_result = {
@@ -65,8 +73,20 @@ class TestSimplePodRequestFactory(unittest.TestCase):
                     }, {
                         'name': 'LOG_LEVEL',
                         'value': 'warning'
+                    }, {
+                        'name': 'TARGET',
+                        'valueFrom': {
+                            'secretKeyRef': {
+                                'name': 'secret_b',
+                                'key': 'source_b'
+                            }
+                        }
                     }],
                     'envFrom': [{
+                        'secretRef': {
+                            'name': 'secret_a'
+                        }
+                    }, {
                         'configMapRef': {
                             'name': 'configmap_a'
                         }
@@ -74,11 +94,21 @@ class TestSimplePodRequestFactory(unittest.TestCase):
                         'configMapRef': {
                             'name': 'configmap_b'
                         }
+                    }],
+                    'volumeMounts': [{
+                        'mountPath': '/etc/foo',
+                        'name': 'secretvol0',
+                        'readOnly': True
                     }]
                 }],
                 'restartPolicy': 'Never',
                 'nodeSelector': {},
-                'volumes': [],
+                'volumes': [{
+                    'name': 'secretvol0',
+                    'secret': {
+                        'secretName': 'secret_b'
+                    }
+                }],
                 'imagePullSecrets': [
                     {'name': 'pull_secret_a'},
                     {'name': 'pull_secret_b'}
@@ -86,6 +116,10 @@ class TestSimplePodRequestFactory(unittest.TestCase):
                 'affinity': {}
             }
         }
+
+    def test_secret_throws(self):
+        with self.assertRaises(AirflowConfigException):
+            Secret('volume', None, 'secret_a', 'key')
 
     def test_simple_pod_request_factory_create(self):
         result = self.simple_pod_request_factory.create(self.pod)
@@ -97,18 +131,20 @@ class TestSimplePodRequestFactory(unittest.TestCase):
             'name': 'airflow-xcom-sidecar',
             'image': 'python:3.5-alpine',
             'command': ['python', '-c', ANY],
-            'volumeMounts': [{
-                'name': 'xcom', 'mountPath': '/airflow/xcom'
-                }]
+            'volumeMounts': [
+                {
+                    'name': 'xcom',
+                    'mountPath': '/airflow/xcom'
+                }
+            ]
         }
-        volume_mount = [{
-            'name': 'xcom',
-            'mountPath': '/airflow/xcom'
-        }]
         expected_result = self.expected_result.copy()
         expected_result['spec']['containers'].append(container_two)
-        expected_result['spec']['containers'][0]['volumeMounts'] = volume_mount
-        expected_result['spec']['volumes'] = [
-            {'name': 'xcom', 'emptyDir': {}}
-        ]
+        expected_result['spec']['containers'][0]['volumeMounts'].insert(0, {
+            'name': 'xcom',
+            'mountPath': '/airflow/xcom'
+        })
+        expected_result['spec']['volumes'].insert(0, {
+            'name': 'xcom', 'emptyDir': {}
+        })
         self.assertDictEqual(result, expected_result)
