@@ -23,7 +23,7 @@ PythonOperator
 Use the :class:`~airflow.operators.python_operator.PythonOperator` to execute
 Python callables.
 
-.. literalinclude:: ../../../airflow/example_dags/example_python_operator.py
+.. exampleinclude:: ../../../airflow/example_dags/example_python_operator.py
     :language: python
     :start-after: [START howto_operator_python]
     :end-before: [END howto_operator_python]
@@ -34,7 +34,7 @@ Passing in arguments
 Use the ``op_args`` and ``op_kwargs`` arguments to pass additional arguments
 to the Python callable.
 
-.. literalinclude:: ../../../airflow/example_dags/example_python_operator.py
+.. exampleinclude:: ../../../airflow/example_dags/example_python_operator.py
     :language: python
     :start-after: [START howto_operator_python_kwargs]
     :end-before: [END howto_operator_python_kwargs]

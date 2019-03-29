@@ -100,6 +100,8 @@ os.environ['BUILDING_AIRFLOW_DOCS'] = 'TRUE'
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
+sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -116,6 +118,7 @@ extensions = [
     'sphinxcontrib.httpdomain',
     'sphinx.ext.intersphinx',
     'autoapi.extension',
+    'exampleinclude',
 ]
 
 autodoc_default_flags = ['show-inheritance', 'members']
@@ -425,3 +428,6 @@ autoapi_keep_files = False
 # Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
 # anywhere in your documentation hierarchy.
 autoapi_root = '_api'
+
+# -- Options for examole include ------------------------------------------
+exampleinclude_sourceroot = os.path.abspath('..')
