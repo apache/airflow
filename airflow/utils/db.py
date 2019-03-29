@@ -288,6 +288,10 @@ def initdb(rbac=False):
         Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
+    merge_conn(
+        Connection(
+            conn_id='dingding_default', conn_type='http',
+            host='', password=''))
 
     # Known event types
     KET = models.KnownEventType
