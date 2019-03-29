@@ -432,6 +432,15 @@ Cloud Bigtable
 
 They also use :class:`airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook` to communicate with Google Cloud Platform.
 
+Cloud Build
+'''''''''''
+
+:class:`airflow.contrib.operators.gcp_cloud_build_operator.CloudBuildCreateBuildOperator`
+     Starts a build with the specified configuration.
+
+
+They also use :class:`airflow.contrib.hooks.gcp_cloud_build_hook.CloudBuildHook` to communicate with Google Cloud Platform.
+
 
 Compute Engine
 ''''''''''''''
