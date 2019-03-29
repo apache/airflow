@@ -500,7 +500,7 @@ class HiveMetastoreHook(BaseHook):
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
 
-        ms = self._find_vaild_server()
+        ms = self._find_valid_server()
 
         if ms is None:
             raise AirflowException("Failed to locate the valid server.")
@@ -536,7 +536,7 @@ class HiveMetastoreHook(BaseHook):
 
         return hmsclient.HMSClient(iprot=protocol)
 
-    def _find_vaild_server(self):
+    def _find_valid_server(self):
         conns = self.get_connections(self.conn_id)
         for conn in conns:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
