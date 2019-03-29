@@ -22,6 +22,7 @@ import ast
 import codecs
 import copy
 import datetime as dt
+from io import BytesIO
 import itertools
 import json
 import logging
@@ -40,7 +41,6 @@ from flask import (
     abort, jsonify, redirect, url_for, request, Markup, Response,
     current_app, render_template, make_response, send_file)
 from flask import flash
-from flask._compat import PY2
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.actions import action
 from flask_admin.babel import lazy_gettext
@@ -49,7 +49,7 @@ from flask_admin.form.fields import DateTimeField
 from flask_admin.tools import iterdecode
 from jinja2 import escape
 from jinja2.sandbox import ImmutableSandboxedEnvironment
-from past.builtins import basestring, unicode
+from past.builtins import basestring
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import or_, desc, and_, union_all
@@ -82,10 +82,6 @@ from airflow.www import utils as wwwutils
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www.validators import GreaterEqualThan
-if PY2:
-    from cStringIO import StringIO
-else:
-    from io import StringIO
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -819,17 +815,19 @@ class Airflow(BaseView):
                 ti.task = dag.get_task(ti.task_id)
                 logs, metadatas = handler.read(ti, try_number, metadata=metadata)
                 metadata = metadatas[0]
-            for i, log in enumerate(logs):
-                if PY2 and not isinstance(log, unicode):
-                    logs[i] = log.decode('utf-8')
 
             if response_format == 'json':
                 message = logs[0] if try_number is not None else logs
                 return jsonify(message=message, metadata=metadata)
 
-            file_obj = StringIO('\n'.join(logs))
+            file_obj = BytesIO(b'\n'.join(
+                log.encode('utf-8') for log in logs
+            ))
             filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
-            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            attachment_filename = render_log_filename(
+                ti=ti,
+                try_number="all" if try_number is None else try_number,
+                filename_template=filename_template)
             return send_file(file_obj, as_attachment=True,
                              attachment_filename=attachment_filename)
         except AttributeError as e:
