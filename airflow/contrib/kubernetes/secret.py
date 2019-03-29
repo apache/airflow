@@ -17,7 +17,7 @@
 from airflow.exceptions import AirflowConfigException
 
 
-class Secret:
+class Secret(object):
     """Defines Kubernetes Secret Volume"""
 
     def __init__(self, deploy_type, deploy_target, secret, key=None):
@@ -52,8 +52,17 @@ class Secret:
         self.key = key
 
     def __eq__(self, other):
-        return \
-            self.deploy_type == other.deploy_type and \
-            self.deploy_target == other.deploy_target and \
-            self.secret == other.secret and \
+        return (
+            self.deploy_type == other.deploy_type and
+            self.deploy_target == other.deploy_target and
+            self.secret == other.secret and
             self.key == other.key
+        )
+
+    def __repr__(self):
+        return 'Secret({}, {}, {}, {})'.format(
+            self.deploy_type,
+            self.deploy_target,
+            self.secret,
+            self.key
+        )

@@ -589,26 +589,29 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
     def test_get_secrets(self):
         # Test when secretRef is None and kube_secrets is not empty
         self.kube_config.kube_secrets = {
-            'POSTGRES_PASSWORD': 'airflow-secret=postgres_credentials',
-            'AWS_SECRET_KEY': 'airflow-secret=aws_secret_key'
+            'AWS_SECRET_KEY': 'airflow-secret=aws_secret_key',
+            'POSTGRES_PASSWORD': 'airflow-secret=postgres_credentials'
         }
         self.kube_config.env_from_secret_ref = None
         worker_config = WorkerConfiguration(self.kube_config)
         secrets = worker_config._get_secrets()
-        self.assertEqual([
-            Secret('env', 'POSTGRES_PASSWORD', 'airflow-secret', 'postgres_credentials'),
-            Secret('env', 'AWS_SECRET_KEY', 'airflow-secret', 'aws_secret_key')
-        ], secrets)
+        secrets.sort(key=lambda secret: secret.deploy_target)
+        expected = [
+            Secret('env', 'AWS_SECRET_KEY', 'airflow-secret', 'aws_secret_key'),
+            Secret('env', 'POSTGRES_PASSWORD', 'airflow-secret', 'postgres_credentials')
+        ]
+        self.assertListEqual(expected, secrets)
 
         # Test when secret is not empty and kube_secrets is empty dict
         self.kube_config.kube_secrets = {}
         self.kube_config.env_from_secret_ref = 'secret_a,secret_b'
         worker_config = WorkerConfiguration(self.kube_config)
         secrets = worker_config._get_secrets()
-        self.assertListEqual([
+        expected = [
             Secret('env', None, 'secret_a'),
             Secret('env', None, 'secret_b')
-        ], secrets)
+        ]
+        self.assertListEqual(expected, secrets)
 
     def test_get_configmaps(self):
         # Test when configmap is empty

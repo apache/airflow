@@ -21,11 +21,18 @@ from airflow.contrib.kubernetes.kubernetes_request_factory.\
 from airflow.contrib.kubernetes.pod import Pod
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.exceptions import AirflowConfigException
-from mock import ANY
 import unittest
 
+XCOM_CMD = """import time
+while True:
+    try:
+        time.sleep(3600)
+    except KeyboardInterrupt:
+        exit(0)
+"""
 
-class TestSimplePodRequestFactory(unittest.TestCase):
+
+class TestPodRequestFactory(unittest.TestCase):
 
     def setUp(self):
         self.simple_pod_request_factory = SimplePodRequestFactory()
@@ -51,7 +58,7 @@ class TestSimplePodRequestFactory(unittest.TestCase):
             ]
         )
         self.maxDiff = None
-        self.expected_result = {
+        self.expected = {
             'apiVersion': 'v1',
             'kind': 'Pod',
             'metadata': {
@@ -123,14 +130,16 @@ class TestSimplePodRequestFactory(unittest.TestCase):
 
     def test_simple_pod_request_factory_create(self):
         result = self.simple_pod_request_factory.create(self.pod)
-        self.assertDictEqual(result, self.expected_result)
+        # sort
+        result['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
+        self.assertEqual(result, self.expected)
 
     def test_xcom_pod_request_factory_create(self):
         result = self.xcom_pod_request_factory.create(self.pod)
         container_two = {
             'name': 'airflow-xcom-sidecar',
             'image': 'python:3.5-alpine',
-            'command': ['python', '-c', ANY],
+            'command': ['python', '-c', XCOM_CMD],
             'volumeMounts': [
                 {
                     'name': 'xcom',
@@ -138,13 +147,13 @@ class TestSimplePodRequestFactory(unittest.TestCase):
                 }
             ]
         }
-        expected_result = self.expected_result.copy()
-        expected_result['spec']['containers'].append(container_two)
-        expected_result['spec']['containers'][0]['volumeMounts'].insert(0, {
+        self.expected['spec']['containers'].append(container_two)
+        self.expected['spec']['containers'][0]['volumeMounts'].insert(0, {
             'name': 'xcom',
             'mountPath': '/airflow/xcom'
         })
-        expected_result['spec']['volumes'].insert(0, {
+        self.expected['spec']['volumes'].insert(0, {
             'name': 'xcom', 'emptyDir': {}
         })
-        self.assertDictEqual(result, expected_result)
+        result['spec']['containers'][0]['env'].sort(key=lambda x: x['name'])
+        self.assertEqual(result, self.expected)
