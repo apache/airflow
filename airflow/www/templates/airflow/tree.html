@@ -49,7 +49,7 @@
 </div>
 
 <hr/>
-<div class="legend pull-right">
+<div class="pull-right">
   <div class="legend__item" data-task-state="success">
     <span class="legend__square"></span>
     success
@@ -83,16 +83,14 @@
     no_status
   </div>
 </div>
-<div class="legend">
-    {% for op in operators %}
-      <div
-        class="legend__item"
-        data-operator-name="{{ op.__name__ }}">
-        <div class="legend__circle"></div>
-        {{ op.__name__ }}
-      </div>
-    {% endfor %}
+{% for op in operators %}
+  <div
+    class="legend__item"
+    data-operator-name="{{ op.__name__ }}">
+    <div class="legend__circle"></div>
+    {{ op.__name__ }}
   </div>
+{% endfor %}
 </div>
 <hr/>
 <div id="svg_container">
