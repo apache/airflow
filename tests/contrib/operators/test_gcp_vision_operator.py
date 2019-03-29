@@ -37,14 +37,7 @@ from airflow.contrib.operators.gcp_vision_operator import (
     CloudVisionAnnotateImageOperator,
 )
 
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 PRODUCTSET_TEST = ProductSet(display_name='Test Product Set')
 PRODUCTSET_ID_TEST = 'my-productset'
@@ -242,7 +235,7 @@ class CloudVisionProductDeleteTest(unittest.TestCase):
 
 
 class CloudVisionReferenceImageCreateTest(unittest.TestCase):
-    @mock.patch(
+    @mock.patch(  # type: ignore
         'airflow.contrib.operators.gcp_vision_operator.CloudVisionHook',
         **{'return_value.create_reference_image.return_value': {}}
     )

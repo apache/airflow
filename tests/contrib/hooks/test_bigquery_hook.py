@@ -20,6 +20,7 @@
 
 import unittest
 import warnings
+from typing import List
 
 from google.auth.exceptions import GoogleAuthError
 import mock
@@ -195,7 +196,7 @@ class TestBigQueryExternalTableSourceFormat(unittest.TestCase):
 
 # Helpers to test_cancel_queries that have mock_poll_job_complete returning false,
 # unless mock_job_cancel was called with the same job_id
-mock_canceled_jobs = []
+mock_canceled_jobs = []  # type: List
 
 
 def mock_poll_job_complete(job_id):
@@ -506,7 +507,7 @@ class TestBigQueryCursor(unittest.TestCase):
     def test_execute_with_parameters(self, mocked_rwc):
         hook.BigQueryCursor("test", "test").execute(
             "SELECT %(foo)s", {"foo": "bar"})
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
 
 class TestLabelsInRunJob(unittest.TestCase):
@@ -527,7 +528,7 @@ class TestLabelsInRunJob(unittest.TestCase):
             labels={'label1': 'test1', 'label2': 'test2'}
         )
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
 
 class TestDatasetsOperations(unittest.TestCase):
@@ -628,7 +629,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
             source_uris=[],
         )
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_with_auto_detect(self, run_with_config):
@@ -661,7 +662,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
             time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_default(self, mocked_rwc):
@@ -674,7 +675,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
         bq_hook.run_query(sql='select 1')
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_with_arg(self, mocked_rwc):
@@ -699,7 +700,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
                                'field': 'test_field', 'expirationMs': 1000}
         )
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
     def test_dollar_makes_partition(self):
         tp_out = _cleanse_time_partitioning('test.teast$20170101', {})
@@ -739,7 +740,7 @@ class TestClusteringInRunJob(unittest.TestCase):
             source_uris=[],
         )
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_load_with_arg(self, mocked_rwc):
@@ -763,7 +764,7 @@ class TestClusteringInRunJob(unittest.TestCase):
             time_partitioning={'type': 'DAY'}
         )
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_default(self, mocked_rwc):
@@ -776,7 +777,7 @@ class TestClusteringInRunJob(unittest.TestCase):
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
         bq_hook.run_query(sql='select 1')
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
     @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
     def test_run_query_with_arg(self, mocked_rwc):
@@ -799,7 +800,7 @@ class TestClusteringInRunJob(unittest.TestCase):
             time_partitioning={'type': 'DAY'}
         )
 
-        mocked_rwc.assert_called_once()
+        assert mocked_rwc.call_count == 1
 
 
 class TestBigQueryHookLegacySql(unittest.TestCase):
@@ -834,7 +835,7 @@ class TestBigQueryHookLocation(unittest.TestCase):
                                                 location=None)
             self.assertIsNone(bq_cursor.location)
             bq_cursor.run_query(sql='select 1', location='US')
-            run_with_config.assert_called_once()
+            assert run_with_config.call_count == 1
             self.assertEqual(bq_cursor.location, 'US')
 
 

@@ -18,13 +18,13 @@
 
 import unittest
 import uuid
-import mock
 import re
 import string
 import random
 from urllib3 import HTTPResponse
 from datetime import datetime
 
+from tests.compat import mock
 try:
     from kubernetes.client.rest import ApiException
     from airflow import configuration
@@ -37,7 +37,7 @@ try:
     from airflow.exceptions import AirflowConfigException
     from airflow.contrib.kubernetes.secret import Secret
 except ImportError:
-    AirflowKubernetesScheduler = None
+    AirflowKubernetesScheduler = None  # type: ignore
 
 
 class TestAirflowKubernetesScheduler(unittest.TestCase):
@@ -673,7 +673,7 @@ class TestKubernetesExecutor(unittest.TestCase):
         kubernetesExecutor.sync()
         kubernetesExecutor.sync()
 
-        mock_kube_client.create_namespaced_pod.assert_called()
+        assert mock_kube_client.create_namespaced_pod.called
         self.assertFalse(kubernetesExecutor.task_queue.empty())
 
         # Disable the ApiException
@@ -681,7 +681,7 @@ class TestKubernetesExecutor(unittest.TestCase):
 
         # Execute the task without errors should empty the queue
         kubernetesExecutor.sync()
-        mock_kube_client.create_namespaced_pod.assert_called()
+        assert mock_kube_client.create_namespaced_pod.called
         self.assertTrue(kubernetesExecutor.task_queue.empty())
 
 

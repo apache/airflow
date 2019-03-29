@@ -27,14 +27,7 @@ from parameterized import parameterized
 
 from airflow.contrib.hooks.gcp_vision_hook import CloudVisionHook
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 from airflow import AirflowException
 

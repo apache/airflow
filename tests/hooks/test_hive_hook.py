@@ -158,13 +158,13 @@ class TestHiveCliHook(unittest.TestCase):
                      delimiter=delimiter,
                      encoding=encoding)
 
-        mock_to_csv.assert_called_once()
+        assert mock_to_csv.call_count == 1
         kwargs = mock_to_csv.call_args[1]
         self.assertEqual(kwargs["header"], False)
         self.assertEqual(kwargs["index"], False)
         self.assertEqual(kwargs["sep"], delimiter)
 
-        mock_load_file.assert_called_once()
+        assert mock_load_file.call_count == 1
         kwargs = mock_load_file.call_args[1]
         self.assertEqual(kwargs["delimiter"], delimiter)
         self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
@@ -183,7 +183,7 @@ class TestHiveCliHook(unittest.TestCase):
                          create=create,
                          recreate=recreate)
 
-            mock_load_file.assert_called_once()
+            assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args[1]
             self.assertEqual(kwargs["create"], create)
             self.assertEqual(kwargs["recreate"], recreate)

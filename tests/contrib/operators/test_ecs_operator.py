@@ -27,14 +27,7 @@ from parameterized import parameterized
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.ecs_operator import ECSOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 RESPONSE_WITHOUT_FAILURES = {
     "failures": [],

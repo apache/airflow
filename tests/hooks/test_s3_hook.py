@@ -29,7 +29,7 @@ from airflow import configuration
 try:
     from airflow.hooks.S3_hook import S3Hook
 except ImportError:
-    S3Hook = None
+    S3Hook = None  # type: ignore
 
 try:
     import boto3

@@ -25,14 +25,7 @@ import airflow.contrib.hooks.gcs_hook as gcs_hook
 
 from airflow.exceptions import AirflowException
 from googleapiclient.errors import HttpError
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 GCS_STRING = 'airflow.contrib.hooks.gcs_hook.{}'

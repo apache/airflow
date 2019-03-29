@@ -69,7 +69,7 @@ from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
-from jinja2.sandbox import SecurityError
+from jinja2.exceptions import SecurityError
 from jinja2 import UndefinedError
 from pendulum import utcnow
 
@@ -89,7 +89,7 @@ try:
     import cPickle as pickle
 except ImportError:
     # Python 3
-    import pickle
+    import pickle  # type: ignore
 
 
 class OperatorSubclass(BaseOperator):

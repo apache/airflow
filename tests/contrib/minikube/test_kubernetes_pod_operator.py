@@ -23,11 +23,11 @@ from airflow.contrib.kubernetes.secret import Secret
 from airflow import AirflowException
 from kubernetes.client.rest import ApiException
 from subprocess import check_call
-import mock
 import json
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.volume_mount import VolumeMount
 from airflow.contrib.kubernetes.volume import Volume
+from tests.compat import mock
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
@@ -127,7 +127,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         run_pod_mock.side_effect = AirflowException('fake failure')
         with self.assertRaises(AirflowException):
             k.execute(None)
-        delete_pod_mock.assert_called()
+        assert delete_pod_mock.called
 
     @staticmethod
     def test_working_pod():
