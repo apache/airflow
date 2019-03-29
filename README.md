@@ -160,14 +160,14 @@ Currently **officially** using Airflow:
 1. [Change.org](https://www.change.org) [[@change](https://github.com/change), [@vijaykramesh](https://github.com/vijaykramesh)]
 1. [Chartboost](https://www.chartboost.com) [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
 1. [Checkr](https://checkr.com) [[@tongboh](https://github.com/tongboh)]
-1. [Children's Hospital of Philadelphia Division of Genomic Diagnostics](http://www.chop.edu/centers-programs/division-genomic-diagnostics) [[@genomics-geek]](https://github.com/genomics-geek/)
+1. [Children's Hospital of Philadelphia Division of Genomic Diagnostics](http://www.chop.edu/centers-programs/division-genomic-diagnostics) [[@genomics-geek](https://github.com/genomics-geek/)]
 1. [Cinimex DataLab](http://cinimex.ru) [[@kdubovikov](https://github.com/kdubovikov)]
 1. [City of San Diego](http://sandiego.gov) [[@MrMaksimize](https://github.com/mrmaksimize), [@andrell81](https://github.com/andrell81) & [@arnaudvedy](https://github.com/arnaudvedy)]
 1. [Civey](https://civey.com/) [[@WesleyBatista](https://github.com/WesleyBatista)]
-1. [Clairvoyant](https://clairvoyantsoft.com) [@shekharv](https://github.com/shekharv)
+1. [Clairvoyant](https://clairvoyantsoft.com) [[@shekharv](https://github.com/shekharv)]
 1. [Classmethod, Inc.](https://classmethod.jp/) [[@shoito](https://github.com/shoito)]
 1. [Clover Health](https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
-1. [Collectivehealth Inc.](https://www.collectivehealth.com) [@retornam](https://github.com/retornam)
+1. [Collectivehealth Inc.](https://www.collectivehealth.com) [[@retornam](https://github.com/retornam)]
 1. [Compass](https://www.compass.com) [[@wdhorton](https://github.com/wdhorton)]
 1. [ContaAzul](https://www.contaazul.com) [[@bern4rdelli](https://github.com/bern4rdelli), [@renanleme](https://github.com/renanleme) & [@sabino](https://github.com/sabino)]
 1. [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
@@ -332,7 +332,7 @@ Currently **officially** using Airflow:
 1. [Tictail](https://tictail.com/)
 1. [Tile](https://tile.com/) [[@ranjanmanish](https://github.com/ranjanmanish)]
 1. [Tinder](https://tinder.com/) [[@kbendick](https://github.com/kbendick)]
-1. [Tokopedia](https://www.tokopedia.com/) [@topedmaria](https://github.com/topedmaria)
+1. [Tokopedia](https://www.tokopedia.com/) [[@topedmaria](https://github.com/topedmaria)]
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
