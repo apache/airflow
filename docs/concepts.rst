@@ -477,7 +477,7 @@ passed, then a corresponding list of XCom values is returned.
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
-.. code:: sql
+.. code:: jinja
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
