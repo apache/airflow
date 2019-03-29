@@ -38,7 +38,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -49,7 +49,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_delete]
@@ -58,7 +58,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]
@@ -88,7 +88,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -99,7 +99,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_deploy]
@@ -108,7 +108,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_deploy_template_fields]
@@ -142,7 +142,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -153,13 +153,13 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update]
     :end-before: [END howto_operator_spanner_database_update]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update_idempotent]
@@ -168,7 +168,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_update_template_fields]
@@ -195,7 +195,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables.
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -206,7 +206,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_query]
@@ -215,7 +215,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_query_template_fields]
@@ -243,7 +243,7 @@ Arguments
 
 Some arguments in the example DAG are taken from environment variables:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :start-after: [START howto_operator_spanner_arguments]
     :end-before: [END howto_operator_spanner_arguments]
@@ -254,7 +254,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the GCP connection used. Both variants are shown:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_delete]
@@ -263,7 +263,7 @@ it will be retrieved from the GCP connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_spanner_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]
