@@ -25,11 +25,11 @@ try:
     import cx_Oracle
 except ImportError:
     cx_Oracle = None
-import mock
 import numpy
 
 from airflow.hooks.oracle_hook import OracleHook
 from airflow.models.connection import Connection
+from tests.compat import mock
 
 
 @unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')
@@ -52,7 +52,7 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.hooks.oracle_hook.cx_Oracle.connect')
     def test_get_conn_host(self, mock_connect):
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['user'], 'login')
@@ -64,7 +64,7 @@ class TestOracleHookConn(unittest.TestCase):
         dsn_sid = {'dsn': 'dsn', 'sid': 'sid'}
         self.connection.extra = json.dumps(dsn_sid)
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['dsn'],
@@ -76,7 +76,7 @@ class TestOracleHookConn(unittest.TestCase):
         dsn_service_name = {'dsn': 'dsn', 'service_name': 'service_name'}
         self.connection.extra = json.dumps(dsn_service_name)
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['dsn'], cx_Oracle.makedsn(
@@ -87,7 +87,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_encoding_without_nencoding(self, mock_connect):
         self.connection.extra = json.dumps({'encoding': 'UTF-8'})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['encoding'], 'UTF-8')
@@ -97,7 +97,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_encoding_with_nencoding(self, mock_connect):
         self.connection.extra = json.dumps({'encoding': 'UTF-8', 'nencoding': 'gb2312'})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['encoding'], 'UTF-8')
@@ -107,7 +107,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_nencoding(self, mock_connect):
         self.connection.extra = json.dumps({'nencoding': 'UTF-8'})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertNotIn('encoding', kwargs)
@@ -128,7 +128,7 @@ class TestOracleHookConn(unittest.TestCase):
             self.connection.extra = json.dumps({'mode': m})
             self.db_hook.get_conn()
             if first:
-                mock_connect.assert_called_once()
+                assert mock_connect.call_count == 1
                 first = False
             args, kwargs = mock_connect.call_args
             self.assertEqual(args, ())
@@ -138,7 +138,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_threaded(self, mock_connect):
         self.connection.extra = json.dumps({'threaded': True})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['threaded'], True)
@@ -147,7 +147,7 @@ class TestOracleHookConn(unittest.TestCase):
     def test_get_conn_events(self, mock_connect):
         self.connection.extra = json.dumps({'events': True})
         self.db_hook.get_conn()
-        mock_connect.assert_called_once()
+        assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         self.assertEqual(args, ())
         self.assertEqual(kwargs['events'], True)
@@ -164,7 +164,7 @@ class TestOracleHookConn(unittest.TestCase):
             self.connection.extra = json.dumps({'purity': p})
             self.db_hook.get_conn()
             if first:
-                mock_connect.assert_called_once()
+                assert mock_connect.call_count == 1
                 first = False
             args, kwargs = mock_connect.call_args
             self.assertEqual(args, ())
@@ -193,14 +193,14 @@ class TestOracleHook(unittest.TestCase):
         sql = 'SQL'
         self.db_hook.run(sql)
         self.cur.execute.assert_called_once_with(sql)
-        self.conn.commit.assert_called()
+        assert self.conn.commit.called
 
     def test_run_with_parameters(self):
         sql = 'SQL'
         param = ('p1', 'p2')
         self.db_hook.run(sql, parameters=param)
         self.cur.execute.assert_called_once_with(sql, param)
-        self.conn.commit.assert_called()
+        assert self.conn.commit.called
 
     def test_insert_rows_with_fields(self):
         rows = [("'basestr_with_quote", None, numpy.NAN,

@@ -23,19 +23,12 @@ from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.utils import db
+from tests.compat import mock
 
 try:
     from airflow.hooks.docker_hook import DockerHook
 except ImportError:
     pass
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 
 @mock.patch('airflow.hooks.docker_hook.APIClient', autospec=True)

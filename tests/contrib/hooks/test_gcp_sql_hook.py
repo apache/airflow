@@ -26,16 +26,9 @@ from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id, \
     mock_base_gcp_hook_no_default_project_id
+from tests.compat import mock
 
 from parameterized import parameterized
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 
 class TestGcpSqlHookDefaultProjectId(unittest.TestCase):

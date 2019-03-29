@@ -46,7 +46,7 @@ jobs:
     - name: mypy
       stage: pre-test
       install: pip install mypy
-      script: mypy airflow
+      script: mypy airflow tests
     - name: Check license header
       stage: pre-test
       install: skip

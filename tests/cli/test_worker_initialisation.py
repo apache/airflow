@@ -21,15 +21,7 @@ import unittest
 import sqlalchemy
 import airflow
 from argparse import Namespace
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-from mock import patch
+from tests.compat import mock, patch
 
 patch('airflow.utils.cli.action_logging', lambda x: x).start()
 from airflow.bin import cli # noqa

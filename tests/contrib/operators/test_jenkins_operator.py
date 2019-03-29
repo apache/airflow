@@ -26,14 +26,7 @@ from airflow.contrib.operators.jenkins_job_trigger_operator \
 from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 
 from airflow.exceptions import AirflowException
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class JenkinsOperatorTestCase(unittest.TestCase):

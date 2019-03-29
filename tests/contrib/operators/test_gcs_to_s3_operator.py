@@ -21,14 +21,7 @@ import unittest
 
 from airflow.contrib.operators.gcs_to_s3 import GoogleCloudStorageToS3Operator
 from airflow.hooks.S3_hook import S3Hook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 try:
     from moto import mock_s3

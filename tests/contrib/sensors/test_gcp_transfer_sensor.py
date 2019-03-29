@@ -22,14 +22,7 @@ from parameterized import parameterized
 
 from airflow.contrib.hooks.gcp_transfer_hook import GcpTransferOperationStatus
 from airflow.contrib.sensors.gcp_transfer_sensor import GCPTransferServiceWaitForJobStatusSensor
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestGcpStorageTransferOperationWaitForJobStatusSensor(unittest.TestCase):

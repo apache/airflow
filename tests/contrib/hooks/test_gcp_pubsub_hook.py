@@ -26,14 +26,7 @@ import unittest
 from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_pubsub_hook import PubSubException, PubSubHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 PUBSUB_STRING = 'airflow.contrib.hooks.gcp_pubsub_hook.{}'

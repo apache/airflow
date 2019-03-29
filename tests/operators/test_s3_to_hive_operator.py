@@ -19,13 +19,7 @@
 
 import unittest
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 import logging
 from itertools import product
 from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer

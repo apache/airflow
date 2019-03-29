@@ -19,14 +19,7 @@
 
 import unittest
 from airflow.hooks.pig_hook import PigCliHook
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestPigCliHook(unittest.TestCase):

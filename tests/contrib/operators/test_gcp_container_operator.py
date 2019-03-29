@@ -24,14 +24,7 @@ from airflow import AirflowException
 from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, \
     GKEClusterDeleteOperator, GKEPodOperator
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TEST_GCP_PROJECT_ID = 'test-id'
 PROJECT_LOCATION = 'test-location'

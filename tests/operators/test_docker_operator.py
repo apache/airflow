@@ -28,14 +28,7 @@ except ImportError:
     pass
 
 from airflow.exceptions import AirflowException
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class DockerOperatorTestCase(unittest.TestCase):

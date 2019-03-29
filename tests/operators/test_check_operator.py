@@ -22,14 +22,7 @@ from datetime import datetime
 from airflow.models import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.check_operator import ValueCheckOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class ValueCheckOperatorTest(unittest.TestCase):

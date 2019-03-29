@@ -27,14 +27,7 @@ from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOpe
 from airflow.contrib.operators.databricks_operator import DatabricksRunNowOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'

@@ -83,7 +83,7 @@ try:
     import cPickle as pickle
 except ImportError:
     # Python 3
-    import pickle
+    import pickle  # type: ignore
 
 
 class OperatorSubclass(BaseOperator):
@@ -1341,7 +1341,7 @@ class CliTests(unittest.TestCase):
         ])
         cli.sync_perm(args)
 
-        self.appbuilder.sm.sync_roles.assert_called_once()
+        assert self.appbuilder.sm.sync_roles.call_count == 1
 
         self.assertEqual(2,
                          len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))

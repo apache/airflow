@@ -23,14 +23,7 @@ import unittest
 from airflow.contrib.operators.aws_athena_operator import AWSAthenaOperator
 from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
 from airflow import configuration
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 MOCK_DATA = {
     'task_id': 'test_aws_athena_operator',

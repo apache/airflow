@@ -28,14 +28,6 @@ from airflow.utils import db
 from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.contrib.operators.qubole_operator import QuboleOperator
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
 DAG_ID = "qubole_test_dag"
 TASK_ID = "test_task"
 DEFAULT_CONN = "qubole_default"

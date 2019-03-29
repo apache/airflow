@@ -22,14 +22,7 @@ import unittest
 
 from airflow.contrib.operators.mysql_to_gcs import \
     MySqlToGoogleCloudStorageOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 PY3 = sys.version_info[0] == 3
 

@@ -25,14 +25,7 @@ from airflow import DAG, configuration
 from airflow.utils import timezone
 
 from airflow.contrib.operators.snowflake_operator import SnowflakeOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)

@@ -135,7 +135,7 @@ class MySqlTest(unittest.TestCase):
         hook.bulk_dump(table, tmp_file)
 
         from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-        mock_execute.assert_called_once()
+        assert mock_execute.call_count == 1
         query = """
             SELECT * INTO OUTFILE '{tmp_file}'
             FROM {table}
@@ -464,7 +464,7 @@ class TransferTests(unittest.TestCase):
                 dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-            mock_load_file.assert_called_once()
+            assert mock_load_file.call_count == 1
             d = OrderedDict()
             d["c0"] = "SMALLINT"
             d["c1"] = "INT"

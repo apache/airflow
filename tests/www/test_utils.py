@@ -159,15 +159,15 @@ class UtilsTest(unittest.TestCase):
 
         utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
-        mocked_is_zipfile.assert_called_once()
+        assert mocked_is_zipfile.call_count == 1
         (args, kwargs) = mocked_is_zipfile.call_args_list[0]
         self.assertEqual('/path/to/archive.zip', args[0])
 
-        mocked_ZipFile.assert_called_once()
+        assert mocked_ZipFile.call_count == 1
         (args, kwargs) = mocked_ZipFile.call_args_list[0]
         self.assertEqual('/path/to/archive.zip', args[0])
 
-        instance.open.assert_called_once()
+        assert instance.open.call_count == 1
         (args, kwargs) = instance.open.call_args_list[0]
         self.assertEqual('deep/path/to/file.txt', args[0])
 

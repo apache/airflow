@@ -24,14 +24,7 @@ from airflow.models.connection import Connection
 from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration, AirflowException
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 FUNCTION_NAME = "function_name"
 

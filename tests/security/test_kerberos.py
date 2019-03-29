@@ -18,10 +18,7 @@
 # under the License.
 
 import os
-try:
-    import unittest2 as unittest  # PY27
-except ImportError:
-    import unittest
+import unittest
 from argparse import Namespace
 from airflow import configuration
 from airflow.security.kerberos import renew_from_kt

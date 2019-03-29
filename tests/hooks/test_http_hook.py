@@ -29,14 +29,7 @@ from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.models.connection import Connection
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 def get_airflow_connection(conn_id=None):

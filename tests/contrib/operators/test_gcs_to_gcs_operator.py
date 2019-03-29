@@ -22,14 +22,7 @@ from datetime import datetime
 
 from airflow.contrib.operators.gcs_to_gcs import \
     GoogleCloudStorageToGoogleCloudStorageOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-gcs-to-gcs-operator'
 TEST_BUCKET = 'test-bucket'

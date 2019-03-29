@@ -25,14 +25,7 @@ from base64 import b64encode as b64e
 
 from airflow.contrib.sensors.pubsub_sensor import PubSubPullSensor
 from airflow.exceptions import AirflowSensorTimeout
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-task-id'
 TEST_PROJECT = 'test-project'

@@ -20,6 +20,7 @@ import itertools
 import unittest
 from copy import deepcopy
 from datetime import date, time
+from typing import Dict
 
 from parameterized import parameterized
 from botocore.credentials import Credentials
@@ -60,15 +61,8 @@ from airflow.contrib.operators.gcp_transfer_operator import (
 )
 from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
+from tests.compat import mock
 
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:  # pragma: no cover
-    try:
-        import mock
-    except ImportError:
-        mock = None
 try:
     import boto3
 except ImportError:  # pragma: no cover
@@ -117,7 +111,7 @@ VALID_TRANSFER_JOB_BASE = {
     STATUS: 'ENABLED',
     SCHEDULE: SCHEDULE_DICT,
     TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME}},
-}
+}  # type: Dict
 VALID_TRANSFER_JOB_GCS = deepcopy(VALID_TRANSFER_JOB_BASE)
 VALID_TRANSFER_JOB_GCS[TRANSFER_SPEC].update(deepcopy(SOURCE_GCS))
 VALID_TRANSFER_JOB_AWS = deepcopy(VALID_TRANSFER_JOB_BASE)
@@ -139,7 +133,7 @@ VALID_TRANSFER_JOB_RAW = {
     STATUS: 'ENABLED',
     SCHEDULE: SCHEDULE_DICT,
     TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME}},
-}
+}  # type: Dict
 
 VALID_TRANSFER_JOB_GCS_RAW = deepcopy(VALID_TRANSFER_JOB_RAW)
 VALID_TRANSFER_JOB_GCS_RAW[TRANSFER_SPEC].update(SOURCE_GCS)
