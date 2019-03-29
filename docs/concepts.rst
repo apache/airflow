@@ -477,9 +477,9 @@ passed, then a corresponding list of XCom values is returned.
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
-.. code:: python
+.. code:: jinja
 
-    "SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}"
+    SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
 Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.

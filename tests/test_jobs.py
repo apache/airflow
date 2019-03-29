@@ -3183,6 +3183,76 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_scheduler_sla_miss_callback(self):
         """
+        Test that the scheduler calls the sla miss callback
+        """
+        session = settings.Session()
+
+        sla_callback = MagicMock()
+
+        # Create dag with a start of 1 day ago, but an sla of 0
+        # so we'll already have an sla_miss on the books.
+        test_start_date = days_ago(1)
+        dag = DAG(dag_id='test_sla_miss',
+                  sla_miss_callback=sla_callback,
+                  default_args={'start_date': test_start_date,
+                                'sla': datetime.timedelta()})
+
+        task = DummyOperator(task_id='dummy',
+                             dag=dag,
+                             owner='airflow')
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='success'))
+
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+        scheduler.manage_slas(dag=dag, session=session)
+
+        sla_callback.assert_called()
+
+    def test_scheduler_sla_miss_callback_invalid_sla(self):
+        """
+        Test that the scheduler does not call the sla miss callback when
+        given an invalid sla
+        """
+        session = settings.Session()
+
+        sla_callback = MagicMock()
+
+        # Create dag with a start of 1 day ago, but an sla of 0
+        # so we'll already have an sla_miss on the books.
+        # Pass anything besides a timedelta object to the sla argument.
+        test_start_date = days_ago(1)
+        dag = DAG(dag_id='test_sla_miss',
+                  sla_miss_callback=sla_callback,
+                  default_args={'start_date': test_start_date,
+                                'sla': None})
+
+        task = DummyOperator(task_id='dummy',
+                             dag=dag,
+                             owner='airflow')
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='success'))
+
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+        scheduler.manage_slas(dag=dag, session=session)
+
+        sla_callback.assert_not_called()
+
+    def test_scheduler_sla_miss_callback_sent_notification(self):
+        """
         Test that the scheduler does not call the sla_miss_callback when a notification has already been sent
         """
         session = settings.Session()
