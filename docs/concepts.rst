@@ -475,9 +475,7 @@ passed, then a corresponding list of XCom values is returned.
         value = context['task_instance'].xcom_pull(task_ids='pushing_task')
 
 It is also possible to pull XCom directly in a template, here's an example
-of what this may look like:
-
-.. code:: sql
+of what this may look like::
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
