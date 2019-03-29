@@ -28,6 +28,7 @@ information.
 .. toctree::
     :maxdepth: 2
 
-    python
     bash
+    dingding
     gcp/index
+    python

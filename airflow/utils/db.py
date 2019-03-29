@@ -278,6 +278,10 @@ def initdb():
         Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
+    merge_conn(
+        Connection(
+            conn_id='dingding_default', conn_type='http',
+            host='', password=''))
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
