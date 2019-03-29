@@ -40,6 +40,8 @@ by default.
 Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
 The `airflow.utlis.helpers.chain` function is removed.
 
+### Fixed typo in --driver-class-path in SparkSubmitHook
+
 ### Viewer won't have edit permissions on DAG view.
 
 ### RedisPy dependency updated to v3 series
