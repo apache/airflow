@@ -21,6 +21,7 @@ import json
 import unittest
 
 from airflow import configuration
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.utils import db
 
@@ -90,6 +91,16 @@ class TestSlackWebhookHook(unittest.TestCase):
 
         # Then
         self.assertEqual(self.expected_message, message)
+
+    def test_get_base_url_default(self):
+        hook = SlackWebhookHook(http_conn_id='http_default')
+        hook.get_conn()
+
+        self.assertEqual(hook._get_base_url(), 'https://www.google.com/')
+
+    def test_conn_id_is_not_defined_error(self):
+        with self.assertRaises(AirflowException):
+            SlackWebhookHook(http_conn_id='fake_conn_id')
 
 
 if __name__ == '__main__':

@@ -66,7 +66,7 @@ class SlackWebhookHook(HttpHook):
                  *args,
                  **kwargs
                  ):
-        super(SlackWebhookHook, self).__init__(*args, **kwargs)
+        super(SlackWebhookHook, self).__init__(http_conn_id=http_conn_id, *args, **kwargs)
         self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
         self.attachments = attachments
@@ -94,6 +94,12 @@ class SlackWebhookHook(HttpHook):
         else:
             raise AirflowException('Cannot get token: No valid Slack '
                                    'webhook token nor conn_id supplied')
+
+    def _get_base_url(self):
+        """
+        :return: base url (str)
+        """
+        return self.base_url
 
     def _build_slack_message(self):
         """
