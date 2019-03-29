@@ -578,6 +578,18 @@ if conf.has_option('core', 'AIRFLOW_HOME'):
         AIRFLOW_HOME = conf.get('core', 'airflow_home')
         warnings.warn(msg, category=DeprecationWarning)
 
+# Warn about old config file. We used to read ~/airflow/airflow.cfg even if
+# that AIRFLOW_HOME was set to something else
+_old_config_file = os.path.expanduser("~/airflow/airflow.cfg")
+if _old_config_file != AIRFLOW_CONFIG and os.path.isfile(_old_config_file):
+    warnings.warn(
+        'You have two airflow.cfg files: {old} and {new}. Airflow used to look '
+        'at ~/airflow/airflow.cfg, even when AIRFLOW_HOME was set to a different '
+        'value. Airflow will now only read {new}, and you should remove the '
+        'other file'.format(old=_old_config_file, new=AIRFLOW_CONFIG),
+        category=DeprecationWarning,
+    )
+
 
 WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
