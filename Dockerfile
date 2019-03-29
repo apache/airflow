@@ -17,6 +17,7 @@
 FROM python:3.6-slim
 SHELL ["/bin/bash", "-xc"]
 
+ENV INSIDE_DOCKER_CONTAINER=true
 ENV AIRFLOW_HOME=/usr/local/airflow
 ARG AIRFLOW_DEPS="all"
 ARG PYTHON_DEPS=""
