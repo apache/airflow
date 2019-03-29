@@ -19,6 +19,7 @@
 #
 
 import copy
+from io import BytesIO
 import itertools
 import json
 import logging
@@ -41,7 +42,6 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
-from past.builtins import unicode
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import func, or_, desc, and_, union_all
@@ -73,10 +73,6 @@ from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm,
                                DagRunForm, ConnectionForm)
 from airflow.www.widgets import AirflowModelListWidget
-if PY2:
-    from cStringIO import StringIO
-else:
-    from io import StringIO
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -566,17 +562,19 @@ class Airflow(AirflowBaseView):
                 ti.task = dag.get_task(ti.task_id)
                 logs, metadatas = handler.read(ti, try_number, metadata=metadata)
                 metadata = metadatas[0]
-            for i, log in enumerate(logs):
-                if PY2 and not isinstance(log, unicode):
-                    logs[i] = log.decode('utf-8')
 
             if response_format == 'json':
                 message = logs[0] if try_number is not None else logs
                 return jsonify(message=message, metadata=metadata)
 
-            file_obj = StringIO('\n'.join(logs))
+            file_obj = BytesIO(b'\n'.join(
+                log.encode('utf-8') for log in logs
+            ))
             filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
-            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            attachment_filename = render_log_filename(
+                ti=ti,
+                try_number="all" if try_number is None else try_number,
+                filename_template=filename_template)
             return send_file(file_obj, as_attachment=True,
                              attachment_filename=attachment_filename)
         except AttributeError as e:
