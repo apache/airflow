@@ -32,9 +32,17 @@ limitations under the License.
 </ul>
 <div class="tab-content">
   {% for log in logs %}
-  <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
-    <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
-         alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
+  <div
+    role="tabpanel"
+    class="tab-pane {{ 'active' if loop.last else '' }}"
+    id="{{ loop.index }}">
+    <img
+      id="loading-{{ loop.index }}"
+      width="50"
+      height="50"
+      class="center-block"
+      alt="spinner"
+      src="{{ url_for('static', filename='loading.gif') }}">
     <pre><code id="try-{{ loop.index }}">{{ log }}</code></pre>
   </div>
   {% endfor %}

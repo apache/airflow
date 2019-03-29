@@ -16,6 +16,13 @@
 * specific language governing permissions and limitations
 * under the License.
 */
+@import '_mixins.scss';
+@import '_variables.scss';
+@import '_button.scss';
+@import '_legend.scss';
+@import '_spacing.scss';
+@import '_page_dags.scss';
+
 body { padding-top: 70px; }
 
 div.container {
@@ -26,6 +33,11 @@ div.container {
 
 a.navbar-brand span {
     color: white;
+}
+.navbar-logo {
+  float: left;
+  width:35px;
+  margin-top: -7px;
 }
 .modal-backdrop{
     z-index: 0;
@@ -40,9 +52,7 @@ nav{
     box-shadow:         0px 3px 3px #AAA;
     z-index:999;
 }
-a.navbar-brand {
-    cursor: default;
-}
+
 td>span.glyphicon{
     padding-left: 3px;
     padding-top: 3px;
@@ -186,34 +196,13 @@ body div.panel {
 .blur {
     filter:url(#blur-effect-1);
 }
-div.legend_item {
-    -moz-border-radius: 5px/5px;
-    -webkit-border-radius: 5px 5px;
-    border-radius: 5px/5px;
-    float:right;
-    margin: 0px 3px 0px 0px;
-    padding:0px 3px;
-    border:solid 2px grey;
-    font-size: 11px;
+
+h1, h2, h3, h4, h5 {
+  .heading-part {
+    color: #AAA;
+  }
 }
-div.legend_circle{
-    -moz-border-radius: 10px/10px;
-    -webkit-border-radius: 10px 10px;
-    border-radius: 10px/10px;
-    width:15px;
-    height:15px;
-    border:1px solid grey;
-    float:left;
-    margin-top: 2px;
-    margin-right: 0px;
-}
-div.square {
-    width:12px;
-    height:12px;
-    float: right;
-    margin-top: 2px;
-    border:1px solid black;
-}
+
 .btn:active, .btn.active {
   box-shadow: inset 0 6px 6px rgba(0, 0, 0, 0.4);
 }

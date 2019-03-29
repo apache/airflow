@@ -48,7 +48,7 @@
     "mini-css-extract-plugin": "^0.4.1",
     "style-loader": "^0.21.0",
     "url-loader": "^1.0.1",
-    "webpack": "^4.16.3",
+    "webpack": "^4.29.6",
     "webpack-cli": "^3.1.0",
     "webpack-manifest-plugin": "^2.0.3"
   },
@@ -62,7 +62,9 @@
     "datatables.net-bs": "^1.10.19",
     "lodash": "^4.17.11",
     "moment-timezone": "^0.5.21",
+    "node-sass": "^4.11.0",
     "npm": "^6.4.1",
-    "nvd3": "^1.8.6"
+    "nvd3": "^1.8.6",
+    "sass-loader": "^7.1.0"
   }
 }

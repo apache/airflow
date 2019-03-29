@@ -22,15 +22,23 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/graph.css') }}">
+<style type="text/css">
+  {% for op in operators %}
+    .legend--pills .legend__item[data-operator-name="{{ op.__name__ }}"] {
+      background:{{ op.ui_color }};
+      color:{{ op.ui_fgcolor }};
+    }
+  {% endfor %}
+</style>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
 {% if doc_md %}
-<div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
+<div class="rich_doc mb-3">{{ doc_md|safe }}</div>
 {% endif %}
-<div class="form-inline">
-  <form method="get" style="float:left;">
+<div class="form-inline clearfix">
+  <form method="get" class="pull-left">
     {{ state_token }}
     Base date: {{ form.base_date(class_="form-control") }}
     Number of runs: {{ form.num_runs(class_="form-control") }}
@@ -43,37 +51,36 @@
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <input type="submit" value="Go" class="btn btn-default">
   </form>
-  <div class="input-group" style="float: right;">
+  <div class="input-group pull-right">
     <input type="text" id="searchbox" class="form-control" placeholder="Search for...">
   </div>
-  <div style="clear: both;"></div>
 </div>
 <hr/>
-<div>
-  {% for op in operators %}
-  <div class="legend_item"
-       style="border-width:1px;float:left;background:{{ op.ui_color }};color:{{ op.ui_fgcolor }};">
-    {{ op.__name__ }}
+<div class="clearfix">
+  <div class="legend legend--pills pull-left">
+    {% for op in operators %}
+      <div class="legend__item"
+           data-operator-name="{{ op.__name__ }}">
+        {{ op.__name__ }}
+      </div>
+    {% endfor %}
   </div>
-  {% endfor %}
-
-  <div>
-    <div class="legend_item state" style="border-color:white;">no_status</div>
-    <div class="legend_item state" style="border-color:grey;">queued</div>
-    <div class="legend_item state" style="border-color:gold;">up_for_retry</div>
-    <div class="legend_item state" style="border-color:turquoise;">up_for_reschedule</div>
-    <div class="legend_item state" style="border-color:pink;">skipped</div>
-    <div class="legend_item state" style="border-color:red;">failed</div>
-    <div class="legend_item state" style="border-color:lime;">running</div>
-    <div class="legend_item state" style="border-color:green;">success</div>
+  <div class="legend legend--pills legend--state pull-right">
+    <div class="legend__item" data-task-state="success">success</div>
+    <div class="legend__item" data-task-state="running">running</div>
+    <div class="legend__item" data-task-state="failed">failed</div>
+    <div class="legend__item" data-task-state="skipped">skipped</div>
+    <div class="legend__item" data-task-state="up_for_reschedule">up_for_reschedule</div>
+    <div class="legend__item" data-task-state="up_for_retry">up_for_retry</div>
+    <div class="legend__item" data-task-state="queued">queued</div>
+    <div class="legend__item" data-task-state="no_status">no_status</div>
   </div>
-  <div style="clear:both;"></div>
 </div>
-<div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+<div id="error" class="hidden alert alert-danger mt-2" role="alert">
   <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
   <span id="error_msg">Oops.</span>
 </div>
-<hr style="margin-bottom: 0px;"/>
+<hr class="mb-0"/>
 <button class="btn btn-default pull-right" id="refresh_button">
   <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
 </button>
@@ -167,7 +174,7 @@
     inject_node_ids(tasks);
 
     d3.selectAll("g.node").on("click", function(d){
-        task = tasks[d];
+        var task = tasks[d];
         if (task.task_type == "SubDagOperator")
             call_modal(d, execution_date, task_instances[d].try_number, true);
         else
@@ -177,7 +184,7 @@
 
     function highlight_nodes(nodes, color) {
         nodes.forEach (function (nodeid) {
-            my_node = d3.select('#' + nodeid).node().parentNode;
+            var my_node = d3.select('#' + nodeid).node().parentNode;
             d3.select(my_node).selectAll("rect").style("stroke", color) ;
         })
     }
@@ -205,11 +212,11 @@
       container: "body",
     });
 
-    d3.selectAll("div.legend_item.state")
+    d3.selectAll(".legend--state .legend__item")
         .style("cursor", "pointer")
         .on("mouseover", function(){
             if(!stateIsSet()){
-                state = d3.select(this).text();
+                var state = d3.select(this).text();
                 focusState(state);
             }
         })
@@ -219,14 +226,13 @@
             }
         });
 
-    d3.selectAll("div.legend_item.state")
+    d3.selectAll(".legend--state .legend__item")
         .on("click", function(){
-            state = d3.select(this).text();
-            color = d3.select(this).style("border-color");
+            var state = d3.select(this).text();
 
             if (!stateFocusMap[state]){
                 clearFocus();
-                focusState(state, this, color);
+                focusState(state);
                 setFocusMap(state);
 
             } else {
@@ -319,11 +325,11 @@
         d3.select("g.edgePaths")
             .transition().duration(duration)
             .style("opacity", 1);
-        d3.selectAll("div.legend_item.state")
-            .style("background-color", null);
+        d3.selectAll(".legend--state .legend__item")
+            .classed("legend__item--active", false);
     }
 
-    function focusState(state, node, color){
+    function focusState(state) {
         d3.selectAll("g.node")
             .transition(duration)
             .style("opacity", 0.2);
@@ -337,8 +343,9 @@
         d3.select("g.edgePaths")
             .transition().duration(duration)
             .style("opacity", 0.2);
-        d3.select(node)
-            .style("background-color", color);
+
+        d3.select(`.legend--state .legend__item[data-task-state="${state}"]`)
+            .classed("legend__item--active", true);
     }
 
     function setFocusMap(state){

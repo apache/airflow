@@ -27,8 +27,8 @@
     <div>
       {% for state, count in states %}
       <a
-          class="btn"
-          style="border: none; background-color:{{ State.color(state)}}; color: {{ State.color_fg(state) }};"
+          class="btn btn-state"
+          data-state-name="{{ state }}"
           href="{{ url_for('TaskInstanceModelView.list', _flt_3_dag_id=dag.dag_id, _flt_3_state=state) }}">
         {{ state }} <span class="badge">{{ count }}</span>
       </a>

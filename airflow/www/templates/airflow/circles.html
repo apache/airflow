@@ -15,16 +15,25 @@
   limitations under the License.
 
 #}
-<div style="font-family: verdana;">
+<!DOCTYPE html>
+<html lang="en">
+<title>Airflow 404 = lots of circles</title>
+<style type="text/css">
+  body {
+    font-family: verdana;
+  }
+  #div_svg {
+    border: 1px solid #CCC;
+    padding: 0px;
+    margin:0;
+  }
+</style>
+<head>
     <h1>Airflow 404 = lots of circles</h1>
     <div>{{ hostname }}</div>
-<div
-            id="div_svg"
-            class="content"
-            class="centered text-center"
-            style="border: 1px solid #CCC; padding:0px;margin:0;">
-        <svg></svg>
-
+    <div
+      id="div_svg">
+      <svg></svg>
     </div>
     <script src="{{ url_for_asset('d3.min.js') }}"></script>
     <script>
@@ -141,4 +150,4 @@
     toggle();
 
     </script>
-
+</head>

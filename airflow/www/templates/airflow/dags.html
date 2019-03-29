@@ -28,15 +28,15 @@
 {% block content %}
   <h2>DAGs</h2>
 
-  <div id="main_content">
+  <div id="main_content" class="page-dags">
     <div class="row">
-      <div class="col-sm-2">
-      </div>
-      <div class="col-sm-10">
-        <form id="search_form" class="form-inline" style="width: 100%; text-align: right;">
-            <div id="dags_filter" class="form-group" style="width: 100%;">
-              <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
-              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}">
+      <div class="col-md-push-2 col-md-10">
+        <form id="search_form" class="form-horizontal text-right">
+            <div id="dags_filter" class="form-group">
+              <label for="dag_query" class="text-right col-sm-6 control-label">Search:</label>
+              <div class="col-sm-6">
+                <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" value="{{search_query}}">
+              </div>
             </div>
         </form>
       </div>
@@ -49,13 +49,13 @@
                 <th>DAG</th>
                 <th>Schedule</th>
                 <th>Owner</th>
-                <th style="padding-left: 5px;">Recent Tasks
+                <th>Recent Tasks
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
-                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
+                <th>Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
                 </th>
-                <th style="padding-left: 5px;">DAG Runs
+                <th>DAG Runs
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
@@ -66,7 +66,7 @@
         {% for dag in dags %}
             <tr>
                 <!-- Column 1: Edit dag -->
-                <td class="text-center" style="width:10px;">
+                <td class="text-center edit-dag">
                     <a href="{{ url_for('DagModelView.show', pk=dag.dag_id) }}" title="Info">
                         <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
@@ -97,8 +97,8 @@
                 </td>
 
                 <!-- Column 6: Recent Tasks -->
-                <td style="padding:0px; width:200px; height:10px;">
-                    <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                <td class="recent-tasks">
+                    <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}'></svg>
                 </td>
 
                 <!-- Column 7: Last Run -->
@@ -113,12 +113,12 @@
                 </td>
 
                 <!-- Column 8: Dag Runs -->
-                <td style="padding:0px; width:120px; height:10px;">
-                    <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                <td class="dags-runs">
+                    <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}'></svg>
                 </td>
 
                 <!-- Column 9: Links -->
-                <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
+                <td class="actions">
                 {% if dag %}
 
                 <!-- Trigger Dag -->
@@ -177,25 +177,23 @@
                 <!-- Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag -->
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
                   onclick="return confirmDeleteDag('{{ dag.dag_id }}')">
-                   <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
+                   <span class="glyphicon glyphicon-remove-circle text-danger" aria-hidden="true" data-original-title="Delete Dag"></span>
                 </a>
                 </td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
-    <div class="row">
-      <div class="col-sm-12" style="text-align:right;">
-        <div class="dataTables_info" id="dags_info" role="status" aria-live="polite" style="padding-top: 0px;">Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries</div>
+    <div class="text-right">
+      <div
+        class="dataTables_info"
+        id="dags_info"
+        role="status"
+        aria-live="polite">
+        Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries
       </div>
     </div>
-    <div class="row">
-      <div class="col-sm-12" style="text-align:left;">
-        <div class="dataTables_info" id="dags_paginate">
-          {{paging}}
-        </div>
-      </div>
-
+    {{paging}}
     </div>
     {% if not hide_paused %}
     <a href="{{ url_for('Airflow.index') }}?showPaused=False">Hide Paused DAGs</a>

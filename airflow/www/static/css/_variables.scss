@@ -1,0 +1,61 @@
+/**
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements. See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership. The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License. You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied. See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
+$states_to_color_map: (
+  'queued': gray,
+  'running': lime,
+  'success': green,
+  'shutdown': blue,
+  'failed': red,
+  'up_for_retry': gold,
+  'up_for_reschedule': turquoise,
+  'upstream-fai;ed': orange,
+  'skipped': pink,
+  'removed': lightgrey,
+  'scheduled': tan,
+  'none': lightblue,
+  'no_status': white,
+);
+
+$base-spacing: 16px;
+
+
+$short_to_long_direction: (
+  't': 'top',
+  'r': 'right',
+  'b': 'bottom',
+  'l': 'left',
+);
+
+$short_to_long_prop: (
+  'p' : 'padding',
+  'm': 'margin',
+);
+
+$spacers: (
+  0: 0,
+  1: 0.25 * $base-spacing,
+  2: 0.5 * $base-spacing,
+  3: $base-spacing,
+  4: 1.5 * $base-spacing,
+  5: 3 * $base-spacing,
+);
+
+// Value between 0 and 255
+$yiq-contrasted-threshold:  150 !default;

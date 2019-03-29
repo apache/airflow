@@ -38,7 +38,7 @@ const config = {
     base: `${STATIC_DIR}/js/base.js`,
     graph: `${STATIC_DIR}/js/graph.js`,
     ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
-    main: `${STATIC_DIR}/css/main.css`,
+    main: `${STATIC_DIR}/css/main.scss`,
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
   },
   output: {
@@ -66,11 +66,12 @@ const config = {
       },
       // Extract css files
       {
-        test: /\.css$/,
+        test: /\.s?css$/,
         include: STATIC_DIR,
         use: [
-          MiniCssExtractPlugin.loader,
-          'css-loader',
+          {loader: MiniCssExtractPlugin.loader},
+          {loader: 'css-loader'},
+          {loader: 'sass-loader'},
         ],
       },
       /* for css linking images */

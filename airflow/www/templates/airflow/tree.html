@@ -23,12 +23,22 @@
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/tree.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css') }}">
+<style type="text/css">
+  {% for op in operators %}
+  .legend__item[data-operator-name="{{ op.__name__ }}"] .legend__square,
+  .legend__item[data-operator-name="{{ op.__name__ }}"] .legend__circle {
+    background:{{ op.ui_color }};
+    color:{{ op.ui_fgcolor }};
+  }
+  {% endfor %}
+</style>
 {% endblock %}
 
 {% block content %}
 {{ super() }}
-<div style="float: left" class="form-inline">
-  <form method="get" style="float:left;">
+<div class="clearfix">
+  <div class="form-inline">
+    <form method="get">
     Base date: {{ form.base_date(class_="form-control") }}
     Number of runs: {{ form.num_runs(class_="form-control") }}
     <input type="hidden" name="root" value="{{ root if root else '' }}">
@@ -37,31 +47,52 @@
     <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
   </form>
 </div>
-<div style="clear: both;"></div>
+
 <hr/>
-<div>
-  <div class="legend_item" style="border: none;">no_status</div>
-  <div class="square" style="background: white;"></div>
-  <div class="legend_item" style="border: none;">queued</div>
-  <div class="square" style="background: grey;"></div>
-  <div class="legend_item" style="border: none;">up_for_retry</div>
-  <div class="square" style="background: gold;"></div>
-  <div class="legend_item" style="border: none;">up_for_reschedule</div>
-  <div class="square" style="background: turquoise;"></div>
-  <div class="legend_item" style="border: none;">skipped</div>
-  <div class="square" style="background: pink;"></div>
-  <div class="legend_item" style="border: none;">failed</div>
-  <div class="square" style="background: red;"></div>
-  <div class="legend_item" style="border: none;">running</div>
-  <div class="square" style="background: lime;"></div>
-  <div class="legend_item" style="border: none;">success</div>
-  <div class="square" style="background: green;"></div>
-  {% for op in operators %}
-  <div class="legend_circle" style="background:{{ op.ui_color }};">
+<div class="legend pull-right">
+  <div class="legend__item" data-task-state="success">
+    <span class="legend__square"></span>
+    success
   </div>
-  <div class="legend_item" style="float:left;border-color:white;">{{ op.__name__ }}</div>
-  {% endfor %}
-  <div style="clear:both;"></div>
+  <div class="legend__item" data-task-state="running">
+    <span class="legend__square"></span>
+    running
+  </div>
+  <div class="legend__item" data-task-state="failed">
+    <span class="legend__square"></span>
+    failed
+  </div>
+  <div class="legend__item" data-task-state="skipped">
+    <span class="legend__square"></span>
+    skipped
+  </div>
+  <div class="legend__item" data-task-state="up_for_reschedule">
+    <span class="legend__square"></span>
+    up-for-reschedule
+  </div>
+  <div class="legend__item" data-task-state="up_for_retry">
+    <span class="legend__square"></span>
+    up_for_retry
+  </div>
+  <div class="legend__item" data-task-state="queued">
+    <span class="legend__square"></span>
+    queued
+  </div>
+  <div class="legend__item" data-task-state="no-status">
+    <span class="legend__square"></span>
+    no_status
+  </div>
+</div>
+<div class="legend">
+    {% for op in operators %}
+      <div
+        class="legend__item"
+        data-operator-name="{{ op.__name__ }}">
+        <div class="legend__circle"></div>
+        {{ op.__name__ }}
+      </div>
+    {% endfor %}
+  </div>
 </div>
 <hr/>
 <div id="svg_container">
