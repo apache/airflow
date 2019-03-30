@@ -546,11 +546,12 @@ if conf.has_option('core', 'AIRFLOW_HOME'):
 
 WEBSERVER_CONFIG = os.path.join(AIRFLOW_HOME, 'webserver_config.py')
 
-if not os.path.isfile(WEBSERVER_CONFIG):
-    log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
-    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
-    with open(WEBSERVER_CONFIG, 'w') as f:
-        f.write(DEFAULT_WEBSERVER_CONFIG)
+
+def save_webserver_config(config_file):
+    log.info('Creating new FAB webserver config file in: %s', config_file)
+    with open(config_file, 'w') as f:
+        f.write(_read_default_config_file('default_webserver_config.py'))
+
 
 if conf.getboolean('core', 'unit_test_mode'):
     TEST_CONFIG = _read_default_config_file('default_test.cfg')

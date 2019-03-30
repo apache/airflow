@@ -51,6 +51,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         app.wsgi_app = ProxyFix(app.wsgi_app)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
+    if not os.path.isfile(settings.WEBSERVER_CONFIG):
+        conf.save_webserver_config(settings.WEBSERVER_CONFIG)
     app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['APP_NAME'] = app_name
     app.config['TESTING'] = testing
