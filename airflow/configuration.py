@@ -471,7 +471,6 @@ def get_airflow_config(airflow_home):
 
 AIRFLOW_HOME = get_airflow_home()
 AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
-mkdir_p(AIRFLOW_HOME)
 
 
 # Set up dags folder for unit tests

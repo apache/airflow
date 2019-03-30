@@ -87,6 +87,10 @@ def merge_conn(conn, session=None):
 def initdb():
     from airflow import models
     from airflow.models.connection import Connection
+
+    if settings.engine.name == 'sqlite':
+        conf.mkdir_p(os.path.dirname(settings.engine.url.database))
+
     upgradedb()
 
     merge_conn(
