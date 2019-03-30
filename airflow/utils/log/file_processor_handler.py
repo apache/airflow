@@ -44,32 +44,30 @@ class FileProcessorHandler(logging.Handler):
         self.dag_dir = os.path.expanduser(settings.DAGS_FOLDER)
         self.filename_template, self.filename_jinja_template = \
             parse_template_string(filename_template)
-
-        self._cur_date = datetime.today()
-        if not os.path.exists(self._get_log_directory()):
-            try:
-                os.makedirs(self._get_log_directory())
-            except OSError as e:
-                # only ignore case where the directory already exist
-                if e.errno != errno.EEXIST:
-                    raise
-
-                logging.warning("%s already exists", self._get_log_directory())
-
-        self._symlink_latest_log_directory()
+        self._cur_date = None
 
     def set_context(self, filename):
         """
         Provide filename context to airflow task handler.
         :param filename: filename in which the dag is located
         """
-        local_loc = self._init_file(filename)
+        log_directory = os.path.join(self.base_log_folder,
+                                     datetime.utcnow().strftime("%Y-%m-%d"))
+        if not os.path.exists(log_directory):
+            try:
+                os.makedirs(log_directory)
+            except OSError as e:
+                # only ignore case where the directory already exist
+                if e.errno != errno.EEXIST:
+                    raise
+                logging.warning("%s already exists", log_directory)
+
+        local_loc = self._init_file(filename, log_directory)
         self.handler = logging.FileHandler(local_loc)
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
-
-        if self._cur_date < datetime.today():
-            self._symlink_latest_log_directory()
+        if self._cur_date is None or self._cur_date < datetime.today():
+            self._symlink_latest_log_directory(log_directory)
             self._cur_date = datetime.today()
 
     def emit(self, record):
@@ -94,47 +92,28 @@ class FileProcessorHandler(logging.Handler):
 
         return self.filename_template.format(filename=ctx['filename'])
 
-    def _get_log_directory(self):
-        now = datetime.utcnow()
-
-        return os.path.join(self.base_log_folder, now.strftime("%Y-%m-%d"))
-
-    def _symlink_latest_log_directory(self):
-        """
-        Create symbolic link to the current day's log directory to
-        allow easy access to the latest scheduler log files.
-
-        :return: None
-        """
-        log_directory = self._get_log_directory()
+    def _symlink_latest_log_directory(self, log_directory):
         latest_log_directory_path = os.path.join(self.base_log_folder, "latest")
-        if os.path.isdir(log_directory):
-            try:
-                # if symlink exists but is stale, update it
-                if os.path.islink(latest_log_directory_path):
-                    if os.readlink(latest_log_directory_path) != log_directory:
-                        os.unlink(latest_log_directory_path)
-                        os.symlink(log_directory, latest_log_directory_path)
-                elif (os.path.isdir(latest_log_directory_path) or
-                      os.path.isfile(latest_log_directory_path)):
-                    logging.warning(
-                        "%s already exists as a dir/file. Skip creating symlink.",
-                        latest_log_directory_path
-                    )
-                else:
+        try:
+            # if symlink exists but is stale, update it
+            if os.path.islink(latest_log_directory_path):
+                if os.readlink(latest_log_directory_path) != log_directory:
+                    os.unlink(latest_log_directory_path)
                     os.symlink(log_directory, latest_log_directory_path)
-            except OSError:
-                logging.warning("OSError while attempting to symlink "
-                                "the latest log directory")
+            elif (os.path.isdir(latest_log_directory_path) or
+                  os.path.isfile(latest_log_directory_path)):
+                logging.warning(
+                    "%s already exists as a dir/file. Skip creating symlink.",
+                    latest_log_directory_path
+                )
+            else:
+                os.symlink(log_directory, latest_log_directory_path)
+        except OSError:
+            logging.warning("OSError while attempting to symlink "
+                            "the latest log directory")
 
-    def _init_file(self, filename):
-        """
-        Create log file and directory if required.
-        :param filename: task instance object
-        :return: relative log path of the given task instance
-        """
-        relative_path = self._render_filename(filename)
-        full_path = os.path.join(self._get_log_directory(), relative_path)
+    def _init_file(self, filename, log_directory):
+        full_path = os.path.join(log_directory, self._render_filename(filename))
         directory = os.path.dirname(full_path)
 
         if not os.path.exists(directory):

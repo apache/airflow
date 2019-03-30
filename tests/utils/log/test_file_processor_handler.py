@@ -42,10 +42,11 @@ class TestFileProcessorHandler(unittest.TestCase):
         handler.dag_dir = self.dag_dir
 
         path = os.path.join(self.base_log_folder, "latest")
-        self.assertTrue(os.path.islink(path))
-        self.assertEqual(os.path.basename(os.readlink(path)), date)
+        self.assertFalse(os.path.islink(path))
 
         handler.set_context(filename=os.path.join(self.dag_dir, "logfile"))
+        self.assertTrue(os.path.islink(path))
+        self.assertEqual(os.path.basename(os.readlink(path)), date)
         self.assertTrue(os.path.exists(os.path.join(path, "logfile")))
 
     def test_template(self):
@@ -55,10 +56,11 @@ class TestFileProcessorHandler(unittest.TestCase):
         handler.dag_dir = self.dag_dir
 
         path = os.path.join(self.base_log_folder, "latest")
-        self.assertTrue(os.path.islink(path))
-        self.assertEqual(os.path.basename(os.readlink(path)), date)
+        self.assertFalse(os.path.islink(path))
 
         handler.set_context(filename=os.path.join(self.dag_dir, "logfile"))
+        self.assertTrue(os.path.islink(path))
+        self.assertEqual(os.path.basename(os.readlink(path)), date)
         self.assertTrue(os.path.exists(os.path.join(path, "logfile.log")))
 
     def test_symlink_latest_log_directory(self):
