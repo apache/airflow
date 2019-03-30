@@ -1819,8 +1819,12 @@ class ConfigurationView(AirflowBaseView):
         subtitle = conf.AIRFLOW_CONFIG
         # Don't show config when expose_config variable is False in airflow config
         if conf.getboolean("webserver", "expose_config"):
-            with open(conf.AIRFLOW_CONFIG, 'r') as f:
-                config = f.read()
+            if os.path.isfile(conf.AIRFLOW_CONFIG):
+                with open(conf.AIRFLOW_CONFIG, 'r') as f:
+                    config = f.read()
+            else:
+                config = conf.parameterized_config(conf.DEFAULT_CONFIG)
+                subtitle = None
             table = [(section, key, value, source)
                      for section, parameters in conf.as_dict(True, True).items()
                      for key, (value, source) in parameters.items()]

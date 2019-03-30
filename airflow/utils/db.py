@@ -28,6 +28,7 @@ import os
 import contextlib
 
 from airflow import settings
+from airflow import configuration as conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -292,6 +293,10 @@ def initdb():
 
     from flask_appbuilder.models.sqla import Base
     Base.metadata.create_all(settings.engine)
+
+    # save the default airflow.cfg if it doesn't exist
+    if not os.path.isfile(conf.AIRFLOW_CONFIG):
+        conf.save_config_file(conf.AIRFLOW_CONFIG, conf.DEFAULT_CONFIG)
 
 
 def upgradedb():

@@ -1119,6 +1119,16 @@ def worker(args):
         sp.kill()
 
 
+def default_config(args):
+    if os.path.isfile(args.filename):
+        if args.overwrite:
+            os.unlink(args.filename)
+        else:
+            raise AirflowException('{} already exists; pass --overwrite to '
+                                   'overwrite it'.format(args.filename))
+    conf.save_config_file(args.filename, conf.DEFAULT_CONFIG)
+
+
 def initdb(args):
     print("DB: " + repr(settings.engine.url))
     db.initdb()
@@ -1727,6 +1737,15 @@ class CLIFactory(object):
             "store_true",
             default=False),
 
+        # default_config
+        'filename': Arg(
+            ("-f", "--filename"),
+            "File to write the default config to",
+            default=conf.AIRFLOW_CONFIG),
+        'overwrite': Arg(
+            ("-o", "--overwrite"),
+            "Overwrite file if it exists", "store_true"),
+
         # list_dag_runs
         'no_backfill': Arg(
             ("--no_backfill",),
@@ -2192,6 +2211,10 @@ class CLIFactory(object):
     }
     subparsers = (
         {
+            'func': default_config,
+            'help': "Write the default config file",
+            'args': ('filename', 'overwrite'),
+        }, {
             'func': backfill,
             'help': "Run subsections of a DAG for a specified date range. "
                     "If reset_dag_run option is used,"

@@ -112,7 +112,6 @@ def _read_default_config_file(file_name):
 
 
 DEFAULT_CONFIG = _read_default_config_file('default_airflow.cfg')
-TEST_CONFIG = _read_default_config_file('default_test.cfg')
 
 
 class AirflowConfigParser(ConfigParser):
@@ -477,23 +476,14 @@ mkdir_p(AIRFLOW_HOME)
 
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
-_TEST_DAGS_FOLDER = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'tests',
-    'dags')
-if os.path.exists(_TEST_DAGS_FOLDER):
-    TEST_DAGS_FOLDER = _TEST_DAGS_FOLDER
-else:
+_ROOT_FOLDER = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+TEST_DAGS_FOLDER = os.path.join(_ROOT_FOLDER, 'tests', 'dags')
+if not os.path.exists(TEST_DAGS_FOLDER):
     TEST_DAGS_FOLDER = os.path.join(AIRFLOW_HOME, 'dags')
 
 # Set up plugins folder for unit tests
-_TEST_PLUGINS_FOLDER = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'tests',
-    'plugins')
-if os.path.exists(_TEST_PLUGINS_FOLDER):
-    TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
-else:
+TEST_PLUGINS_FOLDER = os.path.join(_ROOT_FOLDER, 'tests', 'plugins')
+if not os.path.exists(TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, 'plugins')
 
 
@@ -507,42 +497,32 @@ def parameterized_config(template):
     return template.format(**all_vars)
 
 
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
-
-# only generate a Fernet key if we need to create a new config file
-if not os.path.isfile(TEST_CONFIG_FILE) or not os.path.isfile(AIRFLOW_CONFIG):
-    FERNET_KEY = generate_fernet_key()
-else:
-    FERNET_KEY = ''
-
+FERNET_KEY = ''
 SECRET_KEY = b64encode(os.urandom(16)).decode('utf-8')
 
 TEMPLATE_START = (
     '# ----------------------- TEMPLATE BEGINS HERE -----------------------')
-if not os.path.isfile(TEST_CONFIG_FILE):
-    log.info(
-        'Creating new Airflow config file for unit tests in: %s', TEST_CONFIG_FILE
-    )
-    with open(TEST_CONFIG_FILE, 'w') as f:
-        cfg = parameterized_config(TEST_CONFIG)
-        f.write(cfg.split(TEMPLATE_START)[-1].strip())
-if not os.path.isfile(AIRFLOW_CONFIG):
-    log.info(
-        'Creating new Airflow config file in: %s',
-        AIRFLOW_CONFIG
-    )
-    with open(AIRFLOW_CONFIG, 'w') as f:
-        cfg = parameterized_config(DEFAULT_CONFIG)
+
+
+def save_config_file(config_file, config_string,
+                     log_msg='Creating new Airflow config file in: %s'):
+    global FERNET_KEY
+    if not FERNET_KEY:
+        FERNET_KEY = generate_fernet_key()
+    log.info(log_msg, config_file)
+    mkdir_p(os.path.dirname(config_file))
+    with open(config_file, 'w') as f:
+        cfg = parameterized_config(config_string)
         cfg = cfg.split(TEMPLATE_START)[-1].strip()
         if six.PY2:
             cfg = cfg.encode('utf8')
         f.write(cfg)
 
-log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
 conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
-
-conf.read(AIRFLOW_CONFIG)
+if os.path.isfile(AIRFLOW_CONFIG):
+    log.info("Reading the config from %s", AIRFLOW_CONFIG)
+    conf.read(AIRFLOW_CONFIG)
 
 if conf.has_option('core', 'AIRFLOW_HOME'):
     msg = (
@@ -564,7 +544,7 @@ if conf.has_option('core', 'AIRFLOW_HOME'):
         warnings.warn(msg, category=DeprecationWarning)
 
 
-WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
+WEBSERVER_CONFIG = os.path.join(AIRFLOW_HOME, 'webserver_config.py')
 
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
@@ -573,6 +553,11 @@ if not os.path.isfile(WEBSERVER_CONFIG):
         f.write(DEFAULT_WEBSERVER_CONFIG)
 
 if conf.getboolean('core', 'unit_test_mode'):
+    TEST_CONFIG = _read_default_config_file('default_test.cfg')
+    TEST_CONFIG_FILE = os.path.join(AIRFLOW_HOME, 'unittests.cfg')
+    if not os.path.isfile(TEST_CONFIG_FILE):
+        save_config_file(TEST_CONFIG_FILE, TEST_CONFIG,
+                         'Creating new Airflow config file for unit tests in: %s')
     conf.load_test_config()
 
 # Historical convenience functions to access config entries

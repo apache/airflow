@@ -1113,6 +1113,26 @@ class CliTests(unittest.TestCase):
         session.commit()
         session.close()
 
+    def test_cli_default_config(self):
+        temp_config_file = tempfile.mktemp()
+        self.assertFalse(os.path.isfile(temp_config_file))
+        with mock.patch.object(cli.conf, 'AIRFLOW_CONFIG', temp_config_file):
+            cli.default_config(self.parser.parse_args(['default_config',
+                                                       '-f', temp_config_file]))
+            self.assertTrue(os.path.isfile(temp_config_file))
+
+            with self.assertRaises(AirflowException):
+                cli.default_config(self.parser.parse_args(['default_config',
+                                                           '-f', temp_config_file]))
+            self.assertTrue(os.path.isfile(temp_config_file))
+
+            cli.default_config(self.parser.parse_args(['default_config',
+                                                       '-f', temp_config_file,
+                                                       '--overwrite']))
+            self.assertTrue(os.path.isfile(temp_config_file))
+
+            os.unlink(temp_config_file)
+
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
@@ -1417,11 +1437,13 @@ class CliTests(unittest.TestCase):
                                        '--limit', '100'])
         cli.list_jobs(args)
 
-    @mock.patch("airflow.bin.cli.db.initdb")
-    def test_cli_initdb(self, initdb_mock):
-        cli.initdb(self.parser.parse_args(['initdb']))
-
-        initdb_mock.assert_called_once_with()
+    def test_cli_initdb(self):
+        temp_config_file = tempfile.mktemp()
+        self.assertFalse(os.path.isfile(temp_config_file))
+        with mock.patch.object(configuration, 'AIRFLOW_CONFIG', temp_config_file):
+            cli.initdb(self.parser.parse_args(['initdb']))
+            self.assertTrue(os.path.isfile(temp_config_file))
+            os.unlink(temp_config_file)
 
     @mock.patch("airflow.bin.cli.db.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
