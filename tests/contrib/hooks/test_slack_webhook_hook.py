@@ -96,7 +96,7 @@ class TestSlackWebhookHook(unittest.TestCase):
         hook = SlackWebhookHook(http_conn_id='http_default')
         hook.get_conn()
 
-        self.assertEqual(hook._get_base_url(), 'https://www.google.com/')
+        self.assertEqual(hook.base_url, 'https://www.google.com/')
 
     def test_conn_id_is_not_defined_error(self):
         with self.assertRaises(AirflowException):
