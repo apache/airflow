@@ -51,64 +51,31 @@ except GoogleAuthError:
 
 
 class TestCatchHttpException(unittest.TestCase):
-    def test_no_exception(self):
-        self.called = False
-
-        class FixtureClass(LoggingMixin):
-            @hook.GoogleCloudBaseHook.catch_http_exception
-            def text_fixture(*args, **kwargs):
-                self.called = True
-
-        FixtureClass().text_fixture()
-
-        self.assertTrue(self.called)
-
     @parameterized.expand(
         [
-            (MovedPermanently("MESSAGE"),),
-            (RetryError("MESSAGE", cause=Exception("MESSAGE")),),
-            (ValueError("MESSAGE"),),
+            ("no_exception", None, LoggingMixin, None, None),
+            ("raise_airflowexception", MovedPermanently("MESSAGE"), LoggingMixin, None, AirflowException),
+            ("raise_airflowexception", RetryError("MESSAGE", cause=Exception("MESSAGE")), LoggingMixin, None, AirflowException),  # noqa: E501
+            ("raise_airflowexception", ValueError("MESSAGE"), LoggingMixin, None, AirflowException),
+            ("raise_alreadyexists", AlreadyExists("MESSAGE"), LoggingMixin, None, AlreadyExists),
+            ("raise_http_error", HttpError(mock.Mock(**{"reason.return_value": None}), b"CONTENT"), BaseHook, {"source": None}, AirflowException),  # noqa: E501
         ]
     )
-    def test_raise_airflowexception(self, ex_obj):
+    def test_catch_exception(self, name, exception, base_class, base_class_args, assert_raised):
         self.called = False
 
-        class FixtureClass(LoggingMixin):
+        class FixtureClass(base_class):
             @hook.GoogleCloudBaseHook.catch_http_exception
-            def test_fixutre(*args, **kwargs):
+            def test_fixture(*args, **kwargs):
                 self.called = True
-                raise ex_obj
+                if exception is not None:
+                    raise exception
 
-        with self.assertRaises(AirflowException):
-            FixtureClass().test_fixutre()
-
-        self.assertTrue(self.called)
-
-    def test_raise_alreadyexists(self):
-        self.called = False
-
-        class FixtureClass(LoggingMixin):
-            @hook.GoogleCloudBaseHook.catch_http_exception
-            def test_fixutre(*args, **kwargs):
-                self.called = True
-                raise AlreadyExists("MESSAGE")
-
-        with self.assertRaises(AlreadyExists):
-            FixtureClass().test_fixutre()
-
-        self.assertTrue(self.called)
-
-    def test_raise_http_error(self):
-        self.called = False
-
-        class FixtureClass(BaseHook):
-            @hook.GoogleCloudBaseHook.catch_http_exception
-            def test_fixtue(*args, **kwargs):
-                self.called = True
-                raise HttpError(mock.Mock(**{"reason.return_value": None}), b"CONTENT")
-
-        with self.assertRaises(AirflowException):
-            FixtureClass(None).test_fixtue()
+        if assert_raised is None:
+            FixtureClass(base_class_args).test_fixture()
+        else:
+            with self.assertRaises(assert_raised):
+                FixtureClass(base_class_args).test_fixture()
 
         self.assertTrue(self.called)
 
