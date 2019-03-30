@@ -689,12 +689,6 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(context['ts_nodash'], '20150101T000000')
         self.assertEqual(context['ts_nodash_with_tz'], '20150101T000000+0000')
 
-        self.assertEqual(context['yesterday_ds'], '2014-12-31')
-        self.assertEqual(context['yesterday_ds_nodash'], '20141231')
-
-        self.assertEqual(context['tomorrow_ds'], '2015-01-02')
-        self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
-
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
 

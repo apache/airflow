@@ -1102,9 +1102,6 @@ class TaskInstance(Base, LoggingMixin):
     def get_template_context(self, session=None):
         task = self.task
         from airflow import macros
-        tables = None
-        if 'tables' in task.params:
-            tables = task.params['tables']
 
         params = {}
         run_id = ''
@@ -1124,11 +1121,6 @@ class TaskInstance(Base, LoggingMixin):
             session.expunge_all()
             session.commit()
 
-        ds = self.execution_date.strftime('%Y-%m-%d')
-        ts = self.execution_date.isoformat()
-        yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
-        tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
-
         # For manually triggered dagruns that aren't run on a schedule, next/previous
         # schedule dates don't make sense, and should be set to execution date for
         # consistency with how execution_date is set for manually triggered tasks, i.e.
@@ -1139,6 +1131,9 @@ class TaskInstance(Base, LoggingMixin):
         else:
             prev_execution_date = task.dag.previous_schedule(self.execution_date)
             next_execution_date = task.dag.following_schedule(self.execution_date)
+
+        ds = self.execution_date.strftime('%Y-%m-%d')
+        ds_nodash = ds.replace('-', '')
 
         next_ds = None
         next_ds_nodash = None
@@ -1152,11 +1147,9 @@ class TaskInstance(Base, LoggingMixin):
             prev_ds = prev_execution_date.strftime('%Y-%m-%d')
             prev_ds_nodash = prev_ds.replace('-', '')
 
-        ds_nodash = ds.replace('-', '')
+        ts = self.execution_date.isoformat()
         ts_nodash = self.execution_date.strftime('%Y%m%dT%H%M%S')
         ts_nodash_with_tz = ts.replace('-', '').replace(':', '')
-        yesterday_ds_nodash = yesterday_ds.replace('-', '')
-        tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
 
         ti_key_str = "{dag_id}__{task_id}__{ds_nodash}".format(
             dag_id=task.dag_id, task_id=task.task_id, ds_nodash=ds_nodash)
@@ -1198,46 +1191,36 @@ class TaskInstance(Base, LoggingMixin):
                 return str(self.var)
 
         return {
+            'conf': configuration,
             'dag': task.dag,
+            'dag_run': dag_run,
             'ds': ds,
+            'ds_nodash': ds_nodash,
+            'execution_date': self.execution_date,
+            'macros': macros,
             'next_ds': next_ds,
             'next_ds_nodash': next_ds_nodash,
+            'next_execution_date': next_execution_date,
+            'params': params,
             'prev_ds': prev_ds,
             'prev_ds_nodash': prev_ds_nodash,
-            'ds_nodash': ds_nodash,
-            'ts': ts,
-            'ts_nodash': ts_nodash,
-            'ts_nodash_with_tz': ts_nodash_with_tz,
-            'yesterday_ds': yesterday_ds,
-            'yesterday_ds_nodash': yesterday_ds_nodash,
-            'tomorrow_ds': tomorrow_ds,
-            'tomorrow_ds_nodash': tomorrow_ds_nodash,
-            'END_DATE': ds,
-            'end_date': ds,
-            'dag_run': dag_run,
-            'run_id': run_id,
-            'execution_date': self.execution_date,
             'prev_execution_date': prev_execution_date,
             'prev_execution_date_success': lazy_object_proxy.Proxy(
                 lambda: self.previous_execution_date_success),
             'prev_start_date_success': lazy_object_proxy.Proxy(lambda: self.previous_start_date_success),
-            'next_execution_date': next_execution_date,
-            'latest_date': ds,
-            'macros': macros,
-            'params': params,
-            'tables': tables,
+            'run_id': run_id,
             'task': task,
             'task_instance': self,
-            'ti': self,
             'task_instance_key_str': ti_key_str,
-            'conf': configuration,
             'test_mode': self.test_mode,
+            'ti': self,
+            'ts': ts,
+            'ts_nodash': ts_nodash,
+            'ts_nodash_with_tz': ts_nodash_with_tz,
             'var': {
+                'json': VariableJsonAccessor(),
                 'value': VariableAccessor(),
-                'json': VariableJsonAccessor()
             },
-            'inlets': task.inlets,
-            'outlets': task.outlets,
         }
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):

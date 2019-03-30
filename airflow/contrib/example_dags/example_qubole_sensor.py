@@ -70,7 +70,8 @@ t2 = QubolePartitionSensor(
               {"column": "month", "values":
                   ["{{ ds.split('-')[1] }}"]},
               {"column": "day", "values":
-                  ["{{ ds.split('-')[2] }}", "{{ yesterday_ds.split('-')[2] }}"]}
+                  ["{{ ds.split('-')[2] }}",
+                   "{{ (execution_date - macros.timedelta(days=1)).strftime('%d') }}"]}
           ]  # will check for partitions like [month=12/day=12,month=12/day=13]
           },
     dag=dag

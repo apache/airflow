@@ -24,6 +24,24 @@ assists users migrating to a new version.
 ## Airflow Master
 
 
+### Some task context variables are removed
+The following task context variables are removed. Some are obsolete, some are duplicates whose 
+value is also given via other variables, and some are "derived" values from other variables which 
+are also given in the task context.
+
+* `yesterday_ds`: can be derived from `execution_date` (`{{ (execution_date - macros.timedelta(1)).strftime('%Y-%m-%d') }}`)
+* `yesterday_ds_nodash`: can be derived from `execution_date` (`{{ (execution_date - macros.timedelta(1)).strftime('%Y%m%d') }}`)
+* `tomorrow_ds`: can be derived from `execution_date` (`{{ (execution_date + macros.timedelta(1)).strftime('%Y-%m-%d') }}`)
+* `tomorrow_ds_nodash`: can be derived from `execution_date` (`{{ (execution_date - macros.timedelta(1)).strftime('%Y%m%d') }}`)
+* `tables`: also given via params (`{{ params.get('tables', None) }}`)
+* `latest_date`: same value as `ds`
+* `inlets`: unused
+* `outlets`: unused
+* `end_date`: same value as `ds`
+* `END_DATE`: same value as `ds`
+
+For more information, see https://github.com/apache/airflow/pull/5010.
+
 ### `pool` config option in Celery section to support different Celery pool implementation
 
 The new `pool` config option allows users to choose different pool

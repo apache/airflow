@@ -85,7 +85,9 @@ class HiveToDruidTransfer(BaseOperator):
         self.sql = sql
         self.druid_datasource = druid_datasource
         self.ts_dim = ts_dim
-        self.intervals = intervals or ['{{ ds }}/{{ tomorrow_ds }}']
+        self.intervals = intervals or [
+            '{{ ds }}/{{ (execution_date + macros.timedelta(days=1)).strftime("%Y-%m-%d") }}'
+        ]
         self.num_shards = num_shards
         self.target_partition_size = target_partition_size
         self.query_granularity = query_granularity
