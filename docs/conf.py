@@ -429,5 +429,5 @@ autoapi_keep_files = False
 # anywhere in your documentation hierarchy.
 autoapi_root = '_api'
 
-# -- Options for examole include ------------------------------------------
+# -- Options for example include ------------------------------------------
 exampleinclude_sourceroot = os.path.abspath('..')
