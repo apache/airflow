@@ -47,8 +47,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type py_files: str
     :param: archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
         the application working directory.
-    :param driver_classpath: Additional, driver-specific, classpath settings.
-    :type driver_classpath: str
+    :param driver_class_path: Additional, driver-specific, classpath settings.
+    :type driver_class_path: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
     :type jars: str
     :param java_class: the main class of the Java application
@@ -97,7 +97,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  files=None,
                  py_files=None,
                  archives=None,
-                 driver_classpath=None,
+                 driver_class_path=None,
                  jars=None,
                  java_class=None,
                  packages=None,
@@ -120,7 +120,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._files = files
         self._py_files = py_files
         self._archives = archives
-        self._driver_classpath = driver_classpath
+        self._driver_class_path = driver_class_path
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
@@ -250,8 +250,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--py-files", self._py_files]
         if self._archives:
             connection_cmd += ["--archives", self._archives]
-        if self._driver_classpath:
-            connection_cmd += ["--driver-classpath", self._driver_classpath]
+        if self._driver_class_path:
+            connection_cmd += ["--driver-class-path", self._driver_class_path]
         if self._jars:
             connection_cmd += ["--jars", self._jars]
         if self._packages:

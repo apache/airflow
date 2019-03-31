@@ -200,6 +200,15 @@ The change was made to keep all the operators related to GCS Transfer Services i
 
 The previous imports will continue to work until Airflow 2.0
 
+### Fixed typo in --driver-class-path in SparkSubmitHook
+
+The `driver_classapth` argument  to SparkSubmit Hook and Operator was
+generating `--driver-classpath` on the spark command line, but this isn't a
+valid option to spark.
+
+The argument has been renamed to `driver_class_path`  and  the option it
+generates has been fixed.
+
 ## Airflow 1.10.2
 
 ### DAG level Access Control for new RBAC UI
