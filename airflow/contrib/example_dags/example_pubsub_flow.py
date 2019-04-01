@@ -24,7 +24,7 @@ can be used to trigger dependant tasks upon receipt of a Pub/Sub message.
 NOTE: project_id must be updated to a GCP project ID accessible with the
       Google Default Credentials on the machine running the workflow
 """
-from __future__ import unicode_literals
+
 from base64 import b64encode
 
 import datetime
