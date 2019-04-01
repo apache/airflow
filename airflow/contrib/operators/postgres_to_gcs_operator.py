@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import json
 import time
 import datetime
@@ -28,8 +27,6 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-
-PY3 = sys.version_info[0] == 3
 
 
 class PostgresToGoogleCloudStorageOperator(BaseOperator):
@@ -151,9 +148,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
                 row = map(self.convert_types, row)
                 row_dict = dict(zip(schema, row))
 
-                s = json.dumps(row_dict, sort_keys=True)
-                if PY3:
-                    s = s.encode('utf-8')
+                s = json.dumps(row_dict, sort_keys=True).encode('utf-8')
                 tmp_file_handle.write(s)
 
                 # Append newline to make dumps BigQuery compatible.
@@ -192,9 +187,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
 
         self.log.info('Using schema for %s: %s', self.schema_filename, schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        s = json.dumps(schema, sort_keys=True)
-        if PY3:
-            s = s.encode('utf-8')
+        s = json.dumps(schema, sort_keys=True).encode('utf-8')
         tmp_schema_file_handle.write(s)
         return {self.schema_filename: tmp_schema_file_handle}
 

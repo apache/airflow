@@ -23,7 +23,7 @@ from base64 import b64encode
 from cassandra.util import Date, Time, SortedSet, OrderedMapSerializedKey
 from datetime import datetime
 from decimal import Decimal
-from six import text_type, binary_type, PY3
+from six import text_type, binary_type
 from tempfile import NamedTemporaryFile
 from uuid import UUID
 
@@ -166,9 +166,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
         for row in cursor:
             row_dict = self.generate_data_dict(row._fields, row)
-            s = json.dumps(row_dict)
-            if PY3:
-                s = s.encode('utf-8')
+            s = json.dumps(row_dict).encode('utf-8')
             tmp_file_handle.write(s)
 
             # Append newline to make dumps BigQuery compatible.
@@ -195,9 +193,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
 
         for name, type in zip(cursor.column_names, cursor.column_types):
             schema.append(self.generate_schema_dict(name, type))
-        json_serialized_schema = json.dumps(schema)
-        if PY3:
-            json_serialized_schema = json_serialized_schema.encode('utf-8')
+        json_serialized_schema = json.dumps(schema).encode('utf-8')
 
         tmp_schema_file_handle.write(json_serialized_schema)
         return {self.schema_filename: tmp_schema_file_handle}

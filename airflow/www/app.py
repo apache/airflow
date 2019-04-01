@@ -18,11 +18,9 @@
 # under the License.
 #
 import logging
-import os
 import socket
 from typing import Any
 
-import six
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
@@ -191,11 +189,8 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         # required for testing purposes otherwise the module retains
         # a link to the default_auth
         if app.config['TESTING']:
-            if six.PY2:
-                reload(e)  # noqa
-            else:
-                import importlib
-                importlib.reload(e)
+            import importlib
+            importlib.reload(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 

@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import json
 import time
 import base64
@@ -32,8 +31,6 @@ from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
 from six import string_types
 import unicodecsv as csv
-
-PY3 = sys.version_info[0] == 3
 
 
 class MySqlToGoogleCloudStorageOperator(BaseOperator):
@@ -180,9 +177,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                 row_dict = dict(zip(schema, row))
 
                 # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
-                s = json.dumps(row_dict, sort_keys=True)
-                if PY3:
-                    s = s.encode('utf-8')
+                s = json.dumps(row_dict, sort_keys=True).encode('utf-8')
                 tmp_file_handle.write(s)
 
                 # Append newline to make dumps BigQuery compatible.
@@ -225,9 +220,9 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         schema_file_mime_type = 'application/json'
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         if self.schema is not None and isinstance(self.schema, string_types):
-            schema_str = self.schema
+            schema_str = self.schema.encode('utf-8')
         elif self.schema is not None and isinstance(self.schema, list):
-            schema_str = json.dumps(self.schema)
+            schema_str = json.dumps(self.schema).encode('utf-8')
         else:
             schema = []
             for field in cursor.description:
@@ -246,9 +241,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                     'type': field_type,
                     'mode': field_mode,
                 })
-            schema_str = json.dumps(schema, sort_keys=True)
-        if PY3:
-            schema_str = schema_str.encode('utf-8')
+            schema_str = json.dumps(schema, sort_keys=True).encode('utf-8')
         tmp_schema_file_handle.write(schema_str)
 
         self.log.info('Using schema for %s: %s', self.schema_filename, schema_str)
@@ -288,9 +281,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             elif isinstance(col_val, Decimal):
                 col_val = float(col_val)
             elif col_type_dict.get(col_name) == "BYTES":
-                col_val = base64.standard_b64encode(col_val)
-                if PY3:
-                    col_val = col_val.decode('ascii')
+                col_val = base64.standard_b64encode(col_val).decode('ascii')
             else:
                 col_val = col_val
             converted_row.append(col_val)

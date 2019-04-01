@@ -24,7 +24,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import time
-import six
+
 import re
 
 try:
@@ -43,9 +43,7 @@ def get_minikube_host():
     if "MINIKUBE_IP" in os.environ:
         host_ip = os.environ['MINIKUBE_IP']
     else:
-        host_ip = check_output(['/usr/local/bin/minikube', 'ip'])
-        if six.PY3:
-            host_ip = host_ip.decode('UTF-8')
+        host_ip = check_output(['/usr/local/bin/minikube', 'ip']).decode('UTF-8')
 
     host = '{}:30809'.format(host_ip.strip())
     return host

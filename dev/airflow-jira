@@ -36,9 +36,6 @@ import sys
 TMP_CREDENTIALS = {}
 PROJECT = "AIRFLOW"
 
-# Python 3 compatibility
-if sys.version_info[0] == 3:
-    raw_input = input
 
 try:
     import click
