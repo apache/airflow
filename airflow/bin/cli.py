@@ -338,8 +338,7 @@ def variables(args):
         except ValueError as e:
             print(e)
     if args.delete:
-        with db.create_session() as session:
-            session.query(Variable).filter_by(key=args.delete).delete()
+        Variable.delete(args.delete)
     if args.set:
         Variable.set(args.set[0], args.set[1])
     # Work around 'import' as a reserved keyword

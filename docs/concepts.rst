@@ -477,7 +477,7 @@ passed, then a corresponding list of XCom values is returned.
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
-.. code:: sql
+.. code:: jinja
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
@@ -964,7 +964,7 @@ Jinja Templating
 
 Airflow leverages the power of
 `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a
-powerful tool to use in combination with macros (see the :ref:`macros` section).
+powerful tool to use in combination with macros (see the :doc:`macros` section).
 
 For example, say you want to pass the execution date as an environment variable
 to a Bash script using the ``BashOperator``.

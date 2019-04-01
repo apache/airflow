@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import mock
 import unittest
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_container_hook import GKEClusterHook
+from tests.compat import mock
 
 
 TASK_ID = 'test-gke-cluster-operator'
@@ -199,7 +199,7 @@ class GKEClusterHookTest(unittest.TestCase):
     def test_get_client(self, mock_get_credentials, mock_client_info, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_client()
-        mock_get_credentials.assert_called()
+        assert mock_get_credentials.called
         mock_client.assert_called_with(
             credentials=mock_get_credentials.return_value,
             client_info=mock_client_info.return_value)

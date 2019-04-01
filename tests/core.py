@@ -83,7 +83,7 @@ try:
     import cPickle as pickle
 except ImportError:
     # Python 3
-    import pickle
+    import pickle  # type: ignore
 
 
 class OperatorSubclass(BaseOperator):
@@ -745,6 +745,24 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(value, val)
         self.assertEqual(value, Variable.get(key, deserialize_json=True))
 
+    def test_variable_delete(self):
+        key = "tested_var_delete"
+        value = "to be deleted"
+
+        # No-op if the variable doesn't exist
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)
+
+        # Set the variable
+        Variable.set(key, value)
+        self.assertEqual(value, Variable.get(key))
+
+        # Delete the variable
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)
+
     def test_parameterized_config_gen(self):
 
         cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
@@ -1323,7 +1341,7 @@ class CliTests(unittest.TestCase):
         ])
         cli.sync_perm(args)
 
-        self.appbuilder.sm.sync_roles.assert_called_once()
+        assert self.appbuilder.sm.sync_roles.call_count == 1
 
         self.assertEqual(2,
                          len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))

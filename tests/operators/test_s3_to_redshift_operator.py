@@ -67,5 +67,5 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                    secret_key=secret_key,
                    copy_options=copy_options)
 
-        mock_run.assert_called_once()
+        assert mock_run.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)

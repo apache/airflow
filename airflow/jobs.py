@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 from collections import defaultdict, OrderedDict
+from datetime import timedelta
 from time import sleep
 from typing import Any
 
@@ -293,7 +294,7 @@ class BaseJob(Base, LoggingMixin):
                                              self.max_tis_per_query)
 
         task_instance_str = '\n\t'.join(
-            ["{}".format(x) for x in reset_tis])
+            [repr(x) for x in reset_tis])
         session.commit()
 
         self.log.info(
@@ -619,7 +620,7 @@ class SchedulerJob(BaseJob):
         Where assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
-        if not any([ti.sla for ti in dag.tasks]):
+        if not any([isinstance(ti.sla, timedelta) for ti in dag.tasks]):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
@@ -648,7 +649,7 @@ class SchedulerJob(BaseJob):
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
-            if task.sla:
+            if isinstance(task.sla, timedelta):
                 dttm = dag.following_schedule(dttm)
                 while dttm < timezone.utcnow():
                     following_schedule = dag.following_schedule(dttm)
@@ -1091,7 +1092,7 @@ class SchedulerJob(BaseJob):
 
         # Put one task instance on each line
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in task_instances_to_examine])
+            [repr(x) for x in task_instances_to_examine])
         self.log.info(
             "%s tasks up for execution:\n\t%s", len(task_instances_to_examine),
             task_instance_str
@@ -1209,7 +1210,7 @@ class SchedulerJob(BaseJob):
                         num_starving_tasks)
 
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in executable_tis])
+            [repr(x) for x in executable_tis])
         self.log.info(
             "Setting the following tasks to queued state:\n\t%s", task_instance_str)
         # so these dont expire on commit
@@ -1282,7 +1283,7 @@ class SchedulerJob(BaseJob):
                                  tis_to_set_to_queued]
 
         task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in tis_to_set_to_queued])
+            [repr(x) for x in tis_to_set_to_queued])
 
         session.commit()
         self.log.info("Setting the following %s tasks to queued state:\n\t%s",
@@ -1403,11 +1404,10 @@ class SchedulerJob(BaseJob):
                 task_instance.state = State.SCHEDULED
 
             task_instance_str = "\n\t".join(
-                ["{}".format(x) for x in tis_to_set_to_scheduled])
+                [repr(x) for x in tis_to_set_to_scheduled])
 
             session.commit()
-            self.log.info("Set the following tasks to scheduled state:\n\t{}"
-                          .format(task_instance_str))
+            self.log.info("Set the following tasks to scheduled state:\n\t%s", task_instance_str)
 
     def _process_dags(self, dagbag, dags, tis_out):
         """
@@ -1725,13 +1725,12 @@ class SchedulerJob(BaseJob):
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
-            dag = dagbag.get_dag(dag_id)
-            pickle_id = None
-            if pickle_dags:
-                pickle_id = dag.pickle(session).id
-
             # Only return DAGs that are not paused
             if dag_id not in paused_dag_ids:
+                dag = dagbag.get_dag(dag_id)
+                pickle_id = None
+                if pickle_dags:
+                    pickle_id = dag.pickle(session).id
                 simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
 
         if len(self.dag_ids) > 0:

@@ -99,7 +99,7 @@ class AirflowTestPlugin(AirflowPlugin):
     flask_blueprints = [bp]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
-    stat_name_handler = stat_name_dummy_handler
+    stat_name_handler = staticmethod(stat_name_dummy_handler)
 
 
 class MockPluginA(AirflowPlugin):

@@ -25,14 +25,7 @@ from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOper
 from airflow.contrib.hooks.qubole_check_hook import QuboleCheckHook
 from airflow.contrib.hooks.qubole_hook import QuboleHook
 from qds_sdk.commands import HiveCommand
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class QuboleValueCheckOperatorTest(unittest.TestCase):

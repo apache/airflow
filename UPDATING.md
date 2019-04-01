@@ -24,10 +24,16 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+
 ### HTTPHook verify default value changed from False to True.
 
 The HTTPHook is now secured by default: `verify=True`.
 This can be overwriten by using the extra_options param as `{'verify': False}`.
+
+### Changes to DatastoreHook
+
+* removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
+* renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
 
 #### Unify default conn_id for Google Cloud Platform
 
@@ -44,6 +50,8 @@ by default.
 
 Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
 The `airflow.utlis.helpers.chain` function is removed.
+
+### Fixed typo in --driver-class-path in SparkSubmitHook
 
 ### Viewer won't have edit permissions on DAG view.
 

@@ -21,14 +21,7 @@ from airflow import configuration
 from airflow.exceptions import AirflowConfigException
 from airflow.contrib.hooks.grpc_hook import GrpcHook
 from airflow.models.connection import Connection
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 def get_airflow_connection(auth_type="NO_AUTH", credential_pem_file=None, scopes=None):

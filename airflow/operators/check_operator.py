@@ -19,7 +19,7 @@
 
 from builtins import zip
 from builtins import str
-from typing import Iterable
+from typing import Optional, Any, Iterable, Dict
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -69,9 +69,12 @@ class CheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql,
-            conn_id=None,
-            *args, **kwargs):
+        self,
+        sql,  # type: str
+        conn_id=None,  # type: Optional[str]
+        *args,
+        **kwargs
+    ):
         super(CheckOperator, self).__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.sql = sql
@@ -127,9 +130,14 @@ class ValueCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, pass_value, tolerance=None,
-            conn_id=None,
-            *args, **kwargs):
+        self,
+        sql,  # type: str
+        pass_value,  # type: Any
+        tolerance=None,  # type: Any
+        conn_id=None,  # type: Optional[str]
+        *args,
+        **kwargs
+    ):
         super(ValueCheckOperator, self).__init__(*args, **kwargs)
         self.sql = sql
         self.conn_id = conn_id
@@ -203,10 +211,15 @@ class IntervalCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, table, metrics_thresholds,
-            date_filter_column='ds', days_back=-7,
-            conn_id=None,
-            *args, **kwargs):
+        self,
+        table,  # type: str
+        metrics_thresholds,  # type: Dict
+        date_filter_column='ds',  # type: str
+        days_back=-7,  # type: int
+        conn_id=None,  # type: Optional[str]
+        *args,
+        **kwargs
+    ):
         super(IntervalCheckOperator, self).__init__(*args, **kwargs)
         self.table = table
         self.metrics_thresholds = metrics_thresholds

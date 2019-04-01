@@ -70,6 +70,7 @@ services:
     init: true
     environment:
       - USER=airflow
+      - INSIDE_DOCKER_CONTAINER=true
       - ADDITIONAL_PATH=~/.local/bin
       - TOX_ENV
       - PYTHON_VERSION

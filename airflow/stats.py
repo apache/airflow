@@ -73,7 +73,7 @@ def stat_name_default_handler(stat_name, max_length=250):
 
 def validate_stat(f):
     @wraps(f)
-    def wrapper(stat, *args, **kwargs):
+    def wrapper(_self, stat, *args, **kwargs):
         try:
             from airflow.plugins_manager import stat_name_handler
             if stat_name_handler:
@@ -81,10 +81,10 @@ def validate_stat(f):
             else:
                 handle_stat_name_func = stat_name_default_handler
             stat_name = handle_stat_name_func(stat)
-        except Exception as err:
-            log.warning('Invalid stat name: {stat}.'.format(stat=stat), err)
+        except InvalidStatsNameException:
+            log.warning('Invalid stat name: {}.'.format(stat), exc_info=True)
             return
-        return f(stat_name, *args, **kwargs)
+        return f(_self, stat_name, *args, **kwargs)
 
     return wrapper
 

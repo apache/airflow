@@ -45,15 +45,9 @@ from tests.contrib.utils.base_gcp_mock import (
     mock_base_gcp_hook_no_default_project_id,
     mock_base_gcp_hook_default_project_id,
 )
+from tests.compat import mock
 
 NAME = "name"
-try:
-    from unittest import mock
-except ImportError:  # pragma: no cover
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 TEST_PROJECT_ID = 'project-id'
 TEST_BODY = {DESCRIPTION: 'AAA', PROJECT_ID: TEST_PROJECT_ID}

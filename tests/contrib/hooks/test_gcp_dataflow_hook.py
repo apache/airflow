@@ -19,18 +19,10 @@
 #
 
 import unittest
-from mock import MagicMock
 
 from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\
     _Dataflow, _DataflowJob
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock, MagicMock
 
 
 TASK_ID = 'test-dataflow-operator'
