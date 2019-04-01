@@ -163,6 +163,8 @@ def backfill(args, dag=None):
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
 
+    signal.signal(signal.SIGTERM, sigint_handler)
+
     dag = dag or get_dag(args)
 
     if not args.start_date and not args.end_date:
