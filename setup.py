@@ -183,6 +183,8 @@ gcp_api = [
     'google-cloud-translate>=1.3.3',
     'google-cloud-videointelligence>=1.7.0',
     'google-cloud-vision>=0.35.2',
+    'google-cloud-texttospeech>=0.4.0',
+    'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
     'httplib2~=0.9.2',
     'pandas-gbq',
