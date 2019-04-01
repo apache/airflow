@@ -32,6 +32,7 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     :param bucket: Name of the bucket in which you are going to delete object(s). (templated)
     :type bucket: str
+    
     :param keys: The key(s) to delete from S3 bucket. (templated)
 
         When ``keys`` is a string, it's supposed to be the key name of
@@ -42,6 +43,16 @@ class S3DeleteObjectsOperator(BaseOperator):
 
         You may specify up to 1000 keys.
     :type keys: str or list
+
+    :param prefix: prefix of source object keys. (templated)
+        Either keys or prefix must be specified, 
+        To delete all files in a bucket use empty prefix.
+    :type source_bucket_prefix: str
+
+    :param delimiter: delimiter of source object keys. (templated)
+        Default is empty string.
+    :type source_bucket_prefix: str
+
     :param aws_conn_id: Connection id of the S3 connection to use
     :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -64,24 +75,45 @@ class S3DeleteObjectsOperator(BaseOperator):
     def __init__(
             self,
             bucket,
-            keys,
+            keys=None,
+            prefix=None,
+            delimiter='',
             aws_conn_id='aws_default',
             verify=None,
             *args, **kwargs):
         super(S3DeleteObjectsOperator, self).__init__(*args, **kwargs)
         self.bucket = bucket
         self.keys = keys
+        self.prefix = prefix
+        self.delimiter = delimiter
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
     def execute(self, context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-        response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
+        if self.keys is None:
+            self.log.info(
+                'Getting the list of files from bucket: %s in prefix: %s (Delimiter %s)',
+                self.bucket, self.prefix, self.delimiter
+            )
 
-        deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
-        self.log.info("Deleted: %s", deleted_keys)
+            self.keys = s3_hook.list_keys(
+                    bucket_name=self.bucket,
+                    prefix=self.prefix,
+                    delimiter=self.delimiter)
 
-        if "Errors" in response:
-            errors_keys = [x['Key'] for x in response.get("Errors", [])]
-            raise AirflowException("Errors when deleting: {}".format(errors_keys))
+        if self.keys is None:
+            self.log.info(
+                "No files to Delete!"
+            )
+
+        else:
+            response = s3_hook.delete_objects(bucket=self.bucket, keys=self.keys)
+
+            deleted_keys = [x['Key'] for x in response.get("Deleted", [])]
+            self.log.info("Deleted: %s", deleted_keys)
+
+            if "Errors" in response:
+                errors_keys = [x['Key'] for x in response.get("Errors", [])]
+                raise AirflowException("Errors when deleting: {}".format(errors_keys))
