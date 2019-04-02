@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from copy import deepcopy
+from typing import Dict
 
 from googleapiclient.errors import HttpError
 
@@ -452,8 +453,7 @@ class GceInstanceGroupManagerUpdateTemplateOperator(GceBaseOperator):
             project_id=project_id, zone=self.zone, resource_id=resource_id,
             gcp_conn_id=gcp_conn_id, api_version=api_version, *args, **kwargs)
 
-    def _possibly_replace_template(self, dictionary):
-        # type: (dict) -> None
+    def _possibly_replace_template(self, dictionary: Dict) -> None:
         if dictionary.get('instanceTemplate') == self.source_template:
             dictionary['instanceTemplate'] = self.destination_template
             self._change_performed = True

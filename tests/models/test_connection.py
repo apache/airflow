@@ -18,7 +18,7 @@
 # under the License.
 
 import unittest
-from collections import namedtuple
+from typing import NamedTuple, Optional
 
 from cryptography.fernet import Fernet
 from mock import patch
@@ -26,7 +26,17 @@ from parameterized import parameterized
 
 from airflow.models import Connection, crypto
 
-ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
+
+ConnectionParts = NamedTuple(
+    "ConnectionParts", [
+        ("conn_type", str),
+        ("login", Optional[str]),
+        ("password", Optional[str]),
+        ("host", Optional[str]),
+        ("port", Optional[int]),
+        ("schema", Optional[str]),
+    ]
+)
 
 
 class ConnectionTest(unittest.TestCase):

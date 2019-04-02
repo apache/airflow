@@ -145,12 +145,14 @@ class QuboleOperator(BaseOperator):
         handler in task definition.
     """
 
-    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files',
-                       'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
-                       'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
-                       'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
-                       'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments', 'cluster_label')  # type: Iterable[str]
+    template_fields = (
+        'query', 'script_location', 'sub_command', 'script', 'files',
+        'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
+        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
+        'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
+        'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
+        'arguments', 'user_program_arguments', 'cluster_label',
+    )  # type: Iterable[str]
 
     template_ext = ('.txt',)  # type: Iterable[str]
     ui_color = '#3064A1'

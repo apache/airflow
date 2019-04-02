@@ -19,7 +19,7 @@
 
 import json
 import unittest
-from collections import namedtuple
+from typing import NamedTuple, List
 from mock import patch
 
 from airflow import configuration
@@ -70,7 +70,10 @@ class TestAzureContainerInstanceHook(unittest.TestCase):
     def test_get_state_exitcode_details(self, get_instance_view_mock):
         expected_state = ContainerState(state='testing', exit_code=1, detail_status='details')
         instance_view = {"current_state": expected_state}
-        named_instance = namedtuple("InstanceView", instance_view.keys())(*instance_view.values())
+        named_instance = NamedTuple(
+            "InstanceView",
+            [("current_state", ContainerState)]
+        )(*instance_view.values())
         get_instance_view_mock.return_value = named_instance
 
         state, exit_code, details = self.testHook.get_state_exitcode_details('resource-group', 'test')
@@ -85,7 +88,7 @@ class TestAzureContainerInstanceHook(unittest.TestCase):
         expected_messages = ['test1', 'test2']
         events = [Event(message=m) for m in expected_messages]
         instance_view = {"events": events}
-        named_instance = namedtuple("Events", instance_view.keys())(*instance_view.values())
+        named_instance = NamedTuple("Events", [("events", List[Event])])(*instance_view.values())
         get_instance_view_mock.return_value = named_instance
 
         messages = self.testHook.get_messages('resource-group', 'test')

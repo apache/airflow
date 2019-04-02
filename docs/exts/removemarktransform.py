@@ -50,8 +50,7 @@ class TrimDocMarkerFlagsTransform(SphinxTransform):
                 node[:] = [nodes.Text(source)]
 
     @staticmethod
-    def is_pycode(node):
-        # type: (nodes.literal_block) -> bool
+    def is_pycode(node: nodes.literal_block) -> bool:
         if node.rawsource != node.astext():
             return False  # skip parsed-literal node
 

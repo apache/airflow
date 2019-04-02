@@ -22,7 +22,7 @@ import inspect
 import os
 import re
 import pkg_resources
-from typing import List, Any
+from typing import Callable, Optional, List, Any
 
 from airflow import settings
 from airflow.models.baseoperator import BaseOperatorLink
@@ -55,7 +55,7 @@ class AirflowPlugin:
     #
     # The function should have the following signature:
     # def func_name(stat_name: str) -> str:
-    stat_name_handler = None  # type: Any
+    stat_name_handler = None  # type: Optional[Callable[[str], str]]
     global_operator_extra_links = []  # type: List[BaseOperatorLink]
 
     @classmethod

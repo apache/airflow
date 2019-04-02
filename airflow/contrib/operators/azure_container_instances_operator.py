@@ -17,9 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from collections import namedtuple
 from time import sleep
-from typing import Dict, Sequence
+from typing import Dict, Iterable, NamedTuple
 
 from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
 from airflow.contrib.hooks.azure_container_registry_hook import AzureContainerRegistryHook
@@ -38,13 +37,20 @@ from azure.mgmt.containerinstance.models import (EnvironmentVariable,
 from msrestazure.azure_exceptions import CloudError
 
 
-Volume = namedtuple(
-    'Volume',
-    ['conn_id', 'account_name', 'share_name', 'mount_path', 'read_only'],
+Volume = NamedTuple(
+    "Volume",
+    [
+        ("conn_id", str),
+        ("account_name", str),
+        ("share_name", str),
+        ("mount_path", str),
+        ("read_only", bool),
+    ]
 )
 
+
 DEFAULT_ENVIRONMENT_VARIABLES = {}  # type: Dict[str, str]
-DEFAULT_VOLUMES = []  # type: Sequence[Volume]
+DEFAULT_VOLUMES = []  # type: Iterable[Volume]
 DEFAULT_MEMORY_IN_GB = 2.0
 DEFAULT_CPU = 1.0
 

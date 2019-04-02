@@ -27,7 +27,7 @@ import time
 import zipfile
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from collections import namedtuple
+from typing import NamedTuple, Iterable
 from datetime import timedelta
 from importlib import import_module
 import enum
@@ -441,9 +441,15 @@ class AbstractDagFileProcessor(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-DagParsingStat = namedtuple('DagParsingStat',
-                            ['file_paths', 'all_pids', 'done',
-                             'all_files_processed', 'result_count'])
+DagParsingStat = NamedTuple(
+    "DagParsingStat", [
+        ("file_paths", Iterable[str]),
+        ("all_pids", Iterable[int]),
+        ("done", bool),
+        ("all_files_processed", bool),
+        ("result_count", int),
+    ]
+)
 
 
 class DagParsingSignal(enum.Enum):

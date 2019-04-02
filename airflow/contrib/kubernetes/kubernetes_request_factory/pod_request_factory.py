@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Dict
+
 import yaml
 from airflow.contrib.kubernetes.pod import Pod
 from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory \
@@ -40,8 +42,7 @@ spec:
     def __init__(self):
         pass
 
-    def create(self, pod):
-        # type: (Pod) -> dict
+    def create(self, pod: Pod) -> Dict:
         req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
         self.extract_labels(pod, req)
@@ -108,8 +109,7 @@ spec:
     def __init__(self):
         pass
 
-    def create(self, pod):
-        # type: (Pod) -> dict
+    def create(self, pod: Pod) -> Dict:
         req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
         self.extract_labels(pod, req)

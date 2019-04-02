@@ -20,7 +20,7 @@ import tarfile
 import tempfile
 import time
 import os
-import collections
+from typing import NamedTuple
 
 import botocore.config
 from botocore.exceptions import ClientError
@@ -41,7 +41,13 @@ class LogState:
 
 # Position is a tuple that includes the last read timestamp and the number of items that were read
 # at that time. This is used to figure out which event to start with on the next read.
-Position = collections.namedtuple('Position', ['timestamp', 'skip'])
+Position = NamedTuple(
+    "Position",
+    [
+        ("timestamp", int),
+        ("skip", bool),
+    ]
+)
 
 
 def argmin(arr, f):

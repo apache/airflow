@@ -21,7 +21,7 @@
 
 import json
 import unittest
-from collections import namedtuple
+from typing import NamedTuple
 
 from airflow import configuration, AirflowException
 from airflow.contrib.hooks.wasb_hook import WasbHook
@@ -151,7 +151,7 @@ class TestWasbHook(unittest.TestCase):
                 autospec=True)
     def test_delete_multiple_blobs(self, mock_service):
         mock_instance = mock_service.return_value
-        Blob = namedtuple('Blob', ['name'])
+        Blob = NamedTuple('Blob', [('name', str)])
         mock_instance.list_blobs.return_value = iter(
             [Blob('blob_prefix/blob1'), Blob('blob_prefix/blob2')]
         )

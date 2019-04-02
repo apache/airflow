@@ -63,7 +63,7 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def get_connections(cls, conn_id):  # type: (str) -> Iterable[Connection]
+    def get_connections(cls, conn_id: str) -> Iterable[Connection]:
         conn = cls._get_connection_from_env(conn_id)
         if conn:
             conns = [conn]
@@ -72,7 +72,7 @@ class BaseHook(LoggingMixin):
         return conns
 
     @classmethod
-    def get_connection(cls, conn_id):  # type: (str) -> Connection
+    def get_connection(cls, conn_id: str) -> Connection:
         conn = random.choice(list(cls.get_connections(conn_id)))
         if conn.host:
             log = LoggingMixin().log
@@ -80,7 +80,7 @@ class BaseHook(LoggingMixin):
         return conn
 
     @classmethod
-    def get_hook(cls, conn_id):  # type: (str) -> BaseHook
+    def get_hook(cls, conn_id: str) -> 'BaseHook':
         connection = cls.get_connection(conn_id)
         return connection.get_hook()
 
