@@ -313,7 +313,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if primary_author == "":
             primary_author = distinct_authors[0]
 
-        merge_message_flags.append(u'--author="{}"'.format(primary_author))
+        merge_message_flags.append('--author="{}"'.format(primary_author))
 
     else:
         # This will mark the PR as merged
