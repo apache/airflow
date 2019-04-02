@@ -1852,7 +1852,7 @@ class CLIFactory(object):
             help="Set number of seconds to execute before exiting"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
-            default=-1, type=int,
+            default=conf.getint('scheduler', 'num_runs', fallback=-1), type=int,
             help="Set the number of runs to execute before exiting"),
         # worker
         'do_pickle': Arg(
