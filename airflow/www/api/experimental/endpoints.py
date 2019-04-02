@@ -21,6 +21,7 @@ from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
+from airflow.api.common.experimental.get_dags import get_dags
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
@@ -39,6 +40,17 @@ requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
+@api_experimental.route('/dags', methods=['GET'])
+@requires_authentication
+def get_all_dags():
+    """
+    Returns a list of Dags
+    :return: List of all DAGs
+    """
+    is_paused = request.args.get('is_paused')
+    dag_list = get_dags(is_paused)
+
+    return jsonify(dag_list)
 
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
