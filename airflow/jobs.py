@@ -2437,6 +2437,22 @@ class BackfillJob(BaseJob):
         ti_status.executed_dag_run_dates.update(processed_dag_run_dates)
 
     @provide_session
+    def _set_unfinished_dag_runs_to_failed(self, dag_runs, session=None):
+        """
+        Go through the dag_runs and update the state based on the task_instance state.
+        Then set DAG runs that are not finished to failed.
+
+        :param dag_runs: DAG runs
+        :param session: session
+        :return: None
+        """
+        for dag_run in dag_runs:
+            dag_run.update_state()
+            if dag_run.state not in State.finished():
+                dag_run.set_state(State.FAILED)
+            session.merge(dag_run)
+
+    @provide_session
     def _execute(self, session=None):
         """
         Initializes all components required to run a dag for a specified date range and
@@ -2502,9 +2518,15 @@ class BackfillJob(BaseJob):
                         self.dag_id
                     )
                     time.sleep(self.delay_on_limit_secs)
+        except (KeyboardInterrupt, SystemExit):
+            self.log.warning("Backfill terminated by user.")
+
+            # TODO: we will need to terminate running task instances and set the
+            # state to failed.
+            self._set_unfinished_dag_runs_to_failed(ti_status.active_runs)
         finally:
-            executor.end()
             session.commit()
+            executor.end()
 
         self.log.info("Backfill done. Exiting.")
 
