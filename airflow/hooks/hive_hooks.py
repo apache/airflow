@@ -116,7 +116,8 @@ class HiveCliHook(BaseHook):
 
         if self.use_beeline:
             hive_bin = 'beeline'
-            jdbc_url = "jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+            jdbc_url = "jdbc:hive2://{host}:{port}/{schema}".format(
+                host=conn.host, port=conn.port, schema=conn.schema)
             if configuration.conf.get('core', 'security') == 'kerberos':
                 template = conn.extra_dejson.get(
                     'principal', "hive/_HOST@EXAMPLE.COM")
@@ -130,11 +131,11 @@ class HiveCliHook(BaseHook):
                 elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
                     proxy_user = "hive.server2.proxy.user={0}".format(self.run_as)
 
-                jdbc_url += ";principal={template};{proxy_user}"
+                jdbc_url += ";principal={template};{proxy_user}".format(
+                    template=template, proxy_user=proxy_user)
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
-            jdbc_url = jdbc_url.format(**locals())
             jdbc_url = '"{}"'.format(jdbc_url)
 
             cmd_extra += ['-u', jdbc_url]
@@ -191,7 +192,7 @@ class HiveCliHook(BaseHook):
         conn = self.conn
         schema = schema or conn.schema
         if schema:
-            hql = "USE {schema};\n{hql}".format(**locals())
+            hql = "USE {schema};\n{hql}".format(schema=schema, hql=hql)
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
@@ -422,42 +423,41 @@ class HiveCliHook(BaseHook):
         """
         hql = ''
         if recreate:
-            hql += "DROP TABLE IF EXISTS {table};\n"
+            hql += "DROP TABLE IF EXISTS {table};\n".format(table=table)
         if create or recreate:
             if field_dict is None:
                 raise ValueError("Must provide a field dict when creating a table")
             fields = ",\n    ".join(
                 [k + ' ' + v for k, v in field_dict.items()])
-            hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
+            hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n".format(
+                table=table, fields=fields)
             if partition:
                 pfields = ",\n    ".join(
                     [p + " STRING" for p in partition])
-                hql += "PARTITIONED BY ({pfields})\n"
+                hql += "PARTITIONED BY ({pfields})\n".format(pfields=pfields)
             hql += "ROW FORMAT DELIMITED\n"
-            hql += "FIELDS TERMINATED BY '{delimiter}'\n"
+            hql += "FIELDS TERMINATED BY '{delimiter}'\n".format(delimiter=delimiter)
             hql += "STORED AS textfile\n"
             if tblproperties is not None:
                 tprops = ", ".join(
                     ["'{0}'='{1}'".format(k, v) for k, v in tblproperties.items()])
-                hql += "TBLPROPERTIES({tprops})\n"
+                hql += "TBLPROPERTIES({tprops})\n".format(tprops=tprops)
         hql += ";"
-        hql = hql.format(**locals())
         self.log.info(hql)
         self.run_cli(hql)
-        hql = "LOAD DATA LOCAL INPATH '{filepath}' "
+        hql = "LOAD DATA LOCAL INPATH '{filepath}' ".format(filepath=filepath)
         if overwrite:
             hql += "OVERWRITE "
-        hql += "INTO TABLE {table} "
+        hql += "INTO TABLE {table} ".format(table=table)
         if partition:
             pvals = ", ".join(
                 ["{0}='{1}'".format(k, v) for k, v in partition.items()])
-            hql += "PARTITION ({pvals})"
+            hql += "PARTITION ({pvals})".format(pvals=pvals)
 
         # As a workaround for HIVE-10541, add a newline character
         # at the end of hql (AIRFLOW-2412).
         hql += ';\n'
 
-        hql = hql.format(**locals())
         self.log.info(hql)
         self.run_cli(hql)
 

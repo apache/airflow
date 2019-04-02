@@ -222,21 +222,21 @@ def limit_sql(sql, limit, conn_type):
             SELECT TOP {limit} * FROM (
             {sql}
             ) qry
-            """.format(**locals())
+            """.format(limit=limit, sql=sql)
         elif conn_type in ['oracle']:
             sql = """\
             SELECT * FROM (
             {sql}
             ) qry
             WHERE ROWNUM <= {limit}
-            """.format(**locals())
+            """.format(limit=limit, sql=sql)
         else:
             sql = """\
             SELECT * FROM (
             {sql}
             ) qry
             LIMIT {limit}
-            """.format(**locals())
+            """.format(limit=limit, sql=sql)
     return sql
 
 
