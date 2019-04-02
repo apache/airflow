@@ -22,17 +22,8 @@ import unittest
 from parameterized import parameterized
 
 from airflow import AirflowException
-
 from airflow.contrib.operators.gcp_text_to_speech_operator import GcpTextToSpeechSynthesizeOperator
-
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import PropertyMock, Mock, patch, ANY
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
@@ -44,11 +35,11 @@ TARGET_FILENAME = "target_filename"
 
 
 class GcpTextToSpeechTest(unittest.TestCase):
-    @mock.patch("airflow.contrib.operators.gcp_text_to_speech_operator.GoogleCloudStorageHook")
-    @mock.patch("airflow.contrib.operators.gcp_text_to_speech_operator.GCPTextToSpeechHook")
+    @patch("airflow.contrib.operators.gcp_text_to_speech_operator.GoogleCloudStorageHook")
+    @patch("airflow.contrib.operators.gcp_text_to_speech_operator.GCPTextToSpeechHook")
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
-        mocked_response = mock.Mock()
-        type(mocked_response).audio_content = mock.PropertyMock(return_value=b"audio")
+        mocked_response = Mock()
+        type(mocked_response).audio_content = PropertyMock(return_value=b"audio")
 
         mock_text_to_speech_hook.return_value.synthesize_speech.return_value = mocked_response
         mock_gcp_hook.return_value.upload.return_value = True
@@ -62,7 +53,7 @@ class GcpTextToSpeechTest(unittest.TestCase):
             target_bucket_name=TARGET_BUCKET_NAME,
             target_filename=TARGET_FILENAME,
             task_id="id",
-        ).execute(context={"task_instance": mock.Mock()})
+        ).execute(context={"task_instance": Mock()})
 
         mock_text_to_speech_hook.assert_called_once_with(gcp_conn_id="gcp-conn-id")
         mock_gcp_hook.assert_called_once_with(google_cloud_storage_conn_id="gcp-conn-id")
@@ -70,7 +61,7 @@ class GcpTextToSpeechTest(unittest.TestCase):
             input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=None, timeout=None
         )
         mock_gcp_hook.return_value.upload.assert_called_once_with(
-            bucket=TARGET_BUCKET_NAME, object=TARGET_FILENAME, filename=mock.ANY
+            bucket=TARGET_BUCKET_NAME, object=TARGET_FILENAME, filename=ANY
         )
 
     @parameterized.expand(
@@ -82,8 +73,8 @@ class GcpTextToSpeechTest(unittest.TestCase):
             ("target_filename", INPUT, VOICE, AUDIO_CONFIG, TARGET_BUCKET_NAME, ""),
         ]
     )
-    @mock.patch("airflow.contrib.operators.gcp_text_to_speech_operator.GoogleCloudStorageHook")
-    @mock.patch("airflow.contrib.operators.gcp_text_to_speech_operator.GCPTextToSpeechHook")
+    @patch("airflow.contrib.operators.gcp_text_to_speech_operator.GoogleCloudStorageHook")
+    @patch("airflow.contrib.operators.gcp_text_to_speech_operator.GCPTextToSpeechHook")
     def test_missing_arguments(
         self,
         missing_arg,
@@ -104,7 +95,7 @@ class GcpTextToSpeechTest(unittest.TestCase):
                 target_bucket_name=target_bucket_name,
                 target_filename=target_filename,
                 task_id="id",
-            ).execute(context={"task_instance": mock.Mock()})
+            ).execute(context={"task_instance": Mock()})
 
         err = e.exception
         self.assertIn(missing_arg, str(err))

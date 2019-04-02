@@ -21,15 +21,8 @@
 import unittest
 
 from airflow.contrib.hooks.gcp_text_to_speech_hook import GCPTextToSpeechHook
+from tests.compat import patch
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-
-try:
-    from unittest import mock
-except ImportError:  # pragma: no cover
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 INPUT = {"text": "test text"}
 VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
@@ -38,13 +31,13 @@ AUDIO_CONFIG = {"audio_encoding": "MP3"}
 
 class TestTextToSpeechHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(
+        with patch(
             "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_text_to_speech_hook = GCPTextToSpeechHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook.get_conn")
+    @patch("airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook.get_conn")
     def test_synthesize_speech(self, get_conn):
         synthesize_method = get_conn.return_value.synthesize_speech
         synthesize_method.return_value = None

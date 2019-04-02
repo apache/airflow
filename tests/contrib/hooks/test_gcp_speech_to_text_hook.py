@@ -21,15 +21,8 @@
 import unittest
 
 from airflow.contrib.hooks.gcp_speech_to_text_hook import GCPSpeechToTextHook
+from tests.compat import patch
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-
-try:
-    from unittest import mock
-except ImportError:  # pragma: no cover
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 PROJECT_ID = "project-id"
 CONFIG = {"ecryption": "LINEAR16"}
@@ -38,13 +31,13 @@ AUDIO = {"uri": "gs://bucket/object"}
 
 class TestTextToSpeechOperator(unittest.TestCase):
     def setUp(self):
-        with mock.patch(
+        with patch(
             "airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.gcp_speech_to_text_hook = GCPSpeechToTextHook(gcp_conn_id="test")
 
-    @mock.patch("airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook.get_conn")
+    @patch("airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook.get_conn")
     def test_synthesize_speech(self, get_conn):
         recognize_method = get_conn.return_value.recognize
         recognize_method.return_value = None
