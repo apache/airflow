@@ -19,7 +19,7 @@
 #
 
 import time
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 
@@ -41,7 +41,7 @@ class DatastoreHook(GoogleCloudBaseHook):
 
     def get_conn(self, version='v1'):
         """
-        Returns a Google Cloud Storage service object.
+        Returns a Google Cloud Datastore service object.
         """
         http_authorized = self._authorize()
         return build(

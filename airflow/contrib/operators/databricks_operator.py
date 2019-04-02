@@ -24,6 +24,7 @@ import time
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 XCOM_RUN_ID_KEY = 'run_id'
@@ -218,6 +219,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
+    @apply_defaults
     def __init__(
             self,
             json=None,
@@ -347,7 +349,7 @@ class DatabricksRunNowOperator(BaseOperator):
         This field will be templated.
         .. seealso::
             https://docs.databricks.com/api/latest/jobs.html#run-now
-    :type job_id: str
+    :type job_id: string
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.0/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
@@ -403,7 +405,7 @@ class DatabricksRunNowOperator(BaseOperator):
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
         connection.
-    :type databricks_conn_id: str
+    :type databricks_conn_id: string
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
     :type polling_period_seconds: int
@@ -411,7 +413,7 @@ class DatabricksRunNowOperator(BaseOperator):
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
-    :type do_xcom_push: bool
+    :type do_xcom_push: boolean
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
@@ -419,6 +421,7 @@ class DatabricksRunNowOperator(BaseOperator):
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
 
+    @apply_defaults
     def __init__(
             self,
             job_id,

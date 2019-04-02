@@ -39,7 +39,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     :type source_object: str
     :param destination_bucket: The destination Google cloud storage bucket
         where the object should be. (templated)
-    :type destination_bucket: str
+    :type destination_bucket: string
     :param destination_object: The destination name of the object in the
         destination Google cloud storage bucket. (templated)
         If a wildcard is supplied in the source_object argument, this is the

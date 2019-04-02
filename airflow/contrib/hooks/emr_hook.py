@@ -27,12 +27,13 @@ class EmrHook(AwsHook):
     create_job_flow method.
     """
 
-    def __init__(self, emr_conn_id=None, *args, **kwargs):
+    def __init__(self, emr_conn_id=None, region_name=None, *args, **kwargs):
         self.emr_conn_id = emr_conn_id
+        self.region_name = region_name
         super(EmrHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
-        self.conn = self.get_client_type('emr')
+        self.conn = self.get_client_type('emr', self.region_name)
         return self.conn
 
     def create_job_flow(self, job_flow_overrides):
@@ -51,19 +52,6 @@ class EmrHook(AwsHook):
         config = emr_conn.extra_dejson.copy()
         config.update(job_flow_overrides)
 
-        response = self.get_conn().run_job_flow(
-            Name=config.get('Name'),
-            LogUri=config.get('LogUri'),
-            ReleaseLabel=config.get('ReleaseLabel'),
-            Instances=config.get('Instances'),
-            Steps=config.get('Steps', []),
-            BootstrapActions=config.get('BootstrapActions', []),
-            Applications=config.get('Applications'),
-            Configurations=config.get('Configurations', []),
-            VisibleToAllUsers=config.get('VisibleToAllUsers'),
-            JobFlowRole=config.get('JobFlowRole'),
-            ServiceRole=config.get('ServiceRole'),
-            Tags=config.get('Tags')
-        )
+        response = self.get_conn().run_job_flow(**config)
 
         return response

@@ -57,9 +57,9 @@ class DepContext(object):
         Backfills)
     :type ignore_depends_on_past: bool
     :param ignore_in_retry_period: Ignore the retry period for task instances
-    :type ignore_in_retry_period: bool
+    :type ignore_in_retry_period: boolean
     :param ignore_in_reschedule_period: Ignore the reschedule period for task instances
-    :type ignore_in_reschedule_period: bool
+    :type ignore_in_reschedule_period: boolean
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
     :type ignore_task_deps: bool
@@ -95,6 +95,7 @@ QUEUEABLE_STATES = {
     State.SKIPPED,
     State.UPSTREAM_FAILED,
     State.UP_FOR_RETRY,
+    State.UP_FOR_RESCHEDULE,
 }
 
 # Context to get the dependencies that need to be met in order for a task instance to

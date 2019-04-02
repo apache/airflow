@@ -40,7 +40,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :param delimiter: the delimiter marks key hierarchy. (templated)
     :type delimiter: str
     :param aws_conn_id: The source S3 connection
-    :type aws_conn_id: str
+    :type aws_conn_id: string
     :parame verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -151,7 +151,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
                     else:
                         existing_files.append(f)
 
-            files = set(files) - set(existing_files)
+            files = list(set(files) - set(existing_files))
             if len(files) > 0:
                 self.log.info('{0} files are going to be synced: {1}.'.format(
                     len(files), files))

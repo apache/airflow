@@ -27,17 +27,16 @@ import time
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
-import hmsclient
 import six
 import unicodecsv as csv
 from past.builtins import basestring
 from past.builtins import unicode
 from six.moves import zip
 
+import airflow.security.utils as utils
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.security import utils
 from airflow.utils.file import TemporaryDirectory
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
@@ -496,6 +495,7 @@ class HiveMetastoreHook(BaseHook):
         """
         Returns a Hive thrift client.
         """
+        import hmsclient
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
         ms = self.metastore_conn
@@ -810,7 +810,6 @@ class HiveServer2Hook(BaseHook):
                 lowered_statement = statement.lower().strip()
                 if (lowered_statement.startswith('select') or
                     lowered_statement.startswith('with') or
-                    lowered_statement.startswith('show') or
                     (lowered_statement.startswith('set') and
                      '=' not in lowered_statement)):
                     description = [c for c in cur.description]

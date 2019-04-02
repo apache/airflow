@@ -1,3 +1,20 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Concepts
 ########
 
@@ -616,6 +633,7 @@ while creating tasks:
 * ``all_done``: all parents are done with their execution
 * ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
 * ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
+* ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
 * ``dummy``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)

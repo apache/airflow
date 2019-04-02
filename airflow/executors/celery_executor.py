@@ -34,9 +34,6 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
-# Make it constant for unit test.
-CELERY_FETCH_ERR_MSG_HEADER = 'Error fetching Celery task state'
-
 '''
 To start the celery worker, run the command:
 airflow worker
@@ -154,38 +151,10 @@ class CeleryExecutor(BaseExecutor):
                    int(math.ceil(1.0 * len(self.tasks) / self._sync_parallelism)))
 
     def sync(self):
-        num_processes = min(len(self.tasks), self._sync_parallelism)
-        if num_processes == 0:
-            self.log.debug("No task to query celery, skipping sync")
-            return
-
-        self.log.debug("Inquiring about %s celery task(s) using %s processes",
-                       len(self.tasks), num_processes)
-
-        # Recreate the process pool each sync in case processes in the pool die
-        self._sync_pool = Pool(processes=num_processes)
-
-        # Use chunking instead of a work queue to reduce context switching since tasks are
-        # roughly uniform in size
-        chunksize = self._num_tasks_per_process()
-
-        self.log.debug("Waiting for inquiries to complete...")
-        task_keys_to_states = self._sync_pool.map(
-            fetch_celery_task_state,
-            self.tasks.items(),
-            chunksize=chunksize)
-        self._sync_pool.close()
-        self._sync_pool.join()
-        self.log.debug("Inquiries completed.")
-
-        for key_and_state in task_keys_to_states:
-            if isinstance(key_and_state, ExceptionWithTraceback):
-                self.log.error(
-                    CELERY_FETCH_ERR_MSG_HEADER + ", ignoring it:{}\n{}\n".format(
-                        key_and_state.exception, key_and_state.traceback))
-                continue
-            key, state = key_and_state
+        self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
+        for key, task in list(self.tasks.items()):
             try:
+                state = task.state
                 if self.last_state[key] != state:
                     if state == celery_states.SUCCESS:
                         self.success(key)
@@ -200,10 +169,11 @@ class CeleryExecutor(BaseExecutor):
                         del self.tasks[key]
                         del self.last_state[key]
                     else:
-                        self.log.info("Unexpected state: " + state)
+                        self.log.info("Unexpected state: %s", state)
                         self.last_state[key] = state
-            except Exception:
-                self.log.exception("Error syncing the Celery executor, ignoring it.")
+            except Exception as e:
+                self.log.error("Error syncing the celery executor, ignoring it:")
+                self.log.exception(e)
 
     def end(self, synchronous=False):
         if synchronous:

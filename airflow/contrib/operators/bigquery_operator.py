@@ -102,6 +102,10 @@ class BigQueryOperator(BaseOperator):
         by one or more columns. This is only available in conjunction with
         time_partitioning. The order of columns given determines the sort order.
     :type cluster_fields: list of str
+    :param location: The geographic location of the job. Required except for
+        US and EU. See details at
+        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
+    :type location: str
     """
 
     template_fields = ('bql', 'sql', 'destination_dataset_table', 'labels')
@@ -112,13 +116,13 @@ class BigQueryOperator(BaseOperator):
     def __init__(self,
                  bql=None,
                  sql=None,
-                 destination_dataset_table=False,
+                 destination_dataset_table=None,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  flatten_results=None,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
-                 udf_config=False,
+                 udf_config=None,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
                  maximum_bytes_billed=None,
@@ -130,6 +134,7 @@ class BigQueryOperator(BaseOperator):
                  time_partitioning=None,
                  api_resource_configs=None,
                  cluster_fields=None,
+                 location=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -151,11 +156,10 @@ class BigQueryOperator(BaseOperator):
         self.labels = labels
         self.bq_cursor = None
         self.priority = priority
-        if time_partitioning is None:
-            self.time_partitioning = {}
-        if api_resource_configs is None:
-            self.api_resource_configs = {}
+        self.time_partitioning = time_partitioning
+        self.api_resource_configs = api_resource_configs
         self.cluster_fields = cluster_fields
+        self.location = location
 
         # TODO remove `bql` in Airflow 2.0
         if self.bql:
@@ -177,11 +181,13 @@ class BigQueryOperator(BaseOperator):
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
-                delegate_to=self.delegate_to)
+                delegate_to=self.delegate_to,
+                location=self.location,
+            )
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.sql,
+            sql=self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,
@@ -202,7 +208,7 @@ class BigQueryOperator(BaseOperator):
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
         if self.bq_cursor is not None:
-            self.log.info('Canceling running query due to execution timeout')
+            self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
 
 
@@ -250,7 +256,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any. For this to
         work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: str
+    :type delegate_to: string
     :param labels: a dictionary containing labels for the table, passed to BigQuery
 
         **Example (with schema JSON in GCS)**: ::
@@ -306,7 +312,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  project_id=None,
                  schema_fields=None,
                  gcs_schema_object=None,
-                 time_partitioning={},
+                 time_partitioning=None,
                  bigquery_conn_id='bigquery_default',
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
@@ -323,7 +329,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
-        self.time_partitioning = time_partitioning
+        self.time_partitioning = {} if time_partitioning is None else time_partitioning
         self.labels = labels
 
     def execute(self, context):
@@ -388,7 +394,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
         contains the schema for the table. (templated)
-    :type schema_object: str
+    :type schema_object: string
     :param source_format: File format of the data.
     :type source_format: str
     :param compression: [Optional] The compression type of the data source.
@@ -522,9 +528,9 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
     This operator deletes an existing dataset from your Project in Big query.
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
     :param project_id: The project id of the dataset.
-    :type project_id: str
+    :type project_id: string
     :param dataset_id: The dataset to be deleted.
-    :type dataset_id: str
+    :type dataset_id: string
 
     **Example**: ::
 

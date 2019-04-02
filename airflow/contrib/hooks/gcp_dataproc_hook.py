@@ -20,7 +20,7 @@
 import time
 import uuid
 
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 from zope.deprecation import deprecation
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
@@ -78,8 +78,7 @@ class _DataProcJob(LoggingMixin):
     def raise_error(self, message=None):
         job_state = self.job['status']['state']
         # We always consider ERROR to be an error state.
-        if ((self.job_error_states and job_state in self.job_error_states)
-                or 'ERROR' == job_state):
+        if (self.job_error_states and job_state in self.job_error_states) or 'ERROR' == job_state:
             ex_message = message or ("Google DataProc job has state: %s" % job_state)
             ex_details = (str(self.job['status']['details'])
                           if 'details' in self.job['status']

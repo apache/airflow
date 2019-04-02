@@ -23,7 +23,7 @@ import subprocess
 import time
 import uuid
 
-from apiclient.discovery import build
+from googleapiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -192,7 +192,8 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def _start_dataflow(self, variables, name, command_prefix, label_formatter):
         variables = self._set_variables(variables)
-        cmd = command_prefix + self._build_cmd(variables, label_formatter)
+        cmd = command_prefix + self._build_cmd(task_id, variables,
+                                               label_formatter)
         job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
                      variables['region'],
@@ -208,7 +209,7 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def start_java_dataflow(self, job_name, variables, dataflow, job_class=None,
                             append_job_name=True):
-        name = self._build_dataflow_job_name(job_name, append_job_name)
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         variables['jobName'] = name
 
         def label_formatter(labels_dict):
@@ -220,13 +221,13 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def start_template_dataflow(self, job_name, variables, parameters, dataflow_template,
                                 append_job_name=True):
-        name = self._build_dataflow_job_name(job_name, append_job_name)
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         self._start_template_dataflow(
             name, variables, parameters, dataflow_template)
 
     def start_python_dataflow(self, job_name, variables, dataflow, py_options,
                               append_job_name=True):
-        name = self._build_dataflow_job_name(job_name, append_job_name)
+        name = self._build_dataflow_job_name(task_id, append_job_name)
         variables['job_name'] = name
 
         def label_formatter(labels_dict):
@@ -236,24 +237,24 @@ class DataFlowHook(GoogleCloudBaseHook):
                              label_formatter)
 
     @staticmethod
-    def _build_dataflow_job_name(job_name, append_job_name=True):
-        base_job_name = str(job_name).replace('_', '-')
+    def _build_dataflow_job_name(task_id, append_job_name=True):
+        task_id = str(task_id).replace('_', '-')
 
-        if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
+        if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", task_id):
             raise ValueError(
                 'Invalid job_name ({}); the name must consist of'
                 'only the characters [-a-z0-9], starting with a '
-                'letter and ending with a letter or number '.format(base_job_name))
+                'letter and ending with a letter or number '.format(task_id))
 
         if append_job_name:
-            safe_job_name = base_job_name + "-" + str(uuid.uuid4())[:8]
+            job_name = task_id + "-" + str(uuid.uuid1())[:8]
         else:
-            safe_job_name = base_job_name
+            job_name = task_id
 
-        return safe_job_name
+        return job_name
 
     @staticmethod
-    def _build_cmd(variables, label_formatter):
+    def _build_cmd(task_id, variables, label_formatter):
         command = ["--runner=DataflowRunner"]
         if variables is not None:
             for attr, value in variables.items():

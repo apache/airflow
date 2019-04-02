@@ -19,6 +19,7 @@
 
 from tempfile import NamedTemporaryFile
 import subprocess
+import sys
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook
@@ -98,6 +99,7 @@ class S3FileTransformOperator(BaseOperator):
         self.replace = replace
         self.transform_script = transform_script
         self.select_expression = select_expression
+        self.output_encoding = sys.getdefaultencoding()
 
     def execute(self, context):
         if self.transform_script is None and self.select_expression is None:
@@ -132,15 +134,23 @@ class S3FileTransformOperator(BaseOperator):
             f_source.flush()
 
             if self.transform_script is not None:
-                transform_script_process = subprocess.Popen(
+                process = subprocess.Popen(
                     [self.transform_script, f_source.name, f_dest.name],
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-                (transform_script_stdoutdata, transform_script_stderrdata) = \
-                    transform_script_process.communicate()
-                self.log.info("Transform script stdout %s", transform_script_stdoutdata)
-                if transform_script_process.returncode > 0:
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    close_fds=True
+                )
+
+                self.log.info("Output:")
+                for line in iter(process.stdout.readline, b''):
+                    self.log.info(line.decode(self.output_encoding).rstrip())
+
+                process.wait()
+
+                if process.returncode > 0:
                     raise AirflowException(
-                        "Transform script failed %s", transform_script_stderrdata)
+                        "Transform script failed: {0}".format(process.returncode)
+                    )
                 else:
                     self.log.info(
                         "Transform script successful. Output temporarily located at %s",

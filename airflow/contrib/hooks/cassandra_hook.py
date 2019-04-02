@@ -164,7 +164,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
-        :type table: str
+        :type table: string
         """
         keyspace = self.keyspace
         if '.' in table:

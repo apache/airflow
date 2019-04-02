@@ -24,8 +24,9 @@ from flask_appbuilder.security.sqla import models as sqla_models
 from flask_appbuilder.security.sqla.manager import SecurityManager
 from sqlalchemy import or_
 
-from airflow import models, settings
+from airflow import models
 from airflow.www_rbac.app import appbuilder
+from airflow.utils.db import provide_session
 
 ###########################################################################
 #                               VIEW MENUS
@@ -181,13 +182,17 @@ class AirflowSecurityManager(SecurityManager):
         if not role:
             role = self.add_role(role_name)
 
-        role_pvms = []
-        for pvm in pvms:
-            if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
-                role_pvms.append(pvm)
-        role.permissions = list(set(role_pvms))
-        self.get_session.merge(role)
-        self.get_session.commit()
+        if len(role.permissions) == 0:
+            logging.info('Initializing permissions for role:%s in the database.', role_name)
+            role_pvms = []
+            for pvm in pvms:
+                if pvm.view_menu.name in role_vms and pvm.permission.name in role_perms:
+                    role_pvms.append(pvm)
+            role.permissions = list(set(role_pvms))
+            self.get_session.merge(role)
+            self.get_session.commit()
+        else:
+            logging.info('Existing permissions for the role:%s within the database will persist.', role_name)
 
     def get_user_roles(self, user=None):
         """
@@ -325,7 +330,8 @@ class AirflowSecurityManager(SecurityManager):
         if not pv and permission_name and view_menu_name:
             self.add_permission_view_menu(permission_name, view_menu_name)
 
-    def create_custom_dag_permission_view(self):
+    @provide_session
+    def create_custom_dag_permission_view(self, session=None):
         """
         Workflow:
         1. when scheduler found a new dag, we will create an entry in ab_view_menu
@@ -355,7 +361,7 @@ class AirflowSecurityManager(SecurityManager):
                 merge_pv(perm, dag)
 
         # Get all the active / paused dags and insert them into a set
-        all_dags_models = settings.Session.query(models.DagModel)\
+        all_dags_models = session.query(models.DagModel)\
             .filter(or_(models.DagModel.is_active, models.DagModel.is_paused))\
             .filter(~models.DagModel.is_subdag).all()
 
@@ -378,7 +384,7 @@ class AirflowSecurityManager(SecurityManager):
         view_menu = self.viewmenu_model
 
         # todo(tao) comment on the query
-        all_perm_view_by_user = settings.Session.query(ab_perm_view_role)\
+        all_perm_view_by_user = session.query(ab_perm_view_role)\
             .join(perm_view, perm_view.id == ab_perm_view_role
                   .columns.permission_view_id)\
             .filter(ab_perm_view_role.columns.role_id == user_role.id)\
@@ -391,8 +397,8 @@ class AirflowSecurityManager(SecurityManager):
             existing_perm_view_by_user = self.get_session.query(ab_perm_view_role)\
                 .filter(ab_perm_view_role.columns.role_id == role.id)
 
-            existing_perms_views = set([role.permission_view_id
-                                        for role in existing_perm_view_by_user])
+            existing_perms_views = set([pv.permission_view_id
+                                        for pv in existing_perm_view_by_user])
             missing_perm_views = all_perm_views - existing_perms_views
 
             for perm_view_id in missing_perm_views:

@@ -45,19 +45,20 @@ class DbTest(unittest.TestCase):
             lambda t: (t[0] == 'remove_column' and
                        t[2] == 'users' and
                        t[3].name == 'password'),
-
+            # ignore tables created by other tests
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 't'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'test_airflow'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'test_postgres_to_postgres'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'test_mysql_to_mysql'),
             # ignore tables created by celery
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'celery_taskmeta'),
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'celery_tasksetmeta'),
-
-            # ignore indices created by celery
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'task_id'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'taskset_id'),
-
             # Ignore all the fab tables
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'ab_permission'),
@@ -75,23 +76,6 @@ class DbTest(unittest.TestCase):
                        t[1].name == 'ab_user'),
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'ab_view_menu'),
-
-            # Ignore all the fab indices
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'permission_id'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'name'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'user_id'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'username'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'field_string'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'email'),
-            lambda t: (t[0] == 'remove_index' and
-                       t[1].name == 'permission_view_id'),
-
             # from test_security unit test
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'some_model'),
@@ -99,7 +83,4 @@ class DbTest(unittest.TestCase):
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 
-        self.assertFalse(
-            diff,
-            'Database schema and SQLAlchemy model are not in sync: ' + str(diff)
-        )
+        self.assertFalse(diff, 'Database schema and SQLAlchemy model are not in sync')

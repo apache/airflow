@@ -37,14 +37,14 @@ class ApiKerberosTests(unittest.TestCase):
         configuration.load_test_config()
         try:
             configuration.conf.add_section("api")
-        except:
+        except Exception:
             pass
         configuration.conf.set("api",
                                "auth_backend",
                                "airflow.api.auth.backend.kerberos_auth")
         try:
             configuration.conf.add_section("kerberos")
-        except:
+        except Exception:
             pass
         configuration.conf.set("kerberos",
                                "keytab",

@@ -177,18 +177,18 @@ class DataFlowHookTest(unittest.TestCase):
 
     def test_valid_dataflow_job_name(self):
         job_name = self.dataflow_hook._build_dataflow_job_name(
-            job_name=JOB_NAME, append_job_name=False
+            task_id=TASK_ID, append_job_name=False
         )
 
-        self.assertEquals(job_name, JOB_NAME)
+        self.assertEquals(job_name, TASK_ID)
 
-    def test_fix_underscore_in_job_name(self):
-        job_name_with_underscore = 'test_example'
-        fixed_job_name = job_name_with_underscore.replace(
+    def test_fix_underscore_in_task_id(self):
+        task_id_with_underscore = 'test_example'
+        fixed_job_name = task_id_with_underscore.replace(
             '_', '-'
         )
         job_name = self.dataflow_hook._build_dataflow_job_name(
-            job_name=job_name_with_underscore, append_job_name=False
+            task_id=task_id_with_underscore, append_job_name=False
         )
 
         self.assertEquals(job_name, fixed_job_name)
@@ -200,7 +200,7 @@ class DataFlowHookTest(unittest.TestCase):
 
         with self.assertRaises(ValueError) as e:
             self.dataflow_hook._build_dataflow_job_name(
-                job_name=invalid_job_name, append_job_name=False
+                task_id=invalid_job_name, append_job_name=False
             )
         #   Test whether the job_name is present in the Error msg
         self.assertIn('Invalid job_name ({})'.format(fixed_name),
@@ -209,37 +209,37 @@ class DataFlowHookTest(unittest.TestCase):
     def test_dataflow_job_regex_check(self):
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            job_name='df-job-1', append_job_name=False
+            task_id='df-job-1', append_job_name=False
         ), 'df-job-1')
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            job_name='df-job', append_job_name=False
+            task_id='df-job', append_job_name=False
         ), 'df-job')
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            job_name='dfjob', append_job_name=False
+            task_id='dfjob', append_job_name=False
         ), 'dfjob')
 
         self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
-            job_name='dfjob1', append_job_name=False
+            task_id='dfjob1', append_job_name=False
         ), 'dfjob1')
 
         self.assertRaises(
             ValueError,
             self.dataflow_hook._build_dataflow_job_name,
-            job_name='1dfjob', append_job_name=False
+            task_id='1dfjob', append_job_name=False
         )
 
         self.assertRaises(
             ValueError,
             self.dataflow_hook._build_dataflow_job_name,
-            job_name='dfjob@', append_job_name=False
+            task_id='dfjob@', append_job_name=False
         )
 
         self.assertRaises(
             ValueError,
             self.dataflow_hook._build_dataflow_job_name,
-            job_name='df^jo', append_job_name=False
+            task_id='df^jo', append_job_name=False
         )
 
 

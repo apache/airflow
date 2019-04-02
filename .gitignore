@@ -146,3 +146,9 @@ npm-debug.log*
 static/dist
 derby.log
 metastore_db
+
+# Airflow log files when airflow is run locally
+airflow-*.err
+airflow-*.out
+airflow-*.log
+airflow-*.pid

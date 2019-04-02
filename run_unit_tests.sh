@@ -24,9 +24,6 @@ set -x
 export AIRFLOW_HOME=${AIRFLOW_HOME:=~}
 export AIRFLOW__CORE__UNIT_TEST_MODE=True
 
-# configuration test
-export AIRFLOW__TESTSECTION__TESTKEY=testvalue
-
 # add test/contrib to PYTHONPATH
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export PYTHONPATH=$PYTHONPATH:${DIR}/tests/test_utils

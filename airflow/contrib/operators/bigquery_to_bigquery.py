@@ -48,7 +48,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: str
+    :type delegate_to: string
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict

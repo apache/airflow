@@ -24,7 +24,10 @@ DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../.."
 
 # Fix file permissions
-sudo chown -R airflow.airflow . $HOME/.cache $HOME/.wheelhouse/ $HOME/.cache/pip $HOME/.kube $HOME/.minikube
+sudo chown -R airflow.airflow . $HOME/.cache $HOME/.wheelhouse/ $HOME/.cache/pip
+if [ -d $HOME/.minikube ]; then
+    sudo chown -R airflow.airflow $HOME/.kube $HOME/.minikube
+fi
 
 if [[ $PYTHON_VERSION == '3' ]]; then
   PIP=pip3
@@ -32,8 +35,8 @@ else
   PIP=pip2
 fi
 
-sudo -H $PIP install --upgrade pip
-sudo -H $PIP install tox
+sudo $PIP install --upgrade pip
+sudo $PIP install tox
 
 cd $AIRFLOW_ROOT && $PIP --version && tox --version
 

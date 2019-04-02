@@ -169,7 +169,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :type json: dict
         :return: the run_id as a string
-        :rtype: str
+        :rtype: string
         """
         response = self._do_api_call(RUN_NOW_ENDPOINT, json)
         return response['run_id']

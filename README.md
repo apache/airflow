@@ -1,8 +1,27 @@
-# Apache Airflow (Incubating)
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+# Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
-[![Build Status](https://travis-ci.org/apache/incubator-airflow.svg?branch=master)](https://travis-ci.org/apache/incubator-airflow)
-[![Coverage Status](https://img.shields.io/codecov/c/github/apache/incubator-airflow/master.svg)](https://codecov.io/github/apache/incubator-airflow?branch=master)
+[![Build Status](https://travis-ci.org/apache/airflow.svg?branch=master)](https://travis-ci.org/apache/airflow)
+[![Coverage Status](https://img.shields.io/codecov/c/github/apache/airflow/master.svg)](https://codecov.io/github/apache/airflow?branch=master)
 [![Documentation Status](https://readthedocs.org/projects/airflow/badge/?version=latest)](https://airflow.readthedocs.io/en/latest/?badge=latest)
 [![License](http://img.shields.io/:license-Apache%202-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
@@ -18,8 +37,7 @@ versionable, testable, and collaborative.
 Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
 ## Getting started
-
-Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.incubator.apache.org/installation.html), getting a [quick start](https://airflow.incubator.apache.org/start.html), or a more complete [tutorial](https://airflow.incubator.apache.org/tutorial.html).
+Please visit the Airflow Platform documentation (latest **stable** release) for help with [installing Airflow](https://airflow.apache.org/installation.html), getting a [quick start](https://airflow.apache.org/start.html), or a more complete [tutorial](https://airflow.apache.org/tutorial.html).
 
 Documentation of GitHub master (latest development branch): [ReadTheDocs Documentation](https://airflow.readthedocs.io/en/latest/)
 
@@ -71,8 +89,16 @@ unit of work and continuity.
 
 - **Code View**:  Quick way to view source code of a DAG.
 
-  ![](/docs/img/code.png)
+## Contributing
 
+Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/master/CONTRIBUTING.md).
+
+
+## Who uses Airflow?
+
+As the Apache Airflow community grows, we'd like to keep track of who is using
+the platform. Please send a PR with your company name and @githubhandle
+if you may.
 
 ## Contributing
 
@@ -296,6 +322,14 @@ Currently **officially** using Airflow:
 
 ## Who Maintains Apache Airflow?
 
+Airflow is the work of the [community](https://github.com/apache/airflow/graphs/contributors),
+but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
+are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
+If you would like to become a maintainer, please review the Apache Airflow
+[committer requirements](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers).
+
+## Links
+
 Airflow is the work of the [community](https://github.com/apache/incubator-airflow/graphs/contributors),
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
 are responsible for reviewing and merging PRs as well as steering conversation around new feature requests.
@@ -304,7 +338,6 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## Links
 
-- [Documentation](https://airflow.incubator.apache.org/)
+- [Documentation](https://airflow.apache.org/)
 - [Chat](https://apache-airflow-slack.herokuapp.com/)
-- [Apache Airflow Incubation Status](http://incubator.apache.org/projects/airflow.html)
 - [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)

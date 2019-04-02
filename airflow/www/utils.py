@@ -38,7 +38,7 @@ import zipfile
 
 from flask import after_this_request, request, Response
 from flask_admin.model import filters
-from flask_admin.contrib.sqla.filters import FilterConverter
+import flask_admin.contrib.sqla.filters as sqlafilters
 from flask_login import current_user
 
 from airflow import configuration, models, settings
@@ -448,7 +448,43 @@ class AceEditorWidget(wtforms.widgets.TextArea):
         return wtforms.widgets.core.HTMLString(html)
 
 
-class UtcFilterConverter(FilterConverter):
+class UtcDateTimeFilterMixin(object):
+    def clean(self, value):
+        dt = super(UtcDateTimeFilterMixin, self).clean(value)
+        return timezone.make_aware(dt, timezone=timezone.utc)
+
+
+class UtcDateTimeEqualFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeEqualFilter):
+    pass
+
+
+class UtcDateTimeNotEqualFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeNotEqualFilter):
+    pass
+
+
+class UtcDateTimeGreaterFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeGreaterFilter):
+    pass
+
+
+class UtcDateTimeSmallerFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeSmallerFilter):
+    pass
+
+
+class UtcDateTimeBetweenFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeBetweenFilter):
+    pass
+
+
+class UtcDateTimeNotBetweenFilter(UtcDateTimeFilterMixin, sqlafilters.DateTimeNotBetweenFilter):
+    pass
+
+
+class UtcFilterConverter(sqlafilters.FilterConverter):
+
+    utcdatetime_filters = (UtcDateTimeEqualFilter, UtcDateTimeNotEqualFilter,
+                           UtcDateTimeGreaterFilter, UtcDateTimeSmallerFilter,
+                           UtcDateTimeBetweenFilter, UtcDateTimeNotBetweenFilter,
+                           sqlafilters.FilterEmpty)
+
     @filters.convert('utcdatetime')
     def conv_utcdatetime(self, column, name, **kwargs):
-        return self.conv_datetime(column, name, **kwargs)
+        return [f(column, name, **kwargs) for f in self.utcdatetime_filters]

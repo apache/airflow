@@ -18,6 +18,7 @@
 # under the License.
 #
 import json
+import functools
 
 import httplib2
 import google.auth
@@ -37,22 +38,24 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
     This class helps construct and authorize the credentials needed to then
-    call apiclient.discovery.build() to actually discover and build a client
+    call googleapiclient.discovery.build() to actually discover and build a client
     for a Google cloud service.
 
     The class also contains some miscellaneous helper functions.
 
     All hook derived from this base hook use the 'Google Cloud Platform' connection
-    type. Two ways of authentication are supported:
+    type. Three ways of authentication are supported:
 
     Default credentials: Only the 'Project Id' is required. You'll need to
     have set up default credentials, such as by the
     ``GOOGLE_APPLICATION_DEFAULT`` environment variable or from the metadata
     server on Google Compute Engine.
 
-    JSON key file: Specify 'Project Id', 'Key Path' and 'Scope'.
+    JSON key file: Specify 'Project Id', 'Keyfile Path' and 'Scope'.
 
     Legacy P12 key files are not supported.
+
+    JSON data provided in the UI: Specify 'Keyfile JSON'.
     """
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
@@ -75,7 +78,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         key_path = self._get_field('key_path', False)
         keyfile_dict = self._get_field('keyfile_dict', False)
         scope = self._get_field('scope', None)
-        if scope is not None:
+        if scope:
             scopes = [s.strip() for s in scope.split(',')]
         else:
             scopes = _DEFAULT_SCOPES
@@ -142,7 +145,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         key_path, etc. They get formatted as shown below.
         """
         long_f = 'extra__google_cloud_platform__{}'.format(f)
-        if long_f in self.extras:
+        if hasattr(self, 'extras') and long_f in self.extras:
             return self.extras[long_f]
         else:
             return default
@@ -150,3 +153,43 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     @property
     def project_id(self):
         return self._get_field('project')
+
+    def fallback_to_default_project_id(func):
+        """
+        Decorator that provides fallback for Google Cloud Platform project id. If
+        the project is None it will be replaced with the project_id from the
+        service account the Hook is authenticated with. Project id can be specified
+        either via project_id kwarg or via first parameter in positional args.
+
+        :param func: function to wrap
+        :return: result of the function call
+        """
+        @functools.wraps(func)
+        def inner_wrapper(self, *args, **kwargs):
+            if len(args) > 0:
+                raise AirflowException(
+                    "Use keyword arguments when initializing method with the "
+                    "'fallback_to_default_project_id' decorator")
+            if 'project_id' in kwargs:
+                kwargs['project_id'] = self._get_project_id(kwargs['project_id'])
+            else:
+                kwargs['project_id'] = self._get_project_id(None)
+            if not kwargs['project_id']:
+                raise AirflowException("The project id must be passed either as "
+                                       "keyword project_id parameter or as project_id extra "
+                                       "in GCP connection definition. Both are not set!")
+            return func(self, *args, **kwargs)
+        return inner_wrapper
+
+    fallback_to_default_project_id = staticmethod(fallback_to_default_project_id)
+
+    def _get_project_id(self, project_id):
+        """
+        In case project_id is None, overrides it with default project_id from
+        the service account that is authorized.
+
+        :param project_id: project id to
+        :type project_id: str
+        :return: the project_id specified or default project id if project_id is None
+        """
+        return project_id if project_id else self.project_id

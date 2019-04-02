@@ -39,12 +39,12 @@ class MongoSensor(BaseSensorOperator):
         Create a new MongoSensor
 
         :param collection: Target MongoDB collection.
-        :type collection: str
+        :type collection: string
         :param query: The query to find the target document.
         :type query: dict
         :param mongo_conn_id: The connection ID to use
                               when connecting to MongoDB.
-        :type mongo_conn_id: str
+        :type mongo_conn_id: string
         """
         super(MongoSensor, self).__init__(*args, **kwargs)
         self.mongo_conn_id = mongo_conn_id

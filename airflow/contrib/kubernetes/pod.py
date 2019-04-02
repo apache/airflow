@@ -54,8 +54,16 @@ class Pod:
     :type result: any
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
+    :param image_pull_secrets: Any image pull secrets to be given to the pod.
+                               If more than one secret is required, provide a
+                               comma separated list: secret_a,secret_b
+    :type image_pull_secrets: str
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
+    :param hostnetwork: If True enable host networking on the pod
+    :type hostnetwork: bool
+    :param tolerations: A list of kubernetes tolerations
+    :type tolerations: list
     """
     def __init__(
             self,
@@ -78,7 +86,8 @@ class Pod:
             resources=None,
             annotations=None,
             affinity=None,
-            hostnetwork=False
+            hostnetwork=False,
+            tolerations=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -100,3 +109,4 @@ class Pod:
         self.annotations = annotations or {}
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
+        self.tolerations = tolerations or []

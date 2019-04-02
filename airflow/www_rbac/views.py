@@ -36,17 +36,16 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify)
+    make_response, flash, jsonify, escape, url_for)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
-from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from past.builtins import unicode
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import or_, desc, and_, union_all
+from sqlalchemy import func, or_, desc, and_, union_all
 from wtforms import SelectField, validators
 
 import airflow
@@ -147,6 +146,42 @@ class AirflowBaseView(BaseView):
 
 
 class Airflow(AirflowBaseView):
+    @expose('/health')
+    @provide_session
+    def health(self, session=None):
+        """
+        An endpoint helping check the health status of the Airflow instance,
+        including metadatabase and scheduler.
+        """
+
+        BJ = jobs.BaseJob
+        payload = {}
+        scheduler_health_check_threshold = timedelta(seconds=conf.getint('scheduler',
+                                                                         'scheduler_health_check_threshold'
+                                                                         ))
+
+        latest_scheduler_heartbeat = None
+        payload['metadatabase'] = {'status': 'healthy'}
+        try:
+            latest_scheduler_heartbeat = session.query(func.max(BJ.latest_heartbeat)).\
+                filter(BJ.state == 'running', BJ.job_type == 'SchedulerJob').\
+                scalar()
+        except Exception:
+            payload['metadatabase']['status'] = 'unhealthy'
+
+        if not latest_scheduler_heartbeat:
+            scheduler_status = 'unhealthy'
+        else:
+            if timezone.utcnow() - latest_scheduler_heartbeat <= scheduler_health_check_threshold:
+                scheduler_status = 'healthy'
+            else:
+                scheduler_status = 'unhealthy'
+
+        payload['scheduler'] = {'status': scheduler_status,
+                                'latest_scheduler_heartbeat': str(latest_scheduler_heartbeat)}
+
+        return wwwutils.json_response(payload)
+
     @expose('/home')
     @has_access
     @provide_session
@@ -301,17 +336,13 @@ class Airflow(AirflowBaseView):
                 if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                     payload[dag.safe_dag_id] = []
                     for state in State.dag_states:
-                        try:
-                            count = data[dag.dag_id][state]
-                        except Exception:
-                            count = 0
-                        d = {
+                        count = data.get(dag.dag_id, {}).get(state, 0)
+                        payload[dag.safe_dag_id].append({
                             'state': state,
                             'count': count,
                             'dag_id': dag.dag_id,
                             'color': State.color(state)
-                        }
-                        payload[dag.safe_dag_id].append(d)
+                        })
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
@@ -379,17 +410,13 @@ class Airflow(AirflowBaseView):
             if 'all_dags' in filter_dag_ids or dag.dag_id in filter_dag_ids:
                 payload[dag.safe_dag_id] = []
                 for state in State.task_states:
-                    try:
-                        count = data[dag.dag_id][state]
-                    except Exception:
-                        count = 0
-                    d = {
+                    count = data.get(dag.dag_id, {}).get(state, 0)
+                    payload[dag.safe_dag_id].append({
                         'state': state,
                         'count': count,
                         'dag_id': dag.dag_id,
                         'color': State.color(state)
-                    }
-                    payload[dag.safe_dag_id].append(d)
+                    })
         return wwwutils.json_response(payload)
 
     @expose('/code')
@@ -576,7 +603,13 @@ class Airflow(AirflowBaseView):
             models.TaskInstance.task_id == task_id,
             models.TaskInstance.execution_date == dttm).first()
 
-        logs = [''] * (ti.next_try_number - 1 if ti is not None else 0)
+        num_logs = 0
+        if ti is not None:
+            num_logs = ti.next_try_number - 1
+            if ti.state == State.UP_FOR_RESCHEDULE:
+                # Tasks in reschedule state decremented the try number
+                num_logs += 1
+        logs = [''] * num_logs
         return self.render(
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts",
@@ -1352,6 +1385,10 @@ class Airflow(AirflowBaseView):
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else default_dag_run
 
+        if dag is None:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/')
+
         if base_date:
             base_date = pendulum.parse(base_date)
         else:
@@ -1632,6 +1669,8 @@ class Airflow(AirflowBaseView):
         # sync dag permission
         appbuilder.sm.sync_perm_for_dag(dag_id)
 
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
+
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
@@ -1803,11 +1842,18 @@ class ConfigurationView(AirflowBaseView):
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
         subtitle = conf.AIRFLOW_CONFIG
-        with open(conf.AIRFLOW_CONFIG, 'r') as f:
-            config = f.read()
-        table = [(section, key, value, source)
-                 for section, parameters in conf.as_dict(True, True).items()
-                 for key, (value, source) in parameters.items()]
+        # Don't show config when expose_config variable is False in airflow config
+        if conf.getboolean("webserver", "expose_config"):
+            with open(conf.AIRFLOW_CONFIG, 'r') as f:
+                config = f.read()
+            table = [(section, key, value, source)
+                     for section, parameters in conf.as_dict(True, True).items()
+                     for key, (value, source) in parameters.items()]
+        else:
+            config = (
+                "# Your Airflow administrator chose not to expose the "
+                "configuration, most likely for security reasons.")
+            table = None
 
         if raw:
             return Response(
@@ -1843,27 +1889,7 @@ class AirflowModelView(ModelView):
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
 
-    class CustomSQLAInterface(SQLAInterface):
-        """
-        FAB does not know how to handle columns with leading underscores because
-        they are not supported by WTForm. This hack will remove the leading
-        '_' from the key to lookup the column names.
-
-        """
-        def __init__(self, obj):
-            super(AirflowModelView.CustomSQLAInterface, self).__init__(obj)
-
-            self.session = settings.Session()
-
-            def clean_column_names():
-                if self.list_properties:
-                    self.list_properties = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_properties.items())
-                if self.list_columns:
-                    self.list_columns = dict(
-                        (k.lstrip('_'), v) for k, v in self.list_columns.items())
-
-            clean_column_names()
+    CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
 
 class SlaMissModelView(AirflowModelView):
@@ -1990,7 +2016,8 @@ class PoolModelView(AirflowModelView):
     def pool_link(attr):
         pool_id = attr.get('pool')
         if pool_id is not None:
-            url = '/taskinstance/list/?_flt_3_pool=' + str(pool_id)
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id)
+            pool_id = escape(pool_id)
             return Markup("<a href='{url}'>{pool_id}</a>".format(**locals()))
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
@@ -1999,8 +2026,8 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         used_slots = attr.get('used_slots')
         if pool_id is not None and used_slots is not None:
-            url = '/taskinstance/list/?_flt_3_pool=' + str(pool_id) + \
-                  '&_flt_3_state=running'
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
+            pool_id = escape(pool_id)
             return Markup("<a href='{url}'>{used_slots}</a>".format(**locals()))
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
@@ -2009,8 +2036,8 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         queued_slots = attr.get('queued_slots')
         if pool_id is not None and queued_slots is not None:
-            url = '/taskinstance/list/?_flt_3_pool=' + str(pool_id) + \
-                  '&_flt_3_state=queued'
+            url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='queued')
+            pool_id = escape(pool_id)
             return Markup("<a href='{url}'>{queued_slots}</a>".format(**locals()))
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
@@ -2111,7 +2138,7 @@ class VariableModelView(AirflowModelView):
                     suc_count += 1
             flash("{} variable(s) successfully updated.".format(suc_count))
             if fail_count:
-                flash("{} variables(s) failed to be updated.".format(fail_count), 'error')
+                flash("{} variable(s) failed to be updated.".format(fail_count), 'error')
             self.update_redirect()
             return redirect(self.get_redirect())
 
@@ -2353,7 +2380,7 @@ class TaskInstanceModelView(AirflowModelView):
             self.update_redirect()
             return redirect(self.get_redirect())
 
-        except Exception as ex:
+        except Exception:
             flash('Failed to clear task instances', 'error')
 
     @provide_session

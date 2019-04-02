@@ -38,7 +38,7 @@ class S3ToRedshiftTransfer(BaseOperator):
     :param redshift_conn_id: reference to a specific redshift database
     :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
-    :type aws_conn_id: str
+    :type aws_conn_id: string
     :parame verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:

@@ -25,9 +25,9 @@ except ImportError:  # python 3
     from urllib.parse import urlparse, parse_qsl
 
 from airflow.contrib.hooks import gcp_mlengine_hook as hook
-from apiclient import errors
-from apiclient.discovery import build_from_document
-from apiclient.http import HttpMockSequence
+from googleapiclient.errors import HttpError
+from googleapiclient.discovery import build_from_document
+from googleapiclient.http import HttpMockSequence
 from google.auth.exceptions import GoogleAuthError
 import requests
 
@@ -185,8 +185,7 @@ class TestMLEngineHook(unittest.TestCase):
                 self._SERVICE_URI_PREFIX, project, model_name), 'GET',
              None),
         ] + [
-            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}'
-             '&pageSize=100'.format(
+            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}&pageSize=100'.format(
                 self._SERVICE_URI_PREFIX, project, model_name, ix), 'GET',
              None) for ix in range(len(versions) - 1)
         ]
@@ -393,7 +392,7 @@ class TestMLEngineHook(unittest.TestCase):
                 self,
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
-            with self.assertRaises(errors.HttpError):
+            with self.assertRaises(HttpError):
                 cml_hook.create_job(
                     project_id=project, job=my_job,
                     use_existing_job_fn=check_input)

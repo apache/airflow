@@ -37,7 +37,7 @@ class S3ListOperator(BaseOperator):
     :param delimiter: the delimiter marks key hierarchy. (templated)
     :type delimiter: str
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
-    :type aws_conn_id: str
+    :type aws_conn_id: string
     :parame verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:

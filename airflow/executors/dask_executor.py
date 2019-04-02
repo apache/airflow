@@ -49,6 +49,7 @@ class DaskExecutor(BaseExecutor):
                 tls_client_key=self.tls_key,
                 tls_client_cert=self.tls_cert,
                 tls_ca_file=self.tls_ca,
+                require_encryption=True,
             )
         else:
             security = None

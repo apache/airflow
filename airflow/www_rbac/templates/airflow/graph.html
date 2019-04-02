@@ -62,6 +62,7 @@
     <div class="legend_item state" style="border-color:white;">no status</div>
     <div class="legend_item state" style="border-color:grey;">queued</div>
     <div class="legend_item state" style="border-color:gold;">retry</div>
+    <div class="legend_item state" style="border-color:turquoise;">rescheduled</div>
     <div class="legend_item state" style="border-color:pink;">skipped</div>
     <div class="legend_item state" style="border-color:red;">failed</div>
     <div class="legend_item state" style="border-color:lime;">running</div>
@@ -111,8 +112,9 @@
     // Below variables are being used in dag.js
     var tasks = {{ tasks|safe }};
     var task_instances = {{ task_instances|safe }};
-    var getTaskInstanceURL = '{{ url_for("Airflow.task_instances", dag_id='+
-      dag.dag_id + ', execution_date=' + execution_date + ') }}';
+    var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
+      "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
+      encodeURIComponent(execution_date);
 
     var duration = 500;
     var stateFocusMap = {

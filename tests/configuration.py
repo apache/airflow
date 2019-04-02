@@ -37,12 +37,24 @@ else:
 
 class ConfTest(unittest.TestCase):
 
-    def setup(self):
+    @classmethod
+    def setUpClass(cls):
+        os.environ['AIRFLOW__TESTSECTION__TESTKEY'] = 'testvalue'
+        os.environ['AIRFLOW__TESTSECTION__TESTPERCENT'] = 'with%percent'
         configuration.load_test_config()
+        conf.set('core', 'percent', 'with%%inside')
+
+    @classmethod
+    def tearDownClass(cls):
+        del os.environ['AIRFLOW__TESTSECTION__TESTKEY']
+        del os.environ['AIRFLOW__TESTSECTION__TESTPERCENT']
 
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
         self.assertEqual(opt, 'testvalue')
+
+        opt = conf.get('testsection', 'testpercent')
+        self.assertEqual(opt, 'with%percent')
 
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
@@ -50,24 +62,38 @@ class ConfTest(unittest.TestCase):
         # test that configs are picked up
         self.assertEqual(cfg_dict['core']['unit_test_mode'], 'True')
 
+        self.assertEqual(cfg_dict['core']['percent'], 'with%inside')
+
         # test env vars
         self.assertEqual(cfg_dict['testsection']['testkey'], '< hidden >')
 
+    def test_conf_as_dict_source(self):
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         self.assertEqual(
-            cfg_dict['core']['load_examples'][1], 'airflow config')
+            cfg_dict['core']['load_examples'][1], 'airflow.cfg')
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
 
+    def test_conf_as_dict_sensitive(self):
         # test display_sensitive
         cfg_dict = conf.as_dict(display_sensitive=True)
         self.assertEqual(cfg_dict['testsection']['testkey'], 'testvalue')
+        self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%percent')
 
         # test display_source and display_sensitive
         cfg_dict = conf.as_dict(display_sensitive=True, display_source=True)
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
+
+    def test_conf_as_dict_raw(self):
+        # test display_sensitive
+        cfg_dict = conf.as_dict(raw=True, display_sensitive=True)
+        self.assertEqual(cfg_dict['testsection']['testkey'], 'testvalue')
+
+        # Values with '%' in them should be escaped
+        self.assertEqual(cfg_dict['testsection']['testpercent'], 'with%%percent')
+        self.assertEqual(cfg_dict['core']['percent'], 'with%%inside')
 
     def test_command_config(self):
         TEST_CONFIG = '''[test]
@@ -104,6 +130,10 @@ key6 = value6
         self.assertFalse(test_conf.has_option('test', 'key5'))
         self.assertTrue(test_conf.has_option('another', 'key6'))
 
+        cfg_dict = test_conf.as_dict(display_sensitive=True)
+        self.assertEqual('cmd_result', cfg_dict['test']['key2'])
+        self.assertNotIn('key2_cmd', cfg_dict['test'])
+
     def test_remove_option(self):
         TEST_CONFIG = '''[test]
 key1 = hello
@@ -135,7 +165,7 @@ key1 = hello
 key1 = awesome
 key2 = airflow
 
-[another]
+[testsection]
 key3 = value3
 '''
         test_conf = AirflowConfigParser(
@@ -147,18 +177,18 @@ key3 = value3
             test_conf.getsection('test')
         )
         self.assertEqual(
-            OrderedDict([('key3', 'value3')]),
-            test_conf.getsection('another')
+            OrderedDict([
+                ('key3', 'value3'),
+                ('testkey', 'testvalue'),
+                ('testpercent', 'with%percent')]),
+            test_conf.getsection('testsection')
         )
 
     def test_broker_transport_options(self):
         section_dict = conf.getsection("celery_broker_transport_options")
         self.assertTrue(isinstance(section_dict['visibility_timeout'], int))
-
         self.assertTrue(isinstance(section_dict['_test_only_bool'], bool))
-
         self.assertTrue(isinstance(section_dict['_test_only_float'], float))
-
         self.assertTrue(isinstance(section_dict['_test_only_string'], six.string_types))
 
     def test_deprecated_options(self):
@@ -191,4 +221,9 @@ key3 = value3
         conf.set('celery', 'celery_result_backend_cmd', '/bin/echo 99')
 
         with self.assertWarns(DeprecationWarning):
+            tmp = None
+            if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
+                tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
             self.assertEquals(conf.getint('celery', 'result_backend'), 99)
+            if tmp:
+                os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp

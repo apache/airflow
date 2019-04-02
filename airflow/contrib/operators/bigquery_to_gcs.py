@@ -43,7 +43,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     :param compression: Type of compression to use.
     :type compression: str
     :param export_format: File format to export.
-    :type export_format: str
+    :type export_format: string
     :param field_delimiter: The delimiter to use when extracting to a CSV.
     :type field_delimiter: str
     :param print_header: Whether to print a header for a CSV file extract.
@@ -53,7 +53,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: str
+    :type delegate_to: string
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :type labels: dict

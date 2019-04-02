@@ -52,7 +52,8 @@ class DataprocClusterCreateOperator(BaseOperator):
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
     :type project_id: str
-    :param num_workers: The # of workers to spin up
+    :param num_workers: The # of workers to spin up. If set to zero will
+        spin up cluster in a single node mode
     :type num_workers: int
     :param storage_bucket: The storage bucket to use, setting to None lets dataproc
         generate a custom one for you
@@ -67,30 +68,30 @@ class DataprocClusterCreateOperator(BaseOperator):
         to add to all instances
     :type metadata: dict
     :param image_version: the version of software inside the Dataproc cluster
-    :type image_version: str
+    :type image_version: string
     :param custom_image: custom Dataproc image for more info see
         https://cloud.google.com/dataproc/docs/guides/dataproc-images
-    :type: custom_image: str
+    :type: custom_image: string
     :param properties: dict of properties to set on
         config files (e.g. spark-defaults.conf), see
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#SoftwareConfig
     :type properties: dict
     :param master_machine_type: Compute engine machine type to use for the master node
-    :type master_machine_type: str
+    :type master_machine_type: string
     :param master_disk_type: Type of the boot disk for the master node
         (default is ``pd-standard``).
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
-    :type master_disk_type: str
+    :type master_disk_type: string
     :param master_disk_size: Disk size for the master node
     :type master_disk_size: int
     :param worker_machine_type: Compute engine machine type to use for the worker nodes
-    :type worker_machine_type: str
+    :type worker_machine_type: string
     :param worker_disk_type: Type of the boot disk for the worker node
         (default is ``pd-standard``).
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
-    :type worker_disk_type: str
+    :type worker_disk_type: string
     :param worker_disk_size: Disk size for the worker nodes
     :type worker_disk_size: int
     :param num_preemptible_workers: The # of preemptible worker nodes to spin up
@@ -186,7 +187,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.metadata = metadata
         self.custom_image = custom_image
         self.image_version = image_version
-        self.properties = properties
+        self.properties = properties or dict()
         self.master_machine_type = master_machine_type
         self.master_disk_type = master_disk_type
         self.master_disk_size = master_disk_size
@@ -205,6 +206,19 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.idle_delete_ttl = idle_delete_ttl
         self.auto_delete_time = auto_delete_time
         self.auto_delete_ttl = auto_delete_ttl
+        self.single_node = num_workers == 0
+
+        assert not (self.custom_image and self.image_version), \
+            "custom_image and image_version can't be both set"
+
+        assert (
+            not self.single_node or (
+                self.single_node and self.num_preemptible_workers == 0
+            )
+        ), "num_workers == 0 means single node mode - no preemptibles allowed"
+
+        assert not (self.custom_image and self.image_version), \
+            "custom_image and image_version can't be both set"
 
         assert not (self.custom_image and self.image_version), \
             "custom_image and image_version can't be both set"
@@ -351,7 +365,12 @@ class DataprocClusterCreateOperator(BaseOperator):
                                '{}/global/images/{}'.format(self.project_id,
                                                             self.custom_image)
             cluster_data['config']['masterConfig']['imageUri'] = custom_image_url
-            cluster_data['config']['workerConfig']['imageUri'] = custom_image_url
+            if not self.single_node:
+                cluster_data['config']['workerConfig']['imageUri'] = custom_image_url
+
+        if self.single_node:
+            self.properties["dataproc:dataproc.allow.zero.workers"] = "true"
+
         if self.properties:
             cluster_data['config']['softwareConfig']['properties'] = self.properties
         if self.idle_delete_ttl:
@@ -713,7 +732,7 @@ class DataProcPigOperator(BaseOperator):
         This is useful for identifying or linking to the job in the Google Cloud Console
         Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
         an 8 character random string.
-    :vartype dataproc_job_id: str
+    :vartype dataproc_job_id: string
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'dataproc_jars']
     template_ext = ('.pg', '.pig',)
@@ -810,7 +829,7 @@ class DataProcHiveOperator(BaseOperator):
         This is useful for identifying or linking to the job in the Google Cloud Console
         Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
         an 8 character random string.
-    :vartype dataproc_job_id: str
+    :vartype dataproc_job_id: string
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'dataproc_jars']
     template_ext = ('.q',)
@@ -909,7 +928,7 @@ class DataProcSparkSqlOperator(BaseOperator):
         This is useful for identifying or linking to the job in the Google Cloud Console
         Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
         an 8 character random string.
-    :vartype dataproc_job_id: str
+    :vartype dataproc_job_id: string
     """
     template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'dataproc_jars']
     template_ext = ('.q',)
@@ -1015,7 +1034,7 @@ class DataProcSparkOperator(BaseOperator):
         This is useful for identifying or linking to the job in the Google Cloud Console
         Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
         an 8 character random string.
-    :vartype dataproc_job_id: str
+    :vartype dataproc_job_id: string
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'dataproc_jars']
@@ -1123,7 +1142,7 @@ class DataProcHadoopOperator(BaseOperator):
         This is useful for identifying or linking to the job in the Google Cloud Console
         Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
         an 8 character random string.
-    :vartype dataproc_job_id: str
+    :vartype dataproc_job_id: string
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'dataproc_jars']
@@ -1231,7 +1250,7 @@ class DataProcPySparkOperator(BaseOperator):
         This is useful for identifying or linking to the job in the Google Cloud Console
         Dataproc UI, as the actual "jobId" submitted to the Dataproc API is appended with
         an 8 character random string.
-    :vartype dataproc_job_id: str
+    :vartype dataproc_job_id: string
     """
 
     template_fields = ['arguments', 'job_name', 'cluster_name', 'dataproc_jars']

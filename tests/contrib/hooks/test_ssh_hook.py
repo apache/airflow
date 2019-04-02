@@ -132,15 +132,49 @@ class SSHHookTest(unittest.TestCase):
 
     def test_conn_with_extra_parameters(self):
         db.merge_conn(
-            models.Connection(conn_id='ssh_with_extra',
-                              host='localhost',
-                              conn_type='ssh',
-                              extra='{"compress" : true, "no_host_key_check" : "true"}'
-                              )
+            models.Connection(
+                conn_id='ssh_with_extra',
+                host='localhost',
+                conn_type='ssh',
+                extra='{"compress" : true, "no_host_key_check" : "true", '
+                      '"allow_host_key_change": false}'
+            )
         )
         ssh_hook = SSHHook(ssh_conn_id='ssh_with_extra')
         self.assertEqual(ssh_hook.compress, True)
         self.assertEqual(ssh_hook.no_host_key_check, True)
+        self.assertEqual(ssh_hook.allow_host_key_change, False)
+
+    def test_ssh_connection(self):
+        hook = SSHHook(ssh_conn_id='ssh_default')
+        with hook.get_conn() as client:
+            (_, stdout, _) = client.exec_command('ls')
+            self.assertIsNotNone(stdout.read())
+
+    def test_ssh_connection_old_cm(self):
+        with SSHHook(ssh_conn_id='ssh_default') as hook:
+            client = hook.get_conn()
+            (_, stdout, _) = client.exec_command('ls')
+            self.assertIsNotNone(stdout.read())
+
+    def test_tunnel(self):
+        hook = SSHHook(ssh_conn_id='ssh_default')
+
+        import subprocess
+        import socket
+
+        server_handle = subprocess.Popen(["python", "-c", HELLO_SERVER_CMD],
+                                         stdout=subprocess.PIPE)
+        with hook.create_tunnel(2135, 2134):
+            server_output = server_handle.stdout.read(5)
+            self.assertEqual(server_output, b"ready")
+            s = socket.socket()
+            s.connect(("localhost", 2135))
+            response = s.recv(5)
+            self.assertEqual(response, b"hello")
+            s.close()
+            output, _ = server_handle.communicate()
+            self.assertEqual(server_handle.returncode, 0)
 
     def test_ssh_connection(self):
         hook = SSHHook(ssh_conn_id='ssh_default')
