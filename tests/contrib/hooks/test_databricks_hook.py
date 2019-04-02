@@ -33,14 +33,7 @@ from airflow.contrib.hooks.databricks_hook import (
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.utils import db
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'databricks-operator'
 DEFAULT_CONN_ID = 'databricks_default'

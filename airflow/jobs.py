@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 from collections import defaultdict, OrderedDict
+from datetime import timedelta
 from time import sleep
 from typing import Any
 
@@ -547,8 +548,8 @@ class SchedulerJob(BaseJob):
             dag_id=None,
             dag_ids=None,
             subdir=settings.DAGS_FOLDER,
-            num_runs=-1,
-            processor_poll_interval=1.0,
+            num_runs=conf.getint('scheduler', 'num_runs'),
+            processor_poll_interval=conf.getfloat('scheduler', 'processor_poll_interval'),
             do_pickle=False,
             log=None,
             *args, **kwargs):
@@ -619,7 +620,7 @@ class SchedulerJob(BaseJob):
         Where assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
-        if not any([ti.sla for ti in dag.tasks]):
+        if not any([isinstance(ti.sla, timedelta) for ti in dag.tasks]):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
@@ -648,7 +649,7 @@ class SchedulerJob(BaseJob):
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
-            if task.sla:
+            if isinstance(task.sla, timedelta):
                 dttm = dag.following_schedule(dttm)
                 while dttm < timezone.utcnow():
                     following_schedule = dag.following_schedule(dttm)
@@ -713,7 +714,8 @@ class SchedulerJob(BaseJob):
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
-            """.format(bug=asciiart.bug, **locals())
+            """.format(task_list=task_list, blocking_task_list=blocking_task_list,
+                       bug=asciiart.bug)
             emails = set()
             for task in dag.tasks:
                 if task.email:
@@ -1724,13 +1726,12 @@ class SchedulerJob(BaseJob):
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
-            dag = dagbag.get_dag(dag_id)
-            pickle_id = None
-            if pickle_dags:
-                pickle_id = dag.pickle(session).id
-
             # Only return DAGs that are not paused
             if dag_id not in paused_dag_ids:
+                dag = dagbag.get_dag(dag_id)
+                pickle_id = None
+                if pickle_dags:
+                    pickle_id = dag.pickle(session).id
                 simple_dags.append(SimpleDag(dag, pickle_id=pickle_id))
 
         if len(self.dag_ids) > 0:
@@ -2623,15 +2624,14 @@ class LocalTaskJob(BaseJob):
 
         if ti.state == State.RUNNING:
             if not same_hostname:
-                self.log.warning("The recorded hostname {ti.hostname} "
+                self.log.warning("The recorded hostname %s "
                                  "does not match this instance's hostname "
-                                 "{fqdn}".format(**locals()))
+                                 "%s", ti.hostname, fqdn)
                 raise AirflowException("Hostname of job runner does not match")
             elif not same_process:
                 current_pid = os.getpid()
-                self.log.warning("Recorded pid {ti.pid} does not match "
-                                 "the current pid "
-                                 "{current_pid}".format(**locals()))
+                self.log.warning("Recorded pid %s does not match "
+                                 "the current pid %s", ti.pid, current_pid)
                 raise AirflowException("PID of job runner does not match")
         elif (
                 self.task_runner.return_code() is None and

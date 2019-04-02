@@ -251,14 +251,14 @@ def task_instance_link(attr):
             aria-hidden="true"></span>
         </a>
         </span>
-        """).format(**locals())
+        """).format(url=url, task_id=task_id, url_root=url_root)
 
 
 def state_token(state):
     color = State.color(state)
     return Markup(
         '<span class="label" style="background-color:{color};">'
-        '{state}</span>').format(**locals())
+        '{state}</span>').format(color=color, state=state)
 
 
 def state_f(attr):
@@ -304,7 +304,7 @@ def dag_run_link(attr):
         run_id=run_id,
         execution_date=execution_date)
     return Markup(
-        '<a href="{url}">{run_id}</a>').format(**locals())
+        '<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):

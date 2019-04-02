@@ -62,4 +62,4 @@ class TestEmailOperator(unittest.TestCase):
         configuration.conf.set('email', 'EMAIL_BACKEND',
                                'tests.operators.test_email_operator.send_email_test')
         self._run_as_operator()
-        send_email_test.assert_called_once()
+        assert send_email_test.call_count == 1

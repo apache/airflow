@@ -20,16 +20,12 @@ import unittest
 
 import boto3
 from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
+from tests.compat import mock
 
 try:
     from moto import mock_glue
 except ImportError:
     mock_glue = None
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 DB_NAME = 'db'
 TABLE_NAME = 'table'

@@ -19,6 +19,7 @@
 #
 
 import copy
+from io import BytesIO
 import itertools
 import json
 import logging
@@ -41,7 +42,6 @@ from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
-from past.builtins import unicode
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import func, or_, desc, and_, union_all
@@ -73,10 +73,6 @@ from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm,
                                DagRunForm, ConnectionForm)
 from airflow.www.widgets import AirflowModelListWidget
-if PY2:
-    from cStringIO import StringIO
-else:
-    from io import StringIO
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
@@ -566,17 +562,19 @@ class Airflow(AirflowBaseView):
                 ti.task = dag.get_task(ti.task_id)
                 logs, metadatas = handler.read(ti, try_number, metadata=metadata)
                 metadata = metadatas[0]
-            for i, log in enumerate(logs):
-                if PY2 and not isinstance(log, unicode):
-                    logs[i] = log.decode('utf-8')
 
             if response_format == 'json':
                 message = logs[0] if try_number is not None else logs
                 return jsonify(message=message, metadata=metadata)
 
-            file_obj = StringIO('\n'.join(logs))
+            file_obj = BytesIO(b'\n'.join(
+                log.encode('utf-8') for log in logs
+            ))
             filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
-            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            attachment_filename = render_log_filename(
+                ti=ti,
+                try_number="all" if try_number is None else try_number,
+                filename_template=filename_template)
             return send_file(file_obj, as_attachment=True,
                              attachment_filename=attachment_filename)
         except AttributeError as e:
@@ -1997,7 +1995,7 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         if pool_id is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id)
-            return Markup("<a href='{url}'>{pool_id}</a>").format(**locals())
+            return Markup("<a href='{url}'>{pool_id}</a>").format(url=url, pool_id=pool_id)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2006,7 +2004,7 @@ class PoolModelView(AirflowModelView):
         used_slots = attr.get('used_slots')
         if pool_id is not None and used_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
-            return Markup("<a href='{url}'>{used_slots}</a>").format(**locals())
+            return Markup("<a href='{url}'>{used_slots}</a>").format(url=url, used_slots=used_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2015,7 +2013,7 @@ class PoolModelView(AirflowModelView):
         queued_slots = attr.get('queued_slots')
         if pool_id is not None and queued_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='queued')
-            return Markup("<a href='{url}'>{queued_slots}</a>").format(**locals())
+            return Markup("<a href='{url}'>{queued_slots}</a>").format(url=url, queued_slots=queued_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2203,7 +2201,7 @@ class DagRunModelView(AirflowModelView):
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
             session.commit()
-            flash("{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(count=count))
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
@@ -2231,7 +2229,7 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to failed".format(**locals()))
+                "were set to failed".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -2258,7 +2256,7 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to success".format(**locals()))
+                "were set to success".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
         return redirect(self.get_default_url())
@@ -2312,7 +2310,7 @@ class TaskInstanceModelView(AirflowModelView):
         return Markup(
             '<a href="{log_url}">'
             '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-            '</span></a>').format(**locals())
+            '</span></a>').format(log_url=log_url)
 
     def duration_f(attr):
         end_date = attr.get('end_date')
@@ -2365,8 +2363,8 @@ class TaskInstanceModelView(AirflowModelView):
             for ti in tis:
                 ti.set_state(target_state, session)
             session.commit()
-            flash(
-                "{count} task instances were set to '{target_state}'".format(**locals()))
+            flash("{count} task instances were set to '{target_state}'".format(
+                count=count, target_state=target_state))
         except Exception:
             flash('Failed to set state', 'error')
 

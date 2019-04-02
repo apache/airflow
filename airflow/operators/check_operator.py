@@ -19,7 +19,7 @@
 
 from builtins import zip
 from builtins import str
-from typing import Iterable
+from typing import Optional, Any, Iterable, Dict
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -69,9 +69,12 @@ class CheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql,
-            conn_id=None,
-            *args, **kwargs):
+        self,
+        sql,  # type: str
+        conn_id=None,  # type: Optional[str]
+        *args,
+        **kwargs
+    ):
         super(CheckOperator, self).__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.sql = sql
@@ -127,9 +130,14 @@ class ValueCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, sql, pass_value, tolerance=None,
-            conn_id=None,
-            *args, **kwargs):
+        self,
+        sql,  # type: str
+        pass_value,  # type: Any
+        tolerance=None,  # type: Any
+        conn_id=None,  # type: Optional[str]
+        *args,
+        **kwargs
+    ):
         super(ValueCheckOperator, self).__init__(*args, **kwargs)
         self.sql = sql
         self.conn_id = conn_id
@@ -153,7 +161,9 @@ class ValueCheckOperator(BaseOperator):
 
         except_temp = ("Test failed.\nPass value:{pass_value_conv}\n"
                        "Tolerance:{tolerance_pct_str}\n"
-                       "Query:\n{self.sql}\nResults:\n{records!s}")
+                       "Query:\n{sql}\nResults:\n{records!s}".format(
+            pass_value_conv=pass_value_conv, tolerance_pct_str=tolerance_pct_str,  # noqa: E122
+            sql=self.sql, records=records))
         if not is_numeric_value_check:
             tests = [str(r) == pass_value_conv for r in records]
         elif is_numeric_value_check:
@@ -161,7 +171,7 @@ class ValueCheckOperator(BaseOperator):
                 num_rec = [float(r) for r in records]
             except (ValueError, TypeError):
                 cvestr = "Converting a result to float failed.\n"
-                raise AirflowException(cvestr + except_temp.format(**locals()))
+                raise AirflowException(cvestr + except_temp)
             if self.has_tolerance:
                 tests = [
                     pass_value_conv * (1 - self.tol) <=
@@ -170,7 +180,7 @@ class ValueCheckOperator(BaseOperator):
             else:
                 tests = [r == pass_value_conv for r in num_rec]
         if not all(tests):
-            raise AirflowException(except_temp.format(**locals()))
+            raise AirflowException(except_temp)
 
     def get_db_hook(self):
         return BaseHook.get_hook(conn_id=self.conn_id)
@@ -203,10 +213,15 @@ class IntervalCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, table, metrics_thresholds,
-            date_filter_column='ds', days_back=-7,
-            conn_id=None,
-            *args, **kwargs):
+        self,
+        table,  # type: str
+        metrics_thresholds,  # type: Dict
+        date_filter_column='ds',  # type: str
+        days_back=-7,  # type: int
+        conn_id=None,  # type: Optional[str]
+        *args,
+        **kwargs
+    ):
         super(IntervalCheckOperator, self).__init__(*args, **kwargs)
         self.table = table
         self.metrics_thresholds = metrics_thresholds
@@ -216,7 +231,8 @@ class IntervalCheckOperator(BaseOperator):
         self.conn_id = conn_id
         sqlexp = ', '.join(self.metrics_sorted)
         sqlt = ("SELECT {sqlexp} FROM {table}"
-                " WHERE {date_filter_column}=").format(**locals())
+                " WHERE {date_filter_column}=").format(
+            sqlexp=sqlexp, table=table, date_filter_column=date_filter_column)
         self.sql1 = sqlt + "'{{ ds }}'"
         self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
 

@@ -183,6 +183,8 @@ gcp = [
     'google-cloud-spanner>=1.7.1',
     'google-cloud-translate>=1.3.3',
     'google-cloud-vision>=0.35.2',
+    'google-cloud-texttospeech>=0.4.0',
+    'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
     'PyOpenSSL',
     'pandas-gbq'
@@ -240,7 +242,7 @@ devel = [
     'click==6.7',
     'freezegun',
     'jira',
-    'mock',
+    'mock;python_version<"3.3"',
     'mongomock',
     'moto==1.3.5',
     'nose',

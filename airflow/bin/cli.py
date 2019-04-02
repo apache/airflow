@@ -448,7 +448,8 @@ def _run(args, dag, ti):
                     session.add(pickle)
                     pickle_id = pickle.id
                     # TODO: This should be written to a log
-                    print('Pickled dag {dag} as pickle_id:{pickle_id}'.format(**locals()))
+                    print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
+                        dag=dag, pickle_id=pickle_id))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -908,12 +909,15 @@ def webserver(args):
         print(
             textwrap.dedent('''\
                 Running the Gunicorn Server with:
-                Workers: {num_workers} {args.workerclass}
-                Host: {args.hostname}:{args.port}
+                Workers: {num_workers} {workerclass}
+                Host: {hostname}:{port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
                 =================================================================\
-            '''.format(**locals())))
+            '''.format(num_workers=num_workers, workerclass=args.workerclass,
+                       hostname=args.hostname, port=args.port,
+                       worker_timeout=worker_timeout, access_logfile=access_logfile,
+                       error_logfile=error_logfile)))
 
         run_args = [
             'gunicorn',
@@ -1995,7 +1999,7 @@ class CLIFactory(object):
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
-            default=-1, type=int,
+            default=conf.getint('scheduler', 'num_runs'), type=int,
             help="Set the number of runs to execute before exiting"),
         # worker
         'do_pickle': Arg(

@@ -18,13 +18,6 @@
 # under the License.
 
 import unittest
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 from airflow import configuration
 from airflow.contrib.operators.sagemaker_base_operator import SageMakerBaseOperator
