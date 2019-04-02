@@ -714,7 +714,8 @@ class SchedulerJob(BaseJob):
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
-            """.format(bug=asciiart.bug, **locals())
+            """.format(task_list=task_list, blocking_task_list=blocking_task_list,
+                       bug=asciiart.bug)
             emails = set()
             for task in dag.tasks:
                 if task.email:
@@ -2623,15 +2624,14 @@ class LocalTaskJob(BaseJob):
 
         if ti.state == State.RUNNING:
             if not same_hostname:
-                self.log.warning("The recorded hostname {ti.hostname} "
+                self.log.warning("The recorded hostname %s "
                                  "does not match this instance's hostname "
-                                 "{fqdn}".format(**locals()))
+                                 "%s", ti.hostname, fqdn)
                 raise AirflowException("Hostname of job runner does not match")
             elif not same_process:
                 current_pid = os.getpid()
-                self.log.warning("Recorded pid {ti.pid} does not match "
-                                 "the current pid "
-                                 "{current_pid}".format(**locals()))
+                self.log.warning("Recorded pid %s does not match "
+                                 "the current pid %s", ti.pid, current_pid)
                 raise AirflowException("PID of job runner does not match")
         elif (
                 self.task_runner.return_code() is None and

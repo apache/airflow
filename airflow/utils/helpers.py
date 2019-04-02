@@ -57,7 +57,7 @@ def validate_key(k, max_length=250):
     elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively".format(**locals()))
+            "dots and underscores exclusively".format(k=k))
     else:
         return True
 

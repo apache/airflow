@@ -113,12 +113,12 @@ class HiveToDruidTransfer(BaseOperator):
         SET hive.exec.compress.output=false;
         DROP TABLE IF EXISTS {hive_table};
         CREATE TABLE {hive_table}
-        ROW FORMAT DELIMITED FIELDS TERMINATED BY  '\t'
+        ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
         STORED AS TEXTFILE
         TBLPROPERTIES ('serialization.null.format' = ''{tblproperties})
         AS
         {sql}
-        """.format(**locals())
+        """.format(hive_table=hive_table, tblproperties=tblproperties, sql=sql)
         self.log.info("Running command:\n %s", hql)
         hive.run_cli(hql)
 

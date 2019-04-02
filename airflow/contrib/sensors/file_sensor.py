@@ -57,7 +57,7 @@ class FileSensor(BaseSensorOperator):
         hook = FSHook(self.fs_conn_id)
         basepath = hook.get_path()
         full_path = os.path.join(basepath, self.filepath)
-        self.log.info('Poking for file {full_path}'.format(**locals()))
+        self.log.info('Poking for file %s', full_path)
         try:
             if stat.S_ISDIR(os.stat(full_path).st_mode):
                 for root, dirs, files in os.walk(full_path):
