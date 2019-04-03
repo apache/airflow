@@ -222,7 +222,7 @@ redis = ['redis~=3.2']
 salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
-sendgrid = ['sendgrid>=5.2.0']
+sendgrid = ['sendgrid>=5.2.0,<6']
 slack = ['slackclient>=1.0.0']
 mongo = ['pymongo>=3.6.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
