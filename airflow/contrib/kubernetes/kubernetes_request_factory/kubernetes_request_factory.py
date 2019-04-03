@@ -76,18 +76,18 @@ class KubernetesRequestFactory:
             req['spec']['affinity'][k] = v
 
     @staticmethod
+    def extract_node_selector(pod, req):
+        req['spec']['nodeSelector'] = req['spec'].get('nodeSelector', {})
+        for k, v in six.iteritems(pod.node_selectors):
+            req['spec']['nodeSelector'][k] = v
+
+    @staticmethod
     def extract_cmds(pod, req):
         req['spec']['containers'][0]['command'] = pod.cmds
 
     @staticmethod
     def extract_args(pod, req):
         req['spec']['containers'][0]['args'] = pod.args
-
-    @staticmethod
-    def extract_node_selector(pod, req):
-        req['spec']['nodeSelector'] = req['spec'].get('nodeSelector', {})
-        for k, v in six.iteritems(pod.node_selectors):
-            req['spec']['nodeSelector'][k] = v
 
     @staticmethod
     def attach_volumes(pod, req):
@@ -132,7 +132,7 @@ class KubernetesRequestFactory:
     @staticmethod
     def extract_env_and_secrets(pod, req):
         envs_from_key_secrets = [
-            env for env in pod.secrets if env.deploy_type == 'env' and hasattr(env, 'key')
+            env for env in pod.secrets if env.deploy_type == 'env' and env.key is not None
         ]
 
         if len(pod.envs) > 0 or len(envs_from_key_secrets) > 0:
@@ -206,7 +206,7 @@ class KubernetesRequestFactory:
     @staticmethod
     def _apply_env_from(pod, req):
         envs_from_secrets = [
-            env for env in pod.secrets if env.deploy_type == 'env' and not hasattr(env, 'key')
+            env for env in pod.secrets if env.deploy_type == 'env' and env.key is None
         ]
 
         if pod.configmaps or envs_from_secrets:

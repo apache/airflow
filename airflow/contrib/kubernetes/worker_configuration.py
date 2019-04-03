@@ -155,13 +155,28 @@ class WorkerConfiguration(LoggingMixin):
             env['AIRFLOW__CORE__DAGS_FOLDER'] = dag_volume_mount_path
         return env
 
+    def _get_configmaps(self):
+        """Extracts any configmapRefs to envFrom"""
+        if not self.kube_config.env_from_configmap_ref:
+            return []
+        return self.kube_config.env_from_configmap_ref.split(',')
+
     def _get_secrets(self):
         """Defines any necessary secrets for the pod executor"""
         worker_secrets = []
+
         for env_var_name, obj_key_pair in six.iteritems(self.kube_config.kube_secrets):
             k8s_secret_obj, k8s_secret_key = obj_key_pair.split('=')
             worker_secrets.append(
-                Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key))
+                Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key)
+            )
+
+        if self.kube_config.env_from_secret_ref:
+            for secret_ref in self.kube_config.env_from_secret_ref.split(','):
+                worker_secrets.append(
+                    Secret('env', None, secret_ref)
+                )
+
         return worker_secrets
 
     def _get_image_pull_secrets(self):
@@ -331,4 +346,5 @@ class WorkerConfiguration(LoggingMixin):
             affinity=affinity,
             tolerations=tolerations,
             security_context=self._get_security_context(),
+            configmaps=self._get_configmaps()
         )

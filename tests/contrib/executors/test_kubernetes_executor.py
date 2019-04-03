@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -37,6 +35,7 @@ try:
     from airflow.contrib.executors.kubernetes_executor import KubernetesExecutorConfig
     from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.exceptions import AirflowConfigException
+    from airflow.contrib.kubernetes.secret import Secret
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
 
@@ -162,11 +161,8 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.resources = mock.patch(
             'airflow.contrib.kubernetes.worker_configuration.Resources'
         )
-        self.secret = mock.patch(
-            'airflow.contrib.kubernetes.worker_configuration.Secret'
-        )
 
-        for patcher in [self.resources, self.secret]:
+        for patcher in [self.resources]:
             self.mock_foo = patcher.start()
             self.addCleanup(patcher.stop)
 
@@ -589,6 +585,46 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         worker_config = WorkerConfiguration(self.kube_config)
         env = worker_config._get_environment()
         self.assertEqual(env[core_executor], 'LocalExecutor')
+
+    def test_get_secrets(self):
+        # Test when secretRef is None and kube_secrets is not empty
+        self.kube_config.kube_secrets = {
+            'AWS_SECRET_KEY': 'airflow-secret=aws_secret_key',
+            'POSTGRES_PASSWORD': 'airflow-secret=postgres_credentials'
+        }
+        self.kube_config.env_from_secret_ref = None
+        worker_config = WorkerConfiguration(self.kube_config)
+        secrets = worker_config._get_secrets()
+        secrets.sort(key=lambda secret: secret.deploy_target)
+        expected = [
+            Secret('env', 'AWS_SECRET_KEY', 'airflow-secret', 'aws_secret_key'),
+            Secret('env', 'POSTGRES_PASSWORD', 'airflow-secret', 'postgres_credentials')
+        ]
+        self.assertListEqual(expected, secrets)
+
+        # Test when secret is not empty and kube_secrets is empty dict
+        self.kube_config.kube_secrets = {}
+        self.kube_config.env_from_secret_ref = 'secret_a,secret_b'
+        worker_config = WorkerConfiguration(self.kube_config)
+        secrets = worker_config._get_secrets()
+        expected = [
+            Secret('env', None, 'secret_a'),
+            Secret('env', None, 'secret_b')
+        ]
+        self.assertListEqual(expected, secrets)
+
+    def test_get_configmaps(self):
+        # Test when configmap is empty
+        self.kube_config.env_from_configmap_ref = ''
+        worker_config = WorkerConfiguration(self.kube_config)
+        configmaps = worker_config._get_configmaps()
+        self.assertListEqual([], configmaps)
+
+        # test when configmap is not empty
+        self.kube_config.env_from_configmap_ref = 'configmap_a,configmap_b'
+        worker_config = WorkerConfiguration(self.kube_config)
+        configmaps = worker_config._get_configmaps()
+        self.assertListEqual(['configmap_a', 'configmap_b'], configmaps)
 
 
 class TestKubernetesExecutor(unittest.TestCase):
