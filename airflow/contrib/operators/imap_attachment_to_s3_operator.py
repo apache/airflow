@@ -85,4 +85,4 @@ class ImapAttachmentToS3Operator(BaseOperator):
             )
 
         s3_hook = S3Hook(aws_conn_id=self.s3_conn_id)
-        s3_hook.load_string(string_data=imap_mail_attachments[0][1], key=self.s3_key)
+        s3_hook.load_bytes(bytes_data=imap_mail_attachments[0][1], key=self.s3_key)

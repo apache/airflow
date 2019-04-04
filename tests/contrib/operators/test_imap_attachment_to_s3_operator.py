@@ -51,7 +51,7 @@ class TestImapAttachmentToS3Operator(unittest.TestCase):
             check_regex=self.kwargs['imap_check_regex'],
             latest_only=True
         )
-        mock_s3_hook.return_value.load_string.assert_called_once_with(
-            string_data=mock_imap_hook.return_value.retrieve_mail_attachments.return_value[0][1],
+        mock_s3_hook.return_value.load_bytes.assert_called_once_with(
+            bytes_data=mock_imap_hook.return_value.retrieve_mail_attachments.return_value[0][1],
             key=self.kwargs['s3_key']
         )
