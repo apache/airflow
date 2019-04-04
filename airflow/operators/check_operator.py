@@ -19,7 +19,7 @@
 
 from builtins import zip
 from builtins import str
-from typing import Optional, Any, Iterable, Dict
+from typing import Optional, Any, Iterable, Dict, SupportsAbs
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -200,6 +200,17 @@ class IntervalCheckOperator(BaseOperator):
     :param days_back: number of days between ds and the ds we want to check
         against. Defaults to 7 days
     :type days_back: int
+    :param ratio_formula: which formula to use to compute the ratio between
+        the two metrics. Assuming cur is the metric of today and ref is
+        the metric to today - days_back.
+
+        max_over_min: computes max(cur, ref) / min(cur, ref)
+        relative_diff: computes abs(cur-ref) / ref
+
+        Default: 'max_over_min'
+    :type ratio_formula: str
+    :param ignore_zero: whether we should ignore zero metrics
+    :type ignore_zero: bool
     :param metrics_threshold: a dictionary of ratios indexed by metrics
     :type metrics_threshold: dict
     """
@@ -211,18 +222,33 @@ class IntervalCheckOperator(BaseOperator):
     template_ext = ('.hql', '.sql',)  # type: Iterable[str]
     ui_color = '#fff7e6'
 
+    ratio_formulas = {
+        'max_over_min': lambda cur, ref: float(max(cur, ref)) / min(cur, ref),
+        'relative_diff': lambda cur, ref: float(abs(cur - ref)) / ref,
+    }
+
     @apply_defaults
     def __init__(
-        self,
-        table,  # type: str
-        metrics_thresholds,  # type: Dict
-        date_filter_column='ds',  # type: str
-        days_back=-7,  # type: int
-        conn_id=None,  # type: Optional[str]
-        *args,
-        **kwargs
-    ):
+            self,
+            table,  # type: str
+            metrics_thresholds,  # type: Dict[str, int]
+            date_filter_column='ds',  # type: Optional[str]
+            days_back=-7,  # type: SupportsAbs[int]
+            ratio_formula='max_over_min',  # type: Optional[str]
+            ignore_zero=True,  # type: Optional[bool]
+            conn_id=None,  # type: Optional[str]
+            *args, **kwargs):
         super(IntervalCheckOperator, self).__init__(*args, **kwargs)
+        if ratio_formula not in self.ratio_formulas:
+            msg_template = "Invalid diff_method: {diff_method}. " \
+                           "Supported diff methods are: {diff_methods}"
+
+            raise AirflowException(
+                msg_template.format(diff_method=ratio_formula,
+                                    diff_methods=self.ratio_formulas)
+            )
+        self.ratio_formula = ratio_formula
+        self.ignore_zero = ignore_zero
         self.table = table
         self.metrics_thresholds = metrics_thresholds
         self.metrics_sorted = sorted(metrics_thresholds.keys())
@@ -238,6 +264,7 @@ class IntervalCheckOperator(BaseOperator):
 
     def execute(self, context=None):
         hook = self.get_db_hook()
+        self.log.info('Using ratio formula: %s', self.ratio_formula)
         self.log.info('Executing SQL check: %s', self.sql2)
         row2 = hook.get_first(self.sql2)
         self.log.info('Executing SQL check: %s', self.sql1)
@@ -251,14 +278,24 @@ class IntervalCheckOperator(BaseOperator):
         ratios = {}
         test_results = {}
         for m in self.metrics_sorted:
-            if current[m] == 0 or reference[m] == 0:
-                ratio = None
+            cur = current[m]
+            ref = reference[m]
+            threshold = self.metrics_thresholds[m]
+            if cur == 0 or ref == 0:
+                ratios[m] = None
+                test_results[m] = self.ignore_zero
             else:
-                ratio = float(max(current[m], reference[m])) / \
-                    min(current[m], reference[m])
-            self.log.info("Ratio for %s: %s \n Ratio threshold : %s", m, ratio, self.metrics_thresholds[m])
-            ratios[m] = ratio
-            test_results[m] = ratio < self.metrics_thresholds[m]
+                ratios[m] = self.ratio_formulas[self.ratio_formula](current[m], reference[m])
+                test_results[m] = ratios[m] < threshold
+
+            self.log.info(
+                (
+                    "Current metric for %s: %s\n"
+                    "Past metric for %s: %s\n"
+                    "Ratio for %s: %s\n"
+                    "Threshold: %s\n"
+                ), m, cur, m, ref, m, ratios[m], threshold)
+
         if not all(test_results.values()):
             failed_tests = [it[0] for it in test_results.items() if not it[1]]
             j = len(failed_tests)
@@ -268,7 +305,8 @@ class IntervalCheckOperator(BaseOperator):
                 self.log.warning(
                     "'%s' check failed. %s is above %s", k, ratios[k], self.metrics_thresholds[k]
                 )
-            raise AirflowException("The following tests have failed:\n {0}".format(", ".join(failed_tests)))
+            raise AirflowException("The following tests have failed:\n {0}".format(", ".join(
+                sorted(failed_tests))))
         self.log.info("All tests have passed")
 
     def get_db_hook(self):
