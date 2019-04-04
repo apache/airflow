@@ -97,6 +97,7 @@ class Connection(Base, LoggingMixin):
         ('emr', 'Elastic MapReduce',),
         ('snowflake', 'Snowflake',),
         ('segment', 'Segment',),
+        ('sqoop', 'Sqoop',),
         ('azure_data_lake', 'Azure Data Lake'),
         ('azure_container_instances', 'Azure Container Instances'),
         ('azure_cosmos', 'Azure CosmosDB'),

@@ -16,20 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
-from airflow.utils.trigger_rule import TriggerRule
+
+from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
+from tests.contrib.utils.gcp_authenticator import GCP_AI_KEY
 
 
-class TestTriggerRule(unittest.TestCase):
+@unittest.skipIf(DagGcpSystemTestCase.skip_check(GCP_AI_KEY), SKIP_TEST_WARNING)
+class CloudNaturalLanguageExampleDagsTest(DagGcpSystemTestCase):
+    def __init__(self, method_name="runTest"):
+        super(CloudNaturalLanguageExampleDagsTest, self).__init__(
+            method_name, dag_id="example_gcp_natural_language", gcp_key=GCP_AI_KEY
+        )
 
-    def test_valid_trigger_rules(self):
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_SUCCESS))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_DONE))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_SUCCESS))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_SKIPPED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.DUMMY))
-        self.assertEqual(len(TriggerRule.all_triggers()), 8)
+    def test_run_example_dagr(self):
+        self._run_dag()

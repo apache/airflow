@@ -152,7 +152,7 @@ cgroups = [
     'cgroupspy>=0.1.4',
 ]
 # major update coming soon, clamp to 0.x
-cloudant = ['cloudant>=0.5.9,<2.0']
+cloudant = ['cloudant>=2.0']
 crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
@@ -174,24 +174,28 @@ elasticsearch = [
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
 gcp = [
-    'httplib2>=0.9.2',
     'google-api-python-client>=1.6.0, <2.0.0dev',
-    'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
-    'google-cloud-container>=0.1.1',
+    'google-auth>=1.0.0, <2.0.0dev',
     'google-cloud-bigtable==0.31.0',
+    'google-cloud-container>=0.1.1',
+    'google-cloud-language>=1.1.1',
     'google-cloud-spanner>=1.7.1',
     'google-cloud-translate>=1.3.3',
     'google-cloud-vision>=0.35.2',
     'google-cloud-texttospeech>=0.4.0',
     'google-cloud-speech>=0.36.3',
     'grpcio-gcp>=0.2.2',
+    'httplib2~=0.9.2',
+    'pandas-gbq',
     'PyOpenSSL',
-    'pandas-gbq'
 ]
-github_enterprise = ['Flask-OAuthlib>=0.9.1']
 grpc = ['grpcio>=1.15.0']
-google_auth = ['Flask-OAuthlib>=0.9.1']
+flask_oauth = [
+    'Flask-OAuthlib>=0.9.1',
+    'oauthlib!=2.0.3,!=2.0.4,!=2.0.5,<3.0.0,>=1.1.2',
+    'requests-oauthlib==1.1.0'
+]
 hdfs = ['snakebite>=2.7.8']
 hive = [
     'hmsclient>=0.1.0',
@@ -215,7 +219,7 @@ password = [
     'flask-bcrypt>=0.7.1',
 ]
 pinot = ['pinotdb==0.1.1']
-postgres = ['psycopg2>=2.7.4']
+postgres = ['psycopg2>=2.7.4,<2.8']
 qds = ['qds-sdk>=1.10.4']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis~=3.2']
@@ -357,8 +361,8 @@ def do_setup():
             'elasticsearch': elasticsearch,
             'gcp': gcp,
             'gcp_api': gcp,  # TODO: remove this in Airflow 2.1
-            'github_enterprise': github_enterprise,
-            'google_auth': google_auth,
+            'github_enterprise': flask_oauth,
+            'google_auth': flask_oauth,
             'grpc': grpc,
             'hdfs': hdfs,
             'hive': hive,

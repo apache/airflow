@@ -15,36 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guides
-=============
+To use these operators, you must do a few things:
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
+  * Select or create a Cloud Platform project using `Cloud Console <https://console.cloud.google.com/project>`__.
+  * Enable billing for your project, as described in `Google Cloud documentation <https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project>`__.
+  * Enable API, as described in `Cloud Console documentation <https://cloud.google.com/apis/docs/enable-disable-apis>`__.
+  * Install API libraries via **pip**.
 
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
+    .. code-block:: bash
 
-.. toctree::
-    :maxdepth: 2
+      pip install 'apache-airflow[gcp]'
 
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    connection/index
-    secure-connections
-    write-logs
-    executor/use-celery
-    executor/use-dask
-    executor/use-mesos
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
+    Detailed information is available :doc:`../../../../installation`
 
-.. toctree::
-    :maxdepth: 2
-    :caption: Developer guide
-
-    setup-test-environment-mysql
+  * :doc:`Setup Connection <../../connection/gcp>`.
