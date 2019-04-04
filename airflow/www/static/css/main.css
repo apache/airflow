@@ -47,8 +47,12 @@ td>span.glyphicon{
     padding-left: 3px;
     padding-top: 3px;
 }
-button.btn {
+button.btn, label.btn {
     border: 1px solid black;
+}
+
+.btn-group label.btn {
+    background-color: #f0f0f0;
 }
 
 div.rich_doc {

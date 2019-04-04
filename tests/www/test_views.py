@@ -514,46 +514,68 @@ class TestAirflowBaseViews(TestBase):
         self.check_content_in_response('OK', resp)
 
     def test_failed(self):
-        url = ('failed?task_id=run_this_last&dag_id=example_bash_operator&'
-               'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+        )
+        resp = self.client.post("failed", data=form)
         self.check_content_in_response('Wait a minute', resp)
 
     def test_success(self):
-        url = ('success?task_id=run_this_last&dag_id=example_bash_operator&'
-               'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+        )
+        resp = self.client.post('success', data=form)
         self.check_content_in_response('Wait a minute', resp)
 
     def test_clear(self):
-        url = ('clear?task_id=runme_1&dag_id=example_bash_operator&'
-               'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="runme_1",
+            dag_id="example_bash_operator",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+        )
+        resp = self.client.post("clear", data=form)
         self.check_content_in_response(['example_bash_operator', 'Wait a minute'], resp)
 
     def test_run(self):
-        url = ('run?task_id=runme_0&dag_id=example_bash_operator&ignore_all_deps=false&'
-               'ignore_ti_state=true&execution_date={}'
-               .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="runme_0",
+            dag_id="example_bash_operator",
+            ignore_all_deps="false",
+            ignore_ti_state="true",
+            execution_date=self.EXAMPLE_DAG_DEFAULT_DATE,
+        )
+        resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
 
     def test_refresh(self):
-        resp = self.client.get('refresh?dag_id=example_bash_operator')
+        resp = self.client.post('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
 
     def test_refresh_all(self):
-        resp = self.client.get("/refresh_all",
-                               follow_redirects=True)
+        resp = self.client.post("/refresh_all",
+                                follow_redirects=True)
         self.check_content_in_response('', resp, resp_code=200)
 
     def test_delete_dag_button_normal(self):
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('/delete?dag_id=example_bash_operator', resp)
-        self.check_content_in_response("return confirmDeleteDag('example_bash_operator')", resp)
+        self.check_content_in_response("return confirmDeleteDag(this, 'example_bash_operator')", resp)
 
     def test_delete_dag_button_for_dag_on_scheduler_only(self):
         # Test for JIRA AIRFLOW-3233 (PR 4069):
@@ -568,7 +590,7 @@ class TestAirflowBaseViews(TestBase):
 
         resp = self.client.get('/', follow_redirects=True)
         self.check_content_in_response('/delete?dag_id={}'.format(test_dag_id), resp)
-        self.check_content_in_response("return confirmDeleteDag('{}')".format(test_dag_id), resp)
+        self.check_content_in_response("return confirmDeleteDag(this, '{}')".format(test_dag_id), resp)
 
         self.session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
         self.session.commit()
@@ -1384,20 +1406,28 @@ class TestDagACLView(TestBase):
     def test_run_success(self):
         self.logout()
         self.login()
-        url = ('run?task_id=runme_0&dag_id=example_bash_operator&ignore_all_deps=false&'
-               'ignore_ti_state=true&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="runme_0",
+            dag_id="example_bash_operator",
+            ignore_all_deps="false",
+            ignore_ti_state="true",
+            execution_date=self.default_date,
+        )
+        resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
 
     def test_run_success_for_all_dag_user(self):
         self.logout()
         self.login(username='all_dag_user',
                    password='all_dag_user')
-        url = ('run?task_id=runme_0&dag_id=example_bash_operator&ignore_all_deps=false&'
-               'ignore_ti_state=true&execution_date={}'
-               .format(self.percent_encode(self.default_date)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="runme_0",
+            dag_id="example_bash_operator",
+            ignore_all_deps="false",
+            ignore_ti_state="true",
+            execution_date=self.default_date
+        )
+        resp = self.client.post('run', data=form)
         self.check_content_in_response('', resp, resp_code=302)
 
     def test_blocked_success(self):
@@ -1419,10 +1449,16 @@ class TestDagACLView(TestBase):
     def test_failed_success(self):
         self.logout()
         self.login()
-        url = ('failed?task_id=run_this_last&dag_id=example_bash_operator&'
-               'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.default_date,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+        )
+        resp = self.client.post('failed', data=form)
         self.check_content_in_response('Redirecting', resp, 302)
 
     def test_duration_success(self):
@@ -1483,7 +1519,7 @@ class TestDagACLView(TestBase):
     def test_refresh_success(self):
         self.logout()
         self.login()
-        resp = self.client.get('refresh?dag_id=example_bash_operator')
+        resp = self.client.post('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('', resp, resp_code=302)
 
     def test_gantt_success(self):
@@ -1507,10 +1543,16 @@ class TestDagACLView(TestBase):
         self.login(username='dag_read_only',
                    password='dag_read_only')
 
-        url = ('success?task_id=run_this_last&dag_id=example_bash_operator&'
-               'execution_date={}&upstream=false&downstream=false&future=false&past=false'
-               .format(self.percent_encode(self.default_date)))
-        resp = self.client.get(url)
+        form = dict(
+            task_id="run_this_last",
+            dag_id="example_bash_operator",
+            execution_date=self.default_date,
+            upstream="false",
+            downstream="false",
+            future="false",
+            past="false",
+        )
+        resp = self.client.post('success', data=form)
         self.check_content_not_in_response('Wait a minute', resp, resp_code=302)
 
     def test_tree_success_for_read_only_role(self):
@@ -1580,7 +1622,7 @@ class TestDagACLView(TestBase):
         self.logout()
         self.login(username='test_viewer',
                    password='test_viewer')
-        resp = self.client.get('refresh?dag_id=example_bash_operator')
+        resp = self.client.post('refresh?dag_id=example_bash_operator')
         self.check_content_in_response('Redirecting', resp, resp_code=302)
 
 
@@ -1607,7 +1649,7 @@ class TestTriggerDag(TestBase):
     def test_trigger_dag_button_normal_exist(self):
         resp = self.client.get('/', follow_redirects=True)
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
-        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
     @unittest.skipIf('mysql' in conf.conf.get('core', 'sql_alchemy_conn'),
                      "flaky when run on mysql")
@@ -1619,7 +1661,7 @@ class TestTriggerDag(TestBase):
         self.session.query(DR).delete()
         self.session.commit()
 
-        self.client.get('trigger?dag_id={}'.format(test_dag_id))
+        self.client.post('trigger?dag_id={}'.format(test_dag_id))
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
