@@ -1730,6 +1730,9 @@ class Airflow(AirflowBaseView):
             start_date = gantt_bar_item[1]
             end_date = gantt_bar_item[2]
             state = gantt_bar_item[3]
+            count = ti.try_number
+            if (ti.state == State.FAILED or ti.state == State.SUCCESS):
+                count = ti.try_number - 1
             tasks.append({
                 'startDate': wwwutils.epoch(start_date),
                 'endDate': wwwutils.epoch(end_date),
@@ -1739,7 +1742,9 @@ class Airflow(AirflowBaseView):
                 'duration': "{}".format(end_date - start_date)[:-4],
                 'status': state,
                 'executionDate': dttm.isoformat(),
+                'try_number': count,
             })
+
         states = {task['status']: task['status'] for task in tasks}
         data = {
             'taskNames': [ti.task_id for ti in tis],
