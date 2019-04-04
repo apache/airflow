@@ -21,7 +21,7 @@ import sys
 
 from math import pow
 from time import sleep
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
