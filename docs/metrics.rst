@@ -18,7 +18,7 @@
 Metrics
 =======
 
-Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__:
+Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__. You must install statsd requirement: ``pip install apache-airflow[statsd]``.
 
 Configuration
 -------------
