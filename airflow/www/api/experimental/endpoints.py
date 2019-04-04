@@ -48,6 +48,7 @@ api_experimental = Blueprint('api_experimental', __name__)
 def get_all_dags():
     """
     Returns a list of Dags
+    :query param is_paused: a query string parameter '?is_paused=true|false'
     :return: List of all DAGs
     """
     is_paused = request.args.get('is_paused')
@@ -69,6 +70,7 @@ def get_dag_info(dag_id):
         response.status_code = err.status_code
         return response
     return jsonify(dag)
+
 
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
@@ -144,13 +146,23 @@ def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :query param state: a query string parameter '?state=queued|running|success...'
+    :query param state_not_equal: a query string parameter '?state_not_equal=queued|running|success...'
+    :query param execution_date_before: a query string parameter to find all runs before provided date,
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+    :query param execution_date_after: a query string parameter to find all runs after provided date,
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
     :param dag_id: String identifier of a DAG
     :return: List of DAG runs of a DAG with requested state,
     or all runs if the state is not specified
     """
     try:
         state = request.args.get('state')
-        dagruns = get_dag_runs(dag_id, state)
+        state_not_equal = request.args.get('state_not_equal')
+        execution_date_before = request.args.get('execution_date_before')
+        execution_date_after = request.args.get('execution_date_after')
+        dagruns = get_dag_runs(dag_id, state=state, state_not_equal=state_not_equal,
+                               execution_date_before=execution_date_before,
+                               execution_date_after=execution_date_after)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))

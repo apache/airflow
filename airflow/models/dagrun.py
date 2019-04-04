@@ -114,8 +114,9 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def find(dag_id=None, run_id=None, execution_date=None,
+             execution_date_before=None, execution_date_after=None,
              state=None, external_trigger=None, no_backfills=False,
-             session=None):
+             session=None, state_not_equal=None):
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -125,6 +126,12 @@ class DagRun(Base, LoggingMixin):
         :type run_id: str
         :param execution_date: the execution date
         :type execution_date: datetime.datetime
+        :param execution_before: to find dag runs with execution date before the provided one
+        :type execution_before: datetime.datetime
+        :param execution_after: to find dag runs with execution date after the provided one
+        :type execution_after: datetime.datetime
+        :param state_not_equal: the state of the dag run not to be in the results
+        :type state_not_equal: airflow.utils.state.State
         :param state: the state of the dag run
         :type state: str
         :param external_trigger: whether this dag run is externally triggered
@@ -147,8 +154,14 @@ class DagRun(Base, LoggingMixin):
                 qry = qry.filter(DR.execution_date.in_(execution_date))
             else:
                 qry = qry.filter(DR.execution_date == execution_date)
+        if execution_date_before:
+            qry = qry.filter(DR.execution_date <= execution_date_before)
+        if execution_date_after:
+            qry = qry.filter(DR.execution_date >= execution_date_after)
         if state:
             qry = qry.filter(DR.state == state)
+        if state_not_equal:
+            qry = qry.filter(DR.state != state_not_equal)
         if external_trigger is not None:
             qry = qry.filter(DR.external_trigger == external_trigger)
         if no_backfills:
