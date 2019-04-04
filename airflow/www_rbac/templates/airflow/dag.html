@@ -96,20 +96,20 @@
       </li>
       <li>
         <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for('Airflow.tree', dag_id=dag.dag_id)) }}"
-          onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
+          onclick="return confirmTriggerDag(this, '{{ dag.safe_dag_id }}')">
           <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
           Trigger DAG
         </a>
       </li>
       <li>
-        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh">
+        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh" onclick="postAsForm(this.href); return false">
           <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
           Refresh
         </a>
       </li>
       <li>
         <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, root=root) }}"
-        onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
+        onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
         <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
         Delete
         </a>
@@ -159,92 +159,116 @@
             </ul>
           </div>
           <hr/>
-          <button id="btn_run" type="button" class="btn btn-primary"
-            title="Runs a single task instance">
-            Run
-          </button>
-          <span class="btn-group">
-            <button id="btn_ignore_all_deps"
-              type="button" class="btn" data-toggle="button"
-              title="Ignores all non-critical dependencies, including task state and task_deps"
-              >Ignore All Deps</button>
-          </span>
-          <span class="btn-group">
-            <button id="btn_ignore_ti_state"
-              type="button" class="btn" data-toggle="button"
-              title="Ignore previous success/failure"
-              >Ignore Task State</button>
-          </span>
-          <button id="btn_ignore_task_deps"
-            type="button" class="btn" data-toggle="button"
-            title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past"
-            >Ignore Task Deps</button>
-          </span>
-          <hr/>
-          <button id="btn_clear" type="button" class="btn btn-primary"
-              title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
-              >Clear
-          </button>
-          <span class="btn-group">
-            <button id="btn_past"
-              type="button" class="btn" data-toggle="button"
-              title="Also include past task instances when clearing this one"
-              >Past</button>
-            <button id="btn_future"
-              type="button" class="btn" data-toggle="button"
-              title="Also include future task instances when clearing this one"
-              >Future</button>
-            <button id="btn_upstream"
-              type="button" class="btn" data-toggle="button"
-              title="Also include upstream dependencies"
-              >Upstream</button>
-            <button id="btn_downstream"
-              type="button" class="btn active" data-toggle="button"
-              title="Also include downstream dependencies"
-              >
-              Downstream
+          <form method="POST">
+            <input name="csrf_token" type="hidden" value="{{ csrf_token() }}"/>
+            <input name="dag_id" type="hidden">
+            <input name="task_id" type="hidden">
+            <input name="execution_date" type="hidden">
+            <input name="origin" type="hidden" value="{{ request.base_url }}">
+            <button id="btn_run" type="button" class="btn btn-primary"
+              title="Runs a single task instance"
+              data-action="{{ url_for('Airflow.run') }}">
+              Run
             </button>
-            <button id="btn_recursive"
-              type="button" class="btn active" data-toggle="button">
-               Recursive
+            <input type="hidden" name="ignore_all_deps">
+            <input type="hidden" name="ignore_ti_state">
+            <input type="hidden" name="ignore_task_deps">
+            <span class="btn-group" data-toggle="buttons">
+              <label
+                class="btn"
+                title="Ignores all non-critical dependencies, including task state and task_deps">
+                <input type="checkbox" value="true" name="ignore_all_deps" autocomplete="off">
+                Ignore All Deps</label>
+              <label class="btn"
+                title="Ignore previous success/failure">
+                <input type="checkbox" value="true" name="ignore_ti_state" autocomplete="off">
+                Ignore Task State
+              </label>
+              <label class="btn"
+                title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past">
+                <input type="checkbox" value="true" name="ignore_task_deps" autocomplete="off">
+                Ignore Task Deps
+              </label>
+            </span>
+            <hr/>
+            <button id="btn_clear" type="button" class="btn btn-primary"
+                title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
+                data-action="{{ url_for('Airflow.clear') }}"
+                >Clear
             </button>
-          </span>
-          <hr/>
-          <button id="btn_failed" type="button" class="btn btn-primary">
-            Mark Failed
-          </button>
-          <span class="btn-group">
-            <button id="btn_failed_past"
-              type="button" class="btn" data-toggle="button">Past</button>
-            <button id="btn_failed_future"
-              type="button" class="btn" data-toggle="button">
-              Future
+            <span class="btn-group" data-toggle="buttons">
+              <label class="btn"
+                title="Also include past task instances when clearing this one">
+                <input type="checkbox" value="true" name="past" autocomplete="off">
+                Past
+              </label>
+              <label class="btn"
+                title="Also include future task instances when clearing this one">
+                <input type="checkbox" value="true" name="future" autocomplete="off">
+                Future
+              </label>
+              <label class="btn"
+                title="Also include upstream dependencies">
+                <input type="checkbox" value="true" name="upstream" autocomplete="off">
+                Upstream
+              </label>
+              <label class="btn active"
+                title="Also include downstream dependencies">
+                <input type="checkbox" value="true" name="downstream" checked autocomplete="off">
+                Downstream
+              </label>
+              <label class="btn active">
+                <input type="checkbox" value="true" name="recursive" checked autocomplete="off">
+                 Recursive
+              </label>
+            </span>
+            <hr/>
+            <button id="btn_failed" type="button" class="btn btn-primary"
+                data-action="{{ url_for('Airflow.failed') }}">
+              Mark Failed
             </button>
-            <button id="btn_failed_upstream"
-              type="button" class="btn" data-toggle="button">Upstream</button>
-            <button id="btn_failed_downstream"
-              type="button" class="btn" data-toggle="button">
-              Downstream
+            <span class="btn-group" data-toggle="buttons">
+              <label class="btn">
+                <input type="checkbox" value="true" name="failed_past" autocomplete="off">
+                Past
+              </label>
+              <label class="btn">
+                <input type="checkbox" value="true" name="failed_future" autocomplete="off">
+                Future
+              </label>
+              <label class="btn">
+                <input type="checkbox" value="true" name="failed_upstream" autocomplete="off">
+                Upstream
+              </label>
+              <label class="btn">
+                <input type="checkbox" value="true" name="failed_downstream" autocomplete="off">
+                Downstream
+              </label>
+            </span>
+            <hr/>
+            <button id="btn_success" type="button" class="btn btn-primary"
+                data-action="{{ url_for('Airflow.success') }}">
+              Mark Success
             </button>
-          </span>
-          <hr/>
-          <button id="btn_success" type="button" class="btn btn-primary">
-            Mark Success
-          </button>
-          <span class="btn-group">
-            <button id="btn_success_past"
-              type="button" class="btn" data-toggle="button">Past</button>
-            <button id="btn_success_future"
-              type="button" class="btn" data-toggle="button">
-              Future
-            </button>
-            <button id="btn_success_upstream"
-              type="button" class="btn" data-toggle="button">Upstream</button>
-            <button id="btn_success_downstream"
-              type="button" class="btn" data-toggle="button">
-              Downstream
-            </button>
-          </span>
+            <span class="btn-group" data-toggle="buttons">
+              <label class="btn">
+                <input type="checkbox" value="true" name="success_past" autocomplete="off">
+                Past
+              </label>
+              <label class="btn">
+                <input type="checkbox" value="true" name="success_future" autocomplete="off">
+                Future
+              </label>
+              <label class="btn">
+                <input type="checkbox" value="true" name="success_upstream" autocomplete="off">
+                Upstream
+              </label>
+              <label class="btn">
+                <input type="checkbox" value="true" name="success_downstream" autocomplete="off">
+                Downstream
+              </label>
+            </span>
+          </form>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">
@@ -266,18 +290,24 @@
           </h4>
         </div>
         <div class="modal-body">
-          <button id="btn_edit_dagrun" type="button" class="btn btn-primary">
-            Edit
-          </button>
-          <button id="btn_dagrun_clear" type="button" class="btn btn-primary">
-            Clear
-          </button>
-          <button id="btn_dagrun_failed" type="button" class="btn btn-primary">
-            Mark Failed
-          </button>
-          <button id="btn_dagrun_success" type="button" class="btn btn-primary">
-            Mark Success
-          </button>
+          <form method="POST">
+            <button id="btn_edit_dagrun" type="button" class="btn btn-primary">
+              Edit
+            </button>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input name="dag_id" type="hidden">
+            <input name="execution_date" type="hidden">
+            <input name="origin" type="hidden" value="{{ request.base_url }}">
+            <button id="btn_dagrun_clear" type="button" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_clear') }}">
+              Clear
+            </button>
+            <button id="btn_dagrun_failed" type="button" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_failed') }}">
+              Mark Failed
+            </button>
+            <button id="btn_dagrun_success" type="button" class="btn btn-primary" data-action="{{ url_for('Airflow.dagrun_success') }}">
+              Mark Success
+            </button>
+          </form>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">
@@ -366,15 +396,22 @@ function updateQueryStringParameter(uri, key, value) {
       $("#dagModal").css("margin-top","0px");
     }
 
-    function confirmTriggerDag(dag_id){
-        return confirm("Are you sure you want to run '"+dag_id+"' now?");
+    function confirmTriggerDag(link, dag_id){
+      if (confirm("Are you sure you want to run '"+dag_id+"' now?")) {
+        postAsForm(link.href, {});
+      }
+      // Never follow the link
+      return false;
     }
 
-    function confirmDeleteDag(dag_id){
-        return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
-          This option will delete ALL metadata, DAG runs, etc.\n\
-          EXCEPT Log.\n\
-          This cannot be undone.");
+    function confirmDeleteDag(link, dag_id){
+      if (confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+        This option will delete ALL metadata, DAG runs, etc.\n\
+        EXCEPT Log.\n\
+        This cannot be undone.")) {
+        postAsForm(link.href, {});
+      }
+      return false;
     }
 
     $("#btn_rendered").click(function(){
@@ -416,98 +453,18 @@ function updateQueryStringParameter(uri, key, value) {
       window.location = url;
     });
 
-    $("#btn_run").click(function(){
-      url = "{{ url_for('Airflow.run') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&ignore_all_deps=" + $('#btn_ignore_all_deps').hasClass('active') +
-        "&ignore_task_deps=" + $('#btn_ignore_task_deps').hasClass('active') +
-        "&ignore_ti_state=" + $('#btn_ignore_ti_state').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
+    $('form button[data-action]').click(function (e) {
+      var form = $(this).closest('form').get(0);
+      form.dag_id.value = dag_id;
+      form.execution_date.value = execution_date;
+      form.origin.value = window.location;
+      if (form.task_id) {
+        form.task_id.value = task_id;
+      }
+      form.action = $(this).data("action");
+      form.submit();
+    })
 
-    $("#btn_clear").click(function(){
-      url = "{{ url_for('Airflow.clear') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&future=" + $('#btn_future').hasClass('active') +
-        "&past=" + $('#btn_past').hasClass('active') +
-        "&upstream=" + $('#btn_upstream').hasClass('active') +
-        "&downstream=" + $('#btn_downstream').hasClass('active') +
-        "&recursive=" + $('#btn_recursive').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $("#btn_dagrun_clear").click(function(){
-      url = "{{ url_for('Airflow.dagrun_clear') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $("#btn_failed").click(function(){
-      url = "{{ url_for('Airflow.failed') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&upstream=" + $('#btn_failed_upstream').hasClass('active') +
-        "&downstream=" + $('#btn_failed_downstream').hasClass('active') +
-        "&future=" + $('#btn_failed_future').hasClass('active') +
-        "&past=" + $('#btn_failed_past').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-
-      window.location = url;
-    });
-
-    $("#btn_success").click(function(){
-      url = "{{ url_for('Airflow.success') }}" +
-        "?task_id=" + encodeURIComponent(task_id) +
-        "&dag_id=" + encodeURIComponent(dag_id) +
-        "&upstream=" + $('#btn_success_upstream').hasClass('active') +
-        "&downstream=" + $('#btn_success_downstream').hasClass('active') +
-        "&future=" + $('#btn_success_future').hasClass('active') +
-        "&past=" + $('#btn_success_past').hasClass('active') +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-
-      window.location = url;
-    });
-
-    $('#btn_dagrun_failed').click(function(){
-      url = "{{ url_for('Airflow.dagrun_failed') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $('#btn_dagrun_success').click(function(){
-      url = "{{ url_for('Airflow.dagrun_success') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date) +
-        "&origin=" + encodeURIComponent(window.location);
-      window.location = url;
-    });
-
-    $("#btn_gantt").click(function(){
-      url = "{{ url_for('Airflow.gantt') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
-
-    $("#btn_graph").click(function(){
-      url = "{{ url_for('Airflow.graph') }}" +
-        "?dag_id=" + encodeURIComponent(dag_id) +
-        "&execution_date=" + encodeURIComponent(execution_date);
-      window.location = url;
-    });
 
     $("#pause_resume").change(function() {
       var dag_id = $(this).attr('dag_id');
