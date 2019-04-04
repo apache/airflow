@@ -21,6 +21,7 @@ import sys
 
 from math import pow
 from time import sleep
+from datetime import datetime, timedelta
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -75,7 +76,7 @@ class AWSBatchOperator(BaseOperator):
         self.job_queue = job_queue
         self.overrides = overrides
         self.max_retries = max_retries
-
+        self.execution_timeout = kwargs.get('execution_timeout', timedelta(seconds=3600))
         self.jobId = None
         self.jobName = None
 
@@ -98,7 +99,11 @@ class AWSBatchOperator(BaseOperator):
                 jobName=self.job_name,
                 jobQueue=self.job_queue,
                 jobDefinition=self.job_definition,
-                containerOverrides=self.overrides)
+                containerOverrides=self.overrides,
+                timeout={
+                    'attemptDurationSeconds': self.execution_timeout.seconds
+                }
+            )
 
             self.log.info('AWS Batch Job started: %s', response)
 
