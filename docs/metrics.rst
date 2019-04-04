@@ -27,7 +27,7 @@ First you must install statsd requirement:
 
 .. code-block:: bash
 
-   pip install apache-airflow[statsd]
+   pip install `apache-airflow[statsd]`
 
 Add the following lines to your configuration file e.g. ``airflow.cfg``
 
