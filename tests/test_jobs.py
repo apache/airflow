@@ -848,6 +848,8 @@ class BackfillJobTest(unittest.TestCase):
             op4 >> op3
 
         dag.clear()
+        dag.sync_to_db()
+
         return dag
 
     def test_backfill_max_limit_check_within_limit(self):

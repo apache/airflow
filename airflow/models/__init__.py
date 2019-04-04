@@ -3099,8 +3099,6 @@ class DAG(BaseDag, LoggingMixin):
             'last_loaded',
         }
 
-        self.sync_to_db()
-
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
 
