@@ -30,7 +30,7 @@ import re
 import pkg_resources
 from typing import List, Any
 
-from airflow import settings
+from airflow import settings, configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
