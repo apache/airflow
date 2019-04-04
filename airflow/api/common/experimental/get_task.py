@@ -27,3 +27,19 @@ def get_task(dag_id: str, task_id: str) -> TaskInstance:
 
     # Return the task.
     return dag.get_task(task_id)
+
+def get_task_as_dict(dag_id, task_id):
+    """Return the task object as a dictionary identified by the given dag_id and task_id"""
+    try:
+        task = get_task(dag_id, task_id)
+        fields = {k: str(v)
+            for k, v in vars(task).items()
+            if not k.startswith('_')}
+        fields.update({
+            'upstream_task_ids':list(task._upstream_task_ids),
+            'downstream_task_ids':list(task._downstream_task_ids)
+            })
+    except AirflowException as err:
+        raise err
+
+    return fields

@@ -24,6 +24,8 @@ from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_dags import get_dags
 from airflow.api.common.experimental.get_dag import get_dag
 from airflow.api.common.experimental.get_task import get_task
+from airflow.api.common.experimental.get_task import get_task_as_dict
+from airflow.api.common.experimental.get_tasks import get_tasks
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
@@ -175,6 +177,25 @@ def get_dag_code(dag_id):
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
+
+
+@api_experimental.route('/dags/<string:dag_id>/tasks', methods=['GET'])
+@requires_authentication
+def tasks(dag_id):
+    """Returns a JSON with all tasks associated with the dag_id. """
+    try:
+        task_list = list()
+        task_ids = get_tasks(dag_id)
+        for task_id in task_ids:
+            task_list.append(get_task_as_dict(dag_id, task_id))
+
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    return jsonify(task_list)
 
 
 @api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
