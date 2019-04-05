@@ -138,3 +138,12 @@ class ConnectionForm(DynamicForm):
     extra__google_cloud_platform__scope = StringField(
         lazy_gettext('Scopes (comma separated)'),
         widget=BS3TextFieldWidget())
+    extra__grpc__auth_type = StringField(
+        lazy_gettext('Grpc Auth Type'),
+        widget=BS3TextFieldWidget())
+    extra__grpc__credential_pem_file = StringField(
+        lazy_gettext('Credential Keyfile Path'),
+        widget=BS3TextFieldWidget())
+    extra__grpc__scopes = StringField(
+        lazy_gettext('Scopes (comma separated)'),
+        widget=BS3TextFieldWidget())
