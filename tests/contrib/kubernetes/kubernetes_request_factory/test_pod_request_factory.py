@@ -55,7 +55,11 @@ class TestPodRequestFactory(unittest.TestCase):
                 Secret('volume', '/etc/foo', 'secret_b'),
                 # This should produce a single secret mounted in env
                 Secret('env', 'TARGET', 'secret_b', 'source_b'),
-            ]
+            ],
+            security_context={
+                'runAsUser': 1000,
+                'fsGroup': 2000,
+            }
         )
         self.maxDiff = None
         self.expected = {
@@ -120,7 +124,11 @@ class TestPodRequestFactory(unittest.TestCase):
                     {'name': 'pull_secret_a'},
                     {'name': 'pull_secret_b'}
                 ],
-                'affinity': {}
+                'affinity': {},
+                'securityContext': {
+                    'runAsUser': 1000,
+                    'fsGroup': 2000,
+                },
             }
         }
 

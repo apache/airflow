@@ -124,6 +124,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.hostnetwork = self.hostnetwork
             pod.tolerations = self.tolerations
             pod.configmaps = self.configmaps
+            pod.security_context = self.security_context
 
             launcher = pod_launcher.PodLauncher(kube_client=client,
                                                 extract_xcom=self.do_xcom_push)
@@ -174,6 +175,7 @@ class KubernetesPodOperator(BaseOperator):
                  hostnetwork=False,
                  tolerations=None,
                  configmaps=None,
+                 security_context=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -207,3 +209,4 @@ class KubernetesPodOperator(BaseOperator):
         self.hostnetwork = hostnetwork
         self.tolerations = tolerations or []
         self.configmaps = configmaps or []
+        self.security_context = security_context or {}

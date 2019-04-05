@@ -155,6 +155,10 @@ class KubeConfig:
         # this will set to True if so
         self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
 
+        # Run as user for pod security context
+        self.worker_run_as_user = conf.get(self.kubernetes_section, 'run_as_user')
+        self.worker_fs_group = conf.get(self.kubernetes_section, 'fs_group')
+
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
         self.git_repo = conf.get(self.kubernetes_section, 'git_repo')

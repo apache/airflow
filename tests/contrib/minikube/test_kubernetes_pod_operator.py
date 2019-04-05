@@ -265,6 +265,69 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             k.execute(None)
             mock_logger.info.assert_any_call(b"retrieved from mount\n")
 
+    @staticmethod
+    def test_run_as_user_root():
+        security_context = {
+            'securityContext': {
+                'runAsUser': 0,
+            }
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            security_context=security_context,
+            executor_config={'KubernetesExecutor': {'securityContext': security_context}}
+        )
+        k.execute(None)
+
+    @staticmethod
+    def test_run_as_user_non_root():
+        security_context = {
+            'securityContext': {
+                'runAsUser': 1000,
+            }
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            security_context=security_context,
+            executor_config={'KubernetesExecutor': {'securityContext': security_context}}
+        )
+        k.execute(None)
+
+    @staticmethod
+    def test_fs_group():
+        security_context = {
+            'securityContext': {
+                'fsGroup': 1000,
+            }
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            security_context=security_context,
+            executor_config={'KubernetesExecutor': {'securityContext': security_context}}
+        )
+        k.execute(None)
+
     def test_faulty_image(self):
         bad_image_name = "foobar"
         k = KubernetesPodOperator(

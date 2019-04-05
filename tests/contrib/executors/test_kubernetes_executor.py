@@ -399,6 +399,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
         self.kube_config.dags_volume_claim = None
         self.kube_config.dags_volume_host = None
         self.kube_config.dags_in_image = None
+        self.kube_config.worker_fs_group = None
 
         worker_config = WorkerConfiguration(self.kube_config)
         kube_executor_config = KubernetesExecutorConfig(annotations=[],
@@ -417,7 +418,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                     None)
         self.assertTrue(git_ssh_key_file)
         self.assertTrue(volume_mount_ssh_key)
-        self.assertEqual({'fsGroup': 65533}, pod.security_context)
+        self.assertEqual(65533, pod.security_context['fsGroup'])
         self.assertEqual(git_ssh_key_file,
                          volume_mount_ssh_key,
                          'The location where the git ssh secret is mounted'
