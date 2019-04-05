@@ -52,7 +52,8 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
             sql=sql,
             bucket=bucket,
             filename=filename,
-            schema=schema_str)
+            schema=schema_str,
+            num_retries=3)
 
         cursor_mock = MagicMock()
         cursor_mock.__iter__.return_value = row_iter

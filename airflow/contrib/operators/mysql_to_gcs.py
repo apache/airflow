@@ -72,6 +72,9 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: str
+    :param num_retries: (Optional) The number of times to attempt to re-upload
+        the file.
+    :type num_retries: int
     """
     template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema')
     template_ext = ('.sql',)
@@ -88,6 +91,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                  google_cloud_storage_conn_id='google_cloud_default',
                  schema=None,
                  delegate_to=None,
+                 num_retries=0,
                  *args,
                  **kwargs):
         super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
@@ -100,6 +104,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.schema = schema
         self.delegate_to = delegate_to
+        self.num_retries = num_retries
 
     def execute(self, context):
         cursor = self._query_mysql()
@@ -216,7 +221,13 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to)
         for object, tmp_file_handle in files_to_upload.items():
-            hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')
+            hook.upload(
+                self.bucket,
+                object,
+                tmp_file_handle.name,
+                'application/json',
+                num_retries=self.num_retries
+            )
 
     @staticmethod
     def _convert_types(schema, col_type_dict, row):
