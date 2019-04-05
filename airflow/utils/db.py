@@ -292,6 +292,10 @@ def initdb(rbac=False):
         Connection(
             conn_id='dingding_default', conn_type='http',
             host='', password=''))
+    merge_conn(
+        Connection(
+            conn_id='opsgenie_default', conn_type='http',
+            host='', password=''))
 
     # Known event types
     KET = models.KnownEventType
