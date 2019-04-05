@@ -40,11 +40,6 @@ deprecated GCP conn_id, you need to explicitly pass their conn_id into
 operators/hooks. Otherwise, ``google_cloud_default`` will be used as GCP's conn_id
 by default.
 
-### The chain function is removed
-
-Bit operation like `>>` or `<<` are recommended for setting the dependency, which is easier to explain.
-The `airflow.utlis.helpers.chain` function is removed.
-
 ### Fixed typo in --driver-class-path in SparkSubmitHook
 
 ### Viewer won't have edit permissions on DAG view.
