@@ -135,7 +135,7 @@ class BigQueryOperator(BaseOperator):
                  location=None,
                  *args,
                  **kwargs):
-        super(BigQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
@@ -189,7 +189,7 @@ class BigQueryOperator(BaseOperator):
         )
 
     def on_kill(self):
-        super(BigQueryOperator, self).on_kill()
+        super().on_kill()
         if self.bq_cursor is not None:
             self.log.info('Cancelling running query')
             self.bq_cursor.cancel_query()
@@ -302,7 +302,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                  labels=None,
                  *args, **kwargs):
 
-        super(BigQueryCreateEmptyTableOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.project_id = project_id
         self.dataset_id = dataset_id
@@ -443,7 +443,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
                  labels=None,
                  *args, **kwargs):
 
-        super(BigQueryCreateExternalTableOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # GCS config
         self.bucket = bucket
@@ -543,7 +543,7 @@ class BigQueryDeleteDatasetOperator(BaseOperator):
         self.log.info('Dataset id: %s', self.dataset_id)
         self.log.info('Project id: %s', self.project_id)
 
-        super(BigQueryDeleteDatasetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
@@ -606,7 +606,7 @@ class BigQueryCreateEmptyDatasetOperator(BaseOperator):
         self.log.info('Dataset id: %s', self.dataset_id)
         self.log.info('Project id: %s', self.project_id)
 
-        super(BigQueryCreateEmptyDatasetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,

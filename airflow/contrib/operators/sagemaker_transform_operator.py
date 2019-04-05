@@ -69,7 +69,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                  check_interval=30,
                  max_ingestion_time=None,
                  *args, **kwargs):
-        super(SageMakerTransformOperator, self).__init__(config=config,
+        super().__init__(config=config,
                                                          *args, **kwargs)
         self.config = config
         self.wait_for_completion = wait_for_completion

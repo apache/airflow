@@ -76,7 +76,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
                  labels=None,
                  *args,
                  **kwargs):
-        super(BigQueryToCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_project_dataset_table = source_project_dataset_table
         self.destination_cloud_storage_uris = destination_cloud_storage_uris
         self.compression = compression

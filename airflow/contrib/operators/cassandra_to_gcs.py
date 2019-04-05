@@ -88,7 +88,7 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
             delegation enabled.
         :type delegate_to: str
         """
-        super(CassandraToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cql = cql
         self.bucket = bucket
         self.filename = filename

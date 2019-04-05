@@ -65,7 +65,7 @@ class SimpleHttpOperator(BaseOperator):
                  http_conn_id='http_default',
                  log_response=False,
                  *args, **kwargs):
-        super(SimpleHttpOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
         self.endpoint = endpoint

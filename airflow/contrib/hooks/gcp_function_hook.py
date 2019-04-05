@@ -46,7 +46,7 @@ class GcfHook(GoogleCloudBaseHook):
                  api_version,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        super(GcfHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
 
     @staticmethod

@@ -54,7 +54,7 @@ class SubDagOperator(BaseOperator):
             raise AirflowException('Please pass in the `dag` param or call '
                                    'within a DAG context manager')
         session = kwargs.pop('session')
-        super(SubDagOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # validate subdag name
         if dag.dag_id + '.' + kwargs['task_id'] != subdag.dag_id:

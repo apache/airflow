@@ -46,7 +46,7 @@ class JiraSensor(BaseSensorOperator):
                  result_processor=None,
                  *args,
                  **kwargs):
-        super(JiraSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.jira_conn_id = jira_conn_id
         self.result_processor = None
         if result_processor is not None:
@@ -98,7 +98,7 @@ class JiraTicketSensor(JiraSensor):
         if field_checker_func is None:
             field_checker_func = self.issue_field_checker
 
-        super(JiraTicketSensor, self).__init__(jira_conn_id=jira_conn_id,
+        super().__init__(jira_conn_id=jira_conn_id,
                                                result_processor=field_checker_func,
                                                *args,
                                                **kwargs)

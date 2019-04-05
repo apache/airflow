@@ -178,7 +178,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(DataprocClusterCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.cluster_name = cluster_name
@@ -497,7 +497,7 @@ class DataprocClusterScaleOperator(BaseOperator):
                  graceful_decommission_timeout=None,
                  *args,
                  **kwargs):
-        super(DataprocClusterScaleOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.cluster_name = cluster_name
@@ -622,7 +622,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(DataprocClusterDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.cluster_name = cluster_name
@@ -758,7 +758,7 @@ class DataProcPigOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcPigOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.query = query
@@ -855,7 +855,7 @@ class DataProcHiveOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcHiveOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.query = query
@@ -954,7 +954,7 @@ class DataProcSparkSqlOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcSparkSqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.query = query
@@ -1062,7 +1062,7 @@ class DataProcSparkOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcSparkOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.main_jar = main_jar
@@ -1170,7 +1170,7 @@ class DataProcHadoopOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcHadoopOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.main_jar = main_jar
@@ -1305,7 +1305,7 @@ class DataProcPySparkOperator(BaseOperator):
             *args,
             **kwargs):
 
-        super(DataProcPySparkOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.main = main
@@ -1361,7 +1361,7 @@ class DataprocWorkflowTemplateBaseOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(DataprocWorkflowTemplateBaseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.project_id = project_id
@@ -1407,7 +1407,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
 
     @apply_defaults
     def __init__(self, template_id, *args, **kwargs):
-        (super(DataprocWorkflowTemplateInstantiateOperator, self)
+        (super()
             .__init__(*args, **kwargs))
         self.template_id = template_id
 
@@ -1451,7 +1451,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
 
     @apply_defaults
     def __init__(self, template, *args, **kwargs):
-        (super(DataprocWorkflowTemplateInstantiateInlineOperator, self)
+        (super()
             .__init__(*args, **kwargs))
         self.template = template
 

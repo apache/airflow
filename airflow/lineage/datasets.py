@@ -112,7 +112,7 @@ class File(DataSet):
     attributes = ["name", "path", "isFile", "isSymlink"]
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = 'file://' + self.name
         self._data['path'] = self.name
@@ -125,7 +125,7 @@ class HadoopFile(File):
     type_name = "hdfs_file"
 
     def __init__(self, name=None, data=None):
-        super(File, self).__init__(name=name, data=data)
+        super().__init__(name=name, data=data)
 
         self._qualified_name = "{}@{}".format(self.name, self.cluster_name)
         self._data['path'] = self.name

@@ -63,7 +63,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                  check_interval=30,
                  max_ingestion_time=None,
                  *args, **kwargs):
-        super(SageMakerTrainingOperator, self).__init__(config=config,
+        super().__init__(config=config,
                                                         *args, **kwargs)
 
         self.wait_for_completion = wait_for_completion

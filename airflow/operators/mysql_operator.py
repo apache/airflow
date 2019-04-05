@@ -50,7 +50,7 @@ class MySqlOperator(BaseOperator):
     def __init__(
             self, sql, mysql_conn_id='mysql_default', parameters=None,
             autocommit=False, database=None, *args, **kwargs):
-        super(MySqlOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.sql = sql
         self.autocommit = autocommit

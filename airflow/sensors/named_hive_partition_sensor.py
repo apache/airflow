@@ -51,7 +51,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
                  hook=None,
                  *args,
                  **kwargs):
-        super(NamedHivePartitionSensor, self).__init__(
+        super().__init__(
             poke_interval=poke_interval, *args, **kwargs)
 
         if isinstance(partition_names, basestring):

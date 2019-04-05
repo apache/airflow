@@ -46,7 +46,7 @@ class CassandraTableSensor(BaseSensorOperator):
                                   when connecting to Cassandra cluster
         :type cassandra_conn_id: str
         """
-        super(CassandraTableSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cassandra_conn_id = cassandra_conn_id
         self.table = table
 

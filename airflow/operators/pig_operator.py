@@ -51,7 +51,7 @@ class PigOperator(BaseOperator):
             pigparams_jinja_translate=False,
             *args, **kwargs):
 
-        super(PigOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id

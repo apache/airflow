@@ -83,7 +83,7 @@ class MySqlToHiveTransfer(BaseOperator):
             hive_cli_conn_id='hive_cli_default',
             tblproperties=None,
             *args, **kwargs):
-        super(MySqlToHiveTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.hive_table = hive_table
         self.partition = partition

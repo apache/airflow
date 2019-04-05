@@ -78,7 +78,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
                  max_ingestion_time=None,
                  operation='create',
                  *args, **kwargs):
-        super(SageMakerEndpointOperator, self).__init__(config=config,
+        super().__init__(config=config,
                                                         *args, **kwargs)
 
         self.config = config

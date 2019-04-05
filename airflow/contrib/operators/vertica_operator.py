@@ -39,7 +39,7 @@ class VerticaOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, sql, vertica_conn_id='vertica_default', *args, **kwargs):
-        super(VerticaOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.vertica_conn_id = vertica_conn_id
         self.sql = sql
 

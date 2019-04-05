@@ -60,7 +60,7 @@ class GcpAuthenticator(LoggingCommandExecutor):
         :param project_extra: optional extra project parameter passed to google cloud
                connection
         """
-        super(GcpAuthenticator, self).__init__()
+        super().__init__()
         self.gcp_key = gcp_key
         self.project_extra = project_extra
         self.project_id = self.get_project_id()

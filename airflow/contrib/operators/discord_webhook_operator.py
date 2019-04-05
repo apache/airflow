@@ -66,7 +66,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
                  proxy=None,
                  *args,
                  **kwargs):
-        super(DiscordWebhookOperator, self).__init__(endpoint=webhook_endpoint,
+        super().__init__(endpoint=webhook_endpoint,
                                                      *args,
                                                      **kwargs)
 

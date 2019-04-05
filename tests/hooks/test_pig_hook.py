@@ -25,7 +25,7 @@ from tests.compat import mock
 class TestPigCliHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestPigCliHook, self).setUp()
+        super().setUp()
 
         self.extra_dejson = mock.MagicMock()
         self.extra_dejson.get.return_value = None

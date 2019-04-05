@@ -49,7 +49,7 @@ class FileSensor(BaseSensorOperator):
                  fs_conn_id='fs_default',
                  *args,
                  **kwargs):
-        super(FileSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.filepath = filepath
         self.fs_conn_id = fs_conn_id
 

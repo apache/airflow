@@ -66,7 +66,7 @@ class SlackWebhookOperator(SimpleHttpOperator):
                  proxy=None,
                  *args,
                  **kwargs):
-        super(SlackWebhookOperator, self).__init__(endpoint=webhook_token,
+        super().__init__(endpoint=webhook_token,
                                                    *args,
                                                    **kwargs)
         self.http_conn_id = http_conn_id
