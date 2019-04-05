@@ -2419,9 +2419,9 @@ class DagModelView(AirflowModelView):
         """
         return (
             super().get_query()
-                                     .filter(or_(models.DagModel.is_active,
-                                                 models.DagModel.is_paused))
-                                     .filter(~models.DagModel.is_subdag)
+                .filter(or_(models.DagModel.is_active,
+                            models.DagModel.is_paused))
+                .filter(~models.DagModel.is_subdag)
         )
 
     def get_count_query(self):
@@ -2430,6 +2430,6 @@ class DagModelView(AirflowModelView):
         """
         return (
             super().get_count_query()
-                                     .filter(models.DagModel.is_active)
-                                     .filter(~models.DagModel.is_subdag)
+                .filter(models.DagModel.is_active)
+                .filter(~models.DagModel.is_subdag)
         )
