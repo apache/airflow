@@ -104,7 +104,6 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                  export_format='json',
                  field_delimiter=',',
                  num_retries=0,
-
                  *args,
                  **kwargs):
         super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)

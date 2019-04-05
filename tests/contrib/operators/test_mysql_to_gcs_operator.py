@@ -99,7 +99,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, num_retries=3):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(JSON_FILENAME.format(0), obj)
             self.assertEqual('application/json', mime_type)
@@ -131,7 +131,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, num_retries=3):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
@@ -164,7 +164,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, num_retries=3):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual(CSV_FILENAME.format(0), obj)
             self.assertEqual('text/csv', mime_type)
@@ -192,7 +192,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, num_retries=3):
             self.assertEqual(BUCKET, bucket)
             self.assertEqual('application/json', mime_type)
             with open(tmp_filename, 'rb') as f:
@@ -218,7 +218,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, num_retries=3):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as f:
                     self.assertEqual(b''.join(SCHEMA_JSON), f.read())
