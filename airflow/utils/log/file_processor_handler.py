@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import errno
 import logging
 import os
 
@@ -49,9 +48,9 @@ class FileProcessorHandler(logging.Handler):
         if not os.path.exists(self._get_log_directory()):
             try:
                 os.makedirs(self._get_log_directory())
-            except OSError as e:
+            except OSError:
                 # only ignore case where the directory already exist
-                if e.errno != errno.EEXIST:
+                if not os.path.isdir(self._get_log_directory()):
                     raise
 
                 logging.warning("%s already exists", self._get_log_directory())
@@ -138,7 +137,11 @@ class FileProcessorHandler(logging.Handler):
         directory = os.path.dirname(full_path)
 
         if not os.path.exists(directory):
-            os.makedirs(directory)
+            try:
+                os.makedirs(directory)
+            except OSError:
+                if not os.path.isdir(directory):
+                    raise
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
