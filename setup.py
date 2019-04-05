@@ -172,18 +172,19 @@ elasticsearch = [
 ]
 emr = ['boto3>=1.0.0, <1.8.0']
 gcp_api = [
-    'httplib2>=0.9.2',
     'google-api-python-client>=1.6.0, <2.0.0dev',
-    'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
-    'google-cloud-container>=0.1.1',
+    'google-auth>=1.0.0, <2.0.0dev',
     'google-cloud-bigtable==0.31.0',
+    'google-cloud-container>=0.1.1',
+    'google-cloud-language>=1.1.1',
     'google-cloud-spanner>=1.7.1',
     'google-cloud-translate>=1.3.3',
     'google-cloud-vision>=0.35.2',
     'grpcio-gcp>=0.2.2',
+    'httplib2~=0.9.2',
+    'pandas-gbq',
     'PyOpenSSL',
-    'pandas-gbq'
 ]
 flask_oauth = [
     'Flask-OAuthlib>=0.9.1',
