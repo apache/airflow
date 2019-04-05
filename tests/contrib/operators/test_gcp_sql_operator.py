@@ -29,15 +29,7 @@ from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOpe
     CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator, \
     CloudSqlInstanceDatabaseDeleteOperator, CloudSqlQueryOperator
 from airflow.models.connection import Connection
-
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 PROJECT_ID = os.environ.get('PROJECT_ID', 'project-id')
 INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'test-name')

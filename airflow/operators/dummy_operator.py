@@ -27,7 +27,6 @@ class DummyOperator(BaseOperator):
     DAG.
     """
 
-    template_fields = tuple()
     ui_color = '#e8f7e4'
 
     @apply_defaults

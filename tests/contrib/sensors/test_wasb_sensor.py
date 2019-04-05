@@ -25,14 +25,7 @@ import datetime
 from airflow import DAG, configuration
 from airflow.contrib.sensors.wasb_sensor import WasbBlobSensor
 from airflow.contrib.sensors.wasb_sensor import WasbPrefixSensor
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class TestWasbBlobSensor(unittest.TestCase):

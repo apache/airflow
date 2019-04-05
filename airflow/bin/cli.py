@@ -19,6 +19,7 @@
 # under the License.
 
 from __future__ import print_function
+import importlib
 import logging
 
 import os
@@ -33,7 +34,6 @@ import reprlib
 import argparse
 from argparse import RawTextHelpFormatter
 from builtins import input
-from collections import namedtuple
 
 from airflow.utils.timezone import parse as parsedate
 import json
@@ -49,6 +49,7 @@ import time
 import psutil
 import re
 from urllib.parse import urlunparse
+from typing import Any
 
 import airflow
 from airflow import api
@@ -69,7 +70,7 @@ from airflow.www.app import cached_app, create_app, cached_appbuilder
 from sqlalchemy.orm import exc
 
 api.load_auth()
-api_module = import_module(conf.get('cli', 'api_client'))
+api_module = import_module(conf.get('cli', 'api_client'))  # type: Any
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.api_auth.client_auth)
 
@@ -116,17 +117,13 @@ def setup_logging(filename):
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     if not stderr:
-        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.err'.format(process))
+        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
     if not stdout:
-        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.out'.format(process))
+        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
     if not log:
-        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.log'.format(process))
+        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
     if not pid:
-        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.pid'.format(process))
+        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
 
     return pid, stdout, stderr, log
 
@@ -165,6 +162,8 @@ def backfill(args, dag=None):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
+
+    signal.signal(signal.SIGTERM, sigint_handler)
 
     dag = dag or get_dag(args)
 
@@ -341,8 +340,7 @@ def variables(args):
         except ValueError as e:
             print(e)
     if args.delete:
-        with db.create_session() as session:
-            session.query(Variable).filter_by(key=args.delete).delete()
+        Variable.delete(args.delete)
     if args.set:
         Variable.set(args.set[0], args.set[1])
     # Work around 'import' as a reserved keyword
@@ -452,7 +450,8 @@ def _run(args, dag, ti):
                     session.add(pickle)
                     pickle_id = pickle.id
                     # TODO: This should be written to a log
-                    print('Pickled dag {dag} as pickle_id:{pickle_id}'.format(**locals()))
+                    print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
+                        dag=dag, pickle_id=pickle_id))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -686,10 +685,20 @@ def test(args, dag=None):
         task.params.update(passed_in_params)
     ti = TaskInstance(task, args.execution_date)
 
-    if args.dry_run:
-        ti.dry_run()
-    else:
-        ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+    try:
+        if args.dry_run:
+            ti.dry_run()
+        else:
+            ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+    except Exception:
+        if args.post_mortem:
+            try:
+                debugger = importlib.import_module("ipdb")
+            except ImportError:
+                debugger = importlib.import_module("pdb")
+            debugger.post_mortem()
+        else:
+            raise
 
 
 @cli_utils.action_logging
@@ -884,13 +893,13 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app, _ = create_app(conf, testing=conf.get('core', 'unit_test_mode'))
+        app, _ = create_app(None, testing=conf.get('core', 'unit_test_mode'))
         app.run(debug=True, use_reloader=False if app.config['TESTING'] else True,
                 port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         os.environ['SKIP_DAGS_PARSING'] = 'True'
-        app = cached_app(conf)
+        app = cached_app(None)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         os.environ.pop('SKIP_DAGS_PARSING')
@@ -902,12 +911,15 @@ def webserver(args):
         print(
             textwrap.dedent('''\
                 Running the Gunicorn Server with:
-                Workers: {num_workers} {args.workerclass}
-                Host: {args.hostname}:{args.port}
+                Workers: {num_workers} {workerclass}
+                Host: {hostname}:{port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
                 =================================================================\
-            '''.format(**locals())))
+            '''.format(num_workers=num_workers, workerclass=args.workerclass,
+                       hostname=args.hostname, port=args.port,
+                       worker_timeout=worker_timeout, access_logfile=access_logfile,
+                       error_logfile=error_logfile)))
 
         run_args = [
             'gunicorn',
@@ -1664,9 +1676,17 @@ def sync_perm(args):
             dag.access_control)
 
 
-Arg = namedtuple(
-    'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
-Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
+class Arg(object):
+    def __init__(self, flags=None, help=None, action=None, default=None, nargs=None,
+                 type=None, choices=None, metavar=None):
+        self.flags = flags
+        self.help = help
+        self.action = action
+        self.default = default
+        self.nargs = nargs
+        self.type = type
+        self.choices = choices
+        self.metavar = metavar
 
 
 class CLIFactory(object):
@@ -1981,7 +2001,7 @@ class CLIFactory(object):
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
-            default=-1, type=int,
+            default=conf.getint('scheduler', 'num_runs'), type=int,
             help="Set the number of runs to execute before exiting"),
         # worker
         'do_pickle': Arg(
@@ -2032,6 +2052,11 @@ class CLIFactory(object):
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
+        'post_mortem': Arg(
+            ("-pm", "--post_mortem"),
+            action="store_true",
+            help="Open debugger on uncaught exception",
+        ),
         # connections
         'list_connections': Arg(
             ('-l', '--list'),
@@ -2290,7 +2315,7 @@ class CLIFactory(object):
                 "dependencies or recording its state in the database."),
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
-                'task_params'),
+                'task_params', 'post_mortem'),
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
@@ -2371,7 +2396,7 @@ class CLIFactory(object):
         subparsers.required = True
 
         subparser_list = cls.dag_subparsers if dag_parser else cls.subparsers_dict.keys()
-        for sub in subparser_list:
+        for sub in sorted(subparser_list):
             sub = cls.subparsers_dict[sub]
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
             sp.formatter_class = RawTextHelpFormatter
@@ -2380,8 +2405,8 @@ class CLIFactory(object):
                     continue
                 arg = cls.args[arg]
                 kwargs = {
-                    f: getattr(arg, f)
-                    for f in arg._fields if f != 'flags' and getattr(arg, f)}
+                    f: v
+                    for f, v in vars(arg).items() if f != 'flags' and v}
                 sp.add_argument(*arg.flags, **kwargs)
             sp.set_defaults(func=sub['func'])
         return parser

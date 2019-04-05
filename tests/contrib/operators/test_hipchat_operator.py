@@ -24,14 +24,7 @@ from airflow.contrib.operators.hipchat_operator import \
     HipChatAPISendRoomNotificationOperator
 from airflow.exceptions import AirflowException
 from airflow import configuration
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 
 class HipChatOperatorTest(unittest.TestCase):

@@ -19,6 +19,7 @@
 #
 
 import copy
+from io import BytesIO
 import itertools
 import json
 import logging
@@ -35,13 +36,12 @@ import pendulum
 import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, send_file, escape, url_for)
+    make_response, flash, jsonify, send_file, url_for)
 from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
-from past.builtins import unicode
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy import func, or_, desc, and_, union_all
@@ -64,7 +64,6 @@ from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import provide_session, create_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
-from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
@@ -74,17 +73,13 @@ from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm,
                                DagRunForm, ConnectionForm)
 from airflow.www.widgets import AirflowModelListWidget
-if PY2:
-    from cStringIO import StringIO
-else:
-    from io import StringIO
 
 
 PAGE_SIZE = conf.getint('webserver', 'page_size')
 if os.environ.get('SKIP_DAGS_PARSING') != 'True':
     dagbag = models.DagBag(settings.DAGS_FOLDER)
 else:
-    dagbag = models.DagBag
+    dagbag = models.DagBag(os.devnull, include_examples=False)
 
 
 def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
@@ -567,17 +562,19 @@ class Airflow(AirflowBaseView):
                 ti.task = dag.get_task(ti.task_id)
                 logs, metadatas = handler.read(ti, try_number, metadata=metadata)
                 metadata = metadatas[0]
-            for i, log in enumerate(logs):
-                if PY2 and not isinstance(log, unicode):
-                    logs[i] = log.decode('utf-8')
 
             if response_format == 'json':
                 message = logs[0] if try_number is not None else logs
                 return jsonify(message=message, metadata=metadata)
 
-            file_obj = StringIO('\n'.join(logs))
+            file_obj = BytesIO(b'\n'.join(
+                log.encode('utf-8') for log in logs
+            ))
             filename_template = conf.get('core', 'LOG_FILENAME_TEMPLATE')
-            attachment_filename = render_log_filename(ti, try_number, filename_template)
+            attachment_filename = render_log_filename(
+                ti=ti,
+                try_number="all" if try_number is None else try_number,
+                filename_template=filename_template)
             return send_file(file_obj, as_attachment=True,
                              attachment_filename=attachment_filename)
         except AttributeError as e:
@@ -641,7 +638,7 @@ class Airflow(AirflowBaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
         ti = TI(task=task, execution_date=dttm)
@@ -723,7 +720,7 @@ class Airflow(AirflowBaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         xcomlist = session.query(XCom).filter(
             XCom.dag_id == dag_id, XCom.task_id == task_id,
@@ -821,7 +818,7 @@ class Airflow(AirflowBaseView):
         from airflow.exceptions import DagNotFound, DagFileExists
 
         dag_id = request.args.get('dag_id')
-        origin = request.args.get('origin') or "/"
+        origin = request.args.get('origin') or url_for('Airflow.index')
 
         try:
             delete_dag.delete_dag(dag_id)
@@ -847,7 +844,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def trigger(self, session=None):
         dag_id = request.args.get('dag_id')
-        origin = request.args.get('origin') or "/"
+        origin = request.args.get('origin') or url_for('Airflow.index')
         dag = session.query(models.DagModel).filter(models.DagModel.dag_id == dag_id).first()
         if not dag:
             flash("Cannot find dag {}".format(dag_id))
@@ -1163,7 +1160,7 @@ class Airflow(AirflowBaseView):
         dag_model = DagModel.get_dagmodel(dag_id)
         if not dag_model:
             flash('DAG "{0}" seems to be missing in database.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
         dag = dag_model.get_dag()
 
         root = request.args.get('root')
@@ -1265,8 +1262,6 @@ class Airflow(AirflowBaseView):
                 for d in dates],
         }
 
-        # minimize whitespace as this can be huge for bigger dags
-        data = json.dumps(data, default=json_ser, separators=(',', ':'))
         session.commit()
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
@@ -1293,7 +1288,7 @@ class Airflow(AirflowBaseView):
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         root = request.args.get('root')
         if root:
@@ -1377,10 +1372,10 @@ class Airflow(AirflowBaseView):
             ),
             blur=blur,
             root=root or '',
-            task_instances=json.dumps(task_instances, indent=2),
-            tasks=json.dumps(tasks, indent=2),
-            nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2), )
+            task_instances=task_instances,
+            tasks=tasks,
+            nodes=nodes,
+            edges=edges)
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
@@ -1397,7 +1392,7 @@ class Airflow(AirflowBaseView):
 
         if dag is None:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/')
+            return redirect(url_for('Airflow.index'))
 
         if base_date:
             base_date = pendulum.parse(base_date)
@@ -1681,7 +1676,7 @@ class Airflow(AirflowBaseView):
         for dag_id, dag in dagbag.dags.items():
             appbuilder.sm.sync_perm_for_dag(dag_id, dag.access_control)
         flash("All DAGs are now up to date")
-        return redirect('/')
+        return redirect(url_for('Airflow.index'))
 
     @expose('/gantt')
     @has_dag_access(can_dag_read=True)
@@ -1760,7 +1755,7 @@ class Airflow(AirflowBaseView):
             dag=dag,
             execution_date=dttm.isoformat(),
             form=form,
-            data=json.dumps(data, indent=2),
+            data=data,
             base_date='',
             demo_mode=demo_mode,
             root=root,
@@ -1928,7 +1923,10 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__project',
                     'extra__google_cloud_platform__key_path',
                     'extra__google_cloud_platform__keyfile_dict',
-                    'extra__google_cloud_platform__scope']
+                    'extra__google_cloud_platform__scope',
+                    'extra__grpc__auth_type',
+                    'extra__grpc__credential_pem_file',
+                    'extra__grpc__scopes']
     list_columns = ['conn_id', 'conn_type', 'host', 'port', 'is_encrypted',
                     'is_extra_encrypted']
     add_columns = edit_columns = ['conn_id', 'conn_type', 'host', 'schema',
@@ -1949,7 +1947,7 @@ class ConnectionModelView(AirflowModelView):
 
     def process_form(self, form, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform', 'grpc']:
             extra = {
                 key: formdata[key]
                 for key in self.extra_fields if key in formdata}
@@ -1997,8 +1995,7 @@ class PoolModelView(AirflowModelView):
         pool_id = attr.get('pool')
         if pool_id is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id)
-            pool_id = escape(pool_id)
-            return Markup("<a href='{url}'>{pool_id}</a>".format(**locals()))
+            return Markup("<a href='{url}'>{pool_id}</a>").format(url=url, pool_id=pool_id)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2007,7 +2004,7 @@ class PoolModelView(AirflowModelView):
         used_slots = attr.get('used_slots')
         if pool_id is not None and used_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='running')
-            return Markup("<a href='{url}'>{used_slots}</a>".format(**locals()))
+            return Markup("<a href='{url}'>{used_slots}</a>").format(url=url, used_slots=used_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2016,7 +2013,7 @@ class PoolModelView(AirflowModelView):
         queued_slots = attr.get('queued_slots')
         if pool_id is not None and queued_slots is not None:
             url = url_for('TaskInstanceModelView.list', _flt_3_pool=pool_id, _flt_3_state='queued')
-            return Markup("<a href='{url}'>{queued_slots}</a>".format(**locals()))
+            return Markup("<a href='{url}'>{queued_slots}</a>").format(url=url, queued_slots=queued_slots)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
@@ -2204,11 +2201,11 @@ class DagRunModelView(AirflowModelView):
                 dr.start_date = timezone.utcnow()
                 dr.state = State.RUNNING
             session.commit()
-            flash("{count} dag runs were set to running".format(**locals()))
+            flash("{count} dag runs were set to running".format(count=count))
         except Exception as ex:
             flash(str(ex), 'error')
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
     @action('set_failed', "Set state to 'failed'",
             "All running task instances would also be marked as failed, are you sure?",
@@ -2232,10 +2229,10 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to failed".format(**locals()))
+                "were set to failed".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
     @action('set_success', "Set state to 'success'",
             "All task instances would also be marked as success, are you sure?",
@@ -2259,10 +2256,10 @@ class DagRunModelView(AirflowModelView):
             altered_ti_count = len(altered_tis)
             flash(
                 "{count} dag runs and {altered_ti_count} task instances "
-                "were set to success".format(**locals()))
+                "were set to success".format(count=count, altered_ti_count=altered_ti_count))
         except Exception:
             flash('Failed to set state', 'error')
-        return redirect(self.route_base + '/list')
+        return redirect(self.get_default_url())
 
 
 class LogModelView(AirflowModelView):
@@ -2313,7 +2310,7 @@ class TaskInstanceModelView(AirflowModelView):
         return Markup(
             '<a href="{log_url}">'
             '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
-            '</span></a>').format(**locals())
+            '</span></a>').format(log_url=log_url)
 
     def duration_f(attr):
         end_date = attr.get('end_date')
@@ -2366,8 +2363,8 @@ class TaskInstanceModelView(AirflowModelView):
             for ti in tis:
                 ti.set_state(target_state, session)
             session.commit()
-            flash(
-                "{count} task instances were set to '{target_state}'".format(**locals()))
+            flash("{count} task instances were set to '{target_state}'".format(
+                count=count, target_state=target_state))
         except Exception:
             flash('Failed to set state', 'error')
 

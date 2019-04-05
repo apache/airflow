@@ -20,14 +20,7 @@
 import unittest
 
 from airflow.contrib.operators.adls_list_operator import AzureDataLakeStorageListOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-adls-list-operator'
 TEST_PATH = 'test/*'

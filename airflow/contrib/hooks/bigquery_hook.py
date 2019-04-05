@@ -52,7 +52,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     conn_name_attr = 'bigquery_conn_id'
 
     def __init__(self,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  use_legacy_sql=True,
                  location=None):
@@ -1188,7 +1188,7 @@ class BigQueryBaseCursor(LoggingMixin):
             'DATASTORE_BACKUP': ['projectionFields'],
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
             'PARQUET': ['autodetect', 'ignoreUnknownValues'],
-            'AVRO': [],
+            'AVRO': ['useAvroLogicalTypes'],
         }
         valid_configs = src_fmt_to_configs_mapping[source_format]
         src_fmt_configs = {
@@ -1285,8 +1285,8 @@ class BigQueryBaseCursor(LoggingMixin):
                     err.resp.status, job_id)
             else:
                 raise Exception(
-                    'BigQuery job status check failed. Final error was: %s',
-                    err.resp.status)
+                    'BigQuery job status check failed. Final error was: {}'.
+                    format(err.resp.status))
         return False
 
     def cancel_query(self):

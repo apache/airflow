@@ -586,8 +586,31 @@ They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to 
 Transfer Service
 ''''''''''''''''
 
-:class:`airflow.contrib.operators.gcs_to_gcs_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator`
-    Copies objects from a bucket to another using Google Transfer service.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator`
+    Deletes a transfer job.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator`
+    Creates a transfer job.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator`
+    Updates a transfer job.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationCancelOperator`
+    Cancels a transfer operation.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationGetOperator`
+    Gets a transfer operation.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationPauseOperator`
+    Pauses a transfer operation
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationResumeOperator`
+    Resumes a transfer operation.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationsListOperator`
+    Gets a list of transfer operations.
+:class:`airflow.contrib.operators.gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator`
+    Copies objects from a Google Cloud Storage bucket to another bucket.
+:class:`airflow.contrib.operators.gcp_transfer_operator.S3ToGoogleCloudStorageTransferOperator`
+    Synchronizes an S3 bucket with a Google Cloud Storage bucket.
+
+
+:class:`airflow.contrib.sensors.gcp_transfer_operator.GCPTransferServiceWaitForJobStatusSensor`
+    Waits for at least one operation belonging to the job to have the
+    expected status.
 
 
 They also use :class:`airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook` to communicate with Google Cloud Platform.
@@ -599,24 +622,59 @@ Cloud Vision
 Cloud Vision Product Search Operators
 """""""""""""""""""""""""""""""""""""
 
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator`
+    Adds a Product to the specified ProductSet.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator`
+    Run image detection and annotation for an image.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
+    Creates a new Product resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
+    Permanently deletes a product and its reference images.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
+    Gets information associated with a Product.
 :class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
     Creates a new ProductSet resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
+    Permanently deletes a ProductSet.
 :class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
     Gets information associated with a ProductSet.
 :class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
     Makes changes to a ProductSet resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
-    Permanently deletes a ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
-    Creates a new Product resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
-    Gets information associated with a Product.
 :class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
     Makes changes to a Product resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
-    Permanently deletes a product and its reference images.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
+    Creates a new ReferenceImage resource.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator`
+    Removes a Product from the specified ProductSet.
 
 They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
+
+Cloud Text to Speech
+''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator`
+    Synthesizes input text into audio file and stores this file to GCS.
+
+They also use :class:`airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook` to communicate with Google Cloud Platform.
+
+Cloud Speech to Text
+''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator`
+    Recognizes speech in audio input and returns text.
+
+They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
+
+
+Cloud Translate
+'''''''''''''''
+
+Cloud Translate Text Operators
+""""""""""""""""""""""""""""""
+
+:class:`airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator`
+    Translate a string or list of strings.
+
 
 Google Kubernetes Engine
 ''''''''''''''''''''''''
