@@ -119,6 +119,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'autoapi.extension',
     'exampleinclude',
+    'docroles'
 ]
 
 autodoc_default_flags = ['show-inheritance', 'members']
@@ -196,8 +197,8 @@ exclude_patterns = [
     '_api/airflow/version',
     '_api/airflow/www',
     '_api/main',
-    '_build',
     'autoapi_templates',
+    'howto/operator/gcp/_partials',
 ]
 
 # The reST default role (used for this markup: `text`) to use for all
