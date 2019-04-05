@@ -24,12 +24,28 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to CloudantHook
+
+* upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`
+* removed the use of the `schema` attribute in the connection
+* removed `db` function since the database object can also be retrieved by calling `cloudant_session['database_name']`
+
+For example:
+```python
+from airflow.contrib.hooks.cloudant_hook import CloudantHook
+
+with CloudantHook().get_conn() as cloudant_session:
+    database = cloudant_session['database_name']
+```
+
+See the [docs](https://python-cloudant.readthedocs.io/en/latest/) for more information on how to use the new cloudant version.
+
 ### Changes to DatastoreHook
 
 * removed argument `version` from `get_conn` function and added it to the hook's `__init__` function instead and renamed it to `api_version`
 * renamed the `partialKeys` argument of function `allocate_ids` to `partial_keys`
 
-#### Unify default conn_id for Google Cloud Platform
+### Unify default conn_id for Google Cloud Platform
 
 Previously not all hooks and operators related to Google Cloud Platform use
 ``google_cloud_default`` as a default conn_id. There is currently one default
