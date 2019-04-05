@@ -691,6 +691,26 @@ Google Kubernetes Engine
 They also use :class:`airflow.contrib.hooks.gcp_container_hook.GKEClusterHook` to communicate with Google Cloud Platform.
 
 
+Google Natural Language
+'''''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntities`
+    Finds named entities (currently proper names and common nouns) in the text along with entity types,
+    salience, mentions for each entity, and other properties.
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentiment`
+    Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
+    entity and its mentions.
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentiment`
+    Analyzes the sentiment of the provided text.
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator`
+    Classifies a document into categories.
+
+They also use :class:`airflow.contrib.hooks.gcp_natural_language_operator.CloudNaturalLanguageHook` to communicate with Google Cloud Platform.
+
+
 .. _Qubole:
 
 Qubole

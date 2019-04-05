@@ -437,6 +437,8 @@ could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from within the Spark cluster
 itself because it needs a very specific environment and security rights).
 
+.. _concepts:xcom:
+
 XComs
 =====
 
