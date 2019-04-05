@@ -418,7 +418,7 @@ class TestKubernetesWorkerConfiguration(unittest.TestCase):
                                     None)
         self.assertTrue(git_ssh_key_file)
         self.assertTrue(volume_mount_ssh_key)
-        self.assertEqual(65533, pod.security_context['fs_group'])
+        self.assertEqual(65533, pod.security_context['fsGroup'])
         self.assertEqual(git_ssh_key_file,
                          volume_mount_ssh_key,
                          'The location where the git ssh secret is mounted'
