@@ -2969,6 +2969,9 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
         'extra__google_cloud_platform__keyfile_dict': PasswordField('Keyfile JSON'),
         'extra__google_cloud_platform__scope': StringField('Scopes (comma separated)'),
+        'extra__grpc__auth_type': StringField('Grpc Auth Type'),
+        'extra__grpc__credentials_pem_file': StringField('Credential Keyfile Path'),
+        'extra__grpc__scopes': StringField('Scopes (comma separated)'),
     }
     form_choices = {
         'conn_type': Connection._types
