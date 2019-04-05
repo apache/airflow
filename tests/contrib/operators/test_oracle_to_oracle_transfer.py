@@ -20,16 +20,7 @@
 import unittest
 from airflow.contrib.operators.oracle_to_oracle_transfer \
     import OracleToOracleTransfer
-
-try:
-    from unittest import mock
-    from unittest.mock import MagicMock
-except ImportError:
-    try:
-        import mock
-        from mock import MagicMock
-    except ImportError:
-        mock = None
+from tests.compat import MagicMock
 
 
 class OracleToOracleTransferTest(unittest.TestCase):

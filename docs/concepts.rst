@@ -151,7 +151,7 @@ operators: :class:`~airflow.operators.docker_operator.DockerOperator`,
 
 Operators are only loaded by Airflow if they are assigned to a DAG.
 
-See :doc:`howto/operator` for how to use Airflow operators.
+See :doc:`howto/operator/index` for how to use Airflow operators.
  
 DAG Assignment
 --------------
@@ -477,7 +477,7 @@ passed, then a corresponding list of XCom values is returned.
 It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
-.. code:: sql
+.. code:: jinja
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
@@ -503,10 +503,14 @@ accessible and modifiable through the UI.
     from airflow.models import Variable
     foo = Variable.get("foo")
     bar = Variable.get("bar", deserialize_json=True)
+    baz = Variable.get("baz", default_var=None)
 
 The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
-as such.
+as such. The third call uses the ``default_var`` parameter with the value
+``None``, which either returns an existing value or ``None`` if the variable
+isn't defined. The get function will throw a ``KeyError`` if the variable
+doesn't exist and no default is provided.
 
 You can use a variable from a jinja template with the syntax :
 
@@ -960,7 +964,7 @@ Jinja Templating
 
 Airflow leverages the power of
 `Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a
-powerful tool to use in combination with macros (see the :ref:`macros` section).
+powerful tool to use in combination with macros (see the :doc:`macros` section).
 
 For example, say you want to pass the execution date as an environment variable
 to a Bash script using the ``BashOperator``.

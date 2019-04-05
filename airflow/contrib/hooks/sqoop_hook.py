@@ -195,7 +195,7 @@ class SqoopHook(BaseHook):
             for key, value in extra_import_options.items():
                 cmd += ['--{}'.format(key)]
                 if value:
-                    cmd += [value]
+                    cmd += [str(value)]
 
         return cmd
 
@@ -304,7 +304,7 @@ class SqoopHook(BaseHook):
             for key, value in extra_export_options.items():
                 cmd += ['--{}'.format(key)]
                 if value:
-                    cmd += [value]
+                    cmd += [str(value)]
 
         # The required option
         cmd += ["--table", table]

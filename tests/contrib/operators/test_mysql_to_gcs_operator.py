@@ -73,6 +73,7 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         op = MySqlToGoogleCloudStorageOperator(
             task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME,
             export_format='CSV', field_delimiter='|', num_retries=3)
+
         self.assertEqual(op.task_id, TASK_ID)
         self.assertEqual(op.sql, SQL)
         self.assertEqual(op.bucket, BUCKET)

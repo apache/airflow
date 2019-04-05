@@ -18,19 +18,13 @@
 # under the License.
 
 import unittest
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.contrib.operators.sagemaker_endpoint_config_operator \
     import SageMakerEndpointConfigOperator
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 model_name = 'test-model-name'
 config_name = 'test-config-name'

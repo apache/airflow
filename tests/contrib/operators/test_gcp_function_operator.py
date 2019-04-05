@@ -26,17 +26,9 @@ from airflow.contrib.operators.gcp_function_operator import \
     GcfFunctionDeployOperator, GcfFunctionDeleteOperator, FUNCTION_NAME_PATTERN
 from airflow import AirflowException
 from airflow.version import version
+from tests.compat import mock
 
 from copy import deepcopy
-
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 EMPTY_CONTENT = ''.encode('utf8')
 MOCK_RESP_404 = type('', (object,), {"status": 404})()

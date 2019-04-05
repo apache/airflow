@@ -64,7 +64,7 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
                 'table': self.table,
                 'partition_by': self.partition_by
             },
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
               ignore_ti_state=True)

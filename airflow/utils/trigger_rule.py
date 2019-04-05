@@ -20,6 +20,7 @@
 from __future__ import unicode_literals
 
 from builtins import object
+from typing import Set
 
 
 class TriggerRule(object):
@@ -31,7 +32,7 @@ class TriggerRule(object):
     DUMMY = 'dummy'
     NONE_FAILED = 'none_failed'
 
-    _ALL_TRIGGER_RULES = {}
+    _ALL_TRIGGER_RULES = set()  # type: Set[str]
 
     @classmethod
     def is_valid(cls, trigger_rule):

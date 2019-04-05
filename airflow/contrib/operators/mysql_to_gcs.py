@@ -84,6 +84,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
     :param num_retries: (Optional) The number of times to attempt to re-upload
         the file.
     :type num_retries: int
+
     """
     template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema')
     template_ext = ('.sql',)
@@ -103,6 +104,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                  export_format='json',
                  field_delimiter=',',
                  num_retries=0,
+
                  *args,
                  **kwargs):
         super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)

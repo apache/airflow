@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Any
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -24,9 +25,11 @@ import airflow
 
 SQL_ALCHEMY_SCHEMA = airflow.configuration.get("core", "SQL_ALCHEMY_SCHEMA")
 
-if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
-    Base = declarative_base()
-else:
-    Base = declarative_base(metadata=MetaData(schema=SQL_ALCHEMY_SCHEMA))
+metadata = (
+    None
+    if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace()
+    else MetaData(schema=SQL_ALCHEMY_SCHEMA)
+)
+Base = declarative_base(metadata=metadata)  # type: Any
 
 ID_LEN = 250

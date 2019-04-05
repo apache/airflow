@@ -41,7 +41,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
         'archives': 'sample_archive.zip#SAMPLE',
-        'driver_classpath': 'parquet.jar',
+        'driver_class_path': 'parquet.jar',
         'jars': 'parquet.jar',
         'packages': 'com.databricks:spark-avro_2.11:3.2.0',
         'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -93,7 +93,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'files': 'hive-site.xml',
             'py_files': 'sample_library.py',
             'archives': 'sample_archive.zip#SAMPLE',
-            'driver_classpath': 'parquet.jar',
+            'driver_class_path': 'parquet.jar',
             'jars': 'parquet.jar',
             'packages': 'com.databricks:spark-avro_2.11:3.2.0',
             'exclude_packages': 'org.bad.dependency:1.0.0',
@@ -125,7 +125,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['files'], operator._files)
         self.assertEqual(expected_dict['py_files'], operator._py_files)
         self.assertEqual(expected_dict['archives'], operator._archives)
-        self.assertEqual(expected_dict['driver_classpath'], operator._driver_classpath)
+        self.assertEqual(expected_dict['driver_class_path'], operator._driver_class_path)
         self.assertEqual(expected_dict['jars'], operator._jars)
         self.assertEqual(expected_dict['packages'], operator._packages)
         self.assertEqual(expected_dict['exclude_packages'], operator._exclude_packages)

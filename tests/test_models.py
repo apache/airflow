@@ -41,17 +41,17 @@ from cryptography.fernet import Fernet
 from freezegun import freeze_time
 from mock import ANY, mock_open, patch
 from parameterized import parameterized
+import jinja2
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI, DagBag
 from airflow.models import DagModel, DagRun
 from airflow.models import State as ST
 from airflow.models import Variable
 from airflow.models import clear_task_instances
-from airflow.models.connection import Connection
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -408,6 +408,31 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', '{{ foo }}', dict(foo='bar'))
         self.assertEqual(result, 'bar')
+
+    def test_render_template_field_undefined(self):
+        """Tests if render_template from a field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', '{{ foo }}', {})
+        self.assertEqual(result, '')
+
+    def test_render_template_field_undefined_strict(self):
+        """Tests if render_template from a field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE,
+                  template_undefined=jinja2.StrictUndefined)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        with self.assertRaises(jinja2.UndefinedError):
+            task.render_template('', '{{ foo }}', {})
 
     def test_render_template_list_field(self):
         """Tests if render_template from a list field works"""
@@ -1963,25 +1988,23 @@ class DagBagTest(unittest.TestCase):
         Test that dag_ids not passed into deactivate_unknown_dags
         are deactivated when function is invoked
         """
-        dagbag = models.DagBag(include_examples=True)
+        dagbag = DagBag(include_examples=True)
+        dag_id = "test_deactivate_unknown_dags"
         expected_active_dags = dagbag.dags.keys()
 
-        session = settings.Session
-        session.add(DagModel(dag_id='test_deactivate_unknown_dags', is_active=True))
-        session.commit()
+        model_before = DagModel(dag_id=dag_id, is_active=True)
+        with create_session() as session:
+            session.merge(model_before)
 
         models.DAG.deactivate_unknown_dags(expected_active_dags)
 
-        for dag in session.query(DagModel).all():
-            if dag.dag_id in expected_active_dags:
-                self.assertTrue(dag.is_active)
-            else:
-                self.assertEqual(dag.dag_id, 'test_deactivate_unknown_dags')
-                self.assertFalse(dag.is_active)
+        after_model = DagModel.get_dagmodel(dag_id)
+        self.assertTrue(model_before.is_active)
+        self.assertFalse(after_model.is_active)
 
         # clean up
-        session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
-        session.commit()
+        with create_session() as session:
+            session.query(DagModel).filter(DagModel.dag_id == 'test_deactivate_unknown_dags').delete()
 
 
 class TaskInstanceTest(unittest.TestCase):
@@ -3303,152 +3326,3 @@ class VariableTest(unittest.TestCase):
         self.assertTrue(test_var.is_encrypted)
         self.assertEqual(test_var.val, 'value')
         self.assertEqual(Fernet(key2).decrypt(test_var._val.encode()), b'value')
-
-
-class ConnectionTest(unittest.TestCase):
-    def setUp(self):
-        models._fernet = None
-
-    def tearDown(self):
-        models._fernet = None
-
-    @patch('airflow.models.configuration.conf.get')
-    def test_connection_extra_no_encryption(self, mock_get):
-        """
-        Tests extras on a new connection without encryption. The fernet key
-        is set to a non-base64-encoded string and the extra is stored without
-        encryption.
-        """
-        mock_get.return_value = ''
-        test_connection = Connection(extra='testextra')
-        self.assertFalse(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
-
-    @patch('airflow.models.configuration.conf.get')
-    def test_connection_extra_with_encryption(self, mock_get):
-        """
-        Tests extras on a new connection with encryption.
-        """
-        mock_get.return_value = Fernet.generate_key().decode()
-        test_connection = Connection(extra='testextra')
-        self.assertTrue(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
-
-    @patch('airflow.models.configuration.conf.get')
-    def test_connection_extra_with_encryption_rotate_fernet_key(self, mock_get):
-        """
-        Tests rotating encrypted extras.
-        """
-        key1 = Fernet.generate_key()
-        key2 = Fernet.generate_key()
-
-        mock_get.return_value = key1.decode()
-        test_connection = Connection(extra='testextra')
-        self.assertTrue(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
-        self.assertEqual(Fernet(key1).decrypt(test_connection._extra.encode()), b'testextra')
-
-        # Test decrypt of old value with new key
-        mock_get.return_value = ','.join([key2.decode(), key1.decode()])
-        models._fernet = None
-        self.assertEqual(test_connection.extra, 'testextra')
-
-        # Test decrypt of new value with new key
-        test_connection.rotate_fernet_key()
-        self.assertTrue(test_connection.is_extra_encrypted)
-        self.assertEqual(test_connection.extra, 'testextra')
-        self.assertEqual(Fernet(key2).decrypt(test_connection._extra.encode()), b'testextra')
-
-    def test_connection_from_uri_without_extras(self):
-        uri = 'scheme://user:password@host%2flocation:1234/schema'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-        self.assertIsNone(connection.extra)
-
-    def test_connection_from_uri_with_extras(self):
-        uri = 'scheme://user:password@host%2flocation:1234/schema?' \
-              'extra1=a%20value&extra2=%2fpath%2f'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
-                                                       'extra2': '/path/'})
-
-    def test_connection_from_uri_with_colon_in_hostname(self):
-        uri = 'scheme://user:password@host%2flocation%3ax%3ay:1234/schema?' \
-              'extra1=a%20value&extra2=%2fpath%2f'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location:x:y')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
-                                                       'extra2': '/path/'})
-
-    def test_connection_from_uri_with_encoded_password(self):
-        uri = 'scheme://user:password%20with%20space@host%2flocation%3ax%3ay:1234/schema'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location:x:y')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password with space')
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_with_encoded_user(self):
-        uri = 'scheme://domain%2fuser:password@host%2flocation%3ax%3ay:1234/schema'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host/location:x:y')
-        self.assertEqual(connection.schema, 'schema')
-        self.assertEqual(connection.login, 'domain/user')
-        self.assertEqual(connection.password, 'password')
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_with_encoded_schema(self):
-        uri = 'scheme://user:password%20with%20space@host:1234/schema%2ftest'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host')
-        self.assertEqual(connection.schema, 'schema/test')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password with space')
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_no_schema(self):
-        uri = 'scheme://user:password%20with%20space@host:1234'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'scheme')
-        self.assertEqual(connection.host, 'host')
-        self.assertEqual(connection.schema, '')
-        self.assertEqual(connection.login, 'user')
-        self.assertEqual(connection.password, 'password with space')
-        self.assertEqual(connection.port, 1234)
-
-    def test_connection_from_uri_with_underscore(self):
-        uri = 'google-cloud-platform://?extra__google_cloud_platform__key_' \
-              'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=' \
-              'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra' \
-              '__google_cloud_platform__project=airflow'
-        connection = Connection(uri=uri)
-        self.assertEqual(connection.conn_type, 'google_cloud_platform')
-        self.assertEqual(connection.host, '')
-        self.assertEqual(connection.schema, '')
-        self.assertEqual(connection.login, None)
-        self.assertEqual(connection.password, None)
-        self.assertEqual(connection.extra_dejson, dict(
-            extra__google_cloud_platform__key_path='/keys/key.json',
-            extra__google_cloud_platform__project='airflow',
-            extra__google_cloud_platform__scope='https://www.googleapis.com/'
-                                                'auth/cloud-platform'))
