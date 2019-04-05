@@ -828,7 +828,7 @@ class TestDeleteDag(unittest.TestCase):
     def test_delete_dag_button_normal(self):
         resp = self.app.get('/', follow_redirects=True)
         self.assertIn('/delete?dag_id=example_bash_operator', resp.data.decode('utf-8'))
-        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
     def test_delete_dag_button_for_dag_on_scheduler_only(self):
         # Test for JIRA AIRFLOW-3233 (PR 4069):
@@ -844,7 +844,7 @@ class TestDeleteDag(unittest.TestCase):
 
         resp = self.app.get('/', follow_redirects=True)
         self.assertIn('/delete?dag_id={}'.format(test_dag_id), resp.data.decode('utf-8'))
-        self.assertIn("return confirmDeleteDag('{}')".format(test_dag_id), resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag(this, '{}')".format(test_dag_id), resp.data.decode('utf-8'))
 
         session.query(DM).filter(DM.dag_id == test_dag_id).update({'dag_id': 'example_bash_operator'})
         session.commit()
@@ -863,7 +863,7 @@ class TestTriggerDag(unittest.TestCase):
     def test_trigger_dag_button_normal_exist(self):
         resp = self.app.get('/', follow_redirects=True)
         self.assertIn('/trigger?dag_id=example_bash_operator', resp.data.decode('utf-8'))
-        self.assertIn("return confirmDeleteDag('example_bash_operator')", resp.data.decode('utf-8'))
+        self.assertIn("return confirmDeleteDag(this, 'example_bash_operator')", resp.data.decode('utf-8'))
 
     def test_trigger_dag_button(self):
 
@@ -873,7 +873,7 @@ class TestTriggerDag(unittest.TestCase):
         self.session.query(DR).delete()
         self.session.commit()
 
-        self.app.get('/admin/airflow/trigger?dag_id={}'.format(test_dag_id))
+        self.app.post('/admin/airflow/trigger?dag_id={}'.format(test_dag_id))
 
         run = self.session.query(DR).filter(DR.dag_id == test_dag_id).first()
         self.assertIsNotNone(run)
