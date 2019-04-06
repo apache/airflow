@@ -18,20 +18,23 @@
 Integration
 ===========
 
-- :ref:`Azure`
-- :ref:`AWS`
-- :ref:`Databricks`
-- :ref:`GCP`
-- :ref:`Qubole`
+.. contents:: Content
+    :local:
+    :depth: 2
 
 .. _Azure:
 
-Azure: Microsoft Azure
-----------------------
+Microsoft Azure
+---------------
 
-Airflow has limited support for Microsoft Azure: interfaces exist only for Azure Blob
-Storage and Azure Data Lake. Hook, Sensor and Operator for Blob Storage and
-Azure Data Lake Hook are in contrib section.
+Logging
+^^^^^^^
+
+Airflow can be configured to read and write task logs in Azure Blob Storage.
+See :ref:`write-logs-azure`.
+
+Operators and hooks
+^^^^^^^^^^^^^^^^^^^
 
 Azure Blob Storage
 ''''''''''''''''''
@@ -41,74 +44,12 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 
-:class:`airflow.contrib.hooks.wasb_hook.WasbHook`
-    Interface with Azure Blob Storage.
+For further information, look at API Reference:
 
-:class:`airflow.contrib.sensors.wasb_sensor.WasbBlobSensor`
-    Checks if a blob is present on Azure Blob storage.
-
-:class:`airflow.contrib.operators.wasb_delete_blob_operator.WasbDeleteBlobOperator`
-    Deletes blob(s) on Azure Blob Storage.
-
-:class:`airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor`
-    Checks if blobs matching a prefix are present on Azure Blob storage.
-
-:class:`airflow.contrib.operators.file_to_wasb.FileToWasbOperator`
-    Uploads a local file to a container as a blob.
-
-
-Azure File Share
-''''''''''''''''
-
-Cloud variant of a SMB file share. Make sure that a Airflow connection of
-type `wasb` exists. Authorization can be done by supplying a login (=Storage account name)
-and password (=Storage account key), or login and SAS token in the extra field
-(see connection `wasb_default` for an example).
-
-:class:`airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook`:
-    Interface with Azure File Share.
-
-Logging
-'''''''
-
-Airflow can be configured to read and write task logs in Azure Blob Storage.
-See :ref:`write-logs-azure`.
-
-Azure CosmosDB
-''''''''''''''
-
-AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a
-Airflow connection of type `azure_cosmos` exists. Authorization can be done by supplying a
-login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify the
-default database and collection to use (see connection `azure_cosmos_default` for an example).
-
-:class:`airflow.contrib.hooks.azure_cosmos_hook.AzureCosmosDBHook`
-    Interface with Azure CosmosDB.
-
-:class:`airflow.contrib.operators.azure_cosmos_operator.AzureCosmosInsertDocumentOperator`
-    Simple operator to insert document into CosmosDB.
-
-:class:`airflow.contrib.sensors.azure_cosmos_sensor.AzureCosmosDocumentSensor`
-    Simple sensor to detect document existence in CosmosDB.
-
-
-Azure Data Lake
-'''''''''''''''
-
-AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
-Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
-login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
-(see connection `azure_data_lake_default` for an example).
-
-:class:`airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook`
-    Interface with Azure Data Lake.
-
-:class:`airflow.contrib.operators.adls_list_operator.AzureDataLakeStorageListOperator`
-    Lists the files located in a specified Azure Data Lake path.
-
-:class:`airflow.contrib.operators.adls_to_gcs.AdlsToGoogleCloudStorageOperator`
-    Copies files from an Azure Data Lake path to a Google Cloud Storage bucket.
-
+* :py:mod:`airflow.contrib.hooks.wasb_hook`
+* :py:mod:`airflow.contrib.sensors.wasb_sensor`
+* :py:mod:`airflow.contrib.operators.wasb_delete_blob_operator`
+* :py:mod:`airflow.contrib.operators.file_to_wasb`
 
 Azure Container Instances
 '''''''''''''''''''''''''
@@ -121,142 +62,147 @@ or by providing a login/password and tenantId in extras.
 
 The AzureContainerRegistryHook requires a host/login/password to be defined in the connection.
 
-:class:`airflow.contrib.hooks.azure_container_volume_hook.AzureContainerVolumeHook`
-    Interface with Azure Container Volumes
+For further information, look at API Reference:
 
-:class:`airflow.contrib.operators.azure_container_instances_operator.AzureContainerInstancesOperator`
-    Start/Monitor a new ACI.
+* :py:mod:`airflow.contrib.hooks.azure_container_volume_hook`
+* :py:mod:`airflow.contrib.operators.azure_container_instances_operator`
+* :py:mod:`airflow.contrib.hooks.azure_container_instance_hook`
+* :py:mod:`airflow.contrib.hooks.azure_container_registry_hook`
 
-:class:`airflow.contrib.hooks.azure_container_instance_hook.AzureContainerInstanceHook`
-    Wrapper around a single ACI.
+Azure CosmosDB
+''''''''''''''
 
-:class:`airflow.contrib.hooks.azure_container_registry_hook.AzureContainerRegistryHook`
-    Interface with ACR
+AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a
+Airflow connection of type `azure_cosmos` exists. Authorization can be done by supplying a
+login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify the
+default database and collection to use (see connection `azure_cosmos_default` for an example).
 
+For further information, look at API Reference:
 
+* :py:mod:`airflow.contrib.hooks.azure_cosmos_hook`
+* :py:mod:`airflow.contrib.operators.azure_cosmos_operator`
+* :py:mod:`airflow.contrib.sensors.azure_cosmos_sensor`
+
+Azure Data Lake
+'''''''''''''''
+
+AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
+Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
+login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
+(see connection `azure_data_lake_default` for an example).
+
+For further information, look at API Reference:
+
+* :py:mod:`airflow.contrib.hooks.azure_data_lake_hook`
+* :py:mod:`airflow.contrib.operators.adls_list_operator`
+* :py:mod:`airflow.contrib.operators.adls_to_gcs`
+
+Azure File Share
+''''''''''''''''
+
+Cloud variant of a SMB file share. Make sure that a Airflow connection of
+type `wasb` exists. Authorization can be done by supplying a login (=Storage account name)
+and password (=Storage account key), or login and SAS token in the extra field
+(see connection `wasb_default` for an example).
+
+For further information, look at API Reference:
+
+* :py:mod:`airflow.contrib.hooks.azure_fileshare_hook`
 
 .. _AWS:
 
-AWS: Amazon Web Services
-------------------------
+Amazon Web Services
+-------------------
 
-Airflow has extensive support for Amazon Web Services. But note that the Hooks, Sensors and
-Operators are in the contrib section.
+Airflow has extensive support for Amazon Web Services.
 
-AWS EMR
-'''''''
+Logging
+^^^^^^^
 
-:class:`airflow.contrib.hooks.emr_hook.EmrHook`
-    Interface with AWS EMR.
+Airflow can be configured to read and write task logs in Amazon Simple Storage Service (Amazon S3).
+See :ref:`write-logs-amazon`.
 
-:class:`airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator`
-    Adds steps to an existing EMR JobFlow.
+Operators and hooks
+^^^^^^^^^^^^^^^^^^^
 
-:class:`airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator`
-    Creates an EMR JobFlow, reading the config from the EMR connection.
+Amazon DynamoDB
+'''''''''''''''
 
-:class:`airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator`
-    Terminates an EMR JobFlow.
+For information, look at API Reference:
 
+* :py:mod:`airflow.contrib.operators.hive_to_dynamodb`
+* :py:mod:`airflow.contrib.hooks.aws_dynamodb_hook`
 
-AWS S3
-''''''
-
-:class:`airflow.hooks.S3_hook.S3Hook`
-    Interface with AWS S3.
-
-:class:`airflow.operators.s3_file_transform_operator.S3FileTransformOperator`
-    Copies data from a source S3 location to a temporary location on the local filesystem.
-
-:class:`airflow.contrib.operators.s3_list_operator.S3ListOperator`
-    Lists the files matching a key prefix from a S3 location.
-
-:class:`airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator`
-    Syncs an S3 location with a Google Cloud Storage bucket.
-
-:class:`airflow.contrib.operators.s3_to_gcs_transfer_operator.S3ToGoogleCloudStorageTransferOperator`
-    Syncs an S3 bucket with a Google Cloud Storage bucket using the GCP Storage Transfer Service.
-
-:class:`airflow.operators.s3_to_hive_operator.S3ToHiveTransfer`
-    Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
-
-
-AWS Batch Service
-'''''''''''''''''
-
-:class:`airflow.contrib.operators.awsbatch_operator.AWSBatchOperator`
-    Execute a task on AWS Batch Service.
-
-
-AWS RedShift
-''''''''''''
-
-:class:`airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor`
-    Waits for a Redshift cluster to reach a specific status.
-
-:class:`airflow.contrib.hooks.redshift_hook.RedshiftHook`
-    Interact with AWS Redshift, using the boto3 library.
-
-:class:`airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer`
-    Executes an unload command to S3 as CSV with or without headers.
-
-:class:`airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer`
-    Executes an copy command from S3 as CSV with or without headers.
-
-
-
-AWS DynamoDB
-''''''''''''
-
-:class:`airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator`
-     Moves data from Hive to DynamoDB.
-
-:class:`airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook`
-    Interface with AWS DynamoDB.
-
-
-AWS Lambda
+Amazon EMR
 ''''''''''
 
-:class:`airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook`
-    Interface with AWS Lambda.
+For information, look at API Reference:
 
+* :py:mod:`airflow.contrib.hooks.emr_hook`
+* :py:mod:`airflow.contrib.operators.emr_add_steps_operator`
+* :py:mod:`airflow.contrib.operators.emr_create_job_flow_operator`
+* :py:mod:`airflow.contrib.operators.emr_terminate_job_flow_operator`
 
-AWS Kinesis
-'''''''''''
+Amazon RedShift
+'''''''''''''''
 
-:class:`airflow.contrib.hooks.aws_firehose_hook.AwsFirehoseHook`
-    Interface with AWS Kinesis Firehose.
+For information, look at API Reference:
 
+* :py:mod:`airflow.contrib.sensors.aws_redshift_cluster_sensor`
+* :py:mod:`airflow.contrib.hooks.redshift_hook`
+* :py:mod:`airflow.operators.redshift_to_s3_operator`
+* :py:mod:`airflow.operators.s3_to_redshift_operator`
 
 Amazon SageMaker
 ''''''''''''''''
 
-For more instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
+For instructions on using Amazon SageMaker in Airflow, please see `the SageMaker Python SDK README`_.
 
 .. _the SageMaker Python SDK README: https://github.com/aws/sagemaker-python-sdk/blob/master/src/sagemaker/workflow/README.rst
 
-:class:`airflow.contrib.hooks.sagemaker_hook.SageMakerHook`
-    Interface with Amazon SageMaker.
+Additional information is available at API Reference:
 
-:class:`airflow.contrib.operators.sagemaker_training_operator.SageMakerTrainingOperator`
-    Create a SageMaker training job.
+* :py:mod:`airflow.contrib.hooks.sagemaker_hook`
+* :py:mod:`airflow.contrib.operators.sagemaker_training_operator`
+* :py:mod:`airflow.contrib.operators.sagemaker_tuning_operator`
+* :py:mod:`airflow.contrib.hooks.azure_container_registry_hook`
+* :py:mod:`airflow.contrib.operators.sagemaker_model_operator`
+* :py:mod:`airflow.contrib.operators.sagemaker_transform_operator`
+* :py:mod:`airflow.contrib.operators.sagemaker_endpoint_config_operator`
+* :py:mod:`airflow.contrib.operators.sagemaker_endpoint_operator`
 
-:class:`airflow.contrib.operators.sagemaker_tuning_operator.SageMakerTuningOperator`
-    Create a SageMaker tuning job.
+Amazon Simple Storage Service (Amazon S3)
+'''''''''''''''''''''''''''''''''''''''''
 
-:class:`airflow.contrib.operators.sagemaker_model_operator.SageMakerModelOperator`
-    Create a SageMaker model.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.sagemaker_transform_operator.SageMakerTransformOperator`
-    Create a SageMaker transform job.
+* :py:mod:`airflow.hooks.S3_hook`
+* :py:mod:`airflow.operators.s3_file_transform_operator`
+* :py:mod:`airflow.contrib.operators.s3_list_operator`
+* :py:mod:`airflow.contrib.operators.s3_to_gcs_operator`
+* :py:class:`airflow.contrib.operators.gcp_transfer_operator.S3ToGoogleCloudStorageTransferOperator`
+* :py:mod:`airflow.operators.s3_to_hive_operator.S3ToHiveTransfer`
 
-:class:`airflow.contrib.operators.sagemaker_endpoint_config_operator.SageMakerEndpointConfigOperator`
-    Create a SageMaker endpoint config.
+Amazon Web Service Batch Service
+''''''''''''''''''''''''''''''''
 
-:class:`airflow.contrib.operators.sagemaker_endpoint_operator.SageMakerEndpointOperator`
-    Create a SageMaker endpoint.
+For information, look at API Reference:
 
+* :py:mod:`airflow.contrib.operators.awsbatch_operator`
+
+Amazon Web Service Kinesis
+''''''''''''''''''''''''''
+
+For information, look at API Reference:
+
+* :py:mod:`airflow.contrib.hooks.aws_firehose_hook`
+
+Amazon Web Service Lambda
+'''''''''''''''''''''''''
+
+For information, look at API Reference:
+
+* :py:mod:`airflow.contrib.hooks.aws_lambda_hook`
 
 .. _Databricks:
 
@@ -268,448 +214,187 @@ submitting runs to the Databricks platform. Internally the operator talks to the
 ``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
 
 
-:class:`airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator`
-    Submits a Spark job run to Databricks using the
-    `api/2.0/jobs/runs/submit
-    <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_
-    API endpoint.
+For further information, look at API Reference:
 
+* :py:mod:`airflow.contrib.operators.databricks_operator`
 
 .. _GCP:
 
-GCP: Google Cloud Platform
---------------------------
+Google Cloud Platform
+---------------------
 
-Airflow has extensive support for the Google Cloud Platform. But note that most Hooks and
-Operators are in the contrib section. Meaning that they have a *beta* status, meaning that
-they can have breaking changes between minor releases.
+Airflow has extensive support for the Google Cloud Platform.
 
 See the :doc:`GCP connection type <howto/connection/gcp>` documentation to
 configure connections to GCP.
 
 Logging
-'''''''
+^^^^^^^
 
 Airflow can be configured to read and write task logs in Google Cloud Storage.
 See :ref:`write-logs-gcp`.
 
-
-GoogleCloudBaseHook
-'''''''''''''''''''
+Operators and hooks
+^^^^^^^^^^^^^^^^^^^
 
 All hooks is based on :class:`airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook`.
-
-
-BigQuery
-''''''''
-
-:class:`airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator`
-    Performs checks against a SQL query that will return a single row with different values.
-
-:class:`airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator`
-    Checks that the values of metrics given as SQL expressions are within a certain tolerance of the ones from days_back before.
-
-:class:`airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator`
-    Performs a simple value check using SQL code.
-
-:class:`airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator`
-    Fetches the data from a BigQuery table and returns data in a python list
-
-:class:`airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyDatasetOperator`
-    Creates an empty BigQuery dataset.
-
-:class:`airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator`
-    Creates a new, empty table in the specified BigQuery dataset optionally with schema.
-
-:class:`airflow.contrib.operators.bigquery_operator.BigQueryCreateExternalTableOperator`
-    Creates a new, external table in the dataset with the data in Google Cloud Storage.
-
-:class:`airflow.contrib.operators.bigquery_operator.BigQueryDeleteDatasetOperator`
-    Deletes an existing BigQuery dataset.
-
-:class:`airflow.contrib.operators.bigquery_operator.BigQueryOperator`
-    Executes BigQuery SQL queries in a specific BigQuery database.
-
-:class:`airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator`
-    Deletes an existing BigQuery table.
-
-:class:`airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator`
-    Copy a BigQuery table to another BigQuery table.
-
-:class:`airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator`
-    Transfers a BigQuery table to a Google Cloud Storage bucket
-
-
-They also use :class:`airflow.contrib.hooks.bigquery_hook.BigQueryHook` to communicate with Google Cloud Platform.
-
-
-Cloud Spanner
-'''''''''''''
-
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeleteOperator`
-    deletes an existing database from a Google Cloud Spanner instance or returns success if the database is missing.
-
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseDeployOperator`
-    creates a new database in a Google Cloud instance or returns success if the database already exists.
-
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseQueryOperator`
-    executes an arbitrary DML query (INSERT, UPDATE, DELETE).
-
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDatabaseUpdateOperator`
-    updates the structure of a Google Cloud Spanner database.
-
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeleteOperator`
-    deletes a Google Cloud Spanner instance.
-
-:class:`airflow.contrib.operators.gcp_spanner_operator.CloudSpannerInstanceDeployOperator`
-    creates a new Google Cloud Spanner instance, or if an instance with the same name exists, updates the instance.
-
-
-They also use :class:`airflow.contrib.hooks.gcp_spanner_hook.CloudSpannerHook` to communicate with Google Cloud Platform.
-
-
-Cloud SQL
-'''''''''
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceCreateOperator`
-    create a new Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseCreateOperator`
-    creates a new database inside a Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabaseDeleteOperator`
-    deletes a database from a Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDatabasePatchOperator`
-    updates a database inside a Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceDeleteOperator`
-    delete a Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceExportOperator`
-    exports data from a Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstanceImportOperator`
-    imports data into a Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlInstancePatchOperator`
-    patch a Cloud SQL instance.
-
-:class:`airflow.contrib.operators.gcp_sql_operator.CloudSqlQueryOperator`
-    run query in a Cloud SQL instance.
-
-
-They also use :class:`airflow.contrib.hooks.gcp_sql_hook.CloudSqlDatabaseHook` and :class:`airflow.contrib.hooks.gcp_sql_hook.CloudSqlHook` to communicate with Google Cloud Platform.
-
 
 Cloud Bigtable
 ''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableClusterUpdateOperator`
-    updates the number of nodes in a Google Cloud Bigtable cluster.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceCreateOperator`
-    creates a Cloud Bigtable instance.
+* :py:mod:`airflow.contrib.operators.gcp_bigtable_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_bigtable_hook`
 
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableInstanceDeleteOperator`
-    deletes a Google Cloud Bigtable instance.
-
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableCreateOperator`
-    creates a table in a Google Cloud Bigtable instance.
-
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableDeleteOperator`
-    deletes a table in a Google Cloud Bigtable instance.
-
-:class:`airflow.contrib.operators.gcp_bigtable_operator.BigtableTableWaitForReplicationSensor`
-    (sensor) waits for a table to be fully replicated.
-
-
-They also use :class:`airflow.contrib.hooks.gcp_bigtable_hook.BigtableHook` to communicate with Google Cloud Platform.
-
-
-Compute Engine
+Cloud Dataflow
 ''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceStartOperator`
-    start an existing Google Compute Engine instance.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceStopOperator`
-    stop an existing Google Compute Engine instance.
+* :py:mod:`airflow.contrib.operators.dataflow_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_dataflow_hook`
 
-:class:`airflow.contrib.operators.gcp_compute_operator.GceSetMachineTypeOperator`
-    change the machine type for a stopped instance.
-
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceTemplateCopyOperator`
-    copy the Instance Template, applying specified changes.
-
-:class:`airflow.contrib.operators.gcp_compute_operator.GceInstanceGroupManagerUpdateTemplateOperator`
-    patch the Instance Group Manager, replacing source Instance Template URL with the destination one.
-
-
-The operators have the common base operator :class:`airflow.contrib.operators.gcp_compute_operator.GceBaseOperator`
-
-They also use :class:`airflow.contrib.hooks.gcp_compute_hook.GceHook` to communicate with Google Cloud Platform.
-
-
-Cloud Functions
-'''''''''''''''
-
-:class:`airflow.contrib.operators.gcp_function_operator.GcfFunctionDeployOperator`
-    deploy Google Cloud Function to Google Cloud Platform
-
-:class:`airflow.contrib.operators.gcp_function_operator.GcfFunctionDeleteOperator`
-    delete Google Cloud Function in Google Cloud Platform
-
-
-They also use :class:`airflow.contrib.hooks.gcp_function_hook.GcfHook` to communicate with Google Cloud Platform.
-
-
-Cloud DataFlow
+Cloud Dataproc
 ''''''''''''''
 
-:class:`airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator`
-    launching Cloud Dataflow jobs written in Java.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator`
-    launching a templated Cloud DataFlow batch job.
-
-:class:`airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator`
-    launching Cloud Dataflow jobs written in python.
-
-
-They also use :class:`airflow.contrib.hooks.gcp_dataflow_hook.DataFlowHook` to communicate with Google Cloud Platform.
-
-
-Cloud DataProc
-''''''''''''''
-
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator`
-    Create a new cluster on Google Cloud Dataproc.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator`
-    Delete a cluster on Google Cloud Dataproc.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator`
-    Scale up or down a cluster on Google Cloud Dataproc.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator`
-    Start a Hadoop Job on a Cloud DataProc cluster.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataProcHiveOperator`
-    Start a Hive query Job on a Cloud DataProc cluster.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataProcPigOperator`
-    Start a Pig query Job on a Cloud DataProc cluster.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator`
-    Start a PySpark Job on a Cloud DataProc cluster.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataProcSparkOperator`
-    Start a Spark Job on a Cloud DataProc cluster.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator`
-    Start a Spark SQL query Job on a Cloud DataProc cluster.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator`
-    Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc.
-
-:class:`airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator`
-    Instantiate a WorkflowTemplate on Google Cloud Dataproc.
-
+* :py:mod:`airflow.contrib.operators.dataproc_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_dataproc_hook`
 
 Cloud Datastore
 '''''''''''''''
 
-:class:`airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator`
-    Export entities from Google Cloud Datastore to Cloud Storage.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator`
-    Import entities from Cloud Storage to Google Cloud Datastore.
+* :py:mod:`airflow.contrib.operators.datastore_export_operator`
+* :py:mod:`airflow.contrib.hooks.datastore_hook`
 
-
-They also use :class:`airflow.contrib.hooks.datastore_hook.DatastoreHook` to communicate with Google Cloud Platform.
-
-
-Cloud ML Engine
+Cloud Functions
 '''''''''''''''
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator`
-    Start a Cloud ML Engine batch prediction job.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineModelOperator`
-    Manages a Cloud ML Engine model.
+* :py:mod:`airflow.contrib.operators.gcp_function_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_function_hook`
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator`
-    Start a Cloud ML Engine training job.
+Cloud Machine Learning (ML) Engine
+''''''''''''''''''''''''''''''''''
 
-:class:`airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator`
-    Manages a Cloud ML Engine model version.
+For information, look at API Reference:
 
+* :py:mod:`airflow.contrib.operators.mlengine_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_mlengine_hook`
 
-They also use :class:`airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook` to communicate with Google Cloud Platform.
+Cloud Natural Language
+'''''''''''''''''''''''
 
+For information, look at API Reference:
+
+* :py:mod:`airflow.contrib.operators.gcp_natural_language_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_natural_language_hook`
+
+Cloud Spanner
+'''''''''''''
+
+For information, look at API Reference:
+
+* :py:mod:`airflow.contrib.operators.gcp_spanner_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_spanner_hook`
+
+Cloud Speech-To-Text
+''''''''''''''''''''
+
+For information, look at API Reference:
+
+* :py:mod:`airflow.contrib.operators.gcp_speech_to_text_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_speech_to_text_hook`
+
+Cloud SQL
+'''''''''
+
+For information, look at API Reference:
+
+* :py:mod:`airflow.contrib.operators.gcp_sql_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_sql_hook`
 
 Cloud Storage
 '''''''''''''
 
-:class:`airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator`
-    Uploads a file to Google Cloud Storage.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageBucketCreateAclEntryOperator`
-    Creates a new ACL entry on the specified bucket.
+* :py:mod:`airflow.contrib.operators.file_to_gcs`
+* :py:mod:`airflow.contrib.operators.gcs_acl_operator`
+* :py:mod:`airflow.contrib.operators.gcs_download_operator`
+* :py:mod:`airflow.contrib.operators.gcs_list_operator`
+* :py:mod:`airflow.contrib.operators.gcs_operator`
+* :py:mod:`airflow.contrib.operators.gcs_to_bq`
+* :py:mod:`airflow.contrib.operators.gcs_to_gcs`
+* :py:mod:`airflow.contrib.operators.mysql_to_gcs`
+* :py:mod:`airflow.contrib.hooks.gcs_hook`
 
-:class:`airflow.contrib.operators.gcs_acl_operator.GoogleCloudStorageObjectCreateAclEntryOperator`
-    Creates a new ACL entry on the specified object.
+Cloud Text-To-Speech
+''''''''''''''''''''
 
-:class:`airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator`
-    Downloads a file from Google Cloud Storage.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator`
-    List all objects from the bucket with the give string prefix and delimiter in name.
+* :py:mod:`airflow.contrib.operators.gcp_text_to_speech_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_text_to_speech_hook`
 
-:class:`airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator`
-    Creates a new cloud storage bucket.
+Cloud Translation
+'''''''''''''''''
 
-:class:`airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator`
-    Loads files from Google cloud storage into BigQuery.
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator`
-    Copies objects from a bucket to another, with renaming if requested.
-
-:class:`airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
-    Copy data from any MySQL Database to Google cloud storage in JSON format.
-
-
-They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
-
-
-Transfer Service
-''''''''''''''''
-
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobDeleteOperator`
-    Deletes a transfer job.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobCreateOperator`
-    Creates a transfer job.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceJobUpdateOperator`
-    Updates a transfer job.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationCancelOperator`
-    Cancels a transfer operation.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationGetOperator`
-    Gets a transfer operation.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationPauseOperator`
-    Pauses a transfer operation
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationResumeOperator`
-    Resumes a transfer operation.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GcpTransferServiceOperationsListOperator`
-    Gets a list of transfer operations.
-:class:`airflow.contrib.operators.gcp_transfer_operator.GoogleCloudStorageToGoogleCloudStorageTransferOperator`
-    Copies objects from a Google Cloud Storage bucket to another bucket.
-:class:`airflow.contrib.operators.gcp_transfer_operator.S3ToGoogleCloudStorageTransferOperator`
-    Synchronizes an S3 bucket with a Google Cloud Storage bucket.
-
-
-:class:`airflow.contrib.sensors.gcp_transfer_operator.GCPTransferServiceWaitForJobStatusSensor`
-    Waits for at least one operation belonging to the job to have the
-    expected status.
-
-
-They also use :class:`airflow.contrib.hooks.gcp_transfer_hook.GCPTransferServiceHook` to communicate with Google Cloud Platform.
-
+* :py:mod:`airflow.contrib.operators.gcp_translate_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_translate_hook`
 
 Cloud Vision
 ''''''''''''
 
-Cloud Vision Product Search Operators
-"""""""""""""""""""""""""""""""""""""
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAddProductToProductSetOperator`
-    Adds a Product to the specified ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator`
-    Run image detection and annotation for an image.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
-    Creates a new Product resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
-    Permanently deletes a product and its reference images.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
-    Gets information associated with a Product.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
-    Creates a new ProductSet resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
-    Permanently deletes a ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
-    Gets information associated with a ProductSet.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
-    Makes changes to a ProductSet resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
-    Makes changes to a Product resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionReferenceImageCreateOperator`
-    Creates a new ReferenceImage resource.
-:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator`
-    Removes a Product from the specified ProductSet.
+* :py:mod:`airflow.contrib.operators.gcp_vision_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_vision_hook`
 
-They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
+Compute Engine
+''''''''''''''
 
-Cloud Text to Speech
-''''''''''''''''''''
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator`
-    Synthesizes input text into audio file and stores this file to GCS.
+* :py:mod:`airflow.contrib.operators.gcp_compute_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_compute_hook`
 
-They also use :class:`airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook` to communicate with Google Cloud Platform.
-
-Cloud Speech to Text
-''''''''''''''''''''
-
-:class:`airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator`
-    Recognizes speech in audio input and returns text.
-
-They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
-
-
-Cloud Translate
+Google BigQuery
 '''''''''''''''
 
-Cloud Translate Text Operators
-""""""""""""""""""""""""""""""
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcp_translate_operator.CloudTranslateTextOperator`
-    Translate a string or list of strings.
+* :py:mod:`airflow.contrib.operators.bigquery_check_operator`
+* :py:mod:`airflow.contrib.operators.bigquery_get_data`
+* :py:mod:`airflow.contrib.operators.bigquery_operator`
+* :py:mod:`airflow.contrib.operators.bigquery_table_delete_operator`
+* :py:mod:`airflow.contrib.operators.bigquery_to_bigquery`
+* :py:mod:`airflow.contrib.operators.bigquery_to_gcs`
+* :py:mod:`airflow.contrib.hooks.bigquery_hook`
 
+Kubernetes Engine
+'''''''''''''''''
 
-Google Kubernetes Engine
-''''''''''''''''''''''''
+For information, look at API Reference:
 
-:class:`airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator`
-    Creates a Kubernetes Cluster in Google Cloud Platform
+* :py:mod:`airflow.contrib.operators.gcp_container_operator`
+* :py:mod:`airflow.contrib.hooks.gcp_container_hook`
 
-:class:`airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator`
-    Deletes a Kubernetes Cluster in Google Cloud Platform
+Transfer Service
+''''''''''''''''
 
-:class:`airflow.contrib.operators.gcp_container_operator.GKEPodOperator`
-    Executes a task in a Kubernetes pod in the specified Google Kubernetes Engine cluster
+For information, look at API Reference:
 
-They also use :class:`airflow.contrib.hooks.gcp_container_hook.GKEClusterHook` to communicate with Google Cloud Platform.
-
-
-Google Natural Language
-'''''''''''''''''''''''
-
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntities`
-    Finds named entities (currently proper names and common nouns) in the text along with entity types,
-    salience, mentions for each entity, and other properties.
-
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentiment`
-    Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
-    entity and its mentions.
-
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentiment`
-    Analyzes the sentiment of the provided text.
-
-:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator`
-    Classifies a document into categories.
-
-They also use :class:`airflow.contrib.hooks.gcp_natural_language_operator.CloudNaturalLanguageHook` to communicate with Google Cloud Platform.
-
+* :py:mod:`airflow.contrib.operators.gcp_transfer_operator`
+* :py:mod:`airflow.contrib.sensors.gcp_transfer_sensor`
+* :py:mod:`airflow.contrib.hooks.gcp_transfer_hook`
 
 .. _Qubole:
 
@@ -719,23 +404,8 @@ Qubole
 Apache Airflow has a native operator and hooks to talk to `Qubole <https://qubole.com/>`__,
 which lets you submit your big data jobs directly to Qubole from Apache Airflow.
 
+For further information, look at API Reference:
 
-:class:`airflow.contrib.operators.qubole_operator.QuboleOperator`
-    Execute tasks (commands) on QDS (https://qubole.com).
-
-:class:`airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor`
-    Wait for a Hive partition to show up in QHS (Qubole Hive Service)
-    and check for its presence via QDS APIs
-
-:class:`airflow.contrib.sensors.qubole_sensor.QuboleFileSensor`
-    Wait for a file or folder to be present in cloud storage
-    and check for its presence via QDS APIs
-
-:class:`airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator`
-    Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
-    a command that will be executed on QDS.
-
-:class:`airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator`
-    Performs a simple value check using Qubole command.
-    By default, each value on the first row of this
-    Qubole command is compared with a pre-defined value
+* :py:mod:`airflow.contrib.operators.qubole_operator`
+* :py:mod:`airflow.contrib.sensors.qubole_sensor`
+* :py:mod:`airflow.contrib.operators.qubole_check_operator`
