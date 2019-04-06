@@ -29,3 +29,44 @@ class SQSHook(AwsHook):
 
     def get_conn(self):
         return self.get_client_type('sqs')
+
+    """
+    Create queue using connection object
+    :param name: name of the queue.
+    :type name: str
+    :param attributes: additional attributes for the queue
+    :type attributes: dict
+
+        For details of the attributes parameter see :py:meth:`botocore.client.SQS.create_queue`
+
+    :return: dict with the information about the queue
+    :rtype: dict
+
+        For details of the returned value see :py:meth:`botocore.client.SQS.create_queue`
+    """
+    def create_queue(self, queue_name, attributes={}):
+        return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes)
+
+    """
+    Send message to the queue
+    :param queue_url: queue url
+    :type name: str
+    :param message_body: the contents of the message
+    :type name: str
+    :param delay_seconds: seconds to delay the message
+    :type name: int
+    :param message_attributes: additional attributes for the message
+    :type attributes: dict
+
+        For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
+
+    :return: dict with the information about the message sent
+    :rtype: dict
+
+        For details of the returned value see :py:meth:`botocore.client.SQS.send_message`
+    """
+    def send_message(self, queue_url, message_body, delay_seconds=0, message_attributes={}):
+        return self.get_conn().send_message(QueueUrl=queue_url,
+                                            MessageBody=message_body,
+                                            DelaySeconds=delay_seconds,
+                                            MessageAttributes=message_attributes)

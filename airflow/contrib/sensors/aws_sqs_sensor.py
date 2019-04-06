@@ -25,24 +25,35 @@ from airflow.exceptions import AirflowException
 
 class SQSSensor(BaseSensorOperator):
     """
-    Get messages from an SQS queue and passes them through XCom.
+    Get messages from an SQS queue and then deletes  the message from the SQS queue.
+    If deletion of messages fails an AirflowException is thrown otherwise, the message
+    is pushed through XCom with the key ``message``.
 
     :param aws_conn_id: AWS connection id
     :type aws_conn_id: str
-    :param sqs_queue: The SQS queue
+    :param sqs_queue: The SQS queue url (templated)
     :type sqs_queue: str
-    :param max_messages: The maximum number of messages to retrieve for each poke
+    :param max_messages: The maximum number of messages to retrieve for each poke (templated)
     :type max_messages: int
+    :param wait_time_seconds: The time in seconds to wait for receiving messages (default: 1 second)
+    :type wait_time_seconds: int
     """
 
     template_fields = ('sqs_queue', 'max_messages')
 
     @apply_defaults
-    def __init__(self, sqs_queue, aws_conn_id='aws_default', max_messages=5, *args, **kwargs):
+    def __init__(self,
+                 sqs_queue,
+                 aws_conn_id='aws_default',
+                 max_messages=5,
+                 wait_time_seconds=1,
+                 *args,
+                 **kwargs):
         super(SQSSensor, self).__init__(*args, **kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
+        self.wait_time_seconds = wait_time_seconds
 
     def poke(self, context):
         """
@@ -59,7 +70,8 @@ class SQSSensor(BaseSensorOperator):
         self.log.info('SQSSensor checking for message on queue: %s', self.sqs_queue)
 
         messages = sqs_conn.receive_message(QueueUrl=self.sqs_queue,
-                                            MaxNumberOfMessages=self.max_messages)
+                                            MaxNumberOfMessages=self.max_messages,
+                                            WaitTimeSeconds=self.wait_time_seconds)
 
         self.log.info("reveived message %s", str(messages))
 
