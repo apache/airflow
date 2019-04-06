@@ -131,7 +131,7 @@ class TestIntegrationFTPHook(unittest.TestCase):
         super(TestIntegrationFTPHook, self).setUp()
         from airflow import configuration
         from airflow.utils import db
-        from airflow.models.connection import Connection
+        from airflow.models import Connection
 
         configuration.load_test_config()
         db.merge_conn(

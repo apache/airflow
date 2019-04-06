@@ -22,7 +22,7 @@ import unittest
 from mock import patch
 
 from airflow import settings
-from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
+from airflow.models import KubeResourceVersion, KubeWorkerIdentifier
 
 
 class TestKubeResourceVersion(unittest.TestCase):

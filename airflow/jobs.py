@@ -44,9 +44,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException, NoAvailablePoolSlot, PoolNotFound
-from airflow.models import DAG, DagRun, errors
-from airflow.models.dagpickle import DagPickle
-from airflow.models.slamiss import SlaMiss
+from airflow.models import DAG, DagPickle, DagRun, errors, SlaMiss
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS

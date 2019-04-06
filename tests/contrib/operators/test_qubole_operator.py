@@ -21,8 +21,7 @@
 import unittest
 from datetime import datetime
 
-from airflow.models import DAG, TaskInstance
-from airflow.models.connection import Connection
+from airflow.models import Connection, DAG, TaskInstance
 from airflow.utils import db
 
 from airflow.contrib.hooks.qubole_hook import QuboleHook

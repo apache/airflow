@@ -20,7 +20,7 @@ import unittest
 
 from airflow.contrib.hooks.cloudant_hook import CloudantHook
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from tests.compat import patch
 
 
