@@ -3408,12 +3408,10 @@ class DAG(BaseDag, LoggingMixin):
             context.update({'reason': reason})
             callback(context)
 
-    @provide_session
-    def get_active_runs(self, session=None):
+    def get_active_runs(self):
         """
         Returns a list of dag run execution dates currently running
 
-        :param session:
         :return: List of execution dates
         """
         runs = DagRun.find(dag_id=self.dag_id, state=State.RUNNING)
@@ -3840,8 +3838,7 @@ class DAG(BaseDag, LoggingMixin):
             return self.task_dict[task_id]
         raise AirflowException("Task {task_id} not found".format(task_id=task_id))
 
-    @provide_session
-    def pickle_info(self, session=None):
+    def pickle_info(self):
         d = dict()
         d['is_picklable'] = True
         try:
