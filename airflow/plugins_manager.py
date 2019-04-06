@@ -32,12 +32,13 @@ import pkg_resources
 from typing import Any, List
 
 from airflow import configuration, settings
+from airflow.settings import configure_vars
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 
 import_errors = {}
-
+configure_vars()
 
 class AirflowPluginException(Exception):
     pass
@@ -216,8 +217,8 @@ for p in plugins:
         } for bp in p.flask_blueprints
     ])
 
-if p.stat_name_handler:
-    stat_name_handlers.append(p.stat_name_handler)
+    if p.stat_name_handler:
+        stat_name_handlers.append(p.stat_name_handler)
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(
