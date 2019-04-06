@@ -27,10 +27,11 @@ import imp
 import inspect
 import os
 import re
-import pkg_resources
-from typing import List, Any
 
-from airflow import settings, configuration
+import pkg_resources
+from typing import Any, List
+
+from airflow import configuration, settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -54,7 +55,7 @@ class AirflowPlugin(object):
     menu_links = []  # type: List[Any]
     appbuilder_views = []  # type: List[Any]
     appbuilder_menu_items = []  # type: List[Any]
-    dag_sources = [] # type: List[Any]
+    dag_sources = []  # type: List[Any]
 
     # A function that validate the statsd stat name, apply changes
     # to the stat name if necessary and return the transformed stat name.
@@ -181,13 +182,13 @@ macros_modules = []
 
 # Plugin components to integrate directly
 admin_views = []  # type: List[Any]
-dag_sources = [] # type: List[Any]
+dag_sources = []  # type: List[Any]
 flask_blueprints = []  # type: List[Any]
 menu_links = []  # type: List[Any]
 flask_appbuilder_views = []  # type: List[Any]
 flask_appbuilder_menu_links = []  # type: List[Any]
 stat_name_handler = None  # type: Any
-stat_name_handlers = [] # type: List[Any]
+stat_name_handlers = []  # type: List[Any]
 
 for p in plugins:
     operators_modules.append(
@@ -216,7 +217,7 @@ for p in plugins:
     ])
 
 if p.stat_name_handler:
-        stat_name_handlers.append(p.stat_name_handler)
+    stat_name_handlers.append(p.stat_name_handler)
 
 if len(stat_name_handlers) > 1:
     raise AirflowPluginException(
@@ -224,4 +225,3 @@ if len(stat_name_handlers) > 1:
         'is not allowed.'.format(stat_name_handlers))
 
 stat_name_handler = stat_name_handlers[0] if len(stat_name_handlers) == 1 else None
-
