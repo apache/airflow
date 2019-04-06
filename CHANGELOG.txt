@@ -37,6 +37,7 @@ New Feature
 Improvement
 """""""""""
 
+- [AIRFLOW-4120] Modify SchedulerJob.manage_slas to respect zero timedelta SLAs (#4939)
 - [AIRFLOW-3823] Exclude branch's downstream tasks from the tasks to skip (#4666)
 - [AIRFLOW-3274] Add run_as_user and fs_group options for Kubernetes (#4648)
 - [AIRFLOW-4247] Template Region on the DataprocOperators (#5046)
@@ -149,6 +150,8 @@ Improvement
 Bug fixes
 """""""""
 
+- [AIRFLOW-2994] Fix command status check in Qubole Check operator (#3790)
+- [AIRFLOW-2563] Fix PigCliHook Python 3 string/bytes use
 - [AIRFLOW-4248] Fix 'FileExistsError' makedirs race in file_processor_handler (#5047)
 - [AIRFLOW-4240] State-changing actions should be POST requests (#5039)
 - [AIRFLOW-4246] Flask-Oauthlib needs downstream dependencies pinning due to breaking changes (#5045)
@@ -262,6 +265,8 @@ Bug fixes
 Misc/Interal
 """"""""""""
 
+- [AIRFLOW-4016] Clear runs for BackfillJobTest (#4839)
+- [AIRFLOW-4177] Check types in tests
 - [AIRFLOW-4144] add description of is_delete_operator_pod (#4943)
 - [AIRFLOW-3476,3477] Move Kube classes out of models.py (#4443)
 - [AIRFLOW-3464] Move SkipMixin out of models.py (#4386)
