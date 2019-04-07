@@ -43,3 +43,8 @@ configuring an Airflow environment.
     use-test-config
     check-health
 
+.. toctree::
+    :maxdepth: 2
+    :caption: Developer guide
+
+    setup-test-environment-mysql

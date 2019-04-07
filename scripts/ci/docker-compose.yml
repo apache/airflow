@@ -22,6 +22,7 @@ services:
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_ROOT_HOST=%
+      - MYSQL_DATABASE=airflow
     volumes:
       - ./mysql/conf.d:/etc/mysql/conf.d
 
