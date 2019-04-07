@@ -1560,7 +1560,7 @@ class CliTests(unittest.TestCase):
                  'new3': "{'extra': 'yes'}",
                  'new4': "{'extra': 'yes'}"}
 
-        with create_session as session:
+        with create_session() as session:
             # Add connections
             for index in range(1, 6):
                 conn_id = 'new%s' % index
