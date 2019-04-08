@@ -122,9 +122,12 @@ extensions = [
     'docroles'
 ]
 
-autodoc_default_flags = ['show-inheritance', 'members']
+autodoc_default_options = {
+    'show-inheritance': True,
+    'members': True
+}
 
-viewcode_import = True
+viewcode_follow_imported_members = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['templates']
