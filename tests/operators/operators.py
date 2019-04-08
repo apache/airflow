@@ -67,6 +67,7 @@ class MySqlTest(unittest.TestCase):
             sql=sql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @unittest.skip
     def mysql_hook_test_bulk_load(self):
         records = ("foo", "bar", "baz")
 
@@ -89,6 +90,7 @@ class MySqlTest(unittest.TestCase):
                 results = tuple(result[0] for result in c.fetchall())
                 assert sorted(records) == sorted(results)
 
+    @unittest.skip
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
         import airflow.operators.generic_transfer
@@ -114,6 +116,7 @@ class MySqlTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @unittest.skip
     def test_overwrite_schema(self):
         """
         Verifies option to overwrite connection schema
