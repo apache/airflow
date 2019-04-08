@@ -238,13 +238,14 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
         self.assertIsNone(response)
 
-    @mock.patch('google.cloud.storage.Bucket')
-    def test_delete_nonexisting_object(self, mock_bucket):
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_delete_nonexisting_object(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
 
-        get_blob_method = mock_bucket.return_value.get_blob
-        delete_method = get_blob_method.return_value.delete
+        get_bucket_method = mock_service.return_value.get_bucket
+        blob = get_bucket_method.return_value.blob
+        delete_method = blob.return_value.delete
         delete_method.side_effect = exceptions.NotFound(message="Not Found")
 
         with self.assertRaises(exceptions.NotFound):

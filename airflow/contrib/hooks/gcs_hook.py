@@ -266,8 +266,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type object: str
         """
         client = self.get_conn()
-        bucket = storage.Bucket(client=client, name=bucket)
-        blob = bucket.get_blob(blob_name=object)
+        bucket = client.get_bucket(bucket_name=bucket)
+        blob = bucket.blob(blob_name=object)
         blob.delete()
 
         self.log.info('Blob %s deleted.', object)
@@ -333,7 +333,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                       object,
                       bucket)
         client = self.get_conn()
-        bucket = storage.Bucket(client=client, name=bucket)
+        bucket = client.get_bucket(bucket_name=bucket)
         blob = bucket.get_blob(blob_name=object)
         blob.reload()
         blob_size = blob.size
@@ -353,7 +353,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('Retrieving the crc32c checksum of '
                       'object: %s in bucket: %s', object, bucket)
         client = self.get_conn()
-        bucket = storage.Bucket(client=client, name=bucket)
+        bucket = client.get_bucket(bucket_name=bucket)
         blob = bucket.get_blob(blob_name=object)
         blob.reload()
         blob_crc32c = blob.crc32c
@@ -373,7 +373,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('Retrieving the MD5 hash of '
                       'object: %s in bucket: %s', object, bucket)
         client = self.get_conn()
-        bucket = storage.Bucket(client=client, name=bucket)
+        bucket = client.get_bucket(bucket_name=bucket)
         blob = bucket.get_blob(blob_name=object)
         blob.reload()
         blob_md5hash = blob.md5_hash
