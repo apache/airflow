@@ -22,14 +22,7 @@ import unittest
 from airflow.contrib.hooks.gcp_dataproc_hook import _DataProcJob
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
 from tests.contrib.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 JOB = 'test-job'
 GCP_REGION = 'global'

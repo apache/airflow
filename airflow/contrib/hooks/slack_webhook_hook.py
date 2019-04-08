@@ -27,7 +27,8 @@ class SlackWebhookHook(HttpHook):
     """
     This hook allows you to post messages to Slack using incoming webhooks.
     Takes both Slack webhook token directly and connection that has Slack webhook token.
-    If both supplied, Slack webhook token will be used.
+    If both supplied, http_conn_id will be used as base_url,
+    and webhook_token will be taken as endpoint.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
@@ -66,7 +67,7 @@ class SlackWebhookHook(HttpHook):
                  *args,
                  **kwargs
                  ):
-        super(SlackWebhookHook, self).__init__(*args, **kwargs)
+        super(SlackWebhookHook, self).__init__(http_conn_id=http_conn_id, *args, **kwargs)
         self.webhook_token = self._get_token(webhook_token, http_conn_id)
         self.message = message
         self.attachments = attachments

@@ -38,7 +38,7 @@ Arguments
 The following examples of OS environment variables show how you can build function name
 to use in the operator:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_common_variables]
     :end-before: [END howto_operator_gcf_common_variables]
@@ -46,7 +46,7 @@ to use in the operator:
 Using the operator
 """"""""""""""""""
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_delete]
@@ -55,7 +55,7 @@ Using the operator
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_function_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_function_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_delete_template_fields]
@@ -85,19 +85,19 @@ Arguments
 In the example DAG the following environment variables are used to parameterize the
 operator's definition:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_common_variables]
     :end-before: [END howto_operator_gcf_common_variables]
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variables]
     :end-before: [END howto_operator_gcf_deploy_variables]
 
 Some of those variables are used to create the request's body:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_body]
     :end-before: [END howto_operator_gcf_deploy_body]
@@ -105,7 +105,7 @@ Some of those variables are used to create the request's body:
 When a DAG is created, the default_args dictionary can be used to pass
 arguments common with other tasks:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_default_args]
     :end-before: [END howto_operator_gcf_default_args]
@@ -129,14 +129,14 @@ Using the operator
 Depending on the combination of parameters, the Function's source code can be obtained
 from different sources:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :start-after: [START howto_operator_gcf_deploy_variants]
     :end-before: [END howto_operator_gcf_deploy_variants]
 
 The code to create the operator:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy]
@@ -145,7 +145,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the GCP connection used:
 
-.. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
+.. exampleinclude:: ../../../../airflow/contrib/example_dags/example_gcp_function.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcf_deploy_no_project_id]
@@ -154,7 +154,7 @@ from the GCP connection used:
 Templating
 """"""""""
 
-.. literalinclude:: ../../../../airflow/contrib/operators/gcp_function_operator.py
+.. exampleinclude:: ../../../../airflow/contrib/operators/gcp_function_operator.py
     :language: python
     :dedent: 4
     :start-after: [START gcf_function_deploy_template_fields]

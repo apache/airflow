@@ -117,17 +117,13 @@ def setup_logging(filename):
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     if not stderr:
-        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.err'.format(process))
+        stderr = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.err'.format(process))
     if not stdout:
-        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                              'airflow-{}.out'.format(process))
+        stdout = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.out'.format(process))
     if not log:
-        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.log'.format(process))
+        log = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.log'.format(process))
     if not pid:
-        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
-                           'airflow-{}.pid'.format(process))
+        pid = os.path.join(settings.AIRFLOW_HOME, 'airflow-{}.pid'.format(process))
 
     return pid, stdout, stderr, log
 
@@ -166,6 +162,8 @@ def backfill(args, dag=None):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
+
+    signal.signal(signal.SIGTERM, sigint_handler)
 
     dag = dag or get_dag(args)
 
@@ -342,8 +340,7 @@ def variables(args):
         except ValueError as e:
             print(e)
     if args.delete:
-        with db.create_session() as session:
-            session.query(Variable).filter_by(key=args.delete).delete()
+        Variable.delete(args.delete)
     if args.set:
         Variable.set(args.set[0], args.set[1])
     # Work around 'import' as a reserved keyword
@@ -453,7 +450,8 @@ def _run(args, dag, ti):
                     session.add(pickle)
                     pickle_id = pickle.id
                     # TODO: This should be written to a log
-                    print('Pickled dag {dag} as pickle_id:{pickle_id}'.format(**locals()))
+                    print('Pickled dag {dag} as pickle_id: {pickle_id}'.format(
+                        dag=dag, pickle_id=pickle_id))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -913,12 +911,15 @@ def webserver(args):
         print(
             textwrap.dedent('''\
                 Running the Gunicorn Server with:
-                Workers: {num_workers} {args.workerclass}
-                Host: {args.hostname}:{args.port}
+                Workers: {num_workers} {workerclass}
+                Host: {hostname}:{port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
                 =================================================================\
-            '''.format(**locals())))
+            '''.format(num_workers=num_workers, workerclass=args.workerclass,
+                       hostname=args.hostname, port=args.port,
+                       worker_timeout=worker_timeout, access_logfile=access_logfile,
+                       error_logfile=error_logfile)))
 
         run_args = [
             'gunicorn',
@@ -2000,7 +2001,7 @@ class CLIFactory(object):
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
-            default=-1, type=int,
+            default=conf.getint('scheduler', 'num_runs'), type=int,
             help="Set the number of runs to execute before exiting"),
         # worker
         'do_pickle': Arg(
@@ -2395,7 +2396,7 @@ class CLIFactory(object):
         subparsers.required = True
 
         subparser_list = cls.dag_subparsers if dag_parser else cls.subparsers_dict.keys()
-        for sub in subparser_list:
+        for sub in sorted(subparser_list):
             sub = cls.subparsers_dict[sub]
             sp = subparsers.add_parser(sub['func'].__name__, help=sub['help'])
             sp.formatter_class = RawTextHelpFormatter

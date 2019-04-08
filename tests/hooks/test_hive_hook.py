@@ -79,7 +79,7 @@ class HiveEnvironmentTest(unittest.TestCase):
                 'table': self.table,
                 'partition_by': self.partition_by
             },
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
               ignore_ti_state=True)
@@ -158,13 +158,13 @@ class TestHiveCliHook(unittest.TestCase):
                      delimiter=delimiter,
                      encoding=encoding)
 
-        mock_to_csv.assert_called_once()
+        assert mock_to_csv.call_count == 1
         kwargs = mock_to_csv.call_args[1]
         self.assertEqual(kwargs["header"], False)
         self.assertEqual(kwargs["index"], False)
         self.assertEqual(kwargs["sep"], delimiter)
 
-        mock_load_file.assert_called_once()
+        assert mock_load_file.call_count == 1
         kwargs = mock_load_file.call_args[1]
         self.assertEqual(kwargs["delimiter"], delimiter)
         self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
@@ -183,7 +183,7 @@ class TestHiveCliHook(unittest.TestCase):
                          create=create,
                          recreate=recreate)
 
-            mock_load_file.assert_called_once()
+            assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args[1]
             self.assertEqual(kwargs["create"], create)
             self.assertEqual(kwargs["recreate"], recreate)
@@ -389,7 +389,7 @@ class TestHiveServer2Hook(unittest.TestCase):
                 'table': self.table,
                 'csv_path': self.local_path
             },
-            hive_cli_conn_id='beeline_default',
+            hive_cli_conn_id='hive_cli_default',
             hql=self.hql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
               ignore_ti_state=True)

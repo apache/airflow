@@ -17,67 +17,49 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from past.builtins import unicode
-
-import cloudant
+from cloudant import cloudant
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class CloudantHook(BaseHook):
-    """Interact with Cloudant.
-
-    This class is a thin wrapper around the cloudant python library. See the
-    documentation `here <https://github.com/cloudant-labs/cloudant-python>`_.
     """
+    Interact with Cloudant. This class is a thin wrapper around the cloudant python library.
+
+    .. seealso:: the latest documentation `here <https://python-cloudant.readthedocs.io/en/latest/>`_.
+
+    :param cloudant_conn_id: The connection id to authenticate and get a session object from cloudant.
+    :type cloudant_conn_id: str
+    """
+
     def __init__(self, cloudant_conn_id='cloudant_default'):
-        super(CloudantHook, self).__init__('cloudant')
+        super(CloudantHook, self).__init__(cloudant_conn_id)
         self.cloudant_conn_id = cloudant_conn_id
 
     def get_conn(self):
-        def _str(s):
-            # cloudant-python doesn't support unicode.
-            if isinstance(s, unicode):
-                log = LoggingMixin().log
-                log.debug(
-                    'cloudant-python does not support unicode. Encoding %s as '
-                    'ascii using "ignore".', s
-                )
-                return s.encode('ascii', 'ignore')
+        """
+        Opens a connection to the cloudant service and closes it automatically if used as context manager.
 
-            return s
+        .. note::
+            In the connection form:
+            - 'host' equals the 'Account' (optional)
+            - 'login' equals the 'Username (or API Key)' (required)
+            - 'password' equals the 'Password' (required)
 
+        :return: an authorized cloudant session context manager object.
+        :rtype: cloudant
+        """
         conn = self.get_connection(self.cloudant_conn_id)
 
-        for conn_param in ['host', 'password', 'schema']:
-            if not hasattr(conn, conn_param) or not getattr(conn, conn_param):
-                raise AirflowException(
-                    'missing connection parameter {0}'.format(conn_param)
-                )
+        self._validate_connection(conn)
 
-        # In the connection form:
-        # - 'host' is renamed to 'Account'
-        # - 'login' is renamed 'Username (or API Key)'
-        # - 'schema' is renamed to 'Database'
-        #
-        # So, use the 'host' attribute as the account name, and, if login is
-        # defined, use that as the username.
-        account = cloudant.Account(_str(conn.host))
+        cloudant_session = cloudant(user=conn.login, passwd=conn.password, account=conn.host)
 
-        username = _str(conn.login or conn.host)
+        return cloudant_session
 
-        account.login(
-            username,
-            _str(conn.password)).raise_for_status()
-
-        return account.database(_str(conn.schema))
-
-    def db(self):
-        """Returns the Database object for this hook.
-
-        See the documentation for cloudant-python here
-        https://github.com/cloudant-labs/cloudant-python.
-        """
-        return self.get_conn()
+    def _validate_connection(self, conn):
+        for conn_param in ['login', 'password']:
+            if not getattr(conn, conn_param):
+                raise AirflowException('missing connection parameter {conn_param}'.format(
+                    conn_param=conn_param))

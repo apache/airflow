@@ -21,7 +21,7 @@ from functools import wraps
 from airflow import configuration as conf
 from airflow.lineage.datasets import DataSet
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string, prepare_classpath
+from airflow.utils.module_loading import import_string
 
 from itertools import chain
 
@@ -36,7 +36,6 @@ def _get_backend():
 
     try:
         _backend_str = conf.get("lineage", "backend")
-        prepare_classpath()
         backend = import_string(_backend_str)
     except ImportError as ie:
         log.debug("Cannot import %s due to %s", _backend_str, ie)

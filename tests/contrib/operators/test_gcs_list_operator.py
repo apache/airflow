@@ -20,14 +20,7 @@
 import unittest
 
 from airflow.contrib.operators.gcs_list_operator import GoogleCloudStorageListOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-gcs-list-operator'
 TEST_BUCKET = 'test-bucket'
