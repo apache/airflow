@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import gzip as gz
+import os
+import shutil
 
 from google.cloud import storage
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
-
-import gzip as gz
-import shutil
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -46,8 +46,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         if not self._conn:
-            self._conn = storage.Client(credentials=self._get_credentials(),
-                                        project=self.project_id)
+            self._conn = storage.Client(credentials=self._get_credentials())
 
         return self._conn
 
@@ -175,7 +174,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             return blob.download_as_string()
 
     # pylint:disable=redefined-builtin
-    def upload(self, bucket, object, filename, gzip=False):
+    def upload(self, bucket, object, filename,
+               mime_type='application/octet-stream', gzip=False):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -185,6 +185,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type object: str
         :param filename: The local file path to the file to be uploaded.
         :type filename: str
+        :param mime_type: The MIME type to set when uploading the file.
+        :type mime_type: str
         :param gzip: Option to compress file for upload
         :type gzip: bool
         """
@@ -198,9 +200,13 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     filename = filename_gz
 
         client = self.get_conn()
-        bucket = client.get_bucket(bucket)
+        bucket = client.get_bucket(bucket_name=bucket)
         blob = bucket.blob(blob_name=object)
-        blob.upload_from_filename(filename=filename)
+        blob.upload_from_filename(filename=filename,
+                                  content_type=mime_type)
+
+        if gzip:
+            os.remove(filename)
         self.log.info('File %s uploaded to %s in %s bucket', filename, object, bucket)
 
     # pylint:disable=redefined-builtin
@@ -215,7 +221,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type object: str
         """
         client = self.get_conn()
-        bucket = client.get_bucket(bucket)
+        bucket = client.get_bucket(bucket_name=bucket)
         blob = bucket.blob(blob_name=object)
         return blob.exists()
 
@@ -233,8 +239,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type ts: datetime.datetime
         """
         client = self.get_conn()
-        bucket = client.get_bucket(bucket)
-        blob = bucket.blob(blob_name=object)
+        bucket = storage.Bucket(client=client, name=bucket)
+        blob = bucket.get_blob(blob_name=object)
         blob.reload()
 
         blob_update_time = blob.updated
@@ -262,8 +268,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type object: str
         """
         client = self.get_conn()
-        bucket = client.get_bucket(bucket)
-        blob = bucket.blob(blob_name=object)
+        bucket = storage.Bucket(client=client, name=bucket)
+        blob = bucket.get_blob(blob_name=object)
         blob.delete()
 
         self.log.info('Blob %s deleted.', object)
@@ -329,8 +335,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                       object,
                       bucket)
         client = self.get_conn()
-        bucket = client.get_bucket(bucket)
-        blob = bucket.blob(blob_name=object)
+        bucket = storage.Bucket(client=client, name=bucket)
+        blob = bucket.get_blob(blob_name=object)
         blob.reload()
         blob_size = blob.size
         self.log.info('The file size of %s is %s bytes.', object, blob_size)
@@ -349,8 +355,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('Retrieving the crc32c checksum of '
                       'object: %s in bucket: %s', object, bucket)
         client = self.get_conn()
-        bucket = client.get_bucket(bucket)
-        blob = bucket.blob(blob_name=object)
+        bucket = storage.Bucket(client=client, name=bucket)
+        blob = bucket.get_blob(blob_name=object)
         blob.reload()
         blob_crc32c = blob.crc32c
         self.log.info('The crc32c checksum of %s is %s', object, blob_crc32c)
@@ -369,8 +375,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('Retrieving the MD5 hash of '
                       'object: %s in bucket: %s', object, bucket)
         client = self.get_conn()
-        bucket = client.get_bucket(bucket)
-        blob = bucket.blob(blob_name=object)
+        bucket = storage.Bucket(client=client, name=bucket)
+        blob = bucket.get_blob(blob_name=object)
         blob.reload()
         blob_md5hash = blob.md5_hash
         self.log.info('The md5Hash of %s is %s', object, blob_md5hash)
@@ -436,7 +442,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         for item in bucket_resource:
             if item != "name":
-                bucket._patch_property(item, resource[item])
+                bucket._patch_property(name=item, value=resource[item])
 
         bucket.storage_class = storage_class
         bucket.labels = labels or {}
@@ -532,6 +538,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         if not source_objects or not len(source_objects):
             raise ValueError('source_objects cannot be empty.')
+
+        if not bucket or not destination_object:
+            raise ValueError('bucket and destination_object cannot be empty.')
 
         self.log.info("Composing %s to %s in the bucket %s",
                       source_objects, destination_object, bucket)
