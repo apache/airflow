@@ -253,8 +253,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
             if blob_update_time > ts:
                 return True
-            else:
-                return False
+
+        return False
 
     def delete(self, bucket, object):
         """
