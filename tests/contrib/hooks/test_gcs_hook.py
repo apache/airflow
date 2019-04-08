@@ -23,7 +23,6 @@ import os
 
 from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
-from googleapiclient.errors import HttpError
 from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from google.cloud import storage
