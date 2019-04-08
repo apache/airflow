@@ -168,10 +168,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         if filename:
             blob.download_to_filename(filename)
             self.log.info('File downloaded to %s', filename)
-        # MAX XCOM Size is 48KB
-        # https://github.com/apache/airflow/pull/1618#discussion_r68249677
-        if blob.size < 49344:
-            return blob.download_as_string()
+
+        return blob.download_as_string()
 
     # pylint:disable=redefined-builtin
     def upload(self, bucket, object, filename,
