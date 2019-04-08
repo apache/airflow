@@ -57,25 +57,26 @@ class HttpHook(BaseHook):
         :param headers: additional headers to be passed through as a dictionary
         :type headers: dict
         """
-        conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
+        if self.http_conn_id:
+            conn = self.get_connection(self.http_conn_id)
 
-        if "://" in conn.host:
-            self.base_url = conn.host
-        else:
-            # schema defaults to HTTP
-            schema = conn.schema if conn.schema else "http"
-            self.base_url = schema + "://" + conn.host
+            if "://" in conn.host:
+                self.base_url = conn.host
+            else:
+                # schema defaults to HTTP
+                schema = conn.schema if conn.schema else "http"
+                self.base_url = schema + "://" + conn.host
 
-        if conn.port:
-            self.base_url = self.base_url + ":" + str(conn.port)
-        if conn.login:
-            session.auth = (conn.login, conn.password)
-        if conn.extra:
-            try:
-                session.headers.update(conn.extra_dejson)
-            except TypeError:
-                self.log.warn('Connection to %s has invalid extra field.', conn.host)
+            if conn.port:
+                self.base_url = self.base_url + ":" + str(conn.port)
+            if conn.login:
+                session.auth = (conn.login, conn.password)
+            if conn.extra:
+                try:
+                    session.headers.update(conn.extra_dejson)
+                except TypeError:
+                    self.log.warn('Connection to %s has invalid extra field.', conn.host)
         if headers:
             session.headers.update(headers)
 
@@ -100,10 +101,11 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        if not self.base_url.endswith('/') and not endpoint.startswith('/'):
+        if self.base_url and not self.base_url.endswith('/') and \
+           endpoint and not endpoint.startswith('/'):
             url = self.base_url + '/' + endpoint
         else:
-            url = self.base_url + endpoint
+            url = (self.base_url or '') + (endpoint or '')
 
         req = None
         if self.method == 'GET':
