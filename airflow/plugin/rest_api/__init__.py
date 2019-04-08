@@ -37,6 +37,7 @@ class RestApiPlugin(AirflowPlugin):
     """
     Add swagger entrypoint
     """
+
     name = 'restful-api'
 
     @classmethod

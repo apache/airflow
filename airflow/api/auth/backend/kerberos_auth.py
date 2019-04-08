@@ -29,7 +29,7 @@ from functools import wraps
 
 import connexion
 from flask import _request_ctx_stack as stack  # type: ignore
-from flask import Response, g, make_response
+from flask import g, make_response
 from future.standard_library import install_aliases
 from requests_kerberos import HTTPKerberosAuth
 from socket import getfqdn
