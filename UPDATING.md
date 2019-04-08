@@ -41,6 +41,8 @@ assists users migrating to a new version.
   def upload(self, bucket, object, filename,
              mime_type='application/octet-stream', gzip=False):
   ```
+  
+  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997).
 
 * the `generation` parameter is no longer supported in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
 
