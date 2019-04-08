@@ -86,7 +86,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         self.assertTrue(response)
         get_bucket_mock.assert_called_once_with(bucket_name=test_bucket)
         blob_object.assert_called_once_with(blob_name=test_object)
-        exists_method.assert_called_once()
+        exists_method.assert_called_once_with()
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_exists_nonexisting_object(self, mock_service):
