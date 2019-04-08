@@ -665,8 +665,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)  # noqa: E712
-            .filter(SlaMiss.dag_id == dag.dag_id)
+            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa: E712
             .all()
         )
 
@@ -675,10 +674,11 @@ class SchedulerJob(BaseJob):
             qry = (
                 session
                 .query(TI)
-                .filter(TI.state != State.SUCCESS)
-                .filter(TI.execution_date.in_(sla_dates))
-                .filter(TI.dag_id == dag.dag_id)
-                .all()
+                .filter(
+                    TI.state != State.SUCCESS,
+                    TI.execution_date.in_(sla_dates),
+                    TI.dag_id == dag.dag_id
+                ).all()
             )
             blocking_tis = []
             for ti in qry:
@@ -723,7 +723,7 @@ class SchedulerJob(BaseJob):
                         emails |= set(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
                         emails |= set(task.email)
-            if emails and len(slas):
+            if emails:
                 try:
                     send_email(
                         emails,
@@ -1428,12 +1428,12 @@ class SchedulerJob(BaseJob):
         """
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
-            if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
-                continue
-
             if not dag:
                 self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
+                continue
+
+            if dag.is_paused:
+                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
                 continue
 
             self.log.info("Processing %s", dag.dag_id)
