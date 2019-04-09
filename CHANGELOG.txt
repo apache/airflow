@@ -97,9 +97,9 @@ Improvement
 - [AIRFLOW-3561] Improve queries (#4368)
 - [AIRFLOW-3600] Remove dagbag from trigger (#4407)
 - [AIRFLOW-3713] Updated documentation for GCP optional project_id (#4541)
-- [AIRFLOW-2767] - Upgrade gunicorn to 19.5.0 to avoid moderate-severity CVE (#4795)
+- [AIRFLOW-2767] Upgrade gunicorn to 19.5.0 to avoid moderate-severity CVE (#4795)
 - [AIRFLOW-3795] provide_context param is now used (#4735)
-- [AIRFLOW-4012]  - Upgrade tabulate to 0.8.3 (#4838)
+- [AIRFLOW-4012] Upgrade tabulate to 0.8.3 (#4838)
 - [AIRFLOW-3623] Support download logs by attempts from UI (#4425)
 - [AIRFLOW-2715] Use region setting when launching Dataflow templates (#4139)
 - [AIRFLOW-3932] Update unit tests and documentation for safe mode flag. (#4760)
@@ -121,10 +121,10 @@ Improvement
 - [AIRFLOW-3547] Fixed Jinja templating in SparkSubmitOperator (#4347)
 - [AIRFLOW-3647] Add archives config option to SparkSubmitOperator (#4467)
 - [AIRFLOW-3802] Updated documentation for HiveServer2Hook (#4647)
-- [AIRFLOW-3817] - Corrected task ids returned by BranchPythonOperator to match the dummy operator ids (#4659)
+- [AIRFLOW-3817] Corrected task ids returned by BranchPythonOperator to match the dummy operator ids (#4659)
 - [AIRFLOW-3782] Clarify docs around celery worker_autoscale in default_airflow.cfg (#4609)
 - [AIRFLOW-1945] Add Autoscale config for Celery workers (#3989)
-- [AIRFLOW-3590]: Change log message of executor exit status (#4616)
+- [AIRFLOW-3590] Change log message of executor exit status (#4616)
 - [AIRFLOW-3591] Fix start date, end date, duration for rescheduled tasks (#4502)
 - [AIRFLOW-3709] Validate `allowed_states` for ExternalTaskSensor (#4536)
 - [AIRFLOW-3522] Add support for sending Slack attachments (#4332)
@@ -259,11 +259,11 @@ Bug fixes
 - [AIRFLOW-XXX] Pin Sendgrid dep. (#5031)
 - [AIRFLOW-XXX] Fix flaky test - test_execution_unlimited_parallelism (#4988)
 
-Misc/Interal
-""""""""""""
+Misc/Internal
+"""""""""""""
 
 - [AIRFLOW-4144] add description of is_delete_operator_pod (#4943)
-- [AIRFLOW-3476,3477] Move Kube classes out of models.py (#4443)
+- [AIRFLOW-3476][AIRFLOW-3477] Move Kube classes out of models.py (#4443)
 - [AIRFLOW-3464] Move SkipMixin out of models.py (#4386)
 - [AIRFLOW-3463] Move Log out of models.py (#4639)
 - [AIRFLOW-3458] Move connection tests (#4680)
