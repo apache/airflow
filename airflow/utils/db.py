@@ -21,6 +21,7 @@ from datetime import datetime
 from functools import wraps
 import logging
 import os
+import sys
 
 from alembic.config import Config
 from alembic import command
@@ -298,6 +299,16 @@ def resetdb():
     '''
     Clear out the database
     '''
+    if 'YES_I_REALLY_WANT_TO_BURN_DOWN_THE_METASTORE' not in os.environ:
+        print(
+            "\n\nHOLD IT!! Wiping out the (shared) Airflow metastore is almost "
+            "certainly a really terrible idea.\n\n"
+            "If you're trying to debug a backfill, see the Troubleshooting "
+            "section of our backfill docs [1] or ask for help in "
+            "#etl-productivity\n\n"
+            "[1] https://docs.lyft.net/eng/dataplatformdocs/airflow.html#id12"
+        )
+        sys.exit(1)
     from airflow import models
 
     logging.info("Dropping tables that exist")
