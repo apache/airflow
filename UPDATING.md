@@ -24,6 +24,28 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Changes to GoogleCloudStorageHook
+
+* the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
+* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method has been removed:
+  
+  **Old**:
+  ```python
+  def upload(self, bucket, object, filename,
+             mime_type='application/octet-stream', gzip=False,
+             multipart=False, num_retries=0):
+  ```
+  
+  **New**:
+  ```python
+  def upload(self, bucket, object, filename,
+             mime_type='application/octet-stream', gzip=False):
+  ```
+  
+  The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997).
+
+* the `generation` parameter is no longer supported in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
 ### Changes to CloudantHook
 
 * upgraded cloudant version from `>=0.5.9,<2.0` to `>=2.0`

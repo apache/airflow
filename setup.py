@@ -181,6 +181,7 @@ gcp = [
     'google-cloud-container>=0.1.1',
     'google-cloud-language>=1.1.1',
     'google-cloud-spanner>=1.7.1',
+    'google-cloud-storage~=1.14',
     'google-cloud-translate>=1.3.3',
     'google-cloud-vision>=0.35.2',
     'google-cloud-texttospeech>=0.4.0',

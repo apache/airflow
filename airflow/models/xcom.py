@@ -31,6 +31,10 @@ from airflow.utils.helpers import as_tuple
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
+
+# MAX XCOM Size is 48KB
+# https://github.com/apache/airflow/pull/1618#discussion_r68249677
+MAX_XCOM_SIZE = 49344
 XCOM_RETURN_KEY = 'return_value'
 
 
