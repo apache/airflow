@@ -54,8 +54,8 @@ def apply_lineage(func):
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
-        self.log.debug("Lineage called with inlets: %s, outlets: %s",
-                       self.inlets, self.outlets)
+        self.log.debug("Backend: %s, Lineage called with inlets: %s, outlets: %s",
+                       backend, self.inlets, self.outlets)
         ret_val = func(self, context, *args, **kwargs)
 
         outlets = [x.as_dict() for x in self.outlets]
