@@ -1,0 +1,74 @@
+#!/bin/sh
+
+# This Git Hook is based on the .travis.yml to avoid as many errors in the Travis CI Pipeline as possible.
+# It is optional, but recommended to have at least the pre-tests section enabled.
+
+# Please make sure that you have your development environment setup and ready. See the CONTRIBUTING.md for more information.
+
+# NOTE: You need to set the following variables before running this hook.
+# A python virtual environment is needed for the pre-tests to run in.
+VIRTUAL_ENV_PATH=/Users/feluelle/venv/apache-airflow/bin/activate
+# Specify the feature you want to test since you probably cannot test the whole project locally.
+TESTING_FEATURE_RELATIVE_PATH=tests/operators/test_check_operator.py
+# Declare the docker container to run the tests in.
+AIRFLOW_PY2_DOCKER_CONTAINER=airflow_py2
+AIRFLOW_PY3_DOCKER_CONTAINER=airflow_py3
+
+# To finally enable this hook so that git automatically runs it before each commit execute `git config core.hooksPath .githooks`
+
+CYAN='\033[36m'
+MAGENTA='\033[35m'
+NO_COLOR='\033[0m'
+
+run_pre_tests() {
+    echo -e "${MAGENTA}Starting pre-tests..${NO_COLOR}"
+
+    _run_flake8
+    _run_mypy
+    _run_check_license_header
+    _run_check_docs
+
+    echo -e "${MAGENTA}Finished pre-tests.${NO_COLOR}"
+}
+_run_flake8() {
+    echo -e "${CYAN}- Running flake8 in venv ${VIRTUAL_ENV_PATH}..${NO_COLOR}"
+    source ${VIRTUAL_ENV_PATH}
+    flake8
+}
+_run_mypy() {
+    local src_dir=airflow
+    local test_dir=tests
+
+    echo -e "${CYAN}- Running mypy with source directory ${src_dir} and test directory ${test_dir} in venv ${VIRTUAL_ENV_PATH}..${NO_COLOR}"
+    source ${VIRTUAL_ENV_PATH}
+    mypy ${src_dir} ${test_dir}
+}
+_run_check_license_header() {
+    echo -e "${CYAN}- Checking license header..${NO_COLOR}"
+    scripts/ci/6-check-license.sh
+}
+_run_check_docs() {
+    echo -e "${CYAN}- Checking docs in venv ${VIRTUAL_ENV_PATH}..${NO_COLOR}"
+    source ${VIRTUAL_ENV_PATH}
+    docs/build.sh
+}
+
+run_tests() {
+    echo -e "${MAGENTA}Starting tests..${NO_COLOR}"
+
+    _run_tests_in_docker ${AIRFLOW_PY2_DOCKER_CONTAINER} ${TESTING_FEATURE_RELATIVE_PATH}
+    _run_tests_in_docker ${AIRFLOW_PY3_DOCKER_CONTAINER} ${TESTING_FEATURE_RELATIVE_PATH}
+
+    echo -e "${MAGENTA}Finished tests.${NO_COLOR}"
+}
+_run_tests_in_docker() {
+    local airflow_container=${1}
+    local feature_path=${2}
+
+    echo -e "${CYAN}- Running tests for ${feature_path} in docker container ${airflow_container}..${NO_COLOR}"
+    docker exec -i -w /airflow/ ${airflow_container} ./run_unit_tests.sh ${feature_path}
+}
+
+set -e
+run_pre_tests
+run_tests
