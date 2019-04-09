@@ -25,8 +25,7 @@ from mock import patch
 
 from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartitionSensor
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
-from airflow.models.connection import Connection
+from airflow.models import Connection, DAG
 from airflow.utils import db
 
 DAG_ID = "qubole_test_dag"

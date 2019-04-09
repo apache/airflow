@@ -27,7 +27,7 @@ import pysftp
 
 from airflow import configuration
 from airflow.contrib.hooks.sftp_hook import SFTPHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 
 TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'

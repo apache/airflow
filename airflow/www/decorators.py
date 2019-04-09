@@ -22,7 +22,7 @@ import functools
 import pendulum
 from io import BytesIO as IO
 from flask import after_this_request, flash, redirect, request, url_for, g
-from airflow.models.log import Log
+from airflow.models import Log
 from airflow.utils.db import create_session
 
 

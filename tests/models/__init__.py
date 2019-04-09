@@ -16,3 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+import os
+
+from airflow.utils import timezone
+
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+TEST_DAGS_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../dags')

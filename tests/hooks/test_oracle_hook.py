@@ -28,7 +28,7 @@ except ImportError:
 import numpy
 
 from airflow.hooks.oracle_hook import OracleHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from tests.compat import mock
 
 

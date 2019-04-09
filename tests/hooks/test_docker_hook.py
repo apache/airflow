@@ -21,7 +21,7 @@ import unittest
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 from tests.compat import mock
 

@@ -76,7 +76,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
         if configuration.conf.getboolean('mesos', 'CHECKPOINT') and \
                 configuration.conf.get('mesos', 'FAILOVER_TIMEOUT'):
             # Import here to work around a circular import error
-            from airflow.models.connection import Connection
+            from airflow.models import Connection
 
             # Update the Framework ID in the database.
             session = Session()
@@ -249,7 +249,7 @@ class MesosExecutor(BaseExecutor):
 
             if configuration.conf.get('mesos', 'FAILOVER_TIMEOUT'):
                 # Import here to work around a circular import error
-                from airflow.models.connection import Connection
+                from airflow.models import Connection
 
                 # Query the database to get the ID of the Mesos Framework, if available.
                 conn_id = FRAMEWORK_CONNID_PREFIX + framework.name

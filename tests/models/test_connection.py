@@ -24,20 +24,19 @@ from cryptography.fernet import Fernet
 from mock import patch
 from parameterized import parameterized
 
-from airflow import models
-from airflow.models.connection import Connection
+from airflow.models import Connection, crypto
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
 
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
-        models._fernet = None
+        crypto._fernet = None
 
     def tearDown(self):
-        models._fernet = None
+        crypto._fernet = None
 
-    @patch('airflow.models.configuration.conf.get')
+    @patch('airflow.configuration.conf.get')
     def test_connection_extra_no_encryption(self, mock_get):
         """
         Tests extras on a new connection without encryption. The fernet key
@@ -49,7 +48,7 @@ class ConnectionTest(unittest.TestCase):
         self.assertFalse(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
 
-    @patch('airflow.models.configuration.conf.get')
+    @patch('airflow.configuration.conf.get')
     def test_connection_extra_with_encryption(self, mock_get):
         """
         Tests extras on a new connection with encryption.
@@ -59,7 +58,7 @@ class ConnectionTest(unittest.TestCase):
         self.assertTrue(test_connection.is_extra_encrypted)
         self.assertEqual(test_connection.extra, 'testextra')
 
-    @patch('airflow.models.configuration.conf.get')
+    @patch('airflow.configuration.conf.get')
     def test_connection_extra_with_encryption_rotate_fernet_key(self, mock_get):
         """
         Tests rotating encrypted extras.
@@ -75,7 +74,7 @@ class ConnectionTest(unittest.TestCase):
 
         # Test decrypt of old value with new key
         mock_get.return_value = ','.join([key2.decode(), key1.decode()])
-        models._fernet = None
+        crypto._fernet = None
         self.assertEqual(test_connection.extra, 'testextra')
 
         # Test decrypt of new value with new key

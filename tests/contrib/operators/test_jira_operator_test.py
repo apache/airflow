@@ -25,7 +25,7 @@ from mock import patch
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.jira_operator import JiraOperator
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 from airflow.utils import timezone
 

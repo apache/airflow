@@ -46,7 +46,7 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils.db import provide_session
 
 UNIX_PATH_MAX = 108

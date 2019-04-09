@@ -23,8 +23,7 @@ from airflow import DAG, configuration, models
 from airflow.contrib.sensors.weekday_sensor import DayOfWeekSensor
 from airflow.contrib.utils.weekday import WeekDay
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import DagBag
-from airflow.models.taskfail import TaskFail
+from airflow.models import DagBag, TaskFail
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 

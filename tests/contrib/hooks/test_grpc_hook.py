@@ -20,7 +20,7 @@ except ImportError:
 from airflow import configuration
 from airflow.exceptions import AirflowConfigException
 from airflow.contrib.hooks.grpc_hook import GrpcHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from tests.compat import mock
 
 

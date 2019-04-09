@@ -28,7 +28,7 @@ from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOpe
     CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
     CloudSqlInstanceExportOperator, CloudSqlInstanceImportOperator, \
     CloudSqlInstanceDatabaseDeleteOperator, CloudSqlQueryOperator
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from tests.compat import mock
 
 PROJECT_ID = os.environ.get('PROJECT_ID', 'project-id')

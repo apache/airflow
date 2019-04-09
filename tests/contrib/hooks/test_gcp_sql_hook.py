@@ -23,7 +23,7 @@ from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_sql_hook import CloudSqlHook, CloudSqlDatabaseHook
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id, \
     mock_base_gcp_hook_no_default_project_id
 from tests.compat import mock

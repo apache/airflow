@@ -25,7 +25,7 @@ import unittest
 import MySQLdb.cursors
 
 from airflow.hooks.mysql_hook import MySqlHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 
 SSL_DICT = {
     'cert': '/tmp/client-cert.pem',
