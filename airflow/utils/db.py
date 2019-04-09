@@ -77,7 +77,7 @@ def provide_session(func):
 
 @provide_session
 def merge_conn(conn, session=None):
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
@@ -87,7 +87,7 @@ def initdb(rbac=False):
     session = settings.Session()
 
     from airflow import models
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     upgradedb()
 
     merge_conn(

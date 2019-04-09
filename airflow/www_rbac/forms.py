@@ -22,7 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import timezone
 
 from flask_appbuilder.forms import DynamicForm

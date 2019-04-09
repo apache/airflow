@@ -31,6 +31,8 @@ from airflow.utils.helpers import as_tuple
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
+XCOM_RETURN_KEY = 'return_value'
+
 
 class XCom(Base, LoggingMixin):
     """

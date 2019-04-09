@@ -20,7 +20,7 @@
 from sqlalchemy import or_
 
 from airflow import models
-from airflow.models.taskfail import TaskFail
+from airflow.models import TaskFail
 from airflow.utils.db import provide_session
 from airflow.exceptions import DagNotFound, DagFileExists
 
