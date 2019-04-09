@@ -24,7 +24,7 @@ from mock import patch
 
 from airflow import AirflowException
 from airflow.contrib.hooks.winrm_hook import WinRMHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 
 
 class TestWinRMHook(unittest.TestCase):

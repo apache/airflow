@@ -30,7 +30,7 @@ import sys
 from argparse import Namespace
 from datetime import datetime
 
-from airflow.models.log import Log
+from airflow.models import Log
 from airflow.utils import cli_action_loggers
 
 

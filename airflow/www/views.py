@@ -53,12 +53,7 @@ from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
-from airflow.models import DagRun, errors, DagModel
-from airflow.models.connection import Connection
-from airflow.models.log import Log
-from airflow.models.slamiss import SlaMiss
-from airflow.models.taskfail import TaskFail
-from airflow.models.xcom import XCom
+from airflow.models import Connection, DagModel, DagRun, errors, Log, SlaMiss, TaskFail, XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
