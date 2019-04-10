@@ -633,7 +633,6 @@ class SchedulerJob(BaseJob):
             .filter(or_(
                 TI.state == State.SUCCESS,
                 TI.state == State.SKIPPED))
-            .filter(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id).subquery('sq')
         )
 
