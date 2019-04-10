@@ -920,7 +920,7 @@ class SchedulerJob(BaseJob):
 
             if len(active_dag_runs) >= dag.max_active_runs:
                 self.log.info("Active dag runs > max_active_run.")
-                continue
+                break
 
             # skip backfill dagruns for now as long as they are not really scheduled
             if run.is_backfill:
