@@ -8,7 +8,7 @@ New Feature
 - [AIRFLOW-3971] Add Google Cloud Natural Language operators (#4980)
 - [AIRFLOW-4069] Add Opsgenie Alert Hook and Operator (#4903)
 - [AIRFLOW-3552] Fix encoding issue in ImapAttachmentToS3Operator (#5040)
-- [AIRFLOW-3552] Add ImapToS3TransferOperator (#4476)
+- [AIRFLOW-3552] Add ImapAttachmentToS3Operator (#4476)
 - [AIRFLOW-1526] Add dingding hook and operator (#4895)
 - [AIRFLOW-3490] Add BigQueryHook's Ability to Patch Table/View (#4299)
 - [AIRFLOW-3918] Add ssh private-key support to git-sync for KubernetesExecutor (#4777)
@@ -31,7 +31,6 @@ New Feature
 - [AIRFLOW-3799] Add compose method to GoogleCloudStorageHook (#4641)
 - [AIRFLOW-3218] add support for poking a whole DAG (#4058)
 - [AIRFLOW-3315] Add ImapAttachmentSensor (#4161)
-- [AIRFLOW-2780] Add IMAP Hook to retrieve email attachments (#4119)
 - [AIRFLOW-3556] Add cross join set dependency function (#4356)
 
 Improvement
