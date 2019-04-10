@@ -618,7 +618,7 @@ class SchedulerJob(BaseJob):
         Where assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
-        if not any([isinstance(ti.sla, timedelta) for ti in dag.tasks]):
+        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
@@ -668,7 +668,7 @@ class SchedulerJob(BaseJob):
         )
 
         if slas:
-            sla_dates = [sla.execution_date for sla in slas]
+            sla_dates = (sla.execution_date for sla in slas)
             qry = (
                 session
                 .query(TI)
@@ -687,12 +687,12 @@ class SchedulerJob(BaseJob):
                     session.delete(ti)
                     session.commit()
 
-            task_list = "\n".join([
+            task_list = "\n".join((
                 sla.task_id + ' on ' + sla.execution_date.isoformat()
-                for sla in slas])
-            blocking_task_list = "\n".join([
+                for sla in slas))
+            blocking_task_list = "\n".join((
                 ti.task_id + ' on ' + ti.execution_date.isoformat()
-                for ti in blocking_tis])
+                for ti in blocking_tis))
             # Track whether email or any alert notification sent
             # We consider email or the alert callback as notifications
             email_sent = False
