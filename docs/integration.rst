@@ -579,6 +579,9 @@ Cloud Storage
 :class:`airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator`
     Copy data from any MySQL Database to Google cloud storage in JSON format.
 
+:class:`airflow.contrib.operators.mssql_to_gcs.MsSqlToGoogleCloudStorageOperator`
+    Copy data from any Microsoft SQL Server Database to Google Cloud Storage in JSON format.
+
 
 They also use :class:`airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook` to communicate with Google Cloud Platform.
 
