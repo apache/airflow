@@ -28,7 +28,7 @@ class SlackWebhookHook(HttpHook):
     This hook allows you to post messages to Slack using incoming webhooks.
     Takes both Slack webhook token directly and connection that has Slack webhook token.
     If both supplied, http_conn_id will be used as base_url,
-    and webhook_token will be taken as endpoint.
+    and webhook_token will be taken as endpoint, the relative path of the url.
 
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
