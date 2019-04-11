@@ -512,6 +512,30 @@ class TestTableOperations(unittest.TestCase):
             body=body
         )
 
+    def test_get_tabledata(self):
+        project_id = 'bq_project'
+        dataset_id = 'bq_dataset'
+        table_id = 'bq_table'
+        location = 'asia-northeast1'
+        max_results = 'max_results'
+        selected_fields = 'selected_fields'
+        page_token = 'page_token'
+        start_index = 'start_index'
+
+         mock_service = mock.Mock()
+        method = mock_service.tabledata.return_value.list
+        cursor = hook.BigQueryBaseCursor(mock_service, project_id, location=location)
+        cursor.get_tabledata(dataset_id, table_id, max_results, selected_fields, page_token, start_index)
+        method.assert_called_once_with(
+            projectId=project_id,
+            datasetId=dataset_id,
+            tableId=table_id,
+            maxResults=max_results,
+            selectedFields=selected_fields,
+            pageToken=page_token,
+            startIndex=start_index,
+            location=location)
+
     def test_create_empty_table_succeed(self):
         project_id = 'bq-project'
         dataset_id = 'bq_dataset'
