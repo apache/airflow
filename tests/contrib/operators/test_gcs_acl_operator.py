@@ -37,7 +37,7 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.insert_bucket_acl.assert_called_once_with(
-            bucket="test-bucket",
+            bucket_name="test-bucket",
             entity="test-entity",
             role="test-role",
             user_project="test-user-project"
@@ -56,7 +56,7 @@ class GoogleCloudStorageAclTest(unittest.TestCase):
         )
         operator.execute(None)
         mock_hook.return_value.insert_object_acl.assert_called_once_with(
-            bucket="test-bucket",
+            bucket_name="test-bucket",
             object_name="test-object",
             entity="test-entity",
             role="test-role",

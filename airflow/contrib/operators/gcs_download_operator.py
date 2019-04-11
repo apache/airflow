@@ -79,8 +79,8 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to
         )
-        file_bytes = hook.download(bucket=self.bucket,
-                                   object=self.object,
+        file_bytes = hook.download(bucket_name=self.bucket,
+                                   object_name=self.object,
                                    filename=self.filename)
         if self.store_to_xcom_key:
             if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:

@@ -89,6 +89,6 @@ class GoogleCloudStorageListOperator(BaseOperator):
         self.log.info('Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s',
                       self.bucket, self.delimiter, self.prefix)
 
-        return hook.list(bucket=self.bucket,
+        return hook.list(bucket_name=self.bucket,
                          prefix=self.prefix,
                          delimiter=self.delimiter)
