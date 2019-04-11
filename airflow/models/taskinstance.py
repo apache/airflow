@@ -33,23 +33,22 @@ import lazy_object_proxy
 import pendulum
 
 import dill
-from sqlalchemy import Column, String, Float, Integer, PickleType, Index, func
+from sqlalchemy import Column, Float, Index, Integer, PickleType, String, func
 from sqlalchemy.orm import reconstructor
 from sqlalchemy.orm.session import Session
 
 from airflow import configuration, settings
-from airflow.exceptions import (
-    AirflowException, AirflowTaskTimeout, AirflowSkipException, AirflowRescheduleException
-)
+from airflow.exceptions import (AirflowException, AirflowRescheduleException,
+                                AirflowSkipException, AirflowTaskTimeout)
 from airflow.models.base import Base, ID_LEN
 from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCom, XCOM_RETURN_KEY
+from airflow.models.xcom import XCOM_RETURN_KEY, XCom
 from airflow.stats import Stats
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
+from airflow.ti_deps.dep_context import DepContext, REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
@@ -766,67 +765,60 @@ class TaskInstance(Base, LoggingMixin):
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
 
-        queue_dep_context = DepContext(
-            deps=QUEUE_DEPS,
-            ignore_all_deps=ignore_all_deps,
-            ignore_ti_state=ignore_ti_state,
-            ignore_depends_on_past=ignore_depends_on_past,
-            ignore_task_deps=ignore_task_deps)
-        if not self.are_dependencies_met(
-                dep_context=queue_dep_context,
-                session=session,
-                verbose=True):
-            session.commit()
-            return False
-
         # TODO: Logging needs cleanup, not clear what is being printed
         hr = "\n" + ("-" * 80)  # Line break
 
-        # For reporting purposes, we report based on 1-indexed,
-        # not 0-indexed lists (i.e. Attempt 1 instead of
-        # Attempt 0 for the first attempt).
-        # Set the task start date. In case it was re-scheduled use the initial
-        # start date that is recorded in task_reschedule table
-        self.start_date = timezone.utcnow()
-        task_reschedules = TaskReschedule.find_for_task_instance(self, session)
-        if task_reschedules:
-            self.start_date = task_reschedules[0].start_date
+        if not mark_success:
+            # Firstly find non-runnable and non-requeueable tis.
+            # Since mark_success is not set, we do nothing.
+            non_requeueable_dep_context = DepContext(
+                deps=RUNNING_DEPS - REQUEUEABLE_DEPS,
+                ignore_all_deps=ignore_all_deps,
+                ignore_ti_state=ignore_ti_state,
+                ignore_depends_on_past=ignore_depends_on_past,
+                ignore_task_deps=ignore_task_deps)
+            if not self.are_dependencies_met(
+                    dep_context=non_requeueable_dep_context,
+                    session=session,
+                    verbose=True):
+                session.commit()
+                return False
 
-        dep_context = DepContext(
-            deps=RUN_DEPS - QUEUE_DEPS,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state)
-        runnable = self.are_dependencies_met(
-            dep_context=dep_context,
-            session=session,
-            verbose=True)
+            # For reporting purposes, we report based on 1-indexed,
+            # not 0-indexed lists (i.e. Attempt 1 instead of
+            # Attempt 0 for the first attempt).
+            # Set the task start date. In case it was re-scheduled use the initial
+            # start date that is recorded in task_reschedule table
+            self.start_date = timezone.utcnow()
+            task_reschedules = TaskReschedule.find_for_task_instance(self, session)
+            if task_reschedules:
+                self.start_date = task_reschedules[0].start_date
 
-        if not runnable and not mark_success:
-            # FIXME: we might have hit concurrency limits, which means we probably
-            # have been running prematurely. This should be handled in the
-            # scheduling mechanism.
-            self.state = State.NONE
-            self.log.warning(hr)
-            self.log.warning(
-                "FIXME: Rescheduling due to concurrency limits reached at task runtime. Attempt %s of "
-                "%s. State set to NONE.", self.try_number, self.max_tries + 1
-            )
-            self.log.warning(hr)
-
-            self.queued_dttm = timezone.utcnow()
-            self.log.info("Queuing into pool %s", self.pool)
-            session.merge(self)
-            session.commit()
-            return False
-
-        # Another worker might have started running this task instance while
-        # the current worker process was blocked on refresh_from_db
-        if self.state == State.RUNNING:
-            self.log.warning("Task Instance already running %s", self)
-            session.commit()
-            return False
+            # Secondly we find non-runnable but requeueable tis. We reset its state.
+            # This is because we might have hit concurrency limits,
+            # e.g. because of backfilling.
+            dep_context = DepContext(
+                deps=REQUEUEABLE_DEPS,
+                ignore_all_deps=ignore_all_deps,
+                ignore_depends_on_past=ignore_depends_on_past,
+                ignore_task_deps=ignore_task_deps,
+                ignore_ti_state=ignore_ti_state)
+            if not self.are_dependencies_met(
+                    dep_context=dep_context,
+                    session=session,
+                    verbose=True):
+                self.state = State.NONE
+                self.log.warning(hr)
+                self.log.warning(
+                    "Rescheduling due to concurrency limits reached "
+                    "at task runtime. Attempt %s of "
+                    "%s. State set to NONE.", self.try_number, self.max_tries + 1
+                )
+                self.log.warning(hr)
+                self.queued_dttm = timezone.utcnow()
+                session.merge(self)
+                session.commit()
+                return False
 
         # print status message
         self.log.info(hr)

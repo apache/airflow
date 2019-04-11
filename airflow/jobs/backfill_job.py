@@ -33,7 +33,7 @@ from airflow.exceptions import (
     TaskConcurrencyLimitReached,
 )
 from airflow.models import DAG, DagPickle, DagRun
-from airflow.ti_deps.dep_context import DepContext, RUN_DEPS
+from airflow.ti_deps.dep_context import DepContext, BACKFILL_QUEUED_DEPS
 from airflow.utils import timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.db import provide_session
@@ -465,47 +465,46 @@ class BackfillJob(BaseJob):
                         return
 
                 backfill_context = DepContext(
-                    deps=RUN_DEPS,
+                    deps=BACKFILL_QUEUED_DEPS,
                     ignore_depends_on_past=ignore_depends_on_past,
                     ignore_task_deps=self.ignore_task_deps,
                     flag_upstream_failed=True)
 
+                ti.refresh_from_db(lock_for_update=True, session=session)
                 # Is the task runnable? -- then run it
                 # the dependency checker can change states of tis
                 if ti.are_dependencies_met(
                         dep_context=backfill_context,
                         session=session,
                         verbose=self.verbose):
-                    ti.refresh_from_db(lock_for_update=True, session=session)
-                    if ti.state in (State.SCHEDULED, State.UP_FOR_RETRY, State.UP_FOR_RESCHEDULE):
-                        if executor.has_task(ti):
-                            self.log.debug(
-                                "Task Instance %s already in executor "
-                                "waiting for queue to clear",
-                                ti
-                            )
-                        else:
-                            self.log.debug('Sending %s to executor', ti)
-                            # Skip scheduled state, we are executing immediately
-                            ti.state = State.QUEUED
-                            ti.queued_dttm = timezone.utcnow() if not ti.queued_dttm else ti.queued_dttm
-                            session.merge(ti)
+                    if executor.has_task(ti):
+                        self.log.debug(
+                            "Task Instance %s already in executor "
+                            "waiting for queue to clear",
+                            ti
+                        )
+                    else:
+                        self.log.debug('Sending %s to executor', ti)
+                        # Skip scheduled state, we are executing immediately
+                        ti.state = State.QUEUED
+                        ti.queued_dttm = timezone.utcnow() if not ti.queued_dttm else ti.queued_dttm
+                        session.merge(ti)
 
-                            cfg_path = None
-                            if executor.__class__ in (executors.LocalExecutor,
-                                                      executors.SequentialExecutor):
-                                cfg_path = tmp_configuration_copy()
+                        cfg_path = None
+                        if executor.__class__ in (executors.LocalExecutor,
+                                                  executors.SequentialExecutor):
+                            cfg_path = tmp_configuration_copy()
 
-                            executor.queue_task_instance(
-                                ti,
-                                mark_success=self.mark_success,
-                                pickle_id=pickle_id,
-                                ignore_task_deps=self.ignore_task_deps,
-                                ignore_depends_on_past=ignore_depends_on_past,
-                                pool=self.pool,
-                                cfg_path=cfg_path)
-                            ti_status.running[key] = ti
-                            ti_status.to_run.pop(key)
+                        executor.queue_task_instance(
+                            ti,
+                            mark_success=self.mark_success,
+                            pickle_id=pickle_id,
+                            ignore_task_deps=self.ignore_task_deps,
+                            ignore_depends_on_past=ignore_depends_on_past,
+                            pool=self.pool,
+                            cfg_path=cfg_path)
+                        ti_status.running[key] = ti
+                        ti_status.to_run.pop(key)
                     session.commit()
                     return
 
