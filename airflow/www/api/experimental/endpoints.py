@@ -21,6 +21,7 @@ from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
+from airflow.api.common.experimental.get_all_dag_runs import get_all_dag_runs
 from airflow.api.common.experimental.get_dags import get_dags
 from airflow.api.common.experimental.get_dag import get_dag
 from airflow.api.common.experimental.get_task import get_task
@@ -42,6 +43,33 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+@api_experimental.route('/dag_runs', methods=['GET'])
+@requires_authentication
+def dag_runs_filter():
+    """
+    Return the list of all dag_runs
+    :query param state: a query string parameter '?state=queued|running|success...'
+    :query param state_not_equal: a query string parameter '?state_not_equal=queued|running|success...'
+    :query param execution_date_before: a query string parameter to find all runs before provided date,
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"
+    :query param execution_date_after: a query string parameter to find all runs after provided date,
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15"
+    :query param dag_id: String identifier of a DAG
+    :return: List of DAG runs of a DAG with requested state,
+    """
+    state = request.args.get('state')
+    state_not_equal = request.args.get('state_not_equal')
+    execution_date_before = request.args.get('execution_date_before')
+    execution_date_after = request.args.get('execution_date_after')
+    dag_id = request.args.get('dag_id')
+
+    dagruns = get_all_dag_runs(dag_id=dag_id, state=state, state_not_equal=state_not_equal,
+                               execution_date_before=execution_date_before,
+                               execution_date_after=execution_date_after)
+
+    return jsonify(dagruns)
+
 
 @api_experimental.route('/dags', methods=['GET'])
 @requires_authentication
