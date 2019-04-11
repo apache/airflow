@@ -72,12 +72,12 @@ class QuboleOperator(BaseOperator):
             :parameters: any extra args which need to be passed to script (only when
                 script_location is supplied
         sparkcmd:
-            :program: the complete Spark Program in Scala, SQL, Command, R, or Python
+            :program: the complete Spark Program in Scala, R, or Python
             :cmdline: spark-submit command line, all required information must be specify
                 in cmdline itself.
             :sql: inline sql query
             :script_location: s3 location containing query statement
-            :language: language of the program, Scala, SQL, Command, R, or Python
+            :language: language of the program, Scala, R, or Python
             :app_id: ID of an Spark job server app
             :arguments: spark-submit command line arguments
             :user_program_arguments: arguments that the user program takes in
