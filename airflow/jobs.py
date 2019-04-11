@@ -44,9 +44,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException, NoAvailablePoolSlot, PoolNotFound
-from airflow.models import DAG, DagRun, errors
-from airflow.models.dagpickle import DagPickle
-from airflow.models.slamiss import SlaMiss
+from airflow.models import DAG, DagPickle, DagRun, errors, SlaMiss
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -548,8 +546,8 @@ class SchedulerJob(BaseJob):
             dag_id=None,
             dag_ids=None,
             subdir=settings.DAGS_FOLDER,
-            num_runs=-1,
-            processor_poll_interval=1.0,
+            num_runs=conf.getint('scheduler', 'num_runs'),
+            processor_poll_interval=conf.getfloat('scheduler', 'processor_poll_interval'),
             do_pickle=False,
             log=None,
             *args, **kwargs):
@@ -665,8 +663,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)  # noqa: E712
-            .filter(SlaMiss.dag_id == dag.dag_id)
+            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa: E712
             .all()
         )
 
@@ -675,10 +672,11 @@ class SchedulerJob(BaseJob):
             qry = (
                 session
                 .query(TI)
-                .filter(TI.state != State.SUCCESS)
-                .filter(TI.execution_date.in_(sla_dates))
-                .filter(TI.dag_id == dag.dag_id)
-                .all()
+                .filter(
+                    TI.state != State.SUCCESS,
+                    TI.execution_date.in_(sla_dates),
+                    TI.dag_id == dag.dag_id
+                ).all()
             )
             blocking_tis = []
             for ti in qry:
@@ -714,7 +712,8 @@ class SchedulerJob(BaseJob):
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
             <pre><code>{blocking_task_list}\n{bug}<code></pre>
-            """.format(bug=asciiart.bug, **locals())
+            """.format(task_list=task_list, blocking_task_list=blocking_task_list,
+                       bug=asciiart.bug)
             emails = set()
             for task in dag.tasks:
                 if task.email:
@@ -722,7 +721,7 @@ class SchedulerJob(BaseJob):
                         emails |= set(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
                         emails |= set(task.email)
-            if emails and len(slas):
+            if emails:
                 try:
                     send_email(
                         emails,
@@ -1427,12 +1426,12 @@ class SchedulerJob(BaseJob):
         """
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
-            if dag.is_paused:
-                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
-                continue
-
             if not dag:
                 self.log.error("DAG ID %s was not found in the DagBag", dag.dag_id)
+                continue
+
+            if dag.is_paused:
+                self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
                 continue
 
             self.log.info("Processing %s", dag.dag_id)
@@ -2436,6 +2435,22 @@ class BackfillJob(BaseJob):
         ti_status.executed_dag_run_dates.update(processed_dag_run_dates)
 
     @provide_session
+    def _set_unfinished_dag_runs_to_failed(self, dag_runs, session=None):
+        """
+        Go through the dag_runs and update the state based on the task_instance state.
+        Then set DAG runs that are not finished to failed.
+
+        :param dag_runs: DAG runs
+        :param session: session
+        :return: None
+        """
+        for dag_run in dag_runs:
+            dag_run.update_state()
+            if dag_run.state not in State.finished():
+                dag_run.set_state(State.FAILED)
+            session.merge(dag_run)
+
+    @provide_session
     def _execute(self, session=None):
         """
         Initializes all components required to run a dag for a specified date range and
@@ -2501,9 +2516,15 @@ class BackfillJob(BaseJob):
                         self.dag_id
                     )
                     time.sleep(self.delay_on_limit_secs)
+        except (KeyboardInterrupt, SystemExit):
+            self.log.warning("Backfill terminated by user.")
+
+            # TODO: we will need to terminate running task instances and set the
+            # state to failed.
+            self._set_unfinished_dag_runs_to_failed(ti_status.active_runs)
         finally:
-            executor.end()
             session.commit()
+            executor.end()
 
         self.log.info("Backfill done. Exiting.")
 
@@ -2623,15 +2644,14 @@ class LocalTaskJob(BaseJob):
 
         if ti.state == State.RUNNING:
             if not same_hostname:
-                self.log.warning("The recorded hostname {ti.hostname} "
+                self.log.warning("The recorded hostname %s "
                                  "does not match this instance's hostname "
-                                 "{fqdn}".format(**locals()))
+                                 "%s", ti.hostname, fqdn)
                 raise AirflowException("Hostname of job runner does not match")
             elif not same_process:
                 current_pid = os.getpid()
-                self.log.warning("Recorded pid {ti.pid} does not match "
-                                 "the current pid "
-                                 "{current_pid}".format(**locals()))
+                self.log.warning("Recorded pid %s does not match "
+                                 "the current pid %s", ti.pid, current_pid)
                 raise AirflowException("PID of job runner does not match")
         elif (
                 self.task_runner.return_code() is None and

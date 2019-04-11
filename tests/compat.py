@@ -25,3 +25,4 @@ patch = mock.patch
 Mock = mock.Mock
 MagicMock = mock.MagicMock
 PropertyMock = mock.PropertyMock
+ANY = mock.ANY

@@ -649,6 +649,23 @@ Cloud Vision Product Search Operators
 
 They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
 
+Cloud Text to Speech
+''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_text_to_speech_operator.GcpTextToSpeechSynthesizeOperator`
+    Synthesizes input text into audio file and stores this file to GCS.
+
+They also use :class:`airflow.contrib.hooks.gcp_text_to_speech_hook.GCPTextToSpeechHook` to communicate with Google Cloud Platform.
+
+Cloud Speech to Text
+''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_speech_to_text_operator.GcpSpeechToTextRecognizeSpeechOperator`
+    Recognizes speech in audio input and returns text.
+
+They also use :class:`airflow.contrib.hooks.gcp_speech_to_text_hook.GCPSpeechToTextHook` to communicate with Google Cloud Platform.
+
+
 Cloud Translate
 '''''''''''''''
 
@@ -672,6 +689,26 @@ Google Kubernetes Engine
     Executes a task in a Kubernetes pod in the specified Google Kubernetes Engine cluster
 
 They also use :class:`airflow.contrib.hooks.gcp_container_hook.GKEClusterHook` to communicate with Google Cloud Platform.
+
+
+Google Natural Language
+'''''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntities`
+    Finds named entities (currently proper names and common nouns) in the text along with entity types,
+    salience, mentions for each entity, and other properties.
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeEntitySentiment`
+    Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
+    entity and its mentions.
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageAnalyzeSentiment`
+    Analyzes the sentiment of the provided text.
+
+:class:`airflow.contrib.operators.gcp_natural_language_operator.CloudLanguageClassifyTextOperator`
+    Classifies a document into categories.
+
+They also use :class:`airflow.contrib.hooks.gcp_natural_language_operator.CloudNaturalLanguageHook` to communicate with Google Cloud Platform.
 
 
 .. _Qubole:
