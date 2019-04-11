@@ -19,19 +19,12 @@
 
 import unittest
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
 from airflow import configuration
 from airflow.contrib.sensors.sagemaker_endpoint_sensor \
     import SageMakerEndpointSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 DESCRIBE_ENDPOINT_CREATING_RESPONSE = {
     'EndpointStatus': 'Creating',

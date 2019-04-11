@@ -18,6 +18,7 @@
 # under the License.
 
 import os
+from typing import Dict, Any
 
 from airflow import configuration as conf
 from airflow.utils.file import mkdirs
@@ -107,7 +108,7 @@ DEFAULT_LOGGING_CONFIG = {
         'handlers': ['console'],
         'level': LOG_LEVEL,
     }
-}
+}  # type: Dict[str, Any]
 
 DEFAULT_DAG_PARSING_LOGGING_CONFIG = {
     'handlers': {

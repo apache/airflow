@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Iterable
+
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_ARGS, \
@@ -70,12 +72,12 @@ class QuboleOperator(BaseOperator):
             :parameters: any extra args which need to be passed to script (only when
                 script_location is supplied
         sparkcmd:
-            :program: the complete Spark Program in Scala, SQL, Command, R, or Python
+            :program: the complete Spark Program in Scala, R, or Python
             :cmdline: spark-submit command line, all required information must be specify
                 in cmdline itself.
             :sql: inline sql query
             :script_location: s3 location containing query statement
-            :language: language of the program, Scala, SQL, Command, R, or Python
+            :language: language of the program, Scala, R, or Python
             :app_id: ID of an Spark job server app
             :arguments: spark-submit command line arguments
             :user_program_arguments: arguments that the user program takes in
@@ -141,9 +143,9 @@ class QuboleOperator(BaseOperator):
                        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
                        'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
                        'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments', 'cluster_label')
+                       'arguments', 'user_program_arguments', 'cluster_label')  # type: Iterable[str]
 
-    template_ext = ('.txt',)
+    template_ext = ('.txt',)  # type: Iterable[str]
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']

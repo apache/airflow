@@ -26,15 +26,7 @@ from airflow.contrib.operators.pubsub_operator import (
     PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
     PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
     PubSubPublishOperator)
-
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-task-id'
 TEST_PROJECT = 'test-project'

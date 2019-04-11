@@ -46,7 +46,7 @@ class BigQueryTableDeleteOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  deletion_dataset_table,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  ignore_if_missing=False,
                  *args,

@@ -46,9 +46,7 @@ from airflow.executors import SequentialExecutor
 from airflow.models import Variable, TaskInstance
 
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
-from airflow.models import BaseOperator
-from airflow.models.connection import Connection
-from airflow.models.taskfail import TaskFail
+from airflow.models import BaseOperator, Connection, TaskFail
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -83,7 +81,7 @@ try:
     import cPickle as pickle
 except ImportError:
     # Python 3
-    import pickle
+    import pickle  # type: ignore
 
 
 class OperatorSubclass(BaseOperator):
@@ -745,6 +743,24 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(value, val)
         self.assertEqual(value, Variable.get(key, deserialize_json=True))
 
+    def test_variable_delete(self):
+        key = "tested_var_delete"
+        value = "to be deleted"
+
+        # No-op if the variable doesn't exist
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)
+
+        # Set the variable
+        Variable.set(key, value)
+        self.assertEqual(value, Variable.get(key))
+
+        # Delete the variable
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)
+
     def test_parameterized_config_gen(self):
 
         cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
@@ -869,17 +885,6 @@ class CoreTest(unittest.TestCase):
 
         arr4 = scale_time_units([200000, 100000], 'days')
         assert_array_almost_equal(arr4, [2.315, 1.157], decimal=3)
-
-    def test_duplicate_dependencies(self):
-
-        regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
-                 "already registered"
-
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.runme_0.set_downstream(self.run_after_loop)
-
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.run_after_loop.set_upstream(self.runme_0)
 
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
@@ -1334,7 +1339,7 @@ class CliTests(unittest.TestCase):
         ])
         cli.sync_perm(args)
 
-        self.appbuilder.sm.sync_roles.assert_called_once()
+        assert self.appbuilder.sm.sync_roles.call_count == 1
 
         self.assertEqual(2,
                          len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))
@@ -1435,7 +1440,7 @@ class CliTests(unittest.TestCase):
         # Assert that some of the connections are present in the output as
         # expected:
         self.assertIn(['aws_default', 'aws'], conns)
-        self.assertIn(['beeline_default', 'beeline'], conns)
+        self.assertIn(['hive_cli_default', 'hive_cli'], conns)
         self.assertIn(['emr_default', 'emr'], conns)
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)

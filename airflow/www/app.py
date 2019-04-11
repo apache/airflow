@@ -18,9 +18,11 @@
 # under the License.
 #
 import logging
+import os
 import socket
-import six
+from typing import Any
 
+import six
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
@@ -33,8 +35,9 @@ from airflow import settings
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
 from airflow.www.static_config import configure_manifest_files
+from airflow.utils.json import AirflowJsonEncoder
 
-app = None
+app = None  # type: Any
 appbuilder = None
 csrf = CSRFProtect()
 
@@ -48,9 +51,7 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
         app.wsgi_app = ProxyFix(app.wsgi_app)
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
-    airflow_home_path = conf.get('core', 'AIRFLOW_HOME')
-    webserver_config_path = airflow_home_path + '/webserver_config.py'
-    app.config.from_pyfile(webserver_config_path, silent=True)
+    app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
     app.config['APP_NAME'] = app_name
     app.config['TESTING'] = testing
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -61,6 +62,9 @@ def create_app(config=None, session=None, testing=False, app_name="Airflow"):
 
     if config:
         app.config.from_mapping(config)
+
+    # Configure the JSON encoder used by `|tojson` filter from Flask
+    app.json_encoder = AirflowJsonEncoder
 
     csrf.init_app(app)
 

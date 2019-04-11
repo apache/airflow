@@ -20,19 +20,12 @@
 import unittest
 from datetime import datetime
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
 from airflow import configuration
 from airflow.contrib.sensors.sagemaker_training_sensor \
     import SageMakerTrainingSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook, LogState
 from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 DESCRIBE_TRAINING_COMPELETED_RESPONSE = {
     'TrainingJobStatus': 'Completed',

@@ -22,14 +22,7 @@ import unittest
 from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
 from airflow.contrib.operators.adls_to_gcs import \
     AdlsToGoogleCloudStorageOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-adls-gcs-operator'
 ADLS_PATH_1 = '*'
