@@ -24,6 +24,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### HTTPHook verify default value changed from False to True.
+
+The HTTPHook is now secured by default: `verify=True`.
+This can be overwriten by using the extra_options param as `{'verify': False}`.
+
 ### Changes to GoogleCloudStorageHook
 
 * the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 

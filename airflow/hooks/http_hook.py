@@ -166,7 +166,7 @@ class HttpHook(BaseHook):
             response = session.send(
                 prepped_request,
                 stream=extra_options.get("stream", False),
-                verify=extra_options.get("verify", False),
+                verify=extra_options.get("verify", True),
                 proxies=extra_options.get("proxies", {}),
                 cert=extra_options.get("cert"),
                 timeout=extra_options.get("timeout"),
