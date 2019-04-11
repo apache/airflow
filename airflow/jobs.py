@@ -622,6 +622,7 @@ class SchedulerJob(BaseJob):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
+        # Find the last executed tasks
         TI = models.TaskInstance
         sq = (
             session
@@ -635,13 +636,13 @@ class SchedulerJob(BaseJob):
                 TI.state == State.SKIPPED))
             .group_by(TI.task_id).subquery('sq')
         )
-
         max_tis = session.query(TI).filter(
             TI.dag_id == dag.dag_id,
             TI.task_id == sq.c.task_id,
             TI.execution_date == sq.c.max_ti,
         ).all()
 
+        # Identify tasks that missed SLA and store them
         ts = timezone.utcnow()
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
@@ -659,6 +660,7 @@ class SchedulerJob(BaseJob):
                     dttm = dag.following_schedule(dttm)
         session.commit()
 
+        # Identify tasks should send notification
         slas = (
             session
             .query(SlaMiss)
@@ -668,7 +670,7 @@ class SchedulerJob(BaseJob):
 
         if not slas:
             return
-        sla_dates = (sla.execution_date for sla in slas)
+        sla_dates = {sla.execution_date for sla in slas}
         qry = (
             session
             .query(TI)
