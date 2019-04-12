@@ -20,9 +20,9 @@ from airflow.models import DagRun
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 
 
-class DagRunSensor(BaseSensorOperator):
+class TriggeredDagRunSensor(BaseSensorOperator):
     """
-    Waits for DAG run(s) to complete and checks status.
+    Waits for triggered DAG run(s) to complete and checks status.
 
     :param trigger_task_id: The id of the task that triggered the dags
         and returns a list of dagrun ids to monitor
@@ -37,7 +37,7 @@ class DagRunSensor(BaseSensorOperator):
             trigger_task_id,
             sensor_rule=None,
             *args, **kwargs):
-        super(DagRunSensor, self).__init__(*args, **kwargs)
+        super(TriggeredDagRunSensor, self).__init__(*args, **kwargs)
         self.sensor_rule = sensor_rule or TriggerRule.ONE_SUCCESS
         self.trigger_task_id = trigger_task_id
 

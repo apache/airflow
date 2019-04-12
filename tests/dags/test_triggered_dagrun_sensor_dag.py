@@ -16,7 +16,7 @@ from airflow import DAG
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
-from airflow.contrib.sensors.dagrun_sensor import DagRunSensor
+from airflow.contrib.sensors.triggered_dagrun_sensor import TriggeredDagRunSensor
 from tests.contrib.sensors.test_dagrun_sensor import (
     DEFAULT_DATE, TEST_DAG_CHILD, TEST_DAG_PARENT)
 
@@ -53,7 +53,7 @@ with DAG(dag_id=TEST_DAG_PARENT,
     t0 = PythonOperator(python_callable=triggerchild,
                         provide_context=True,
                         task_id='trigger_child')
-    t1 = DagRunSensor(
+    t1 = TriggeredDagRunSensor(
         task_id='sense_child',
         trigger_task_id='trigger_child',
         timeout=15,

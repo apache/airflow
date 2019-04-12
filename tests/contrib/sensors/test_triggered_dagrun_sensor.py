@@ -26,14 +26,14 @@ from airflow.exceptions import AirflowException
 from airflow.utils.timezone import convert_to_utc
 
 DEFAULT_DATE = convert_to_utc(datetime(2017, 1, 1))
-TEST_DAG_ID = 'test_dagrun_sensor_dag'
+TEST_DAG_ID = 'test_triggered_dagrun_sensor_dag'
 TEST_DAG_PARENT = TEST_DAG_ID + '_parent'
 TEST_DAG_CHILD = TEST_DAG_ID + '_child'
 TEST_DAG_FOLDER = os.path.join(
     dirname(dirname(dirname(realpath(__file__)))), 'dags')
 
 
-class TestDagRunSensor(unittest.TestCase):
+class TestTriggeredDagRunSensor(unittest.TestCase):
 
     def setUp(self):
         configuration.load_test_config()
