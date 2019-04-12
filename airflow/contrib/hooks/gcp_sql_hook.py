@@ -46,7 +46,7 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.hooks.postgres_hook import PostgresHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils.db import provide_session
 
 UNIX_PATH_MAX = 108
@@ -407,9 +407,9 @@ class CloudSqlProxyRunner(LoggingMixin):
         :param instance_specification: Specification of the instance to connect the
             proxy to. It should be specified in the form that is described in
             https://cloud.google.com/sql/docs/mysql/sql-proxy#multiple-instances in
-            -instances parameter (typically in the form of <project>:<region>:<instance>
+            -instances parameter (typically in the form of ``<project>:<region>:<instance>``
             for UNIX socket connections and in the form of
-            <project>:<region>:<instance>=tcp:<port> for TCP connections.
+            ``<project>:<region>:<instance>=tcp:<port>`` for TCP connections.
         :type instance_specification: str
         :param gcp_conn_id: Id of Google Cloud Platform connection to use for
             authentication

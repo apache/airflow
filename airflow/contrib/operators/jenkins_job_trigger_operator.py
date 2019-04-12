@@ -27,12 +27,8 @@ from airflow.contrib.hooks.jenkins_hook import JenkinsHook
 import jenkins
 from jenkins import JenkinsException
 from requests import Request
+import six
 from six.moves.urllib.error import HTTPError, URLError
-
-try:
-    basestring
-except NameError:
-    basestring = str  # For python3 compatibility
 
 
 def jenkins_request_with_headers(jenkins_server, req):
@@ -45,7 +41,7 @@ def jenkins_request_with_headers(jenkins_server, req):
     :param jenkins_server: The server to query
     :param req: The request to execute
     :return: Dict containing the response body (key body)
-    and the headers coming along (headers)
+        and the headers coming along (headers)
     """
     try:
         response = jenkins_server.jenkins_request(req)
@@ -138,7 +134,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """
         # Warning if the parameter is too long, the URL can be longer than
         # the maximum allowed size
-        if self.parameters and isinstance(self.parameters, basestring):
+        if self.parameters and isinstance(self.parameters, six.string_types):
             import ast
             self.parameters = ast.literal_eval(self.parameters)
 

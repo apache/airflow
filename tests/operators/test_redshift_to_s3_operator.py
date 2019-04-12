@@ -92,8 +92,8 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
                            secret_key=secret_key,
                            unload_options=unload_options)
 
-        cur.execute.assert_called_once()
+        assert cur.execute.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, cur.execute.call_args[0][0], columns_query)
 
-        mock_run.assert_called_once()
+        assert mock_run.call_count == 1
         assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], unload_query)

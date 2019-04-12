@@ -29,15 +29,7 @@ from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOpera
     GceInstanceGroupManagerUpdateTemplateOperator
 from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
-
-try:
-    # noinspection PyProtectedMember
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 EMPTY_CONTENT = ''.encode('utf8')
 
