@@ -241,8 +241,7 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        with self.assertWarns(DeprecationWarning):
-            response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
+        response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
         self.assertIsNone(response)
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -444,10 +443,9 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
             .blob.return_value.upload_from_filename
         upload_method.return_value = None
 
-        with self.assertWarns(DeprecationWarning):
-            response = self.gcs_hook.upload(test_bucket,
-                                            test_object,
-                                            self.testfile.name)
+        response = self.gcs_hook.upload(test_bucket,
+                                        test_object,
+                                        self.testfile.name)
 
         self.assertIsNone(response)
         upload_method.assert_called_once_with(
