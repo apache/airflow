@@ -19,7 +19,7 @@
 
 set -x
 
-cd /usr/local/lib/python2.7/dist-packages/airflow && \
+cd /usr/local/lib/python3.6/site-packages/airflow && \
 cp -R example_dags/* /root/airflow/dags/ && \
 cp -R contrib/example_dags/example_kubernetes_*.py /root/airflow/dags/ && \
 cp -a contrib/example_dags/libs /root/airflow/dags/ && \

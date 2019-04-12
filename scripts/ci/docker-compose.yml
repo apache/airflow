@@ -74,7 +74,6 @@ services:
       - INSIDE_DOCKER_CONTAINER=true
       - ADDITIONAL_PATH=~/.local/bin
       - TOX_ENV
-      - PYTHON_VERSION
       - CI
       - TRAVIS
       - TRAVIS_BRANCH
