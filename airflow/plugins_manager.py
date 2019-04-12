@@ -40,6 +40,7 @@ log = LoggingMixin().log
 import_errors = {}
 configure_vars()
 
+
 class AirflowPluginException(Exception):
     pass
 
