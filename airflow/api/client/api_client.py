@@ -18,7 +18,7 @@
 # under the License.
 
 
-class Client(object):
+class Client:
     """Base API client for all API clients."""
 
     def __init__(self, api_base_url, auth):

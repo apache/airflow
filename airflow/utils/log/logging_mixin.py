@@ -23,12 +23,11 @@ import warnings
 
 import six
 
-from builtins import object
 from contextlib import contextmanager
 from logging import Handler, StreamHandler
 
 
-class LoggingMixin(object):
+class LoggingMixin:
     """
     Convenience super-class to have a logger configured with the class name
     """
@@ -64,7 +63,7 @@ class LoggingMixin(object):
 
 
 # TODO: Formally inherit from io.IOBase
-class StreamLogWriter(object):
+class StreamLogWriter:
     encoding = False
 
     """

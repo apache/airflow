@@ -1806,7 +1806,7 @@ class BackfillJob(BaseJob):
         'polymorphic_identity': 'BackfillJob'
     }
 
-    class _DagRunTaskStatus(object):
+    class _DagRunTaskStatus:
         """
         Internal status of the backfill job. This class is intended to be instantiated
         only within a BackfillJob instance and will track the execution of tasks,

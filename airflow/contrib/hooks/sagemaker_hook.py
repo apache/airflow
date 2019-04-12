@@ -31,7 +31,7 @@ from airflow.hooks.S3_hook import S3Hook
 from airflow.utils import timezone
 
 
-class LogState(object):
+class LogState:
     STARTING = 1
     WAIT_IN_PROGRESS = 2
     TAILING = 3

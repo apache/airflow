@@ -380,7 +380,7 @@ def get_chart_height(dag):
     return 600 + len(dag.tasks) * 10
 
 
-class UtcAwareFilterMixin(object):
+class UtcAwareFilterMixin:
     def apply(self, query, value):
         value = timezone.parse(value, timezone=timezone.utc)
 

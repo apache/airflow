@@ -97,7 +97,7 @@ SETTINGS_FILE_EMPTY = """
 SETTINGS_DEFAULT_NAME = 'custom_airflow_local_settings'
 
 
-class settings_context(object):
+class settings_context:
     """
     Sets a settings file and puts it in the Python classpath
 
