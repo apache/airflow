@@ -175,7 +175,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     # pylint:disable=redefined-builtin
     def upload(self, bucket, object, filename,
                mime_type='application/octet-stream', gzip=False,
-               multipart=False, num_retries=0):
+               multipart=None, num_retries=None):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -189,14 +189,15 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type mime_type: str
         :param gzip: Option to compress file for upload
         :type gzip: bool
-        :param multipart: Deprecated parameter. Multipart would be handled automatically
-        :type multipart: bool or int
-        :param num_retries: Deprecated parameter. Retries would be handled automatically
-        :type num_retries: int
         """
 
-        warnings.warn("'multipart' and 'num_retries' parameters have been deprecated."
-                      " They are handled automatically by the Storage client", DeprecationWarning)
+        if multipart is not None:
+            warnings.warn("'multipart' parameter is deprecated."
+                          " It is handled automatically by the Storage client", DeprecationWarning)
+
+        if num_retries is not None:
+            warnings.warn("'num_retries' parameter is deprecated."
+                          " It is handled automatically by the Storage client", DeprecationWarning)
 
         if gzip:
             filename_gz = filename + '.gz'
@@ -273,11 +274,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type bucket: str
         :param object: name of the object to delete
         :type object: str
-        :param generation: Deprecated parameter
-        :type generation: str
         """
 
-        warnings.warn("'generation' parameter is no longer supported", DeprecationWarning)
+        if generation is not None:
+            warnings.warn("'generation' parameter is no longer supported", DeprecationWarning)
 
         client = self.get_conn()
         bucket = client.get_bucket(bucket_name=bucket)
@@ -511,13 +511,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param role: The access permission for the entity.
             Acceptable values are: "OWNER", "READER".
         :type role: str
-        :param generation: (Deprecated) Parameter is no longer supported.
-        :type generation: str
         :param user_project: (Optional) The project to be billed for this request.
             Required for Requester Pays buckets.
         :type user_project: str
         """
-        warnings.warn("'generation' parameter is no longer supported", DeprecationWarning)
+        if generation is not None:
+            warnings.warn("'generation' parameter is no longer supported", DeprecationWarning)
         self.log.info('Creating a new ACL entry for object: %s in bucket: %s',
                       object_name, bucket)
         client = self.get_conn()
@@ -533,7 +532,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('A new ACL entry created for object: %s in bucket: %s',
                       object_name, bucket)
 
-    def compose(self, bucket, source_objects, destination_object, num_retries=5):
+    def compose(self, bucket, source_objects, destination_object, num_retries=None):
         """
         Composes a list of existing object into a new object in the same storage bucket
 
@@ -551,8 +550,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param destination_object: The path of the object if given.
         :type destination_object: str
         """
-        warnings.warn("'num_retries' parameter is Deprecated. Retries are "
-                      "now handled automatically", DeprecationWarning)
+        if num_retries is not None:
+            warnings.warn("'num_retries' parameter is Deprecated. Retries are "
+                          "now handled automatically", DeprecationWarning)
 
         if not source_objects or not len(source_objects):
             raise ValueError('source_objects cannot be empty.')

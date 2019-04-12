@@ -393,17 +393,31 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_destination_object = None
 
         with self.assertRaises(ValueError) as e:
-            with self.assertWarns(DeprecationWarning):
-                self.gcs_hook.compose(
-                    bucket=test_bucket,
-                    source_objects=test_source_objects,
-                    destination_object=test_destination_object
-                )
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object
+            )
 
         self.assertEqual(
             str(e.exception),
             'bucket and destination_object cannot be empty.'
         )
+
+    # Test Deprecation warnings for deprecated parameters
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_compose_deprecated_params(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_source_objects = ['test_object_1', 'test_object_2', 'test_object_3']
+        test_destination_object = 'test_object_composed'
+
+        with self.assertWarns(DeprecationWarning):
+            self.gcs_hook.compose(
+                bucket=test_bucket,
+                source_objects=test_source_objects,
+                destination_object=test_destination_object,
+                num_retries=5
+            )
 
 
 class TestGoogleCloudStorageHookUpload(unittest.TestCase):
@@ -456,3 +470,24 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
                                         gzip=True)
         self.assertFalse(os.path.exists(self.testfile.name + '.gz'))
         self.assertIsNone(response)
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_upload_deprecated_params(self, mock_service):
+        test_bucket = 'test_bucket'
+        test_object = 'test_object'
+
+        upload_method = mock_service.return_value.get_bucket.return_value\
+            .blob.return_value.upload_from_filename
+        upload_method.return_value = None
+
+        with self.assertWarns(DeprecationWarning):
+            self.gcs_hook.upload(test_bucket,
+                                 test_object,
+                                 self.testfile.name,
+                                 multipart=True)
+
+        with self.assertWarns(DeprecationWarning):
+            self.gcs_hook.upload(test_bucket,
+                                 test_object,
+                                 self.testfile.name,
+                                 num_retries=2)
