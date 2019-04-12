@@ -160,7 +160,7 @@ There are three ways to setup an Apache Airflow development environment.
   ```bash
   docker-compose -f scripts/ci/docker-compose.yml run airflow-testing bash
   # From the container
-  export TOX_ENV=py27-backend_mysql-env_docker
+  export TOX_ENV=py35-backend_mysql-env_docker
   /app/scripts/ci/run-ci.sh
   ```
 
@@ -168,7 +168,7 @@ There are three ways to setup an Apache Airflow development environment.
 
   ```bash
   # From the container (with your desired environment) with druid hook
-  export TOX_ENV=py27-backend_mysql-env_docker
+  export TOX_ENV=py35-backend_mysql-env_docker
   /app/scripts/ci/run-ci.sh -- tests/hooks/test_druid_hook.py
   ```
 
