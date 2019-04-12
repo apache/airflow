@@ -657,7 +657,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                 return self.kube_client.create_namespaced_secret(
                     self.kube_config.executor_namespace, kubernetes.client.V1Secret(
                         data={
-                            'key.json': base64.b64encode(open(secret_path, 'r').read())},
+                            'key.json': base64.b64encode(open(secret_path, 'rb').read()).decode('UTF-8')},
                         metadata=kubernetes.client.V1ObjectMeta(name=secret_name)))
             except ApiException as e:
                 if e.status == 409:
@@ -665,7 +665,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
                         secret_name, self.kube_config.executor_namespace,
                         kubernetes.client.V1Secret(
                             data={'key.json': base64.b64encode(
-                                open(secret_path, 'r').read())},
+                                open(secret_path, 'rb').read()).decode('UTF-8')},
                             metadata=kubernetes.client.V1ObjectMeta(name=secret_name)))
                 self.log.exception(
                     'Exception while trying to inject secret. '
