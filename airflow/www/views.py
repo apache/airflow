@@ -2595,7 +2595,7 @@ class TaskInstanceModelView(ModelViewOnly):
             log_tis = []
             for id in ids:
                 task_id, dag_id, execution_date = iterdecode(id)
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                execution_date = dateutil.parser.parse(execution_date)
                 ti = session.query(TI).filter(TI.task_id == task_id,
                                               TI.dag_id == dag_id,
                                               TI.execution_date == execution_date).one()
@@ -2618,7 +2618,7 @@ class TaskInstanceModelView(ModelViewOnly):
             log_tis = []
             for id in ids:
                 task_id, dag_id, execution_date = iterdecode(id)
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                execution_date = dateutil.parser.parse(execution_date)
                 log_tis += list(set(session.query(TI).filter(TI.task_id == task_id,
                                                              TI.dag_id == dag_id,
                                                              TI.execution_date == execution_date).all()))
