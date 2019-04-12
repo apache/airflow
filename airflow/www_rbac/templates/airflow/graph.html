@@ -173,9 +173,9 @@
             try_number = 0;
 
         if (task.task_type == "SubDagOperator")
-            call_modal(d, execution_date, try_number, true);
+            call_modal(d, execution_date, task.extra_links, try_number, true);
         else
-            call_modal(d, execution_date, try_number);
+            call_modal(d, execution_date, task.extra_links, try_number, undefined);
     });
 
 
