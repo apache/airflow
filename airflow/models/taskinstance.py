@@ -220,6 +220,49 @@ class TaskInstance(Base, LoggingMixin):
     def next_try_number(self):
         return self._try_number + 1
 
+    @staticmethod
+    @provide_session
+    def find(session=None, dag_id=None, task_id=None, execution_date=None,
+             execution_date_before=None, execution_date_after=None,
+             state=None, state_not_equal=None):
+        """
+        Returns a set of dag runs for the given search criteria.
+
+        :param dag_id: the dag_id to find task instance for
+        :type dag_id: int
+        :param task_id: the task_id to find task instance for
+        :type task_id: int
+        :param execution_date_before: filter on execution date before the provided one
+        :type execution_date_before: datetime.datetime
+        :param execution_date_after: filter on execution date after the provided one
+        :type execution_date_after: datetime.datetime
+        :param state_not_equal: the state of the task instance not to be in the results
+        :type state: airflow.utils.state.State
+        :param state: the state of the task instance
+        :type state: airflow.utils.state.State
+        :param session: database session
+        :type session: sqlalchemy.orm.session.Session
+        """
+        TI = TaskInstance
+
+        query = session.query(TI)
+        if dag_id:
+            query = query.filter(TI.dag_id == dag_id)
+        if task_id:
+            query = query.filter(TI.task_id == task_id)
+        if state:
+            query = query.filter(TI.state == state)
+        if state_not_equal:
+            query = query.filter(TI.state != state_not_equal)
+        if execution_date_before:
+            query = query.filter(TI.execution_date <= execution_date_before)
+        if execution_date_after:
+            query = query.filter(TI.execution_date >= execution_date_after)
+
+        result = query.order_by(TI.execution_date).all()
+
+        return result
+
     def command(
             self,
             mark_success=False,

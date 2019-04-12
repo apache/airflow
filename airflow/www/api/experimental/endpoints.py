@@ -22,6 +22,7 @@ from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_all_dag_runs import get_all_dag_runs
+from airflow.api.common.experimental.get_all_task_instances import get_all_task_instances
 from airflow.api.common.experimental.get_dags import get_dags
 from airflow.api.common.experimental.get_dag import get_dag
 from airflow.api.common.experimental.get_task import get_task
@@ -69,6 +70,34 @@ def dag_runs_filter():
 
     return jsonify(dagruns)
 
+
+@api_experimental.route('/task_instances', methods=['GET'])
+@requires_authentication
+def task_instances_filter():
+    """
+    Return the list of all dag_runs
+    :query param state: a query string parameter '?state=queued|running|success...'
+    :query param state_not_equal: a query string parameter '?state_not_equal=queued|running|success...'
+    :query param execution_date_before: a query string parameter to find all runs before provided date,
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+    :query param execution_date_after: a query string parameter to find all runs after provided date,
+    should be in format "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15".'
+    :query param dag_id: String identifier of a DAG
+    :query param task_id: String identifier of a task
+    :return: List of task instances
+    """
+    state = request.args.get('state')
+    state_not_equal = request.args.get('state_not_equal')
+    execution_date_before = request.args.get('execution_date_before')
+    execution_date_after = request.args.get('execution_date_after')
+    dag_id = request.args.get('dag_id')
+    task_id = request.args.get('task_id')
+
+    task_instances = get_all_task_instances(dag_id=dag_id, state=state, state_not_equal=state_not_equal,
+                                            execution_date_before=execution_date_before,
+                                            execution_date_after=execution_date_after, task_id=task_id)
+
+    return jsonify(task_instances)
 
 @api_experimental.route('/dags', methods=['GET'])
 @requires_authentication
