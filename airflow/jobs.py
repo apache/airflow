@@ -1438,6 +1438,12 @@ class SchedulerJob(BaseJob):
 
             dag_run = self.create_dag_run(dag)
             if dag_run:
+                expected_start_date = dag.following_schedule(dag_run.execution_date)
+                if expected_start_date:
+                    schedule_delay = dag_run.start_date - expected_start_date
+                    Stats.timing(
+                        'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
+                        schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
