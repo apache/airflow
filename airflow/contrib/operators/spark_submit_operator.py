@@ -44,8 +44,8 @@ class SparkSubmitOperator(BaseOperator):
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath. (templated)
     :type jars: str
-    :param driver_classpath: Additional, driver-specific, classpath settings. (templated)
-    :type driver_classpath: str
+    :param driver_class_path: Additional, driver-specific, classpath settings. (templated)
+    :type driver_class_path: str
     :param java_class: the main class of the Java application
     :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the
@@ -84,7 +84,7 @@ class SparkSubmitOperator(BaseOperator):
                          Some distros may use spark2-submit.
     :type spark_binary: string
     """
-    template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_classpath',
+    template_fields = ('_application', '_conf', '_files', '_py_files', '_jars', '_driver_class_path',
                        '_packages', '_exclude_packages', '_keytab', '_principal', '_name',
                        '_application_args', '_env_vars')
     ui_color = WEB_COLORS['LIGHTORANGE']
@@ -97,7 +97,7 @@ class SparkSubmitOperator(BaseOperator):
                  files=None,
                  py_files=None,
                  archives=None,
-                 driver_classpath=None,
+                 driver_class_path=None,
                  jars=None,
                  java_class=None,
                  packages=None,
@@ -123,7 +123,7 @@ class SparkSubmitOperator(BaseOperator):
         self._files = files
         self._py_files = py_files
         self._archives = archives
-        self._driver_classpath = driver_classpath
+        self._driver_class_path = driver_class_path
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
@@ -154,7 +154,7 @@ class SparkSubmitOperator(BaseOperator):
             files=self._files,
             py_files=self._py_files,
             archives=self._archives,
-            driver_classpath=self._driver_classpath,
+            driver_class_path=self._driver_class_path,
             jars=self._jars,
             java_class=self._java_class,
             packages=self._packages,

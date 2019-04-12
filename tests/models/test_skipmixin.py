@@ -23,8 +23,9 @@ import unittest
 import pendulum
 from mock import patch, Mock
 
-from airflow.models import settings, DAG, TaskInstance as TI
-from airflow.models.skipmixin import SkipMixin
+from airflow import settings
+from airflow.models import DAG, TaskInstance as TI
+from airflow.models import SkipMixin
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -34,7 +35,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 class TestSkipMixin(unittest.TestCase):
 
-    @patch('airflow.models.timezone.utcnow')
+    @patch('airflow.utils.timezone.utcnow')
     def test_skip(self, mock_now):
         session = settings.Session()
         now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))
@@ -63,7 +64,7 @@ class TestSkipMixin(unittest.TestCase):
             TI.end_date == now,
         ).one()
 
-    @patch('airflow.models.timezone.utcnow')
+    @patch('airflow.utils.timezone.utcnow')
     def test_skip_none_dagrun(self, mock_now):
         session = settings.Session()
         now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone('UTC'))

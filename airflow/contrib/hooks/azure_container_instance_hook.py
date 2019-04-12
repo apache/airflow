@@ -113,7 +113,7 @@ class AzureContainerInstanceHook(BaseHook):
         response = self.connection.container_groups.get(resource_group,
                                                         name,
                                                         raw=False)
-        return response.containers[0].instance_view.current_state
+        return response.containers[0].instance_view
 
     def get_messages(self, resource_group, name):
         """

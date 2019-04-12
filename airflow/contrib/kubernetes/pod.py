@@ -50,13 +50,13 @@ class Pod:
     :param secrets: Secrets to be launched to the pod
     :type secrets: list[airflow.contrib.kubernetes.secret.Secret]
     :param result: The result that will be returned to the operator after
-                   successful execution of the pod
+        successful execution of the pod
     :type result: any
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
-                               If more than one secret is required, provide a
-                               comma separated list: secret_a,secret_b
+        If more than one secret is required, provide a comma separated list:
+        secret_a,secret_b
     :type image_pull_secrets: str
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
@@ -64,6 +64,11 @@ class Pod:
     :type hostnetwork: bool
     :param tolerations: A list of kubernetes tolerations
     :type tolerations: list
+    :param security_context: A dict containing the security context for the pod
+    :type security_context: dict
+    :param configmaps: A list containing names of configmaps object
+        mounting env variables to the pod
+    :type configmaps: list[str]
     """
     def __init__(
             self,
@@ -88,6 +93,8 @@ class Pod:
             affinity=None,
             hostnetwork=False,
             tolerations=None,
+            security_context=None,
+            configmaps=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -110,3 +117,5 @@ class Pod:
         self.affinity = affinity or {}
         self.hostnetwork = hostnetwork or False
         self.tolerations = tolerations or []
+        self.security_context = security_context
+        self.configmaps = configmaps or []

@@ -30,8 +30,8 @@ configuring an Airflow environment.
     add-new-role
     set-config
     initialize-database
-    operator
-    manage-connections
+    operator/index
+    connection/index
     secure-connections
     write-logs
     executor/use-celery
@@ -43,3 +43,8 @@ configuring an Airflow environment.
     use-test-config
     check-health
 
+.. toctree::
+    :maxdepth: 2
+    :caption: Developer guide
+
+    setup-test-environment-mysql

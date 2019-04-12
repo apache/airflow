@@ -166,8 +166,8 @@ class TestDruidDbApiHook(unittest.TestCase):
         self.cur.fetchone.return_value = result_sets[0]
 
         self.assertEqual(result_sets[0], self.db_hook().get_first(statement))
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
     def test_get_records(self):
@@ -176,8 +176,8 @@ class TestDruidDbApiHook(unittest.TestCase):
         self.cur.fetchall.return_value = result_sets
 
         self.assertEqual(result_sets, self.db_hook().get_records(statement))
-        self.conn.close.assert_called_once()
-        self.cur.close.assert_called_once()
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
         self.cur.execute.assert_called_once_with(statement)
 
 
