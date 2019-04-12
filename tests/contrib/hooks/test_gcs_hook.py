@@ -17,7 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
+import six
+
 import tempfile
 import os
 
@@ -27,6 +28,11 @@ from tests.compat import mock
 from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from google.cloud import storage
 from google.cloud import exceptions
+if six.PY2:
+    # Need `assertWarns` back-ported from unittest2
+    import unittest2 as unittest
+else:
+    import unittest
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 GCS_STRING = 'airflow.contrib.hooks.gcs_hook.{}'
@@ -235,7 +241,8 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         delete_method = get_blob_method.return_value.delete
         delete_method.return_value = blob_to_be_deleted
 
-        response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
+        with self.assertWarns(DeprecationWarning):
+            response = self.gcs_hook.delete(bucket=test_bucket, object=test_object)
         self.assertIsNone(response)
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
@@ -386,11 +393,12 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         test_destination_object = None
 
         with self.assertRaises(ValueError) as e:
-            self.gcs_hook.compose(
-                bucket=test_bucket,
-                source_objects=test_source_objects,
-                destination_object=test_destination_object
-            )
+            with self.assertWarns(DeprecationWarning):
+                self.gcs_hook.compose(
+                    bucket=test_bucket,
+                    source_objects=test_source_objects,
+                    destination_object=test_destination_object
+                )
 
         self.assertEqual(
             str(e.exception),
@@ -422,9 +430,10 @@ class TestGoogleCloudStorageHookUpload(unittest.TestCase):
             .blob.return_value.upload_from_filename
         upload_method.return_value = None
 
-        response = self.gcs_hook.upload(test_bucket,
-                                        test_object,
-                                        self.testfile.name)
+        with self.assertWarns(DeprecationWarning):
+            response = self.gcs_hook.upload(test_bucket,
+                                            test_object,
+                                            self.testfile.name)
 
         self.assertIsNone(response)
         upload_method.assert_called_once_with(
