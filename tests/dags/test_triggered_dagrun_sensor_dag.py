@@ -17,7 +17,7 @@ from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.contrib.sensors.triggered_dagrun_sensor import TriggeredDagRunSensor
-from tests.contrib.sensors.test_dagrun_sensor import (
+from tests.contrib.sensors.test_triggered_dagrun_sensor import (
     DEFAULT_DATE, TEST_DAG_CHILD, TEST_DAG_PARENT)
 
 args = {
