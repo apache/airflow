@@ -44,7 +44,7 @@ class HttpHook(BaseHook):
         http_conn_id='http_default'
     ):
         self.http_conn_id = http_conn_id
-        self.method = method
+        self.method = method.upper()
         self.base_url = None
         self._retry_obj = None
 
