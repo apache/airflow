@@ -295,7 +295,8 @@ def task_instance_info(dag_id, execution_date, task_id):
         return response
 
     try:
-        info = get_task_instance(dag_id, task_id, execution_date)
+        task_instance = get_task_instance(dag_id, task_id, execution_date)
+        task = get_task(dag_id, task_id)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
@@ -304,8 +305,12 @@ def task_instance_info(dag_id, execution_date, task_id):
 
     # JSONify and return.
     fields = {k: str(v)
-              for k, v in vars(info).items()
+              for k, v in vars(task_instance).items()
               if not k.startswith('_')}
+    fields.update({
+        'try_number': task_instance._try_number,
+        'upstream_task_ids': list(task._upstream_task_ids),
+        'downstream_task_ids': list(task._downstream_task_ids)})
     return jsonify(fields)
 
 
