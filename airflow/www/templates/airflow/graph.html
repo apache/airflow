@@ -169,9 +169,9 @@
     d3.selectAll("g.node").on("click", function(d){
         task = tasks[d];
         if (task.task_type == "SubDagOperator")
-            call_modal(d, execution_date, task_instances[d].try_number, true);
+            call_modal(d, execution_date, task.extra_links, task_instances[d].try_number, true);
         else
-            call_modal(d, execution_date,task_instances[d].try_number);
+            call_modal(d, execution_date, task.extra_links, task_instances[d].try_number, undefined);
     });
 
 

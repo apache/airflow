@@ -235,9 +235,10 @@ function update(source) {
         if(d.task_id === undefined)
             call_modal_dag(d);
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
-            call_modal(d.task_id, d.execution_date, d.try_number, true);
+            // I'm pretty sure that true is not a valid subdag id, which is what call_modal wants
+            call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, true);
         else
-            call_modal(d.task_id, d.execution_date, d.try_number);
+            call_modal(d.task_id, d.execution_date, nodeobj[d.task_id].extra_links, d.try_number, undefined);
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")

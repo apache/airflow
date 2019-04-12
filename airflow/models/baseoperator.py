@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from abc import ABCMeta, abstractmethod
 import copy
 import functools
 import logging
@@ -229,6 +230,9 @@ class BaseOperator(LoggingMixin):
 
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs = ()  # type: Iterable[str]
+
+    # Defines the operator level extra links
+    operator_extra_link_dict = {}  # type: Dict[str, BaseOperatorLink]
 
     @apply_defaults
     def __init__(
@@ -941,3 +945,34 @@ class BaseOperator(LoggingMixin):
             task_ids=task_ids,
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
+
+    @property
+    def extra_links(self):
+        # type: () -> Iterable[str]
+        return list(self.operator_extra_link_dict.keys())
+
+    def get_extra_links(self, dttm, link_name):
+        """
+        For an operator, gets the URL that the external links specified in
+        `extra_links` should point to.
+        :raise ValueError: The error message of a ValueError will be passed on through to
+        the fronted to show up as a tooltip on the disabled link
+        :param dttm: The datetime parsed execution date for the URL being searched for
+        :param link_name: The name of the link we're looking for the URL for. Should be
+        one of the options specified in `extra_links`
+        :return: A URL
+        """
+        if link_name in self.operator_extra_link_dict:
+            return self.operator_extra_link_dict[link_name].get_link(self, dttm)
+
+
+class BaseOperatorLink:
+    """
+    Abstract base class that defines how we get an operator link.
+    """
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def get_link(self, operator, dttm):
+        pass
