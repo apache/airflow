@@ -664,8 +664,6 @@ def list_jobs(args, dag=None):
         msg = tabulate(all_jobs,
                        [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -1181,8 +1179,6 @@ def connections(args):
             msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                    'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
                            tablefmt="fancy_grid")
-            if sys.version_info[0] < 3:
-                msg = msg.encode('utf-8')
             print(msg)
             return
 
@@ -1378,8 +1374,6 @@ def users(args):
         users = [[user.__getattribute__(field) for field in fields] for user in users]
         msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
         return
@@ -1606,8 +1600,6 @@ def roles(args):
         msg = tabulate(role_names,
                        headers=['Role'],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
