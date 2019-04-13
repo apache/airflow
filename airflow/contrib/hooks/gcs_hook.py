@@ -335,7 +335,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     def get_size(self, bucket, object):
         """
-        Gets the size of a file in Google Cloud Storage.
+        Gets the size of a file in Google Cloud Storage in bytes.
 
         :param bucket: The Google cloud storage bucket where the object is.
         :type bucket: str
