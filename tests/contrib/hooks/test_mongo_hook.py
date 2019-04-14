@@ -42,18 +42,22 @@ class MongoHookTest(MongoHook):
 class TestMongoHook(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
-        self.hook = MongoHookTest(
-            conn_id='mongo_default',
-            mongo_db='default',
-            extra='{"srv":true}',
-        )
+        self.hook = MongoHookTest(conn_id='mongo_default', mongo_db='default')
         self.conn = self.hook.get_conn()
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_get_conn(self):
         self.assertEqual(self.hook.connection.port, 27017)
         self.assertIsInstance(self.conn, pymongo.MongoClient)
-        self.assertTrue(self.hook.uri.startswith('mongodb+srv://'))
+
+    @unittest.skipIf(mongomock is None, 'mongomock package not present')
+    def test_srv(self):
+        hook = MongoHookTest(
+            conn_id='mongo_default',
+            mongo_db='default',
+            extra='{"srv":true}',
+        )
+        self.assertTrue(hook.uri.startswith('mongodb+srv://'))
 
     @unittest.skipIf(mongomock is None, 'mongomock package not present')
     def test_insert_one(self):
