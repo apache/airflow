@@ -60,6 +60,9 @@ class BigQueryCheckOperator(CheckOperator):
     :type use_legacy_sql: bool
     """
 
+    template_fields = ('sql',)
+    template_ext = ('.sql', )
+
     @apply_defaults
     def __init__(self,
                  sql,
@@ -86,6 +89,9 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
         or standard SQL (false).
     :type use_legacy_sql: bool
     """
+
+    template_fields = ('sql',)
+    template_ext = ('.sql', )
 
     @apply_defaults
     def __init__(self, sql,
@@ -128,6 +134,8 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         or standard SQL (false).
     :type use_legacy_sql: bool
     """
+
+    template_fields = ('table',)
 
     @apply_defaults
     def __init__(self, table, metrics_thresholds, date_filter_column='ds',
