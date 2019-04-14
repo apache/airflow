@@ -44,11 +44,20 @@ class MongoHook(BaseHook):
         self.connection = self.get_connection(conn_id)
         self.extras = self.connection.extra_dejson.copy()
         self.client = None
-        self.srv = False
-        self.uri = None
 
-        if 'srv' in self.extras:
-            self.srv = self.extras.pop('srv')
+        srv = self.extras.pop('srv', False)
+        scheme = 'mongodb+srv' if srv else 'mongodb'
+
+        self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
+            scheme=scheme,
+            creds='{}:{}@'.format(
+                self.connection.login, self.connection.password
+            ) if self.connection.login else '',
+
+            host=self.connection.host,
+            port='' if self.connection.port is None else ':{}'.format(self.connection.port),
+            database=self.connection.schema
+        )
 
     def __enter__(self):
         return self
@@ -63,21 +72,6 @@ class MongoHook(BaseHook):
         """
         if self.client is not None:
             return self.client
-
-        conn = self.connection
-
-        scheme = 'mongodb+srv' if self.srv else 'mongodb'
-
-        self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
-            scheme=scheme,
-            creds='{}:{}@'.format(
-                conn.login, conn.password
-            ) if conn.login else '',
-
-            host=conn.host,
-            port='' if conn.port is None else ':{}'.format(conn.port),
-            database=conn.schema
-        )
 
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
         options = self.extras
