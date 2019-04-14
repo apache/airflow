@@ -116,3 +116,8 @@ class PoolNotFound(AirflowNotFoundException):
 class NoAvailablePoolSlot(AirflowException):
     """Raise when there is not enough slots in pool"""
     pass
+
+
+class DagConcurrencyLimitReached(AirflowException):
+    """Raise when concurrency limit is reached"""
+    pass

@@ -43,7 +43,10 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import configuration as conf
 from airflow import executors, models, settings
-from airflow.exceptions import AirflowException, NoAvailablePoolSlot, PoolNotFound
+from airflow.exceptions import (
+    AirflowException, NoAvailablePoolSlot, PoolNotFound, DagConcurrencyLimitReached,
+)
+
 from airflow.models import DAG, DagPickle, DagRun, errors, SlaMiss
 from airflow.stats import Stats
 from airflow.task.task_runner import get_task_runner
@@ -2323,8 +2326,19 @@ class BackfillJob(BaseJob):
                                     "Not scheduling since there are no "
                                     "non_pooled_backfill_task_slot_count.")
                             non_pool_slots -= 1
+
+                        num_running_tasks = DAG.get_num_task_instances(
+                            self.dag_id,
+                            states=(State.QUEUED, State.RUNNING))
+
+                        if num_running_tasks >= self.dag.concurrency:
+                            raise DagConcurrencyLimitReached(
+                                "Not scheduling since concurrency limit "
+                                "is reached."
+                            )
+
                         _per_task_process(task, key, ti)
-            except NoAvailablePoolSlot as e:
+            except (NoAvailablePoolSlot, DagConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
             # execute the tasks in the queue
