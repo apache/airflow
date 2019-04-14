@@ -93,7 +93,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
         client_mock.attach.return_value = []
-        client_mock.logs.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
 
@@ -120,7 +119,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
         client_mock.attach.return_value = ['unicode container log 😁']
-        client_mock.logs.return_value = ['unicode container log 😁']
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
 
@@ -143,7 +141,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
         client_mock.attach.return_value = []
-        client_mock.logs.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 1}
 
@@ -173,7 +170,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.attach.return_value = []
-        client_mock.logs.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
         operator_client_mock.return_value = client_mock
@@ -209,7 +205,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.attach.return_value = []
-        client_mock.logs.return_value = []
         client_mock.pull.return_value = []
         client_mock.wait.return_value = {"StatusCode": 0}
         operator_client_mock.return_value = client_mock
