@@ -20,6 +20,7 @@
 import gzip as gz
 import os
 import shutil
+import warnings
 
 from google.cloud import storage
 
@@ -173,7 +174,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     # pylint:disable=redefined-builtin
     def upload(self, bucket, object, filename,
-               mime_type='application/octet-stream', gzip=False):
+               mime_type='application/octet-stream', gzip=False,
+               multipart=None, num_retries=None):
         """
         Uploads a local file to Google Cloud Storage.
 
@@ -188,6 +190,14 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param gzip: Option to compress file for upload
         :type gzip: bool
         """
+
+        if multipart is not None:
+            warnings.warn("'multipart' parameter is deprecated."
+                          " It is handled automatically by the Storage client", DeprecationWarning)
+
+        if num_retries is not None:
+            warnings.warn("'num_retries' parameter is deprecated."
+                          " It is handled automatically by the Storage client", DeprecationWarning)
 
         if gzip:
             filename_gz = filename + '.gz'
@@ -256,7 +266,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         return False
 
-    def delete(self, bucket, object):
+    def delete(self, bucket, object, generation=None):
         """
         Deletes an object from the bucket.
 
@@ -265,6 +275,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param object: name of the object to delete
         :type object: str
         """
+
+        if generation is not None:
+            warnings.warn("'generation' parameter is no longer supported", DeprecationWarning)
+
         client = self.get_conn()
         bucket = client.get_bucket(bucket_name=bucket)
         blob = bucket.blob(blob_name=object)
@@ -321,7 +335,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     def get_size(self, bucket, object):
         """
-        Gets the size of a file in Google Cloud Storage.
+        Gets the size of a file in Google Cloud Storage in bytes.
 
         :param bucket: The Google cloud storage bucket where the object is.
         :type bucket: str
@@ -477,7 +491,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         self.log.info('A new ACL entry created in bucket: %s', bucket)
 
-    def insert_object_acl(self, bucket, object_name, entity, role, user_project=None):
+    def insert_object_acl(self, bucket, object_name, entity, role, generation=None,
+                          user_project=None):
         """
         Creates a new ACL entry on the specified object.
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
@@ -500,6 +515,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             Required for Requester Pays buckets.
         :type user_project: str
         """
+        if generation is not None:
+            warnings.warn("'generation' parameter is no longer supported", DeprecationWarning)
         self.log.info('Creating a new ACL entry for object: %s in bucket: %s',
                       object_name, bucket)
         client = self.get_conn()
@@ -515,7 +532,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         self.log.info('A new ACL entry created for object: %s in bucket: %s',
                       object_name, bucket)
 
-    def compose(self, bucket, source_objects, destination_object):
+    def compose(self, bucket, source_objects, destination_object, num_retries=None):
         """
         Composes a list of existing object into a new object in the same storage bucket
 
@@ -533,6 +550,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param destination_object: The path of the object if given.
         :type destination_object: str
         """
+        if num_retries is not None:
+            warnings.warn("'num_retries' parameter is Deprecated. Retries are "
+                          "now handled automatically", DeprecationWarning)
 
         if not source_objects or not len(source_objects):
             raise ValueError('source_objects cannot be empty.')
