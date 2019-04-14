@@ -161,7 +161,6 @@ celery = [
 cgroups = [
     'cgroupspy>=0.1.4',
 ]
-# major update coming soon, clamp to 0.x
 cloudant = ['cloudant>=2.0']
 crypto = ['cryptography>=0.9.3']
 dask = [
@@ -273,7 +272,9 @@ devel = [
     'requests_mock'
 ]
 
-if not PY3:
+if PY3:
+    devel += ['mypy']
+else:
     devel += ['unittest2']
 
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
