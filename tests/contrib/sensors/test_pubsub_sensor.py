@@ -25,14 +25,7 @@ from base64 import b64encode as b64e
 
 from airflow.contrib.sensors.pubsub_sensor import PubSubPullSensor
 from airflow.exceptions import AirflowSensorTimeout
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-task-id'
 TEST_PROJECT = 'test-project'
@@ -66,7 +59,7 @@ class PubSubPullSensorTest(unittest.TestCase):
         operator = PubSubPullSensor(task_id=TASK_ID, project=TEST_PROJECT,
                                     subscription=TEST_SUBSCRIPTION)
         mock_hook.return_value.pull.return_value = []
-        self.assertEquals([], operator.poke(None))
+        self.assertEqual([], operator.poke(None))
 
     @mock.patch('airflow.contrib.sensors.pubsub_sensor.PubSubHook')
     def test_poke_with_ack_messages(self, mock_hook):
@@ -75,7 +68,7 @@ class PubSubPullSensorTest(unittest.TestCase):
                                     ack_messages=True)
         generated_messages = self._generate_messages(5)
         mock_hook.return_value.pull.return_value = generated_messages
-        self.assertEquals(generated_messages, operator.poke(None))
+        self.assertEqual(generated_messages, operator.poke(None))
         mock_hook.return_value.acknowledge.assert_called_with(
             TEST_PROJECT, TEST_SUBSCRIPTION, ['1', '2', '3', '4', '5']
         )
@@ -90,7 +83,7 @@ class PubSubPullSensorTest(unittest.TestCase):
         response = operator.execute(None)
         mock_hook.return_value.pull.assert_called_with(
             TEST_PROJECT, TEST_SUBSCRIPTION, 5, False)
-        self.assertEquals(response, generated_messages)
+        self.assertEqual(response, generated_messages)
 
     @mock.patch('airflow.contrib.sensors.pubsub_sensor.PubSubHook')
     def test_execute_timeout(self, mock_hook):

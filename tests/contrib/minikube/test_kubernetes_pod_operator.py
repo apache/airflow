@@ -19,14 +19,15 @@ import unittest
 import os
 import shutil
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
+from airflow.contrib.kubernetes.secret import Secret
 from airflow import AirflowException
 from kubernetes.client.rest import ApiException
 from subprocess import check_call
-import mock
 import json
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.volume_mount import VolumeMount
 from airflow.contrib.kubernetes.volume import Volume
+from tests.compat import mock
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])
@@ -126,7 +127,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         run_pod_mock.side_effect = AirflowException('fake failure')
         with self.assertRaises(AirflowException):
             k.execute(None)
-        delete_pod_mock.assert_called()
+        assert delete_pod_mock.called
 
     @staticmethod
     def test_working_pod():
@@ -264,6 +265,69 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             k.execute(None)
             mock_logger.info.assert_any_call(b"retrieved from mount\n")
 
+    @staticmethod
+    def test_run_as_user_root():
+        security_context = {
+            'securityContext': {
+                'runAsUser': 0,
+            }
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            security_context=security_context,
+            executor_config={'KubernetesExecutor': {'securityContext': security_context}}
+        )
+        k.execute(None)
+
+    @staticmethod
+    def test_run_as_user_non_root():
+        security_context = {
+            'securityContext': {
+                'runAsUser': 1000,
+            }
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            security_context=security_context,
+            executor_config={'KubernetesExecutor': {'securityContext': security_context}}
+        )
+        k.execute(None)
+
+    @staticmethod
+    def test_fs_group():
+        security_context = {
+            'securityContext': {
+                'fsGroup': 1000,
+            }
+        }
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            security_context=security_context,
+            executor_config={'KubernetesExecutor': {'securityContext': security_context}}
+        )
+        k.execute(None)
+
     def test_faulty_image(self):
         bad_image_name = "foobar"
         k = KubernetesPodOperator(
@@ -322,9 +386,53 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             labels={"foo": "bar"},
             name="test",
             task_id="task",
-            xcom_push=True
+            do_xcom_push=True
         )
         self.assertEqual(k.execute(None), json.loads(return_value))
+
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_envs_from_configmaps(self, client_mock, launcher_mock):
+        # GIVEN
+        from airflow.utils.state import State
+        configmaps = ['test-configmap']
+        # WHEN
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            configmaps=configmaps
+        )
+        # THEN
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        self.assertEqual(launcher_mock.call_args[0][0].configmaps, configmaps)
+
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_envs_from_secrets(self, client_mock, launcher_mock):
+        # GIVEN
+        from airflow.utils.state import State
+        secrets = [Secret('env', None, "secret_name")]
+        # WHEN
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            secrets=secrets,
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+        )
+        # THEN
+        launcher_mock.return_value = (State.SUCCESS, None)
+        k.execute(None)
+        self.assertEqual(launcher_mock.call_args[0][0].secrets, secrets)
 
 
 if __name__ == '__main__':

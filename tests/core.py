@@ -22,7 +22,6 @@ from __future__ import print_function
 import json
 import unittest
 
-import bleach
 import doctest
 import mock
 import multiprocessing
@@ -39,7 +38,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from numpy.testing import assert_array_almost_equal
-from six.moves.urllib.parse import urlencode
+from tempfile import NamedTemporaryFile
 from time import sleep
 
 from airflow import configuration
@@ -47,8 +46,7 @@ from airflow.executors import SequentialExecutor
 from airflow.models import Variable, TaskInstance
 
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
-from airflow.models import BaseOperator
-from airflow.models.connection import Connection
+from airflow.models import BaseOperator, Connection, TaskFail
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -58,17 +56,13 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
-from airflow.www import app as application
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
-from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
-from jinja2.sandbox import SecurityError
-from jinja2 import UndefinedError
 from pendulum import utcnow
 
 import six
@@ -87,7 +81,7 @@ try:
     import cPickle as pickle
 except ImportError:
     # Python 3
-    import pickle
+    import pickle  # type: ignore
 
 
 class OperatorSubclass(BaseOperator):
@@ -123,7 +117,7 @@ class CoreTest(unittest.TestCase):
             session = Session()
             session.query(models.TaskInstance).filter_by(
                 dag_id=TEST_DAG_ID).delete()
-            session.query(models.TaskFail).filter_by(
+            session.query(TaskFail).filter_by(
                 dag_id=TEST_DAG_ID).delete()
             session.commit()
             session.close()
@@ -656,26 +650,26 @@ class CoreTest(unittest.TestCase):
         context = ti.get_template_context()
 
         # DEFAULT DATE is 2015-01-01
-        self.assertEquals(context['ds'], '2015-01-01')
-        self.assertEquals(context['ds_nodash'], '20150101')
+        self.assertEqual(context['ds'], '2015-01-01')
+        self.assertEqual(context['ds_nodash'], '20150101')
 
         # next_ds is 2015-01-02 as the dag interval is daily
-        self.assertEquals(context['next_ds'], '2015-01-02')
-        self.assertEquals(context['next_ds_nodash'], '20150102')
+        self.assertEqual(context['next_ds'], '2015-01-02')
+        self.assertEqual(context['next_ds_nodash'], '20150102')
 
         # prev_ds is 2014-12-31 as the dag interval is daily
-        self.assertEquals(context['prev_ds'], '2014-12-31')
-        self.assertEquals(context['prev_ds_nodash'], '20141231')
+        self.assertEqual(context['prev_ds'], '2014-12-31')
+        self.assertEqual(context['prev_ds_nodash'], '20141231')
 
-        self.assertEquals(context['ts'], '2015-01-01T00:00:00+00:00')
-        self.assertEquals(context['ts_nodash'], '20150101T000000')
-        self.assertEquals(context['ts_nodash_with_tz'], '20150101T000000+0000')
+        self.assertEqual(context['ts'], '2015-01-01T00:00:00+00:00')
+        self.assertEqual(context['ts_nodash'], '20150101T000000')
+        self.assertEqual(context['ts_nodash_with_tz'], '20150101T000000+0000')
 
-        self.assertEquals(context['yesterday_ds'], '2014-12-31')
-        self.assertEquals(context['yesterday_ds_nodash'], '20141231')
+        self.assertEqual(context['yesterday_ds'], '2014-12-31')
+        self.assertEqual(context['yesterday_ds_nodash'], '20141231')
 
-        self.assertEquals(context['tomorrow_ds'], '2015-01-02')
-        self.assertEquals(context['tomorrow_ds_nodash'], '20150102')
+        self.assertEqual(context['tomorrow_ds'], '2015-01-02')
+        self.assertEqual(context['tomorrow_ds_nodash'], '20150102')
 
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
@@ -715,6 +709,13 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
                                                      default_var=default_value))
 
+    def test_get_non_existing_var_should_raise_key_error(self):
+        with self.assertRaises(KeyError):
+            Variable.get("thisIdDoesNotExist")
+
+    def test_get_non_existing_var_with_none_default_should_return_none(self):
+        self.assertIsNone(Variable.get("thisIdDoesNotExist", default_var=None))
+
     def test_get_non_existing_var_should_not_deserialize_json_default(self):
         default_value = "}{ this is a non JSON default }{"
         self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
@@ -741,6 +742,24 @@ class CoreTest(unittest.TestCase):
         # Check the returned value, and the stored value are handled correctly.
         self.assertEqual(value, val)
         self.assertEqual(value, Variable.get(key, deserialize_json=True))
+
+    def test_variable_delete(self):
+        key = "tested_var_delete"
+        value = "to be deleted"
+
+        # No-op if the variable doesn't exist
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)
+
+        # Set the variable
+        Variable.set(key, value)
+        self.assertEqual(value, Variable.get(key))
+
+        # Delete the variable
+        Variable.delete(key)
+        with self.assertRaises(KeyError):
+            Variable.get(key)
 
     def test_parameterized_config_gen(self):
 
@@ -867,17 +886,6 @@ class CoreTest(unittest.TestCase):
         arr4 = scale_time_units([200000, 100000], 'days')
         assert_array_almost_equal(arr4, [2.315, 1.157], decimal=3)
 
-    def test_duplicate_dependencies(self):
-
-        regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
-                 "already registered"
-
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.runme_0.set_downstream(self.run_after_loop)
-
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.run_after_loop.set_upstream(self.runme_0)
-
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
             DummyOperator(
@@ -943,11 +951,11 @@ class CoreTest(unittest.TestCase):
             f.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         except Exception:
             pass
-        p_fails = session.query(models.TaskFail).filter_by(
+        p_fails = session.query(TaskFail).filter_by(
             task_id='pass_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
-        f_fails = session.query(models.TaskFail).filter_by(
+        f_fails = session.query(TaskFail).filter_by(
             task_id='fail_sleepy',
             dag_id=self.dag.dag_id,
             execution_date=DEFAULT_DATE).all()
@@ -986,9 +994,9 @@ class CoreTest(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         dag_runs = models.DagRun.find(dag_id='example_bash_operator',
                                       run_id=run_id)
-        self.assertEquals(len(dag_runs), 1)
+        self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
-        self.assertEquals(dag_run.execution_date, utc_now)
+        self.assertEqual(dag_run.execution_date, utc_now)
 
     def test_trigger_dagrun_with_str_execution_date(self):
         utc_now_str = timezone.utcnow().isoformat()
@@ -1008,9 +1016,9 @@ class CoreTest(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         dag_runs = models.DagRun.find(dag_id='example_bash_operator',
                                       run_id=run_id)
-        self.assertEquals(len(dag_runs), 1)
+        self.assertEqual(len(dag_runs), 1)
         dag_run = dag_runs[0]
-        self.assertEquals(dag_run.execution_date.isoformat(), utc_now_str)
+        self.assertEqual(dag_run.execution_date.isoformat(), utc_now_str)
 
     def test_trigger_dagrun_with_templated_execution_date(self):
         task = TriggerDagRunOperator(
@@ -1052,14 +1060,17 @@ class CoreTest(unittest.TestCase):
         context = ti.get_template_context()
 
         # next_ds/prev_ds should be the execution date for manually triggered runs
-        self.assertEquals(context['next_ds'], EXECUTION_DS)
-        self.assertEquals(context['next_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['next_ds'], EXECUTION_DS)
+        self.assertEqual(context['next_ds_nodash'], EXECUTION_DS_NODASH)
 
-        self.assertEquals(context['prev_ds'], EXECUTION_DS)
-        self.assertEquals(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
+        self.assertEqual(context['prev_ds'], EXECUTION_DS)
+        self.assertEqual(context['prev_ds_nodash'], EXECUTION_DS_NODASH)
 
 
 class CliTests(unittest.TestCase):
+
+    TEST_USER1_EMAIL = 'test-user1@example.com'
+    TEST_USER2_EMAIL = 'test-user2@example.com'
 
     @classmethod
     def setUpClass(cls):
@@ -1068,8 +1079,8 @@ class CliTests(unittest.TestCase):
 
     def setUp(self):
         super(CliTests, self).setUp()
-        from airflow.www_rbac import app as application
         configuration.load_test_config()
+        from airflow.www import app as application
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
         self.app.config['TESTING'] = True
 
@@ -1080,6 +1091,14 @@ class CliTests(unittest.TestCase):
 
     def tearDown(self):
         self._cleanup(session=self.session)
+        for email in [self.TEST_USER1_EMAIL, self.TEST_USER2_EMAIL]:
+            test_user = self.appbuilder.sm.find_user(email=email)
+            if test_user:
+                self.appbuilder.sm.del_register_user(test_user)
+        for role_name in ['FakeTeamA', 'FakeTeamB']:
+            if self.appbuilder.sm.find_role(role_name):
+                self.appbuilder.sm.delete_role(role_name)
+
         super(CliTests, self).tearDown()
 
     @staticmethod
@@ -1148,12 +1167,233 @@ class CliTests(unittest.TestCase):
         for i in range(0, 3):
             self.assertIn('user{}'.format(i), stdout)
 
-    def test_cli_sync_perm(self):
-        # test whether sync_perm cli will throw exceptions or not
+    def test_cli_import_users(self):
+        def assertUserInRoles(email, roles):
+            for role in roles:
+                self.assertTrue(self._does_user_belong_to_role(email, role))
+
+        def assertUserNotInRoles(email, roles):
+            for role in roles:
+                self.assertFalse(self._does_user_belong_to_role(email, role))
+
+        assertUserNotInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
+        assertUserNotInRoles(self.TEST_USER2_EMAIL, ['Public'])
+        users = [
+            {
+                "username": "imported_user1", "lastname": "doe1",
+                "firstname": "jon", "email": self.TEST_USER1_EMAIL,
+                "roles": ["Admin", "Op"]
+            },
+            {
+                "username": "imported_user2", "lastname": "doe2",
+                "firstname": "jon", "email": self.TEST_USER2_EMAIL,
+                "roles": ["Public"]
+            }
+        ]
+        self._import_users_from_file(users)
+
+        assertUserInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
+        assertUserInRoles(self.TEST_USER2_EMAIL, ['Public'])
+
+        users = [
+            {
+                "username": "imported_user1", "lastname": "doe1",
+                "firstname": "jon", "email": self.TEST_USER1_EMAIL,
+                "roles": ["Public"]
+            },
+            {
+                "username": "imported_user2", "lastname": "doe2",
+                "firstname": "jon", "email": self.TEST_USER2_EMAIL,
+                "roles": ["Admin"]
+            }
+        ]
+        self._import_users_from_file(users)
+
+        assertUserNotInRoles(self.TEST_USER1_EMAIL, ['Admin', 'Op'])
+        assertUserInRoles(self.TEST_USER1_EMAIL, ['Public'])
+        assertUserNotInRoles(self.TEST_USER2_EMAIL, ['Public'])
+        assertUserInRoles(self.TEST_USER2_EMAIL, ['Admin'])
+
+    def test_cli_export_users(self):
+        user1 = {"username": "imported_user1", "lastname": "doe1",
+                 "firstname": "jon", "email": self.TEST_USER1_EMAIL,
+                 "roles": ["Public"]}
+        user2 = {"username": "imported_user2", "lastname": "doe2",
+                 "firstname": "jon", "email": self.TEST_USER2_EMAIL,
+                 "roles": ["Admin"]}
+        self._import_users_from_file([user1, user2])
+
+        users_filename = self._export_users_to_file()
+        with open(users_filename, mode='r') as f:
+            retrieved_users = json.loads(f.read())
+        os.remove(users_filename)
+
+        # ensure that an export can be imported
+        self._import_users_from_file(retrieved_users)
+
+        def find_by_username(username):
+            matches = [u for u in retrieved_users
+                       if u['username'] == username]
+            if not matches:
+                self.fail("Couldn't find user with username {}".format(username))
+            else:
+                matches[0].pop('id')  # this key not required for import
+                return matches[0]
+
+        self.assertEqual(find_by_username('imported_user1'), user1)
+        self.assertEqual(find_by_username('imported_user2'), user2)
+
+    def _import_users_from_file(self, user_list):
+        json_file_content = json.dumps(user_list)
+        f = NamedTemporaryFile(delete=False)
+        try:
+            f.write(json_file_content.encode())
+            f.flush()
+
+            args = self.parser.parse_args([
+                'users', '-i', f.name
+            ])
+            cli.users(args)
+        finally:
+            os.remove(f.name)
+
+    def _export_users_to_file(self):
+        f = NamedTemporaryFile(delete=False)
+        args = self.parser.parse_args([
+            'users', '-e', f.name
+        ])
+        cli.users(args)
+        return f.name
+
+    def _does_user_belong_to_role(self, email, rolename):
+        user = self.appbuilder.sm.find_user(email=email)
+        role = self.appbuilder.sm.find_role(rolename)
+        if user and role:
+            return role in user.roles
+
+        return False
+
+    def test_cli_add_user_role(self):
+        args = self.parser.parse_args([
+            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
+        ])
+        cli.users(args)
+
+        self.assertFalse(
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
+                                           rolename='Op'),
+            "User should not yet be a member of role 'Op'"
+        )
+
+        args = self.parser.parse_args([
+            'users', '--add-role', '--username', 'test4', '--role', 'Op'
+        ])
+        cli.users(args)
+
+        self.assertTrue(
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
+                                           rolename='Op'),
+            "User should have been added to role 'Op'"
+        )
+
+    def test_cli_remove_user_role(self):
+        args = self.parser.parse_args([
+            'users', '-c', '--username', 'test4', '--lastname', 'doe',
+            '--firstname', 'jon',
+            '--email', self.TEST_USER1_EMAIL, '--role', 'Viewer', '--use_random_password'
+        ])
+        cli.users(args)
+
+        self.assertTrue(
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
+                                           rolename='Viewer'),
+            "User should have been created with role 'Viewer'"
+        )
+
+        args = self.parser.parse_args([
+            'users', '--remove-role', '--username', 'test4', '--role', 'Viewer'
+        ])
+        cli.users(args)
+
+        self.assertFalse(
+            self._does_user_belong_to_role(email=self.TEST_USER1_EMAIL,
+                                           rolename='Viewer'),
+            "User should have been removed from role 'Viewer'"
+        )
+
+    @mock.patch("airflow.bin.cli.DagBag")
+    def test_cli_sync_perm(self, dagbag_mock):
+        self.expect_dagbag_contains([
+            DAG('has_access_control',
+                access_control={
+                    'Public': {'can_dag_read'}
+                }),
+            DAG('no_access_control')
+        ], dagbag_mock)
+        self.appbuilder.sm = mock.Mock()
+
         args = self.parser.parse_args([
             'sync_perm'
         ])
         cli.sync_perm(args)
+
+        assert self.appbuilder.sm.sync_roles.call_count == 1
+
+        self.assertEqual(2,
+                         len(self.appbuilder.sm.sync_perm_for_dag.mock_calls))
+        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
+            'has_access_control',
+            {'Public': {'can_dag_read'}}
+        )
+        self.appbuilder.sm.sync_perm_for_dag.assert_any_call(
+            'no_access_control',
+            None,
+        )
+
+    def expect_dagbag_contains(self, dags, dagbag_mock):
+        dagbag = mock.Mock()
+        dagbag.dags = {dag.dag_id: dag for dag in dags}
+        dagbag_mock.return_value = dagbag
+
+    def test_cli_create_roles(self):
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+        args = self.parser.parse_args([
+            'roles', '--create', 'FakeTeamA', 'FakeTeamB'
+        ])
+        cli.roles(args)
+
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+    def test_cli_create_roles_is_reentrant(self):
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+        args = self.parser.parse_args([
+            'roles', '--create', 'FakeTeamA', 'FakeTeamB'
+        ])
+
+        cli.roles(args)
+        cli.roles(args)
+
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamA'))
+        self.assertIsNotNone(self.appbuilder.sm.find_role('FakeTeamB'))
+
+    def test_cli_list_roles(self):
+        self.appbuilder.sm.add_role('FakeTeamA')
+        self.appbuilder.sm.add_role('FakeTeamB')
+
+        with mock.patch('sys.stdout',
+                        new_callable=six.StringIO) as mock_stdout:
+            cli.roles(self.parser.parse_args(['roles', '-l']))
+            stdout = mock_stdout.getvalue()
+
+        self.assertIn('FakeTeamA', stdout)
+        self.assertIn('FakeTeamB', stdout)
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
@@ -1164,17 +1404,28 @@ class CliTests(unittest.TestCase):
             'list_tasks', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
+    def test_cli_list_jobs(self):
+        args = self.parser.parse_args(['list_jobs'])
+        cli.list_jobs(args)
+
+    def test_cli_list_jobs_with_args(self):
+        args = self.parser.parse_args(['list_jobs', '--dag_id',
+                                       'example_bash_operator',
+                                       '--state', 'success',
+                                       '--limit', '100'])
+        cli.list_jobs(args)
+
     @mock.patch("airflow.bin.cli.db.initdb")
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
-        initdb_mock.assert_called_once_with(False)
+        initdb_mock.assert_called_once_with()
 
     @mock.patch("airflow.bin.cli.db.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
 
-        resetdb_mock.assert_called_once_with(False)
+        resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
@@ -1189,7 +1440,7 @@ class CliTests(unittest.TestCase):
         # Assert that some of the connections are present in the output as
         # expected:
         self.assertIn(['aws_default', 'aws'], conns)
-        self.assertIn(['beeline_default', 'beeline'], conns)
+        self.assertIn(['hive_cli_default', 'hive_cli'], conns)
         self.assertIn(['emr_default', 'emr'], conns)
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)
@@ -1712,678 +1963,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual(e.exception.code, 1)
 
 
-class SecurityTests(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
-        app.config['TESTING'] = True
-        self.app = app.test_client()
-
-        self.dagbag = models.DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
-        self.dag_bash = self.dagbag.dags['example_bash_operator']
-        self.runme_0 = self.dag_bash.get_task('runme_0')
-
-    def get_csrf(self, response):
-        tree = html.fromstring(response.data)
-        form = tree.find('.//form')
-
-        return form.find('.//input[@name="_csrf_token"]').value
-
-    def test_csrf_rejection(self):
-        endpoints = ([
-            "/admin/queryview/",
-            "/admin/airflow/paused?dag_id=example_python_operator&is_paused=false",
-        ])
-        for endpoint in endpoints:
-            response = self.app.post(endpoint)
-            self.assertIn('CSRF token is missing', response.data.decode('utf-8'))
-
-    def test_csrf_acceptance(self):
-        response = self.app.get("/admin/queryview/")
-        csrf = self.get_csrf(response)
-        response = self.app.post("/admin/queryview/", data=dict(csrf_token=csrf))
-        self.assertEqual(200, response.status_code)
-
-    def test_xss(self):
-        try:
-            self.app.get("/admin/airflow/tree?dag_id=<script>alert(123456)</script>")
-        except Exception:
-            # exception is expected here since dag doesnt exist
-            pass
-        response = self.app.get("/admin/log", follow_redirects=True)
-        self.assertIn(bleach.clean("<script>alert(123456)</script>"), response.data.decode('UTF-8'))
-
-    def test_chart_data_template(self):
-        """Protect chart_data from being able to do RCE."""
-        session = settings.Session()
-        Chart = models.Chart
-        chart1 = Chart(
-            label='insecure_chart',
-            conn_id='airflow_db',
-            chart_type='bar',
-            sql="SELECT {{ ''.__class__.__mro__[1].__subclasses__() }}"
-        )
-        chart2 = Chart(
-            label="{{ ''.__class__.__mro__[1].__subclasses__() }}",
-            conn_id='airflow_db',
-            chart_type='bar',
-            sql="SELECT 1"
-        )
-        chart3 = Chart(
-            label="{{ subprocess.check_output('ls') }}",
-            conn_id='airflow_db',
-            chart_type='bar',
-            sql="SELECT 1"
-        )
-        session.add(chart1)
-        session.add(chart2)
-        session.add(chart3)
-        session.commit()
-        chart1 = session.query(Chart).filter(Chart.label == 'insecure_chart').first()
-        with self.assertRaises(SecurityError):
-            self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart1.id))
-
-        chart2 = session.query(Chart).filter(
-            Chart.label == "{{ ''.__class__.__mro__[1].__subclasses__() }}"
-        ).first()
-        with self.assertRaises(SecurityError):
-            self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart2.id))
-
-        chart3 = session.query(Chart).filter(
-            Chart.label == "{{ subprocess.check_output('ls') }}"
-        ).first()
-        with self.assertRaises(UndefinedError):
-            self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3.id))
-
-    def tearDown(self):
-        configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
-
-
-class WebUiTests(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("webserver", "expose_config", "True")
-        app = application.create_app()
-        app.config['TESTING'] = True
-        app.config['WTF_CSRF_METHODS'] = []
-        self.app = app.test_client()
-
-        self.dagbag = models.DagBag(include_examples=True)
-        self.dag_bash = self.dagbag.dags['example_bash_operator']
-        self.dag_python = self.dagbag.dags['example_python_operator']
-        self.sub_dag = self.dagbag.dags['example_subdag_operator']
-        self.runme_0 = self.dag_bash.get_task('runme_0')
-        self.example_xcom = self.dagbag.dags['example_xcom']
-
-        self.dagrun_python = self.dag_python.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
-            execution_date=EXAMPLE_DAG_DEFAULT_DATE,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING
-        )
-
-        self.sub_dag.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
-            execution_date=EXAMPLE_DAG_DEFAULT_DATE,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING
-        )
-
-        self.example_xcom.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
-            execution_date=EXAMPLE_DAG_DEFAULT_DATE,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING
-        )
-
-    def test_index(self):
-        response = self.app.get('/', follow_redirects=True)
-        resp_html = response.data.decode('utf-8')
-        self.assertIn("DAGs", resp_html)
-        self.assertIn("example_bash_operator", resp_html)
-
-        # The HTML should contain data for the last-run. A link to the specific run,
-        #  and the text of the date.
-        url = "/admin/airflow/graph?" + urlencode({
-            "dag_id": self.dag_python.dag_id,
-            "execution_date": self.dagrun_python.execution_date,
-        }).replace("&", "&amp;")
-        self.assertIn(url, resp_html)
-        self.assertIn(
-            self.dagrun_python.execution_date.strftime("%Y-%m-%d %H:%M"),
-            resp_html)
-
-    def test_query(self):
-        response = self.app.get('/admin/queryview/')
-        self.assertIn("Ad Hoc Query", response.data.decode('utf-8'))
-        response = self.app.post(
-            "/admin/queryview/", data=dict(
-                conn_id="airflow_db",
-                sql="SELECT+COUNT%281%29+as+TEST+FROM+task_instance"))
-        self.assertIn("TEST", response.data.decode('utf-8'))
-
-    def test_health(self):
-        BJ = jobs.BaseJob
-        session = Session()
-
-        # case-1: healthy scheduler status
-        last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
-        session.add(BJ(job_type='SchedulerJob',
-                       state='running',
-                       latest_heartbeat=last_scheduler_heartbeat_for_testing_1))
-        session.commit()
-
-        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
-
-        self.assertEqual('healthy', response_json['metadatabase']['status'])
-        self.assertEqual('healthy', response_json['scheduler']['status'])
-        self.assertEqual(str(last_scheduler_heartbeat_for_testing_1),
-                         response_json['scheduler']['latest_scheduler_heartbeat'])
-
-        session.query(BJ).\
-            filter(BJ.job_type == 'SchedulerJob',
-                   BJ.state == 'running',
-                   BJ.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
-            delete()
-        session.commit()
-
-        # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
-        last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
-        (session.query(BJ)
-                .filter(BJ.job_type == 'SchedulerJob')
-                .update({'latest_heartbeat': last_scheduler_heartbeat_for_testing_2 - timedelta(seconds=1)}))
-        session.add(BJ(job_type='SchedulerJob',
-                       state='running',
-                       latest_heartbeat=last_scheduler_heartbeat_for_testing_2))
-        session.commit()
-
-        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
-
-        self.assertEqual('healthy', response_json['metadatabase']['status'])
-        self.assertEqual('unhealthy', response_json['scheduler']['status'])
-        self.assertEqual(str(last_scheduler_heartbeat_for_testing_2),
-                         response_json['scheduler']['latest_scheduler_heartbeat'])
-
-        session.query(BJ).\
-            filter(BJ.job_type == 'SchedulerJob',
-                   BJ.state == 'running',
-                   BJ.latest_heartbeat == last_scheduler_heartbeat_for_testing_1).\
-            delete()
-        session.commit()
-
-        # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
-        session.query(BJ).\
-            filter(BJ.job_type == 'SchedulerJob',
-                   BJ.state == 'running').\
-            delete()
-        session.commit()
-
-        response_json = json.loads(self.app.get('/health').data.decode('utf-8'))
-
-        self.assertEqual('healthy', response_json['metadatabase']['status'])
-        self.assertEqual('unhealthy', response_json['scheduler']['status'])
-        self.assertEqual('None',
-                         response_json['scheduler']['latest_scheduler_heartbeat'])
-
-        session.close()
-
-    def test_noaccess(self):
-        response = self.app.get('/admin/airflow/noaccess')
-        self.assertIn("You don't seem to have access.", response.data.decode('utf-8'))
-
-    def test_pickle_info(self):
-        response = self.app.get('/admin/airflow/pickle_info')
-        self.assertIn('{', response.data.decode('utf-8'))
-
-    def test_dag_views(self):
-        response = self.app.get(
-            '/admin/airflow/graph?dag_id=example_bash_operator')
-        self.assertIn("runme_0", response.data.decode('utf-8'))
-        # confirm that the graph page loads when execution_date is blank
-        response = self.app.get(
-            '/admin/airflow/graph?dag_id=example_bash_operator&execution_date=')
-        self.assertIn("runme_0", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/tree?num_runs=25&dag_id=example_bash_operator')
-        self.assertIn("runme_0", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/duration?days=30&dag_id=example_bash_operator')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/duration?days=30&dag_id=missing_dag',
-            follow_redirects=True)
-        self.assertIn("seems to be missing", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/tries?days=30&dag_id=example_bash_operator')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/landing_times?'
-            'days=30&dag_id=example_python_operator')
-        self.assertIn("example_python_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/landing_times?'
-            'days=30&dag_id=example_xcom')
-        self.assertIn("example_xcom", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/gantt?dag_id=example_bash_operator')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/code?dag_id=example_bash_operator')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/blocked')
-        response = self.app.get(
-            '/admin/configurationview/')
-        self.assertIn("Airflow Configuration", response.data.decode('utf-8'))
-        self.assertIn("Running Configuration", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/rendered?'
-            'task_id=runme_1&dag_id=example_bash_operator&'
-            'execution_date={}'.format(DEFAULT_DATE_ISO))
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/log?task_id=run_this_last&'
-            'dag_id=example_bash_operator&execution_date={}'
-            ''.format(DEFAULT_DATE_ISO))
-        self.assertIn("run_this_last", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/task?'
-            'task_id=runme_0&dag_id=example_bash_operator&'
-            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
-        self.assertIn("Attributes", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/dag_stats')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/task_stats')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        url = (
-            "/admin/airflow/success?task_id=print_the_context&"
-            "dag_id=example_python_operator&upstream=false&downstream=false&"
-            "future=false&past=false&execution_date={}&"
-            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
-        response = self.app.get(url)
-        self.assertIn("Wait a minute", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/clear?task_id=print_the_context&'
-            'dag_id=example_python_operator&future=true&past=false&'
-            'upstream=true&downstream=false&'
-            'execution_date={}&'
-            'origin=/admin'.format(EXAMPLE_DAG_DEFAULT_DATE))
-        self.assertIn("Wait a minute", response.data.decode('utf-8'))
-        url = (
-            "/admin/airflow/success?task_id=section-1&"
-            "dag_id=example_subdag_operator&upstream=true&downstream=true&"
-            "future=false&past=false&execution_date={}&"
-            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
-        response = self.app.get(url)
-        self.assertIn("Wait a minute", response.data.decode('utf-8'))
-        self.assertIn("section-1-task-1", response.data.decode('utf-8'))
-        self.assertIn("section-1-task-2", response.data.decode('utf-8'))
-        self.assertIn("section-1-task-3", response.data.decode('utf-8'))
-        self.assertIn("section-1-task-4", response.data.decode('utf-8'))
-        self.assertIn("section-1-task-5", response.data.decode('utf-8'))
-        response = self.app.get(url + "&confirmed=true")
-        url = (
-            "/admin/airflow/clear?task_id=print_the_context&"
-            "dag_id=example_python_operator&future=false&past=false&"
-            "upstream=false&downstream=true&"
-            "execution_date={}&"
-            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
-        response = self.app.get(url)
-        self.assertIn("Wait a minute", response.data.decode('utf-8'))
-        response = self.app.get(url + "&confirmed=true")
-        url = (
-            "/admin/airflow/clear?task_id=section-1-task-1&"
-            "dag_id=example_subdag_operator.section-1&future=false&past=false&"
-            "upstream=false&downstream=true&recursive=true&"
-            "execution_date={}&"
-            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
-        response = self.app.get(url)
-        self.assertIn("Wait a minute", response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.end",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-1.section-1-task-1",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-1",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-2",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-2.section-2-task-1",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-2.section-2-task-2",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-2.section-2-task-3",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-2.section-2-task-4",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.section-2.section-2-task-5",
-                      response.data.decode('utf-8'))
-        self.assertIn("example_subdag_operator.some-other-task",
-                      response.data.decode('utf-8'))
-        url = (
-            "/admin/airflow/run?task_id=runme_0&"
-            "dag_id=example_bash_operator&ignore_all_deps=false&ignore_ti_state=true&"
-            "ignore_task_deps=true&execution_date={}&"
-            "origin=/admin".format(EXAMPLE_DAG_DEFAULT_DATE))
-        response = self.app.get(url)
-        response = self.app.get(
-            "/admin/airflow/refresh?dag_id=example_bash_operator")
-        response = self.app.get("/admin/airflow/refresh_all")
-        response = self.app.post(
-            "/admin/airflow/paused?"
-            "dag_id=example_python_operator&is_paused=false")
-        self.assertIn("OK", response.data.decode('utf-8'))
-        response = self.app.get("/admin/xcom", follow_redirects=True)
-        self.assertIn("Xcoms", response.data.decode('utf-8'))
-
-    def test_charts(self):
-        session = Session()
-        chart_label = "Airflow task instance by type"
-        chart = session.query(
-            models.Chart).filter(models.Chart.label == chart_label).first()
-        chart_id = chart.id
-        session.close()
-        response = self.app.get(
-            '/admin/airflow/chart'
-            '?chart_id={}&iteration_no=1'.format(chart_id))
-        self.assertIn("Airflow task instance by type", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/chart_data'
-            '?chart_id={}&iteration_no=1'.format(chart_id))
-        self.assertIn("example", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/dag_details?dag_id=example_branch_operator')
-        self.assertIn("run_this_first", response.data.decode('utf-8'))
-
-    def test_fetch_task_instance(self):
-        url = (
-            "/admin/airflow/object/task_instances?"
-            "dag_id=example_python_operator&"
-            "execution_date={}".format(EXAMPLE_DAG_DEFAULT_DATE))
-        response = self.app.get(url)
-        self.assertIn("print_the_context", response.data.decode('utf-8'))
-
-    def test_dag_view_task_with_python_operator_using_partial(self):
-        response = self.app.get(
-            '/admin/airflow/task?'
-            'task_id=test_dagrun_functool_partial&dag_id=test_task_view_type_check&'
-            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
-        self.assertIn("A function with two args", response.data.decode('utf-8'))
-
-    def test_dag_view_task_with_python_operator_using_instance(self):
-        response = self.app.get(
-            '/admin/airflow/task?'
-            'task_id=test_dagrun_instance&dag_id=test_task_view_type_check&'
-            'execution_date={}'.format(EXAMPLE_DAG_DEFAULT_DATE))
-        self.assertIn("A __call__ method", response.data.decode('utf-8'))
-
-    def tearDown(self):
-        configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=EXAMPLE_DAG_DEFAULT_DATE,
-                            end_date=timezone.utcnow())
-        session = Session()
-        session.query(models.DagRun).delete()
-        session.query(models.TaskInstance).delete()
-        session.commit()
-        session.close()
-
-
-class SecureModeWebUiTests(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-        configuration.conf.set("core", "secure_mode", "True")
-        app = application.create_app()
-        app.config['TESTING'] = True
-        self.app = app.test_client()
-
-    def test_query(self):
-        response = self.app.get('/admin/queryview/')
-        self.assertEqual(response.status_code, 404)
-
-    def test_charts(self):
-        response = self.app.get('/admin/chart/')
-        self.assertEqual(response.status_code, 404)
-
-    def tearDown(self):
-        configuration.conf.remove_option("core", "SECURE_MODE")
-
-
-class PasswordUserTest(unittest.TestCase):
-    def setUp(self):
-        user = models.User()
-        from airflow.contrib.auth.backends.password_auth import PasswordUser
-        self.password_user = PasswordUser(user)
-        self.password_user.username = "password_test"
-
-    @mock.patch('airflow.contrib.auth.backends.password_auth.generate_password_hash')
-    def test_password_setter(self, mock_gen_pass_hash):
-        mock_gen_pass_hash.return_value = b"hashed_pass" if six.PY3 else "hashed_pass"
-
-        self.password_user.password = "secure_password"
-        mock_gen_pass_hash.assert_called_with("secure_password", 12)
-
-    def test_password_unicode(self):
-        # In python2.7 no conversion is required back to str
-        # In python >= 3 the method must convert from bytes to str
-        self.password_user.password = "secure_password"
-        self.assertIsInstance(self.password_user.password, str)
-
-    def test_password_user_authenticate(self):
-        self.password_user.password = "secure_password"
-        self.assertTrue(self.password_user.authenticate("secure_password"))
-
-    def test_password_unicode_user_authenticate(self):
-        self.password_user.username = u"🐼"  # This is a panda
-        self.password_user.password = "secure_password"
-        self.assertTrue(self.password_user.authenticate("secure_password"))
-
-    def test_password_authenticate_session(self):
-        from airflow.contrib.auth.backends.password_auth import PasswordUser
-        self.password_user.password = 'test_password'
-        session = Session()
-        session.add(self.password_user)
-        session.commit()
-        query_user = session.query(PasswordUser).filter_by(
-            username=self.password_user.username).first()
-        self.assertTrue(query_user.authenticate('test_password'))
-        session.query(models.User).delete()
-        session.commit()
-        session.close()
-
-
-class WebPasswordAuthTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.password_auth")
-
-        app = application.create_app()
-        app.config['TESTING'] = True
-        self.app = app.test_client()
-        from airflow.contrib.auth.backends.password_auth import PasswordUser
-
-        session = Session()
-        user = models.User()
-        password_user = PasswordUser(user)
-        password_user.username = 'airflow_passwordauth'
-        password_user.password = 'password'
-        print(password_user._password)
-        session.add(password_user)
-        session.commit()
-        session.close()
-
-    def get_csrf(self, response):
-        tree = html.fromstring(response.data)
-        form = tree.find('.//form')
-
-        return form.find('.//input[@name="_csrf_token"]').value
-
-    def login(self, username, password):
-        response = self.app.get('/admin/airflow/login')
-        csrf_token = self.get_csrf(response)
-
-        return self.app.post('/admin/airflow/login', data=dict(
-            username=username,
-            password=password,
-            csrf_token=csrf_token
-        ), follow_redirects=True)
-
-    def logout(self):
-        return self.app.get('/admin/airflow/logout', follow_redirects=True)
-
-    def test_login_logout_password_auth(self):
-        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
-
-        response = self.login('user1', 'whatever')
-        self.assertIn('Incorrect login details', response.data.decode('utf-8'))
-
-        response = self.login('airflow_passwordauth', 'wrongpassword')
-        self.assertIn('Incorrect login details', response.data.decode('utf-8'))
-
-        response = self.login('airflow_passwordauth', 'password')
-        self.assertIn('Data Profiling', response.data.decode('utf-8'))
-
-        response = self.logout()
-        self.assertIn('form-signin', response.data.decode('utf-8'))
-
-    def test_unauthorized_password_auth(self):
-        response = self.app.get("/admin/airflow/landing_times")
-        self.assertEqual(response.status_code, 302)
-
-    def tearDown(self):
-        configuration.load_test_config()
-        session = Session()
-        session.query(models.User).delete()
-        session.commit()
-        session.close()
-        configuration.conf.set("webserver", "authenticate", "False")
-
-
-class WebLdapAuthTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
-        try:
-            configuration.conf.add_section("ldap")
-        except Exception:
-            pass
-        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
-        configuration.conf.set("ldap", "user_filter", "objectClass=*")
-        configuration.conf.set("ldap", "user_name_attr", "uid")
-        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
-        configuration.conf.set("ldap", "bind_password", "insecure")
-        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
-        configuration.conf.set("ldap", "cacert", "")
-
-        app = application.create_app()
-        app.config['TESTING'] = True
-        self.app = app.test_client()
-
-    def get_csrf(self, response):
-        tree = html.fromstring(response.data)
-        form = tree.find('.//form')
-
-        return form.find('.//input[@name="_csrf_token"]').value
-
-    def login(self, username, password):
-        response = self.app.get('/admin/airflow/login')
-        csrf_token = self.get_csrf(response)
-
-        return self.app.post('/admin/airflow/login', data=dict(
-            username=username,
-            password=password,
-            csrf_token=csrf_token
-        ), follow_redirects=True)
-
-    def logout(self):
-        return self.app.get('/admin/airflow/logout', follow_redirects=True)
-
-    def test_login_logout_ldap(self):
-        self.assertTrue(configuration.conf.getboolean('webserver', 'authenticate'))
-
-        response = self.login('user1', 'userx')
-        self.assertIn('Incorrect login details', response.data.decode('utf-8'))
-
-        response = self.login('userz', 'user1')
-        self.assertIn('Incorrect login details', response.data.decode('utf-8'))
-
-        response = self.login('user1', 'user1')
-        self.assertIn('Data Profiling', response.data.decode('utf-8'))
-
-        response = self.logout()
-        self.assertIn('form-signin', response.data.decode('utf-8'))
-
-    def test_unauthorized(self):
-        response = self.app.get("/admin/airflow/landing_times")
-        self.assertEqual(response.status_code, 302)
-
-    def test_no_filter(self):
-        response = self.login('user1', 'user1')
-        self.assertIn('Data Profiling', response.data.decode('utf-8'))
-        self.assertIn('Connections', response.data.decode('utf-8'))
-
-    def test_with_filters(self):
-        configuration.conf.set('ldap', 'superuser_filter',
-                               'description=superuser')
-        configuration.conf.set('ldap', 'data_profiler_filter',
-                               'description=dataprofiler')
-
-        response = self.login('dataprofiler', 'dataprofiler')
-        self.assertIn('Data Profiling', response.data.decode('utf-8'))
-
-        response = self.logout()
-        self.assertIn('form-signin', response.data.decode('utf-8'))
-
-        response = self.login('superuser', 'superuser')
-        self.assertIn('Connections', response.data.decode('utf-8'))
-
-    def tearDown(self):
-        configuration.load_test_config()
-        session = Session()
-        session.query(models.User).delete()
-        session.commit()
-        session.close()
-        configuration.conf.set("webserver", "authenticate", "False")
-
-
-class LdapGroupTest(unittest.TestCase):
-    def setUp(self):
-        configuration.conf.set("webserver", "authenticate", "True")
-        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
-        try:
-            configuration.conf.add_section("ldap")
-        except Exception:
-            pass
-        configuration.conf.set("ldap", "uri", "ldap://openldap:389")
-        configuration.conf.set("ldap", "user_filter", "objectClass=*")
-        configuration.conf.set("ldap", "user_name_attr", "uid")
-        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
-        configuration.conf.set("ldap", "bind_password", "insecure")
-        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
-        configuration.conf.set("ldap", "cacert", "")
-
-    def test_group_belonging(self):
-        from airflow.contrib.auth.backends.ldap_auth import LdapUser
-        users = {"user1": ["group1", "group3"],
-                 "user2": ["group2"]
-                 }
-        for user in users:
-            mu = models.User(username=user,
-                             is_superuser=False)
-            auth = LdapUser(mu)
-            self.assertEqual(set(users[user]), set(auth.ldap_groups))
-
-    def tearDown(self):
-        configuration.load_test_config()
-        configuration.conf.set("webserver", "authenticate", "False")
-
-
 class FakeWebHDFSHook(object):
     def __init__(self, conn_id):
         self.conn_id = conn_id
@@ -2625,13 +2204,6 @@ class ConnectionTest(unittest.TestCase):
         assert conns[0].login == 'username'
         assert conns[0].password == 'password'
         assert conns[0].port == 5432
-
-    def test_get_connections_db(self):
-        conns = BaseHook.get_connections(conn_id='airflow_db')
-        assert len(conns) == 1
-        assert conns[0].host == 'localhost'
-        assert conns[0].schema == 'airflow'
-        assert conns[0].login == 'root'
 
 
 class WebHDFSHookTest(unittest.TestCase):

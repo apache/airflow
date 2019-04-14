@@ -26,7 +26,7 @@ from mock import patch
 
 from airflow import configuration
 from airflow.hooks.jdbc_hook import JdbcHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 
 jdbc_conn_mock = Mock(

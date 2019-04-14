@@ -116,7 +116,8 @@ class HiveCliHook(BaseHook):
 
         if self.use_beeline:
             hive_bin = 'beeline'
-            jdbc_url = "jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+            jdbc_url = "jdbc:hive2://{host}:{port}/{schema}".format(
+                host=conn.host, port=conn.port, schema=conn.schema)
             if configuration.conf.get('core', 'security') == 'kerberos':
                 template = conn.extra_dejson.get(
                     'principal', "hive/_HOST@EXAMPLE.COM")
@@ -130,11 +131,11 @@ class HiveCliHook(BaseHook):
                 elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
                     proxy_user = "hive.server2.proxy.user={0}".format(self.run_as)
 
-                jdbc_url += ";principal={template};{proxy_user}"
+                jdbc_url += ";principal={template};{proxy_user}".format(
+                    template=template, proxy_user=proxy_user)
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
-            jdbc_url = jdbc_url.format(**locals())
             jdbc_url = '"{}"'.format(jdbc_url)
 
             cmd_extra += ['-u', jdbc_url]
@@ -191,7 +192,7 @@ class HiveCliHook(BaseHook):
         conn = self.conn
         schema = schema or conn.schema
         if schema:
-            hql = "USE {schema};\n{hql}".format(**locals())
+            hql = "USE {schema};\n{hql}".format(schema=schema, hql=hql)
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
@@ -233,7 +234,7 @@ class HiveCliHook(BaseHook):
                 hive_cmd.extend(['-f', f.name])
 
                 if verbose:
-                    self.log.info(" ".join(hive_cmd))
+                    self.log.info("%s", " ".join(hive_cmd))
                 sp = subprocess.Popen(
                     hive_cmd,
                     stdout=subprocess.PIPE,
@@ -314,13 +315,13 @@ class HiveCliHook(BaseHook):
         not be sanitized.
 
         :param df: DataFrame to load into a Hive table
-        :type df: DataFrame
+        :type df: pandas.DataFrame
         :param table: target Hive table, use dot notation to target a
             specific database
         :type table: str
         :param field_dict: mapping from column name to hive data type.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: OrderedDict
+        :type field_dict: collections.OrderedDict
         :param delimiter: field delimiter in the file
         :type delimiter: str
         :param encoding: str encoding to use when writing DataFrame to file
@@ -406,7 +407,7 @@ class HiveCliHook(BaseHook):
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
             Note that it must be OrderedDict so as to keep columns' order.
-        :type field_dict: OrderedDict
+        :type field_dict: collections.OrderedDict
         :param create: whether to create the table if it doesn't exist
         :type create: bool
         :param overwrite: whether to overwrite the data in table or partition
@@ -422,42 +423,41 @@ class HiveCliHook(BaseHook):
         """
         hql = ''
         if recreate:
-            hql += "DROP TABLE IF EXISTS {table};\n"
+            hql += "DROP TABLE IF EXISTS {table};\n".format(table=table)
         if create or recreate:
             if field_dict is None:
                 raise ValueError("Must provide a field dict when creating a table")
             fields = ",\n    ".join(
                 [k + ' ' + v for k, v in field_dict.items()])
-            hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
+            hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n".format(
+                table=table, fields=fields)
             if partition:
                 pfields = ",\n    ".join(
                     [p + " STRING" for p in partition])
-                hql += "PARTITIONED BY ({pfields})\n"
+                hql += "PARTITIONED BY ({pfields})\n".format(pfields=pfields)
             hql += "ROW FORMAT DELIMITED\n"
-            hql += "FIELDS TERMINATED BY '{delimiter}'\n"
+            hql += "FIELDS TERMINATED BY '{delimiter}'\n".format(delimiter=delimiter)
             hql += "STORED AS textfile\n"
             if tblproperties is not None:
                 tprops = ", ".join(
                     ["'{0}'='{1}'".format(k, v) for k, v in tblproperties.items()])
-                hql += "TBLPROPERTIES({tprops})\n"
+                hql += "TBLPROPERTIES({tprops})\n".format(tprops=tprops)
         hql += ";"
-        hql = hql.format(**locals())
         self.log.info(hql)
         self.run_cli(hql)
-        hql = "LOAD DATA LOCAL INPATH '{filepath}' "
+        hql = "LOAD DATA LOCAL INPATH '{filepath}' ".format(filepath=filepath)
         if overwrite:
             hql += "OVERWRITE "
-        hql += "INTO TABLE {table} "
+        hql += "INTO TABLE {table} ".format(table=table)
         if partition:
             pvals = ", ".join(
                 ["{0}='{1}'".format(k, v) for k, v in partition.items()])
-            hql += "PARTITION ({pvals});"
+            hql += "PARTITION ({pvals})".format(pvals=pvals)
 
         # As a workaround for HIVE-10541, add a newline character
         # at the end of hql (AIRFLOW-2412).
-        hql += '\n'
+        hql += ';\n'
 
-        hql = hql.format(**locals())
         self.log.info(hql)
         self.run_cli(hql)
 
@@ -761,6 +761,9 @@ class HiveServer2Hook(BaseHook):
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
     def get_conn(self, schema=None):
+        """
+        Returns a Hive connection object.
+        """
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
         if auth_mechanism == 'NONE' and db.login is None:
@@ -787,6 +790,7 @@ class HiveServer2Hook(BaseHook):
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
+            password=db.password,
             database=schema or db.schema or 'default')
 
     def _get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
@@ -835,11 +839,17 @@ class HiveServer2Hook(BaseHook):
     def get_results(self, hql, schema='default', fetch_size=None, hive_conf=None):
         """
         Get results of the provided hql in target schema.
+
         :param hql: hql to be executed.
+        :type hql: str or list
         :param schema: target schema, default to 'default'.
-        :param fetch_size max size of result to fetch.
+        :type schema: str
+        :param fetch_size: max size of result to fetch.
+        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :return: results of hql execution.
+        :type hive_conf: dict
+        :return: results of hql execution, dict with data (list of results) and header
+        :rtype: dict
         """
         results_iter = self._get_results(hql, schema,
                                          fetch_size=fetch_size, hive_conf=hive_conf)
@@ -862,15 +872,24 @@ class HiveServer2Hook(BaseHook):
             hive_conf=None):
         """
         Execute hql in target schema and write results to a csv file.
+
         :param hql: hql to be executed.
+        :type hql: str or list
         :param csv_filepath: filepath of csv to write results into.
-        :param schema: target schema, , default to 'default'.
-        :param delimiter: delimiter of the csv file.
+        :type csv_filepath: str
+        :param schema: target schema, default to 'default'.
+        :type schema: str
+        :param delimiter: delimiter of the csv file, default to ','.
+        :type delimiter: str
         :param lineterminator: lineterminator of the csv file.
-        :param output_header: header of the csv file.
-        :param fetch_size: number of result rows to write into the csv file.
+        :type lineterminator: str
+        :param output_header: header of the csv file, default to True.
+        :type output_header: bool
+        :param fetch_size: number of result rows to write into the csv file, default to 1000.
+        :type fetch_size: int
         :param hive_conf: hive_conf to execute alone with the hql.
-        :return:
+        :type hive_conf: dict
+
         """
 
         results_iter = self._get_results(hql, schema,
@@ -878,6 +897,7 @@ class HiveServer2Hook(BaseHook):
         header = next(results_iter)
         message = None
 
+        i = 0
         with open(csv_filepath, 'wb') as f:
             writer = csv.writer(f,
                                 delimiter=delimiter,
@@ -888,7 +908,7 @@ class HiveServer2Hook(BaseHook):
                     self.log.debug('Cursor description is %s', header)
                     writer.writerow([c[0] for c in header])
 
-                for i, row in enumerate(results_iter):
+                for i, row in enumerate(results_iter, 1):
                     writer.writerow(row)
                     if i % fetch_size == 0:
                         self.log.info("Written %s rows so far.", i)
@@ -906,6 +926,15 @@ class HiveServer2Hook(BaseHook):
         """
         Get a set of records from a Hive query.
 
+        :param hql: hql to be executed.
+        :type hql: str or list
+        :param schema: target schema, default to 'default'.
+        :type schema: str
+        :param hive_conf: hive_conf to execute alone with the hql.
+        :type hive_conf: dict
+        :return: result of hive execution
+        :rtype: list
+
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
         >>> len(hh.get_records(sql))
@@ -917,11 +946,20 @@ class HiveServer2Hook(BaseHook):
         """
         Get a pandas dataframe from a Hive query
 
+        :param hql: hql to be executed.
+        :type hql: str or list
+        :param schema: target schema, default to 'default'.
+        :type schema: str
+        :return: result of hql execution
+        :rtype: DataFrame
+
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
         >>> df = hh.get_pandas_df(sql)
         >>> len(df.index)
         100
+
+        :return: pandas.DateFrame
         """
         import pandas as pd
         res = self.get_results(hql, schema=schema)

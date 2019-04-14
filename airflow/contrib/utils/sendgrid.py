@@ -42,7 +42,7 @@ def send_email(to, subject, html_content, files=None, dryrun=False, cc=None,
 
     To use this plugin:
     0. include sendgrid subpackage as part of your Airflow installation, e.g.,
-    pip install apache-airflow[sendgrid]
+    pip install 'apache-airflow[sendgrid]'
     1. update [email] backend in airflow.cfg, i.e.,
     [email]
     email_backend = airflow.contrib.utils.sendgrid.send_email
@@ -112,7 +112,7 @@ def _post_sendgrid_mail(mail_data):
     sg = sendgrid.SendGridAPIClient(apikey=os.environ.get('SENDGRID_API_KEY'))
     response = sg.client.mail.send.post(request_body=mail_data)
     # 2xx status code.
-    if response.status_code >= 200 and response.status_code < 300:
+    if 200 <= response.status_code < 300:
         log.info('Email with subject %s is successfully sent to recipients: %s',
                  mail_data['subject'], mail_data['personalizations'])
     else:

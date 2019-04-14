@@ -14,14 +14,6 @@ java -jar apache-rat.jar -E ./.rat-excludes -d .
 python -m my_env
 source my_env/bin/activate
 
-# [required] by default one of Apache Airflow's dependencies pulls in a GPL
-# library. Airflow will not install (and upgrade) without an explicit choice.
-#
-# To make sure not to install the GPL dependency:
-#   export SLUGIFY_USES_TEXT_UNIDECODE=yes
-# In case you do not mind:
-#   export AIRFLOW_GPL_UNIDECODE=yes
-
 # [required] building and installing
 # by pip (preferred)
 pip install .

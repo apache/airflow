@@ -24,14 +24,7 @@ import unittest
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 RESPONSE_WITHOUT_FAILURES = {
     "jobName": "51455483-c62c-48ac-9b88-53a6a725baa3",
@@ -119,7 +112,7 @@ class TestAWSBatchOperator(unittest.TestCase):
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
             jobs=['8ba9d676-4108-4474-9dca-8bbac1da9b19']
         )
-        self.assertEquals(sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
+        self.assertEqual(sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
 
     def test_check_success_tasks_raises(self):
         client_mock = mock.Mock()

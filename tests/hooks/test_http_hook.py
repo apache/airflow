@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import unittest
 
 import json
@@ -23,15 +28,8 @@ import tenacity
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
-from airflow.models.connection import Connection
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from airflow.models import Connection
+from tests.compat import mock
 
 
 def get_airflow_connection(conn_id=None):
@@ -77,7 +75,7 @@ class TestHttpHook(unittest.TestCase):
         ):
 
             resp = self.get_hook.run('v1/test')
-            self.assertEquals(resp.text, '{"status":{"status": 200}}')
+            self.assertEqual(resp.text, '{"status":{"status": 200}}')
 
     @requests_mock.mock()
     @mock.patch('requests.Request')
@@ -120,7 +118,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             resp = self.get_hook.run('v1/test', extra_options={'check_response': False})
-            self.assertEquals(resp.text, '{"status":{"status": 404}}')
+            self.assertEqual(resp.text, '{"status":{"status": 404}}')
 
     @requests_mock.mock()
     def test_hook_contains_header_from_extra_field(self, m):
@@ -131,17 +129,17 @@ class TestHttpHook(unittest.TestCase):
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
             self.assertDictContainsSubset(json.loads(expected_conn.extra), conn.headers)
-            self.assertEquals(conn.headers.get('bareer'), 'test')
+            self.assertEqual(conn.headers.get('bareer'), 'test')
 
     @requests_mock.mock()
     def test_hook_uses_provided_header(self, m):
-            conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-            self.assertEquals(conn.headers.get('bareer'), "newT0k3n")
+        conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
+        self.assertEqual(conn.headers.get('bareer'), "newT0k3n")
 
     @requests_mock.mock()
     def test_hook_has_no_header_from_extra(self, m):
-            conn = self.get_hook.get_conn()
-            self.assertIsNone(conn.headers.get('bareer'))
+        conn = self.get_hook.get_conn()
+        self.assertIsNone(conn.headers.get('bareer'))
 
     @requests_mock.mock()
     def test_hooks_header_from_extra_is_overridden(self, m):
@@ -150,7 +148,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-            self.assertEquals(conn.headers.get('bareer'), 'newT0k3n')
+            self.assertEqual(conn.headers.get('bareer'), 'newT0k3n')
 
     @requests_mock.mock()
     def test_post_request(self, m):
@@ -167,7 +165,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             resp = self.post_hook.run('v1/test')
-            self.assertEquals(resp.status_code, 200)
+            self.assertEqual(resp.status_code, 200)
 
     @requests_mock.mock()
     def test_post_request_with_error_code(self, m):
@@ -201,7 +199,7 @@ class TestHttpHook(unittest.TestCase):
             side_effect=get_airflow_connection
         ):
             resp = self.post_hook.run('v1/test', extra_options={'check_response': False})
-            self.assertEquals(resp.status_code, 418)
+            self.assertEqual(resp.status_code, 418)
 
     @mock.patch('airflow.hooks.http_hook.requests.Session')
     def test_retry_on_conn_error(self, mocked_session):
@@ -222,7 +220,7 @@ class TestHttpHook(unittest.TestCase):
                 endpoint='v1/test',
                 _retry_args=retry_args
             )
-        self.assertEquals(
+        self.assertEqual(
             self.get_hook._retry_obj.stop.max_attempt_number + 1,
             mocked_session.call_count
         )
@@ -243,8 +241,8 @@ class TestHttpHook(unittest.TestCase):
             ):
                 pr = self.get_hook.run('v1/test', headers={'some_other_header': 'test'})
                 actual = dict(pr.headers)
-                self.assertEquals(actual.get('bareer'), 'test')
-                self.assertEquals(actual.get('some_other_header'), 'test')
+                self.assertEqual(actual.get('bareer'), 'test')
+                self.assertEqual(actual.get('some_other_header'), 'test')
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_http_connection(self, mock_get_connection):

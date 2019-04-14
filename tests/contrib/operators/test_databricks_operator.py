@@ -27,14 +27,7 @@ from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOpe
 from airflow.contrib.operators.databricks_operator import DatabricksRunNowOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'
@@ -219,7 +212,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_failure(self, db_mock_class):
@@ -250,7 +243,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_on_kill(self, db_mock_class):
@@ -388,7 +381,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_failure(self, db_mock_class):
@@ -421,7 +414,7 @@ class DatabricksRunNowOperatorTest(unittest.TestCase):
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
-        self.assertEquals(RUN_ID, op.run_id)
+        self.assertEqual(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_on_kill(self, db_mock_class):

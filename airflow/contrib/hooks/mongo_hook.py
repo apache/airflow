@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from ssl import CERT_NONE
 
 from airflow.hooks.base_hook import BaseHook
@@ -66,11 +71,11 @@ class MongoHook(BaseHook):
             scheme=scheme,
             creds='{}:{}@'.format(
                 conn.login, conn.password
-            ) if conn.login is not None else '',
+            ) if conn.login else '',
 
             host=conn.host,
             port='' if conn.port is None else ':{}'.format(conn.port),
-            database='' if conn.schema is None else conn.schema
+            database=conn.schema
         )
 
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
@@ -228,10 +233,10 @@ class MongoHook(BaseHook):
         :param mongo_collection: The name of the collection to update.
         :type mongo_collection: str
         :param docs: The new documents.
-        :type docs: list(dict)
+        :type docs: list[dict]
         :param filter_docs: A list of queries that match the documents to replace.
             Can be omitted; then the _id fields from docs will be used.
-        :type filter_docs: list(dict)
+        :type filter_docs: list[dict]
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
         :type mongo_db: str
@@ -241,7 +246,7 @@ class MongoHook(BaseHook):
         :param collation: An instance of
             :class:`~pymongo.collation.Collation`. This option is only
             supported on MongoDB 3.4 and above.
-        :type collation: :class:`~pymongo.collation.Collation`
+        :type collation: pymongo.collation.Collation
 
         """
         collection = self.get_collection(mongo_collection, mongo_db=mongo_db)

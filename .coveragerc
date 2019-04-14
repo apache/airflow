@@ -18,9 +18,9 @@
 
 [report]
 omit =
-    *contrib*
     tests/*
     scripts/*
     dev/*
     airflow/migrations/*
-    airflow/www_rbac/node_modules/**
+    airflow/www/node_modules/**
+    airflow/_vendor/*

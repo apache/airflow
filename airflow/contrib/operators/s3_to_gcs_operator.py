@@ -154,8 +154,9 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
 
             files = list(set(files) - set(existing_files))
             if len(files) > 0:
-                self.log.info('{0} files are going to be synced: {1}.'.format(
-                    len(files), files))
+                self.log.info(
+                    '%s files are going to be synced: %s.', len(files), files
+                )
             else:
                 self.log.info(
                     'There are no new files to sync. Have a nice day!')

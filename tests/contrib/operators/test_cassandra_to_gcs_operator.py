@@ -44,49 +44,49 @@ class CassandraToGCSTest(unittest.TestCase):
 
     def test_convert_value(self):
         op = CassandraToGoogleCloudStorageOperator
-        self.assertEquals(op.convert_value('None', None), None)
-        self.assertEquals(op.convert_value('int', 1), 1)
-        self.assertEquals(op.convert_value('float', 1.0), 1.0)
-        self.assertEquals(op.convert_value('str', "text"), "text")
-        self.assertEquals(op.convert_value('bool', True), True)
-        self.assertEquals(op.convert_value('dict', {"a": "b"}), {"a": "b"})
+        self.assertEqual(op.convert_value('None', None), None)
+        self.assertEqual(op.convert_value('int', 1), 1)
+        self.assertEqual(op.convert_value('float', 1.0), 1.0)
+        self.assertEqual(op.convert_value('str', "text"), "text")
+        self.assertEqual(op.convert_value('bool', True), True)
+        self.assertEqual(op.convert_value('dict', {"a": "b"}), {"a": "b"})
 
         from datetime import datetime
         now = datetime.now()
-        self.assertEquals(op.convert_value('datetime', now), str(now))
+        self.assertEqual(op.convert_value('datetime', now), str(now))
 
         from cassandra.util import Date
         date_str = '2018-01-01'
         date = Date(date_str)
-        self.assertEquals(op.convert_value('date', date), str(date_str))
+        self.assertEqual(op.convert_value('date', date), str(date_str))
 
         import uuid
         from base64 import b64encode
         test_uuid = uuid.uuid4()
         encoded_uuid = b64encode(test_uuid.bytes).decode('ascii')
-        self.assertEquals(op.convert_value('uuid', test_uuid), encoded_uuid)
+        self.assertEqual(op.convert_value('uuid', test_uuid), encoded_uuid)
 
         b = b'abc'
         encoded_b = b64encode(b).decode('ascii')
-        self.assertEquals(op.convert_value('binary', b), encoded_b)
+        self.assertEqual(op.convert_value('binary', b), encoded_b)
 
         from decimal import Decimal
         d = Decimal(1.0)
-        self.assertEquals(op.convert_value('decimal', d), float(d))
+        self.assertEqual(op.convert_value('decimal', d), float(d))
 
         from cassandra.util import Time
         time = Time(0)
-        self.assertEquals(op.convert_value('time', time), '00:00:00')
+        self.assertEqual(op.convert_value('time', time), '00:00:00')
 
         date_str_lst = ['2018-01-01', '2018-01-02', '2018-01-03']
         date_lst = [Date(d) for d in date_str_lst]
-        self.assertEquals(op.convert_value('list', date_lst), date_str_lst)
+        self.assertEqual(op.convert_value('list', date_lst), date_str_lst)
 
         date_tpl = tuple(date_lst)
-        self.assertEquals(op.convert_value('tuple', date_tpl),
-                          {'field_0': '2018-01-01',
-                           'field_1': '2018-01-02',
-                           'field_2': '2018-01-03', })
+        self.assertEqual(op.convert_value('tuple', date_tpl),
+                         {'field_0': '2018-01-01',
+                          'field_1': '2018-01-02',
+                          'field_2': '2018-01-03', })
 
 
 if __name__ == '__main__':

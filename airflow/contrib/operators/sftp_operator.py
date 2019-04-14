@@ -37,9 +37,9 @@ class SFTPOperator(BaseOperator):
 
     :param ssh_hook: predefined ssh_hook to use for remote execution.
         Either `ssh_hook` or `ssh_conn_id` needs to be provided.
-    :type ssh_hook: :class:`SSHHook`
+    :type ssh_hook: airflow.contrib.hooks.ssh_hook.SSHHook
     :param ssh_conn_id: connection id from airflow Connections.
-        `ssh_conn_id` will be ingored if `ssh_hook` is provided.
+        `ssh_conn_id` will be ignored if `ssh_hook` is provided.
     :type ssh_conn_id: str
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
@@ -134,7 +134,7 @@ class SFTPOperator(BaseOperator):
                                 raise
                     file_msg = "from {0} to {1}".format(self.remote_filepath,
                                                         self.local_filepath)
-                    self.log.debug("Starting to transfer %s", file_msg)
+                    self.log.info("Starting to transfer %s", file_msg)
                     sftp_client.get(self.remote_filepath, self.local_filepath)
                 else:
                     remote_folder = os.path.dirname(self.remote_filepath)
@@ -145,7 +145,7 @@ class SFTPOperator(BaseOperator):
                         )
                     file_msg = "from {0} to {1}".format(self.local_filepath,
                                                         self.remote_filepath)
-                    self.log.debug("Starting to transfer file %s", file_msg)
+                    self.log.info("Starting to transfer file %s", file_msg)
                     sftp_client.put(self.local_filepath,
                                     self.remote_filepath,
                                     confirm=self.confirm)
@@ -154,7 +154,7 @@ class SFTPOperator(BaseOperator):
             raise AirflowException("Error while transferring {0}, error: {1}"
                                    .format(file_msg, str(e)))
 
-        return None
+        return self.local_filepath
 
 
 def _make_intermediate_dirs(sftp_client, remote_directory):

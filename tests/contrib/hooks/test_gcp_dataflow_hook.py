@@ -19,18 +19,10 @@
 #
 
 import unittest
-from mock import MagicMock
 
 from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\
     _Dataflow, _DataflowJob
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock, MagicMock
 
 
 TASK_ID = 'test-dataflow-operator'
@@ -180,7 +172,7 @@ class DataFlowHookTest(unittest.TestCase):
             job_name=JOB_NAME, append_job_name=False
         )
 
-        self.assertEquals(job_name, JOB_NAME)
+        self.assertEqual(job_name, JOB_NAME)
 
     def test_fix_underscore_in_job_name(self):
         job_name_with_underscore = 'test_example'
@@ -191,7 +183,7 @@ class DataFlowHookTest(unittest.TestCase):
             job_name=job_name_with_underscore, append_job_name=False
         )
 
-        self.assertEquals(job_name, fixed_job_name)
+        self.assertEqual(job_name, fixed_job_name)
 
     def test_invalid_dataflow_job_name(self):
         invalid_job_name = '9test_invalid_name'
@@ -208,19 +200,19 @@ class DataFlowHookTest(unittest.TestCase):
 
     def test_dataflow_job_regex_check(self):
 
-        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+        self.assertEqual(self.dataflow_hook._build_dataflow_job_name(
             job_name='df-job-1', append_job_name=False
         ), 'df-job-1')
 
-        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+        self.assertEqual(self.dataflow_hook._build_dataflow_job_name(
             job_name='df-job', append_job_name=False
         ), 'df-job')
 
-        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+        self.assertEqual(self.dataflow_hook._build_dataflow_job_name(
             job_name='dfjob', append_job_name=False
         ), 'dfjob')
 
-        self.assertEquals(self.dataflow_hook._build_dataflow_job_name(
+        self.assertEqual(self.dataflow_hook._build_dataflow_job_name(
             job_name='dfjob1', append_job_name=False
         ), 'dfjob1')
 

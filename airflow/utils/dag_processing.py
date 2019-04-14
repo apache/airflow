@@ -35,6 +35,7 @@ from collections import defaultdict
 from collections import namedtuple
 from datetime import timedelta
 from importlib import import_module
+import enum
 
 import psutil
 from six.moves import range, reload_module
@@ -46,7 +47,8 @@ import airflow.models
 from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
-from airflow.settings import logging_class_path
+from airflow.models import errors
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -62,7 +64,7 @@ class SimpleDag(BaseDag):
     def __init__(self, dag, pickle_id=None):
         """
         :param dag: the DAG
-        :type dag: DAG
+        :type dag: airflow.models.DAG
         :param pickle_id: ID associated with the pickled version of this DAG.
         :type pickle_id: unicode
         """
@@ -246,7 +248,7 @@ class SimpleDagBag(BaseDagBag):
         Constructor.
 
         :param simple_dags: SimpleDag objects that should be in this
-        :type: list(SimpleDag)
+        :type list(airflow.utils.dag_processing.SimpleDagBag)
         """
         self.simple_dags = simple_dags
         self.dag_id_to_simple_dag = {}
@@ -268,7 +270,7 @@ class SimpleDagBag(BaseDagBag):
         :type dag_id: unicode
         :return: if the given DAG ID exists in the bag, return the BaseDag
         corresponding to that ID. Otherwise, throw an Exception
-        :rtype: SimpleDag
+        :rtype: airflow.utils.dag_processing.SimpleDag
         """
         if dag_id not in self.dag_id_to_simple_dag:
             raise AirflowException("Unknown DAG ID {}".format(dag_id))
@@ -276,17 +278,19 @@ class SimpleDagBag(BaseDagBag):
 
 
 def list_py_file_paths(directory, safe_mode=True,
-                       include_examples=conf.getboolean('core', 'LOAD_EXAMPLES')):
+                       include_examples=None):
     """
     Traverse a directory and look for Python files.
 
     :param directory: the directory to traverse
     :type directory: unicode
     :param safe_mode: whether to use a heuristic to determine whether a file
-    contains Airflow DAG definitions
+        contains Airflow DAG definitions
     :return: a list of paths to Python files in the specified directory
     :rtype: list[unicode]
     """
+    if include_examples is None:
+        include_examples = conf.getboolean('core', 'LOAD_EXAMPLES')
     file_paths = []
     if directory is None:
         return []
@@ -301,7 +305,7 @@ def list_py_file_paths(directory, safe_mode=True,
                 with open(ignore_file, 'r') as f:
                     # If we have new patterns create a copy so we don't change
                     # the previous list (which would affect other subdirs)
-                    patterns = patterns + [p for p in f.read().split('\n') if p]
+                    patterns += [re.compile(p) for p in f.read().split('\n') if p]
 
             # If we can ignore any subdirs entirely we should - fewer paths
             # to walk is better. We have to modify the ``dirs`` array in
@@ -309,7 +313,7 @@ def list_py_file_paths(directory, safe_mode=True,
             dirs[:] = [
                 d
                 for d in dirs
-                if not any(re.search(p, os.path.join(root, d)) for p in patterns)
+                if not any(p.search(os.path.join(root, d)) for p in patterns)
             ]
 
             # We want patterns defined in a parent folder's .airflowignore to
@@ -333,8 +337,8 @@ def list_py_file_paths(directory, safe_mode=True,
                     # Airflow DAG definition.
                     might_contain_dag = True
                     if safe_mode and not zipfile.is_zipfile(file_path):
-                        with open(file_path, 'rb') as f:
-                            content = f.read()
+                        with open(file_path, 'rb') as fp:
+                            content = fp.read()
                             might_contain_dag = all(
                                 [s in content for s in (b'DAG', b'airflow')])
 
@@ -405,7 +409,7 @@ class AbstractDagFileProcessor(object):
     def result(self):
         """
         :return: result of running SchedulerJob.process_file()
-        :rtype: list[SimpleDag]
+        :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
         raise NotImplementedError()
 
@@ -433,10 +437,11 @@ DagParsingStat = namedtuple('DagParsingStat',
                              'all_files_processed', 'result_count'])
 
 
-DagParsingSignal = namedtuple(
-    'DagParsingSignal',
-    ['AGENT_HEARTBEAT', 'MANAGER_DONE', 'TERMINATE_MANAGER', 'END_MANAGER'])(
-    'agent_heartbeat', 'manager_done', 'terminate_manager', 'end_manager')
+class DagParsingSignal(enum.Enum):
+    AGENT_HEARTBEAT = 'agent_heartbeat'
+    MANAGER_DONE = 'manager_done'
+    TERMINATE_MANAGER = 'terminate_manager'
+    END_MANAGER = 'end_manager'
 
 
 class DagFileProcessorAgent(LoggingMixin):
@@ -455,15 +460,15 @@ class DagFileProcessorAgent(LoggingMixin):
                  async_mode):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
-        files in file_paths should be under this directory
+            files in file_paths should be under this directory
         :type dag_directory: unicode
         :param file_paths: list of file paths that contain DAG definitions
         :type file_paths: list[unicode]
         :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
+            for unlimited.
         :type max_runs: int
         :param processor_factory: function that creates processors for DAG
-        definition files. Arguments are (dag_definition_path, log_file_path)
+            definition files. Arguments are (dag_definition_path, log_file_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
         :param async_mode: Whether to start agent in async mode
         :type async_mode: bool
@@ -507,8 +512,7 @@ class DagFileProcessorAgent(LoggingMixin):
                                              self._stat_queue,
                                              self._result_queue,
                                              self._async_mode)
-        self.log.info("Launched DagFileProcessorManager with pid: {}"
-                      .format(self._process.pid))
+        self.log.info("Launched DagFileProcessorManager with pid: %s", self._process.pid)
 
     def heartbeat(self):
         """
@@ -543,8 +547,9 @@ class DagFileProcessorAgent(LoggingMixin):
             os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER'] = 'True'
             # Replicating the behavior of how logging module was loaded
             # in logging_config.py
-            reload_module(import_module(logging_class_path.rsplit('.', 1)[0]))
+            reload_module(import_module(airflow.settings.LOGGING_CLASS_PATH.rsplit('.', 1)[0]))
             reload_module(airflow.settings)
+            airflow.settings.initialize()
             del os.environ['CONFIG_PROCESSOR_MANAGER_LOGGER']
             processor_manager = DagFileProcessorManager(dag_directory,
                                                         file_paths,
@@ -646,13 +651,11 @@ class DagFileProcessorAgent(LoggingMixin):
         # First try SIGTERM
         if manager_process.is_running() \
                 and manager_process.pid in [x.pid for x in this_process.children()]:
-            self.log.info(
-                "Terminating manager process: {}".format(manager_process.pid))
+            self.log.info("Terminating manager process: %s", manager_process.pid)
             manager_process.terminate()
             # TODO: Remove magic number
             timeout = 5
-            self.log.info("Waiting up to {}s for manager process to exit..."
-                          .format(timeout))
+            self.log.info("Waiting up to %ss for manager process to exit...", timeout)
             try:
                 psutil.wait_procs({manager_process}, timeout)
             except psutil.TimeoutExpired:
@@ -662,7 +665,7 @@ class DagFileProcessorAgent(LoggingMixin):
         # Then SIGKILL
         if manager_process.is_running() \
                 and manager_process.pid in [x.pid for x in this_process.children()]:
-            self.log.info("Killing manager process: {}".format(manager_process.pid))
+            self.log.info("Killing manager process: %s", manager_process.pid)
             manager_process.kill()
             manager_process.wait()
 
@@ -678,7 +681,7 @@ class DagFileProcessorManager(LoggingMixin):
     :type _file_path_queue: list[unicode]
     :type _processors: dict[unicode, AbstractDagFileProcessor]
     :type _last_runtime: dict[unicode, float]
-    :type _last_finish_time: dict[unicode, datetime]
+    :type _last_finish_time: dict[unicode, datetime.datetime]
     """
 
     def __init__(self,
@@ -692,18 +695,18 @@ class DagFileProcessorManager(LoggingMixin):
                  async_mode=True):
         """
         :param dag_directory: Directory where DAG definitions are kept. All
-        files in file_paths should be under this directory
+            files in file_paths should be under this directory
         :type dag_directory: unicode
         :param file_paths: list of file paths that contain DAG definitions
         :type file_paths: list[unicode]
         :param max_runs: The number of times to parse and schedule each file. -1
-        for unlimited.
+            for unlimited.
         :type max_runs: int
         :param processor_factory: function that creates processors for DAG
-        definition files. Arguments are (dag_definition_path)
+            definition files. Arguments are (dag_definition_path)
         :type processor_factory: (unicode, unicode, list) -> (AbstractDagFileProcessor)
         :param signal_conn: connection to communicate signal with processor agent.
-        :type signal_conn: Connection
+        :type signal_conn: airflow.models.connection.Connection
         :param stat_queue: the queue to use for passing back parsing stat to agent.
         :type stat_queue: multiprocessing.Queue
         :param result_queue: the queue to use for passing back the result to agent.
@@ -768,7 +771,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Helper method to clean up DAG file processors to avoid leaving orphan processes.
         """
-        self.log.info("Exiting gracefully upon receiving signal {}".format(signum))
+        self.log.info("Exiting gracefully upon receiving signal %s", signum)
         self.terminate()
         self.end()
         self.log.debug("Finished terminating DAG processors.")
@@ -780,15 +783,13 @@ class DagFileProcessorManager(LoggingMixin):
         DAGs in parallel. By processing them in separate processes,
         we can get parallelism and isolation from potentially harmful
         user code.
-        :return:
         """
 
-        self.log.info("Processing files using up to {} processes at a time "
-                      .format(self._parallelism))
-        self.log.info("Process each file at most once every {} seconds"
-                      .format(self._file_process_interval))
-        self.log.info("Checking for new files in {} every {} seconds"
-                      .format(self._dag_directory, self.dag_dir_list_interval))
+        self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
+        self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
+        self.log.info(
+            "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
+        )
 
         if self._async_mode:
             self.log.debug("Starting DagFileProcessorManager in async mode")
@@ -840,8 +841,7 @@ class DagFileProcessorManager(LoggingMixin):
             loop_duration = time.time() - loop_start_time
             if loop_duration < 1:
                 sleep_length = 1 - loop_duration
-                self.log.debug("Sleeping for {0:.2f} seconds "
-                               "to prevent excessive logging".format(sleep_length))
+                self.log.debug("Sleeping for %.2f seconds to prevent excessive logging", sleep_length)
                 time.sleep(sleep_length)
 
     def start_in_sync(self):
@@ -896,13 +896,10 @@ class DagFileProcessorManager(LoggingMixin):
                                       self.last_dag_dir_refresh_time).total_seconds()
         if elapsed_time_since_refresh > self.dag_dir_list_interval:
             # Build up a list of Python files that could contain DAGs
-            self.log.info(
-                "Searching for files in {}".format(self._dag_directory))
+            self.log.info("Searching for files in %s", self._dag_directory)
             self._file_paths = list_py_file_paths(self._dag_directory)
             self.last_dag_dir_refresh_time = timezone.utcnow()
-            self.log.info("There are {} files in {}"
-                          .format(len(self._file_paths),
-                                  self._dag_directory))
+            self.log.info("There are %s files in %s", len(self._file_paths), self._dag_directory)
             self.set_file_paths(self._file_paths)
 
             try:
@@ -914,7 +911,6 @@ class DagFileProcessorManager(LoggingMixin):
     def _print_stat(self):
         """
         Occasionally print out stats about how fast the files are getting processed
-        :return:
         """
         if ((timezone.utcnow() - self.last_stat_print_time).total_seconds() >
                 self.print_stats_interval):
@@ -926,13 +922,14 @@ class DagFileProcessorManager(LoggingMixin):
     def clear_nonexistent_import_errors(self, session):
         """
         Clears import errors for files that no longer exist.
+
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         """
-        query = session.query(airflow.models.ImportError)
+        query = session.query(errors.ImportError)
         if self._file_paths:
             query = query.filter(
-                ~airflow.models.ImportError.filename.in_(self._file_paths)
+                ~errors.ImportError.filename.in_(self._file_paths)
             )
         query.delete(synchronize_session='fetch')
         session.commit()
@@ -940,6 +937,7 @@ class DagFileProcessorManager(LoggingMixin):
     def _log_file_processing_stats(self, known_file_paths):
         """
         Print out stats about how files are getting processed.
+
         :param known_file_paths: a list of file paths that may contain Airflow
             DAG definitions
         :type known_file_paths: list[unicode]
@@ -963,11 +961,25 @@ class DagFileProcessorManager(LoggingMixin):
         rows = []
         for file_path in known_file_paths:
             last_runtime = self.get_last_runtime(file_path)
+            file_name = os.path.basename(file_path)
+            file_name = os.path.splitext(file_name)[0].replace(os.sep, '.')
+            if last_runtime:
+                Stats.gauge(
+                    'dag_processing.last_runtime.{}'.format(file_name),
+                    last_runtime
+                )
+
             processor_pid = self.get_pid(file_path)
             processor_start_time = self.get_start_time(file_path)
             runtime = ((timezone.utcnow() - processor_start_time).total_seconds()
                        if processor_start_time else None)
             last_run = self.get_last_finish_time(file_path)
+            if last_run:
+                seconds_ago = (timezone.utcnow() - last_run).total_seconds()
+                Stats.gauge(
+                    'dag_processing.last_run.seconds_ago.{}'.format(file_name),
+                    seconds_ago
+                )
 
             rows.append((file_path,
                          processor_pid,
@@ -1007,7 +1019,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that's being processed
         :type file_path: unicode
         :return: the PID of the process processing the given file or None if
-        the specified file is not being processed
+            the specified file is not being processed
         :rtype: int
         """
         if file_path in self._processors:
@@ -1026,8 +1038,8 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that's being processed
         :type file_path: unicode
         :return: the current runtime (in seconds) of the process that's
-        processing the specified file or None if the file is not currently
-        being processed
+            processing the specified file or None if the file is not currently
+            being processed
         """
         if file_path in self._processors:
             return (timezone.utcnow() - self._processors[file_path].start_time)\
@@ -1039,7 +1051,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that was processed
         :type file_path: unicode
         :return: the runtime (in seconds) of the process of the last run, or
-        None if the file was never processed.
+            None if the file was never processed.
         :rtype: float
         """
         return self._last_runtime.get(file_path)
@@ -1049,7 +1061,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that was processed
         :type file_path: unicode
         :return: the finish time of the process of the last run, or None if the
-        file was never processed.
+            file was never processed.
         :rtype: datetime
         """
         return self._last_finish_time.get(file_path)
@@ -1059,7 +1071,7 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_path: the path to the file that's being processed
         :type file_path: unicode
         :return: the start time of the process that's processing the
-        specified file or None if the file is not currently being processed
+            specified file or None if the file is not currently being processed
         :rtype: datetime
         """
         if file_path in self._processors:
@@ -1109,8 +1121,8 @@ class DagFileProcessorManager(LoggingMixin):
         results from the finished processors.
 
         :return: a list of SimpleDags that were produced by processors that
-        have finished since the last time this was called
-        :rtype: list[SimpleDag]
+            have finished since the last time this was called
+        :rtype: list[airflow.utils.dag_processing.SimpleDag]
         """
         finished_processors = {}
         """:type : dict[unicode, AbstractDagFileProcessor]"""
@@ -1221,8 +1233,7 @@ class DagFileProcessorManager(LoggingMixin):
             TI = airflow.models.TaskInstance
             limit_dttm = timezone.utcnow() - timedelta(
                 seconds=self._zombie_threshold_secs)
-            self.log.info(
-                "Failing jobs without heartbeat after {}".format(limit_dttm))
+            self.log.info("Failing jobs without heartbeat after %s", limit_dttm)
 
             tis = (
                 session.query(TI)
@@ -1277,12 +1288,11 @@ class DagFileProcessorManager(LoggingMixin):
             child_processes = [x for x in this_process.children(recursive=True)
                                if x.is_running() and x.pid in pids_to_kill]
             for child in child_processes:
-                self.log.info("Terminating child PID: {}".format(child.pid))
+                self.log.info("Terminating child PID: %s", child.pid)
                 child.terminate()
             # TODO: Remove magic number
             timeout = 5
-            self.log.info(
-                "Waiting up to %s seconds for processes to exit...", timeout)
+            self.log.info("Waiting up to %s seconds for processes to exit...", timeout)
             try:
                 psutil.wait_procs(
                     child_processes, timeout=timeout,
@@ -1296,6 +1306,6 @@ class DagFileProcessorManager(LoggingMixin):
             if len(child_processes) > 0:
                 self.log.info("SIGKILL processes that did not terminate gracefully")
                 for child in child_processes:
-                    self.log.info("Killing child PID: {}".format(child.pid))
+                    self.log.info("Killing child PID: %s", child.pid)
                     child.kill()
                     child.wait()

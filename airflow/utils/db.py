@@ -77,17 +77,15 @@ def provide_session(func):
 
 @provide_session
 def merge_conn(conn, session=None):
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     if not session.query(Connection).filter(Connection.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
 
 
-def initdb(rbac=False):
-    session = settings.Session()
-
+def initdb():
     from airflow import models
-    from airflow.models.connection import Connection
+    from airflow.models import Connection
     upgradedb()
 
     merge_conn(
@@ -95,15 +93,6 @@ def initdb(rbac=False):
             conn_id='airflow_db', conn_type='mysql',
             host='mysql', login='root', password='',
             schema='airflow'))
-    merge_conn(
-        Connection(
-            conn_id='beeline_default', conn_type='beeline', port="10000",
-            host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
-            schema='default'))
-    merge_conn(
-        Connection(
-            conn_id='bigquery_default', conn_type='google_cloud_platform',
-            schema='default'))
     merge_conn(
         Connection(
             conn_id='local_mysql', conn_type='mysql',
@@ -120,7 +109,8 @@ def initdb(rbac=False):
             schema='default',))
     merge_conn(
         Connection(
-            conn_id='hive_cli_default', conn_type='hive_cli',
+            conn_id='hive_cli_default', conn_type='hive_cli', port=10000,
+            host='localhost', extra='{"use_beeline": true, "auth": ""}',
             schema='default',))
     merge_conn(
         Connection(
@@ -288,20 +278,14 @@ def initdb(rbac=False):
         Connection(
             conn_id='cassandra_default', conn_type='cassandra',
             host='cassandra', port=9042))
-
-    # Known event types
-    KET = models.KnownEventType
-    if not session.query(KET).filter(KET.know_event_type == 'Holiday').first():
-        session.add(KET(know_event_type='Holiday'))
-    if not session.query(KET).filter(KET.know_event_type == 'Outage').first():
-        session.add(KET(know_event_type='Outage'))
-    if not session.query(KET).filter(
-            KET.know_event_type == 'Natural Disaster').first():
-        session.add(KET(know_event_type='Natural Disaster'))
-    if not session.query(KET).filter(
-            KET.know_event_type == 'Marketing Campaign').first():
-        session.add(KET(know_event_type='Marketing Campaign'))
-    session.commit()
+    merge_conn(
+        Connection(
+            conn_id='dingding_default', conn_type='http',
+            host='', password=''))
+    merge_conn(
+        Connection(
+            conn_id='opsgenie_default', conn_type='http',
+            host='', password=''))
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
@@ -310,28 +294,8 @@ def initdb(rbac=False):
     # Deactivate the unknown ones
     models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
-    Chart = models.Chart
-    chart_label = "Airflow task instance by type"
-    chart = session.query(Chart).filter(Chart.label == chart_label).first()
-    if not chart:
-        chart = Chart(
-            label=chart_label,
-            conn_id='airflow_db',
-            chart_type='bar',
-            x_is_date=False,
-            sql=(
-                "SELECT state, COUNT(1) as number "
-                "FROM task_instance "
-                "WHERE dag_id LIKE 'example%' "
-                "GROUP BY state"),
-        )
-        session.add(chart)
-        session.commit()
-
-    if rbac:
-        from flask_appbuilder.security.sqla import models
-        from flask_appbuilder.models.sqla import Base
-        Base.metadata.create_all(settings.engine)
+    from flask_appbuilder.models.sqla import Base
+    Base.metadata.create_all(settings.engine)
 
 
 def upgradedb():
@@ -350,7 +314,7 @@ def upgradedb():
     command.upgrade(config, 'heads')
 
 
-def resetdb(rbac):
+def resetdb():
     """
     Clear out the database
     """
@@ -366,10 +330,7 @@ def resetdb(rbac):
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
 
-    if rbac:
-        # drop rbac security tables
-        from flask_appbuilder.security.sqla import models
-        from flask_appbuilder.models.sqla import Base
-        Base.metadata.drop_all(settings.engine)
+    from flask_appbuilder.models.sqla import Base
+    Base.metadata.drop_all(settings.engine)
 
-    initdb(rbac)
+    initdb()

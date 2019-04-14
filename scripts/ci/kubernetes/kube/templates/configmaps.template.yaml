@@ -21,7 +21,6 @@ metadata:
 data:
   airflow.cfg: |
     [core]
-    airflow_home = /root/airflow
     dags_folder = {{CONFIGMAP_DAGS_FOLDER}}
     base_log_folder = /root/airflow/logs
     logging_level = INFO
@@ -117,20 +116,6 @@ data:
     # Expose the configuration file in the web server
     expose_config = False
 
-    # Set to true to turn on authentication:
-    # https://airflow.apache.org/security.html#web-authentication
-    authenticate = False
-
-    # Filter the list of dags by owner name (requires authentication to be enabled)
-    filter_by_owner = False
-
-    # Filtering mode. Choices include user (default) and ldapgroup.
-    # Ldap group filtering requires using the ldap backend
-    #
-    # Note that the ldap server needs the "memberOf" overlay to be set up
-    # in order to user the ldapgroup mode.
-    owner_mode = user
-
     # Default DAG view.  Valid values are:
     # tree, graph, duration, gantt, landing_times
     dag_default_view = tree
@@ -153,9 +138,6 @@ data:
 
     # Consistent page size across all listing views in the UI
     page_size = 100
-
-    # Use FAB-based webserver with RBAC feature
-    rbac = True
 
     [smtp]
     # If you want airflow to send emails on retries, failure, and you want to use
@@ -207,6 +189,10 @@ data:
     [kubernetes_node_selectors]
     # The Key-value pairs to be given to worker pods.
     # The worker pods will be scheduled to the nodes of the specified key-value pairs.
+    # Should be supplied in the format: key = value
+
+    [kubernetes_annotations]
+    # The Key-value annotations pairs to be given to worker pods.
     # Should be supplied in the format: key = value
 
     [kubernetes_secrets]

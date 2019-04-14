@@ -45,6 +45,8 @@ DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
     'core', 'KILLED_TASK_CLEANUP_TIME'
 )
 
+KEY_REGEX = re.compile(r'^[\w\-\.]+$')
+
 
 def validate_key(k, max_length=250):
     if not isinstance(k, basestring):
@@ -52,10 +54,10 @@ def validate_key(k, max_length=250):
     elif len(k) > max_length:
         raise AirflowException(
             "The key has to be less than {0} characters".format(max_length))
-    elif not re.match(r'^[A-Za-z0-9_\-\.]+$', k):
+    elif not KEY_REGEX.match(k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "
-            "dots and underscores exclusively".format(**locals()))
+            "dots and underscores exclusively".format(k=k))
     else:
         return True
 
@@ -76,8 +78,8 @@ def alchemy_to_dict(obj):
 
 
 def ask_yesno(question):
-    yes = set(['yes', 'y'])
-    no = set(['no', 'n'])
+    yes = {'yes', 'y'}
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -301,11 +303,13 @@ def parse_template_string(template_string):
 
 def render_log_filename(ti, try_number, filename_template):
     """
-    Given task instance, try_number, filename_template, return the rendered log filename
+    Given task instance, try_number, filename_template, return the rendered log
+    filename
 
     :param ti: task instance
     :param try_number: try_number of the task
-    :param filename_template: filename template, which can be jinja template or python string template
+    :param filename_template: filename template, which can be jinja template or
+        python string template
     """
     filename_template, filename_jinja_template = parse_template_string(filename_template)
     if filename_jinja_template:

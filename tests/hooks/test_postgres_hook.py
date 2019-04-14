@@ -64,9 +64,9 @@ class TestPostgresHook(unittest.TestCase):
 
             self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=m))
 
-            self.conn.close.assert_called_once()
-            self.cur.close.assert_called_once()
-            self.conn.commit.assert_called_once()
+            assert self.conn.close.call_count == 1
+            assert self.cur.close.call_count == 1
+            assert self.conn.commit.call_count == 1
             self.cur.copy_expert.assert_called_once_with(statement, m.return_value)
             self.assertEqual(m.call_args[0], (filename, "r+"))
 

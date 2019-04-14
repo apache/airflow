@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import os
 import unittest
@@ -18,9 +23,9 @@ from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile
 
 from airflow import DAG
-from airflow.models import State
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils import timezone
+from airflow.utils.state import State
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
@@ -84,13 +89,12 @@ class BashOperatorTest(unittest.TestCase):
 
             os.environ['AIRFLOW_HOME'] = original_AIRFLOW_HOME
 
-    def test_return_value_to_xcom(self):
+    def test_return_value(self):
         bash_operator = BashOperator(
             bash_command='echo "stdout"',
-            xcom_push=True,
-            task_id='test_return_value_to_xcom',
+            task_id='test_return_value',
             dag=None
         )
-        xcom_return_value = bash_operator.execute(context={})
+        return_value = bash_operator.execute(context={})
 
-        self.assertEqual(xcom_return_value, u'stdout')
+        self.assertEqual(return_value, u'stdout')

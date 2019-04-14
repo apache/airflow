@@ -20,11 +20,11 @@ import os
 import six
 import sys
 import tempfile
-from mock import patch, mock
 
 from airflow import configuration as conf
 from airflow.configuration import mkdir_p
 from airflow.exceptions import AirflowConfigException
+from tests.compat import mock, patch
 
 
 if six.PY2:
@@ -250,6 +250,23 @@ class TestLoggingSettings(unittest.TestCase):
                 self.assertEqual(conf.get('core', 'task_log_reader'), 'task')
         finally:
             conf.remove_option('core', 'task_log_reader', remove_default=False)
+
+    def test_loading_remote_logging_with_wasb_handler(self):
+        """Test if logging can be configured successfully for Azure Blob Storage"""
+        import logging
+        from airflow.config_templates import airflow_local_settings
+        from airflow.logging_config import configure_logging
+        from airflow.utils.log.wasb_task_handler import WasbTaskHandler
+
+        conf.set('core', 'remote_logging', 'True')
+        conf.set('core', 'remote_log_conn_id', 'some_wasb')
+        conf.set('core', 'remote_base_log_folder', 'wasb://some-folder')
+
+        six.moves.reload_module(airflow_local_settings)
+        configure_logging()
+
+        logger = logging.getLogger('airflow.task')
+        self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
 
 
 if __name__ == '__main__':

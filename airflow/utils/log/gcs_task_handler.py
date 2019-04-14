@@ -49,8 +49,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
-                '"{}". {}\n\nPlease make sure that airflow[gcp_api] is installed '
-                'and the GCS connection exists.'.format(remote_conn_id, str(e))
+                '"%s". %s\n\nPlease make sure that airflow[gcp] is installed '
+                'and the GCS connection exists.', remote_conn_id, str(e)
             )
 
     @property
@@ -129,7 +129,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         :type remote_log_location: str (path)
         """
         bkt, blob = self.parse_gcs_url(remote_log_location)
-        return self.hook.download(bkt, blob).decode()
+        return self.hook.download(bkt, blob).decode('utf-8')
 
     def gcs_write(self, log, remote_log_location, append=True):
         """

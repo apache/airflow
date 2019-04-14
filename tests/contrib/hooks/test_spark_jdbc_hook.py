@@ -20,7 +20,7 @@
 import unittest
 
 from airflow import configuration
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 
 from airflow.contrib.hooks.spark_jdbc_hook import SparkJDBCHook
@@ -126,7 +126,7 @@ class TestSparkJDBCHook(unittest.TestCase):
             '-createTableColumnTypes', 'columnMcColumnFace INTEGER(100), name CHAR(64),'
                                        'comments VARCHAR(1024)'
         ]
-        self.assertEquals(expected_jdbc_arguments, cmd)
+        self.assertEqual(expected_jdbc_arguments, cmd)
 
     def test_build_jdbc_arguments_invalid(self):
         # Given

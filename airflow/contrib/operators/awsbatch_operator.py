@@ -33,7 +33,7 @@ class AWSBatchOperator(BaseOperator):
     """
     Execute a job on AWS Batch Service
 
-    .. warning: the queue parameter was renamed to job_queue to segreggate the
+    .. warning: the queue parameter was renamed to job_queue to segregate the
                 internal CeleryExecutor queue from the AWS Batch internal queue.
 
     :param job_name: the name for the job that will run on AWS Batch (templated)

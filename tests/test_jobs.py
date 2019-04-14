@@ -36,7 +36,8 @@ from tempfile import mkdtemp
 import psutil
 import six
 import sqlalchemy
-from mock import Mock, patch, MagicMock, PropertyMock
+from tests.compat import Mock, patch, MagicMock, PropertyMock
+from parameterized import parameterized
 
 from airflow.utils.db import create_session
 from airflow import AirflowException, settings, models
@@ -45,7 +46,8 @@ from airflow.bin import cli
 import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
-from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
+    errors, SlaMiss
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -56,20 +58,15 @@ from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests.test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, \
+    clear_db_sla_miss, clear_db_errors
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
+from tests.compat import mock
 
 configuration.load_test_config()
 
 logger = logging.getLogger(__name__)
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -104,7 +101,7 @@ class BaseJobTest(unittest.TestCase):
         job = self.TestJob(lambda: True)
         job.run()
 
-        self.assertEquals(job.state, State.SUCCESS)
+        self.assertEqual(job.state, State.SUCCESS)
         self.assertIsNotNone(job.end_date)
 
     def test_state_sysexit(self):
@@ -112,7 +109,7 @@ class BaseJobTest(unittest.TestCase):
         job = self.TestJob(lambda: sys.exit(0))
         job.run()
 
-        self.assertEquals(job.state, State.SUCCESS)
+        self.assertEqual(job.state, State.SUCCESS)
         self.assertIsNotNone(job.end_date)
 
     def test_state_failed(self):
@@ -123,15 +120,78 @@ class BaseJobTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             job.run()
 
-        self.assertEquals(job.state, State.FAILED)
+        self.assertEqual(job.state, State.FAILED)
         self.assertIsNotNone(job.end_date)
 
 
 class BackfillJobTest(unittest.TestCase):
 
+    def _get_dummy_dag(self, dag_id, pool=None):
+        dag = DAG(
+            dag_id=dag_id,
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
+
+        with dag:
+            DummyOperator(
+                task_id='op',
+                pool=pool,
+                dag=dag)
+
+        dag.clear()
+        return dag
+
     def setUp(self):
+        clear_db_runs()
+        clear_db_pools()
+
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
+
+    def test_unfinished_dag_runs_set_to_failed(self):
+        dag = self._get_dummy_dag('dummy_dag')
+
+        dag_run = dag.create_dagrun(
+            run_id='test',
+            state=State.RUNNING,
+        )
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=8),
+            ignore_first_depends_on_past=True
+        )
+
+        job._set_unfinished_dag_runs_to_failed([dag_run])
+
+        dag_run.refresh_from_db()
+
+        self.assertEquals(State.FAILED, dag_run.state)
+
+    def test_dag_run_with_finished_tasks_set_to_success(self):
+        dag = self._get_dummy_dag('dummy_dag')
+
+        dag_run = dag.create_dagrun(
+            run_id='test',
+            state=State.RUNNING,
+        )
+
+        for ti in dag_run.get_task_instances():
+            ti.set_state(State.SUCCESS)
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=8),
+            ignore_first_depends_on_past=True
+        )
+
+        job._set_unfinished_dag_runs_to_failed([dag_run])
+
+        dag_run.refresh_from_db()
+
+        self.assertEquals(State.SUCCESS, dag_run.state)
 
     @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
@@ -232,17 +292,7 @@ class BackfillJobTest(unittest.TestCase):
             job.run()
 
     def test_backfill_conf(self):
-        dag = DAG(
-            dag_id='test_backfill_conf',
-            start_date=DEFAULT_DATE,
-            schedule_interval='@daily')
-
-        with dag:
-            DummyOperator(
-                task_id='op',
-                dag=dag)
-
-        dag.clear()
+        dag = self._get_dummy_dag('test_backfill_conf')
 
         executor = TestExecutor(do_update=True)
 
@@ -257,6 +307,153 @@ class BackfillJobTest(unittest.TestCase):
         dr = DagRun.find(dag_id='test_backfill_conf')
 
         self.assertEqual(conf, dr[0].conf)
+
+    @patch('airflow.jobs.conf.getint')
+    def test_backfill_with_no_pool_limit(self, mock_getint):
+        non_pooled_backfill_task_slot_count = 2
+
+        def getint(section, key):
+            if section.lower() == 'core' and \
+                    'non_pooled_backfill_task_slot_count' == key.lower():
+                return non_pooled_backfill_task_slot_count
+            else:
+                return configuration.conf.getint(section, key)
+
+        mock_getint.side_effect = getint
+
+        dag = self._get_dummy_dag('test_backfill_with_no_pool_limit')
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        non_pooled_task_slot_count_reached_at_least_once = False
+
+        running_tis_total = 0
+
+        # if no pool is specified, the number of tasks running in
+        # parallel per backfill should be less than
+        # non_pooled_backfill_task_slot_count at any point of time.
+        for running_tis in executor.history:
+            self.assertLessEqual(len(running_tis), non_pooled_backfill_task_slot_count)
+            running_tis_total += len(running_tis)
+            if len(running_tis) == non_pooled_backfill_task_slot_count:
+                non_pooled_task_slot_count_reached_at_least_once = True
+
+        self.assertEquals(8, running_tis_total)
+        self.assertTrue(non_pooled_task_slot_count_reached_at_least_once)
+
+    def test_backfill_pool_not_found(self):
+        dag = self._get_dummy_dag(
+            dag_id='test_backfill_pool_not_found',
+            pool='king_pool',
+        )
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        try:
+            job.run()
+        except AirflowException:
+            return
+
+        self.fail()
+
+    def test_backfill_respect_pool_limit(self):
+        session = settings.Session()
+
+        slots = 2
+        pool = Pool(
+            pool='pool_with_two_slots',
+            slots=slots,
+        )
+        session.add(pool)
+        session.commit()
+
+        dag = self._get_dummy_dag(
+            dag_id='test_backfill_respect_pool_limit',
+            pool=pool.pool,
+        )
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        pool_was_full_at_least_once = False
+        running_tis_total = 0
+
+        for running_tis in executor.history:
+            self.assertLessEqual(len(running_tis), slots)
+            running_tis_total += len(running_tis)
+            if len(running_tis) == slots:
+                pool_was_full_at_least_once = True
+
+        self.assertEquals(8, running_tis_total)
+        self.assertTrue(pool_was_full_at_least_once)
+
+    def test_backfill_run_rescheduled(self):
+        dag = DAG(
+            dag_id='test_backfill_run_rescheduled',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
+
+        with dag:
+            DummyOperator(
+                task_id='test_backfill_run_rescheduled_task-1',
+                dag=dag,
+            )
+
+        dag.clear()
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          )
+        job.run()
+
+        ti = TI(task=dag.get_task('test_backfill_run_rescheduled_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.set_state(State.UP_FOR_RESCHEDULE)
+
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          rerun_failed_tasks=True
+                          )
+        job.run()
+        ti = TI(task=dag.get_task('test_backfill_run_rescheduled_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_failed_tasks(self):
         dag = DAG(
@@ -295,47 +492,47 @@ class BackfillJobTest(unittest.TestCase):
         ti = TI(task=dag.get_task('test_backfill_rerun_failed_task-1'),
                 execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
-        self.assertEquals(ti.state, State.SUCCESS)
+        self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_upstream_failed_tasks(self):
-            dag = DAG(
-                dag_id='test_backfill_rerun_upstream_failed',
-                start_date=DEFAULT_DATE,
-                schedule_interval='@daily')
+        dag = DAG(
+            dag_id='test_backfill_rerun_upstream_failed',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
 
-            with dag:
-                t1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
-                                   dag=dag)
-                t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
-                                   dag=dag)
-                t1.set_upstream(t2)
+        with dag:
+            t1 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-1',
+                               dag=dag)
+            t2 = DummyOperator(task_id='test_backfill_rerun_upstream_failed_task-2',
+                               dag=dag)
+            t1.set_upstream(t2)
 
-            dag.clear()
-            executor = TestExecutor(do_update=True)
+        dag.clear()
+        executor = TestExecutor(do_update=True)
 
-            job = BackfillJob(dag=dag,
-                              executor=executor,
-                              start_date=DEFAULT_DATE,
-                              end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                              )
-            job.run()
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          )
+        job.run()
 
-            ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
-                    execution_date=DEFAULT_DATE)
-            ti.refresh_from_db()
-            ti.set_state(State.UPSTREAM_FAILED)
+        ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        ti.set_state(State.UPSTREAM_FAILED)
 
-            job = BackfillJob(dag=dag,
-                              executor=executor,
-                              start_date=DEFAULT_DATE,
-                              end_date=DEFAULT_DATE + datetime.timedelta(days=2),
-                              rerun_failed_tasks=True
-                              )
-            job.run()
-            ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
-                    execution_date=DEFAULT_DATE)
-            ti.refresh_from_db()
-            self.assertEquals(ti.state, State.SUCCESS)
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          rerun_failed_tasks=True
+                          )
+        job.run()
+        ti = TI(task=dag.get_task('test_backfill_rerun_upstream_failed_task-1'),
+                execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_rerun_failed_tasks_without_flag(self):
         dag = DAG(
@@ -473,7 +670,7 @@ class BackfillJobTest(unittest.TestCase):
         # ti should have succeeded
         ti = TI(dag.tasks[0], run_date)
         ti.refresh_from_db()
-        self.assertEquals(ti.state, State.SUCCESS)
+        self.assertEqual(ti.state, State.SUCCESS)
 
     def test_run_ignores_all_dependencies(self):
         """
@@ -496,7 +693,7 @@ class BackfillJobTest(unittest.TestCase):
             execution_date=DEFAULT_DATE)
 
         ti_dependent0.refresh_from_db()
-        self.assertEquals(ti_dependent0.state, State.FAILED)
+        self.assertEqual(ti_dependent0.state, State.FAILED)
 
         task1_id = 'test_run_dependency_task'
         args1 = ['run',
@@ -510,7 +707,7 @@ class BackfillJobTest(unittest.TestCase):
             task=dag.get_task(task1_id),
             execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
         ti_dependency.refresh_from_db()
-        self.assertEquals(ti_dependency.state, State.FAILED)
+        self.assertEqual(ti_dependency.state, State.FAILED)
 
         task2_id = 'test_run_dependent_task'
         args2 = ['run',
@@ -524,7 +721,7 @@ class BackfillJobTest(unittest.TestCase):
             task=dag.get_task(task2_id),
             execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
         ti_dependent.refresh_from_db()
-        self.assertEquals(ti_dependent.state, State.SUCCESS)
+        self.assertEqual(ti_dependent.state, State.SUCCESS)
 
     def test_run_naive_taskinstance(self):
         """
@@ -549,7 +746,7 @@ class BackfillJobTest(unittest.TestCase):
             execution_date=NAIVE_DATE)
 
         ti_dependent0.refresh_from_db()
-        self.assertEquals(ti_dependent0.state, State.FAILED)
+        self.assertEqual(ti_dependent0.state, State.FAILED)
 
     def test_cli_backfill_depends_on_past(self):
         """
@@ -579,6 +776,41 @@ class BackfillJobTest(unittest.TestCase):
         # task ran
         self.assertEqual(ti.state, State.SUCCESS)
         dag.clear()
+
+    def test_cli_backfill_depends_on_past_backwards(self):
+        """
+        Test that CLI respects -B argument and raises on interaction with depends_on_past
+        """
+        dag_id = 'test_depends_on_past'
+        start_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        end_date = start_date + datetime.timedelta(days=1)
+        args = [
+            'backfill',
+            dag_id,
+            '-l',
+            '-s',
+            start_date.isoformat(),
+            '-e',
+            end_date.isoformat(),
+            '-I'
+        ]
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+
+        cli.backfill(self.parser.parse_args(args + ['-I']))
+        ti = TI(dag.get_task('test_dop_task'), end_date)
+        ti.refresh_from_db()
+        # runs fine forwards
+        self.assertEqual(ti.state, State.SUCCESS)
+
+        # raises backwards
+        expected_msg = 'You cannot backfill backwards because one or more tasks depend_on_past: {}'.format(
+            'test_dop_task')
+        self.assertRaisesRegexp(
+            AirflowException,
+            expected_msg,
+            cli.backfill,
+            self.parser.parse_args(args + ['-B']))
 
     def test_cli_receives_delay_arg(self):
         """
@@ -935,12 +1167,12 @@ class BackfillJobTest(unittest.TestCase):
             include_parentdag=True)
 
         ti0.refresh_from_db()
-        self.assertEquals(State.NONE, ti0.state)
+        self.assertEqual(State.NONE, ti0.state)
 
         ti1 = TI(
             task=dag.get_task('some-other-task'),
             execution_date=DEFAULT_DATE)
-        self.assertEquals(State.NONE, ti1.state)
+        self.assertEqual(State.NONE, ti1.state)
 
         # Checks that all the Downstream tasks for Parent DAG
         # have been cleared
@@ -949,7 +1181,7 @@ class BackfillJobTest(unittest.TestCase):
                 task=dag.get_task(task.task_id),
                 execution_date=DEFAULT_DATE
             )
-            self.assertEquals(State.NONE, ti.state)
+            self.assertEqual(State.NONE, ti.state)
 
         subdag.clear()
         dag.clear()
@@ -1056,8 +1288,31 @@ class BackfillJobTest(unittest.TestCase):
 
         ti_status.failed.clear()
 
+        # test for retry
+        ti.set_state(State.UP_FOR_RETRY, session)
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.running) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 0)
+        self.assertTrue(len(ti_status.skipped) == 0)
+        self.assertTrue(len(ti_status.failed) == 0)
+        self.assertTrue(len(ti_status.to_run) == 1)
+
+        ti_status.to_run.clear()
+
         # test for reschedule
-        # test for failed
+        ti.set_state(State.UP_FOR_RESCHEDULE, session)
+        ti_status.running[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.running) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 0)
+        self.assertTrue(len(ti_status.skipped) == 0)
+        self.assertTrue(len(ti_status.failed) == 0)
+        self.assertTrue(len(ti_status.to_run) == 1)
+
+        ti_status.to_run.clear()
+
+        # test for none
         ti.set_state(State.NONE, session)
         ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
@@ -1066,6 +1321,8 @@ class BackfillJobTest(unittest.TestCase):
         self.assertTrue(len(ti_status.skipped) == 0)
         self.assertTrue(len(ti_status.failed) == 0)
         self.assertTrue(len(ti_status.to_run) == 1)
+
+        ti_status.to_run.clear()
 
         session.close()
 
@@ -1079,7 +1336,8 @@ class BackfillJobTest(unittest.TestCase):
             DummyOperator(
                 task_id='dummy',
                 dag=dag,
-                owner='airflow')
+                owner='airflow',
+            )
             return dag
 
         test_dag = get_test_dag_for_backfill()
@@ -1096,10 +1354,34 @@ class BackfillJobTest(unittest.TestCase):
                              start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
                              end_date=DEFAULT_DATE,))
 
+    def test_backfill_run_backwards(self):
+        dag = self.dagbag.get_dag("test_start_date_scheduling")
+        dag.clear()
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            run_backwards=True
+        )
+        job.run()
+
+        session = settings.Session()
+        tis = session.query(TI).filter(
+            TI.dag_id == 'test_start_date_scheduling' and TI.task_id == 'dummy'
+        ).order_by(TI.execution_date).all()
+
+        queued_times = [ti.queued_dttm for ti in tis]
+        self.assertTrue(queued_times == sorted(queued_times, reverse=True))
+        self.assertTrue(all([ti.state == State.SUCCESS for ti in tis]))
+
+        dag.clear()
+        session.close()
+
 
 class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
-        pass
+        clear_db_runs()
 
     def test_localtaskjob_essential_attr(self):
         """
@@ -1259,11 +1541,29 @@ class LocalTaskJobTest(unittest.TestCase):
 class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
-        self.dagbag = DagBag()
-        with create_session() as session:
-            session.query(models.DagRun).delete()
-            session.query(models.ImportError).delete()
-            session.commit()
+        clear_db_runs()
+        clear_db_pools()
+        clear_db_dags()
+        clear_db_sla_miss()
+        clear_db_errors()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dagbag = DagBag()
+
+        def getboolean(section, key):
+            if section.lower() == 'core' and key.lower() == 'load_examples':
+                return False
+            else:
+                return configuration.conf.getboolean(section, key)
+
+        cls.patcher = mock.patch('airflow.jobs.conf.getboolean')
+        mock_getboolean = cls.patcher.start()
+        mock_getboolean.side_effect = getboolean
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patcher.stop()
 
     @staticmethod
     def run_single_scheduler_loop_with_no_dags(dags_folder):
@@ -1371,7 +1671,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
         ti1.refresh_from_db()
-        self.assertEquals(State.SCHEDULED, ti1.state)
+        self.assertEqual(State.SCHEDULED, ti1.state)
 
     def test_execute_task_instances_no_dagrun_task_will_execute(self):
         """
@@ -1396,7 +1696,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
         ti1.refresh_from_db()
-        self.assertEquals(State.QUEUED, ti1.state)
+        self.assertEqual(State.QUEUED, ti1.state)
 
     def test_execute_task_instances_backfill_tasks_wont_execute(self):
         """
@@ -1425,7 +1725,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
         ti1.refresh_from_db()
-        self.assertEquals(State.SCHEDULED, ti1.state)
+        self.assertEqual(State.SCHEDULED, ti1.state)
 
     def test_find_executable_task_instances_backfill_nodagrun(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_backfill_nodagrun'
@@ -1815,7 +2115,7 @@ class SchedulerJobTest(unittest.TestCase):
         with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
             scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
 
-        mock_queue_command.assert_called()
+        assert mock_queue_command.called
 
     def test_execute_task_instances_nothing(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_nothing'
@@ -2008,7 +2308,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(ti2.state, State.SCHEDULED)
 
         ti3.refresh_from_db(session=session)
-        self.assertEquals(ti3.state, State.NONE)
+        self.assertEqual(ti3.state, State.NONE)
 
         dr1.refresh_from_db(session=session)
         dr1.state = State.FAILED
@@ -2066,7 +2366,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler_job._change_state_for_tasks_failed_to_execute()
 
         ti.refresh_from_db()
-        self.assertEquals(State.SCHEDULED, ti.state)
+        self.assertEqual(State.SCHEDULED, ti.state)
 
         # Tasks failed to execute with RUNNING state will not be set to SCHEDULED state.
         session.query(TI).delete()
@@ -2079,7 +2379,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler_job._change_state_for_tasks_failed_to_execute()
 
         ti.refresh_from_db()
-        self.assertEquals(State.RUNNING, ti.state)
+        self.assertEqual(State.RUNNING, ti.state)
 
     def test_execute_helper_reset_orphaned_tasks(self):
         session = settings.Session()
@@ -2122,6 +2422,51 @@ class SchedulerJobTest(unittest.TestCase):
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
         self.assertEqual(ti2.state, State.SCHEDULED)
+
+    @parameterized.expand([
+        [State.UP_FOR_RETRY, State.FAILED],
+        [State.QUEUED, State.NONE],
+        [State.SCHEDULED, State.NONE],
+        [State.UP_FOR_RESCHEDULE, State.NONE],
+    ])
+    def test_execute_helper_should_change_state_for_tis_without_dagrun(
+            self, initial_task_state, expected_task_state):
+        session = settings.Session()
+        dag = DAG(
+            'test_execute_helper_should_change_state_for_tis_without_dagrun',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        # Create DAG run with FAILED state
+        dag.clear()
+        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+                               state=State.FAILED,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = initial_task_state
+        session.commit()
+
+        # Create scheduler and mock calls to processor. Run duration is set
+        # to a high value to ensure loop is entered. Poll interval is 0 to
+        # avoid sleep. Done flag is set to true to exist the loop immediately.
+        scheduler = SchedulerJob(num_runs=0, processor_poll_interval=0)
+        executor = TestExecutor()
+        executor.queued_tasks
+        scheduler.executor = executor
+        processor = mock.MagicMock()
+        processor.harvest_simple_dags.return_value = [dag]
+        processor.done = True
+        scheduler.processor_agent = processor
+
+        scheduler._execute_helper()
+
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        self.assertEqual(ti.state, expected_task_state)
 
     @provide_session
     def evaluate_dagrun(
@@ -2229,6 +2574,26 @@ class SchedulerJobTest(unittest.TestCase):
         dr_state = dr.update_state()
         self.assertEqual(dr_state, State.RUNNING)
 
+    def test_dagrun_root_after_dagrun_unfinished(self):
+        """
+        DagRuns with one successful and one future root task -> SUCCESS
+
+        Noted: the DagRun state could be still in running state during CI.
+        """
+        dag_id = 'test_dagrun_states_root_future'
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+        scheduler = SchedulerJob(dag_id, num_runs=2)
+        # we can't use dag.run or evaluate_dagrun because it uses BackfillJob
+        # instead of SchedulerJob and BackfillJobs are allowed to not respect start dates
+        scheduler.run()
+
+        first_run = DagRun.find(dag_id=dag_id, execution_date=DEFAULT_DATE)[0]
+        ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
+
+        self.assertEqual(ti_ids, [('current', State.SUCCESS)])
+        self.assertIn(first_run.state, [State.SUCCESS, State.RUNNING])
+
     def test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date(self):
         """
         DagRun is marked a success if ignore_first_depends_on_past=True
@@ -2274,7 +2639,8 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertTrue(dag.start_date > datetime.datetime.utcnow())
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # zero tasks ran
@@ -2298,7 +2664,8 @@ class SchedulerJobTest(unittest.TestCase):
             session.commit()
 
             scheduler = SchedulerJob(dag_id,
-                                     num_runs=2)
+                                     subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                     num_runs=1)
             scheduler.run()
 
             # still one task
@@ -2315,6 +2682,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
         scheduler = SchedulerJob(dag_id,
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
                                  num_runs=2)
         scheduler.run()
 
@@ -2337,7 +2705,8 @@ class SchedulerJobTest(unittest.TestCase):
             dag.clear()
 
         scheduler = SchedulerJob(dag_ids=dag_ids,
-                                 num_runs=2)
+                                 subdir=os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py'),
+                                 num_runs=1)
         scheduler.run()
 
         # zero tasks ran
@@ -2363,7 +2732,14 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.create_dag_run(dag)
         self.assertIsNone(dr)
 
-    def test_scheduler_process_task_instances(self):
+    @parameterized.expand([
+        [State.NONE, None, None],
+        [State.UP_FOR_RETRY, timezone.utcnow() - datetime.timedelta(minutes=30),
+            timezone.utcnow() - datetime.timedelta(minutes=15)],
+        [State.UP_FOR_RESCHEDULE, timezone.utcnow() - datetime.timedelta(minutes=30),
+            timezone.utcnow() - datetime.timedelta(minutes=15)],
+    ])
+    def test_scheduler_process_task_instances(self, state, start_date, end_date):
         """
         Test if _process_task_instances puts the right task instances into the
         queue.
@@ -2376,16 +2752,21 @@ class SchedulerJobTest(unittest.TestCase):
             dag=dag,
             owner='airflow')
 
-        session = settings.Session()
-        orm_dag = DagModel(dag_id=dag.dag_id)
-        session.merge(orm_dag)
-        session.commit()
-        session.close()
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
 
         scheduler = SchedulerJob()
         dag.clear()
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
+
+        with create_session() as session:
+            tis = dr.get_task_instances(session=session)
+            for ti in tis:
+                ti.state = state
+                ti.start_date = start_date
+                ti.end_date = end_date
 
         queue = Mock()
         scheduler._process_task_instances(dag, queue=queue)
@@ -2450,6 +2831,20 @@ class SchedulerJobTest(unittest.TestCase):
 
         queue.put.assert_not_called()
 
+    def test_scheduler_do_not_schedule_without_tasks(self):
+        dag = DAG(
+            dag_id='test_scheduler_do_not_schedule_without_tasks',
+            start_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            session.merge(orm_dag)
+            scheduler = SchedulerJob()
+            dag.clear(session=session)
+            dag.start_date = None
+            dr = scheduler.create_dag_run(dag, session=session)
+            self.assertIsNone(dr)
+
     def test_scheduler_do_not_run_finished(self):
         dag = DAG(
             dag_id='test_scheduler_do_not_run_finished',
@@ -2508,7 +2903,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNotNone(dr)
 
         tis = dr.get_task_instances()
-        self.assertEquals(len(tis), 1)
+        self.assertEqual(len(tis), 1)
 
         DummyOperator(
             task_id='dummy2',
@@ -2519,7 +2914,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler._process_task_instances(dag, queue=queue)
 
         tis = dr.get_task_instances()
-        self.assertEquals(len(tis), 2)
+        self.assertEqual(len(tis), 2)
 
     def test_scheduler_verify_max_active_runs(self):
         """
@@ -2582,7 +2977,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNotNone(dr2)
 
         dr.refresh_from_db(session=session)
-        self.assertEquals(dr.state, State.FAILED)
+        self.assertEqual(dr.state, State.FAILED)
 
     def test_scheduler_verify_max_active_runs_and_dagrun_timeout(self):
         """
@@ -2696,12 +3091,12 @@ class SchedulerJobTest(unittest.TestCase):
         # Create 2 dagruns, which will create 2 task instances.
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        self.assertEquals(dr.execution_date, DEFAULT_DATE)
+        self.assertEqual(dr.execution_date, DEFAULT_DATE)
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
         queue = []
         scheduler._process_task_instances(dag, queue=queue)
-        self.assertEquals(len(queue), 2)
+        self.assertEqual(len(queue), 2)
         dagbag = self._make_simple_dag_bag([dag])
 
         # Recreated part of the scheduler here, to kick off tasks -> executor
@@ -2720,7 +3115,7 @@ class SchedulerJobTest(unittest.TestCase):
                                           (State.SCHEDULED,
                                            State.UP_FOR_RETRY))
 
-        self.assertEquals(len(scheduler.executor.queued_tasks), 1)
+        self.assertEqual(len(scheduler.executor.queued_tasks), 1)
 
     def test_scheduler_auto_align(self):
         """
@@ -2749,7 +3144,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        self.assertEquals(dr.execution_date, timezone.datetime(2016, 1, 2, 5, 4))
+        self.assertEqual(dr.execution_date, timezone.datetime(2016, 1, 2, 5, 4))
 
         dag = DAG(
             dag_id='test_scheduler_auto_align_2',
@@ -2771,7 +3166,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        self.assertEquals(dr.execution_date, timezone.datetime(2016, 1, 1, 10, 10))
+        self.assertEqual(dr.execution_date, timezone.datetime(2016, 1, 1, 10, 10))
 
     def test_scheduler_reschedule(self):
         """
@@ -2817,13 +3212,83 @@ class SchedulerJobTest(unittest.TestCase):
             scheduler.run()
 
         do_schedule()
-        self.assertEquals(1, len(executor.queued_tasks))
+        self.assertEqual(1, len(executor.queued_tasks))
         executor.queued_tasks.clear()
 
         do_schedule()
-        self.assertEquals(2, len(executor.queued_tasks))
+        self.assertEqual(2, len(executor.queued_tasks))
 
     def test_scheduler_sla_miss_callback(self):
+        """
+        Test that the scheduler calls the sla miss callback
+        """
+        session = settings.Session()
+
+        sla_callback = MagicMock()
+
+        # Create dag with a start of 1 day ago, but an sla of 0
+        # so we'll already have an sla_miss on the books.
+        test_start_date = days_ago(1)
+        dag = DAG(dag_id='test_sla_miss',
+                  sla_miss_callback=sla_callback,
+                  default_args={'start_date': test_start_date,
+                                'sla': datetime.timedelta()})
+
+        task = DummyOperator(task_id='dummy',
+                             dag=dag,
+                             owner='airflow')
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='success'))
+
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+        scheduler.manage_slas(dag=dag, session=session)
+
+        assert sla_callback.called
+
+    def test_scheduler_sla_miss_callback_invalid_sla(self):
+        """
+        Test that the scheduler does not call the sla miss callback when
+        given an invalid sla
+        """
+        session = settings.Session()
+
+        sla_callback = MagicMock()
+
+        # Create dag with a start of 1 day ago, but an sla of 0
+        # so we'll already have an sla_miss on the books.
+        # Pass anything besides a timedelta object to the sla argument.
+        test_start_date = days_ago(1)
+        dag = DAG(dag_id='test_sla_miss',
+                  sla_miss_callback=sla_callback,
+                  default_args={'start_date': test_start_date,
+                                'sla': None})
+
+        task = DummyOperator(task_id='dummy',
+                             dag=dag,
+                             owner='airflow')
+
+        session.merge(models.TaskInstance(task=task,
+                                          execution_date=test_start_date,
+                                          state='success'))
+
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
+
+        scheduler = SchedulerJob(dag_id='test_sla_miss',
+                                 num_runs=1)
+        scheduler.manage_slas(dag=dag, session=session)
+
+        sla_callback.assert_not_called()
+
+    def test_scheduler_sla_miss_callback_sent_notification(self):
         """
         Test that the scheduler does not call the sla_miss_callback when a notification has already been sent
         """
@@ -2850,11 +3315,11 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date,
-                                     email_sent=False,
-                                     notification_sent=True))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date,
+                              email_sent=False,
+                              notification_sent=True))
 
         # Now call manage_slas and see if the sla_miss callback gets called
         scheduler = SchedulerJob(dag_id='test_sla_miss',
@@ -2887,9 +3352,9 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='Success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
 
         # Now call manage_slas and see if the sla_miss callback gets called
         scheduler = SchedulerJob(dag_id='test_sla_miss')
@@ -2897,7 +3362,7 @@ class SchedulerJobTest(unittest.TestCase):
         with mock.patch('airflow.jobs.SchedulerJob.log',
                         new_callable=PropertyMock) as mock_log:
             scheduler.manage_slas(dag=dag, session=session)
-            sla_callback.assert_called()
+            assert sla_callback.called
             mock_log().exception.assert_called_with(
                 'Could not call sla_miss_callback for DAG %s',
                 'test_sla_miss')
@@ -2929,9 +3394,9 @@ class SchedulerJobTest(unittest.TestCase):
                                           state='Success'))
 
         # Create an SlaMiss where notification was sent, but email was not
-        session.merge(models.SlaMiss(task_id='dummy',
-                                     dag_id='test_sla_miss',
-                                     execution_date=test_start_date))
+        session.merge(SlaMiss(task_id='dummy',
+                              dag_id='test_sla_miss',
+                              execution_date=test_start_date))
 
         scheduler = SchedulerJob(dag_id='test_sla_miss',
                                  num_runs=1)
@@ -2989,7 +3454,7 @@ class SchedulerJobTest(unittest.TestCase):
             scheduler.run()
 
         do_schedule()
-        self.assertEquals(1, len(executor.queued_tasks))
+        self.assertEqual(1, len(executor.queued_tasks))
 
         def run_with_error(task):
             try:
@@ -3034,7 +3499,7 @@ class SchedulerJobTest(unittest.TestCase):
         executor.do_update = True
         do_schedule()
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.RUNNING)
+        self.assertIn(ti.state, [State.RUNNING, State.SUCCESS])
 
     @unittest.skipUnless("INTEGRATION" in os.environ, "Can only run end to end")
     def test_retry_handling_job(self):
@@ -3229,7 +3694,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3251,7 +3716,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3272,7 +3737,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 
@@ -3297,7 +3762,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 1)
         import_error = import_errors[0]
@@ -3325,7 +3790,7 @@ class SchedulerJobTest(unittest.TestCase):
             shutil.rmtree(dags_folder)
 
         session = settings.Session()
-        import_errors = session.query(models.ImportError).all()
+        import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 
@@ -3345,7 +3810,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.run_single_scheduler_loop_with_no_dags(dags_folder)
 
         with create_session() as session:
-            import_errors = session.query(models.ImportError).all()
+            import_errors = session.query(errors.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
 
@@ -3408,7 +3873,7 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
 
         reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
-        self.assertEquals(1, len(reset_tis))
+        self.assertEqual(1, len(reset_tis))
 
     def test_reset_orphaned_tasks_backfill_dag(self):
         dag_id = 'test_reset_orphaned_tasks_backfill_dag'
@@ -3429,7 +3894,7 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
 
         self.assertTrue(dr1.is_backfill)
-        self.assertEquals(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
 
     def test_reset_orphaned_tasks_specified_dagrun(self):
         """Try to reset when we specify a dagrun and ensure nothing else is."""
@@ -3457,11 +3922,11 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
 
         reset_tis = scheduler.reset_state_for_orphaned_tasks(filter_by_dag_run=dr2, session=session)
-        self.assertEquals(1, len(reset_tis))
+        self.assertEqual(1, len(reset_tis))
         ti1.refresh_from_db(session=session)
         ti2.refresh_from_db(session=session)
-        self.assertEquals(State.SCHEDULED, ti1.state)
-        self.assertEquals(State.NONE, ti2.state)
+        self.assertEqual(State.SCHEDULED, ti1.state)
+        self.assertEqual(State.NONE, ti2.state)
 
     def test_reset_orphaned_tasks_nonexistent_dagrun(self):
         """Make sure a task in an orphaned state is not reset if it has no dagrun. """
@@ -3482,7 +3947,7 @@ class SchedulerJobTest(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        self.assertEquals(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
 
     def test_reset_orphaned_tasks_no_orphans(self):
         dag_id = 'test_reset_orphaned_tasks_no_orphans'
@@ -3501,9 +3966,9 @@ class SchedulerJobTest(unittest.TestCase):
         session.merge(tis[0])
         session.commit()
 
-        self.assertEquals(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
         tis[0].refresh_from_db()
-        self.assertEquals(State.RUNNING, tis[0].state)
+        self.assertEqual(State.RUNNING, tis[0].state)
 
     def test_reset_orphaned_tasks_non_running_dagruns(self):
         """Ensure orphaned tasks with non-running dagruns are not reset."""
@@ -3518,13 +3983,13 @@ class SchedulerJobTest(unittest.TestCase):
         dr1 = scheduler.create_dag_run(dag)
         dr1.state = State.SUCCESS
         tis = dr1.get_task_instances(session=session)
-        self.assertEquals(1, len(tis))
+        self.assertEqual(1, len(tis))
         tis[0].state = State.SCHEDULED
         session.merge(dr1)
         session.merge(tis[0])
         session.commit()
 
-        self.assertEquals(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        self.assertEqual(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
 
     def test_reset_orphaned_tasks_with_orphans(self):
         """Create dagruns and esnure only ones with correct states are reset."""

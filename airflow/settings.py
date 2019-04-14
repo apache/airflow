@@ -26,19 +26,18 @@ import atexit
 import logging
 import os
 import pendulum
-import socket
+import sys
 
 from sqlalchemy import create_engine, exc
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from airflow import configuration as conf
+from airflow.configuration import conf, AIRFLOW_HOME, WEBSERVER_CONFIG  # NOQA F401
 from airflow.logging_config import configure_logging
 from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
-RBAC = conf.getboolean('webserver', 'rbac')
 
 TIMEZONE = pendulum.timezone('UTC')
 try:
@@ -51,38 +50,6 @@ except Exception:
     pass
 log.info("Configured default timezone %s" % TIMEZONE)
 
-
-class DummyStatsLogger(object):
-    @classmethod
-    def incr(cls, stat, count=1, rate=1):
-        pass
-
-    @classmethod
-    def decr(cls, stat, count=1, rate=1):
-        pass
-
-    @classmethod
-    def gauge(cls, stat, value, rate=1, delta=False):
-        pass
-
-    @classmethod
-    def timing(cls, stat, dt):
-        pass
-
-
-Stats = DummyStatsLogger
-
-try:
-    if conf.getboolean('scheduler', 'statsd_on'):
-        from statsd import StatsClient
-
-        statsd = StatsClient(
-            host=conf.get('scheduler', 'statsd_host'),
-            port=conf.getint('scheduler', 'statsd_port'),
-            prefix=conf.get('scheduler', 'statsd_prefix'))
-        Stats = statsd
-except (socket.gaierror, ImportError):
-    log.warning("Could not configure StatsClient, using DummyStatsLogger instead.")
 
 HEADER = '\n'.join([
     r'  ____________       _____________',
@@ -100,9 +67,10 @@ GUNICORN_WORKER_READY_PREFIX = "[ready] "
 LOG_FORMAT = conf.get('core', 'log_format')
 SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
 
-AIRFLOW_HOME = None
 SQL_ALCHEMY_CONN = None
 DAGS_FOLDER = None
+PLUGINS_FOLDER = None
+LOGGING_CLASS_PATH = None
 
 engine = None
 Session = None
@@ -136,12 +104,17 @@ def policy(task_instance):
 
 
 def configure_vars():
-    global AIRFLOW_HOME
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
-    AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
+    global PLUGINS_FOLDER
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+
+    PLUGINS_FOLDER = conf.get(
+        'core',
+        'plugins_folder',
+        fallback=os.path.join(AIRFLOW_HOME, 'plugins')
+    )
 
 
 def configure_orm(disable_connection_pool=False):
@@ -177,13 +150,10 @@ def configure_orm(disable_connection_pool=False):
         engine_args['pool_size'] = pool_size
         engine_args['pool_recycle'] = pool_recycle
 
-    try:
-        # Allow the user to specify an encoding for their DB otherwise default
-        # to utf-8 so jobs & users with non-latin1 characters can still use
-        # us.
-        engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING')
-    except conf.AirflowConfigException:
-        engine_args['encoding'] = 'utf-8'
+    # Allow the user to specify an encoding for their DB otherwise default
+    # to utf-8 so jobs & users with non-latin1 characters can still use
+    # us.
+    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
     # For Python2 we get back a newstr and need a str
     engine_args['encoding'] = engine_args['encoding'].__str__()
 
@@ -227,10 +197,7 @@ def configure_adapters():
 
 
 def validate_session():
-    try:
-        worker_precheck = conf.getboolean('core', 'worker_precheck')
-    except conf.AirflowConfigException:
-        worker_precheck = False
+    worker_precheck = conf.getboolean('core', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
     else:
@@ -250,9 +217,27 @@ def configure_action_logging():
     """
     Any additional configuration (register callback) for airflow.utils.action_loggers
     module
-    :return: None
+    :rtype: None
     """
     pass
+
+
+def prepare_classpath():
+    """
+    Ensures that certain subfolders of AIRFLOW_HOME are on the classpath
+    """
+
+    if DAGS_FOLDER not in sys.path:
+        sys.path.append(DAGS_FOLDER)
+
+    # Add ./config/ for loading custom log parsers etc, or
+    # airflow_local_settings etc.
+    config_path = os.path.join(AIRFLOW_HOME, 'config')
+    if config_path not in sys.path:
+        sys.path.append(config_path)
+
+    if PLUGINS_FOLDER not in sys.path:
+        sys.path.append(PLUGINS_FOLDER)
 
 
 try:
@@ -261,15 +246,20 @@ try:
 except Exception:
     pass
 
-logging_class_path = configure_logging()
-configure_vars()
-configure_adapters()
-# The webservers import this file from models.py with the default settings.
-configure_orm()
-configure_action_logging()
 
-# Ensure we close DB connections at scheduler and gunicon worker terminations
-atexit.register(dispose_orm)
+def initialize():
+    configure_vars()
+    prepare_classpath()
+    global LOGGING_CLASS_PATH
+    LOGGING_CLASS_PATH = configure_logging()
+    configure_adapters()
+    # The webservers import this file from models.py with the default settings.
+    configure_orm()
+    configure_action_logging()
+
+    # Ensure we close DB connections at scheduler and gunicon worker terminations
+    atexit.register(dispose_orm)
+
 
 # Const stuff
 
@@ -277,3 +267,6 @@ KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {'LIGHTBLUE': '#4d9de0',
               'LIGHTORANGE': '#FF9933'}
+
+# Used by DAG context_managers
+CONTEXT_MANAGER_DAG = None

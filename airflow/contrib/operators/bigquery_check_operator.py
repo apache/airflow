@@ -48,7 +48,7 @@ class BigQueryCheckOperator(CheckOperator):
     This operator can be used as a data quality check in your pipeline, and
     depending on where you put it in your DAG, you have the choice to
     stop the critical path, preventing from
-    publishing dubious data, or on the side and receive email alterts
+    publishing dubious data, or on the side and receive email alerts
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
@@ -63,7 +63,7 @@ class BigQueryCheckOperator(CheckOperator):
     @apply_defaults
     def __init__(self,
                  sql,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  use_legacy_sql=True,
                  *args, **kwargs):
         super(BigQueryCheckOperator, self).__init__(sql=sql, *args, **kwargs)
@@ -91,7 +91,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     def __init__(self, sql,
                  pass_value,
                  tolerance=None,
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  use_legacy_sql=True,
                  *args, **kwargs):
         super(BigQueryValueCheckOperator, self).__init__(
@@ -131,7 +131,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
 
     @apply_defaults
     def __init__(self, table, metrics_thresholds, date_filter_column='ds',
-                 days_back=-7, bigquery_conn_id='bigquery_default',
+                 days_back=-7, bigquery_conn_id='google_cloud_default',
                  use_legacy_sql=True, *args, **kwargs):
         super(BigQueryIntervalCheckOperator, self).__init__(
             table=table, metrics_thresholds=metrics_thresholds,

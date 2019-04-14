@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import os
@@ -96,7 +101,7 @@ class AzureContainerInstanceHook(BaseHook):
         :param name: the name of the container group
         :type name: str
         :return: A tuple with the state, exitcode, and details.
-        If the exitcode is unknown 0 is returned.
+            If the exitcode is unknown 0 is returned.
         :rtype: tuple(state,exitcode,details)
         """
         current_state = self._get_instance_view(resource_group, name).current_state
@@ -108,7 +113,7 @@ class AzureContainerInstanceHook(BaseHook):
         response = self.connection.container_groups.get(resource_group,
                                                         name,
                                                         raw=False)
-        return response.containers[0].instance_view.current_state
+        return response.containers[0].instance_view
 
     def get_messages(self, resource_group, name):
         """
@@ -119,7 +124,7 @@ class AzureContainerInstanceHook(BaseHook):
         :param name: the name of the container group
         :type name: str
         :return: A list of the event messages
-        :rtype: list<str>
+        :rtype: list[str]
         """
         instance_view = self._get_instance_view(resource_group, name)
 
@@ -136,7 +141,7 @@ class AzureContainerInstanceHook(BaseHook):
         :param tail: the size of the tail
         :type tail: int
         :return: A list of log messages
-        :rtype: list<str>
+        :rtype: list[str]
         """
         logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)
