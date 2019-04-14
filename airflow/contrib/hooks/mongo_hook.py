@@ -45,6 +45,7 @@ class MongoHook(BaseHook):
         self.extras = self.connection.extra_dejson.copy()
         self.client = None
         self.srv = False
+        self.uri = None
 
         if 'srv' in self.extras:
             self.srv = self.extras.pop('srv')
@@ -67,7 +68,7 @@ class MongoHook(BaseHook):
 
         scheme = 'mongodb+srv' if self.srv else 'mongodb'
 
-        uri = '{scheme}://{creds}{host}{port}/{database}'.format(
+        self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
             scheme=scheme,
             creds='{}:{}@'.format(
                 conn.login, conn.password
@@ -85,7 +86,7 @@ class MongoHook(BaseHook):
         if options.get('ssl', False):
             options.update({'ssl_cert_reqs': CERT_NONE})
 
-        self.client = MongoClient(uri, **options)
+        self.client = MongoClient(self.uri, **options)
 
         return self.client
 
