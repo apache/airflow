@@ -152,6 +152,11 @@
           <a id="btn_log" type="button" class="btn btn-primary" data-base-url="{{ url_for('Airflow.log') }}">
             View Log
           </a>
+          {% if kibana_frontend_url is defined and kibana_frontend_url %}
+          <a id="btn_kibana" type="button" class="btn btn-primary" data-base-url="{{ kibana_frontend_url }}">
+            View Log in Kibana
+          </a>
+          {% endif %}
           <hr/>
           <div>
             <label style="display:inline"> Download Log (by attempts): </label>
@@ -364,6 +369,20 @@ function updateQueryStringParameter(uri, key, value) {
       elm.setAttribute('href', elm.dataset.baseUrl + '?' + $.param(params));
     }
 
+    function updateKibanaUrl(elm, params) {
+      console.log("Kibana base url");
+      console.log(params);
+      console.log(elm.dataset.baseUrl);
+      url = elm.dataset.baseUrl;
+      url = url.replace(/<dag_id>/g, params.dag_id);
+      url = url.replace(/<task_id>/g, params.task_id);
+      url = url.replace(/<execution_date>/g,
+                        "'" + params.execution_date.replace('+', '%2B') + "'");
+      console.log("Setting Kibana URL");
+      console.log(url);
+      elm.setAttribute('href', url);
+    }
+
     function updateModalUrls() {
       updateButtonUrl(buttons.subdag, {
         dag_id: dag_id,
@@ -394,6 +413,13 @@ function updateQueryStringParameter(uri, key, value) {
         execution_date: execution_date,
       });
 
+      if (buttons.kibana) {
+        updateKibanaUrl(buttons.kibana, {
+          dag_id: dag_id,
+          task_id: task_id,
+          execution_date: execution_date,
+        });
+      }
     }
 
     function call_modal(t, d, extra_links, try_numbers, sd) {

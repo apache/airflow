@@ -1143,6 +1143,28 @@ class Airflow(AirflowBaseView):
                                               confirmed, upstream, downstream,
                                               future, past, State.SUCCESS)
 
+    def _get_kibana_frontend_url(self):
+        kibana_frontend = conf.get('webserver', 'kibana_logging_frontend')
+        if not kibana_frontend:
+            return None
+        graph_prefix = "#/discover?_g=(time:(from:now-60d,mode:quick,to:now))"
+        kibana_index = conf.get('webserver', 'kibana_index')
+        def create_filter(param):
+            filter_template = (
+                "(meta:(index:{1},alias:!n,disabled:!f,key:{0},negate:!f,"+
+                "params:(query:<{0}>,type:phrase),type:phrase,value:<{0}>),"+
+                "query:(match:({0}:(query:<{0}>,type:phrase))))")
+            return filter_template.format(param, kibana_index)
+        all_filters = ("filters:!("
+            + create_filter('dag_id') + ","
+            + create_filter('task_id') + ","
+            + create_filter('execution_date') + ")")
+        body = ("_a=(" + all_filters + 
+                ",interval:auto,query:(language:kuery,query:''),"+
+                "index:{0},sort:!('@timestamp',desc))".format(kibana_index))
+        url = "https://" + kibana_frontend + graph_prefix + "&" + body
+        return url
+
     @expose('/tree')
     @has_dag_access(can_dag_read=True)
     @has_access
@@ -1270,7 +1292,8 @@ class Airflow(AirflowBaseView):
             ),
             root=root,
             form=form,
-            dag=dag, data=data, blur=blur, num_runs=num_runs)
+            dag=dag, data=data, blur=blur, num_runs=num_runs,
+            kibana_frontend_url=self._get_kibana_frontend_url())
 
     @expose('/graph')
     @has_dag_access(can_dag_read=True)
@@ -1372,7 +1395,8 @@ class Airflow(AirflowBaseView):
             task_instances=task_instances,
             tasks=tasks,
             nodes=nodes,
-            edges=edges)
+            edges=edges,
+            kibana_frontend_url=self._get_kibana_frontend_url())
 
     @expose('/duration')
     @has_dag_access(can_dag_read=True)
