@@ -59,7 +59,7 @@ class BigQueryCheckOperator(CheckOperator):
         or standard SQL (false).
     :type use_legacy_sql: bool
     """
-    
+
     template_fields = ('sql',)
     template_ext = ('.sql', )
 
@@ -89,7 +89,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
         or standard SQL (false).
     :type use_legacy_sql: bool
     """
-    
+
     template_fields = ('sql',)
     template_ext = ('.sql', )
 
@@ -134,7 +134,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
         or standard SQL (false).
     :type use_legacy_sql: bool
     """
-    
+
     template_fields = ('table',)
 
     @apply_defaults
