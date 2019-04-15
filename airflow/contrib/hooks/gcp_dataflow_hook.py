@@ -50,7 +50,7 @@ class _DataflowJob(LoggingMixin):
             location=self._job_location
         ).execute(num_retries=5)
         for job in jobs['jobs']:
-            if job['name'] == self._job_name:
+            if job['name'].lower() == self._job_name.lower():
                 self._job_id = job['id']
                 return job
         return None
