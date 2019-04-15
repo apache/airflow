@@ -59,8 +59,8 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .create_empty_table \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -89,8 +89,8 @@ class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .create_external_table \
             .assert_called_once_with(
                 external_project_dataset_table='{}.{}'.format(
@@ -123,8 +123,8 @@ class BigQueryDeleteDatasetOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .delete_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -143,8 +143,8 @@ class BigQueryCreateEmptyDatasetOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .create_empty_dataset \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -196,8 +196,8 @@ class BigQueryOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -229,8 +229,8 @@ class BigQueryOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .run_query \
             .assert_called_once_with(
                 sql='Select * from test_table',
@@ -272,8 +272,8 @@ class BigQueryGetDataOperatorTest(unittest.TestCase):
                                            )
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .get_tabledata \
             .assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -297,8 +297,8 @@ class BigQueryTableDeleteOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .run_table_delete \
             .assert_called_once_with(
                 deletion_dataset_table=deletion_dataset_table,
@@ -328,8 +328,8 @@ class BigQueryToBigQueryOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .run_copy \
             .assert_called_once_with(
                 source_project_dataset_tables=source_project_dataset_tables,
@@ -365,8 +365,8 @@ class BigQueryToCloudStorageOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value \
-            .get_conn() \
-            .cursor() \
+            .get_conn.return_value \
+            .cursor.return_value \
             .run_extract \
             .assert_called_once_with(
                 source_project_dataset_table=source_project_dataset_table,
