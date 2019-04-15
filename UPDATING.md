@@ -24,6 +24,13 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Increase standard Dataproc disk sizes
+
+It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
+https://cloud.google.com/compute/docs/disks/performance
+
+Hence, the default value for `master_disk_size` in DataprocClusterCreateOperator has beeen changes from 500GB to 1TB.
+
 ### Changes to SalesforceHook
 
 * renamed `sign_in` function to `get_conn` 
@@ -86,14 +93,14 @@ compatibility, this option is enabled by default.
 
 The deprecated import mechanism has been removed so the import of modules becomes more consistent and explicit.
 
-For example: `from airflow.operators import BashOperator` 
+For example: `from airflow.operators import BashOperator`
 becomes `from airflow.operators.bash_operator import BashOperator`
 
 ### Changes to sensor imports
 
 Sensors are now accessible via `airflow.sensors` and no longer via `airflow.operators.sensors`.
 
-For example: `from airflow.operators.sensors import BaseSensorOperator` 
+For example: `from airflow.operators.sensors import BaseSensorOperator`
 becomes `from airflow.sensors.base_sensor_operator import BaseSensorOperator`
 
 ### Renamed "extra" requirements for cloud providers
