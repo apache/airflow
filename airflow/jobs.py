@@ -919,8 +919,8 @@ class SchedulerJob(BaseJob):
                 continue
 
             if len(active_dag_runs) >= dag.max_active_runs:
-                self.log.info("Active dag runs > max_active_run.")
-                continue
+                self.log.info("Number of active dag runs reached max_active_run.")
+                break
 
             # skip backfill dagruns for now as long as they are not really scheduled
             if run.is_backfill:
@@ -1438,6 +1438,12 @@ class SchedulerJob(BaseJob):
 
             dag_run = self.create_dag_run(dag)
             if dag_run:
+                expected_start_date = dag.following_schedule(dag_run.execution_date)
+                if expected_start_date:
+                    schedule_delay = dag_run.start_date - expected_start_date
+                    Stats.timing(
+                        'dagrun.schedule_delay.{dag_id}'.format(dag_id=dag.dag_id),
+                        schedule_delay)
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)

@@ -35,21 +35,32 @@ version = imp.load_source(
 
 PY3 = sys.version_info[0] == 3
 
-with io.open('README.md', encoding='utf-8') as f:
-    long_description = f.read()
+if not PY3:
+    # noinspection PyShadowingBuiltins
+    FileNotFoundError = IOError
+
+# noinspection PyUnboundLocalVariable
+try:
+    with io.open('README.md', encoding='utf-8') as f:
+        long_description = f.read()
+except FileNotFoundError:
+    long_description = ''
 
 
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
 
+    def __init__(self, dist, **kw):
+        super().__init__(dist, **kw)
+        self.test_suite = True
+        self.test_args = []
+        self.tox_args = ''
+
     def initialize_options(self):
         TestCommand.initialize_options(self)
-        self.tox_args = ''
 
     def finalize_options(self):
         TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
 
     def run_tests(self):
         # import here, cause outside the eggs aren't loaded
@@ -59,7 +70,7 @@ class Tox(TestCommand):
 
 
 class CleanCommand(Command):
-    """Custom clean command to tidy up the project root."""
+    """Command to tidy up the project root."""
     user_options = []
 
     def initialize_options(self):
@@ -74,8 +85,7 @@ class CleanCommand(Command):
 
 class CompileAssets(Command):
     """
-    Custom compile assets command to compile and build the frontend
-    assets using npm and webpack.
+    Compile and build the frontend assets using npm and webpack.
     """
     user_options = []
 
@@ -151,7 +161,6 @@ celery = [
 cgroups = [
     'cgroupspy>=0.1.4',
 ]
-# major update coming soon, clamp to 0.x
 cloudant = ['cloudant>=2.0']
 crypto = ['cryptography>=0.9.3']
 dask = [
@@ -229,7 +238,7 @@ samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0,<6']
 slack = ['slackclient>=1.0.0']
-mongo = ['pymongo>=3.6.0']
+mongo = ['pymongo>=3.6.0', 'dnspython>=1.13.0,<2.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
@@ -245,6 +254,7 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 devel = [
     'beautifulsoup4~=4.7.1',
     'click==6.7',
+    'flake8>=3.6.0',
     'freezegun',
     'jira',
     'mock;python_version<"3.3"',
@@ -259,11 +269,12 @@ devel = [
     'pywinrm',
     'qds-sdk>=1.9.6',
     'rednose',
-    'requests_mock',
-    'flake8>=3.6.0',
+    'requests_mock'
 ]
 
-if not PY3:
+if PY3:
+    devel += ['mypy']
+else:
     devel += ['unittest2']
 
 devel_minreq = devel + kubernetes + mysql + doc + password + cgroups
@@ -272,7 +283,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              docker + ssh + kubernetes + celery + redis + gcp + grpc +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch +
-             atlas + azure + aws)
+             atlas + azure + aws + salesforce)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -301,6 +312,7 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
+            'dumb-init>=1.2.2',
             'enum34~=1.1.6;python_version<"3.4"',
             'flask>=1.0, <2.0',
             'flask-appbuilder>=1.12.5, <2.0.0',

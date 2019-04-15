@@ -16,6 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from copy import deepcopy
+
 from google.api_core.exceptions import AlreadyExists
 
 from airflow.contrib.hooks.gcp_vision_hook import CloudVisionHook
@@ -961,3 +963,282 @@ class CloudVisionRemoveProductFromProductSetOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+
+class CloudVisionDetectTextOperator(BaseOperator):
+    """
+    Detects Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectTextOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: (Optional) Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param language_hints: List of languages to use for TEXT_DETECTION.
+        In most cases, an empty value yields the best results since it enables automatic language detection.
+        For languages based on the Latin alphabet, setting language_hints is not needed.
+    :type language_hints: str, list or google.cloud.vision.v1.ImageContext.language_hints:
+    :param web_detection_params: Parameters for web detection.
+    :type web_detection_params: dict or google.cloud.vision.v1.ImageContext.web_detection_params
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        :class:`google.cloud.vision_v1.types.AnnotateImageRequest`
+    :type additional_properties: dict
+    """
+
+    # [START vision_detect_text_set_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_detect_text_set_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        language_hints=None,
+        web_detection_params=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super(CloudVisionDetectTextOperator, self).__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.kwargs = kwargs
+        self.additional_properties = prepare_additional_parameters(
+            additional_properties=additional_properties,
+            language_hints=language_hints,
+            web_detection_params=web_detection_params,
+        )
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.text_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+class CloudVisionDetectDocumentTextOperator(BaseOperator):
+    """
+    Detects Document Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectDocumentTextOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param language_hints: List of languages to use for TEXT_DETECTION.
+        In most cases, an empty value yields the best results since it enables automatic language detection.
+        For languages based on the Latin alphabet, setting language_hints is not needed.
+    :type language_hints: str, list or google.cloud.vision.v1.ImageContext.language_hints:
+    :param web_detection_params: Parameters for web detection.
+    :type web_detection_params: dict or google.cloud.vision.v1.ImageContext.web_detection_params
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
+    :type additional_properties: dict
+    """
+
+    # [START vision_document_detect_text_set_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_document_detect_text_set_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        language_hints=None,
+        web_detection_params=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super(CloudVisionDetectDocumentTextOperator, self).__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.additional_properties = prepare_additional_parameters(
+            additional_properties=additional_properties,
+            language_hints=language_hints,
+            web_detection_params=web_detection_params,
+        )
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.document_text_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+class CloudVisionDetectImageLabelsOperator(BaseOperator):
+    """
+    Detects Document Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectImageLabelsOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
+    :type additional_properties: dict
+    """
+
+    # [START vision_detect_labels_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_detect_labels_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super(CloudVisionDetectImageLabelsOperator, self).__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.additional_properties = additional_properties
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.label_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+class CloudVisionDetectImageSafeSearchOperator(BaseOperator):
+    """
+    Detects Document Text in the image
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudVisionDetectImageSafeSearchOperator`
+
+    :param image: (Required) The image to analyze. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.Image
+    :type image: dict or google.cloud.vision_v1.types.Image
+    :param max_results: Number of results to return.
+    :type max_results: int
+    :param retry: (Optional) A retry object used to retry requests. If `None` is
+        specified, requests will not be retried.
+    :type retry: google.api_core.retry.Retry
+    :param timeout: Number of seconds before timing out.
+    :type timeout: float
+    :param additional_properties: Additional properties to be set on the AnnotateImageRequest. See more:
+        https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/types.html#google.cloud.vision_v1.types.AnnotateImageRequest
+    :type additional_properties: dict
+    """
+
+    # [START vision_detect_safe_search_template_fields]
+    template_fields = ("image", "max_results", "timeout", "gcp_conn_id")
+    # [END vision_detect_safe_search_template_fields]
+
+    def __init__(
+        self,
+        image,
+        max_results=None,
+        retry=None,
+        timeout=None,
+        additional_properties=None,
+        gcp_conn_id="google_cloud_default",
+        *args,
+        **kwargs
+    ):
+        super(CloudVisionDetectImageSafeSearchOperator, self).__init__(*args, **kwargs)
+        self.image = image
+        self.max_results = max_results
+        self.retry = retry
+        self.timeout = timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.additional_properties = additional_properties
+
+    def execute(self, context):
+        hook = CloudVisionHook(gcp_conn_id=self.gcp_conn_id)
+        return hook.safe_search_detection(
+            image=self.image,
+            max_results=self.max_results,
+            retry=self.retry,
+            timeout=self.timeout,
+            additional_properties=self.additional_properties,
+        )
+
+
+def prepare_additional_parameters(additional_properties, language_hints, web_detection_params):
+    """
+    Creates additional_properties parameter based on language_hints, web_detection_params and
+    additional_properties parameters specified by the user
+    """
+    if language_hints is None and web_detection_params is None:
+        return additional_properties
+
+    if additional_properties is None:
+        return {}
+
+    merged_additional_parameters = deepcopy(additional_properties)
+
+    if 'image_context' not in merged_additional_parameters:
+        merged_additional_parameters['image_context'] = {}
+
+    merged_additional_parameters['image_context']['language_hints'] = merged_additional_parameters[
+        'image_context'
+    ].get('language_hints', language_hints)
+    merged_additional_parameters['image_context']['web_detection_params'] = merged_additional_parameters[
+        'image_context'
+    ].get('web_detection_params', web_detection_params)
+
+    return merged_additional_parameters

@@ -16,28 +16,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-import mock
+import unittest
 
-GCP_PROJECT_ID_HOOK_UNIT_TEST = 'example-project'
+from airflow.contrib.hooks.aws_sqs_hook import SQSHook
 
-
-def mock_base_gcp_hook_default_project_id(self, gcp_conn_id, delegate_to=None):
-    self.extras = {
-        'extra__google_cloud_platform__project': GCP_PROJECT_ID_HOOK_UNIT_TEST
-    }
-    self._conn = gcp_conn_id
-    self.delegate_to = delegate_to
+try:
+    from moto import mock_sqs
+except ImportError:
+    mock_sqs = None
 
 
-def mock_base_gcp_hook_no_default_project_id(self, gcp_conn_id, delegate_to=None):
-    self.extras = {
-    }
-    self._conn = gcp_conn_id
-    self.delegate_to = delegate_to
+@unittest.skipIf(mock_sqs is None, 'moto sqs package missing')
+class TestAwsSQSHook(unittest.TestCase):
+
+    @mock_sqs
+    def test_get_conn(self):
+        hook = SQSHook(aws_conn_id='aws_default')
+        self.assertIsNotNone(hook.get_conn())
 
 
-def get_open_mock():
-    m = mock.mock_open()
-    open_module = 'builtins'
-    return m, open_module
+if __name__ == '__main__':
+    unittest.main()
