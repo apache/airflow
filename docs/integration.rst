@@ -360,6 +360,17 @@ BigQuery
 
 They also use :class:`airflow.contrib.hooks.bigquery_hook.BigQueryHook` to communicate with Google Cloud Platform.
 
+BigQuery Data Transfer Service
+''''''''''''''''''''''''''''''
+
+:class:`airflow.contrib.operators.gcp_bigquery_dts_operator.BigQueryCreateDataTransferOperator`
+    Creates a new data transfer configuration.
+
+:class:`airflow.contrib.operators.gcp_bigquery_dts_operator.BigQueryDeleteDataTransferConfigOperator`
+    Deletes transfer configuration.
+
+They also use :class:`airflow.contrib.hooks.gcp_bigquery_dts_hook.BiqQueryDataTransferServiceHook` to communicate with Google Cloud Platform.
+
 
 Cloud Spanner
 '''''''''''''
