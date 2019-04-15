@@ -646,6 +646,16 @@ Cloud Vision Product Search Operators
     Creates a new ReferenceImage resource.
 :class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionRemoveProductFromProductSetOperator`
     Removes a Product from the specified ProductSet.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionAnnotateImageOperator`
+    Run image detection and annotation for an image.
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectTextOperator`
+    Run text detection for an image
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectDocumentTextOperator`
+    Run document text detection for an image
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageLabelsOperator`
+    Run image labels detection for an image
+:class:`airflow.contrib.operators.gcp_vision_operator.CloudVisionDetectImageSafeSearchOperator`
+    Run safe search detection for an image
 
 They also use :class:`airflow.contrib.hooks.gcp_vision_hook.CloudVisionHook` to communicate with Google Cloud Platform.
 
