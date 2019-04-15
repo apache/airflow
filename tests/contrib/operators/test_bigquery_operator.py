@@ -312,7 +312,7 @@ class BigQueryToBigQueryOperatorTest(unittest.TestCase):
         source_project_dataset_tables = '{}.{}'.format(
             TEST_DATASET, TEST_TABLE_ID)
         destination_project_dataset_table = '{}.{}'.format(
-            TEST_DATASET+'_new', TEST_TABLE_ID)
+            TEST_DATASET + '_new', TEST_TABLE_ID)
         write_disposition = 'WRITE_EMPTY'
         create_disposition = 'CREATE_IF_NEEDED'
         labels = {'k1': 'v1'}
