@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowException
 
 class WinRMOperatorTest(unittest.TestCase):
     def test_no_winrm_hook_no_ssh_conn_id(self):
-
         op = WinRMOperator(task_id='test_task_id',
                            winrm_hook=None,
                            ssh_conn_id=None)
