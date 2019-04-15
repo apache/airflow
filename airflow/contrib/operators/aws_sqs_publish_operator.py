@@ -25,6 +25,7 @@ from airflow.contrib.hooks.aws_sqs_hook import SQSHook
 class SQSPublishOperator(BaseOperator):
     """
     Publish message to a SQS queue.
+
     :param sqs_queue: The SQS queue url (templated)
     :type sqs_queue: str
     :param message_content: The message content (templated)
@@ -37,6 +38,7 @@ class SQSPublishOperator(BaseOperator):
     :param aws_conn_id: AWS connection id (default: aws_default)
     :type aws_conn_id: str
     """
+
     template_fields = ('sqs_queue', 'message_content', 'delay_seconds')
     ui_color = '#6ad3fa'
 
@@ -58,7 +60,8 @@ class SQSPublishOperator(BaseOperator):
 
     def execute(self, context):
         """
-        Publish the message to SQS queue
+        Publish the message to SQS queu
+
         :param context: the context object
         :type context: dict
         :return: dict with information about the message sent
