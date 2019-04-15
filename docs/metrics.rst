@@ -18,10 +18,17 @@
 Metrics
 =======
 
-Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__:
+Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__.
 
-Configuration
--------------
+Setup
+-----
+
+First you must install statsd requirement:
+
+.. code-block:: bash
+
+   pip install 'apache-airflow[statsd]'
+
 Add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: bash
@@ -75,4 +82,6 @@ dagrun.dependency-check.<dag_id>  Seconds taken to check DAG dependencies
 dag.<dag_id>.<task_id>.duration   Seconds taken to finish a task
 dagrun.duration.success.<dag_id>  Seconds taken for a DagRun to reach success state
 dagrun.duration.failed.<dag_id>   Seconds taken for a DagRun to reach failed state
+dagrun.schedule_delay.<dag_id>    Seconds of delay between the scheduled DagRun
+                                  start date and the actual DagRun start date
 ================================= =================================================

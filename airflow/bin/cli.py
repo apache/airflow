@@ -57,9 +57,9 @@ from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
-from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
-from airflow.models.connection import Connection
-from airflow.models.dagpickle import DagPickle
+from airflow.models import (
+    Connection, DagModel, DagBag, DagPickle, TaskInstance, DagRun, Variable, DAG
+)
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.net import get_hostname
@@ -162,6 +162,8 @@ def backfill(args, dag=None):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
+
+    signal.signal(signal.SIGTERM, sigint_handler)
 
     dag = dag or get_dag(args)
 
@@ -662,8 +664,6 @@ def list_jobs(args, dag=None):
         msg = tabulate(all_jobs,
                        [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 
@@ -1179,8 +1179,6 @@ def connections(args):
             msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                    'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
                            tablefmt="fancy_grid")
-            if sys.version_info[0] < 3:
-                msg = msg.encode('utf-8')
             print(msg)
             return
 
@@ -1376,8 +1374,6 @@ def users(args):
         users = [[user.__getattribute__(field) for field in fields] for user in users]
         msg = tabulate(users, [field.capitalize().replace('_', ' ') for field in fields],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
         return
@@ -1604,8 +1600,6 @@ def roles(args):
         msg = tabulate(role_names,
                        headers=['Role'],
                        tablefmt="fancy_grid")
-        if sys.version_info[0] < 3:
-            msg = msg.encode('utf-8')
         print(msg)
 
 

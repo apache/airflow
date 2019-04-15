@@ -39,6 +39,38 @@ export function escapeHtml(text) {
 
 window.escapeHtml = escapeHtml;
 
+function postAsForm(url, parameters) {
+  var form = $("<form></form>");
+
+  form.attr("method", "POST");
+  form.attr("action", url);
+
+  $.each(parameters || {}, function(key, value) {
+    var field = $('<input></input>');
+
+    field.attr("type", "hidden");
+    field.attr("name", key);
+    field.attr("value", value);
+
+    form.append(field);
+  });
+
+  var field = $('<input></input>');
+
+  field.attr("type", "hidden");
+  field.attr("name", "csrf_token");
+  field.attr("value", csrfToken);
+
+  form.append(field);
+
+  // The form needs to be a part of the document in order for us to be able
+  // to submit it.
+  $(document.body).append(form);
+  form.submit();
+}
+
+window.postAsForm = postAsForm;
+
 $(document).ready(function () {
   displayTime();
   $('span').tooltip();

@@ -23,8 +23,7 @@ from datetime import datetime
 import six
 
 from airflow import configuration, models
-from airflow.models import TaskInstance, DAG
-from airflow.models.taskfail import TaskFail
+from airflow.models import DAG, TaskFail, TaskInstance
 
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \

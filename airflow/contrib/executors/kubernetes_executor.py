@@ -32,8 +32,7 @@ from airflow.contrib.kubernetes.kube_client import get_kube_client
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors import Executors
-from airflow.models import TaskInstance
-from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
+from airflow.models import KubeResourceVersion, KubeWorkerIdentifier, TaskInstance
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, create_session
 from airflow import configuration, settings
@@ -125,6 +124,10 @@ class KubeConfig:
         self.core_configuration = configuration_dict['core']
         self.kube_secrets = configuration_dict.get('kubernetes_secrets', {})
         self.kube_env_vars = configuration_dict.get('kubernetes_environment_variables', {})
+        self.env_from_configmap_ref = configuration.get(self.kubernetes_section,
+                                                        'env_from_configmap_ref')
+        self.env_from_secret_ref = configuration.get(self.kubernetes_section,
+                                                     'env_from_secret_ref')
         self.airflow_home = settings.AIRFLOW_HOME
         self.dags_folder = configuration.get(self.core_section, 'dags_folder')
         self.parallelism = configuration.getint(self.core_section, 'PARALLELISM')
@@ -150,6 +153,10 @@ class KubeConfig:
         # NOTE: user can build the dags into the docker image directly,
         # this will set to True if so
         self.dags_in_image = conf.getboolean(self.kubernetes_section, 'dags_in_image')
+
+        # Run as user for pod security context
+        self.worker_run_as_user = conf.get(self.kubernetes_section, 'run_as_user')
+        self.worker_fs_group = conf.get(self.kubernetes_section, 'fs_group')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from

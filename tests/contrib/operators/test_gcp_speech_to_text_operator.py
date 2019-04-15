@@ -21,15 +21,7 @@ import unittest
 
 from airflow import AirflowException
 from airflow.contrib.operators.gcp_speech_to_text_operator import GcpSpeechToTextRecognizeSpeechOperator
-
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import Mock, patch
 
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
@@ -38,40 +30,40 @@ AUDIO = {"uri": "gs://bucket/object"}
 
 
 class CloudSqlTest(unittest.TestCase):
-    @mock.patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
+    @patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
     def test_recognize_speech_green_path(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
         GcpSpeechToTextRecognizeSpeechOperator(
             project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, audio=AUDIO, task_id="id"
-        ).execute(context={"task_instance": mock.Mock()})
+        ).execute(context={"task_instance": Mock()})
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID)
         mock_hook.return_value.recognize_speech.assert_called_once_with(
             config=CONFIG, audio=AUDIO, retry=None, timeout=None
         )
 
-    @mock.patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
+    @patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
     def test_missing_config(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
         with self.assertRaises(AirflowException) as e:
             GcpSpeechToTextRecognizeSpeechOperator(
                 project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, audio=AUDIO, task_id="id"
-            ).execute(context={"task_instance": mock.Mock()})
+            ).execute(context={"task_instance": Mock()})
 
         err = e.exception
         self.assertIn("config", str(err))
         mock_hook.assert_not_called()
 
-    @mock.patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
+    @patch("airflow.contrib.operators.gcp_speech_to_text_operator.GCPSpeechToTextHook")
     def test_missing_audio(self, mock_hook):
         mock_hook.return_value.recognize_speech.return_value = True
 
         with self.assertRaises(AirflowException) as e:
             GcpSpeechToTextRecognizeSpeechOperator(
                 project_id=PROJECT_ID, gcp_conn_id=GCP_CONN_ID, config=CONFIG, task_id="id"
-            ).execute(context={"task_instance": mock.Mock()})
+            ).execute(context={"task_instance": Mock()})
 
         err = e.exception
         self.assertIn("audio", str(err))

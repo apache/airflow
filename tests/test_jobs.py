@@ -47,8 +47,7 @@ import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
-    errors
-from airflow.models.slamiss import SlaMiss
+    errors, SlaMiss
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
@@ -148,6 +147,51 @@ class BackfillJobTest(unittest.TestCase):
 
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
+
+    def test_unfinished_dag_runs_set_to_failed(self):
+        dag = self._get_dummy_dag('dummy_dag')
+
+        dag_run = dag.create_dagrun(
+            run_id='test',
+            state=State.RUNNING,
+        )
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=8),
+            ignore_first_depends_on_past=True
+        )
+
+        job._set_unfinished_dag_runs_to_failed([dag_run])
+
+        dag_run.refresh_from_db()
+
+        self.assertEquals(State.FAILED, dag_run.state)
+
+    def test_dag_run_with_finished_tasks_set_to_success(self):
+        dag = self._get_dummy_dag('dummy_dag')
+
+        dag_run = dag.create_dagrun(
+            run_id='test',
+            state=State.RUNNING,
+        )
+
+        for ti in dag_run.get_task_instances():
+            ti.set_state(State.SUCCESS)
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=8),
+            ignore_first_depends_on_past=True
+        )
+
+        job._set_unfinished_dag_runs_to_failed([dag_run])
+
+        dag_run.refresh_from_db()
+
+        self.assertEquals(State.SUCCESS, dag_run.state)
 
     @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
