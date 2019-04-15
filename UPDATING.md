@@ -28,6 +28,7 @@ assists users migrating to a new version.
 
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:
 https://cloud.google.com/compute/docs/disks/performance
+Hence, the default value for `master_disk_size` in DataprocClusterCreateOperator has beeen changes from 500GB to 1TB.
 
 ### Changes to SalesforceHook
 
