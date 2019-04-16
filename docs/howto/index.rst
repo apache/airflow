@@ -36,7 +36,6 @@ configuring an Airflow environment.
     write-logs
     executor/use-celery
     executor/use-dask
-    executor/use-mesos
     run-behind-proxy
     run-with-systemd
     run-with-upstart

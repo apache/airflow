@@ -65,7 +65,6 @@ autodoc_mock_imports = [
     'jenkins',
     'jira',
     'kubernetes',
-    'mesos',
     'msrestazure',
     'pandas',
     'pandas_gbq',
