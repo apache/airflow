@@ -84,13 +84,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
             jinja_context['try_number'] = try_number
             return self.log_id_jinja_template.render(**jinja_context)
 
-        execution_date = self._clean_execution_date(ti.execution_date)
+        if self.json_format:
+            execution_date = self._clean_execution_date(ti.execution_date)
+        else:
+            execution_date = ti.execution_date.isoformat()
         return self.log_id_template.format(dag_id=ti.dag_id,
                                            task_id=ti.task_id,
                                            execution_date=execution_date,
                                            try_number=try_number)
 
-    def _clean_execution_date(self, execution_date):
+    @staticmethod
+    def _clean_execution_date(execution_date):
         """
         Clean up an execution date so that it is safe to query in elasticsearch
         by removing reserved characters.
