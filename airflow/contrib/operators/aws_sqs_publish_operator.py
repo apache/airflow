@@ -60,7 +60,7 @@ class SQSPublishOperator(BaseOperator):
 
     def execute(self, context):
         """
-        Publish the message to SQS queu
+        Publish the message to SQS queue
 
         :param context: the context object
         :type context: dict
