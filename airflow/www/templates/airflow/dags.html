@@ -312,7 +312,7 @@
       d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#dag-run-' + dag_id)
+            g = d3.select('svg#dag-run-' + dag_id.replace(/\./g, '__dot__'))
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '110px')
               .selectAll("g")
@@ -391,7 +391,7 @@
       d3.json("{{ url_for('Airflow.task_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#task-run-' + dag_id)
+            g = d3.select('svg#task-run-' + dag_id.replace(/\./g, '__dot__'))
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '300px')
               .selectAll("g")
