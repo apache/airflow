@@ -560,7 +560,7 @@ class SchedulerJob(BaseJob):
             definitions, or a specific path to a file
         :type subdir: unicode
         :param num_runs: The number of times to try to schedule each DAG file.
-            -1 for unlimited within the run_duration.
+            -1 for unlimited times.
         :type num_runs: int
         :param processor_poll_interval: The number of seconds to wait between
             polls of running processors
