@@ -68,6 +68,7 @@ class BigQueryGetDataOperator(BaseOperator):
     :type delegate_to: str
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
+    template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
     @apply_defaults
