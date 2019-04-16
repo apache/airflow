@@ -238,6 +238,7 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'requests': ('http://docs.python-requests.org/en/master/', None),
     'sqlalchemy': ('https://docs.sqlalchemy.org/en/latest/', None),
+    'hdfs': ('https://hdfscli.readthedocs.io/en/latest/', None),
 }
 
 # -- Options for HTML output ----------------------------------------------
