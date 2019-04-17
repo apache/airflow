@@ -328,6 +328,7 @@ def do_setup():
             'iso8601>=0.1.12',
             'json-merge-patch==0.2',
             'jinja2>=2.10.1, <2.11.0',
+            'lazy_object_proxy~=1.3',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
