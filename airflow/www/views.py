@@ -105,10 +105,14 @@ def dag_link(v, c, m, p):
     if m.dag_id is None:
         return Markup()
 
-    url = url_for(
-        'airflow.graph',
-        dag_id=m.dag_id,
-        execution_date=m.execution_date)
+    kwargs = {'dag_id': m.dag_id}
+
+    # This is called with various objects, TIs, (ORM) DAG - some have this,
+    # some don't
+    if hasattr(m, 'execution_date'):
+        kwargs['execution_date'] = m.execution_date
+
+    url = url_for('airflow.graph', **kwargs)
     return Markup(
         '<a href="{}">{}</a>').format(url, m.dag_id)
 
