@@ -51,8 +51,6 @@ from airflow.utils.db import provide_session
 
 UNIX_PATH_MAX = 108
 
-NUM_RETRIES = 5
-
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
 
@@ -80,6 +78,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                  delegate_to=None):
         super(CloudSqlHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
+        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """
@@ -110,7 +109,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         return self.get_conn().instances().get(
             project=project_id,
             instance=instance
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def create_instance(self, body, project_id=None):
@@ -128,7 +127,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         response = self.get_conn().instances().insert(
             project=project_id,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -155,7 +154,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -175,7 +174,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
         response = self.get_conn().instances().delete(
             project=project_id,
             instance=instance,
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -200,7 +199,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             database=database
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def create_database(self, instance, body, project_id=None):
@@ -221,7 +220,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -251,7 +250,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             instance=instance,
             database=database,
             body=body
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -274,7 +273,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             project=project_id,
             instance=instance,
             database=database
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         operation_name = response["name"]
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
@@ -301,7 +300,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                 project=project_id,
                 instance=instance,
                 body=body
-            ).execute(num_retries=NUM_RETRIES)
+            ).execute(num_retries=self.num_retries)
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id,
                                                  operation_name=operation_name)
@@ -332,7 +331,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                 project=project_id,
                 instance=instance,
                 body=body
-            ).execute(num_retries=NUM_RETRIES)
+            ).execute(num_retries=self.num_retries)
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id,
                                                  operation_name=operation_name)
@@ -357,7 +356,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
             operation_response = service.operations().get(
                 project=project_id,
                 operation=operation_name,
-            ).execute(num_retries=NUM_RETRIES)
+            ).execute(num_retries=self.num_retries)
             if operation_response.get("status") == CloudSqlOperationStatus.DONE:
                 error = operation_response.get("error")
                 if error:

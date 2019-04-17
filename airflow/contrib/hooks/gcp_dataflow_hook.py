@@ -35,12 +35,13 @@ DEFAULT_DATAFLOW_LOCATION = 'us-central1'
 
 class _DataflowJob(LoggingMixin):
     def __init__(self, dataflow, project_number, name, location, poll_sleep=10,
-                 job_id=None):
+                 job_id=None, num_retries=None):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
         self._job_location = location
         self._job_id = job_id
+        self._num_retries = num_retries
         self._job = self._get_job()
         self._poll_sleep = poll_sleep
 
@@ -48,7 +49,7 @@ class _DataflowJob(LoggingMixin):
         jobs = self._dataflow.projects().locations().jobs().list(
             projectId=self._project_number,
             location=self._job_location
-        ).execute(num_retries=5)
+        ).execute(num_retries=self._num_retries)
         for job in jobs['jobs']:
             if job['name'].lower() == self._job_name.lower():
                 self._job_id = job['id']
@@ -60,7 +61,7 @@ class _DataflowJob(LoggingMixin):
             job = self._dataflow.projects().locations().jobs().get(
                 projectId=self._project_number,
                 location=self._job_location,
-                jobId=self._job_id).execute(num_retries=5)
+                jobId=self._job_id).execute(num_retries=self._num_retries)
         elif self._job_name:
             job = self._get_job_id_from_name()
         else:
@@ -180,6 +181,7 @@ class DataFlowHook(GoogleCloudBaseHook):
                  delegate_to=None,
                  poll_sleep=10):
         self.poll_sleep = poll_sleep
+        self.num_retries = self._get_field('num_retries', 5)
         super(DataFlowHook, self).__init__(gcp_conn_id, delegate_to)
 
     def get_conn(self):
@@ -197,7 +199,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         job_id = _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'], name,
                      variables['region'],
-                     self.poll_sleep, job_id).wait_for_done()
+                     self.poll_sleep, job_id,
+                     self.num_retries).wait_for_done()
 
     @staticmethod
     def _set_variables(variables):
@@ -286,8 +289,8 @@ class DataFlowHook(GoogleCloudBaseHook):
             gcsPath=dataflow_template,
             body=body
         )
-        response = request.execute()
+        response = request.execute(num_retries=self.num_retries)
         variables = self._set_variables(variables)
         _DataflowJob(self.get_conn(), variables['project'], name, variables['region'],
-                     self.poll_sleep).wait_for_done()
+                     self.poll_sleep, num_retries=self.num_retries).wait_for_done()
         return response

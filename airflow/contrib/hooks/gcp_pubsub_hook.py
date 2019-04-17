@@ -46,6 +46,7 @@ class PubSubHook(GoogleCloudBaseHook):
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
         super(PubSubHook, self).__init__(gcp_conn_id, delegate_to=delegate_to)
+        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """Returns a Pub/Sub service object.
@@ -74,7 +75,7 @@ class PubSubHook(GoogleCloudBaseHook):
         request = self.get_conn().projects().topics().publish(
             topic=full_topic, body=body)
         try:
-            request.execute()
+            request.execute(num_retries=self.num_retries)
         except HttpError as e:
             raise PubSubException(
                 'Error publishing to topic {}'.format(full_topic), e)
@@ -96,7 +97,7 @@ class PubSubHook(GoogleCloudBaseHook):
         full_topic = _format_topic(project, topic)
         try:
             service.projects().topics().create(
-                name=full_topic, body={}).execute()
+                name=full_topic, body={}).execute(num_retries=self.num_retries)
         except HttpError as e:
             # Status code 409 indicates that the topic already exists.
             if str(e.resp['status']) == '409':
@@ -123,7 +124,7 @@ class PubSubHook(GoogleCloudBaseHook):
         service = self.get_conn()
         full_topic = _format_topic(project, topic)
         try:
-            service.projects().topics().delete(topic=full_topic).execute()
+            service.projects().topics().delete(topic=full_topic).execute(num_retries=self.num_retries)
         except HttpError as e:
             # Status code 409 indicates that the topic was not found
             if str(e.resp['status']) == '404':
@@ -177,7 +178,7 @@ class PubSubHook(GoogleCloudBaseHook):
         }
         try:
             service.projects().subscriptions().create(
-                name=full_subscription, body=body).execute()
+                name=full_subscription, body=body).execute(num_retries=self.num_retries)
         except HttpError as e:
             # Status code 409 indicates that the subscription already exists.
             if str(e.resp['status']) == '409':
@@ -209,7 +210,7 @@ class PubSubHook(GoogleCloudBaseHook):
         full_subscription = _format_subscription(project, subscription)
         try:
             service.projects().subscriptions().delete(
-                subscription=full_subscription).execute()
+                subscription=full_subscription).execute(num_retries=self.num_retries)
         except HttpError as e:
             # Status code 404 indicates that the subscription was not found
             if str(e.resp['status']) == '404':
@@ -252,7 +253,7 @@ class PubSubHook(GoogleCloudBaseHook):
         }
         try:
             response = service.projects().subscriptions().pull(
-                subscription=full_subscription, body=body).execute()
+                subscription=full_subscription, body=body).execute(num_retries=self.num_retries)
             return response.get('receivedMessages', [])
         except HttpError as e:
             raise PubSubException(
@@ -277,7 +278,7 @@ class PubSubHook(GoogleCloudBaseHook):
         try:
             service.projects().subscriptions().acknowledge(
                 subscription=full_subscription, body={'ackIds': ack_ids}
-            ).execute()
+            ).execute(num_retries=self.num_retries)
         except HttpError as e:
             raise PubSubException(
                 'Error acknowledging {} messages pulled from subscription {}'

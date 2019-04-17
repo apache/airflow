@@ -43,6 +43,7 @@ class DatastoreHook(GoogleCloudBaseHook):
         super(DatastoreHook, self).__init__(datastore_conn_id, delegate_to)
         self.connection = None
         self.api_version = api_version
+        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """
@@ -72,7 +73,10 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().allocateIds(projectId=self.project_id, body={'keys': partial_keys}).execute()
+        resp = (conn
+                .projects()
+                .allocateIds(projectId=self.project_id, body={'keys': partial_keys})
+                .execute(num_retries=self.num_retries))
 
         return resp['keys']
 
@@ -88,7 +92,10 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().beginTransaction(projectId=self.project_id, body={}).execute()
+        resp = (conn
+                .projects()
+                .beginTransaction(projectId=self.project_id, body={})
+                .execute(num_retries=self.num_retries))
 
         return resp['transaction']
 
@@ -106,7 +113,10 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().commit(projectId=self.project_id, body=body).execute()
+        resp = (conn
+                .projects()
+                .commit(projectId=self.project_id, body=body)
+                .execute(num_retries=self.num_retries))
 
         return resp
 
@@ -134,7 +144,10 @@ class DatastoreHook(GoogleCloudBaseHook):
             body['readConsistency'] = read_consistency
         if transaction:
             body['transaction'] = transaction
-        resp = conn.projects().lookup(projectId=self.project_id, body=body).execute()
+        resp = (conn
+                .projects()
+                .lookup(projectId=self.project_id, body=body)
+                .execute(num_retries=self.num_retries))
 
         return resp
 
@@ -150,7 +163,9 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()
 
-        conn.projects().rollback(projectId=self.project_id, body={'transaction': transaction}).execute()
+        conn.projects().rollback(
+            projectId=self.project_id, body={'transaction': transaction}
+        ).execute(num_retries=self.num_retries)
 
     def run_query(self, body):
         """
@@ -166,7 +181,10 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().runQuery(projectId=self.project_id, body=body).execute()
+        resp = (conn
+                .projects()
+                .runQuery(projectId=self.project_id, body=body)
+                .execute(num_retries=self.num_retries))
 
         return resp['batch']
 
@@ -184,7 +202,11 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().operations().get(name=name).execute()
+        resp = (conn
+                .projects()
+                .operations()
+                .get(name=name)
+                .execute(num_retries=self.num_retries))
 
         return resp
 
@@ -202,7 +224,11 @@ class DatastoreHook(GoogleCloudBaseHook):
         """
         conn = self.get_conn()
 
-        resp = conn.projects().operations().delete(name=name).execute()
+        resp = (conn
+                .projects()
+                .operations()
+                .delete(name=name)
+                .execute(num_retries=self.num_retries))
 
         return resp
 
@@ -261,7 +287,10 @@ class DatastoreHook(GoogleCloudBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }
-        resp = admin_conn.projects().export(projectId=self.project_id, body=body).execute()
+        resp = (admin_conn
+                .projects()
+                .export(projectId=self.project_id, body=body)
+                .execute(num_retries=self.num_retries))
 
         return resp
 
@@ -300,6 +329,9 @@ class DatastoreHook(GoogleCloudBaseHook):
             'entityFilter': entity_filter,
             'labels': labels,
         }
-        resp = admin_conn.projects().import_(projectId=self.project_id, body=body).execute()
+        resp = (admin_conn
+                .projects()
+                .import_(projectId=self.project_id, body=body)
+                .execute(num_retries=self.num_retries))
 
         return resp
