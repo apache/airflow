@@ -42,7 +42,7 @@ spec:
 
     def create(self, pod):
         # type: (Pod) -> dict
-        req = yaml.load(self._yaml)
+        req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
         self.extract_labels(pod, req)
         self.extract_image(pod, req)
@@ -110,7 +110,7 @@ spec:
 
     def create(self, pod):
         # type: (Pod) -> dict
-        req = yaml.load(self._yaml)
+        req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
         self.extract_labels(pod, req)
         self.extract_image(pod, req)
