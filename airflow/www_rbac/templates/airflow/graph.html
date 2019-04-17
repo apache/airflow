@@ -26,8 +26,8 @@
 
 {% block content %}
 {{ super() }}
-{% if dag.doc_md %}
-<div class="rich_doc" style="margin-bottom: 15px;">{{ dag.doc_md|safe }}</div>
+{% if doc_md %}
+<div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
 {% endif %}
 <div class="form-inline">
   <form method="get" style="float:left;">
