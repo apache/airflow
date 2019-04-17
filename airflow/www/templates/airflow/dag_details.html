@@ -26,10 +26,15 @@
     <h2>{{ title }}</h2>
     <div>
       {% for state, count in states %}
+      {%- if state -%}
+        {%- set url = url_for('taskinstance.index_view', flt0_dag_id_equals=dag.dag_id, flt2_state_equals=state) -%}
+      {%- else -%}
+        {%- set url = url_for('taskinstance.index_view', flt0_dag_id_equals=dag.dag_id, flt3_state_empty=1) -%}
+      {%- endif -%}
       <a
           class="btn"
           style="border: none; background-color:{{ State.color(state)}}; color: {{ State.color_fg(state) }};"
-          href="{{ url_for('taskinstance.index_view') }}?flt0_dag_id_equals={{ dag.dag_id }}&flt2_state_equals={{ state }}">
+          href="{{ url }}">
         {{ state }} <span class="badge">{{ count }}</span>
       </a>
       {% endfor %}
