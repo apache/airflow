@@ -699,7 +699,7 @@ class TestDataprocClusterDeleteOperator(unittest.TestCase):
                 projectId=GCP_PROJECT_ID,
                 clusterName=CLUSTER_NAME,
                 requestId=mock.ANY)
-            hook.wait.assert_called_once_with(self.operation)
+            hook.wait.assert_called_with(self.operation)
 
     def test_render_template(self):
         task = DataprocClusterDeleteOperator(
