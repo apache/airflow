@@ -18,6 +18,8 @@
 # under the License.
 import os
 
+from cached_property import cached_property
+
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -37,7 +39,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         self.closed = False
         self.upload_on_close = True
 
-    def _build_hook(self):
+    @cached_property
+    def hook(self):
         remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.hooks.S3_hook import S3Hook
@@ -48,12 +51,6 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 'Please make sure that airflow[aws] is installed and '
                 'the S3 connection exists.', remote_conn_id
             )
-
-    @property
-    def hook(self):
-        if self._hook is None:
-            self._hook = self._build_hook()
-        return self._hook
 
     def set_context(self, ti):
         super(S3TaskHandler, self).set_context(ti)
