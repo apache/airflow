@@ -24,6 +24,9 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Removal of Mesos Executor
+The Mesos Executor is removed from the code base as it was not widely used and not maintained. [Mailing List Discussion on deleting it](https://lists.apache.org/list.html?dev@airflow.apache.org:lte=1M:mesos).
+
 ### Increase standard Dataproc disk sizes
 
 It is highly recommended to have 1TB+ disk size for Dataproc to have sufficient throughput:

@@ -300,48 +300,6 @@ data:
     cacert = /etc/ca/ldap_ca.crt
     search_scope = LEVEL
 
-    [mesos]
-    # Mesos master address which MesosExecutor will connect to.
-    master = localhost:5050
-
-    # The framework name which Airflow scheduler will register itself as on mesos
-    framework_name = Airflow
-
-    # Number of cpu cores required for running one task instance using
-    # 'airflow run <dag_id> <task_id> <execution_date> --local -p <pickle_id>'
-    # command on a mesos slave
-    task_cpu = 1
-
-    # Memory in MB required for running one task instance using
-    # 'airflow run <dag_id> <task_id> <execution_date> --local -p <pickle_id>'
-    # command on a mesos slave
-    task_memory = 256
-
-    # Enable framework checkpointing for mesos
-    # See http://mesos.apache.org/documentation/latest/slave-recovery/
-    checkpoint = False
-
-    # Failover timeout in milliseconds.
-    # When checkpointing is enabled and this option is set, Mesos waits
-    # until the configured timeout for
-    # the MesosExecutor framework to re-register after a failover. Mesos
-    # shuts down running tasks if the
-    # MesosExecutor framework fails to re-register within this timeframe.
-    # failover_timeout = 604800
-
-    # Enable framework authentication for mesos
-    # See http://mesos.apache.org/documentation/latest/configuration/
-    authenticate = False
-
-    # Mesos credentials, if authentication is enabled
-    # default_principal = admin
-    # default_secret = admin
-
-    # Optional Docker Image to run on slave before running the command
-    # This image should be accessible from mesos slave i.e mesos slave
-    # should be able to pull this docker image before executing the command.
-    # docker_image_slave = puckel/docker-airflow
-
     [kerberos]
     ccache = /tmp/airflow_krb5_ccache
     # gets augmented with fqdn

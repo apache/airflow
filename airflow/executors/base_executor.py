@@ -35,7 +35,7 @@ class BaseExecutor(LoggingMixin):
     def __init__(self, parallelism=PARALLELISM):
         """
         Class to derive in order to interface with executor-type systems
-        like Celery, Mesos, Yarn and the likes.
+        like Celery, Yarn and the likes.
 
         :param parallelism: how many jobs should run at one time. Set to
             ``0`` for infinity
