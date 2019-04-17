@@ -47,6 +47,7 @@ from flask_admin.babel import lazy_gettext
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.form.fields import DateTimeField
 from flask_admin.tools import iterdecode
+import lazy_object_proxy
 from jinja2 import escape
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from past.builtins import basestring
@@ -61,6 +62,7 @@ import airflow
 from airflow import configuration as conf
 from airflow import models
 from airflow import settings
+from airflow import jobs
 from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_running,
                                                         set_dag_run_state_to_success,
                                                         set_dag_run_state_to_failed)
@@ -369,7 +371,14 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
     }
 
 
-class Airflow(BaseView):
+class AirflowViewMixin(object):
+    def render(self, template, **kwargs):
+        kwargs['scheduler_job'] = lazy_object_proxy.Proxy(jobs.SchedulerJob.most_recent_job)
+        kwargs['macros'] = airflow.macros
+        return super(AirflowViewMixin, self).render(template, **kwargs)
+
+
+class Airflow(AirflowViewMixin, BaseView):
     def is_visible(self):
         return False
 
@@ -2082,7 +2091,7 @@ class Airflow(BaseView):
         return redirect('/admin/variable')
 
 
-class HomeView(AdminIndexView):
+class HomeView(AirflowViewMixin, AdminIndexView):
     @expose("/")
     @login_required
     @provide_session
@@ -2188,7 +2197,7 @@ class HomeView(AdminIndexView):
             auto_complete_data=auto_complete_data)
 
 
-class QueryView(wwwutils.DataProfilingMixin, BaseView):
+class QueryView(wwwutils.DataProfilingMixin, AirflowViewMixin, BaseView):
     @expose('/', methods=['POST', 'GET'])
     @wwwutils.gzipped
     @provide_session
@@ -2258,7 +2267,7 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
             has_data=has_data)
 
 
-class AirflowModelView(ModelView):
+class AirflowModelView(AirflowViewMixin, ModelView):
     list_template = 'airflow/model_list.html'
     edit_template = 'airflow/model_edit.html'
     create_template = 'airflow/model_create.html'
@@ -3033,7 +3042,7 @@ class UserModelView(wwwutils.SuperUserMixin, AirflowModelView):
     column_default_sort = 'username'
 
 
-class VersionView(wwwutils.SuperUserMixin, BaseView):
+class VersionView(wwwutils.SuperUserMixin, AirflowViewMixin, BaseView):
     @expose('/')
     def version(self):
         # Look at the version from setup.py
@@ -3059,7 +3068,7 @@ class VersionView(wwwutils.SuperUserMixin, BaseView):
                            git_version=git_version)
 
 
-class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
+class ConfigurationView(wwwutils.SuperUserMixin, AirflowViewMixin, BaseView):
     @expose('/')
     def conf(self):
         raw = request.args.get('raw') == "true"

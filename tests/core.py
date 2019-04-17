@@ -1855,7 +1855,7 @@ class WebUiTests(unittest.TestCase):
 
         self.assertEqual('healthy', response_json['metadatabase']['status'])
         self.assertEqual('healthy', response_json['scheduler']['status'])
-        self.assertEqual(str(last_scheduler_heartbeat_for_testing_1),
+        self.assertEqual(last_scheduler_heartbeat_for_testing_1.isoformat(),
                          response_json['scheduler']['latest_scheduler_heartbeat'])
 
         session.query(BJ).\
@@ -1879,7 +1879,7 @@ class WebUiTests(unittest.TestCase):
 
         self.assertEqual('healthy', response_json['metadatabase']['status'])
         self.assertEqual('unhealthy', response_json['scheduler']['status'])
-        self.assertEqual(str(last_scheduler_heartbeat_for_testing_2),
+        self.assertEqual(last_scheduler_heartbeat_for_testing_2.isoformat(),
                          response_json['scheduler']['latest_scheduler_heartbeat'])
 
         session.query(BJ).\
@@ -1900,8 +1900,7 @@ class WebUiTests(unittest.TestCase):
 
         self.assertEqual('healthy', response_json['metadatabase']['status'])
         self.assertEqual('unhealthy', response_json['scheduler']['status'])
-        self.assertEqual('None',
-                         response_json['scheduler']['latest_scheduler_heartbeat'])
+        self.assertIsNone(response_json['scheduler']['latest_scheduler_heartbeat'])
 
         session.close()
 
