@@ -133,15 +133,24 @@ def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
 #                                    BaseViews
 ######################################################################################
 
+@app.errorhandler(404)
+def circles(error):
+    return render_template(
+        'airflow/circles.html', hostname=socket.getfqdn()), 404
+
+
+@app.errorhandler(500)
+def show_traceback(error):
+    from airflow.utils import asciiart as ascii_
+    return render_template(
+        'airflow/traceback.html',
+        hostname=socket.getfqdn(),
+        nukular=ascii_.nukular,
+        info=traceback.format_exc()), 500
+
 
 class AirflowBaseView(BaseView):
     route_base = ''
-
-    def render(self, template, **context):
-        return render_template(template,
-                               base_template=self.appbuilder.base_template,
-                               appbuilder=self.appbuilder,
-                               **context)
 
 
 class Airflow(AirflowBaseView):
@@ -258,7 +267,7 @@ class Airflow(AirflowBaseView):
             auto_complete_data.add(row.dag_id)
             auto_complete_data.add(row.owners)
 
-        return self.render(
+        return self.render_template(
             'airflow/dags.html',
             dags=dags,
             hide_paused=hide_paused,
@@ -401,7 +410,7 @@ class Airflow(AirflowBaseView):
         except IOError as e:
             html_code = str(e)
 
-        return self.render(
+        return self.render_template(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
@@ -432,23 +441,9 @@ class Airflow(AirflowBaseView):
             external_trigger=False
         )
 
-        return self.render(
+        return self.render_template(
             'airflow/dag_details.html',
             dag=dag, title=title, root=root, states=states, State=State, active_runs=active_runs)
-
-    @app.errorhandler(404)
-    def circles(self):
-        return render_template(
-            'airflow/circles.html', hostname=socket.getfqdn()), 404
-
-    @app.errorhandler(500)
-    def show_traceback(self):
-        from airflow.utils import asciiart as ascii_
-        return render_template(
-            'airflow/traceback.html',
-            hostname=socket.getfqdn(),
-            nukular=ascii_.nukular,
-            info=traceback.format_exc()), 500
 
     @expose('/pickle_info')
     @has_access
@@ -494,7 +489,7 @@ class Airflow(AirflowBaseView):
                 html_dict[template_field] = (
                     "<pre><code>" + str(content) + "</pre></code>")
 
-        return self.render(
+        return self.render_template(
             'airflow/ti_code.html',
             html_dict=html_dict,
             dag=dag,
@@ -604,7 +599,7 @@ class Airflow(AirflowBaseView):
                 num_logs += 1
         logs = [''] * num_logs
         root = request.args.get('root', '')
-        return self.render(
+        return self.render_template(
             'airflow/ti_log.html',
             logs=logs, dag=dag_model, title="Log by attempts",
             dag_id=dag_id, task_id=task_id,
@@ -679,7 +674,7 @@ class Airflow(AirflowBaseView):
                                   dep_context=dep_context)]
 
         title = "Task Instance Details"
-        return self.render(
+        return self.render_template(
             'airflow/task.html',
             task_attrs=task_attrs,
             ti_attrs=ti_attrs,
@@ -727,7 +722,7 @@ class Airflow(AirflowBaseView):
                 attributes.append((xcom.key, xcom.value))
 
         title = "XCom"
-        return self.render(
+        return self.render_template(
             'airflow/xcom.html',
             attributes=attributes,
             task_id=task_id,
@@ -894,7 +889,7 @@ class Airflow(AirflowBaseView):
         else:
             details = "\n".join([str(t) for t in tis])
 
-            response = self.render(
+            response = self.render_template(
                 'airflow/confirm.html',
                 message=("Here's the list of task instances you are about "
                          "to clear:"),
@@ -1001,10 +996,10 @@ class Airflow(AirflowBaseView):
         else:
             details = '\n'.join([str(t) for t in new_dag_state])
 
-            response = self.render('airflow/confirm.html',
-                                   message=("Here's the list of task instances you are "
-                                            "about to mark as failed"),
-                                   details=details)
+            response = self.render_template(
+                'airflow/confirm.html',
+                message=("Here's the list of task instances you are about to mark as failed"),
+                details=details)
 
             return response
 
@@ -1030,10 +1025,10 @@ class Airflow(AirflowBaseView):
         else:
             details = '\n'.join([str(t) for t in new_dag_state])
 
-            response = self.render('airflow/confirm.html',
-                                   message=("Here's the list of task instances you are "
-                                            "about to mark as success"),
-                                   details=details)
+            response = self.render_template(
+                'airflow/confirm.html',
+                message=("Here's the list of task instances you are about to mark as success"),
+                details=details)
 
             return response
 
@@ -1096,10 +1091,10 @@ class Airflow(AirflowBaseView):
 
         details = "\n".join([str(t) for t in to_be_altered])
 
-        response = self.render("airflow/confirm.html",
-                               message=("Here's the list of task instances you are "
-                                        "about to mark as {}:".format(state)),
-                               details=details)
+        response = self.render_template(
+            "airflow/confirm.html",
+            message=("Here's the list of task instances you are about to mark as {}:".format(state)),
+            details=details)
 
         return response
 
@@ -1262,7 +1257,7 @@ class Airflow(AirflowBaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
-        return self.render(
+        return self.render_template(
             'airflow/tree.html',
             operators=sorted(
                 list(set([op.__class__ for op in dag.tasks])),
@@ -1353,7 +1348,7 @@ class Airflow(AirflowBaseView):
         doc_md = markdown.markdown(dag.doc_md) \
             if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
-        return self.render(
+        return self.render_template(
             'airflow/graph.html',
             dag=dag,
             form=form,
@@ -1475,7 +1470,7 @@ class Airflow(AirflowBaseView):
                                  "$( document ).trigger('chartload')" +
                                  cum_chart.htmlcontent[s_index:])
 
-        return self.render(
+        return self.render_template(
             'airflow/duration_chart.html',
             dag=dag,
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
@@ -1539,7 +1534,7 @@ class Airflow(AirflowBaseView):
 
         chart.buildcontent()
 
-        return self.render(
+        return self.render_template(
             'airflow/chart.html',
             dag=dag,
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
@@ -1615,7 +1610,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
         chart.buildcontent()
-        return self.render(
+        return self.render_template(
             'airflow/chart.html',
             dag=dag,
             chart=chart.htmlcontent,
@@ -1756,7 +1751,7 @@ class Airflow(AirflowBaseView):
 
         session.commit()
 
-        return self.render(
+        return self.render_template(
             'airflow/gantt.html',
             dag=dag,
             execution_date=dttm.isoformat(),
@@ -1869,10 +1864,11 @@ class VersionView(AirflowBaseView):
 
         # Render information
         title = "Version Info"
-        return self.render('airflow/version.html',
-                           title=title,
-                           airflow_version=airflow_version,
-                           git_version=git_version)
+        return self.render_template(
+            'airflow/version.html',
+            title=title,
+            airflow_version=airflow_version,
+            git_version=git_version)
 
 
 class ConfigurationView(AirflowBaseView):
@@ -1906,7 +1902,7 @@ class ConfigurationView(AirflowBaseView):
                 lexers.IniLexer(),  # Lexer call
                 HtmlFormatter(noclasses=True))
             )
-            return self.render(
+            return self.render_template(
                 'airflow/config.html',
                 pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
                 code_html=code_html, title=title, subtitle=subtitle,
