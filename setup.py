@@ -154,7 +154,7 @@ azure = [
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
-    'celery>=4.1.1, <4.2.0',
+    'celery~=4.3',
     'flower>=0.7.3, <1.0',
     'tornado>=4.2.0, <6.0',  # Dep of flower. Pin to a version that works on Py3.5.2
 ]
@@ -336,7 +336,7 @@ def do_setup():
             'python-dateutil>=2.3, <3',
             'requests>=2.20.0, <3',
             'setproctitle>=1.1.8, <2',
-            'sqlalchemy>=1.1.15, <1.3.0',
+            'sqlalchemy~=1.3',
             'tabulate>=0.7.5, <0.9',
             'tenacity==4.12.0',
             'text-unidecode==1.2',

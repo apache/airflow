@@ -57,9 +57,9 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
     :type schema_filename: str
     :param approx_max_file_size_bytes: This operator supports the ability
         to split large table dumps into multiple files (see notes in the
-        filenamed param docs above). Google cloud storage allows for files
-        to be a maximum of 4GB. This param allows developers to specify the
-        file size of the splits.
+        filename param docs above). This param allows developers to specify the
+        file size of the splits. Check https://cloud.google.com/storage/quotas
+        to see the maximum allowed file size for a single object.
     :type approx_max_file_size_bytes: long
     :param cassandra_conn_id: Reference to a specific Cassandra hook.
     :type cassandra_conn_id: str
