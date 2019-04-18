@@ -63,7 +63,10 @@ class SegmentTrackEventOperator(BaseOperator):
                            segment_debug_mode=self.segment_debug_mode)
 
         self.log.info(
-            'Sending track event ({0}) for user id: {1} with properties: {2}'.
-            format(self.event, self.user_id, self.properties))
+            'Sending track event (%s) for user id: %s with properties: %s',
+            self.event, self.user_id, self.properties)
 
-        hook.track(self.user_id, self.event, self.properties)
+        hook.track(
+            user_id=self.user_id,
+            event=self.event,
+            properties=self.properties)
