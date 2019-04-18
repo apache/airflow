@@ -19,6 +19,8 @@
 import os
 import shutil
 
+from cached_property import cached_property
+
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -43,7 +45,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = True
         self.delete_local_copy = delete_local_copy
 
-    def _build_hook(self):
+    @cached_property
+    def hook(self):
         remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.contrib.hooks.wasb_hook import WasbHook
@@ -54,12 +57,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 'Please make sure that airflow[azure] is installed and '
                 'the Wasb connection exists.', remote_conn_id
             )
-
-    @property
-    def hook(self):
-        if self._hook is None:
-            self._hook = self._build_hook()
-        return self._hook
 
     def set_context(self, ti):
         super(WasbTaskHandler, self).set_context(ti)
