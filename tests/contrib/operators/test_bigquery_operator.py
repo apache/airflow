@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+from unittest.mock import MagicMock
 from datetime import datetime
 
 import six
@@ -27,7 +28,7 @@ from airflow.contrib.operators.bigquery_get_data import BigQueryGetDataOperator
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
     BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator, \
-    BigQueryOperator
+    BigQueryOperator, BigQueryConsoleLink
 from airflow.contrib.operators.bigquery_table_delete_operator import \
     BigQueryTableDeleteOperator
 from airflow.contrib.operators.bigquery_to_bigquery import \
@@ -194,7 +195,7 @@ class BigQueryOperatorTest(unittest.TestCase):
             cluster_fields=None,
         )
 
-        operator.execute(None)
+        operator.execute(MagicMock())
         mock_hook.return_value \
             .get_conn.return_value \
             .cursor.return_value \
@@ -227,7 +228,7 @@ class BigQueryOperatorTest(unittest.TestCase):
             dag=self.dag, default_args=self.args
         )
 
-        operator.execute(None)
+        operator.execute(MagicMock())
         mock_hook.return_value \
             .get_conn.return_value \
             .cursor.return_value \
@@ -255,6 +256,33 @@ class BigQueryOperatorTest(unittest.TestCase):
         ti = TaskInstance(task=operator, execution_date=DEFAULT_DATE)
         ti.render_templates()
         self.assertTrue(isinstance(ti.task.sql, six.string_types))
+
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_bigquery_operator_extra_link(self, mock_hook):
+        bigquery_task = BigQueryOperator(
+            task_id=TASK_ID,
+            sql='SELECT * FROM test_table',
+            dag=self.dag,
+        )
+        self.dag.clear()
+
+        ti = TaskInstance(
+            task=bigquery_task,
+            execution_date=DEFAULT_DATE,
+        )
+
+        job_id = '12345'
+        ti.xcom_push(key='job_id', value=job_id)
+
+        self.assertEquals(
+            'https://console.cloud.google.com/bigquery?j={job_id}'.format(job_id=job_id),
+            bigquery_task.get_extra_links(DEFAULT_DATE, BigQueryConsoleLink.name),
+        )
+
+        self.assertEquals(
+            '',
+            bigquery_task.get_extra_links(datetime(2019, 1, 1), BigQueryConsoleLink.name),
+        )
 
 
 class BigQueryGetDataOperatorTest(unittest.TestCase):
