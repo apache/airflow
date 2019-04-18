@@ -71,11 +71,19 @@ class SSHOperator(BaseOperator):
             if self.ssh_conn_id:
                 if self.ssh_hook and isinstance(self.ssh_hook, SSHHook):
                     self.log.info("ssh_conn_id is ignored when ssh_hook is provided.")
+                    
+                if self.remote_host is not None:
+                    self.ssh_hook.remote_host = self.remote_host
+
                 else:
                     self.log.info("ssh_hook is not provided or invalid. " +
                                   "Trying ssh_conn_id to create SSHHook.")
-                    self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id,
-                                            timeout=self.timeout)
+                    if self.remote_host is not None:
+                        self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host
+                                                timeout=self.timeout)
+                    else: 
+                        self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id,
+                                                timeout=self.timeout)
 
             if not self.ssh_hook:
                 raise AirflowException("Cannot operate without ssh_hook or ssh_conn_id.")
@@ -84,7 +92,6 @@ class SSHOperator(BaseOperator):
                 self.log.info("remote_host is provided explicitly. " +
                               "It will replace the remote_host which was defined " +
                               "in ssh_hook or predefined in connection of ssh_conn_id.")
-                self.ssh_hook.remote_host = self.remote_host
 
             if not self.command:
                 raise AirflowException("SSH command not specified. Aborting.")
