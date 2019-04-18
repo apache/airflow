@@ -260,7 +260,7 @@ regarding custom filters have a look at the
 `Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
-in templates, make sure to read through the :ref:`macros` section
+in templates, make sure to read through the :doc:`macros`
 
 Setting up Dependencies
 -----------------------

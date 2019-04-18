@@ -46,7 +46,6 @@ locally, into just one `LocalExecutor` with multiple modes.
 
 import multiprocessing
 import subprocess
-import time
 
 from builtins import range
 
@@ -94,7 +93,6 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
 
     def run(self):
         self.execute_work(self.key, self.command)
-        time.sleep(1)
 
 
 class QueuedLocalWorker(LocalWorker):
@@ -116,7 +114,6 @@ class QueuedLocalWorker(LocalWorker):
                 break
             self.execute_work(key, command)
             self.task_queue.task_done()
-            time.sleep(1)
 
 
 class LocalExecutor(BaseExecutor):
@@ -164,7 +161,6 @@ class LocalExecutor(BaseExecutor):
         def end(self):
             while self.executor.workers_active > 0:
                 self.executor.sync()
-                time.sleep(0.5)
 
     class _LimitedParallelism(object):
         """Implements LocalExecutor with limited parallelism using a task queue to

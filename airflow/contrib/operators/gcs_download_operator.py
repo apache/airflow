@@ -21,6 +21,7 @@ import sys
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
+from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.utils.decorators import apply_defaults
 
 
@@ -82,7 +83,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                                    object=self.object,
                                    filename=self.filename)
         if self.store_to_xcom_key:
-            if sys.getsizeof(file_bytes) < 48000:
+            if sys.getsizeof(file_bytes) < MAX_XCOM_SIZE:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
                 raise RuntimeError(

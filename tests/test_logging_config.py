@@ -20,11 +20,11 @@ import os
 import six
 import sys
 import tempfile
-from mock import patch, mock
 
 from airflow import configuration as conf
 from airflow.configuration import mkdir_p
 from airflow.exceptions import AirflowConfigException
+from tests.compat import mock, patch
 
 
 if six.PY2:

@@ -25,7 +25,7 @@ from mock import patch
 
 from airflow import configuration
 from airflow.contrib.hooks.jira_hook import JiraHook
-from airflow.models.connection import Connection
+from airflow.models import Connection
 from airflow.utils import db
 
 jira_client_mock = Mock(

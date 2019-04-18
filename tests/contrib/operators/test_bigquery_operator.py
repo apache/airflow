@@ -23,22 +23,14 @@ from datetime import datetime
 import six
 
 from airflow import configuration, models
-from airflow.models import TaskInstance, DAG
-from airflow.models.taskfail import TaskFail
+from airflow.models import DAG, TaskFail, TaskInstance
 
 from airflow.contrib.operators.bigquery_operator import \
     BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
     BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator, \
     BigQueryOperator
 from airflow.settings import Session
-
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
+from tests.compat import mock
 
 TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
@@ -182,7 +174,7 @@ class BigQueryOperatorTest(unittest.TestCase):
             write_disposition='WRITE_EMPTY',
             allow_large_results=False,
             flatten_results=None,
-            bigquery_conn_id='bigquery_default',
+            bigquery_conn_id='google_cloud_default',
             udf_config=None,
             use_legacy_sql=True,
             maximum_billing_tier=None,

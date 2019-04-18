@@ -36,10 +36,14 @@ configuring an Airflow environment.
     write-logs
     executor/use-celery
     executor/use-dask
-    executor/use-mesos
     run-behind-proxy
     run-with-systemd
     run-with-upstart
     use-test-config
     check-health
 
+.. toctree::
+    :maxdepth: 2
+    :caption: Developer guide
+
+    setup-test-environment-mysql
