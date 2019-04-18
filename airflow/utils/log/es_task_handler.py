@@ -124,7 +124,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
 
         next_offset = offset if not logs else logs[-1].offset
 
-        # Ensure a string here. Large offset numbers will get JSON.parsed incorretly
+        # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
         # on the client. Sending as a string prevents this issue.
         # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
         metadata['offset'] = str(next_offset)
