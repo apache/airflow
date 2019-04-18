@@ -22,7 +22,7 @@ import mock
 import unittest
 
 from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
+from airflow.models import Connection
 
 from airflow.contrib.hooks.datadog_hook import DatadogHook
 

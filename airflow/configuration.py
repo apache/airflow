@@ -147,10 +147,14 @@ class AirflowConfigParser(ConfigParser):
             'ssl_key': 'celery_ssl_key',
         }
     }
-    deprecation_format_string = (
-        'The {old} option in [{section}] has been renamed to {new} - the old '
-        'setting has been used, but please update your config.'
-    )
+
+    # A mapping of old default values that we want to change and warn the user
+    # about. Mapping of section -> setting -> { old, replace, by_version }
+    deprecated_values = {
+        'core': {
+            'task_runner': ('BashTaskRunner', 'StandardTaskRunner', '2.0'),
+        },
+    }
 
     def __init__(self, default_config=None, *args, **kwargs):
         super(AirflowConfigParser, self).__init__(*args, **kwargs)
@@ -169,29 +173,35 @@ class AirflowConfigParser(ConfigParser):
                 "error: cannot use sqlite with the {}".format(
                     self.get('core', 'executor')))
 
-        elif (
-            self.getboolean("webserver", "authenticate") and
-            self.get("webserver", "owner_mode") not in ['user', 'ldapgroup']
-        ):
-            raise AirflowConfigException(
-                "error: owner_mode option should be either "
-                "'user' or 'ldapgroup' when filtering by owner is set")
+        for section, replacement in self.deprecated_values.items():
+            for name, info in replacement.items():
+                old, new, version = info
+                if self.get(section, name, fallback=None) == old:
+                    # Make sure the env var option is removed, otherwise it
+                    # would be read and used instead of the value we set
+                    env_var = self._env_var_name(section, name)
+                    os.environ.pop(env_var, None)
 
-        elif (
-            self.getboolean("webserver", "authenticate") and
-            self.get("webserver", "owner_mode").lower() == 'ldapgroup' and
-            self.get("webserver", "auth_backend") != (
-                'airflow.contrib.auth.backends.ldap_auth')
-        ):
-            raise AirflowConfigException(
-                "error: attempt at using ldapgroup "
-                "filtering without using the Ldap backend")
+                    self.set(section, name, new)
+                    warnings.warn(
+                        'The {name} setting in [{section}] has the old default value '
+                        'of {old!r}. This value has been changed to {new!r} in the '
+                        'running config, but please update your config before Apache '
+                        'Airflow {version}.'.format(
+                            name=name, section=section, old=old, new=new, version=version
+                        ),
+                        FutureWarning
+                    )
 
         self.is_validated = True
 
+    @staticmethod
+    def _env_var_name(section, key):
+        return 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
+
     def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
-        env_var = 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
+        env_var = self._env_var_name(section, key)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
 
@@ -253,12 +263,12 @@ class AirflowConfigParser(ConfigParser):
 
         else:
             log.warning(
-                "section/key [{section}/{key}] not found in config".format(**locals())
+                "section/key [%s/%s] not found in config", section, key
             )
 
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
-                "in config".format(**locals()))
+                "in config".format(section=section, key=key))
 
     def getboolean(self, section, key, **kwargs):
         val = str(self.get(section, key, **kwargs)).lower().strip()
@@ -422,7 +432,8 @@ class AirflowConfigParser(ConfigParser):
 
     def _warn_deprecate(self, section, key, deprecated_name):
         warnings.warn(
-            self.deprecation_format_string.format(
+            'The {old} option in [{section}] has been renamed to {new} - the old '
+            'setting has been used, but please update your config.'.format(
                 old=deprecated_name,
                 new=key,
                 section=section,
@@ -530,12 +541,31 @@ conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
 
 conf.read(AIRFLOW_CONFIG)
 
-DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
+if conf.has_option('core', 'AIRFLOW_HOME'):
+    msg = (
+        'Specifying both AIRFLOW_HOME environment variable and airflow_home '
+        'in the config file is deprecated. Please use only the AIRFLOW_HOME '
+        'environment variable and remove the config file entry.'
+    )
+    if 'AIRFLOW_HOME' in os.environ:
+        warnings.warn(msg, category=DeprecationWarning)
+    elif conf.get('core', 'airflow_home') == AIRFLOW_HOME:
+        warnings.warn(
+            'Specifying airflow_home in the config file is deprecated. As you '
+            'have left it at the default value you should remove the setting '
+            'from your airflow.cfg and suffer no change in behaviour.',
+            category=DeprecationWarning,
+        )
+    else:
+        AIRFLOW_HOME = conf.get('core', 'airflow_home')
+        warnings.warn(msg, category=DeprecationWarning)
+
 
 WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
 
 if not os.path.isfile(WEBSERVER_CONFIG):
     log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
+    DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
     with open(WEBSERVER_CONFIG, 'w') as f:
         f.write(DEFAULT_WEBSERVER_CONFIG)
 

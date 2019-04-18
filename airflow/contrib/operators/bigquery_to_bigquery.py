@@ -64,7 +64,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  destination_project_dataset_table,
                  write_disposition='WRITE_EMPTY',
                  create_disposition='CREATE_IF_NEEDED',
-                 bigquery_conn_id='bigquery_default',
+                 bigquery_conn_id='google_cloud_default',
                  delegate_to=None,
                  labels=None,
                  *args,
@@ -88,8 +88,8 @@ class BigQueryToBigQueryOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_copy(
-            self.source_project_dataset_tables,
-            self.destination_project_dataset_table,
-            self.write_disposition,
-            self.create_disposition,
-            self.labels)
+            source_project_dataset_tables=self.source_project_dataset_tables,
+            destination_project_dataset_table=self.destination_project_dataset_table,
+            write_disposition=self.write_disposition,
+            create_disposition=self.create_disposition,
+            labels=self.labels)

@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 

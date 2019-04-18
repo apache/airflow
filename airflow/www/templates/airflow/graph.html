@@ -103,14 +103,14 @@
     var initialStrokeWidth = '3px';
     var highlightStrokeWidth = '5px';
 
-    var nodes = {{ nodes|safe }};
-    var edges = {{ edges|safe }};
+    var nodes = {{ nodes|tojson|safe }};
+    var edges = {{ edges|tojson|safe }};
     var execution_date = "{{ execution_date }}";
     var arrange = "{{ arrange }}";
 
     // Below variables are being used in dag.js
-    var tasks = {{ tasks|safe }};
-    var task_instances = {{ task_instances|safe }};
+    var tasks = {{ tasks|tojson|safe }};
+    var task_instances = {{ task_instances|tojson|safe }};
     var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
       "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
       encodeURIComponent(execution_date);
@@ -169,9 +169,9 @@
     d3.selectAll("g.node").on("click", function(d){
         task = tasks[d];
         if (task.task_type == "SubDagOperator")
-            call_modal(d, execution_date, true);
+            call_modal(d, execution_date, task.extra_links, task_instances[d].try_number, true);
         else
-            call_modal(d, execution_date);
+            call_modal(d, execution_date, task.extra_links, task_instances[d].try_number, undefined);
     });
 
 

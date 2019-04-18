@@ -42,7 +42,7 @@ spec:
 
     def create(self, pod):
         # type: (Pod) -> dict
-        req = yaml.load(self._yaml)
+        req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
         self.extract_labels(pod, req)
         self.extract_image(pod, req)
@@ -62,16 +62,16 @@ spec:
         self.extract_affinity(pod, req)
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
+        self.extract_security_context(pod, req)
         return req
 
 
 class ExtractXcomPodRequestFactory(KubernetesRequestFactory):
-
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     """
     Request generator for a pod with sidecar container.
     """
+    XCOM_MOUNT_PATH = '/airflow/xcom'
+    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     _yaml = """apiVersion: v1
 kind: Pod
 metadata:
@@ -89,7 +89,16 @@ spec:
           mountPath: {xcomMountPath}
     - name: {sidecarContainerName}
       image: python:3.5-alpine
-      command: ["python", "-m", "http.server"]
+      command:
+        - python
+        - -c
+        - |
+            import time
+            while True:
+                try:
+                    time.sleep(3600)
+                except KeyboardInterrupt:
+                    exit(0)
       volumeMounts:
         - name: xcom
           mountPath: {xcomMountPath}
@@ -101,7 +110,7 @@ spec:
 
     def create(self, pod):
         # type: (Pod) -> dict
-        req = yaml.load(self._yaml)
+        req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
         self.extract_labels(pod, req)
         self.extract_image(pod, req)
@@ -121,4 +130,5 @@ spec:
         self.extract_affinity(pod, req)
         self.extract_hostnetwork(pod, req)
         self.extract_tolerations(pod, req)
+        self.extract_security_context(pod, req)
         return req

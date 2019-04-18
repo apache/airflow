@@ -50,7 +50,7 @@ class _DataflowJob(LoggingMixin):
             location=self._job_location
         ).execute(num_retries=5)
         for job in jobs['jobs']:
-            if job['name'] == self._job_name:
+            if job['name'].lower() == self._job_name.lower():
                 self._job_id = job['id']
                 return job
         return None
@@ -273,7 +273,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
         environment = {}
         for key in ['maxWorkers', 'zone', 'serviceAccountEmail', 'tempLocation',
-                    'bypassTempDirValidation', 'machineType']:
+                    'bypassTempDirValidation', 'machineType', 'network', 'subnetwork']:
             if key in variables:
                 environment.update({key: variables[key]})
         body = {"jobName": name,
