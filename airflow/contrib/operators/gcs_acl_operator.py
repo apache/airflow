@@ -65,7 +65,7 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id
         )
-        hook.insert_bucket_acl(bucket=self.bucket, entity=self.entity, role=self.role,
+        hook.insert_bucket_acl(bucket_name=self.bucket, entity=self.entity, role=self.role,
                                user_project=self.user_project)
 
 
@@ -129,6 +129,6 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id
         )
-        hook.insert_object_acl(bucket=self.bucket, object_name=self.object_name,
+        hook.insert_object_acl(bucket_name=self.bucket, object_name=self.object_name,
                                entity=self.entity, role=self.role,
                                generation=self.generation, user_project=self.user_project)

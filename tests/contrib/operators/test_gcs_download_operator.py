@@ -40,5 +40,5 @@ class GoogleCloudStorageDownloadOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.download.assert_called_once_with(
-            bucket=TEST_BUCKET, object=TEST_OBJECT, filename=LOCAL_FILE_PATH
+            bucket_name=TEST_BUCKET, object_name=TEST_OBJECT, filename=LOCAL_FILE_PATH
         )

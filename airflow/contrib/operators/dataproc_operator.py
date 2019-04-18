@@ -1279,8 +1279,8 @@ class DataProcPySparkOperator(BaseOperator):
         GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.gcp_conn_id
         ).upload(
-            bucket=bucket,
-            object=temp_filename,
+            bucket_name=bucket,
+            object_name=temp_filename,
             mime_type='application/x-python',
             filename=local_file
         )

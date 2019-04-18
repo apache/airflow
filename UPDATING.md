@@ -46,11 +46,17 @@ This can be overwriten by using the extra_options param as `{'verify': False}`.
 ### Changes to GoogleCloudStorageHook
 
 * the discovery-based api (`googleapiclient.discovery`) used in `GoogleCloudStorageHook` is now replaced by the recommended client based api (`google-cloud-storage`). To know the difference between both the libraries, read https://cloud.google.com/apis/docs/client-libraries-explained. PR: [#5054](https://github.com/apache/airflow/pull/5054) 
-* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been deprecated.
+* as a part of this replacement, the `multipart` & `num_retries` parameters for `GoogleCloudStorageHook.upload` method have been removed.
   
   The client library uses multipart upload automatically if the object/blob size is more than 8 MB - [source code](https://github.com/googleapis/google-cloud-python/blob/11c543ce7dd1d804688163bc7895cf592feb445f/storage/google/cloud/storage/blob.py#L989-L997). The client also handles retries automatically
 
-* the `generation` parameter is deprecated in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+* the `generation` parameter is removed in `GoogleCloudStorageHook.delete` and `GoogleCloudStorageHook.insert_object_acl`. 
+
+* The following parameters have been replaced in all the methods in GCSHook:
+  * `bucket` is changed to `bucket_name`
+  * `object` is changed to `object_name` 
+  
+* The `maxResults` parameter in `GoogleCloudStorageHook.list` has been renamed to `max_results` for consistency.
 
 ### Changes to CloudantHook
 
