@@ -588,7 +588,7 @@ if _old_config_file != AIRFLOW_CONFIG and os.path.isfile(_old_config_file):
     )
 
 
-WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
+WEBSERVER_CONFIG = os.path.abspath(AIRFLOW_HOME + '/webserver_config.py')
 
 if conf.getboolean('webserver', 'rbac'):
     DEFAULT_WEBSERVER_CONFIG = _read_default_config_file('default_webserver_config.py')
