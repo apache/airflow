@@ -19,7 +19,7 @@
 
 import unittest
 
-from airflow.utils.decorators import apply_defaults, cached_property
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
 
@@ -73,29 +73,3 @@ class ApplyDefaultTest(unittest.TestCase):
         default_args = {'random_params': True}
         with self.assertRaisesRegexp(AirflowException, 'Argument.*test_param.*required'):
             DummyClass(default_args=default_args)
-
-
-class FixtureClass:
-    @cached_property
-    def value(self):
-        """Fixture docstring"""
-        return 1, object()
-
-
-class FixtureSubClass(FixtureClass):
-    pass
-
-
-class CachedPropertyTest(unittest.TestCase):
-
-    def setUp(self):
-        self.test_obj = FixtureClass()
-        self.test_sub_obj = FixtureSubClass()
-
-    def test_cache_works(self):
-        self.assertIs(self.test_obj.value, self.test_obj.value)
-        self.assertIs(self.test_sub_obj.value, self.test_sub_obj.value)
-
-    def test_docstring(self):
-        self.assertEqual(FixtureClass.value.__doc__, "Fixture docstring")
-        self.assertEqual(FixtureSubClass.value.__doc__, "Fixture docstring")

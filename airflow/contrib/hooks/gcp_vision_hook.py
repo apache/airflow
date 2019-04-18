@@ -18,12 +18,12 @@
 # under the License.
 from copy import deepcopy
 
+from cached_property import cached_property
 from google.cloud.vision_v1 import ProductSearchClient, ImageAnnotatorClient
 from google.protobuf.json_format import MessageToDict
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.utils.decorators import cached_property
 
 
 class NameDeterminer:
