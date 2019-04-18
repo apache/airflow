@@ -267,12 +267,11 @@ class KubeConfig:
 
         # cannot allow certain labels, as airflow needs them
         if self.kube_extra_labels:
+            err_msg = 'In kubernetes mode `extra_labels` cannot include ' + \
+                      ",".join(self.protected_labels)
             for k in self.protected_labels:
                 if k in self.kube_extra_labels:
-                    raise AirflowConfigException(
-                        'In kubernetes mode `extra_labels` cannot include '
-                        '`airflow-worker`, `dag_id`, `task_id`, `try_number`, or `execution_date`'
-                    )
+                    raise AirflowConfigException(err_msg)
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
