@@ -63,4 +63,6 @@ class BigQueryTableDeleteOperator(BaseOperator):
                             delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()
-        cursor.run_table_delete(self.deletion_dataset_table, self.ignore_if_missing)
+        cursor.run_table_delete(
+            deletion_dataset_table=self.deletion_dataset_table,
+            ignore_if_missing=self.ignore_if_missing)

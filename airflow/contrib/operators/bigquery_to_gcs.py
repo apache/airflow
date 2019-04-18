@@ -96,10 +96,10 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_extract(
-            self.source_project_dataset_table,
-            self.destination_cloud_storage_uris,
-            self.compression,
-            self.export_format,
-            self.field_delimiter,
-            self.print_header,
-            self.labels)
+            source_project_dataset_table=self.source_project_dataset_table,
+            destination_cloud_storage_uris=self.destination_cloud_storage_uris,
+            compression=self.compression,
+            export_format=self.export_format,
+            field_delimiter=self.field_delimiter,
+            print_header=self.print_header,
+            labels=self.labels)
