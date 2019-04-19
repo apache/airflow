@@ -42,18 +42,20 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 Counters
 --------
 
-=================================== ================================================================
-Name                                Description
-=================================== ================================================================
-<job_name>_start                    Number of started <job_name> job, ex. SchedulerJob, LocalTaskJob
-<job_name>_end                      Number of ended <job_name> job, ex. SchedulerJob, LocalTaskJob
-operator_failures_<operator_name>   Operator <operator_name> failures
-operator_successes_<operator_name>  Operator <operator_name> successes
-ti_failures                         Overall task instances failures
-ti_successes                        Overall task instances successes
-zombies_killed                      Zombie tasks killed
-scheduler_heartbeat                 Scheduler heartbeats
-=================================== ================================================================
+========================================= ================================================================
+Name                                      Description
+========================================= ================================================================
+<job_name>_start                          Number of started <job_name> job, ex. SchedulerJob, LocalTaskJob
+<job_name>_end                            Number of ended <job_name> job, ex. SchedulerJob, LocalTaskJob
+operator_failures_<operator_name>         Operator <operator_name> failures
+operator_successes_<operator_name>        Operator <operator_name> successes
+ti_failures                               Overall task instances failures
+ti_successes                              Overall task instances successes
+zombies_killed                            Zombie tasks killed
+scheduler_heartbeat                       Scheduler heartbeats
+webserver.<endpoint>.load_failures        Number of failures for specified Webserver endpoint.
+webserver.<endpoint>.views                Number of views on the endpoint.
+========================================= ================================================================
 
 Gauges
 ------
@@ -75,13 +77,14 @@ pool.starving_tasks.<pool_name>                 Number of starving tasks in the 
 Timers
 ------
 
-================================= =================================================
-Name                              Description
-================================= =================================================
-dagrun.dependency-check.<dag_id>  Seconds taken to check DAG dependencies
-dag.<dag_id>.<task_id>.duration   Seconds taken to finish a task
-dagrun.duration.success.<dag_id>  Seconds taken for a DagRun to reach success state
-dagrun.duration.failed.<dag_id>   Seconds taken for a DagRun to reach failed state
-dagrun.schedule_delay.<dag_id>    Seconds of delay between the scheduled DagRun
-                                  start date and the actual DagRun start date
-================================= =================================================
+=========================================== =================================================
+Name                                        Description
+=========================================== =================================================
+dagrun.dependency-check.<dag_id>            Seconds taken to check DAG dependencies
+dag.<dag_id>.<task_id>.duration             Seconds taken to finish a task
+dagrun.duration.success.<dag_id>            Seconds taken for a DagRun to reach success state
+dagrun.duration.failed.<dag_id>             Seconds taken for a DagRun to reach failed state
+dagrun.schedule_delay.<dag_id>              Seconds of delay between the scheduled DagRun
+                                            start date and the actual DagRun start date
+webserver.<endpoint>.load_time              Time it takes to load server side data
+=========================================== =================================================

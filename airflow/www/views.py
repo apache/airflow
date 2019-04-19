@@ -62,7 +62,7 @@ from airflow.utils.state import State
 from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
-from airflow.www.decorators import action_logging, gzipped, has_dag_access
+from airflow.www.decorators import action_logging, gzipped, has_dag_access, log_webserver_stats
 from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
                                DateTimeWithNumRunsWithDagRunsForm,
                                DagRunForm, ConnectionForm)
@@ -505,6 +505,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
+    @log_webserver_stats('ajax_logs_fetch', log_duration=True, log_failures=True)
     @provide_session
     def get_logs_with_metadata(self, session=None):
         dag_id = request.args.get('dag_id')
@@ -579,6 +580,7 @@ class Airflow(AirflowBaseView):
     @has_dag_access(can_dag_read=True)
     @has_access
     @action_logging
+    @log_webserver_stats('log', log_views=True, log_failures=True)
     @provide_session
     def log(self, session=None):
         dag_id = request.args.get('dag_id')
@@ -1145,6 +1147,7 @@ class Airflow(AirflowBaseView):
     @has_access
     @gzipped
     @action_logging
+    @log_webserver_stats('tree_view', log_views=True, log_duration=True, log_failures=True)
     def tree(self):
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
@@ -1280,6 +1283,7 @@ class Airflow(AirflowBaseView):
     @has_access
     @gzipped
     @action_logging
+    @log_webserver_stats('graph_view', log_views=True, log_duration=True, log_failures=True)
     @provide_session
     def graph(self, session=None):
         dag_id = request.args.get('dag_id')

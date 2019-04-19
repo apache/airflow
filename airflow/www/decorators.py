@@ -23,7 +23,9 @@ import pendulum
 from io import BytesIO as IO
 from flask import after_this_request, flash, redirect, request, url_for, g
 from airflow.models import Log
+from airflow.stats import Stats
 from airflow.utils.db import create_session
+from airflow.utils import timezone
 
 
 def action_logging(f):
@@ -123,5 +125,31 @@ def has_dag_access(**dag_kwargs):
                 flash("Access is Denied", "danger")
                 return redirect(url_for(self.appbuilder.sm.auth_view.
                                         __class__.__name__ + ".login"))
+        return wrapper
+    return decorator
+
+
+def log_webserver_stats(endpoint, log_views=False, log_duration=False, log_failures=False):
+    """
+    Decorator to log server side stats from webserver UI.
+
+    Currently supports logging views and load failures as counters
+    and load duration as timing.
+    """
+    def decorator(f):
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            start_dttm = timezone.utcnow()
+            if log_views:
+                Stats.incr('webserver.{}.views'.format(endpoint))
+            if log_failures:
+                Stats.incr('webserver.{}.load_failures'.format(endpoint))
+            response = f(*args, **kwargs)
+            if log_duration:
+                duration = (timezone.utcnow() - start_dttm).total_seconds() * 1000
+                Stats.timing('webserver.{}.load_time'.format(endpoint), duration)
+            if log_failures:
+                Stats.decr('webserver.{}.load_failures'.format(endpoint))
+            return response
         return wrapper
     return decorator
