@@ -67,6 +67,7 @@ class TestPodRequestFactory(unittest.TestCase):
             'apiVersion': 'v1',
             'kind': 'Pod',
             'metadata': {
+                'namespace': 'default',
                 'name': 'myapp-pod',
                 'labels': {'app': 'myapp'},
                 'annotations': {}},

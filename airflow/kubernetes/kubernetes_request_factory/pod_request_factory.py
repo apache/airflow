@@ -31,6 +31,7 @@ class SimplePodRequestFactory(KubernetesRequestFactory):
     _yaml = """apiVersion: v1
 kind: Pod
 metadata:
+  namespace: default
   name: name
 spec:
   containers:
@@ -47,6 +48,7 @@ spec:
     def create(self, pod: Pod) -> Dict:
         req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
+        self.extract_namespace(pod, req)
         self.extract_labels(pod, req)
         self.extract_image(pod, req)
         self.extract_image_pull_policy(pod, req)
@@ -82,6 +84,7 @@ class ExtractXcomPodRequestFactory(KubernetesRequestFactory):
     _yaml = """apiVersion: v1
 kind: Pod
 metadata:
+  namespace: default
   name: name
 spec:
   volumes:
@@ -118,6 +121,7 @@ spec:
     def create(self, pod: Pod) -> Dict:
         req = yaml.safe_load(self._yaml)
         self.extract_name(pod, req)
+        self.extract_namespace(pod, req)
         self.extract_labels(pod, req)
         self.extract_image(pod, req)
         self.extract_image_pull_policy(pod, req)

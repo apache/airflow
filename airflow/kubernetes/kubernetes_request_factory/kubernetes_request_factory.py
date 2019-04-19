@@ -123,6 +123,10 @@ class KubernetesRequestFactory(metaclass=ABCMeta):
         req['metadata']['name'] = pod.name
 
     @staticmethod
+    def extract_namespace(pod, req):
+        req['metadata']['namespace'] = pod.namespace
+
+    @staticmethod
     def extract_volume_secrets(pod, req):
         vol_secrets = [s for s in pod.secrets if s.deploy_type == 'volume']
         if any(vol_secrets):

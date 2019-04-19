@@ -32,6 +32,7 @@ class TestKubernetesRequestFactory(unittest.TestCase):
             'apiVersion': 'v1',
             'kind': 'Pod',
             'metadata': {
+                'namespace': 'default',
                 'name': 'name'
             },
             'spec': {
@@ -146,6 +147,13 @@ class TestKubernetesRequestFactory(unittest.TestCase):
         pod = Pod('v3.14', {}, [], name=name)
         self.expected['metadata']['name'] = name
         KubernetesRequestFactory.extract_name(pod, self.input_req)
+        self.assertEqual(self.input_req, self.expected)
+
+    def test_extract_namespace(self):
+        namespace = 'default'
+        pod = Pod('v3.14', {}, [], namespace=namespace)
+        self.expected['metadata']['namespace'] = namespace
+        KubernetesRequestFactory.extract_namespace(pod, self.input_req)
         self.assertEqual(self.input_req, self.expected)
 
     def test_extract_volume_secrets(self):
