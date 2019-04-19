@@ -25,6 +25,7 @@ from airflow.models import BaseOperator
 class RedisPublishOperator(BaseOperator):
     """
     Publish a message to Redis.
+
     :param channel: redis channel to which the message is published (templated)
     :type channel: str
     :param message: the message to publish (templated)
