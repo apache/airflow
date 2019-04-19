@@ -72,7 +72,7 @@ class KubernetesPodOperator(BaseOperator):
     :param node_selectors: A dict containing a group of scheduling rules
     :type node_selectors: dict
     :param config_file: The path to the Kubernetes config file.
-        If not specified, defaults to ~/.kube/config
+        If not specified, defaults to ``~/.kube/config``
     :type config_file: str
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
