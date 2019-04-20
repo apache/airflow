@@ -21,6 +21,7 @@ IMAGE=${IMAGE:-airflow}
 TAG=${TAG:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../../../.."
+PYTHON_DOCKER_IMAGE=python:3.6-slim
 
 set -e
 
@@ -33,12 +34,6 @@ fi
 
 echo "Airflow directory $AIRFLOW_ROOT"
 echo "Airflow Docker directory $DIRNAME"
-
-if [[ ${PYTHON_VERSION} == '3' ]]; then
-  PYTHON_DOCKER_IMAGE=python:3.6-slim
-else
-  PYTHON_DOCKER_IMAGE=python:2.7-slim
-fi
 
 cd $AIRFLOW_ROOT
 docker run -ti --rm -v ${AIRFLOW_ROOT}:/airflow \
