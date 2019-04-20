@@ -1938,6 +1938,7 @@ class ConnectionModelView(AirflowModelView):
                     'extra__google_cloud_platform__key_path',
                     'extra__google_cloud_platform__keyfile_dict',
                     'extra__google_cloud_platform__scope',
+                    'extra__google_cloud_platform__num_retries',
                     'extra__grpc__auth_type',
                     'extra__grpc__credentials_pem_file',
                     'extra__grpc__scopes']

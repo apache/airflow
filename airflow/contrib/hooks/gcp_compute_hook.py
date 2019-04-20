@@ -23,10 +23,6 @@ from googleapiclient.discovery import build
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
-# Number of retries - used by googleapiclient method calls to perform retries
-# For requests that are "retriable"
-NUM_RETRIES = 5
-
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
 
@@ -54,6 +50,7 @@ class GceHook(GoogleCloudBaseHook):
                  delegate_to=None):
         super(GceHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
+        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """
@@ -88,7 +85,7 @@ class GceHook(GoogleCloudBaseHook):
             project=project_id,
             zone=zone,
             instance=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -119,7 +116,7 @@ class GceHook(GoogleCloudBaseHook):
             project=project_id,
             zone=zone,
             instance=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -164,7 +161,7 @@ class GceHook(GoogleCloudBaseHook):
     def _execute_set_machine_type(self, zone, resource_id, body, project_id):
         return self.get_conn().instances().setMachineType(
             project=project_id, zone=zone, instance=resource_id, body=body)\
-            .execute(num_retries=NUM_RETRIES)
+            .execute(num_retries=self.num_retries)
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
     def get_instance_template(self, resource_id, project_id=None):
@@ -185,7 +182,7 @@ class GceHook(GoogleCloudBaseHook):
         response = self.get_conn().instanceTemplates().get(
             project=project_id,
             instanceTemplate=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         return response
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
@@ -212,7 +209,7 @@ class GceHook(GoogleCloudBaseHook):
             project=project_id,
             body=body,
             requestId=request_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -244,7 +241,7 @@ class GceHook(GoogleCloudBaseHook):
             project=project_id,
             zone=zone,
             instanceGroupManager=resource_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         return response
 
     @GoogleCloudBaseHook.fallback_to_default_project_id
@@ -279,7 +276,7 @@ class GceHook(GoogleCloudBaseHook):
             instanceGroupManager=resource_id,
             body=body,
             requestId=request_id
-        ).execute(num_retries=NUM_RETRIES)
+        ).execute(num_retries=self.num_retries)
         try:
             operation_name = response["name"]
         except KeyError:
@@ -309,7 +306,7 @@ class GceHook(GoogleCloudBaseHook):
             else:
                 # noinspection PyTypeChecker
                 operation_response = self._check_zone_operation_status(
-                    service, operation_name, project_id, zone)
+                    service, operation_name, project_id, zone, self.num_retries)
             if operation_response.get("status") == GceOperationStatus.DONE:
                 error = operation_response.get("error")
                 if error:
@@ -323,13 +320,13 @@ class GceHook(GoogleCloudBaseHook):
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)
 
     @staticmethod
-    def _check_zone_operation_status(service, operation_name, project_id, zone):
+    def _check_zone_operation_status(service, operation_name, project_id, zone, num_retries):
         return service.zoneOperations().get(
             project=project_id, zone=zone, operation=operation_name).execute(
-            num_retries=NUM_RETRIES)
+            num_retries=num_retries)
 
     @staticmethod
-    def _check_global_operation_status(service, operation_name, project_id):
+    def _check_global_operation_status(service, operation_name, project_id, num_retries):
         return service.globalOperations().get(
             project=project_id, operation=operation_name).execute(
-            num_retries=NUM_RETRIES)
+            num_retries=num_retries)

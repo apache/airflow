@@ -55,7 +55,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import or_, desc, and_, union_all
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField,
-    StringField, validators)
+    StringField, IntegerField, validators)
 
 import airflow
 from airflow import configuration as conf
@@ -2953,6 +2953,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__key_path',
         'extra__google_cloud_platform__keyfile_dict',
         'extra__google_cloud_platform__scope',
+        'extra__google_cloud_platform__num_retries',
         'extra__grpc__auth_type',
         'extra__grpc__credentials_pem_file',
         'extra__grpc__scopes',
@@ -2978,6 +2979,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
         'extra__google_cloud_platform__keyfile_dict': PasswordField('Keyfile JSON'),
         'extra__google_cloud_platform__scope': StringField('Scopes (comma separated)'),
+        'extra__google_cloud_platform__num_retries': IntegerField('Number of Retries'),
         'extra__grpc__auth_type': StringField('Grpc Auth Type'),
         'extra__grpc__credentials_pem_file': StringField('Credential Keyfile Path'),
         'extra__grpc__scopes': StringField('Scopes (comma separated)'),
