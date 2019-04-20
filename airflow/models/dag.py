@@ -1340,7 +1340,7 @@ class DAG(BaseDag, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_num_task_instances(dag_id, task_ids, states=None, session=None):
+    def get_num_task_instances(dag_id, task_ids=None, states=None, session=None):
         """
         Returns the number of task instances in the given DAG.
 
@@ -1356,7 +1356,12 @@ class DAG(BaseDag, LoggingMixin):
         """
         qry = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == dag_id,
-            TaskInstance.task_id.in_(task_ids))
+        )
+        if task_ids:
+            qry = qry.filter(
+                TaskInstance.task_id.in_(task_ids),
+            )
+
         if states is not None:
             if None in states:
                 qry = qry.filter(or_(

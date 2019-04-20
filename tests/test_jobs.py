@@ -45,6 +45,7 @@ from airflow import configuration
 from airflow.bin import cli
 import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
+from airflow.exceptions import DagConcurrencyLimitReached, NoAvailablePoolSlot
 from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
     errors, SlaMiss
@@ -140,6 +141,13 @@ class BackfillJobTest(unittest.TestCase):
 
         dag.clear()
         return dag
+
+    def _times_called_with(self, method, class_):
+        count = 0
+        for args in method.call_args_list:
+            if isinstance(args[0][0], class_):
+                count += 1
+        return count
 
     def setUp(self):
         clear_db_runs()
@@ -308,8 +316,54 @@ class BackfillJobTest(unittest.TestCase):
 
         self.assertEqual(conf, dr[0].conf)
 
+    @patch('airflow.jobs.LoggingMixin.log')
+    def test_backfill_respect_concurrency_limit(self, mock_log):
+
+        dag = self._get_dummy_dag('test_backfill_respect_concurrency_limit')
+        dag.concurrency = 2
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=7),
+        )
+
+        job.run()
+
+        self.assertTrue(0 < len(executor.history))
+
+        concurrency_limit_reached_at_least_once = False
+
+        num_running_task_instances = 0
+
+        for running_task_instances in executor.history:
+            self.assertLessEqual(len(running_task_instances), dag.concurrency)
+            num_running_task_instances += len(running_task_instances)
+            if len(running_task_instances) == dag.concurrency:
+                concurrency_limit_reached_at_least_once = True
+
+        self.assertEquals(8, num_running_task_instances)
+        self.assertTrue(concurrency_limit_reached_at_least_once)
+
+        times_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            DagConcurrencyLimitReached,
+        )
+
+        times_pool_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            NoAvailablePoolSlot,
+        )
+
+        self.assertEquals(0, times_pool_limit_reached_in_debug)
+        self.assertGreater(times_concurrency_limit_reached_in_debug, 0)
+
+    @patch('airflow.jobs.LoggingMixin.log')
     @patch('airflow.jobs.conf.getint')
-    def test_backfill_with_no_pool_limit(self, mock_getint):
+    def test_backfill_with_no_pool_limit(self, mock_getint, mock_log):
         non_pooled_backfill_task_slot_count = 2
 
         def getint(section, key):
@@ -338,19 +392,35 @@ class BackfillJobTest(unittest.TestCase):
 
         non_pooled_task_slot_count_reached_at_least_once = False
 
-        running_tis_total = 0
+        num_running_task_instances = 0
 
         # if no pool is specified, the number of tasks running in
         # parallel per backfill should be less than
         # non_pooled_backfill_task_slot_count at any point of time.
-        for running_tis in executor.history:
-            self.assertLessEqual(len(running_tis), non_pooled_backfill_task_slot_count)
-            running_tis_total += len(running_tis)
-            if len(running_tis) == non_pooled_backfill_task_slot_count:
+        for running_task_instances in executor.history:
+            self.assertLessEqual(
+                len(running_task_instances),
+                non_pooled_backfill_task_slot_count,
+            )
+            num_running_task_instances += len(running_task_instances)
+            if len(running_task_instances) == non_pooled_backfill_task_slot_count:
                 non_pooled_task_slot_count_reached_at_least_once = True
 
-        self.assertEquals(8, running_tis_total)
+        self.assertEquals(8, num_running_task_instances)
         self.assertTrue(non_pooled_task_slot_count_reached_at_least_once)
+
+        times_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            DagConcurrencyLimitReached,
+        )
+
+        times_pool_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            NoAvailablePoolSlot,
+        )
+
+        self.assertEquals(0, times_concurrency_limit_reached_in_debug)
+        self.assertGreater(times_pool_limit_reached_in_debug, 0)
 
     def test_backfill_pool_not_found(self):
         dag = self._get_dummy_dag(
@@ -374,7 +444,8 @@ class BackfillJobTest(unittest.TestCase):
 
         self.fail()
 
-    def test_backfill_respect_pool_limit(self):
+    @patch('airflow.jobs.LoggingMixin.log')
+    def test_backfill_respect_pool_limit(self, mock_log):
         session = settings.Session()
 
         slots = 2
@@ -404,16 +475,29 @@ class BackfillJobTest(unittest.TestCase):
         self.assertTrue(0 < len(executor.history))
 
         pool_was_full_at_least_once = False
-        running_tis_total = 0
+        num_running_task_instances = 0
 
-        for running_tis in executor.history:
-            self.assertLessEqual(len(running_tis), slots)
-            running_tis_total += len(running_tis)
-            if len(running_tis) == slots:
+        for running_task_instances in executor.history:
+            self.assertLessEqual(len(running_task_instances), slots)
+            num_running_task_instances += len(running_task_instances)
+            if len(running_task_instances) == slots:
                 pool_was_full_at_least_once = True
 
-        self.assertEquals(8, running_tis_total)
+        self.assertEquals(8, num_running_task_instances)
         self.assertTrue(pool_was_full_at_least_once)
+
+        times_concurrency_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            DagConcurrencyLimitReached,
+        )
+
+        times_pool_limit_reached_in_debug = self._times_called_with(
+            mock_log.debug,
+            NoAvailablePoolSlot,
+        )
+
+        self.assertEquals(0, times_concurrency_limit_reached_in_debug)
+        self.assertGreater(times_pool_limit_reached_in_debug, 0)
 
     def test_backfill_run_rescheduled(self):
         dag = DAG(
