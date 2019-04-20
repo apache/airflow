@@ -55,14 +55,16 @@ class LocalExecutorTest(unittest.TestCase):
         else:
             executor.end()
 
-        for i in range(self.TEST_SUCCESS_COMMANDS):
-            key = success_key.format(i)
-            self.assertTrue(executor.event_buffer[key], State.SUCCESS)
-        self.assertTrue(executor.event_buffer['fail'], State.FAILED)
+        if isinstance(executor.impl, LocalExecutor._LimitedParallelism):
+            self.assertTrue(executor.queue.empty())
+
+        self.assertEqual(len(executor.running), 0)
+        self.assertTrue(executor.result_queue.empty())
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
-            self.assertNotIn(success_key.format(i), executor.running)
-        self.assertNotIn('fail', executor.running)
+            key = success_key.format(i)
+            self.assertEqual(executor.event_buffer[key], State.SUCCESS)
+        self.assertEqual(executor.event_buffer['fail'], State.FAILED)
 
         expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
         self.assertEqual(executor.workers_used, expected)
