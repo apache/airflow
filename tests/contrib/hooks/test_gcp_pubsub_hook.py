@@ -66,7 +66,7 @@ class PubSubHookTest(unittest.TestCase):
         create_method = (mock_service.return_value.projects.return_value.topics
                          .return_value.create)
         create_method.assert_called_with(body={}, name=EXPANDED_TOPIC)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_topic(self, mock_service):
@@ -75,7 +75,7 @@ class PubSubHookTest(unittest.TestCase):
         delete_method = (mock_service.return_value.projects.return_value.topics
                          .return_value.delete)
         delete_method.assert_called_with(topic=EXPANDED_TOPIC)
-        delete_method.return_value.execute.assert_called_with()
+        delete_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_nonexisting_topic_failifnotexists(self, mock_service):
@@ -122,7 +122,7 @@ class PubSubHookTest(unittest.TestCase):
         }
         create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -142,7 +142,7 @@ class PubSubHookTest(unittest.TestCase):
         }
         create_method.assert_called_with(name=expected_subscription,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -152,7 +152,7 @@ class PubSubHookTest(unittest.TestCase):
         delete_method = (mock_service.return_value.projects
                          .return_value.subscriptions.return_value.delete)
         delete_method.assert_called_with(subscription=EXPANDED_SUBSCRIPTION)
-        delete_method.return_value.execute.assert_called_with()
+        delete_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_delete_nonexisting_subscription_failifnotexists(self,
@@ -186,7 +186,7 @@ class PubSubHookTest(unittest.TestCase):
             TEST_SUBSCRIPTION, 'sub-%s' % TEST_UUID)
         create_method.assert_called_with(name=expected_name,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual('sub-%s' % TEST_UUID, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
@@ -203,7 +203,7 @@ class PubSubHookTest(unittest.TestCase):
         }
         create_method.assert_called_with(name=EXPANDED_SUBSCRIPTION,
                                          body=expected_body)
-        create_method.return_value.execute.assert_called_with()
+        create_method.return_value.execute.assert_called_with(num_retries=mock.ANY)
         self.assertEqual(TEST_SUBSCRIPTION, response)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))

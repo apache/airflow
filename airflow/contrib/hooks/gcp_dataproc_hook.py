@@ -29,14 +29,15 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class _DataProcJob(LoggingMixin):
     def __init__(self, dataproc_api, project_id, job, region='global',
-                 job_error_states=None):
+                 job_error_states=None, num_retries=None):
         self.dataproc_api = dataproc_api
         self.project_id = project_id
         self.region = region
+        self.num_retries = num_retries
         self.job = dataproc_api.projects().regions().jobs().submit(
             projectId=self.project_id,
             region=self.region,
-            body=job).execute()
+            body=job).execute(num_retries=self.num_retries)
         self.job_id = self.job['reference']['jobId']
         self.job_error_states = job_error_states
         self.log.info(
@@ -49,7 +50,7 @@ class _DataProcJob(LoggingMixin):
             self.job = self.dataproc_api.projects().regions().jobs().get(
                 projectId=self.project_id,
                 region=self.region,
-                jobId=self.job_id).execute(num_retries=5)
+                jobId=self.job_id).execute(num_retries=self.num_retries)
             if 'ERROR' == self.job['status']['state']:
                 self.log.error('DataProc job %s has errors', self.job_id)
                 self.log.error(self.job['status']['details'])
@@ -159,10 +160,11 @@ class _DataProcJobBuilder:
 
 class _DataProcOperation(LoggingMixin):
     """Continuously polls Dataproc Operation until it completes."""
-    def __init__(self, dataproc_api, operation):
+    def __init__(self, dataproc_api, operation, num_retries):
         self.dataproc_api = dataproc_api
         self.operation = operation
         self.operation_name = self.operation['name']
+        self.num_retries = num_retries
 
     def wait_for_done(self):
         if self._check_done():
@@ -177,7 +179,7 @@ class _DataProcOperation(LoggingMixin):
                 .regions()
                 .operations()
                 .get(name=self.operation_name)
-                .execute(num_retries=5))
+                .execute(num_retries=self.num_retries))
 
             if self._check_done():
                 return True
@@ -211,6 +213,7 @@ class DataProcHook(GoogleCloudBaseHook):
                  api_version='v1beta2'):
         super(DataProcHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
+        self.num_retries = self._get_field('num_retries', 5)
 
     def get_conn(self):
         """Returns a Google Cloud Dataproc service object."""
@@ -224,11 +227,12 @@ class DataProcHook(GoogleCloudBaseHook):
             projectId=project_id,
             region=region,
             clusterName=cluster_name
-        ).execute(num_retries=5)
+        ).execute(num_retries=self.num_retries)
 
     def submit(self, project_id, job, region='global', job_error_states=None):
         submitted = _DataProcJob(self.get_conn(), project_id, job, region,
-                                 job_error_states=job_error_states)
+                                 job_error_states=job_error_states,
+                                 num_retries=self.num_retries)
         if not submitted.wait_for_done():
             submitted.raise_error()
 
@@ -238,7 +242,8 @@ class DataProcHook(GoogleCloudBaseHook):
 
     def wait(self, operation):
         """Awaits for Google Cloud Dataproc Operation to complete."""
-        submitted = _DataProcOperation(self.get_conn(), operation)
+        submitted = _DataProcOperation(self.get_conn(), operation,
+                                       self.num_retries)
         submitted.wait_for_done()
 
 

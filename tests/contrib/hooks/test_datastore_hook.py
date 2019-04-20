@@ -20,9 +20,10 @@
 
 import unittest
 
-from mock import patch, call
-
 from airflow.contrib.hooks.datastore_hook import DatastoreHook
+from mock import call, patch
+
+from tests.compat import mock
 
 
 def mock_init(self, gcp_conn_id, delegate_to=None):
@@ -58,7 +59,7 @@ class TestDatastoreHook(unittest.TestCase):
         allocate_ids.assert_called_once_with(projectId=self.datastore_hook.project_id,
                                              body={'keys': partial_keys})
         execute = allocate_ids.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(keys, execute.return_value['keys'])
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
@@ -72,7 +73,7 @@ class TestDatastoreHook(unittest.TestCase):
         begin_transaction = projects.return_value.beginTransaction
         begin_transaction.assert_called_once_with(projectId=self.datastore_hook.project_id, body={})
         execute = begin_transaction.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(transaction, execute.return_value['transaction'])
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
@@ -87,7 +88,7 @@ class TestDatastoreHook(unittest.TestCase):
         commit = projects.return_value.commit
         commit.assert_called_once_with(projectId=self.datastore_hook.project_id, body=body)
         execute = commit.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
@@ -109,7 +110,7 @@ class TestDatastoreHook(unittest.TestCase):
                                            'transaction': transaction
                                        })
         execute = lookup.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
@@ -125,7 +126,7 @@ class TestDatastoreHook(unittest.TestCase):
         rollback.assert_called_once_with(projectId=self.datastore_hook.project_id,
                                          body={'transaction': transaction})
         execute = rollback.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
     def test_run_query(self, mock_get_conn):
@@ -139,7 +140,7 @@ class TestDatastoreHook(unittest.TestCase):
         run_query = projects.return_value.runQuery
         run_query.assert_called_once_with(projectId=self.datastore_hook.project_id, body=body)
         execute = run_query.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value['batch'])
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
@@ -156,7 +157,7 @@ class TestDatastoreHook(unittest.TestCase):
         get = operations.return_value.get
         get.assert_called_once_with(name=name)
         execute = get.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
@@ -173,7 +174,7 @@ class TestDatastoreHook(unittest.TestCase):
         delete = operations.return_value.delete
         delete.assert_called_once_with(name=name)
         execute = delete.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
     @patch('airflow.contrib.hooks.datastore_hook.time.sleep')
@@ -214,7 +215,7 @@ class TestDatastoreHook(unittest.TestCase):
                                            'labels': labels,
                                        })
         execute = export.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
 
     @patch('airflow.contrib.hooks.datastore_hook.DatastoreHook.get_conn')
@@ -240,5 +241,5 @@ class TestDatastoreHook(unittest.TestCase):
                                             'labels': labels,
                                         })
         execute = import_.return_value.execute
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(num_retries=mock.ANY)
         self.assertEqual(resp, execute.return_value)
