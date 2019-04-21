@@ -288,7 +288,7 @@ class KubeConfig:
                 'or `git_ssh_key_secret_name` must be set for authentication '
                 'through ssh key, but not both')
 
-        # cannot allow certain labels, as airflow needs them
+        # cannot allow certain labels, as airflow needs them.
         if self.kube_extra_labels:
             err_msg = 'In kubernetes mode `extra_labels` cannot include ' + \
                       ",".join(self.protected_labels)
