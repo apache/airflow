@@ -97,7 +97,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
     _conn = None
 
     def __init__(self, api_version='v1', gcp_conn_id='google_cloud_default', delegate_to=None):
-        super(GCPTransferServiceHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
         self.num_retries = self._get_field('num_retries', 5)
 

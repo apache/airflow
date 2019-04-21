@@ -129,7 +129,7 @@ class SqoopOperator(BaseOperator):
             If a key doesn't have a value, just pass an empty string to it.
             Don't include prefix of -- for sqoop options.
         """
-        super(SqoopOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.cmd_type = cmd_type
         self.table = table

@@ -56,7 +56,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         :param log_id_template: log id template
         :param host: Elasticsearch host name
         """
-        super(ElasticsearchTaskHandler, self).__init__(
+        super().__init__(
             base_log_folder, filename_template)
         self.closed = False
 
@@ -152,7 +152,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         return logs
 
     def set_context(self, ti):
-        super(ElasticsearchTaskHandler, self).set_context(ti)
+        super().set_context(ti)
         self.mark_end_on_close = not ti.raw
 
     def close(self):
@@ -181,6 +181,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, LoggingMixin):
         # so we know where to stop while auto-tailing.
         self.handler.stream.write(self.end_of_log_mark)
 
-        super(ElasticsearchTaskHandler, self).close()
+        super().close()
 
         self.closed = True

@@ -74,7 +74,7 @@ def parse_first_row(row_list):
 
 class QuboleCheckHook(QuboleHook):
     def __init__(self, context, *args, **kwargs):
-        super(QuboleCheckHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.results_parser_callable = parse_first_row
         if 'results_parser_callable' in kwargs and \
                 kwargs['results_parser_callable'] is not None:

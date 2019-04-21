@@ -64,7 +64,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageDownloadOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.object = object
         self.filename = filename

@@ -80,7 +80,7 @@ class HiveOperator(BaseOperator):
             mapred_job_name=None,
             *args, **kwargs):
 
-        super(HiveOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.hql = hql
         self.hive_cli_conn_id = hive_cli_conn_id
         self.schema = schema

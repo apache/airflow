@@ -40,7 +40,7 @@ class DatastoreHook(GoogleCloudBaseHook):
                  datastore_conn_id='google_cloud_default',
                  delegate_to=None,
                  api_version='v1'):
-        super(DatastoreHook, self).__init__(datastore_conn_id, delegate_to)
+        super().__init__(datastore_conn_id, delegate_to)
         self.connection = None
         self.api_version = api_version
         self.num_retries = self._get_field('num_retries', 5)

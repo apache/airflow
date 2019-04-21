@@ -46,7 +46,6 @@ class OpenFaasHook(BaseHook):
                  *args, **kwargs):
         self.function_name = function_name
         self.conn_id = conn_id
-        super(BaseHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
         conn = self.get_connection(self.conn_id)

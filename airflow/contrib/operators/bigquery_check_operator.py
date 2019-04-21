@@ -69,7 +69,7 @@ class BigQueryCheckOperator(CheckOperator):
                  bigquery_conn_id='google_cloud_default',
                  use_legacy_sql=True,
                  *args, **kwargs):
-        super(BigQueryCheckOperator, self).__init__(sql=sql, *args, **kwargs)
+        super().__init__(sql=sql, *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
         self.sql = sql
         self.use_legacy_sql = use_legacy_sql
@@ -100,7 +100,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
                  bigquery_conn_id='google_cloud_default',
                  use_legacy_sql=True,
                  *args, **kwargs):
-        super(BigQueryValueCheckOperator, self).__init__(
+        super().__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance,
             *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
@@ -141,7 +141,7 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     def __init__(self, table, metrics_thresholds, date_filter_column='ds',
                  days_back=-7, bigquery_conn_id='google_cloud_default',
                  use_legacy_sql=True, *args, **kwargs):
-        super(BigQueryIntervalCheckOperator, self).__init__(
+        super().__init__(
             table=table, metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)

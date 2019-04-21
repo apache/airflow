@@ -30,7 +30,7 @@ class RedisKeySensor(BaseSensorOperator):
 
     @apply_defaults
     def __init__(self, key, redis_conn_id, *args, **kwargs):
-        super(RedisKeySensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.redis_conn_id = redis_conn_id
         self.key = key
 

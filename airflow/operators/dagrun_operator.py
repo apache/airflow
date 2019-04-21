@@ -62,7 +62,7 @@ class TriggerDagRunOperator(BaseOperator):
             python_callable=None,
             execution_date=None,
             *args, **kwargs):
-        super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
 

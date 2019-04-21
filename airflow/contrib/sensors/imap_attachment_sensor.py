@@ -50,7 +50,7 @@ class ImapAttachmentSensor(BaseSensorOperator):
                  conn_id='imap_default',
                  *args,
                  **kwargs):
-        super(ImapAttachmentSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.attachment_name = attachment_name
         self.mail_folder = mail_folder

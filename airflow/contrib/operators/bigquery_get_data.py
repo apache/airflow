@@ -80,7 +80,7 @@ class BigQueryGetDataOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(BigQueryGetDataOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.max_results = max_results

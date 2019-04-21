@@ -76,7 +76,7 @@ class CloudSqlHook(GoogleCloudBaseHook):
                  api_version,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        super(CloudSqlHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
         self.num_retries = self._get_field('num_retries', 5)
 
@@ -424,7 +424,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             that if the binary is not present in that path it will also be downloaded.
         :type sql_proxy_binary_path: str
         """
-        super(CloudSqlProxyRunner, self).__init__()
+        super().__init__()
         self.path_prefix = path_prefix
         if not self.path_prefix:
             raise AirflowException("The path_prefix must not be empty!")
@@ -716,7 +716,7 @@ class CloudSqlDatabaseHook(BaseHook):
 
     def __init__(self, gcp_cloudsql_conn_id='google_cloud_sql_default',
                  default_gcp_project_id=None):
-        super(CloudSqlDatabaseHook, self).__init__(source=None)
+        super().__init__(source=None)
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.cloudsql_connection = self.get_connection(self.gcp_cloudsql_conn_id)
         self.extras = self.cloudsql_connection.extra_dejson

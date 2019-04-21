@@ -2480,10 +2480,10 @@ class DagModelView(AirflowModelView):
         Default filters for model
         """
         return (
-            super(DagModelView, self).get_query()
-                                     .filter(or_(models.DagModel.is_active,
-                                                 models.DagModel.is_paused))
-                                     .filter(~models.DagModel.is_subdag)
+            super().get_query()
+            .filter(or_(models.DagModel.is_active,
+                        models.DagModel.is_paused))
+            .filter(~models.DagModel.is_subdag)
         )
 
     def get_count_query(self):
@@ -2491,7 +2491,7 @@ class DagModelView(AirflowModelView):
         Default filters for model
         """
         return (
-            super(DagModelView, self).get_count_query()
-                                     .filter(models.DagModel.is_active)
-                                     .filter(~models.DagModel.is_subdag)
+            super().get_count_query()
+            .filter(models.DagModel.is_active)
+            .filter(~models.DagModel.is_subdag)
         )

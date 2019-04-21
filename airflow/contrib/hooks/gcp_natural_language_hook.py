@@ -39,7 +39,7 @@ class CloudNaturalLanguageHook(GoogleCloudBaseHook):
     _conn = None
 
     def __init__(self, gcp_conn_id="google_cloud_default", delegate_to=None):
-        super(CloudNaturalLanguageHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
 
     def get_conn(self):
         """

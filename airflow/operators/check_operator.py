@@ -74,7 +74,7 @@ class CheckOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         self.sql = sql
 
@@ -139,7 +139,7 @@ class ValueCheckOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(ValueCheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.pass_value = str(pass_value)
@@ -253,7 +253,7 @@ class IntervalCheckOperator(BaseOperator):
         conn_id=None,  # type: Optional[str]
         *args, **kwargs
     ):
-        super(IntervalCheckOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if ratio_formula not in self.ratio_formulas:
             msg_template = "Invalid diff_method: {diff_method}. " \
                            "Supported diff methods are: {diff_methods}"
