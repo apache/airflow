@@ -56,7 +56,7 @@ class DingdingHook(HttpHook):
                  *args,
                  **kwargs
                  ):
-        super(DingdingHook, self).__init__(http_conn_id=dingding_conn_id, *args, **kwargs)
+        super().__init__(http_conn_id=dingding_conn_id, *args, **kwargs)
         self.message_type = message_type
         self.message = message
         self.at_mobiles = at_mobiles

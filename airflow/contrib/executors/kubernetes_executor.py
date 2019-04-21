@@ -599,7 +599,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.kube_scheduler = None
         self.kube_client = None
         self.worker_uuid = None
-        super(KubernetesExecutor, self).__init__(parallelism=self.kube_config.parallelism)
+        super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
     def clear_not_launched_queued_tasks(self, session=None):

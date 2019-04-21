@@ -67,7 +67,7 @@ class ECSOperator(BaseOperator):
                  aws_conn_id=None, region_name=None, launch_type='EC2',
                  group=None, placement_constraints=None, platform_version='LATEST',
                  network_configuration=None, **kwargs):
-        super(ECSOperator, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name

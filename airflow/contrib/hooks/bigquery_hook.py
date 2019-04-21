@@ -56,7 +56,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
                  delegate_to=None,
                  use_legacy_sql=True,
                  location=None):
-        super(BigQueryHook, self).__init__(
+        super().__init__(
             gcp_conn_id=bigquery_conn_id, delegate_to=delegate_to)
         self.use_legacy_sql = use_legacy_sql
         self.location = location
@@ -162,7 +162,7 @@ class BigQueryPandasConnector(GbqConnector):
                  reauth=False,
                  verbose=False,
                  dialect='legacy'):
-        super(BigQueryPandasConnector, self).__init__(project_id)
+        super().__init__(project_id)
         gbq_check_google_client_version()
         gbq_test_google_api_imports()
         self.project_id = project_id
@@ -1789,7 +1789,7 @@ class BigQueryCursor(BigQueryBaseCursor):
     """
 
     def __init__(self, service, project_id, use_legacy_sql=True, location=None, num_retries=None):
-        super(BigQueryCursor, self).__init__(
+        super().__init__(
             service=service,
             project_id=project_id,
             use_legacy_sql=use_legacy_sql,

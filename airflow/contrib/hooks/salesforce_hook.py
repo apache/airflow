@@ -53,7 +53,7 @@ class SalesforceHook(BaseHook):
                 `{"security_token":"YOUR_SECURITY_TOKEN"}`
 
         """
-        super(SalesforceHook, self).__init__(conn_id)
+        super().__init__(conn_id)
         self.conn_id = conn_id
         self.conn = None
 

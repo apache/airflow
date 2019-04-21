@@ -407,7 +407,7 @@ class DataprocClusterScaleOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_cluster_name_log_no_sub(self):
-        with patch('airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook') as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterScaleOperator(
                 task_id=TASK_ID,
@@ -471,7 +471,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def test_cluster_name_log_no_sub(self):
-        with patch('airflow.contrib.hooks.gcp_dataproc_hook.DataProcHook') as mock_hook:
+        with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
             mock_hook.return_value.get_conn = self.mock_conn
             dataproc_task = DataprocClusterDeleteOperator(
                 task_id=TASK_ID,

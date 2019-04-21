@@ -35,7 +35,7 @@ class MongoHookTest(MongoHook):
     to get_collection()
     """
     def __init__(self, conn_id='mongo_default', *args, **kwargs):
-        super(MongoHookTest, self).__init__(conn_id=conn_id, *args, **kwargs)
+        super().__init__(conn_id=conn_id, *args, **kwargs)
 
     def get_collection(self, mock_collection, mongo_db=None):
         return mock_collection

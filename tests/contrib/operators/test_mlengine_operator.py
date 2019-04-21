@@ -63,7 +63,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
     }
 
     def setUp(self):
-        super(MLEngineBatchPredictionOperatorTest, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',

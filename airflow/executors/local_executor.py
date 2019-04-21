@@ -64,7 +64,7 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         :param result_queue: the queue to store result states tuples (key, State)
         :type result_queue: multiprocessing.Queue
         """
-        super(LocalWorker, self).__init__()
+        super().__init__()
         self.daemon = True
         self.result_queue = result_queue
         self.key = None
@@ -102,7 +102,7 @@ class QueuedLocalWorker(LocalWorker):
     execution once the poison token is found."""
 
     def __init__(self, task_queue, result_queue):
-        super(QueuedLocalWorker, self).__init__(result_queue=result_queue)
+        super().__init__(result_queue=result_queue)
         self.task_queue = task_queue
 
     def run(self):

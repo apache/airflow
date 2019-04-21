@@ -53,8 +53,8 @@ class GoogleCloudStorageBucketCreateAclEntryOperator(BaseOperator):
     @apply_defaults
     def __init__(self, bucket, entity, role, user_project=None,
                  google_cloud_storage_conn_id='google_cloud_default', *args, **kwargs):
-        super(GoogleCloudStorageBucketCreateAclEntryOperator, self).__init__(*args,
-                                                                             **kwargs)
+        super().__init__(*args,
+                         **kwargs)
         self.bucket = bucket
         self.entity = entity
         self.role = role
@@ -115,8 +115,8 @@ class GoogleCloudStorageObjectCreateAclEntryOperator(BaseOperator):
                  user_project=None,
                  google_cloud_storage_conn_id='google_cloud_default',
                  *args, **kwargs):
-        super(GoogleCloudStorageObjectCreateAclEntryOperator, self).__init__(*args,
-                                                                             **kwargs)
+        super().__init__(*args,
+                         **kwargs)
         self.bucket = bucket
         self.object_name = object_name
         self.entity = entity

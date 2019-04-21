@@ -75,7 +75,7 @@ class GcpSpeechToTextRecognizeSpeechOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
-        super(GcpSpeechToTextRecognizeSpeechOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.audio == "":

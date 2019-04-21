@@ -36,7 +36,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(self, base_log_folder, wasb_log_folder, wasb_container,
                  filename_template, delete_local_copy):
-        super(WasbTaskHandler, self).__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ''
@@ -59,7 +59,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
 
     def set_context(self, ti):
-        super(WasbTaskHandler, self).set_context(ti)
+        super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
@@ -76,7 +76,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        super(WasbTaskHandler, self).close()
+        super().close()
 
         if not self.upload_on_close:
             return
@@ -118,7 +118,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 remote_loc, remote_log)
             return log, {'end_of_log': True}
         else:
-            return super(WasbTaskHandler, self)._read(ti, try_number)
+            return super()._read(ti, try_number)
 
     def wasb_log_exists(self, remote_log_location):
         """

@@ -118,7 +118,7 @@ class TestBase(unittest.TestCase):
 
 class TestConnectionModelView(TestBase):
     def setUp(self):
-        super(TestConnectionModelView, self).setUp()
+        super().setUp()
         self.connection = {
             'conn_id': 'test_conn',
             'conn_type': 'http',
@@ -130,7 +130,7 @@ class TestConnectionModelView(TestBase):
 
     def tearDown(self):
         self.clear_table(Connection)
-        super(TestConnectionModelView, self).tearDown()
+        super().tearDown()
 
     def test_create_connection(self):
         resp = self.client.post('/connection/add',
@@ -141,7 +141,7 @@ class TestConnectionModelView(TestBase):
 
 class TestVariableModelView(TestBase):
     def setUp(self):
-        super(TestVariableModelView, self).setUp()
+        super().setUp()
         self.variable = {
             'key': 'test_key',
             'val': 'text_val',
@@ -150,7 +150,7 @@ class TestVariableModelView(TestBase):
 
     def tearDown(self):
         self.clear_table(models.Variable)
-        super(TestVariableModelView, self).tearDown()
+        super().tearDown()
 
     def test_can_handle_error_on_decrypt(self):
 
@@ -229,7 +229,7 @@ class TestVariableModelView(TestBase):
 
 class TestPoolModelView(TestBase):
     def setUp(self):
-        super(TestPoolModelView, self).setUp()
+        super().setUp()
         self.pool = {
             'pool': 'test-pool',
             'slots': 777,
@@ -238,7 +238,7 @@ class TestPoolModelView(TestBase):
 
     def tearDown(self):
         self.clear_table(models.Pool)
-        super(TestPoolModelView, self).tearDown()
+        super().tearDown()
 
     def test_create_pool_with_same_name(self):
         # create test pool
@@ -306,7 +306,7 @@ class TestAirflowBaseViews(TestBase):
     run_id = "test_{}".format(models.DagRun.id_for_date(EXAMPLE_DAG_DEFAULT_DATE))
 
     def setUp(self):
-        super(TestAirflowBaseViews, self).setUp()
+        super().setUp()
         self.logout()
         self.login()
         self.cleanup_dagruns()
@@ -670,7 +670,7 @@ class TestLogView(TestBase):
         conf.set('core', 'logging_config_class', '')
 
         self.logout()
-        super(TestLogView, self).tearDown()
+        super().tearDown()
 
     @parameterized.expand([
         [State.NONE, 0, 0],
@@ -953,14 +953,14 @@ class TestGraphView(TestBase):
         super(TestGraphView, cls).setUpClass()
 
     def setUp(self):
-        super(TestGraphView, self).setUp()
+        super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GRAPH_ENDPOINT)
         self.tester.setUp()
 
     def tearDown(self):
         self.tester.tearDown()
-        super(TestGraphView, self).tearDown()
+        super().tearDown()
 
     @classmethod
     def tearDownClass(cls):
@@ -992,14 +992,14 @@ class TestGanttView(TestBase):
         super(TestGanttView, cls).setUpClass()
 
     def setUp(self):
-        super(TestGanttView, self).setUp()
+        super().setUp()
         self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
             self, self.GANTT_ENDPOINT)
         self.tester.setUp()
 
     def tearDown(self):
         self.tester.tearDown()
-        super(TestGanttView, self).tearDown()
+        super().tearDown()
 
     @classmethod
     def tearDownClass(cls):
@@ -1061,7 +1061,7 @@ class TestDagACLView(TestBase):
             state=State.RUNNING)
 
     def setUp(self):
-        super(TestDagACLView, self).setUp()
+        super().setUp()
         self.cleanup_dagruns()
         self.prepare_dagruns()
         self.logout()
@@ -1642,7 +1642,7 @@ class TestTaskInstanceView(TestBase):
 class TestTriggerDag(TestBase):
 
     def setUp(self):
-        super(TestTriggerDag, self).setUp()
+        super().setUp()
         self.session = Session()
         models.DagBag().get_dag("example_bash_operator").sync_to_db(session=self.session)
 
@@ -1670,7 +1670,7 @@ class TestTriggerDag(TestBase):
 
 class TestExtraLinks(TestBase):
     def setUp(self):
-        super(TestExtraLinks, self).setUp()
+        super().setUp()
         self.ENDPOINT = "extra_links"
         self.DEFAULT_DATE = datetime(2017, 1, 1)
 
@@ -1702,7 +1702,7 @@ class TestExtraLinks(TestBase):
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
 
     def tearDown(self):
-        super(TestExtraLinks, self).tearDown()
+        super().tearDown()
 
     @mock.patch('airflow.www.views.dagbag.get_dag')
     def test_extra_links_works(self, get_dag_function):

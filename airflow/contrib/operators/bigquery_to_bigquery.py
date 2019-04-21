@@ -69,7 +69,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
                  labels=None,
                  *args,
                  **kwargs):
-        super(BigQueryToBigQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_project_dataset_tables = source_project_dataset_tables
         self.destination_project_dataset_table = destination_project_dataset_table
         self.write_disposition = write_disposition
