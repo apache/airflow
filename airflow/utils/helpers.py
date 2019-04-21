@@ -22,7 +22,6 @@ import errno
 import psutil
 
 from builtins import input
-from past.builtins import basestring
 from datetime import datetime
 from functools import reduce
 import os
@@ -44,7 +43,7 @@ KEY_REGEX = re.compile(r'^[\w\-\.]+$')
 
 
 def validate_key(k, max_length=250):
-    if not isinstance(k, basestring):
+    if not isinstance(k, str):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException(
@@ -104,7 +103,7 @@ def is_container(obj):
     """
     Test if an object is a container (iterable) but not a string
     """
-    return hasattr(obj, '__iter__') and not isinstance(obj, basestring)
+    return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 
 def as_tuple(obj):
@@ -232,7 +231,7 @@ def pprinttable(rows):
     s += separator + '\n'
 
     def f(t):
-        return "{}".format(t) if isinstance(t, basestring) else t
+        return "{}".format(t) if isinstance(t, str) else t
 
     for line in rows:
         s += pattern % tuple(f(t) for t in line) + '\n'
