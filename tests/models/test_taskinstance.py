@@ -38,6 +38,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 
 
@@ -545,40 +546,40 @@ class TaskInstanceTest(unittest.TestCase):
         #
         # Tests for all_success
         #
-        ['all_success', 5, 0, 0, 0, 0, True, None, True],
-        ['all_success', 2, 0, 0, 0, 0, True, None, False],
-        ['all_success', 2, 0, 1, 0, 0, True, State.UPSTREAM_FAILED, False],
-        ['all_success', 2, 1, 0, 0, 0, True, State.SKIPPED, False],
+        [TriggerRule.ALL_SUCCESS, 5, 0, 0, 0, 0, True, None, True],
+        [TriggerRule.ALL_SUCCESS, 2, 0, 0, 0, 0, True, None, False],
+        [TriggerRule.ALL_SUCCESS, 2, 0, 1, 0, 0, True, State.UPSTREAM_FAILED, False],
+        [TriggerRule.ALL_SUCCESS, 2, 1, 0, 0, 0, True, State.SKIPPED, False],
         #
         # Tests for one_success
         #
-        ['one_success', 5, 0, 0, 0, 5, True, None, True],
-        ['one_success', 2, 0, 0, 0, 2, True, None, True],
-        ['one_success', 2, 0, 1, 0, 3, True, None, True],
-        ['one_success', 2, 1, 0, 0, 3, True, None, True],
+        [TriggerRule.ONE_SUCCESS, 5, 0, 0, 0, 5, True, None, True],
+        [TriggerRule.ONE_SUCCESS, 2, 0, 0, 0, 2, True, None, True],
+        [TriggerRule.ONE_SUCCESS, 2, 0, 1, 0, 3, True, None, True],
+        [TriggerRule.ONE_SUCCESS, 2, 1, 0, 0, 3, True, None, True],
         #
         # Tests for all_failed
         #
-        ['all_failed', 5, 0, 0, 0, 5, True, State.SKIPPED, False],
-        ['all_failed', 0, 0, 5, 0, 5, True, None, True],
-        ['all_failed', 2, 0, 0, 0, 2, True, State.SKIPPED, False],
-        ['all_failed', 2, 0, 1, 0, 3, True, State.SKIPPED, False],
-        ['all_failed', 2, 1, 0, 0, 3, True, State.SKIPPED, False],
+        [TriggerRule.ALL_FAILED, 5, 0, 0, 0, 5, True, State.SKIPPED, False],
+        [TriggerRule.ALL_FAILED, 0, 0, 5, 0, 5, True, None, True],
+        [TriggerRule.ALL_FAILED, 2, 0, 0, 0, 2, True, State.SKIPPED, False],
+        [TriggerRule.ALL_FAILED, 2, 0, 1, 0, 3, True, State.SKIPPED, False],
+        [TriggerRule.ALL_FAILED, 2, 1, 0, 0, 3, True, State.SKIPPED, False],
         #
         # Tests for one_failed
         #
-        ['one_failed', 5, 0, 0, 0, 0, True, None, False],
-        ['one_failed', 2, 0, 0, 0, 0, True, None, False],
-        ['one_failed', 2, 0, 1, 0, 0, True, None, True],
-        ['one_failed', 2, 1, 0, 0, 3, True, None, False],
-        ['one_failed', 2, 3, 0, 0, 5, True, State.SKIPPED, False],
+        [TriggerRule.ONE_FAILED, 5, 0, 0, 0, 0, True, None, False],
+        [TriggerRule.ONE_FAILED, 2, 0, 0, 0, 0, True, None, False],
+        [TriggerRule.ONE_FAILED, 2, 0, 1, 0, 0, True, None, True],
+        [TriggerRule.ONE_FAILED, 2, 1, 0, 0, 3, True, None, False],
+        [TriggerRule.ONE_FAILED, 2, 3, 0, 0, 5, True, State.SKIPPED, False],
         #
         # Tests for done
         #
-        ['all_done', 5, 0, 0, 0, 5, True, None, True],
-        ['all_done', 2, 0, 0, 0, 2, True, None, False],
-        ['all_done', 2, 0, 1, 0, 3, True, None, False],
-        ['all_done', 2, 1, 0, 0, 3, True, None, False]
+        [TriggerRule.ALL_DONE, 5, 0, 0, 0, 5, True, None, True],
+        [TriggerRule.ALL_DONE, 2, 0, 0, 0, 2, True, None, False],
+        [TriggerRule.ALL_DONE, 2, 0, 1, 0, 3, True, None, False],
+        [TriggerRule.ALL_DONE, 2, 1, 0, 0, 3, True, None, False]
     ])
     def test_check_task_dependencies(self, trigger_rule, successes, skipped,
                                      failed, upstream_failed, done,

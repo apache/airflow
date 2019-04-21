@@ -23,6 +23,7 @@ import airflow
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import BranchPythonOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 args = {
     'owner': 'airflow',
@@ -51,7 +52,7 @@ run_this_first >> branching
 
 join = DummyOperator(
     task_id='join',
-    trigger_rule='one_success',
+    trigger_rule=TriggerRule.ONE_SUCCESS,
     dag=dag,
 )
 

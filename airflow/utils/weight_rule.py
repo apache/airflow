@@ -17,26 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Set
+from enum import Enum
+from typing import List
 
 
-class WeightRule:
+class WeightRule(Enum):
     DOWNSTREAM = 'downstream'
     UPSTREAM = 'upstream'
     ABSOLUTE = 'absolute'
 
-    _ALL_WEIGHT_RULES = set()  # type: Set[str]
-
     @classmethod
-    def is_valid(cls, weight_rule):
-        return weight_rule in cls.all_weight_rules()
+    def all_weight_rules(cls) -> List[str]:
+        """
+        Return all WeightRule names.
 
-    @classmethod
-    def all_weight_rules(cls):
-        if not cls._ALL_WEIGHT_RULES:
-            cls._ALL_WEIGHT_RULES = {
-                getattr(cls, attr)
-                for attr in dir(cls)
-                if not attr.startswith("_") and not callable(getattr(cls, attr))
-            }
-        return cls._ALL_WEIGHT_RULES
+        :return: List of all WeightRule names
+        :rtype: List[str]
+        """
+        return [wr.name for wr in WeightRule]

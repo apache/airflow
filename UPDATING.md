@@ -24,6 +24,21 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### TriggerRules and WeightRules only by enum members, not by string value
+Passing a string value to `trigger_rule` and `weight_rule` in operators has been removed and only the enum member can be provided.
+
+```python
+# Not possible anymore
+task = DummyOperator(... trigger_rule="all_done" ...)
+task = DummyOperator(... weight_rule="downstream" ...)
+
+# Only valid way of setting trigger_rule/weight_rule
+task = DummyOperator(... trigger_rule=TriggerRule.ALL_DONE ...)
+task = DummyOperator(... weight_rule=WeightRule.DOWNSTREAM ...)
+```
+
+PR: https://github.com/apache/airflow/pull/5302
+
 ### Changes in writing Logs to Elasticsearch
 
 The `elasticsearch_` prefix has been removed from all config items under the `[elasticsearch]` section. For example `elasticsearch_host` is now just `host`.

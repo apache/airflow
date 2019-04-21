@@ -33,6 +33,7 @@ from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from airflow.contrib.operators.qubole_operator import QuboleOperator
+from airflow.utils.trigger_rule import TriggerRule
 import filecmp
 import random
 
@@ -83,14 +84,14 @@ t2 = QuboleOperator(
     tags=['tag1', 'tag2'],
     # If the script at s3 location has any qubole specific macros to be replaced
     # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',
-    trigger_rule="all_done",
+    trigger_rule=TriggerRule.ALL_DONE,
     dag=dag)
 
 t3 = PythonOperator(
     task_id='compare_result',
     provide_context=True,
     python_callable=compare_result,
-    trigger_rule="all_done",
+    trigger_rule=TriggerRule.ALL_DONE,
     dag=dag)
 
 t3.set_upstream(t1)
@@ -106,7 +107,7 @@ branching.set_upstream(t3)
 
 join = DummyOperator(
     task_id='join',
-    trigger_rule='one_success',
+    trigger_rule=TriggerRule.ONE_SUCCESS,
     dag=dag
 )
 
@@ -132,7 +133,7 @@ t5 = QuboleOperator(
     command_type="pigcmd",
     script_location="s3://public-qubole/qbol-library/scripts/script1-hadoop-s3-small.pig",
     parameters="key1=value1 key2=value2",
-    trigger_rule="all_done",
+    trigger_rule=TriggerRule.ALL_DONE,
     dag=dag)
 
 t4.set_upstream(branching)
@@ -150,7 +151,7 @@ t7 = QuboleOperator(
     command_type="shellcmd",
     script_location="s3://public-qubole/qbol-library/scripts/shellx.sh",
     parameters="param1 param2",
-    trigger_rule="all_done",
+    trigger_rule=TriggerRule.ALL_DONE,
     dag=dag)
 
 t6.set_upstream(branching)
@@ -172,7 +173,7 @@ t9 = QuboleOperator(
     db_table='exported_airline_origin_destination',
     partition_spec='dt=20110104-02',
     dbtap_id=2064,
-    trigger_rule="all_done",
+    trigger_rule=TriggerRule.ALL_DONE,
     dag=dag)
 
 t8.set_upstream(branching)
@@ -188,7 +189,7 @@ t10 = QuboleOperator(
     where_clause='id < 10',
     db_parallelism=2,
     dbtap_id=2064,
-    trigger_rule="all_done",
+    trigger_rule=TriggerRule.ALL_DONE,
     dag=dag)
 
 prog = '''

@@ -24,12 +24,12 @@ from airflow.utils.trigger_rule import TriggerRule
 class TestTriggerRule(unittest.TestCase):
 
     def test_valid_trigger_rules(self):
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_SUCCESS))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ALL_DONE))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_SUCCESS))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.ONE_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_FAILED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.NONE_SKIPPED))
-        self.assertTrue(TriggerRule.is_valid(TriggerRule.DUMMY))
+        self.assertTrue(TriggerRule.ALL_SUCCESS in TriggerRule)
+        self.assertTrue(TriggerRule.ALL_FAILED in TriggerRule)
+        self.assertTrue(TriggerRule.ALL_DONE in TriggerRule)
+        self.assertTrue(TriggerRule.ONE_SUCCESS in TriggerRule)
+        self.assertTrue(TriggerRule.ONE_FAILED in TriggerRule)
+        self.assertTrue(TriggerRule.NONE_FAILED in TriggerRule)
+        self.assertTrue(TriggerRule.NONE_SKIPPED in TriggerRule)
+        self.assertTrue(TriggerRule.DUMMY in TriggerRule)
         self.assertEqual(len(TriggerRule.all_triggers()), 8)

@@ -737,19 +737,19 @@ dependency settings.
 
 All operators have a ``trigger_rule`` argument which defines the rule by which
 the generated task get triggered. The default value for ``trigger_rule`` is
-``all_success`` and can be defined as "trigger this task when all directly
+``TriggerRule.ALL_SUCCESS`` and can be defined as "trigger this task when all directly
 upstream tasks have succeeded". All other rules described here are based
 on direct parent tasks and are values that can be passed to any operator
 while creating tasks:
 
-* ``all_success``: (default) all parents have succeeded
-* ``all_failed``: all parents are in a ``failed`` or ``upstream_failed`` state
-* ``all_done``: all parents are done with their execution
-* ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
-* ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
-* ``none_failed``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
-* ``none_skipped``: no parent is in a ``skipped`` state, i.e. all parents are in a ``success``, ``failed``, or ``upstream_failed`` state
-* ``dummy``: dependencies are just for show, trigger at will
+* ``TriggerRule.ALL_SUCCESS``: (default) all parents have succeeded
+* ``TriggerRule.ALL_FAILED``: all parents are in a ``failed`` or ``upstream_failed`` state
+* ``TriggerRule.ALL_DONE``: all parents are done with their execution
+* ``TriggerRule.ONE_FAILED``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
+* ``TriggerRule.ONE_SUCCESS``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
+* ``TriggerRule.NONE_FAILED``: all parents have not failed (``failed`` or ``upstream_failed``) i.e. all parents have succeeded or been skipped
+* ``TriggerRule.NONE_SKIPPED``: no parent is in a ``skipped`` state, i.e. all parents are in a ``success``, ``failed``, or ``upstream_failed`` state
+* ``TriggerRule.DUMMY``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)
 that, when set to ``True``, keeps a task from getting triggered if the
@@ -757,8 +757,8 @@ previous schedule for the task hasn't succeeded.
 
 One must be aware of the interaction between trigger rules and skipped tasks
 in schedule level. Skipped tasks will cascade through trigger rules 
-``all_success`` and ``all_failed`` but not ``all_done``, ``one_failed``, ``one_success``,
-``none_failed``, ``none_skipped`` and ``dummy``.
+``ALL_SUCCESS`` and ``ALL_FAILED`` but not ``ALL_DONE``, ``ONE_FAILED``, ``ONE_SUCCESS``,
+``NONE_FAILED``, ``NONE_SKIPPED`` and ``DUMMY``.
 
 For example, consider the following DAG:
 
@@ -796,24 +796,24 @@ For example, consider the following DAG:
 
 In the case of this DAG, ``join`` is downstream of ``follow_branch_a`` 
 and ``branch_false``. The ``join`` task will show up as skipped 
-because its ``trigger_rule`` is set to ``all_success`` by default and 
+because its ``trigger_rule`` is set to ``TriggerRule.ALL_SUCCESS`` by default and
 skipped tasks will cascade through ``all_success``. 
 
 .. image:: img/branch_without_trigger.png
 
-By setting ``trigger_rule`` to ``none_failed`` in ``join`` task, 
+By setting ``trigger_rule`` to ``TriggerRule.NONE_FAILED`` in ``join`` task,
 
 .. code:: python
   
   #dags/branch_with_trigger.py
   ...
-  join = DummyOperator(task_id='join', dag=dag, trigger_rule='none_failed')
+  join = DummyOperator(task_id='join', dag=dag, trigger_rule=TriggerRule.NONE_FAILED)
   ...
 
 The ``join`` task will be triggered as soon as 
 ``branch_false`` has been skipped (a valid completion state) and 
 ``follow_branch_a`` has succeeded. Because skipped tasks **will not** 
-cascade through ``none_failed``. 
+cascade through ``NONE_FAILED``.
 
 .. image:: img/branch_with_trigger.png
 

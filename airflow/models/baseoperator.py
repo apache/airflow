@@ -25,7 +25,7 @@ import logging
 import sys
 import warnings
 from datetime import timedelta, datetime
-from typing import Callable, Dict, Iterable, List, Optional, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set, Union
 
 import jinja2
 import six
@@ -256,7 +256,7 @@ class BaseOperator(LoggingMixin):
         params: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
         priority_weight: int = 1,
-        weight_rule: str = WeightRule.DOWNSTREAM,
+        weight_rule: Union[WeightRule, str] = WeightRule.DOWNSTREAM,
         queue: str = configuration.conf.get('celery', 'default_queue'),
         pool: Optional[str] = None,
         sla: Optional[timedelta] = None,
@@ -264,7 +264,7 @@ class BaseOperator(LoggingMixin):
         on_failure_callback: Optional[Callable] = None,
         on_success_callback: Optional[Callable] = None,
         on_retry_callback: Optional[Callable] = None,
-        trigger_rule: str = TriggerRule.ALL_SUCCESS,
+        trigger_rule: Union[TriggerRule, str] = TriggerRule.ALL_SUCCESS,
         resources: Optional[Dict] = None,
         run_as_user: Optional[str] = None,
         task_concurrency: Optional[int] = None,
@@ -304,12 +304,24 @@ class BaseOperator(LoggingMixin):
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
 
-        if not TriggerRule.is_valid(trigger_rule):
-            raise AirflowException(
-                "The trigger_rule must be one of {all_triggers},"
-                "'{d}.{t}'; received '{tr}'."
-                .format(all_triggers=TriggerRule.all_triggers(),
-                        d=dag.dag_id if dag else "", t=task_id, tr=trigger_rule))
+        if trigger_rule not in TriggerRule:
+            try:
+                # trigger_rule values such as "all_done" will be converted to the TriggerRule enum
+                trigger_rule = TriggerRule(trigger_rule)
+                warnings.warn(
+                    "Passing TriggerRule as a string is deprecated. "
+                    "Instead the TriggerRule enum should be used: {tr}.".format(tr=trigger_rule),
+                    category=DeprecationWarning,
+                )
+            except ValueError:
+                # trigger_rule object is neither TriggerRule enum or string known to TriggerRule
+                raise AirflowException(
+                    "The trigger_rule must be one of {all_triggers} (received '{received}')."
+                    .format(
+                        all_triggers=["TriggerRule.{k}".format(k=k) for k in TriggerRule.all_triggers()],
+                        received=trigger_rule,
+                    )
+                )
 
         self.trigger_rule = trigger_rule
         self.depends_on_past = depends_on_past
@@ -342,12 +354,25 @@ class BaseOperator(LoggingMixin):
         self.max_retry_delay = max_retry_delay
         self.params = params or {}  # Available in templates!
         self.priority_weight = priority_weight
-        if not WeightRule.is_valid(weight_rule):
-            raise AirflowException(
-                "The weight_rule must be one of {all_weight_rules},"
-                "'{d}.{t}'; received '{tr}'."
-                .format(all_weight_rules=WeightRule.all_weight_rules,
-                        d=dag.dag_id if dag else "", t=task_id, tr=weight_rule))
+
+        if weight_rule not in WeightRule:
+            try:
+                # weight_rule values such as "downstream" will be converted to the WeightRule enum
+                weight_rule = WeightRule(weight_rule)
+                warnings.warn(
+                    "Passing WeightRule as a string is deprecated. "
+                    "Instead the WeightRule enum should be used: {wr}.".format(wr=weight_rule),
+                    category=DeprecationWarning,
+                )
+            except ValueError:
+                # weight_rule object is neither WeightRule enum or string known to WeightRule
+                raise AirflowException(
+                    "The weight_rule must be one of {all_rules} (received '{received}')."
+                    .format(
+                        all_rules=["WeightRule.{k}".format(k=k) for k in WeightRule.all_weight_rules()],
+                        received=weight_rule
+                    )
+                )
         self.weight_rule = weight_rule
 
         self.resources = Resources(**(resources or {}))

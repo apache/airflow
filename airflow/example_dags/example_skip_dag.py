@@ -21,6 +21,7 @@ import airflow
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 args = {
     'owner': 'airflow',
@@ -39,7 +40,7 @@ class DummySkipOperator(DummyOperator):
 def create_test_pipeline(suffix, trigger_rule, dag):
     skip_operator = DummySkipOperator(task_id='skip_operator_{}'.format(suffix), dag=dag)
     always_true = DummyOperator(task_id='always_true_{}'.format(suffix), dag=dag)
-    join = DummyOperator(task_id=trigger_rule, dag=dag, trigger_rule=trigger_rule)
+    join = DummyOperator(task_id=trigger_rule.name.lower(), dag=dag, trigger_rule=trigger_rule)
     final = DummyOperator(task_id='final_{}'.format(suffix), dag=dag)
 
     skip_operator >> join
@@ -48,5 +49,5 @@ def create_test_pipeline(suffix, trigger_rule, dag):
 
 
 dag = DAG(dag_id='example_skip_dag', default_args=args)
-create_test_pipeline('1', 'all_success', dag)
-create_test_pipeline('2', 'one_success', dag)
+create_test_pipeline('1', TriggerRule.ALL_SUCCESS, dag)
+create_test_pipeline('2', TriggerRule.ONE_SUCCESS, dag)
