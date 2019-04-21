@@ -22,7 +22,7 @@ from datetime import datetime
 
 from airflow.contrib.operators.gcs_to_gcs import \
     GoogleCloudStorageToGoogleCloudStorageOperator
-from tests.compat import mock
+from tests.compat import mock, patch
 
 TASK_ID = 'test-gcs-to-gcs-operator'
 TEST_BUCKET = 'test-bucket'
@@ -33,6 +33,7 @@ SOURCE_OBJECT_2 = 'test_object*'
 SOURCE_OBJECT_3 = 'test*object'
 SOURCE_OBJECT_4 = 'test_object*.txt'
 SOURCE_OBJECT_5 = 'test_object.txt'
+SOURCE_OBJECT_6 = 'csv/*/test_*.csv'
 DESTINATION_BUCKET = 'archive'
 DESTINATION_OBJECT_PREFIX = 'foo/bar'
 SOURCE_FILES_LIST = [
@@ -273,3 +274,33 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.rewrite.assert_not_called()
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_execute_more_than_1_wildcard(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_6,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX)
+
+        error_msg = "You can only use one wildcard in source_object parameter."
+
+        with self.assertRaisesRegexp(Exception, error_msg):
+            operator.execute(None)
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_execute_with_empty_destination_bucket(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_5,
+            destination_bucket=None,
+            destination_object=DESTINATION_OBJECT_PREFIX)
+
+        with patch.object(operator.log, 'warning') as mock_warn:
+            operator.execute(None)
+            mock_warn.assert_called_with(
+                'destination_bucket is None. Defaulting it to source_bucket (%s)',
+                TEST_BUCKET
+            )
