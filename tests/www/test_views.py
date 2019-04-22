@@ -33,7 +33,6 @@ from urllib.parse import quote_plus
 import mock
 import jinja2
 from flask import url_for
-from flask._compat import PY2
 from parameterized import parameterized
 from werkzeug.test import Client
 from werkzeug.wrappers import BaseResponse
@@ -110,10 +109,7 @@ class TestBase(unittest.TestCase):
             self.assertNotIn(text, resp_html)
 
     def percent_encode(self, obj):
-        if PY2:
-            return urllib.quote_plus(str(obj))
-        else:
-            return urllib.parse.quote_plus(str(obj))
+        return urllib.parse.quote_plus(str(obj))
 
 
 class TestConnectionModelView(TestBase):

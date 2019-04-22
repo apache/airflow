@@ -41,8 +41,6 @@ try:
     import urllib2 as urllib
 except ImportError:
     import urllib.request as urllib
-if sys.version_info[0] == 3:
-    raw_input = input
 
 try:
     import click

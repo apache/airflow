@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sys import version_info
-
 import base64
 import flask_login
 from flask_login import login_required, current_user, logout_user  # noqa: F401
@@ -42,7 +40,6 @@ login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
 log = LoggingMixin().log
-PY3 = version_info[0] == 3
 
 
 client_auth = None
@@ -64,9 +61,7 @@ class PasswordUser(models.User):
 
     @password.setter
     def password(self, plaintext):
-        self._password = generate_password_hash(plaintext, 12)
-        if PY3:
-            self._password = str(self._password, 'utf-8')
+        self._password = str(generate_password_hash(plaintext, 12), 'utf-8')
 
     def authenticate(self, plaintext):
         return check_password_hash(self._password, plaintext)

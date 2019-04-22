@@ -21,16 +21,11 @@ from datetime import datetime
 
 from bs4 import BeautifulSoup
 import mock
-import six
 from six.moves.urllib.parse import parse_qs
 
 from airflow.www import utils
 
-if six.PY2:
-    # Need `assertRegex` back-ported from unittest2
-    import unittest2 as unittest
-else:
-    import unittest
+import unittest
 
 
 class UtilsTest(unittest.TestCase):
@@ -159,15 +154,15 @@ class UtilsTest(unittest.TestCase):
 
         utils.open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
 
-        assert mocked_is_zipfile.call_count == 1
+        mocked_is_zipfile.assert_called_once()
         (args, kwargs) = mocked_is_zipfile.call_args_list[0]
         self.assertEqual('/path/to/archive.zip', args[0])
 
-        assert mocked_ZipFile.call_count == 1
+        mocked_ZipFile.assert_called_once()
         (args, kwargs) = mocked_ZipFile.call_args_list[0]
         self.assertEqual('/path/to/archive.zip', args[0])
 
-        assert instance.open.call_count == 1
+        instance.open.assert_called_once()
         (args, kwargs) = instance.open.call_args_list[0]
         self.assertEqual('deep/path/to/file.txt', args[0])
 

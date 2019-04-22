@@ -27,11 +27,7 @@ import six
 from airflow import configuration
 from airflow.configuration import conf, AirflowConfigParser, parameterized_config
 
-if six.PY2:
-    # Need `assertWarns` back-ported from unittest2
-    import unittest2 as unittest
-else:
-    import unittest
+import unittest
 
 
 @contextlib.contextmanager

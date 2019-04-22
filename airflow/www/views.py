@@ -37,7 +37,6 @@ import sqlalchemy as sqla
 from flask import (
     redirect, request, Markup, Response, render_template,
     make_response, flash, jsonify, send_file, url_for)
-from flask._compat import PY2
 from flask_appbuilder import BaseView, ModelView, expose, has_access
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
@@ -2157,7 +2156,7 @@ class VariableModelView(AirflowModelView):
     def varimport(self):
         try:
             out = request.files['file'].read()
-            if not PY2 and isinstance(out, bytes):
+            if isinstance(out, bytes):
                 d = json.loads(out.decode('utf-8'))
             else:
                 d = json.loads(out)

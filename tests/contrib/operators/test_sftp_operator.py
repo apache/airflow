@@ -20,7 +20,6 @@
 import os
 import unittest
 from base64 import b64encode
-import six
 
 from airflow import configuration
 from airflow import models
@@ -375,8 +374,6 @@ class SFTPOperatorTest(unittest.TestCase):
         os.environ['AIRFLOW_CONN_' + conn_id.upper()] = "ssh://test_id@localhost"
 
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
-        if six.PY2:
-            self.assertRaisesRegex = self.assertRaisesRegexp
         with self.assertRaisesRegex(AirflowException,
                                     "Cannot operate without ssh_hook or ssh_conn_id."):
             task_0 = SFTPOperator(
