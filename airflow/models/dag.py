@@ -542,7 +542,13 @@ class DAG(BaseDag, LoggingMixin):
 
     @property
     def owner(self):
-        return ", ".join(list(set([t.owner for t in self.tasks])))
+        """
+        Return list of all owners found in DAG tasks.
+
+        :return: Comma separated list of owners in DAG tasks
+        :rtype: str
+        """
+        return ", ".join({t.owner for t in self.tasks})
 
     @provide_session
     def _get_concurrency_reached(self, session=None):
