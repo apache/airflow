@@ -275,8 +275,9 @@ class DataFlowHook(GoogleCloudBaseHook):
         # Builds RuntimeEnvironment from variables dictionary
         # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
         environment = {}
-        for key in ['maxWorkers', 'zone', 'serviceAccountEmail', 'tempLocation',
-                    'bypassTempDirValidation', 'machineType', 'network', 'subnetwork']:
+        for key in ['numWorkers', 'maxWorkers', 'zone', 'serviceAccountEmail',
+                    'tempLocation', 'bypassTempDirValidation', 'machineType',
+                    'additionalExperiments', 'network', 'subnetwork', 'additionalUserLabels']:
             if key in variables:
                 environment.update({key: variables[key]})
         body = {"jobName": name,
