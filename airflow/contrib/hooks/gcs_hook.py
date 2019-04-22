@@ -22,6 +22,7 @@ import os
 import shutil
 
 from google.cloud import storage
+from urllib.parse import urlparse
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
@@ -554,12 +555,6 @@ def _parse_gcs_url(gsurl):
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
     tuple containing the corresponding bucket and blob.
     """
-    # Python 3
-    try:
-        from urllib.parse import urlparse
-    # Python 2
-    except ImportError:
-        from urlparse import urlparse
 
     parsed_url = urlparse(gsurl)
     if not parsed_url.netloc:

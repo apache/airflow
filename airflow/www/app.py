@@ -19,21 +19,21 @@
 #
 import logging
 import socket
-from typing import Any
 
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
-from six.moves.urllib.parse import urlparse
-from werkzeug.wsgi import DispatcherMiddleware
+from typing import Any
+from urllib.parse import urlparse
 from werkzeug.contrib.fixers import ProxyFix
+from werkzeug.wsgi import DispatcherMiddleware
 
-from airflow import settings
 from airflow import configuration as conf
+from airflow import settings
 from airflow.logging_config import configure_logging
-from airflow.www.static_config import configure_manifest_files
 from airflow.utils.json import AirflowJsonEncoder
+from airflow.www.static_config import configure_manifest_files
 
 app = None  # type: Any
 appbuilder = None
