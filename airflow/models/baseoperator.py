@@ -274,7 +274,7 @@ class BaseOperator(LoggingMixin):
         *args,
         **kwargs
     ):
-
+        super().__init__(*args, **kwargs)
         if args or kwargs:
             # TODO remove *args and **kwargs in Airflow 2.0
             warnings.warn(
