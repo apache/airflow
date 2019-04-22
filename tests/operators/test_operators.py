@@ -17,8 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import print_function
-
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
 

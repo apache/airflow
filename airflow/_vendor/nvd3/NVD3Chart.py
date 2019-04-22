@@ -9,7 +9,6 @@ for d3.js without taking away the power that d3.js gives you.
 Project location : https://github.com/areski/python-nvd3
 """
 
-from __future__ import unicode_literals
 from optparse import OptionParser
 from jinja2 import Environment, PackageLoader
 from airflow._vendor.slugify import slugify
