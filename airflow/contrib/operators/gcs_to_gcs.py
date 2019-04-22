@@ -20,6 +20,9 @@
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.exceptions import AirflowException
+
+WILDCARD = '*'
 
 
 class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
@@ -37,7 +40,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         unsupported.
     :type source_object: str
     :param destination_bucket: The destination Google cloud storage bucket
-        where the object should be. (templated)
+        where the object should be. If the destination_bucket is None, it defaults
+        to source_bucket. (templated)
     :type destination_bucket: str
     :param destination_object: The destination name of the object in the
         destination Google cloud storage bucket. (templated)
@@ -61,8 +65,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param last_modified_time: When specified, if the object(s) were
-        modified after last_modified_time, they will be copied/moved.
+    :param last_modified_time: When specified, the objects will be copied or moved,
+        only if they were modified after last_modified_time.
         If tzinfo has not been set, UTC will be assumed.
     :type last_modified_time: datetime.datetime
 
@@ -135,7 +139,6 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
         self.last_modified_time = last_modified_time
-        self.wildcard = '*'
 
     def execute(self, context):
 
@@ -143,51 +146,54 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to
         )
-        log_message = 'Executing copy of gs://{0}/{1} to gs://{2}/{3}'
 
-        if self.wildcard in self.source_object:
-            prefix, delimiter = self.source_object.split(self.wildcard, 1)
+        if self.destination_bucket is None:
+            self.log.warning(
+                'destination_bucket is None. Defaulting it to source_bucket (%s)',
+                self.source_bucket)
+            self.destination_bucket = self.source_bucket
+
+        if WILDCARD in self.source_object:
+            total_wildcards = self.source_object.count(WILDCARD)
+            if total_wildcards > 1:
+                error_msg = "Only one wildcard '*' is allowed in source_object parameter. " \
+                            "Found {} in {}.".format(total_wildcards, self.source_object)
+
+                raise AirflowException(error_msg)
+
+            prefix, delimiter = self.source_object.split(WILDCARD, 1)
             objects = hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
-                if self.last_modified_time is not None:
-                    # Check to see if object was modified after last_modified_time
-                    if hook.is_updated_after(self.source_bucket, source_object,
-                                             self.last_modified_time):
-                        pass
-                    else:
-                        continue
                 if self.destination_object is None:
                     destination_object = source_object
                 else:
                     destination_object = source_object.replace(prefix,
                                                                self.destination_object, 1)
-                self.log.info(
-                    log_message.format(self.source_bucket, source_object,
-                                       self.destination_bucket, destination_object)
-                )
 
-                hook.rewrite(self.source_bucket, source_object,
-                             self.destination_bucket, destination_object)
-                if self.move_object:
-                    hook.delete(self.source_bucket, source_object)
-
+                self._copy_single_object(hook=hook, source_object=source_object,
+                                         destination_object=destination_object)
         else:
-            if self.last_modified_time is not None:
-                if hook.is_updated_after(self.source_bucket,
-                                         self.source_object,
-                                         self.last_modified_time):
-                    pass
-                else:
-                    return
+            self._copy_single_object(hook=hook, source_object=self.source_object,
+                                     destination_object=self.destination_object)
 
-            self.log.info(
-                log_message.format(self.source_bucket, self.source_object,
-                                   self.destination_bucket or self.source_bucket,
-                                   self.destination_object or self.source_object)
-            )
-            hook.rewrite(self.source_bucket, self.source_object,
-                         self.destination_bucket, self.destination_object)
+    def _copy_single_object(self, hook, source_object, destination_object):
+        if self.last_modified_time is not None:
+            # Check to see if object was modified after last_modified_time
+            if hook.is_updated_after(self.source_bucket,
+                                     source_object,
+                                     self.last_modified_time):
+                self.log.debug("Object has been modified after %s ", self.last_modified_time)
+                pass
+            else:
+                return
 
-            if self.move_object:
-                hook.delete(self.source_bucket, self.source_object)
+        self.log.info('Executing copy of gs://%s/%s to gs://%s/%s',
+                      self.source_bucket, source_object,
+                      self.destination_bucket, destination_object)
+
+        hook.rewrite(self.source_bucket, source_object,
+                     self.destination_bucket, destination_object)
+
+        if self.move_object:
+            hook.delete(self.source_bucket, source_object)
