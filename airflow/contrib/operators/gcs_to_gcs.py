@@ -20,6 +20,9 @@
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.exceptions import AirflowException
+
+WILDCARD = '*'
 
 
 class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
@@ -37,7 +40,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         unsupported.
     :type source_object: str
     :param destination_bucket: The destination Google cloud storage bucket
-        where the object should be. (templated)
+        where the object should be. If the destination_bucket is None, it defaults
+        to source_bucket. (templated)
     :type destination_bucket: str
     :param destination_object: The destination name of the object in the
         destination Google cloud storage bucket. (templated)
@@ -61,8 +65,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: str
-    :param last_modified_time: When specified, if the object(s) were
-        modified after last_modified_time, they will be copied/moved.
+    :param last_modified_time: When specified, the objects will be copied or moved,
+        only if they were modified after last_modified_time.
         If tzinfo has not been set, UTC will be assumed.
     :type last_modified_time: datetime.datetime
 
@@ -135,7 +139,6 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
         self.last_modified_time = last_modified_time
-        self.wildcard = '*'
 
     def execute(self, context):
 
@@ -150,12 +153,15 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                 self.source_bucket)
             self.destination_bucket = self.source_bucket
 
-        if self.wildcard in self.source_object:
+        if WILDCARD in self.source_object:
+            total_wildcards = self.source_object.count(WILDCARD)
+            if total_wildcards > 1:
+                error_msg = "Only one wildcard '*' is allowed in source_object parameter. " \
+                            "Found {} in {}.".format(total_wildcards, self.source_object)
 
-            if self.source_object.count(self.wildcard) > 1:
-                raise Exception("You can only use one wildcard in source_object parameter.")
+                raise AirflowException(error_msg)
 
-            prefix, delimiter = self.source_object.split(self.wildcard, 1)
+            prefix, delimiter = self.source_object.split(WILDCARD, 1)
             objects = hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
@@ -177,6 +183,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             if hook.is_updated_after(self.source_bucket,
                                      source_object,
                                      self.last_modified_time):
+                self.log.debug("Object has been modified after %s ", self.last_modified_time)
                 pass
             else:
                 return
