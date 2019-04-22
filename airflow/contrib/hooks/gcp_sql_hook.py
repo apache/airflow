@@ -33,7 +33,7 @@ import os.path
 
 from googleapiclient.errors import HttpError
 from subprocess import Popen, PIPE
-from six.moves.urllib.parse import quote_plus
+from urllib.parse import quote_plus
 
 import requests
 from googleapiclient.discovery import build

@@ -18,10 +18,11 @@
 # under the License.
 
 from datetime import datetime
+from urllib.parse import parse_qs
 
-from bs4 import BeautifulSoup
 import mock
-from six.moves.urllib.parse import parse_qs
+import six
+from bs4 import BeautifulSoup
 
 from airflow.www import utils
 
