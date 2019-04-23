@@ -89,4 +89,3 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                 raise RuntimeError(
                     'The size of the downloaded file is too large to push to XCom!'
                 )
-        self.log.debug(file_bytes)
