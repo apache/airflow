@@ -38,7 +38,7 @@ from flask import request, Response, Markup, url_for
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from airflow import configuration
 from airflow.models import BaseOperator
