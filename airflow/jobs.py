@@ -633,6 +633,14 @@ class SchedulerJob(BaseJob):
             self.log.info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
+        # This is a temporary fix for 1.10.4 release.
+        # Background: AIRFLOW-4297
+        # TODO: refactor manage_slas() to handle related issues.
+        if dag._schedule_interval is None:
+            self.log.info("SLA check for DAGs with schedule_interval 'None'/'@once' are "
+                          "skipped in 1.10.4, due to related refactoring going on.")
+            return
+
         TI = models.TaskInstance
         sq = (
             session
