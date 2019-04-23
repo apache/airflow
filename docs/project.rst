@@ -54,6 +54,7 @@ Committers
 - @XD-DENG (Xiaodong Deng)
 - @dimberman (Daniel Imberman)
 - @potiuk (Jarek Potiuk)
+- @basph (Bas Harenslak)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
