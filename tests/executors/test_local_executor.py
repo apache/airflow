@@ -21,7 +21,6 @@ import unittest
 
 from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
-from airflow.utils.timeout import timeout
 
 
 class LocalExecutorTest(unittest.TestCase):
@@ -38,8 +37,8 @@ class LocalExecutorTest(unittest.TestCase):
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key, command = success_key.format(i), success_command
-            executor.execute_async(key=key, command=command)
             executor.running[key] = True
+            executor.execute_async(key=key, command=command)
 
         # errors are propagated for some reason
         try:
@@ -49,11 +48,7 @@ class LocalExecutorTest(unittest.TestCase):
 
         executor.running['fail'] = True
 
-        if parallelism == 0:
-            with timeout(seconds=10):
-                executor.end()
-        else:
-            executor.end()
+        executor.end()
 
         if isinstance(executor.impl, LocalExecutor._LimitedParallelism):
             self.assertTrue(executor.queue.empty())
