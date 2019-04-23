@@ -1839,6 +1839,15 @@ class SkipMixin(object):
 
         return all_downstream
 
+    def find_all_downstream_skippable(self, task):
+        immediate_downstream = task.downstream_list
+        all_downstream = []
+        for downstream_task in immediate_downstream:
+            if downstream_task.trigger_rule in ['all_success', 'all_failed']:
+                all_downstream.append(downstream_task)
+        for downstream_task in all_downstream:
+            all_downstream.extend(self.find_all_downstream_tasks(downstream_task))
+
 
 @functools.total_ordering
 class BaseOperator(object):

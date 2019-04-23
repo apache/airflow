@@ -124,7 +124,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_2.set_upstream(self.branch_op)
         self.branch_2_sub_branch = BranchPythonOperator(task_id='make_choice_skipped',
                                                         dag=self.dag,
-                                                        python_callable=lambda: 'branch_1')
+                                                        python_callable=lambda: 'sub_branch_1')
         self.branch_2_sub_branch.set_upstream(self.branch_2)
         self.sub_branch_1 = DummyOperator(task_id='sub_branch_1', dag=self.dag)
         self.sub_branch_1.set_upstream(self.branch_2_sub_branch)
