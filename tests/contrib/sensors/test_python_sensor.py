@@ -58,6 +58,7 @@ class PythonSensorTests(unittest.TestCase):
         t = PythonSensor(
             task_id='python_sensor_check_false',
             timeout=1,
+            poke_interval=0,
             python_callable=lambda: False,
             dag=self.dag)
         with self.assertRaises(AirflowSensorTimeout):
