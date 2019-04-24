@@ -173,7 +173,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         mods = []
         is_zipfile = zipfile.is_zipfile(filepath)
         if not is_zipfile:
-            if safe_mode and os.path.isfile(filepath):
+            if safe_mode:
                 with open(filepath, 'rb') as f:
                     content = f.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
