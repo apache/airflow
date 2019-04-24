@@ -416,8 +416,8 @@ def dag_run(dag_id, execution_date):
         return response
 
     if not dagruns:
-        err = "No Dag run found with provided execution date"
-        response = jsonify(error="{}".format(err))
+        error_message = "No Dag run found with provided execution date"
+        response = jsonify(error="{}".format(error_message))
         response.status_code = 404
         return response
     return jsonify(dagruns[0])
