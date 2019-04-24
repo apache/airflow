@@ -144,7 +144,7 @@ class GcpFieldValidationException(AirflowException):
     """
 
     def __init__(self, message):
-        super(GcpFieldValidationException, self).__init__(message)
+        super().__init__(message)
 
 
 class GcpValidationSpecificationException(AirflowException):
@@ -155,7 +155,7 @@ class GcpValidationSpecificationException(AirflowException):
     """
 
     def __init__(self, message):
-        super(GcpValidationSpecificationException, self).__init__(message)
+        super().__init__(message)
 
 
 def _int_greater_than_zero(value):
@@ -196,7 +196,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     """
     def __init__(self, validation_specs, api_version):
         # type: (Sequence[Dict], str) -> None
-        super(GcpBodyFieldValidator, self).__init__()
+        super().__init__()
         self._validation_specs = validation_specs
         self._api_version = api_version
 

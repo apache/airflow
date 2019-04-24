@@ -46,13 +46,13 @@ class TestLocalClient(unittest.TestCase):
         DagBag(example_bash_operator.__file__).get_dag("example_bash_operator").sync_to_db()
 
     def setUp(self):
-        super(TestLocalClient, self).setUp()
+        super().setUp()
         clear_db_pools()
         self.client = Client(api_base_url=None, auth=None)
 
     def tearDown(self):
         clear_db_pools()
-        super(TestLocalClient, self).tearDown()
+        super().tearDown()
 
     @patch.object(models.DAG, 'create_dagrun')
     def test_trigger_dag(self, mock):

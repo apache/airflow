@@ -42,7 +42,7 @@ class DruidOperator(BaseOperator):
                  druid_ingest_conn_id='druid_ingest_default',
                  max_ingestion_time=None,
                  *args, **kwargs):
-        super(DruidOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.conn_id = druid_ingest_conn_id
         self.max_ingestion_time = max_ingestion_time
 

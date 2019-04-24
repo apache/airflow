@@ -81,7 +81,7 @@ class HiveToDruidTransfer(BaseOperator):
             hive_tblproperties=None,
             job_properties=None,
             *args, **kwargs):
-        super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.druid_datasource = druid_datasource
         self.ts_dim = ts_dim

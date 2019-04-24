@@ -40,7 +40,7 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
                  aws_conn_id='aws_default',
                  *args,
                  **kwargs):
-        super(AwsRedshiftClusterSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
         self.aws_conn_id = aws_conn_id

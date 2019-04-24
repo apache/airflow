@@ -49,7 +49,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
                  delegate_to=None,
                  *args, **kwargs):
 
-        super(GoogleCloudStorageObjectSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.object = object
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -105,7 +105,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
                  delegate_to=None,
                  *args, **kwargs):
 
-        super(GoogleCloudStorageObjectUpdatedSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.object = object
         self.ts_func = ts_func
@@ -147,7 +147,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
                  google_cloud_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args, **kwargs):
-        super(GoogleCloudStoragePrefixSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.prefix = prefix
         self.google_cloud_conn_id = google_cloud_conn_id

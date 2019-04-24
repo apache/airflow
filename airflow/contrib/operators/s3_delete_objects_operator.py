@@ -68,7 +68,7 @@ class S3DeleteObjectsOperator(BaseOperator):
             aws_conn_id='aws_default',
             verify=None,
             *args, **kwargs):
-        super(S3DeleteObjectsOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = bucket
         self.keys = keys
         self.aws_conn_id = aws_conn_id

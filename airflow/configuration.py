@@ -146,7 +146,7 @@ class AirflowConfigParser(ConfigParser):
     }
 
     def __init__(self, default_config=None, *args, **kwargs):
-        super(AirflowConfigParser, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.airflow_defaults = ConfigParser(*args, **kwargs)
         if default_config is not None:
@@ -198,10 +198,8 @@ class AirflowConfigParser(ConfigParser):
         fallback_key = key + '_cmd'
         # if this is a valid command key...
         if (section, key) in self.as_command_stdout:
-            if super(AirflowConfigParser, self) \
-                    .has_option(section, fallback_key):
-                command = super(AirflowConfigParser, self) \
-                    .get(section, fallback_key)
+            if super().has_option(section, fallback_key):
+                command = super().get(section, fallback_key)
                 return run_command(command)
 
     def get(self, section, key, **kwargs):
@@ -221,15 +219,15 @@ class AirflowConfigParser(ConfigParser):
                 return option
 
         # ...then the config file
-        if super(AirflowConfigParser, self).has_option(section, key):
+        if super().has_option(section, key):
             # Use the parent's methods to get the actual config here to be able to
             # separate the config from default config.
             return expand_env_var(
-                super(AirflowConfigParser, self).get(section, key, **kwargs))
+                super().get(section, key, **kwargs))
         if deprecated_name:
-            if super(AirflowConfigParser, self).has_option(section, deprecated_name):
+            if super().has_option(section, deprecated_name):
                 self._warn_deprecate(section, key, deprecated_name)
-                return expand_env_var(super(AirflowConfigParser, self).get(
+                return expand_env_var(super().get(
                     section,
                     deprecated_name,
                     **kwargs
@@ -279,11 +277,11 @@ class AirflowConfigParser(ConfigParser):
         return float(self.get(section, key, **kwargs))
 
     def read(self, filenames, **kwargs):
-        super(AirflowConfigParser, self).read(filenames, **kwargs)
+        super().read(filenames, **kwargs)
         self._validate()
 
     def read_dict(self, *args, **kwargs):
-        super(AirflowConfigParser, self).read_dict(*args, **kwargs)
+        super().read_dict(*args, **kwargs)
         self._validate()
 
     def has_option(self, section, option):
@@ -302,8 +300,8 @@ class AirflowConfigParser(ConfigParser):
         default config. If both of config have the same option, this removes
         the option in both configs unless remove_default=False.
         """
-        if super(AirflowConfigParser, self).has_option(section, option):
-            super(AirflowConfigParser, self).remove_option(section, option)
+        if super().has_option(section, option):
+            super().remove_option(section, option)
 
         if self.airflow_defaults.has_option(section, option) and remove_default:
             self.airflow_defaults.remove_option(section, option)

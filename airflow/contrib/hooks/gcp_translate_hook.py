@@ -29,7 +29,7 @@ class CloudTranslateHook(GoogleCloudBaseHook):
     _client = None
 
     def __init__(self, gcp_conn_id='google_cloud_default'):
-        super(CloudTranslateHook, self).__init__(gcp_conn_id)
+        super().__init__(gcp_conn_id)
 
     def get_conn(self):
         """

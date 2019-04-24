@@ -29,7 +29,7 @@ from airflow.hooks.presto_hook import PrestoHook
 class TestPrestoHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestPrestoHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()

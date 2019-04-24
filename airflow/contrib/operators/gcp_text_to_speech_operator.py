@@ -99,7 +99,7 @@ class GcpTextToSpeechSynthesizeOperator(BaseOperator):
         self.retry = retry
         self.timeout = timeout
         self._validate_inputs()
-        super(GcpTextToSpeechSynthesizeOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         for parameter in [

@@ -51,7 +51,7 @@ class SQSPublishOperator(BaseOperator):
                  aws_conn_id='aws_default',
                  *args,
                  **kwargs):
-        super(SQSPublishOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.message_content = message_content

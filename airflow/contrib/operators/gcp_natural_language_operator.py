@@ -62,7 +62,7 @@ class CloudLanguageAnalyzeEntitiesOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeEntitiesOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -123,7 +123,7 @@ class CloudLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeEntitySentimentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -187,7 +187,7 @@ class CloudLanguageAnalyzeSentimentOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageAnalyzeSentimentOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.encoding_type = encoding_type
         self.retry = retry
@@ -243,7 +243,7 @@ class CloudLanguageClassifyTextOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudLanguageClassifyTextOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.document = document
         self.retry = retry
         self.timeout = timeout

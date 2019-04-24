@@ -161,7 +161,7 @@ class CloudSqlBaseOperator(BaseOperator):
         self._validate_inputs()
         self._hook = CloudSqlHook(gcp_conn_id=self.gcp_conn_id,
                                   api_version=self.api_version)
-        super(CloudSqlBaseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if self.project_id == '':
@@ -240,12 +240,12 @@ class CloudSqlInstanceCreateOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceCreateOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceCreateOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -312,12 +312,12 @@ class CloudSqlInstancePatchOperator(CloudSqlBaseOperator):
                  api_version='v1beta4',
                  *args, **kwargs):
         self.body = body
-        super(CloudSqlInstancePatchOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstancePatchOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -362,7 +362,7 @@ class CloudSqlInstanceDeleteOperator(CloudSqlBaseOperator):
                  gcp_conn_id='google_cloud_default',
                  api_version='v1beta4',
                  *args, **kwargs):
-        super(CloudSqlInstanceDeleteOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
@@ -415,12 +415,12 @@ class CloudSqlInstanceDatabaseCreateOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceDatabaseCreateOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceDatabaseCreateOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -492,12 +492,12 @@ class CloudSqlInstanceDatabasePatchOperator(CloudSqlBaseOperator):
         self.database = database
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceDatabasePatchOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceDatabasePatchOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
         if not self.database:
@@ -557,12 +557,12 @@ class CloudSqlInstanceDatabaseDeleteOperator(CloudSqlBaseOperator):
                  api_version='v1beta4',
                  *args, **kwargs):
         self.database = database
-        super(CloudSqlInstanceDatabaseDeleteOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceDatabaseDeleteOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.database:
             raise AirflowException("The required parameter 'database' is empty")
 
@@ -621,12 +621,12 @@ class CloudSqlInstanceExportOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceExportOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceExportOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -697,12 +697,12 @@ class CloudSqlInstanceImportOperator(CloudSqlBaseOperator):
                  *args, **kwargs):
         self.body = body
         self.validate_body = validate_body
-        super(CloudSqlInstanceImportOperator, self).__init__(
+        super().__init__(
             project_id=project_id, instance=instance, gcp_conn_id=gcp_conn_id,
             api_version=api_version, *args, **kwargs)
 
     def _validate_inputs(self):
-        super(CloudSqlInstanceImportOperator, self)._validate_inputs()
+        super()._validate_inputs()
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
@@ -761,7 +761,7 @@ class CloudSqlQueryOperator(BaseOperator):
                  gcp_conn_id='google_cloud_default',
                  gcp_cloudsql_conn_id='google_cloud_sql_default',
                  *args, **kwargs):
-        super(CloudSqlQueryOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.gcp_conn_id = gcp_conn_id
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id

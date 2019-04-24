@@ -37,7 +37,7 @@ class SnowflakeHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs):
-        super(SnowflakeHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.account = kwargs.pop("account", None)
         self.warehouse = kwargs.pop("warehouse", None)
         self.database = kwargs.pop("database", None)

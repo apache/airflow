@@ -28,7 +28,7 @@ from tests.contrib.utils.gcp_authenticator import GCP_FUNCTION_KEY
     DagGcpSystemTestCase.skip_check(GCP_FUNCTION_KEY), SKIP_TEST_WARNING)
 class GcpFunctionExampleDagsSystemTest(DagGcpSystemTestCase):
     def __init__(self, method_name='runTest'):
-        super(GcpFunctionExampleDagsSystemTest, self).__init__(
+        super().__init__(
             method_name,
             dag_id='example_gcp_function',
             gcp_key=GCP_FUNCTION_KEY)

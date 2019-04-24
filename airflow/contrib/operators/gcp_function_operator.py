@@ -139,7 +139,7 @@ class GcfFunctionDeployOperator(BaseOperator):
                                                           api_version=api_version)
         self._hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
         self._validate_inputs()
-        super(GcfFunctionDeployOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.location:
@@ -305,7 +305,7 @@ class GcfFunctionDeleteOperator(BaseOperator):
         self.api_version = api_version
         self._validate_inputs()
         self.hook = GcfHook(gcp_conn_id=self.gcp_conn_id, api_version=self.api_version)
-        super(GcfFunctionDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.name:

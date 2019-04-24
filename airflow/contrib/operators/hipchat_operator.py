@@ -45,7 +45,7 @@ class HipChatAPIOperator(BaseOperator):
                  base_url='https://api.hipchat.com/v2',
                  *args,
                  **kwargs):
-        super(HipChatAPIOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.token = token
         self.base_url = base_url
         self.method = None
@@ -107,7 +107,7 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     def __init__(self, room_id, message, message_format='html',
                  color='yellow', frm='airflow', attach_to=None,
                  notify=False, card=None, *args, **kwargs):
-        super(HipChatAPISendRoomNotificationOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.room_id = room_id
         self.message = message
         self.message_format = message_format

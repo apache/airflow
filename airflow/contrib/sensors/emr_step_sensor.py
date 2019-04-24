@@ -43,7 +43,7 @@ class EmrStepSensor(EmrBaseSensor):
                  step_id,
                  *args,
                  **kwargs):
-        super(EmrStepSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
         self.step_id = step_id
 

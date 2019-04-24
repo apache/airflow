@@ -88,7 +88,7 @@ class BaseJobTest(unittest.TestCase):
 
         def __init__(self, cb):
             self.cb = cb
-            super(BaseJobTest.TestJob, self).__init__()
+            super().__init__()
 
         def _execute(self):
             return self.cb()

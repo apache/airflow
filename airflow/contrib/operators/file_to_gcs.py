@@ -56,7 +56,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
                  gzip=False,
                  *args,
                  **kwargs):
-        super(FileToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.src = src
         self.dst = dst
         self.bucket = bucket

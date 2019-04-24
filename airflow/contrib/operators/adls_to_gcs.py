@@ -100,7 +100,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
                  *args,
                  **kwargs):
 
-        super(AdlsToGoogleCloudStorageOperator, self).__init__(
+        super().__init__(
             path=src_adls,
             azure_data_lake_conn_id=azure_data_lake_conn_id,
             *args,
@@ -114,7 +114,7 @@ class AdlsToGoogleCloudStorageOperator(AzureDataLakeStorageListOperator):
 
     def execute(self, context):
         # use the super to list all files in an Azure Data Lake path
-        files = super(AdlsToGoogleCloudStorageOperator, self).execute(context)
+        files = super().execute(context)
         g_hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to)

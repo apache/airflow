@@ -40,7 +40,7 @@ class WorkerConfiguration(LoggingMixin):
         self.worker_airflow_dags = self.kube_config.dags_folder
         self.worker_airflow_logs = self.kube_config.base_log_folder
 
-        super(WorkerConfiguration, self).__init__()
+        super().__init__()
 
     def _get_init_containers(self):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""

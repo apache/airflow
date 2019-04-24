@@ -182,7 +182,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(MLEngineBatchPredictionOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self._project_id = project_id
         self._job_id = job_id
@@ -315,7 +315,7 @@ class MLEngineModelOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(MLEngineModelOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._model = model
         self._operation = operation
@@ -407,7 +407,7 @@ class MLEngineVersionOperator(BaseOperator):
                  *args,
                  **kwargs):
 
-        super(MLEngineVersionOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._model_name = model_name
         self._version_name = version_name
@@ -535,7 +535,7 @@ class MLEngineTrainingOperator(BaseOperator):
                  mode='PRODUCTION',
                  *args,
                  **kwargs):
-        super(MLEngineTrainingOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._project_id = project_id
         self._job_id = job_id
         self._package_uris = package_uris

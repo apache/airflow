@@ -29,11 +29,11 @@ from airflow.hooks.postgres_hook import PostgresHook
 class TestPostgresHook(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(TestPostgresHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.table = "test_postgres_hook_table"
 
     def setUp(self):
-        super(TestPostgresHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = conn = mock.MagicMock()
@@ -48,7 +48,7 @@ class TestPostgresHook(unittest.TestCase):
         self.db_hook = UnitTestPostgresHook()
 
     def tearDown(self):
-        super(TestPostgresHook, self).tearDown()
+        super().tearDown()
 
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:

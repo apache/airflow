@@ -36,7 +36,7 @@ from tests.compat import mock
 class TestOracleHookConn(unittest.TestCase):
 
     def setUp(self):
-        super(TestOracleHookConn, self).setUp()
+        super().setUp()
 
         self.connection = Connection(
             login='login',
@@ -174,7 +174,7 @@ class TestOracleHookConn(unittest.TestCase):
 @unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')
 class TestOracleHook(unittest.TestCase):
     def setUp(self):
-        super(TestOracleHook, self).setUp()
+        super().setUp()
 
         self.cur = mock.MagicMock()
         self.conn = mock.MagicMock()

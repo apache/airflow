@@ -28,7 +28,7 @@ from airflow.contrib.hooks import ftp_hook as fh
 class TestFTPHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestFTPHook, self).setUp()
+        super().setUp()
         self.path = '/some/path'
         self.conn_mock = mock.MagicMock(name='conn')
         self.get_conn_orig = fh.FTPHook.get_conn
@@ -41,7 +41,7 @@ class TestFTPHook(unittest.TestCase):
 
     def tearDown(self):
         fh.FTPHook.get_conn = self.get_conn_orig
-        super(TestFTPHook, self).tearDown()
+        super().tearDown()
 
     def test_close_conn(self):
         ftp_hook = fh.FTPHook()
@@ -128,7 +128,7 @@ class TestFTPHook(unittest.TestCase):
 class TestIntegrationFTPHook(unittest.TestCase):
 
     def setUp(self):
-        super(TestIntegrationFTPHook, self).setUp()
+        super().setUp()
         from airflow import configuration
         from airflow.utils import db
         from airflow.models import Connection

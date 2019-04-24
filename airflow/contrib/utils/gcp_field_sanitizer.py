@@ -109,7 +109,7 @@ class GcpFieldSanitizerException(AirflowException):
     """
 
     def __init__(self, message):
-        super(GcpFieldSanitizerException, self).__init__(message)
+        super().__init__(message)
 
 
 class GcpBodyFieldSanitizer(LoggingMixin):
@@ -121,7 +121,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
     """
     def __init__(self, sanitize_specs):
         # type: (List[str]) -> None
-        super(GcpBodyFieldSanitizer, self).__init__()
+        super().__init__()
         self._sanitize_specs = sanitize_specs
 
     def _sanitize(self, dictionary, remaining_field_spec, current_path):

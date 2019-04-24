@@ -128,7 +128,7 @@ class SageMakerHook(AwsHook):
 
     def __init__(self,
                  *args, **kwargs):
-        super(SageMakerHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
     def tar_and_s3_upload(self, path, key, bucket):

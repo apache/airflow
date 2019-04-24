@@ -72,7 +72,7 @@ class PythonOperatorTest(unittest.TestCase):
             session.query(TI).delete()
 
     def setUp(self):
-        super(PythonOperatorTest, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',
@@ -85,7 +85,7 @@ class PythonOperatorTest(unittest.TestCase):
         self.addCleanup(self.clear_run)
 
     def tearDown(self):
-        super(PythonOperatorTest, self).tearDown()
+        super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -265,7 +265,7 @@ class BranchOperatorTest(unittest.TestCase):
         self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
 
     def tearDown(self):
-        super(BranchOperatorTest, self).tearDown()
+        super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -429,7 +429,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
             session.query(TI).delete()
 
     def tearDown(self):
-        super(ShortCircuitOperatorTest, self).tearDown()
+        super().tearDown()
 
         with create_session() as session:
             session.query(DagRun).delete()

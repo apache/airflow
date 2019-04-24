@@ -46,7 +46,7 @@ class SnowflakeOperator(BaseOperator):
     def __init__(
             self, sql, snowflake_conn_id='snowflake_default', parameters=None,
             autocommit=True, warehouse=None, database=None, *args, **kwargs):
-        super(SnowflakeOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit

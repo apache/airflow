@@ -40,7 +40,7 @@ class GKEClusterHook(GoogleCloudBaseHook):
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  location=None):
-        super(GKEClusterHook, self).__init__(
+        super().__init__(
             gcp_conn_id=gcp_conn_id, delegate_to=delegate_to)
         self._client = None
         self.location = location

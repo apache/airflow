@@ -135,7 +135,7 @@ class CeleryExecutor(BaseExecutor):
     """
 
     def __init__(self):
-        super(CeleryExecutor, self).__init__()
+        super().__init__()
 
         # Celery doesn't support querying the state of multiple tasks in parallel
         # (which can become a bottleneck on bigger clusters) so we use

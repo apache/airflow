@@ -178,7 +178,7 @@ class KubernetesPodOperator(BaseOperator):
                  security_context=None,
                  *args,
                  **kwargs):
-        super(KubernetesPodOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.image = image
         self.namespace = namespace
         self.cmds = cmds or []

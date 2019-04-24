@@ -89,7 +89,7 @@ class OperatorSubclass(BaseOperator):
     template_fields = ['some_templated_field']
 
     def __init__(self, some_templated_field, *args, **kwargs):
-        super(OperatorSubclass, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.some_templated_field = some_templated_field
 
     def execute(*args, **kwargs):
@@ -1073,7 +1073,7 @@ class CliTests(unittest.TestCase):
         cls._cleanup()
 
     def setUp(self):
-        super(CliTests, self).setUp()
+        super().setUp()
         configuration.load_test_config()
         from airflow.www import app as application
         self.app, self.appbuilder = application.create_app(session=Session, testing=True)
@@ -1094,7 +1094,7 @@ class CliTests(unittest.TestCase):
             if self.appbuilder.sm.find_role(role_name):
                 self.appbuilder.sm.delete_role(role_name)
 
-        super(CliTests, self).tearDown()
+        super().tearDown()
 
     @staticmethod
     def _cleanup(session=None):

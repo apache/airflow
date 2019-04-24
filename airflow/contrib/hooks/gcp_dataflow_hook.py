@@ -182,7 +182,7 @@ class DataFlowHook(GoogleCloudBaseHook):
                  poll_sleep=10):
         self.poll_sleep = poll_sleep
         self.num_retries = self._get_field('num_retries', 5)
-        super(DataFlowHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
 
     def get_conn(self):
         """

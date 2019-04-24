@@ -204,7 +204,7 @@ class GcpTransferServiceJobCreateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(GcpTransferServiceJobCreateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
@@ -265,7 +265,7 @@ class GcpTransferServiceJobUpdateOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(GcpTransferServiceJobUpdateOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.body = body
         self.gcp_conn_id = gcp_conn_id
@@ -316,7 +316,7 @@ class GcpTransferServiceJobDeleteOperator(BaseOperator):
     def __init__(
         self, job_name, gcp_conn_id='google_cloud_default', api_version='v1', project_id=None, *args, **kwargs
     ):
-        super(GcpTransferServiceJobDeleteOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -357,7 +357,7 @@ class GcpTransferServiceOperationGetOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, operation_name, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
-        super(GcpTransferServiceOperationGetOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -397,7 +397,7 @@ class GcpTransferServiceOperationsListOperator(BaseOperator):
     # [END gcp_transfer_operations_list_template_fields]
 
     def __init__(self, filter, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
-        super(GcpTransferServiceOperationsListOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.filter = filter
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -436,7 +436,7 @@ class GcpTransferServiceOperationPauseOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, operation_name, gcp_conn_id='google_cloud_default', api_version='v1', *args, **kwargs):
-        super(GcpTransferServiceOperationPauseOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -477,7 +477,7 @@ class GcpTransferServiceOperationResumeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self._validate_inputs()
-        super(GcpTransferServiceOperationResumeOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _validate_inputs(self):
         if not self.operation_name:
@@ -511,7 +511,7 @@ class GcpTransferServiceOperationCancelOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, operation_name, api_version='v1', gcp_conn_id='google_cloud_default', *args, **kwargs):
-        super(GcpTransferServiceOperationCancelOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.operation_name = operation_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
@@ -610,7 +610,7 @@ class S3ToGoogleCloudStorageTransferOperator(BaseOperator):
         **kwargs
     ):
 
-        super(S3ToGoogleCloudStorageTransferOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
         self.project_id = project_id
@@ -748,7 +748,7 @@ class GoogleCloudStorageToGoogleCloudStorageTransferOperator(BaseOperator):
         **kwargs
     ):
 
-        super(GoogleCloudStorageToGoogleCloudStorageTransferOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket
         self.project_id = project_id

@@ -35,7 +35,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     failure, it reads from host machine's local disk.
     """
     def __init__(self, base_log_folder, gcs_log_folder, filename_template):
-        super(GCSTaskHandler, self).__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
         self.log_relative_path = ''
         self._hook = None
@@ -58,7 +58,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             )
 
     def set_context(self, ti):
-        super(GCSTaskHandler, self).set_context(ti)
+        super().set_context(ti)
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
@@ -76,7 +76,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        super(GCSTaskHandler, self).close()
+        super().close()
 
         if not self.upload_on_close:
             return
@@ -116,7 +116,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
                 remote_loc, str(e))
             self.log.error(log)
-            local_log, metadata = super(GCSTaskHandler, self)._read(ti, try_number)
+            local_log, metadata = super()._read(ti, try_number)
             log += local_log
             return log, metadata
 

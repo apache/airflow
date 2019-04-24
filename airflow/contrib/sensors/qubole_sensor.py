@@ -45,7 +45,7 @@ class QuboleSensor(BaseSensorOperator):
                                    "task '{0}' in dag '{1}'."
                                    .format(kwargs['task_id'], kwargs['dag'].dag_id))
 
-        super(QuboleSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def poke(self, context):
 
@@ -86,7 +86,7 @@ class QuboleFileSensor(QuboleSensor):
     @apply_defaults
     def __init__(self, *args, **kwargs):
         self.sensor_class = FileSensor
-        super(QuboleFileSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class QubolePartitionSensor(QuboleSensor):
@@ -109,4 +109,4 @@ class QubolePartitionSensor(QuboleSensor):
     @apply_defaults
     def __init__(self, *args, **kwargs):
         self.sensor_class = PartitionSensor
-        super(QubolePartitionSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)

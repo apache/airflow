@@ -74,7 +74,7 @@ class HiveStatsCollectionOperator(BaseOperator):
                  presto_conn_id='presto_default',
                  mysql_conn_id='airflow_db',
                  *args, **kwargs):
-        super(HiveStatsCollectionOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.table = table
         self.partition = partition
         self.extra_exprs = extra_exprs or {}

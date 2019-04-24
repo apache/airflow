@@ -36,7 +36,7 @@ class CloudSpannerHook(GoogleCloudBaseHook):
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        super(CloudSpannerHook, self).__init__(gcp_conn_id, delegate_to)
+        super().__init__(gcp_conn_id, delegate_to)
 
     def _get_client(self, project_id):
         """

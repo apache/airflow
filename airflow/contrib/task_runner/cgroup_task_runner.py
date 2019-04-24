@@ -54,7 +54,7 @@ class CgroupTaskRunner(BaseTaskRunner):
     """
 
     def __init__(self, local_task_job):
-        super(CgroupTaskRunner, self).__init__(local_task_job)
+        super().__init__(local_task_job)
         self.process = None
         self._finished_running = False
         self._cpu_shares = None

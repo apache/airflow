@@ -87,7 +87,7 @@ class CloudTranslateTextOperator(BaseOperator):
         *args,
         **kwargs
     ):
-        super(CloudTranslateTextOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.values = values
         self.target_language = target_language
         self.format_ = format_

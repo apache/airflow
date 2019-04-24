@@ -57,7 +57,7 @@ class GenericTransfer(BaseOperator):
             destination_conn_id,
             preoperator=None,
             *args, **kwargs):
-        super(GenericTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.sql = sql
         self.destination_table = destination_table
         self.source_conn_id = source_conn_id

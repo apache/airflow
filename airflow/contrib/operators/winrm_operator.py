@@ -60,7 +60,7 @@ class WinRMOperator(BaseOperator):
                  timeout=10,
                  *args,
                  **kwargs):
-        super(WinRMOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.winrm_hook = winrm_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host

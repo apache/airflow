@@ -109,7 +109,7 @@ class BaseJob(Base, LoggingMixin):
         self.heartrate = heartrate
         self.unixname = getpass.getuser()
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
-        super(BaseJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def is_alive(self):
         return (
@@ -579,7 +579,7 @@ class SchedulerJob(BaseJob):
         self._processor_poll_interval = processor_poll_interval
 
         self.do_pickle = do_pickle
-        super(SchedulerJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
         self.max_threads = conf.getint('scheduler', 'max_threads')
@@ -1932,7 +1932,7 @@ class BackfillJob(BaseJob):
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
         self.run_backwards = run_backwards
-        super(BackfillJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
         """
@@ -2575,7 +2575,7 @@ class LocalTaskJob(BaseJob):
         # terminate multiple times
         self.terminating = False
 
-        super(LocalTaskJob, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _execute(self):
         self.task_runner = get_task_runner(self)

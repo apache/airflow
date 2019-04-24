@@ -76,7 +76,7 @@ class BashOperator(BaseOperator):
             output_encoding='utf-8',
             *args, **kwargs):
 
-        super(BashOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding

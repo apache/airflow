@@ -39,7 +39,7 @@ class MySqlHook(DbApiHook):
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs):
-        super(MySqlHook, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
     def set_autocommit(self, conn, autocommit):

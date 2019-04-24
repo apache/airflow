@@ -124,7 +124,7 @@ class S3ToHiveTransfer(BaseOperator):
             tblproperties=None,
             select_expression=None,
             *args, **kwargs):
-        super(S3ToHiveTransfer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.s3_key = s3_key
         self.field_dict = field_dict
         self.hive_table = hive_table

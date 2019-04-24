@@ -57,7 +57,7 @@ class GCPTransferServiceWaitForJobStatusSensor(BaseSensorOperator):
         *args,
         **kwargs
     ):
-        super(GCPTransferServiceWaitForJobStatusSensor, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.job_name = job_name
         self.expected_statuses = (
             {expected_statuses} if isinstance(expected_statuses, six.string_types) else expected_statuses

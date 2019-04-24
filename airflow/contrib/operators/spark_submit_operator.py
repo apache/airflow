@@ -117,7 +117,7 @@ class SparkSubmitOperator(BaseOperator):
                  spark_binary="spark-submit",
                  *args,
                  **kwargs):
-        super(SparkSubmitOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._application = application
         self._conf = conf
         self._files = files

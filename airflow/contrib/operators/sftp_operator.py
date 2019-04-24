@@ -87,7 +87,7 @@ class SFTPOperator(BaseOperator):
                  create_intermediate_dirs=False,
                  *args,
                  **kwargs):
-        super(SFTPOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.ssh_hook = ssh_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
