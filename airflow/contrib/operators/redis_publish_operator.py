@@ -44,11 +44,10 @@ class RedisPublishOperator(BaseOperator):
             redis_conn_id='redis_default',
             *args, **kwargs):
 
-        super(RedisPublishOperator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.redis_conn_id = redis_conn_id
         self.channel = channel
         self.message = message
-        self.redis_hook = RedisHook(redis_conn_id=self.redis_conn_id)
 
     def execute(self, context):
         """
@@ -58,8 +57,10 @@ class RedisPublishOperator(BaseOperator):
         :type context: dict
         """
 
+        redis_hook = RedisHook(redis_conn_id=self.redis_conn_id)
+
         self.log.info('Sending messsage %s to Redis on channel %s', self.message, self.channel)
 
-        result = self.redis_hook.get_conn().publish(channel=self.channel, message=self.message)
+        result = redis_hook.get_conn().publish(channel=self.channel, message=self.message)
 
         self.log.info('Result of publishing %s', result)
