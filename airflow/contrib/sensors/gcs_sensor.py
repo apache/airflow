@@ -193,8 +193,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
     :param min_files: The minimum number of files needed for upload session
         to be considered valid.
     :type min_files: int
-    :param previous_num_files: The previous number of files before the next
-        iteration.
+    :param previous_num_files: The number of files found during the last poke.
     :type previous_num_files: int
     :param inactivity_seconds: The current seconds of the inactivity period.
     :type inactivity_seconds: int
