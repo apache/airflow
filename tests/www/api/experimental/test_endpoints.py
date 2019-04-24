@@ -21,8 +21,6 @@ from datetime import timedelta
 import json
 import unittest
 from urllib.parse import quote_plus
-
-
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
@@ -70,6 +68,69 @@ class TestApiExperimental(TestBase):
         session.close()
         super().tearDown()
 
+    def test_dags_list(self):
+        url_template = '/api/experimental/dags'
+        response = self.client.get(url_template)
+        response_content = json.loads(response.data.decode('utf-8'))
+        self.assertIsInstance(response_content, list)
+        self.assertEqual(200, response.status_code)
+
+    def test_dag_runs(self):
+        url_template = '/api/experimental/dag_runs'
+        response = self.client.get(url_template)
+        response_content = json.loads(response.data.decode('utf-8'))
+        self.assertIsInstance(response_content, list)
+        self.assertEqual(200, response.status_code)
+
+    def test_task_instances(self):
+        url_template = '/api/experimental/task_instances'
+        response = self.client.get(url_template)
+        response_content = json.loads(response.data.decode('utf-8'))
+        self.assertIsInstance(response_content, list)
+        self.assertEqual(200, response.status_code)
+
+    def test_dagid_details(self):
+        url_template = '/api/experimental/dags/{}'
+
+        # Check for valid response
+        dag_id = 'example_bash_operator'
+        response = self.client.get(
+            url_template.format(dag_id)
+        )
+        self.assertIn('dag_id', response.data.decode('utf-8'))
+        self.assertNotIn('error', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+        # Check for invalid response
+        dag_id = 'DNE'
+        response = self.client.get(
+            url_template.format(dag_id)
+        )
+        self.assertIn('error', response.data.decode('utf-8'))
+        self.assertEqual(404, response.status_code)
+
+    def test_dagid_tasks(self):
+        url_template = '/api/experimental/dags/{}/tasks'
+
+        # Check for valid response
+        dag_id = 'example_bash_operator'
+        response = self.client.get(
+            url_template.format(dag_id)
+        )
+        response_content = json.loads(response.data.decode('utf-8'))
+        self.assertIsInstance(response_content, list)
+        self.assertNotIn('error', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+        # Check for invalid response
+        dag_id = 'DNE'
+        response = self.client.get(
+            url_template.format(dag_id)
+        )
+        response_content = json.loads(response.data.decode('utf-8'))
+        self.assertIn('error', response.data.decode('utf-8'))
+        self.assertEqual(404, response.status_code)
+
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
 
@@ -79,6 +140,24 @@ class TestApiExperimental(TestBase):
         self.assertIn('"email"', response.data.decode('utf-8'))
         self.assertNotIn('error', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
+
+        # Check for upstearm and downstearm task list
+        response = self.client.get(
+            url_template.format('example_bash_operator', 'run_after_loop')
+        )
+        self.assertNotIn('error', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+        response_content = json.loads(response.data.decode('utf-8'))
+
+        self.assertIn('"upstream_task_ids"', response.data.decode('utf-8'))
+        expected_upstream_task_list = ["runme_2", "runme_1", "runme_0"]
+        self.assertListEqual(sorted(response_content['upstream_task_ids']),
+                             sorted(expected_upstream_task_list))
+
+        self.assertIn('"downstream_task_ids"', response.data.decode('utf-8'))
+        expected_downstream_task_list = ["run_this_last"]
+        self.assertListEqual(sorted(response_content['downstream_task_ids']),
+                             sorted(expected_downstream_task_list))
 
         response = self.client.get(
             url_template.format('example_bash_operator', 'DNE')
@@ -147,6 +226,22 @@ class TestApiExperimental(TestBase):
         )
         self.assertEqual(404, response.status_code)
 
+    def test_dag_runs_response_for_dag_id(self):
+        url_template = '/api/experimental/dags/{}/dag_runs'
+        dag_id = 'example_bash_operator'
+        response = self.client.get(
+            url_template.format(dag_id)
+        )
+        response_content = json.loads(response.data.decode('utf-8'))
+        self.assertIsInstance(response_content, list)
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.get(
+            url_template.format('DNE')
+        )
+        self.assertIn('error', response.data.decode('utf-8'))
+        self.assertEqual(400, response.status_code)
+
     def test_trigger_dag_for_date(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
@@ -210,6 +305,9 @@ class TestApiExperimental(TestBase):
         )
         self.assertEqual(200, response.status_code)
         self.assertIn('state', response.data.decode('utf-8'))
+        self.assertIn('try_number', response.data.decode('utf-8'))
+        self.assertIn('upstream_task_ids', response.data.decode('utf-8'))
+        self.assertIn('downstream_task_ids', response.data.decode('utf-8'))
         self.assertNotIn('error', response.data.decode('utf-8'))
 
         # Test error for nonexistent dag
@@ -261,6 +359,7 @@ class TestApiExperimental(TestBase):
         )
         self.assertEqual(200, response.status_code)
         self.assertIn('state', response.data.decode('utf-8'))
+        self.assertIn('run_id', response.data.decode('utf-8'))
         self.assertNotIn('error', response.data.decode('utf-8'))
 
         # Test error for nonexistent dag
