@@ -60,6 +60,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_c
 from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+from airflow.utils.synchronized_queue import SynchronizedQueue
 
 Base = models.base.Base  # type: Any
 ID_LEN = models.base.ID_LEN
@@ -319,7 +320,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         """
         self._file_path = file_path
         # Queue that's used to pass results from the child process.
-        self._result_queue = multiprocessing.Queue()
+        self._result_queue = SynchronizedQueue()
         # The process that was launched to process the given .
         self._process = None
         self._dag_id_white_list = dag_id_white_list
@@ -351,7 +352,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         Launch a process to process the given file.
 
         :param result_queue: the queue to use for passing back the result
-        :type result_queue: multiprocessing.Queue
+        :type result_queue: SynchronizedQueue
         :param file_path: the file to process
         :type file_path: unicode
         :param pickle_dags: whether to pickle the DAGs found in the file and
@@ -487,7 +488,10 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
 
         # In case result queue is corrupted.
         if self._result_queue and not self._result_queue.empty():
-            self._result = self._result_queue.get_nowait()
+            # we use get() here because there is no guarantee the
+            # SynchronizedQueue used has something to get immediately even if
+            # empty() returns False
+            self._result = self._result_queue.get()
             self._done = True
             self.log.debug("Waiting for %s", self._process)
             self._process.join()
@@ -498,7 +502,10 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             self._done = True
             # Get the object from the queue or else join() can hang.
             if not self._result_queue.empty():
-                self._result = self._result_queue.get_nowait()
+                # we use get() here because there is no guarantee the
+                # SynchronizedQueue used has something to get immediately  even if
+                # empty() returns False
+                self._result = self._result_queue.get()
             self.log.debug("Waiting for %s", self._process)
             self._process.join()
             return True
@@ -896,7 +903,7 @@ class SchedulerJob(BaseJob):
                 return next_run
 
     @provide_session
-    def _process_task_instances(self, dag, queue, session=None):
+    def _process_task_instances(self, dag, task_instances_list, session=None):
         """
         This method schedules the tasks for a single DAG by looking at the
         active DAG runs and adding task instances that should run to the
@@ -953,7 +960,7 @@ class SchedulerJob(BaseJob):
                         dep_context=DepContext(flag_upstream_failed=True),
                         session=session):
                     self.log.debug('Queuing task: %s', ti)
-                    queue.append(ti.key)
+                    task_instances_list.append(ti.key)
 
     @provide_session
     def _change_state_for_tis_without_dagrun(self,
@@ -1418,8 +1425,8 @@ class SchedulerJob(BaseJob):
         :type dagbag: airflow.models.DagBag
         :param dags: the DAGs from the DagBag to process
         :type dags: airflow.models.DAG
-        :param tis_out: A queue to add generated TaskInstance objects
-        :type tis_out: multiprocessing.Queue[TaskInstance]
+        :param tis_out: A list to add generated TaskInstance objects
+        :type tis_out: list[TaskInstance]
         :rtype: None
         """
         for dag in dags:
@@ -1747,7 +1754,7 @@ class SchedulerJob(BaseJob):
 
         # Not using multiprocessing.Queue() since it's no longer a separate
         # process and due to some unusual behavior. (empty() incorrectly
-        # returns true?)
+        # returns true as described in https://bugs.python.org/issue23582 )
         ti_keys_to_schedule = []
 
         self._process_dags(dagbag, dags, ti_keys_to_schedule)

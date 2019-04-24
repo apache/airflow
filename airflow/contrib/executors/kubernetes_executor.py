@@ -20,7 +20,6 @@ import hashlib
 import re
 import json
 import multiprocessing
-from queue import Queue
 from dateutil import parser
 from uuid import uuid4
 import kubernetes
@@ -38,6 +37,7 @@ from airflow.utils.db import provide_session, create_session
 from airflow import configuration, settings
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.synchronized_queue import SynchronizedQueue
 
 
 class KubernetesExecutorConfig:
@@ -373,7 +373,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.kube_client = kube_client
         self.launcher = PodLauncher(kube_client=self.kube_client)
         self.worker_configuration = WorkerConfiguration(kube_config=self.kube_config)
-        self.watcher_queue = multiprocessing.Queue()
+        self.watcher_queue = SynchronizedQueue()
         self.worker_uuid = worker_uuid
         self.kube_watcher = self._make_kube_watcher()
 
@@ -694,8 +694,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs
         # /CoreV1Api.md#list_namespaced_pod
         KubeResourceVersion.reset_resource_version()
-        self.task_queue = Queue()
-        self.result_queue = Queue()
+        self.task_queue = SynchronizedQueue()
+        self.result_queue = SynchronizedQueue()
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
             self.kube_config, self.task_queue, self.result_queue,
