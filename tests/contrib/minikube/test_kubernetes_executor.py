@@ -65,6 +65,7 @@ class KubernetesExecutorTest(unittest.TestCase):
         session.mount('https://', HTTPAdapter(max_retries=retries))
         return session
 
+    @classmethod
     def setUpClass(cls):
         output = check_output(['kubectl', 'get', 'pods'])
         print(output)
