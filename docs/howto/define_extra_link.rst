@@ -23,7 +23,7 @@ For each operator, you can define its own extra links that can
 redirect users to external systems. The extra link buttons
 will be available on the task page:
 
-.. image:: ../../img/operator_extra_link.png
+.. image:: ../img/operator_extra_link.png
 
 The following code shows how to add extra links to an operator:
 
@@ -32,7 +32,6 @@ The following code shows how to add extra links to an operator:
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.utils.decorators import apply_defaults
 
-    log = logging.getLogger(__name__)
 
     class GoogleLink(BaseOperatorLink):
 
@@ -50,4 +49,4 @@ The following code shows how to add extra links to an operator:
             super(MyFirstOperator, self).__init__(*args, **kwargs)
 
         def execute(self, context):
-            log.info("Hello World!")
+            self.log.info("Hello World!")
