@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+from datetime import datetime
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -164,6 +165,14 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
         return bool(hook.list(self.bucket, prefix=self.prefix))
 
 
+def get_time():
+    """
+    This is just a wrapper of datetime.datetime.now to simplify mocking in the
+    unittests.
+    """
+    return datetime.now()
+
+
 class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
     """
     Checks for changes in the number of files at prefix in Google Cloud Storage
@@ -223,6 +232,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         self.inactivity_seconds = 0
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
+        self.last_activity_time = None
 
     def is_bucket_updated(self, current_num_files):
         """
@@ -236,11 +246,17 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         if current_num_files > self.previous_num_files:
             # When new files arrived, reset the inactivity_seconds
             # previous_num_files for the next poke.
+            self.last_activity_time = get_time()
             self.inactivity_seconds = 0
             self.previous_num_files = current_num_files
         else:
-            self.inactivity_seconds = self.inactivity_seconds \
-                + self.poke_interval
+            if self.last_activity_time:
+                self.inactivity_seconds = (
+                    get_time() - self.last_activity_time).total_seconds()
+            else:
+                # Handles the first poke where last inactivity time is None.
+                self.last_activity_time = get_time()
+                self.inactivity_seconds = 0
 
             if self.inactivity_seconds >= self.inactivity_period and \
                current_num_files >= self.min_files:

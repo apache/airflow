@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -20,12 +19,12 @@
 #
 
 import unittest
-
+import unittest.mock as mock
+from datetime import datetime, timedelta
 from airflow import configuration
 from airflow import models, DAG
-from airflow.contrib.sensors.gcs_sensor import GoogleCloudStorageUploadSessionCompleteSensor
+from airflow.contrib.sensors import gcs_sensor
 from airflow.settings import Session
-from airflow.utils.timezone import datetime
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -42,8 +41,23 @@ def reset(dag_id=TEST_DAG_ID):
 
 reset()
 
+MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
+                   for i in range(11)]
+
+
+def next_time_side_effect():
+    """
+    This each time this is called mock a time 10 seconds later
+    than the previous call.
+    """
+    return MOCK_DATE_ARRAY.pop()
+
+
+mock_time = mock.Mock(side_effect=next_time_side_effect)
+
 
 class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
+
     def setUp(self):
         configuration.load_test_config()
         args = {
@@ -55,7 +69,7 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
         dag.schedule_interval = '@once'
         self.dag = dag
 
-        self.sensor = GoogleCloudStorageUploadSessionCompleteSensor(
+        self.sensor = gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor(
             task_id='sensor',
             bucket='test-bucket',
             prefix='test-prefix/path',
@@ -65,7 +79,9 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
             previous_num_files=0,
             dag=self.dag
         )
+        self.last_mocked_date = datetime(2019, 4, 24, 0, 0, 0)
 
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
     def test_incoming_data(self):
         self.sensor.is_bucket_updated(2)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
@@ -74,12 +90,14 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
         self.sensor.is_bucket_updated(4)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
 
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
     def test_no_new_data(self):
         self.sensor.is_bucket_updated(2)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
         self.sensor.is_bucket_updated(2)
         self.assertEqual(self.sensor.inactivity_seconds, 10)
 
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
     def test_no_new_data_success_criteria(self):
         self.sensor.is_bucket_updated(2)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
@@ -87,8 +105,12 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
         self.assertEqual(self.sensor.inactivity_seconds, 10)
         self.assertTrue(self.sensor.is_bucket_updated(2))
 
-    def test_no_new_data_not_enough_files(self):
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
+    def test_not_enough_files(self):
         self.sensor.is_bucket_updated(0)
+        self.assertEqual(self.sensor.inactivity_seconds, 0)
+        self.sensor.is_bucket_updated(0)
+        self.assertEqual(self.sensor.inactivity_seconds, 10)
         self.assertFalse(self.sensor.is_bucket_updated(0))
 
 
