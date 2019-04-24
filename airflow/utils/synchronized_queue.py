@@ -71,7 +71,10 @@ class SynchronizedQueue(Queue):
         self.block = block
         self.timeout = timeout
         self.size = SharedCounter(0)
-        super().__init__(maxsize, ctx=multiprocessing.get_context())
+        if hasattr(multiprocessing, 'get_context'):
+            super(SynchronizedQueue, self).__init__(maxsize, ctx=multiprocessing.get_context())
+        else:
+            super(SynchronizedQueue, self).__init__(maxsize)
 
     def put(self, *args, **kwargs):
         self.size.increment(1)
