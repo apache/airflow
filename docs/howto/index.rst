@@ -41,6 +41,7 @@ configuring an Airflow environment.
     run-with-upstart
     use-test-config
     check-health
+    define_extra_link
 
 .. toctree::
     :maxdepth: 2

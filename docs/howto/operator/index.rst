@@ -32,4 +32,3 @@ information.
     dingding
     gcp/index
     python
-    define_extra_link
