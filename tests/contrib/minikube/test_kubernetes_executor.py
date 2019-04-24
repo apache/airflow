@@ -65,14 +65,12 @@ class KubernetesExecutorTest(unittest.TestCase):
         session.mount('https://', HTTPAdapter(max_retries=retries))
         return session
 
-    @classmethod
-    def setUpClass(cls):
-        output = check_output(['kubectl', 'get', 'pods'])
-        print(output)
-        print(output.decode())
-
     def setUp(self):
         self.session = self._get_session_with_retries()
+        output = check_output(['kubectl', 'get', 'pods'])
+        print('Active k8s pods:')
+        print(output)
+        print(output.decode())
 
     def tearDown(self):
         self.session.close()
