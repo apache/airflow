@@ -29,14 +29,7 @@ try:
 except ImportError:
     pass
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
+from tests.compat import mock
 
 class SingularityOperatorTestCase(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.singularity_operator.Client')
