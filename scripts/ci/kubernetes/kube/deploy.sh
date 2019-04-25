@@ -176,6 +176,7 @@ else
   exit 1
 fi
 
+# Wait until Airflow webserver is up
 MINIKUBE_IP=$(minikube ip)
 AIRFLOW_WEBSERVER_IS_READY=0
 for i in {1..30}
@@ -191,7 +192,7 @@ done
 if [[ "$AIRFLOW_WEBSERVER_IS_READY" == 1 ]]; then
   echo "Airflow webserver is ready."
 else
-  echo "Airflow webserver is not ready after wating for a long time. Exiting..."
+  echo "Airflow webserver is not ready after waiting for a long time. Exiting..."
   exit 1
 fi
 

@@ -71,6 +71,9 @@ class KubernetesExecutorTest(unittest.TestCase):
         print('Active k8s pods:')
         print(output)
         print(output.decode())
+        result = self.session.get(
+            "http://{host}/health".format(host=get_minikube_host()))
+        self.assertEqual(result.status_code, 200, "Airflow webserver is not healthy")
 
     def tearDown(self):
         self.session.close()
