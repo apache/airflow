@@ -237,8 +237,8 @@ class Airflow(AirflowBaseView):
 
             if arg_search_query:
                 dags_query = dags_query.filter(
-                    sqla.func.lower(DagModel.dag_id)
-                    .like('%' + arg_search_query.lower() + '%')
+                    DagModel.dag_id.ilike('%' + arg_search_query + '%') |
+                    DagModel.owners.ilike('%' + arg_search_query + '%')
                 )
 
             if 'all_dags' not in filter_dag_ids:
