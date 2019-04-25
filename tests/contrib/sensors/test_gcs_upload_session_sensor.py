@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
+# or more contributor license agreements.  See the NOTICE object
 # distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
+# regarding copyright ownership.  The ASF licenses this object
 # to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
+# "License"); you may not use this object except in compliance
 # with the License.  You may obtain a copy of the License at
 #
 #   http://www.apache.org/licenses/LICENSE-2.0
@@ -42,7 +42,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10)
-                   for i in range(11)]
+                   for i in range(20)]
 
 
 def next_time_side_effect():
@@ -75,12 +75,43 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
             prefix='test-prefix/path',
             inactivity_period=12,
             poke_interval=10,
-            min_files=1,
-            previous_num_files=0,
+            min_objects=1,
+            allow_delete=False,
+            previous_num_objects=0,
             dag=self.dag
         )
         self.last_mocked_date = datetime(2019, 4, 24, 0, 0, 0)
 
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
+    def test_files_deleted_between_pokes_throw_error(self):
+        self.sensor.is_bucket_updated(2)
+        with self.assertRaises(RuntimeError):
+            self.sensor.is_bucket_updated(1)
+
+    @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
+    def test_files_deleted_between_pokes_allow_delete(self):
+        self.sensor = gcs_sensor.GoogleCloudStorageUploadSessionCompleteSensor(
+            task_id='sensor',
+            bucket='test-bucket',
+            prefix='test-prefix/path',
+            inactivity_period=12,
+            poke_interval=10,
+            min_objects=1,
+            allow_delete=True,
+            previous_num_objects=0,
+            dag=self.dag
+        )
+        self.sensor.is_bucket_updated(2)
+        self.assertEqual(self.sensor.inactivity_seconds, 0)
+        self.sensor.is_bucket_updated(1)
+        self.assertEqual(self.sensor.previous_num_objects, 1)
+        self.assertEqual(self.sensor.inactivity_seconds, 0)
+        self.sensor.is_bucket_updated(2)
+        self.assertEqual(self.sensor.inactivity_seconds, 0)
+        self.sensor.is_bucket_updated(2)
+        self.assertEqual(self.sensor.inactivity_seconds, 10)
+        self.assertTrue(self.sensor.is_bucket_updated(2))
+    
     @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
     def test_incoming_data(self):
         self.sensor.is_bucket_updated(2)
@@ -106,7 +137,7 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
         self.assertTrue(self.sensor.is_bucket_updated(2))
 
     @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
-    def test_not_enough_files(self):
+    def test_not_enough_objects(self):
         self.sensor.is_bucket_updated(0)
         self.assertEqual(self.sensor.inactivity_seconds, 0)
         self.sensor.is_bucket_updated(0)
