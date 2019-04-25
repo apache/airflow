@@ -233,7 +233,10 @@ class Airflow(AirflowBaseView):
             query = query.filter(~DM.is_paused)
 
         if arg_search_query:
-            query = query.filter(sqla.func.lower(DM.dag_id).like('%' + arg_search_query.lower() + '%'))
+            query = query.filter(
+                DagModel.dag_id.ilike('%' + arg_search_query + '%') |
+                DagModel.owners.ilike('%' + arg_search_query + '%')
+            )
 
         import_errors = session.query(errors.ImportError).all()
         for ie in import_errors:
