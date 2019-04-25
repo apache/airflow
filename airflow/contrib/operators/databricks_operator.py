@@ -61,6 +61,7 @@ def _deep_string_coerce(content, json_path='json'):
 def _handle_databricks_operator_execution(operator, hook, log, context):
     """
     Handles the Airflow + Databricks lifecycle logic for a Databricks operator
+
     :param operator: Databricks operator being handled
     :param context: Airflow context
     """
