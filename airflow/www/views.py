@@ -236,7 +236,10 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.filter(~DagModel.is_paused)
 
             if arg_search_query:
-                dags_query = dags_query.filter(sqla.func.lower(DagModel.dag_id) == arg_search_query.lower())
+                dags_query = dags_query.filter(
+                    sqla.func.lower(DagModel.dag_id)
+                    .like('%' + arg_search_query.lower() + '%')
+                )
 
             if 'all_dags' not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
