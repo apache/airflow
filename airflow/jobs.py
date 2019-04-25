@@ -940,7 +940,10 @@ class SchedulerJob(BaseJob):
             tis = run.get_task_instances(state=(State.NONE,
                                                 State.UP_FOR_RETRY,
                                                 State.UP_FOR_RESCHEDULE))
-
+            
+            # sort tasks by topology order to speed up the skip status propagation on one call
+            tis = sorted(tis, key=lambda x: x.priority_weight, reverse=True)
+            
             # this loop is quite slow as it uses are_dependencies_met for
             # every task (in ti.is_runnable). This is also called in
             # update_state above which has already checked these tasks
