@@ -44,7 +44,8 @@ def get_context_from_env_var():
     """
     Extract context from env variable, e.g. dag_id, task_id and execution_date,
     so that they can be used inside BashOperator and PythonOperator.
-    :return: The context of interest.
+
+    :return The context of interest.
     """
     return {format_map['default']: os.environ.get(format_map['env_var_format'], '')
             for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}
