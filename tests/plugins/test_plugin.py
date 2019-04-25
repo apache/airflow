@@ -27,7 +27,7 @@ from flask_appbuilder import BaseView as AppBuilderBaseView
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperatorLink, BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 
@@ -104,6 +104,20 @@ ml = MenuLink(
     url="https://airflow.apache.org/")
 
 
+class AirflowLink(BaseOperatorLink):
+    name = 'airflow'
+
+    def get_link(self, operator, dttm):
+        return 'should_be_overridden'
+
+
+class GithubLink(BaseOperatorLink):
+    name = 'github'
+
+    def get_link(self, operator, dttm):
+        return 'https://github.com/apache/airflow'
+
+
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -117,6 +131,10 @@ class AirflowTestPlugin(AirflowPlugin):
     menu_links = [ml]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem]
+    global_operator_extra_links = [
+        AirflowLink(),
+        GithubLink(),
+    ]
 
 
 class MockPluginA(AirflowPlugin):

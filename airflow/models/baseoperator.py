@@ -18,6 +18,7 @@
 # under the License.
 
 from abc import ABCMeta, abstractmethod
+from cached_property import cached_property
 import copy
 import functools
 import logging
@@ -232,7 +233,7 @@ class BaseOperator(LoggingMixin):
     shallow_copy_attrs = ()  # type: Iterable[str]
 
     # Defines the operator level extra links
-    operator_extra_link_dict = {}  # type: Dict[str, BaseOperatorLink]
+    operator_extra_links = ()  # type: Iterable[BaseOperatorLink]
 
     @apply_defaults
     def __init__(
@@ -563,6 +564,15 @@ class BaseOperator(LoggingMixin):
             map(lambda task_id: self._dag.task_dict[task_id].priority_weight,
                 self.get_flat_relative_ids(upstream=upstream))
         )
+
+    @cached_property
+    def operator_extra_link_dict(self):
+        return {link.name: link for link in self.operator_extra_links}
+
+    @cached_property
+    def global_operator_extra_link_dict(self):
+        from airflow.plugins_manager import global_operator_extra_links
+        return {link.name: link for link in global_operator_extra_links}
 
     @prepare_lineage
     def pre_execute(self, context):
@@ -946,10 +956,11 @@ class BaseOperator(LoggingMixin):
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
 
-    @property
+    @cached_property
     def extra_links(self):
         # type: () -> Iterable[str]
-        return list(self.operator_extra_link_dict.keys())
+        return list(set(self.operator_extra_link_dict.keys())
+                    .union(self.global_operator_extra_link_dict.keys()))
 
     def get_extra_links(self, dttm, link_name):
         """
@@ -964,6 +975,8 @@ class BaseOperator(LoggingMixin):
         """
         if link_name in self.operator_extra_link_dict:
             return self.operator_extra_link_dict[link_name].get_link(self, dttm)
+        elif link_name in self.global_operator_extra_link_dict:
+            return self.global_operator_extra_link_dict[link_name].get_link(self, dttm)
 
 
 class BaseOperatorLink:
@@ -973,6 +986,25 @@ class BaseOperatorLink:
 
     __metaclass__ = ABCMeta
 
+    @property
+    @abstractmethod
+    def name(self):
+        # type: () -> str
+        """
+        Name of the link. This will be the button name on the task UI.
+
+        :return: link name
+        """
+        pass
+
     @abstractmethod
     def get_link(self, operator, dttm):
+        # type: (BaseOperator, datetime) -> str
+        """
+        Link to external system.
+
+        :param operator: airflow operator
+        :param dttm: datetime
+        :return: link to external system
+        """
         pass
