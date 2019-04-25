@@ -57,6 +57,7 @@ class LdapException(Exception):
 def get_ldap_connection(dn=None, password=None):
     try:
         cacert = configuration.conf.get("ldap", "cacert")
+        use_ssl = configuration.conf.get("ldap", "use_ssl")
     except AirflowConfigException:
         pass
 
@@ -68,14 +69,20 @@ def get_ldap_connection(dn=None, password=None):
     if ignore_malformed_schema:
         set_config_parameter('IGNORE_MALFORMED_SCHEMA', ignore_malformed_schema)
 
-    tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
-                            ca_certs_file=cacert)
+    if use_ssl is True:
+        tls_configuration = Tls(validate=ssl.CERT_REQUIRED,
+                                ca_certs_file=cacert)
 
-    server = Server(configuration.conf.get("ldap", "uri"),
-                    use_ssl=True,
-                    tls=tls_configuration)
+        server = Server(configuration.conf.get("ldap", "uri"),
+                        use_ssl=True,
+                        tls=tls_configuration)
+    else:
+        server = Server(configuration.conf.get("ldap", "uri"))
 
-    conn = Connection(server, native(dn), native(password))
+    if password != '':
+        conn = Connection(server, native(dn), password)
+    else:
+        conn = Connection(server)
 
     if not conn.bind():
         log.error("Cannot bind to ldap server: %s ", conn.last_error)
