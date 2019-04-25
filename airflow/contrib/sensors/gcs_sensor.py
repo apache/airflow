@@ -234,7 +234,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
         self.min_objects = min_objects
         self.previous_num_objects = previous_num_objects
         self.inactivity_seconds = 0
-        self.allow_delete=allow_delete
+        self.allow_delete = allow_delete
         self.google_cloud_conn_id = google_cloud_conn_id
         self.delegate_to = delegate_to
         self.last_activity_time = None
@@ -301,7 +301,7 @@ class GoogleCloudStorageUploadSessionCompleteSensor(BaseSensorOperator):
                 warn_msg = \
                     '''
                     FAILURE:
-                    Inactivity Period passed, 
+                    Inactivity Period passed,
                     not enough objects found in {}
                     '''.format(
                         os.path.join(self.bucket, self.prefix))

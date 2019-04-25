@@ -111,7 +111,7 @@ class GoogleCloudStorageUploadSessionCompleteSensorTest(unittest.TestCase):
         self.sensor.is_bucket_updated(2)
         self.assertEqual(self.sensor.inactivity_seconds, 10)
         self.assertTrue(self.sensor.is_bucket_updated(2))
-    
+
     @mock.patch('airflow.contrib.sensors.gcs_sensor.get_time', mock_time)
     def test_incoming_data(self):
         self.sensor.is_bucket_updated(2)
