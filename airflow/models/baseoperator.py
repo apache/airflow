@@ -264,7 +264,7 @@ class BaseOperator(LoggingMixin):
         on_failure_callback=None,  # type: Optional[Callable]
         on_success_callback=None,  # type: Optional[Callable]
         on_retry_callback=None,  # type: Optional[Callable]
-        trigger_rule=TriggerRule.ALL_SUCCESS,  # type: str
+        trigger_rule=TriggerRule.NONE_FAILED,  # type: str
         resources=None,  # type: Optional[Dict]
         run_as_user=None,  # type: Optional[str]
         task_concurrency=None,  # type: Optional[int]
