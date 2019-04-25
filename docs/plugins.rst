@@ -106,6 +106,13 @@ looks like:
            # ... perform Plugin boot actions
            pass
 
+        # A list of global operator extra links that can redirect users to
+        # external systems. These extra links will be available on the
+        # task page in the form of buttons.
+        #
+        # Note: the global operator extra link can be overridden at each
+        # operator level.
+        global_operator_extra_links = []
 
 
 
@@ -131,6 +138,8 @@ For example,
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
 
+.. _plugin-example:
+
 Example
 -------
 
@@ -148,6 +157,7 @@ definitions in Airflow.
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
     from airflow.models import BaseOperator
+    from airflow.models.baseoperator import BaseOperatorLink
     from airflow.sensors.base_sensor_operator import BaseSensorOperator
     from airflow.executors.base_executor import BaseExecutor
 
@@ -202,6 +212,19 @@ definitions in Airflow.
     def stat_name_dummy_handler(stat_name):
         return stat_name
 
+    # A global operator extra link that redirect you to
+    # task logs stored in S3
+    class S3LogLink(BaseOperatorLink):
+        name = 'S3'
+
+        def get_link(self, operator, dttm):
+            return 'https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{execution_date}'.format(
+                dag_id=operator.dag_id,
+                task_id=operator.task_id,
+                execution_date=dttm,
+            )
+
+
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
@@ -214,6 +237,7 @@ definitions in Airflow.
         appbuilder_views = [v_appbuilder_package]
         appbuilder_menu_items = [appbuilder_mitem]
         stat_name_handler = staticmethod(stat_name_dummy_handler)
+        global_operator_extra_links = [S3LogLink(),]
 
 
 Note on role based views

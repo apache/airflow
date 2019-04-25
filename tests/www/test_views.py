@@ -1671,28 +1671,38 @@ class TestExtraLinks(TestBase):
         self.DEFAULT_DATE = datetime(2017, 1, 1)
 
         class RaiseErrorLink(BaseOperatorLink):
+            name = 'raise_error'
 
             def get_link(self, operator, dttm):
                 raise ValueError('This is an error')
 
         class NoResponseLink(BaseOperatorLink):
+            name = 'no_response'
 
             def get_link(self, operator, dttm):
                 return None
 
         class FooBarLink(BaseOperatorLink):
+            name = 'foo-bar'
 
             def get_link(self, operator, dttm):
                 return 'http://www.example.com/{0}/{1}/{2}'.format(
                     operator.task_id, 'foo-bar', dttm)
 
+        class AirflowLink(BaseOperatorLink):
+            name = 'airflow'
+
+            def get_link(self, operator, dttm):
+                return 'https://airflow.apache.org'
+
         class DummyTestOperator(BaseOperator):
 
-            operator_extra_link_dict = {
-                'raise_error': RaiseErrorLink(),
-                'no_response': NoResponseLink(),
-                'foo-bar': FooBarLink()
-            }
+            operator_extra_links = (
+                RaiseErrorLink(),
+                NoResponseLink(),
+                FooBarLink(),
+                AirflowLink(),
+            )
 
         self.dag = DAG('dag', start_date=self.DEFAULT_DATE)
         self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
@@ -1716,6 +1726,42 @@ class TestExtraLinks(TestBase):
         self.assertEqual(json.loads(response_str), {
             'url': ('http://www.example.com/some_dummy_task/'
                     'foo-bar/2017-01-01T00:00:00+00:00'),
+            'error': None
+        })
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_global_extra_links_works(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=github"
+            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://github.com/apache/airflow',
+            'error': None
+        })
+
+    @mock.patch('airflow.www.views.dagbag.get_dag')
+    def test_operator_extra_link_override_global_extra_link(self, get_dag_function):
+        get_dag_function.return_value = self.dag
+
+        response = self.client.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&link_name=airflow".format(
+                self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        response_str = response.data
+        if isinstance(response.data, bytes):
+            response_str = response_str.decode()
+        self.assertEqual(json.loads(response_str), {
+            'url': 'https://airflow.apache.org',
             'error': None
         })
 

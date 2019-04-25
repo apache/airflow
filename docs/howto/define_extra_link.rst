@@ -50,3 +50,8 @@ The following code shows how to add extra links to an operator:
 
         def execute(self, context):
             self.log.info("Hello World!")
+
+You can also add a global operator extra link that will be available to
+all the operators through airflow plugin. Learn more about it in the
+:ref:`plugin example <plugin-example>`.
+
