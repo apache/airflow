@@ -1846,7 +1846,9 @@ class SkipMixin(object):
             if downstream_task.trigger_rule in ['all_success', 'all_failed']:
                 all_downstream.append(downstream_task)
         for downstream_task in all_downstream:
-            all_downstream.extend(self.find_all_downstream_tasks(downstream_task))
+            all_downstream.extend(self.find_all_downstream_skippable(downstream_task))
+            
+        return all_downstream
 
 
 @functools.total_ordering
