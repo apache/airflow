@@ -24,6 +24,51 @@ import unittest
 from tempfile import NamedTemporaryFile
 
 from airflow.hooks.postgres_hook import PostgresHook
+from airflow.models import Connection
+
+
+class TestPostgresHookConn(unittest.TestCase):
+
+    def setUp(self):
+        super().setUp()
+
+        self.connection = Connection(
+            login='login',
+            password='password',
+            host='host',
+            schema='schema'
+        )
+
+        self.db_hook = PostgresHook()
+        self.db_hook.get_connection = mock.Mock()
+        self.db_hook.get_connection.return_value = self.connection
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    def test_get_conn(self, mock_connect):
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(user='login', password='password', host='host',
+                                             dbname='schema', port=None)
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    def test_get_conn_rds_iam_postgres(self, mock_client, mock_connect):
+        self.connection.extra = '{"iam":true}'
+        mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(user='login', password='aws_token', host='host',
+                                             dbname='schema', port=5432)
+
+    @mock.patch('airflow.hooks.postgres_hook.psycopg2.connect')
+    @mock.patch('airflow.contrib.hooks.aws_hook.AwsHook.get_client_type')
+    def test_get_conn_rds_iam_redshift(self, mock_client, mock_connect):
+        self.connection.extra = '{"iam":true, "redshift":true}'
+        self.connection.host = 'cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com'
+        login = 'IAM:{login}'.format(login=self.connection.login)
+        mock_client.return_value.get_cluster_credentials.return_value = {'DbPassword': 'aws_token',
+                                                                         'DbUser': login}
+        self.db_hook.get_conn()
+        mock_connect.assert_called_once_with(user=login, password='aws_token', host=self.connection.host,
+                                             dbname='schema', port=5439)
 
 
 class TestPostgresHook(unittest.TestCase):
