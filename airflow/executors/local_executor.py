@@ -52,7 +52,6 @@ from builtins import range
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from airflow.utils.synchronized_queue import SynchronizedQueue
 
 
 class LocalWorker(multiprocessing.Process, LoggingMixin):
@@ -63,7 +62,7 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
     def __init__(self, result_queue):
         """
         :param result_queue: the queue to store result states tuples (key, State)
-        :type result_queue: SynchronizedQueue
+        :type result_queue: multiprocessing.Queue
         """
         super().__init__()
         self.daemon = True
@@ -207,7 +206,7 @@ class LocalExecutor(BaseExecutor):
             self.executor.sync()
 
     def start(self):
-        self.result_queue = SynchronizedQueue()
+        self.result_queue = multiprocessing.Queue()
         self.queue = None
         self.workers = []
         self.workers_used = 0
