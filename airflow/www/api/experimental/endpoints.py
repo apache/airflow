@@ -243,7 +243,7 @@ def tasks(dag_id):
 def task_info(dag_id, task_id):
     """Returns a JSON with a task's public instance variables. """
     try:
-        info = get_task(dag_id, task_id)
+        info = get_task_as_dict(dag_id, task_id)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
@@ -251,10 +251,7 @@ def task_info(dag_id, task_id):
         return response
 
     # JSONify and return.
-    fields = {k: str(v)
-              for k, v in vars(info).items()
-              if not k.startswith('_')}
-    return jsonify(fields)
+    return jsonify(info)
 
 
 # ToDo: Shouldn't this be a PUT method?
