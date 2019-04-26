@@ -21,6 +21,7 @@ from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_runs import get_dag_runs
+from airflow.api.common.experimental.get_task_logs import get_task_logs
 from airflow.api.common.experimental.get_all_dag_runs import get_all_dag_runs
 from airflow.api.common.experimental.get_all_task_instances import get_all_task_instances
 from airflow.api.common.experimental.get_dags import get_dags
@@ -43,6 +44,39 @@ _log = LoggingMixin().log
 requires_authentication = airflow.api.API_AUTH.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
+
+@api_experimental.route(
+    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>/logs',
+    methods=['GET'])
+@requires_authentication
+def logs(dag_id, execution_date, task_id):
+    """
+    Return logs for the specified task identified by dag_id, execution_date and task_id
+    """
+    try:
+        log = get_task_logs(dag_id, task_id, execution_date)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    except ValueError:
+        error_message = (
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
+            .format(execution_date))
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+        return response
+    except AttributeError as e:
+        error_message = ["Unable to read logs.\n{}\n".format(str(e))]
+        metadata = {}
+        metadata['end_of_log'] = True
+        return jsonify(message=error_message, error=True, metadata=metadata)
+
+    return log
+
 
 @api_experimental.route('/dag_runs', methods=['GET'])
 @requires_authentication
