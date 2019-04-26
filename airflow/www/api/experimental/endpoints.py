@@ -29,7 +29,6 @@ from airflow.api.common.experimental.get_task import get_task_as_dict
 from airflow.api.common.experimental.get_tasks import get_tasks
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_code import get_code
-from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
@@ -314,17 +313,20 @@ def task_instance_info(dag_id, execution_date, task_id):
     '/dags/<string:dag_id>/dag_runs/<string:execution_date>',
     methods=['GET'])
 @requires_authentication
-def dag_run_status(dag_id, execution_date):
+def dag_run(dag_id, execution_date):
     """
     Returns a JSON with a dag_run's public instance variables.
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
     """
-
-    # Convert string datetime into actual datetime
     try:
-        execution_date = timezone.parse(execution_date)
+        dagruns = get_dag_runs(dag_id, execution_date=execution_date)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = 404
+        return response
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
@@ -333,18 +335,14 @@ def dag_run_status(dag_id, execution_date):
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400
-
         return response
 
-    try:
-        info = get_dag_run_state(dag_id, execution_date)
-    except AirflowException as err:
-        _log.info(err)
+    if not dagruns:
+        err = "No Dag run found with provided execution date"
         response = jsonify(error="{}".format(err))
-        response.status_code = err.status_code
+        response.status_code = 404
         return response
-
-    return jsonify(info)
+    return jsonify(dagruns[0])
 
 
 @api_experimental.route('/latest_runs', methods=['GET'])
